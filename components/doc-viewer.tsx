@@ -216,7 +216,13 @@ export function DocViewer({ id, mime }: { id: number; mime: string }) {
       )}
       {state === 'error' && (
         <p className="py-10 text-center text-[13px] text-bad-400">
-          Не удалось показать документ{error ? `: ${error}` : ''}. Попробуй «Открыть в браузере».
+          Не удалось показать документ{error ? `: ${error}` : ''}.{' '}
+          {/* Only reached here, when the in-app viewer actually failed — a direct file
+              link obeys the browser's "download PDFs instead of opening" setting, which
+              is exactly the confusing "a folder opened" behaviour this viewer avoids. */}
+          <a href={`/api/docs/${id}?download=1`} download className="text-haul-400 underline hover:text-haul-300">
+            Скачать файл
+          </a>
         </p>
       )}
 

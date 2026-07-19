@@ -22,9 +22,13 @@ import { Info } from '@/components/info'
 /** Where the fields on screen came from — shown as a badge over Driver Information. */
 type AiState = 'idle' | 'loading' | 'done' | 'fallback'
 
-// Only the single-value fields. pickupStop/deliveryStop are whole text blocks and
-// are shown inside Driver Information instead.
-type FoundKey = Exclude<keyof RateConFields, 'pickupStop' | 'deliveryStop'>
+// Only the single-value fields. pickupStop/deliveryStop/importantNotes are whole
+// text blocks shown inside Driver Information / broker notes; pickup/deliveryAddress
+// only feed the map pin, not a form field.
+type FoundKey = Exclude<
+  keyof RateConFields,
+  'pickupStop' | 'deliveryStop' | 'importantNotes' | 'pickupAddress' | 'deliveryAddress'
+>
 
 const LABELS: Record<FoundKey, string> = {
   rate: 'Ставка',

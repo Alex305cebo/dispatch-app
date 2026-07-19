@@ -2,14 +2,19 @@ import Link from 'next/link'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { truckLabel } from '@/lib/map'
 import { getCompany } from '@/lib/invoice'
-import { truckPhotoFlags } from '@/lib/maintenance'
+import { truckPhotoFlags, truckTrailerNumbers } from '@/lib/maintenance'
 import { usd } from '@/lib/fmt'
 import { DriverAvatar } from '@/components/driver-avatar'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Page() {
-  const [trucks, company, photoIds] = await Promise.all([listTrucks(), getCompany(), truckPhotoFlags()])
+  const [trucks, company, photoIds, trailers] = await Promise.all([
+    listTrucks(),
+    getCompany(),
+    truckPhotoFlags(),
+    truckTrailerNumbers(),
+  ])
   // Per-truck loads in parallel — the whole point is strict separation, so each
   // truck's money is computed only from its own loads.
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
@@ -71,6 +76,7 @@ export default async function Page() {
               <div className="min-w-0">
                 <div className="truncate text-[15px] font-semibold">{truckLabel(truck)}</div>
                 <div className="mt-0.5 truncate text-[12px] text-white/65">
+                  {trailers.has(truck.id) && <>Трейлер {trailers.get(truck.id)} · </>}
                   {count} груз(ов){active > 0 && ` · ${active} в работе`}
                 </div>
               </div>

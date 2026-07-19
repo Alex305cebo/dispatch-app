@@ -11,6 +11,7 @@ import { TruckForm } from '@/components/truck-form'
 import { DocList, DocUpload } from '@/components/docs'
 import { InvoiceBox } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
+import { BackButton } from '@/components/back-button'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
 
@@ -35,63 +36,63 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <Link href="/loads" className="text-[13px] text-white/65 transition-colors hover:text-white/85">
-        ← Грузы
-      </Link>
+      <BackButton href="/loads" label="Грузы" />
 
-      <h1 className="mt-2 text-[22px] font-semibold">
-        {load.origin ?? '—'} → {load.destination ?? '—'}
-      </h1>
-      <p className="mb-5 text-[13px] text-white/65">
-        <Link href={`/trucks/${truck.id}`} className="text-haul-400 hover:underline">
-          {truckLabel(truck)}
-        </Link>
-        {' · '}
-        {load.source === 'qr' ? 'Пришёл с DAT по QR' : 'Добавлен вручную'}
-        {load.referenceId && ` · Ref ${load.referenceId}`}
-      </p>
+      {/* ===== HERO: route, truck, status and the rate — one card, not four loose pieces ===== */}
+      <section className="relative mt-3 overflow-hidden rounded-3xl border border-white/8 bg-gradient-to-b from-ink-800/80 to-ink-950 p-5 sm:p-8">
+        <h1 className="text-[22px] font-semibold sm:text-[26px]">
+          {load.origin ?? '—'} → {load.destination ?? '—'}
+        </h1>
+        <p className="mt-1.5 text-[13px] text-white/65">
+          <Link href={`/trucks/${truck.id}`} className="text-haul-400 hover:underline">
+            {truckLabel(truck)}
+          </Link>
+          {' · '}
+          {load.source === 'qr' ? 'Пришёл с DAT по QR' : 'Добавлен вручную'}
+          {load.referenceId && ` · Ref ${load.referenceId}`}
+        </p>
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <StatusPicker id={load.id} current={load.status} />
-        {rateConDoc ? (
-          <RateConButton docId={rateConDoc.id} />
-        ) : (
-          <span className="text-[12px] text-white/45">
-            Rate con не прикреплён — загрузи его ниже, в документах груза.
-          </span>
-        )}
-      </div>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <StatusPicker id={load.id} current={load.status} />
+          {rateConDoc ? (
+            <RateConButton docId={rateConDoc.id} />
+          ) : (
+            <span className="text-[12px] text-white/45">
+              Rate con не прикреплён — загрузи его ниже, в документах груза.
+            </span>
+          )}
+        </div>
 
-      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-        <section className="panel p-5">
+        <div className="mt-5 border-t border-white/8 pt-5">
           <h2 className="mb-4 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
             Ставка за груз
-            <Info text="Сверху — общая ставка за груз. Ниже строкой — что остаётся чистыми и минимальная ставка. Все расходы (топливо по MPG и цене дизеля, водитель, фикс за дни, обслуживание, факторинг, диспетч) спрятаны под «Нажмите, чтобы увидеть все расходы»." />
+            <Info text="Сверху — общая ставка за груз. Ниже строкой — что остаётся чистыми и минимальная ставка. Все расходы (топливо по MPG и цене дизеля, водитель, платёж за трак, страховка, ELD/пермиты, обслуживание, факторинг, диспетч) спрятаны под «Нажмите, чтобы увидеть все расходы»." />
           </h2>
           <Analysis r={r} mpg={truck.mpg} spotRpm={load.spotRpm} />
-        </section>
+        </div>
+      </section>
 
-        <section className="panel p-5">
-          <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            Детали
-          </h2>
-          <LoadEditNumbers
-            load={{
-              id: load.id,
-              rate: load.rate,
-              loadedMiles: load.loadedMiles,
-              deadheadMiles: load.deadheadMiles,
-              transitDays: load.transitDays,
-              spotRpm: load.spotRpm,
-              brokerMc: load.brokerMc,
-              brokerPhone: load.brokerPhone,
-              brokerEmail: load.brokerEmail,
-              truckLocation: load.truckLocation,
-              pickupDate: load.pickupDate,
-            }}
-          />
-        </section>
-      </div>
+      <section className="panel mt-4 p-5">
+        <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          Детали
+        </h2>
+        <LoadEditNumbers
+          load={{
+            id: load.id,
+            rate: load.rate,
+            loadedMiles: load.loadedMiles,
+            deadheadMiles: load.deadheadMiles,
+            transitDays: load.transitDays,
+            spotRpm: load.spotRpm,
+            brokerMc: load.brokerMc,
+            brokerPhone: load.brokerPhone,
+            brokerEmail: load.brokerEmail,
+            truckLocation: load.truckLocation,
+            pickupDate: load.pickupDate,
+            deliveryDate: load.deliveryDate,
+          }}
+        />
+      </section>
 
       {/* Broker's must-read instructions — a compact strip under the details;
           collapsed by default because the full text is a wall. */}
@@ -120,7 +121,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               mpg: truck.mpg,
               fuelPricePerGallon: truck.fuelPricePerGallon,
               driverPay: truck.driverPay,
-              fixedCostPerDay: truck.fixedCostPerDay,
+              truckPaymentPerDay: truck.truckPaymentPerDay,
+              insurancePerDay: truck.insurancePerDay,
+              eldPermitsPerDay: truck.eldPermitsPerDay,
               maintenanceCostPerMile: truck.maintenanceCostPerMile,
               factoringPercent: truck.factoringPercent,
               dispatchPercent: truck.dispatchPercent,

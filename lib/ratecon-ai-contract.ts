@@ -18,7 +18,7 @@ Rules:
 - referenceId = the load/order number of this load. mcNumber = the MC number printed. brokerName/brokerPhone/brokerEmail = the broker's contact info.
 - pickupDate = first pickup date as MM/DD/YYYY. deliveryDate = final delivery date as MM/DD/YYYY.
 - weight like "42000 lbs" (keep the unit).
-- importantNotes = a thorough plain-text briefing of EVERYTHING the dispatcher and driver MUST know or do for THIS load, gathered from the WHOLE document (pickup & delivery instructions, notes, special-requirements boxes). Include, when present: load/unload type and detention (live load/unload, hours, $/hr detention), appointment required? and times per stop, WHO to call and WHEN with the actual phone numbers (e.g. "call 1 hour out from PU: LJ 919-760-9924"), reference/PO/BOL/trailer numbers to give at the gate, required paperwork and signatures (trailer interchange agreement, seal, POD with signature+stamp), cargo insurance/value minimums, TWIC/PPE, penalties/fines (heavy fines for late), and any warnings (NO FAIL, event shipment, team, hazmat, temp/reefer setpoint, driver may need to shuffle trailer). Write short clear lines, keep the real numbers and phone numbers. Do NOT invent — only what the document says. null if nothing noteworthy.`
+- importantNotes = EVERYTHING the dispatcher and driver MUST know or do for THIS load, gathered from the WHOLE document (pickup & delivery instructions, notes, special-requirements boxes). Output ONE FACT PER LINE, each line starting with EXACTLY ONE tag from this fixed list, tag first in square brackets: [SAFETY] PPE/TWIC requirements. [LOAD] load/unload type and detention terms (live load/unload, free hours, $/hr after). [SCHEDULE] appointment requirements and times per stop, how strict, layover fees. [CONTACT] who to call and when, with the actual phone number, e.g. "[CONTACT] Call 1 hour out from PU: LJ 919-760-9924". [REF] reference/PO/BOL/trailer/seal numbers to give at the gate. [DOCS] required paperwork or signatures (trailer interchange agreement, seal, POD with signature+stamp). [INSURANCE] cargo insurance or declared-value minimums. [PENALTY] fines and no-pay conditions. [WARNING] anything else that needs flagging (NO FAIL, event shipment, team, hazmat, temp/reefer setpoint, trailer shuffle). Skip a tag entirely if the document says nothing for it — do not pad. Each line is one short, clear instruction with the real numbers/phone numbers/dollar amounts exactly as printed. Do NOT invent — only what the document says. null if nothing noteworthy at all.`
 
 /** Gemini responseSchema (OpenAPI subset, uppercase type names). */
 export const AI_SCHEMA = {
@@ -101,6 +101,13 @@ function stopBlock(s: AiStop | undefined): Stop {
 const cityOf = (s: AiStop | undefined): string | null =>
   s?.city && s.state ? `${s.city}, ${s.state}` : null
 
+/** Plain, geocodable "1234 Industrial Pkwy, Greer, SC 29650" — no company name, unlike stopBlock. */
+function addressLine(s: AiStop | undefined): string | null {
+  if (!s?.street) return null
+  const cityLine = [s.city, s.state, s.zip].filter(Boolean).join(', ').replace(/, (\d)/, ' $1')
+  return [s.street, cityLine].filter(Boolean).join(', ') || null
+}
+
 /** "07/15/2026" → "2026-07-15" for <input type=date>; passes ISO through. */
 function toIso(d: string | null | undefined): string | null {
   if (!d) return null
@@ -138,6 +145,9 @@ export function aiToFields(ai: AiFields, model: string): RateConFields {
     weight: found(ai.weight, ev),
     pickupStop: stopBlock(pu),
     deliveryStop: stopBlock(del),
+    importantNotes: found(ai.importantNotes, ev),
+    pickupAddress: found(addressLine(pu), ev),
+    deliveryAddress: found(addressLine(del), ev),
   }
 }
 
@@ -163,5 +173,8 @@ export function mergeAi(base: RateConFields, ai: RateConFields): RateConFields {
     weight: ai.weight ?? base.weight,
     pickupStop: stop(ai.pickupStop, base.pickupStop),
     deliveryStop: stop(ai.deliveryStop, base.deliveryStop),
+    importantNotes: ai.importantNotes ?? base.importantNotes,
+    pickupAddress: ai.pickupAddress ?? base.pickupAddress,
+    deliveryAddress: ai.deliveryAddress ?? base.deliveryAddress,
   }
 }

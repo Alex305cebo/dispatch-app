@@ -1,8 +1,8 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { sql } from '@/lib/db'
 import { DOC_KINDS, fmtSize, type DocKind } from '@/lib/docs'
 import { DocViewer } from '@/components/doc-viewer'
+import { BackButton } from '@/components/back-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,9 +39,7 @@ export default async function Page({
     // Full width on purpose: a zoomed page needs the whole window, not a narrow
     // reading column — that's what made the document look cut off.
     <main className="px-4 pb-24 pt-6 sm:px-6 sm:pt-8">
-      <Link href={backHref} className="text-[13px] text-white/65 transition-colors hover:text-white/90">
-        ← Назад
-      </Link>
+      <BackButton href={backHref} label="Назад" />
 
       <div className="mb-4 mt-2 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
@@ -51,17 +49,6 @@ export default async function Page({
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {/* Escape hatch: hand the raw file to the browser's own viewer. Depending on
-              the browser's PDF setting this may download instead of open — which is
-              exactly why the in-app viewer below is the default. */}
-          <a
-            href={`/api/docs/${doc.id}`}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-xl border border-white/10 px-3 py-2 text-[13px] font-semibold text-white/85 transition-colors hover:bg-white/5"
-          >
-            Открыть в браузере
-          </a>
           <a
             href={`/api/docs/${doc.id}?download=1`}
             download={doc.title}

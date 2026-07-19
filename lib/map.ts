@@ -33,6 +33,11 @@ export type LoadRecord = Load & {
   notesReadAt: string | null
   referenceId: string | null
   pickupDate: string | null
+  deliveryDate: string | null
+  pickupTime: string | null
+  deliveryTime: string | null
+  pickupAddress: string | null
+  deliveryAddress: string | null
   source: 'manual' | 'qr'
   createdAt: string
   invoiceNumber: string | null
@@ -74,6 +79,11 @@ export type LoadRow = {
   notes_read_at?: Date | string | null
   reference_id: string | null
   pickup_date: Date | string | null
+  delivery_date?: Date | string | null
+  pickup_time?: string | null
+  delivery_time?: string | null
+  pickup_address?: string | null
+  delivery_address?: string | null
   source: string
   created_at: Date | string
   invoice_number?: string | null
@@ -92,7 +102,9 @@ export type TruckRow = {
   driver_pay_mode: string
   driver_cents_per_mile: number | null
   driver_percent_of_gross: number | null
-  fixed_cost_per_day: number
+  truck_payment_per_day: number
+  insurance_per_day: number
+  eld_permits_per_day: number
   maintenance_cost_per_mile: number
   factoring_percent: number
   dispatch_percent: number
@@ -122,6 +134,11 @@ export function rowToLoad(r: LoadRow): LoadRecord {
     notesReadAt: r.notes_read_at ? new Date(r.notes_read_at).toISOString() : null,
     referenceId: r.reference_id,
     pickupDate: isoDate(r.pickup_date),
+    deliveryDate: isoDate(r.delivery_date ?? null),
+    pickupTime: r.pickup_time ?? null,
+    deliveryTime: r.delivery_time ?? null,
+    pickupAddress: r.pickup_address ?? null,
+    deliveryAddress: r.delivery_address ?? null,
     source: r.source as 'manual' | 'qr',
     createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
     invoiceNumber: r.invoice_number ?? null,
@@ -145,7 +162,9 @@ export function rowToTruck(r: TruckRow): TruckRecord {
       r.driver_pay_mode === 'cpm'
         ? { mode: 'cpm', centsPerMile: r.driver_cents_per_mile! }
         : { mode: 'percent', percentOfGross: r.driver_percent_of_gross! },
-    fixedCostPerDay: r.fixed_cost_per_day,
+    truckPaymentPerDay: r.truck_payment_per_day,
+    insurancePerDay: r.insurance_per_day,
+    eldPermitsPerDay: r.eld_permits_per_day,
     maintenanceCostPerMile: r.maintenance_cost_per_mile,
     factoringPercent: r.factoring_percent,
     dispatchPercent: r.dispatch_percent,

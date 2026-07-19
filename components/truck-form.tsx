@@ -129,10 +129,24 @@ export function TruckForm({ id, initial }: { id: number | null; initial: TruckIn
         )}
 
         <Field
-          label="Постоянные расходы/день"
-          value={t.fixedCostPerDay}
-          onChange={(fixedCostPerDay) => set({ fixedCostPerDay })}
-          step={10}
+          label="Платёж за трак/день"
+          value={t.truckPaymentPerDay}
+          onChange={(truckPaymentPerDay) => set({ truckPaymentPerDay })}
+          step={5}
+          prefix="$"
+        />
+        <Field
+          label="Страховка/день"
+          value={t.insurancePerDay}
+          onChange={(insurancePerDay) => set({ insurancePerDay })}
+          step={5}
+          prefix="$"
+        />
+        <Field
+          label="ELD, пермиты, плейты/день"
+          value={t.eldPermitsPerDay}
+          onChange={(eldPermitsPerDay) => set({ eldPermitsPerDay })}
+          step={1}
           prefix="$"
         />
         <Field
@@ -177,7 +191,12 @@ export const NEW_TRUCK: TruckInput = {
   mpg: 6.5,
   fuelPricePerGallon: 3.85,
   driverPay: { mode: 'cpm', centsPerMile: 60 },
-  fixedCostPerDay: 250,
+  // 2026 US owner-operator market rates (researched): truck payment ~$1,200-2,400/mo
+  // for a used Class 8, insurance ~$900-1,600/mo with own authority, ELD+IRP/IFTA
+  // permits ~$220-340/mo combined.
+  truckPaymentPerDay: 60,
+  insurancePerDay: 40,
+  eldPermitsPerDay: 8,
   maintenanceCostPerMile: 0.18,
   factoringPercent: 2,
   dispatchPercent: 0,

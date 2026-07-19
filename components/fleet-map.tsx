@@ -21,7 +21,7 @@ export type MapMarker = {
   sub?: string // status / location line(s); '\n' splits into separate muted lines
   eta?: string // delivery hint, e.g. "145 mi · ~2ч 40м" — highlighted blue
   tone?: 'move' | 'on' | 'rest'
-  kind?: 'truck' | 'dest'
+  kind?: 'truck' | 'dest' | 'pickup'
   heading?: number // 0-360, compass — rotates the moving-truck arrow to face it
 }
 
@@ -37,6 +37,7 @@ export type MapRoute = {
 // berth is normal, not an alert.
 const STATE_COLOR = { move: '#5AC41D', on: '#f59e0b', rest: '#8b93a5' }
 const DEST = '#5b9dff' // the app's own accent — destinations are a separate icon family, not a status color
+const PICKUP = '#c084fc' // distinct hue from delivery blue and every truck-state color
 const INK = '#0d0f15'
 
 const STREET_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
@@ -74,24 +75,29 @@ const truckSvg = (color: string) => `
     <circle cx="17.3" cy="17.8" r="2.1" fill="${INK}"/>
   </svg>`
 
-function icon(L: typeof import('leaflet'), m: MapMarker) {
-  if (m.kind === 'dest') {
-    // A plain pin, deliberately not a status color — it's an address, not a truck.
-    return L.divIcon({
-      className: '',
-      // width/height are load-bearing, not decoration: a bare block <div> inside
-      // Leaflet's 0×0 icon container collapses to 0 width, which silently breaks
-      // nothing here (no rotation on this pin) but is fixed for consistency with
-      // the arrow below, where the same omission was a real, visible bug.
-      html: `<div style="width:18px;height:22px;transform:translate(-9px,-22px)">
-        <svg width="18" height="22" viewBox="0 0 18 22" style="filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))">
-          <path d="M9 0C4 0 0 4 0 9c0 6.5 9 13 9 13s9-6.5 9-13c0-5-4-9-9-9z" fill="${DEST}" stroke="${INK}" stroke-width="1.5"/>
-          <circle cx="9" cy="9" r="3" fill="${INK}"/>
-        </svg>
-      </div>`,
-      iconSize: [0, 0],
-    })
+// Shared pin shape for address markers (delivery / pickup) — only the fill differs,
+// so the two stay visually related while still being tellable apart at a glance.
+function pin(color: string) {
+  return {
+    className: '',
+    // width/height are load-bearing, not decoration: a bare block <div> inside
+    // Leaflet's 0×0 icon container collapses to 0 width, which silently breaks
+    // nothing here (no rotation on this pin) but is fixed for consistency with
+    // the arrow below, where the same omission was a real, visible bug.
+    html: `<div style="width:18px;height:22px;transform:translate(-9px,-22px)">
+      <svg width="18" height="22" viewBox="0 0 18 22" style="filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))">
+        <path d="M9 0C4 0 0 4 0 9c0 6.5 9 13 9 13s9-6.5 9-13c0-5-4-9-9-9z" fill="${color}" stroke="${INK}" stroke-width="1.5"/>
+        <circle cx="9" cy="9" r="3" fill="${INK}"/>
+      </svg>
+    </div>`,
+    iconSize: [0, 0] as [number, number],
   }
+}
+
+function icon(L: typeof import('leaflet'), m: MapMarker) {
+  // Plain address pins, deliberately not status colors — they mark places, not trucks.
+  if (m.kind === 'dest') return L.divIcon(pin(DEST))
+  if (m.kind === 'pickup') return L.divIcon(pin(PICKUP))
 
   const tone = m.tone ?? 'rest'
   const color = STATE_COLOR[tone]

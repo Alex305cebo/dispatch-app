@@ -22,6 +22,16 @@ export type QrLoad = {
   brokerEmail: string | null
   brokerPhone: string | null
   referenceId: string | null
+  /** Printed on the rate con, not something the DAT extension can ever supply. */
+  pickupDate?: string | null
+  deliveryDate?: string | null
+  /** Raw appointment text as printed ("07/15/26 12:00 Appt") — the map pin shows this. */
+  pickupTime?: string | null
+  deliveryTime?: string | null
+  /** Full street address, when the RC printed one — geocodes to the exact building, not just the city. */
+  pickupAddress?: string | null
+  deliveryAddress?: string | null
+  brokerNotes?: string | null
 }
 
 const NUMS = ['rate', 'miles', 'dh', 'days', 'spot'] as const

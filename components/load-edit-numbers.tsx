@@ -22,6 +22,7 @@ export type LoadDetails = {
   brokerEmail: string | null
   truckLocation: string | null
   pickupDate: string | null
+  deliveryDate: string | null
 }
 
 export function LoadEditNumbers({ load }: { load: LoadDetails }) {
@@ -39,6 +40,8 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
     brokerMc: load.brokerMc ?? '',
     brokerPhone: load.brokerPhone ?? '',
     brokerEmail: load.brokerEmail ?? '',
+    pickupDate: load.pickupDate ?? '',
+    deliveryDate: load.deliveryDate ?? '',
   })
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setF({ ...f, [k]: e.target.value })
@@ -54,6 +57,8 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
         brokerMc: f.brokerMc.trim() || null,
         brokerPhone: f.brokerPhone.trim() || null,
         brokerEmail: f.brokerEmail.trim() || null,
+        pickupDate: f.pickupDate || null,
+        deliveryDate: f.deliveryDate || null,
       })
       if (res?.error) notify('error', res.error)
       else {
@@ -84,7 +89,8 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
           {load.brokerEmail && (
             <Row label="Email" value={load.brokerEmail} href={`mailto:${load.brokerEmail}`} />
           )}
-          {load.pickupDate && <Row label="Загрузка" value={load.pickupDate} />}
+          {load.pickupDate && <Row label="Пикап" value={load.pickupDate} />}
+          {load.deliveryDate && <Row label="Выгрузка" value={load.deliveryDate} />}
         </dl>
         <button
           onClick={() => setEditing(true)}
@@ -109,6 +115,10 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
       <div className="grid grid-cols-2 gap-3">
         <Field label="Телефон" value={f.brokerPhone} onChange={set('brokerPhone')} text />
         <Field label="Email" value={f.brokerEmail} onChange={set('brokerEmail')} text />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Пикап" value={f.pickupDate} onChange={set('pickupDate')} type="date" />
+        <Field label="Выгрузка" value={f.deliveryDate} onChange={set('deliveryDate')} type="date" />
       </div>
       <div className="flex gap-2">
         <button
@@ -137,12 +147,14 @@ function Field({
   value,
   onChange,
   text,
+  type,
   placeholder,
 }: {
   label: string
   value: string
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   text?: boolean
+  type?: 'date'
   placeholder?: string
 }) {
   const input =
@@ -151,8 +163,8 @@ function Field({
     <label className="flex flex-col gap-1">
       <span className="text-[11px] uppercase tracking-wider text-white/55">{label}</span>
       <input
-        type={text ? 'text' : 'number'}
-        inputMode={text ? undefined : 'decimal'}
+        type={type ?? (text ? 'text' : 'number')}
+        inputMode={type || text ? undefined : 'decimal'}
         value={value}
         onChange={onChange}
         placeholder={placeholder}

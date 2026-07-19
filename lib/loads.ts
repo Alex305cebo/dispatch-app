@@ -128,17 +128,20 @@ export async function activeLoadForTruck(truckId: number): Promise<LoadRecord | 
 }
 
 /**
- * The load a truck is "on" for the map/delivery pin: prefer a live one
- * (in_transit → booked → delivered), otherwise fall back to the newest
- * non-cancelled load (e.g. a quote) so its delivery city still shows.
+ * The load a truck is actually hauling RIGHT NOW — drives the map's delivery pin,
+ * the route line and every "до выгрузки · N mi" figure.
+ *
+ * Only in_transit/booked count. It used to fall through to 'delivered' (and any
+ * other non-cancelled status), which meant a truck that had already unloaded still
+ * showed a delivery pin and a route to a city it had left — the map claiming a trip
+ * that was over. A finished load is history, not a destination.
  */
 export async function currentLoadForTruck(truckId: number): Promise<LoadRecord | null> {
   const rows = (await sql`
-    SELECT * FROM loads WHERE truck_id = ${truckId} AND status <> 'cancelled'
+    SELECT * FROM loads
+    WHERE truck_id = ${truckId} AND status IN ('in_transit', 'booked')
     ORDER BY
-      CASE status
-        WHEN 'in_transit' THEN 0 WHEN 'booked' THEN 1
-        WHEN 'delivered' THEN 2 ELSE 3 END,
+      CASE status WHEN 'in_transit' THEN 0 ELSE 1 END,
       created_at DESC
     LIMIT 1`) as LoadRow[]
   return rows[0] ? rowToLoad(rows[0]) : null

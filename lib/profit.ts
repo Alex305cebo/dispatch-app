@@ -12,8 +12,12 @@ export type TruckSettings = {
   fuelPricePerGallon: number
   /** Paid on ALL miles (loaded + deadhead) in cpm mode. */
   driverPay: DriverPay
-  /** Truck note, trailer, insurance, ELD, permits, phone — per day on the road. */
-  fixedCostPerDay: number
+  /** Truck note/lease — per day on the road. ~$1,200–2,400/mo for a used Class 8. */
+  truckPaymentPerDay: number
+  /** Primary liability + cargo + physical damage — per day. ~$900–1,600/mo for an owner-operator with their own authority. */
+  insurancePerDay: number
+  /** ELD subscription + IRP/IFTA/state permits + plates — per day. ~$220–340/mo combined. */
+  eldPermitsPerDay: number
   /** Tires, oil, brakes, the eventual in-frame. ~$0.15–0.25 is realistic. */
   maintenanceCostPerMile: number
   factoringPercent: number
@@ -33,7 +37,9 @@ export type Breakdown = {
   fuel: number
   driver: number
   maintenance: number
-  fixed: number
+  truckPayment: number
+  insurance: number
+  eldPermits: number
   factoring: number
   dispatch: number
   totalCost: number
@@ -68,15 +74,18 @@ export function calcLoad(load: Load, s: TruckSettings): Breakdown {
       ? totalMiles * (s.driverPay.centsPerMile / 100)
       : gross * (s.driverPay.percentOfGross / 100)
   const maintenance = totalMiles * s.maintenanceCostPerMile
-  const fixed = load.transitDays * s.fixedCostPerDay
+  const truckPayment = load.transitDays * s.truckPaymentPerDay
+  const insurance = load.transitDays * s.insurancePerDay
+  const eldPermits = load.transitDays * s.eldPermitsPerDay
   const factoring = gross * (s.factoringPercent / 100)
   const dispatch = gross * (s.dispatchPercent / 100)
 
-  const totalCost = fuel + driver + maintenance + fixed + factoring + dispatch
+  const totalCost = fuel + driver + maintenance + truckPayment + insurance + eldPermits + factoring + dispatch
   const net = gross - totalCost
 
   // Costs that don't scale with gross, divided by the share of gross we keep.
-  const flatCosts = fuel + maintenance + fixed + (s.driverPay.mode === 'cpm' ? driver : 0)
+  const flatCosts =
+    fuel + maintenance + truckPayment + insurance + eldPermits + (s.driverPay.mode === 'cpm' ? driver : 0)
   const breakEvenRate = flatCosts / (1 - grossCutPercent / 100)
 
   return {
@@ -85,7 +94,9 @@ export function calcLoad(load: Load, s: TruckSettings): Breakdown {
     fuel,
     driver,
     maintenance,
-    fixed,
+    truckPayment,
+    insurance,
+    eldPermits,
     factoring,
     dispatch,
     totalCost,

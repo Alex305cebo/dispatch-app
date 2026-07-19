@@ -44,6 +44,15 @@ export type RateConFields = {
   weight: Found<string> | null
   pickupStop: Stop
   deliveryStop: Stop
+  /** AI-only briefing (detention, contacts, appointments, fines…). Regex can't reliably lift this from free text. */
+  importantNotes: Found<string> | null
+  /**
+   * Full street address ("1234 Industrial Pkwy, Greer, SC 29650") for the map pin —
+   * origin/destination above are city-level and don't pin an exact location. AI-only:
+   * the regex parser can't reliably split a street line out of a stop block.
+   */
+  pickupAddress: Found<string> | null
+  deliveryAddress: Found<string> | null
 }
 
 const ABBR = 'AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC'
@@ -531,6 +540,11 @@ export function parseRateCon(raw: string, items?: PositionedText[]): RateConFiel
   const text = normalize(raw)
 
   return {
+    // Regex has no shot at a whole-document briefing or a clean street address —
+    // only the AI path fills these.
+    importantNotes: null,
+    pickupAddress: null,
+    deliveryAddress: null,
     commodity: search(text, [/^\s*commodity\s*:\s*(.+)$/im], (m) => m[1]!.trim() || null),
     weight: search(
       text,
@@ -667,6 +681,13 @@ export function toQrLoad(f: RateConFields): QrLoad {
     brokerPhone: f.brokerPhone?.value ?? null,
     brokerEmail: f.brokerEmail?.value ?? null,
     referenceId: f.referenceId?.value ?? null,
+    pickupDate: f.pickupDate?.value ?? null,
+    deliveryDate: f.deliveryDate?.value ?? null,
+    pickupTime: f.pickupStop.time,
+    deliveryTime: f.deliveryStop.time,
+    pickupAddress: f.pickupAddress?.value ?? null,
+    deliveryAddress: f.deliveryAddress?.value ?? null,
+    brokerNotes: f.importantNotes?.value ?? null,
   }
 }
 

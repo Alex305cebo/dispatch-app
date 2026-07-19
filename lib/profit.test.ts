@@ -6,7 +6,11 @@ const cpmTruck: TruckSettings = {
   mpg: 6.5,
   fuelPricePerGallon: 4.0,
   driverPay: { mode: 'cpm', centsPerMile: 60 },
-  fixedCostPerDay: 250,
+  // Sums to the same 250/day as before the truck-payment/insurance/ELD split, so the
+  // rest of this test's numbers (net, breakEvenRate, etc.) didn't need to change.
+  truckPaymentPerDay: 150,
+  insurancePerDay: 80,
+  eldPermitsPerDay: 20,
   maintenanceCostPerMile: 0.18,
   factoringPercent: 2,
   dispatchPercent: 0,
@@ -26,7 +30,9 @@ test('cpm load breakdown', () => {
   assert.equal(r.fuel, (1100 / 6.5) * 4.0)
   assert.equal(r.driver, 660)
   assert.equal(r.maintenance, 198)
-  assert.equal(r.fixed, 500)
+  assert.equal(r.truckPayment, 300)
+  assert.equal(r.insurance, 160)
+  assert.equal(r.eldPermits, 40)
   assert.equal(r.factoring, 48)
   assert.equal(r.net, r.gross - r.totalCost)
   assert.equal(r.loadedRpm, 2.4)

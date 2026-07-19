@@ -24,6 +24,7 @@ const metaOf = (r: any): TruckMeta => ({
   truckId: r.truck_id,
   vin: r.vin,
   plate: r.plate,
+  trailerNumber: r.trailer_number,
   year: r.year,
   make: r.make,
   model: r.model,
@@ -44,11 +45,19 @@ const metaOf = (r: any): TruckMeta => ({
 // fleet-wide alerts query. driver_photo_mime alone is enough to know it exists.
 export async function getTruckMeta(truckId: number): Promise<TruckMeta | null> {
   const rows = await sql`
-    SELECT truck_id, vin, plate, year, make, model, oil_interval_mi, oil_last_odometer,
-      driver_phone, notes, registration_expiry, inspection_expiry, insurance_expiry,
-      cdl_expiry, medcard_expiry, driver_photo_mime
+    SELECT truck_id, vin, plate, trailer_number, year, make, model, oil_interval_mi,
+      oil_last_odometer, driver_phone, notes, registration_expiry, inspection_expiry,
+      insurance_expiry, cdl_expiry, medcard_expiry, driver_photo_mime
     FROM truck_meta WHERE truck_id = ${truckId}`
   return rows[0] ? metaOf(rows[0]) : null
+}
+
+/** Trailer number per truck, for list/card views that show the truck number
+ * alongside it — a lighter query than getTruckMeta (no photo/dates/notes). */
+export async function truckTrailerNumbers(): Promise<Map<number, string>> {
+  const rows = await sql`
+    SELECT truck_id, trailer_number FROM truck_meta WHERE trailer_number IS NOT NULL`
+  return new Map((rows as { truck_id: number; trailer_number: string }[]).map((r) => [r.truck_id, r.trailer_number]))
 }
 
 /** Fleet-wide compliance: soonest-expiring doc per truck that's within 60 days. */
@@ -56,10 +65,10 @@ export async function fleetExpiryAlerts(): Promise<
   { truckId: number; number: string; item: ExpiryItem }[]
 > {
   const rows = await sql`
-    SELECT m.truck_id, m.vin, m.plate, m.year, m.make, m.model, m.oil_interval_mi,
-      m.oil_last_odometer, m.driver_phone, m.notes, m.registration_expiry,
-      m.inspection_expiry, m.insurance_expiry, m.cdl_expiry, m.medcard_expiry,
-      m.driver_photo_mime, t.number
+    SELECT m.truck_id, m.vin, m.plate, m.trailer_number, m.year, m.make, m.model,
+      m.oil_interval_mi, m.oil_last_odometer, m.driver_phone, m.notes,
+      m.registration_expiry, m.inspection_expiry, m.insurance_expiry, m.cdl_expiry,
+      m.medcard_expiry, m.driver_photo_mime, t.number
     FROM truck_meta m JOIN trucks t ON t.id = m.truck_id`
   const out: { truckId: number; number: string; item: ExpiryItem }[] = []
   for (const r of rows as any[]) {

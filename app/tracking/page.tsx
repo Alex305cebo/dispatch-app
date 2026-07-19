@@ -5,7 +5,7 @@ import { FleetMap, type MapMarker, type MapRoute } from '@/components/fleet-map'
 import { EldLinks } from '@/components/eld-links'
 import { RefreshFleetButton } from '@/components/refresh-fleet-button'
 import { FleetList, type TrackingRow } from '@/components/fleet-list'
-import { deliveryInfo } from '@/lib/geo-routing'
+import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
 import { headingOf, idleSince } from '@/lib/eld'
 import { activeAlert, type WeatherAlert } from '@/lib/weather'
 import { getSetting } from '@/lib/settings'
@@ -49,27 +49,52 @@ export default async function Page() {
   const phoneRows = phoneRowsRaw as { truck_id: number; driver_phone: string | null }[]
   const byUnit = new Map(rows.map((r) => [r.unit, r]))
   const phoneById = new Map(phoneRows.map((r) => [r.truck_id, r.driver_phone]))
-  const snapshot = rows[0]?.updated_at
+  // Freshest row, not an arbitrary one — SELECT * has no ORDER BY, so rows[0] was
+  // whichever the DB happened to return and could under-report how current we are.
+  const snapshotMs = rows.reduce(
+    (max, r) => Math.max(max, new Date(r.updated_at).getTime()),
+    0,
+  )
+  const snapshot = snapshotMs > 0 ? new Date(snapshotMs).toISOString() : null
+  const staleMinutes = snapshotMs > 0 ? Math.round((Date.now() - snapshotMs) / 60000) : null
 
-  // One pass per truck, fully parallel: current load, delivery ETA, weather, idle time.
+  // One pass per truck, fully parallel: current load, route legs, weather, idle time.
   const perTruck = await Promise.all(
     trucks.map(async (t) => {
       const fs = t.number ? byUnit.get(t.number) : undefined
       const load = await currentLoadForTruck(t.id)
-      let dest: Awaited<ReturnType<typeof deliveryInfo>> = null
+      // Pickup is a fixed address, not relative to the truck — geocode it independent
+      // of whether we have live GPS (unlike the route legs below, which route FROM
+      // the truck's fix). Prefer the exact street address the RC printed; falls back
+      // to ZIP then city if OSM can't resolve that address.
+      const pickup = await cityCoordsBest(load?.pickupAddress, load?.origin)
+      let legToPickup: Awaited<ReturnType<typeof deliveryInfoBest>> = null
+      let legToDelivery: Awaited<ReturnType<typeof deliveryInfoBest>> = null
       let weather: WeatherAlert | null = null
       let idleAt: Date | null = null
       let heading: number | null = null
       if (fs && fs.lat !== null && fs.lng !== null) {
         const pt = { lat: fs.lat, lng: fs.lng }
-        ;[dest, weather, idleAt, heading] = await Promise.all([
-          load?.destination ? deliveryInfo(pt, load.destination) : Promise.resolve(null),
+        ;[weather, idleAt, heading] = await Promise.all([
           activeAlert(pt.lat, pt.lng).catch(() => null),
           t.number ? idleSince(t.number, pt.lat, pt.lng).catch(() => null) : Promise.resolve(null),
           t.number ? headingOf(t.number, pt.lat, pt.lng).catch(() => null) : Promise.resolve(null),
         ])
+        if (load) {
+          // Not picked up yet: the real road ahead is truck → pickup (the actual
+          // deadhead) → delivery (the loaded miles) — never a straight line to
+          // delivery that skips the pickup stop entirely.
+          if (load.status === 'booked' && pickup) {
+            ;[legToPickup, legToDelivery] = await Promise.all([
+              deliveryInfoBest(pt, load.pickupAddress, load.origin),
+              deliveryInfoBest(pickup, load.deliveryAddress, load.destination),
+            ])
+          } else {
+            legToDelivery = await deliveryInfoBest(pt, load.deliveryAddress, load.destination)
+          }
+        }
       }
-      return { t, fs, load, dest, weather, idleAt, heading }
+      return { t, fs, load, pickup, legToPickup, legToDelivery, weather, idleAt, heading }
     }),
   )
 
@@ -86,7 +111,7 @@ export default async function Page() {
   let noGps = 0
   let totalDeliveryMiles = 0
 
-  for (const { t, fs, load, dest, weather, idleAt, heading } of perTruck) {
+  for (const { t, fs, load, pickup, legToPickup, legToDelivery, weather, idleAt, heading } of perTruck) {
     const st = status(fs?.drive_status ?? null)
     if (st.tone === 'move') moving++
     else if (st.tone === 'on') onDuty++
@@ -98,14 +123,46 @@ export default async function Page() {
     // (detention, breakdown). An idle EMPTY truck is just parked — unremarkable.
     const idleHoursRaw = load && idleAt ? Math.floor((Date.now() - idleAt.getTime()) / 3_600_000) : null
 
-    let delivery: TrackingRow['delivery'] = null
-    if (hasGps && fs && dest && load) {
-      delivery = { to: load.destination ?? '—', miles: dest.miles, etaMin: dest.etaMin }
-      totalDeliveryMiles += dest.miles
-      routes.push({ from: [fs.lat!, fs.lng!], to: [dest.lat, dest.lng], coords: dest.coords })
+    // Real total to delivery: deadhead (truck→pickup) + loaded miles (pickup→delivery)
+    // when the load hasn't been picked up yet, or just the direct leg once it has.
+    const totalMiles = (legToPickup?.miles ?? 0) + (legToDelivery?.miles ?? 0)
+    const totalEtaMin = (legToPickup?.etaMin ?? 0) + (legToDelivery?.etaMin ?? 0)
+
+    // Pickup pin — where and when this load loads. Shown alongside delivery so the
+    // dispatcher can see the whole trip, not just where the truck is headed today.
+    if (pickup && load) {
       markers.push({
-        lat: dest.lat,
-        lng: dest.lng,
+        lat: pickup.lat,
+        lng: pickup.lng,
+        label: `Пикап · ${load.origin}`,
+        sub: [load.pickupTime || (load.pickupDate ? load.pickupDate.slice(0, 10) : null)]
+          .filter(Boolean)
+          .join('\n'),
+        kind: 'pickup',
+      })
+    }
+
+    let delivery: TrackingRow['delivery'] = null
+    if (hasGps && fs && legToDelivery && load) {
+      delivery = { to: load.destination ?? '—', miles: totalMiles, etaMin: totalEtaMin }
+      totalDeliveryMiles += totalMiles
+      if (legToPickup && pickup) {
+        routes.push({ from: [fs.lat!, fs.lng!], to: [pickup.lat, pickup.lng], coords: legToPickup.coords })
+        routes.push({
+          from: [pickup.lat, pickup.lng],
+          to: [legToDelivery.lat, legToDelivery.lng],
+          coords: legToDelivery.coords,
+        })
+      } else {
+        routes.push({
+          from: [fs.lat!, fs.lng!],
+          to: [legToDelivery.lat, legToDelivery.lng],
+          coords: legToDelivery.coords,
+        })
+      }
+      markers.push({
+        lat: legToDelivery.lat,
+        lng: legToDelivery.lng,
         label: `Delivery · ${load.destination}`,
         sub: load.origin ? `Из ${load.origin}` : undefined,
         kind: 'dest',
@@ -120,7 +177,7 @@ export default async function Page() {
         tone: st.tone,
         kind: 'truck',
         heading: heading ?? undefined,
-        eta: dest ? `${dest.miles} mi · ~${driveTime(dest.etaMin)} до delivery` : undefined,
+        eta: legToDelivery ? `${totalMiles} mi · ~${driveTime(totalEtaMin)} до delivery` : undefined,
       })
     }
 
@@ -136,7 +193,7 @@ export default async function Page() {
       loadRoute: load ? `${load.origin ?? '—'} → ${load.destination ?? '—'}` : null,
       phone: phoneById.get(t.id) ?? null,
       delivery,
-      driveTimeText: dest ? driveTime(dest.etaMin) : null,
+      driveTimeText: legToDelivery ? driveTime(totalEtaMin) : null,
       weather: weather ? { event: weather.event, headline: weather.headline } : null,
       idleHours: idleHoursRaw !== null && idleHoursRaw >= 3 ? idleHoursRaw : null,
     })
@@ -183,7 +240,7 @@ export default async function Page() {
         )}
         <span className="ml-auto flex shrink-0 items-center gap-2 text-white/40">
           {snapshot ? `обновлено ${agoText(snapshot)}` : 'снимков ещё не было'}
-          <RefreshFleetButton />
+          <RefreshFleetButton staleMinutes={staleMinutes} />
         </span>
       </div>
 

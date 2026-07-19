@@ -18,6 +18,7 @@ export function DriverCard({
   cdlExpiry,
   medcardExpiry,
   hasPhoto,
+  embedded,
 }: {
   truckId: number
   name: string | null
@@ -25,6 +26,8 @@ export function DriverCard({
   cdlExpiry: string | null
   medcardExpiry: string | null
   hasPhoto: boolean
+  /** Nested inside another panel (the truck hero) — no own border/background, no header. */
+  embedded?: boolean
 }) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
@@ -67,12 +70,16 @@ export function DriverCard({
     })
   }
 
+  const Wrap = embedded ? 'div' : 'section'
+
   return (
-    <section className="panel p-4">
+    <Wrap className={embedded ? '' : 'panel p-4'}>
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
           Водитель
-          <Info text="Кто за рулём этого трака: имя, телефон для связи и сроки CDL/медкарты. Сроки подсвечиваются заранее в напоминаниях, чтобы трак не встал out-of-service." />
+          {!embedded && (
+            <Info text="Кто за рулём этого трака: имя, телефон для связи и сроки CDL/медкарты. Сроки подсвечиваются заранее в напоминаниях, чтобы трак не встал out-of-service." />
+          )}
         </h2>
         {!editing && (
           <button
@@ -84,31 +91,29 @@ export function DriverCard({
         )}
       </div>
 
-      <div className="mb-3 flex items-center gap-3">
-        <label className={`group relative block shrink-0 ${photoPending ? 'opacity-50' : 'cursor-pointer'}`}>
-          <DriverAvatar truckId={truckId} name={name} hasPhoto={hasPhoto} size={52} />
-          <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-[9px] font-medium text-transparent transition-colors group-hover:bg-black/50 group-hover:text-white">
-            {photoPending ? '…' : 'фото'}
-          </span>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            disabled={photoPending}
-            onChange={(e) => pickPhoto(e.target.files?.[0])}
-          />
-        </label>
-        <p className="text-[11px] leading-relaxed text-white/45">
-          Фото водителя — наведи и нажми на кружок, чтобы загрузить или заменить.
-        </p>
-      </div>
-
       {editing ? (
         <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <label className={`group relative block shrink-0 ${photoPending ? 'opacity-50' : 'cursor-pointer'}`}>
+              <DriverAvatar truckId={truckId} name={name} hasPhoto={hasPhoto} size={44} />
+              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-[9px] font-medium text-transparent transition-colors group-hover:bg-black/50 group-hover:text-white">
+                {photoPending ? '…' : 'фото'}
+              </span>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={photoPending}
+                onChange={(e) => pickPhoto(e.target.files?.[0])}
+              />
+            </label>
+            <div className="grid flex-1 grid-cols-2 gap-3">
+              <Field label="Имя водителя" value={f.name} onChange={set('name')} placeholder="Иван Петров" />
+              <Field label="Телефон" value={f.phone} onChange={set('phone')} placeholder="(555) 123-4567" />
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Имя водителя" value={f.name} onChange={set('name')} placeholder="Иван Петров" />
-            <Field label="Телефон" value={f.phone} onChange={set('phone')} placeholder="(555) 123-4567" />
             <Field label="CDL до" value={f.cdlExpiry} onChange={set('cdlExpiry')} type="date" />
             <Field label="Медкарта до" value={f.medcardExpiry} onChange={set('medcardExpiry')} type="date" />
           </div>
@@ -137,14 +142,34 @@ export function DriverCard({
           </div>
         </div>
       ) : (
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] sm:grid-cols-4">
-          <Row label="Имя" value={name || '—'} />
-          <Row label="Телефон" value={phone || '—'} href={phone ? `tel:${phone}` : undefined} />
-          <Row label="CDL до" value={cdlExpiry || '—'} />
-          <Row label="Медкарта до" value={medcardExpiry || '—'} />
-        </dl>
+        // Avatar sits INLINE with the info, not stacked above it — one row, not two.
+        // The hover overlay on the avatar itself ("фото") is enough to teach the
+        // click-to-upload interaction; a second line of static hint text below it
+        // was the actual source of the wasted vertical space.
+        <div className="flex items-center gap-3">
+          <label className={`group relative block shrink-0 ${photoPending ? 'opacity-50' : 'cursor-pointer'}`}>
+            <DriverAvatar truckId={truckId} name={name} hasPhoto={hasPhoto} size={44} />
+            <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-[9px] font-medium text-transparent transition-colors group-hover:bg-black/50 group-hover:text-white">
+              {photoPending ? '…' : 'фото'}
+            </span>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={photoPending}
+              onChange={(e) => pickPhoto(e.target.files?.[0])}
+            />
+          </label>
+          <dl className="grid flex-1 grid-cols-2 gap-x-4 gap-y-1.5 text-[13px] sm:grid-cols-4">
+            <Row label="Имя" value={name || '—'} />
+            <Row label="Телефон" value={phone || '—'} href={phone ? `tel:${phone}` : undefined} />
+            <Row label="CDL до" value={cdlExpiry || '—'} />
+            <Row label="Медкарта до" value={medcardExpiry || '—'} />
+          </dl>
+        </div>
       )}
-    </section>
+    </Wrap>
   )
 }
 

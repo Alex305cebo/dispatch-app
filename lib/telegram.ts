@@ -57,7 +57,7 @@ export async function startLogin(
   apiId: number,
   apiHash: string,
   phone: string,
-): Promise<{ token: string }> {
+): Promise<{ token: string; deliveryHint: string }> {
   const client = new TelegramClient(new StringSession(''), apiId, apiHash, {
     connectionRetries: 3,
   })
@@ -65,7 +65,14 @@ export async function startLogin(
   const sent = await client.sendCode({ apiId, apiHash }, phone)
   const token = randomUUID()
   pending.set(token, { client, phone, codeHash: sent.phoneCodeHash, apiId, apiHash })
-  return { token }
+  // GramJS's sendCode returns its OWN simplified shape — {phoneCodeHash, isCodeViaApp} —
+  // NOT the raw auth.SentCode, so there is no `.type.className` to read here (verified
+  // by dumping the live response). isCodeViaApp is the only channel signal available.
+  const deliveryHint = sent.isCodeViaApp
+    ? `Telegram отправил код СООБЩЕНИЕМ В САМ TELEGRAM — в чат «Telegram» аккаунта с номером ${phone}. Не SMS.`
+    : `Telegram отправил код SMS-кой на ${phone}.`
+  console.log('[tg] sendCode ok — isCodeViaApp:', sent.isCodeViaApp, 'phone:', phone)
+  return { token, deliveryHint }
 }
 
 export async function confirmLogin(

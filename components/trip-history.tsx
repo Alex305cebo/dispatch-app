@@ -33,8 +33,15 @@ export function TripHistory({ legs }: { legs: HistoryLeg[] }) {
               <span className="shrink-0 text-white/40" aria-hidden>
                 🚚
               </span>
-              <span className="text-white/60">
-                {timeOf(leg.from)}–{timeOf(leg.to)}
+              <span className="min-w-0 flex-1">
+                {leg.fromLocation || leg.toLocation ? (
+                  <span className="block truncate text-white/75">
+                    {leg.fromLocation ?? '—'} → {leg.toLocation ?? '—'}
+                  </span>
+                ) : null}
+                <span className="block text-[11px] text-white/45">
+                  {timeOf(leg.from)}–{timeOf(leg.to)}
+                </span>
               </span>
               <span className="nums ml-auto shrink-0 font-medium text-white/85">
                 {leg.miles} mi · {driveTime(leg.minutes)}

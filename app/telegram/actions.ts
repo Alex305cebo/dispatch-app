@@ -9,7 +9,7 @@ export async function tgStartLogin(
   apiId: string,
   apiHash: string,
   phone: string,
-): Promise<{ token: string } | { error: string }> {
+): Promise<{ token: string; deliveryHint: string } | { error: string }> {
   const id = Number(apiId.trim())
   if (!id || !apiHash.trim() || !phone.trim())
     return { error: 'Нужны api_id, api_hash и телефон.' }

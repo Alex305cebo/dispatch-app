@@ -6,6 +6,7 @@ export type TruckMeta = {
   truckId: number
   vin: string | null
   plate: string | null
+  trailerNumber: string | null
   year: number | null
   make: string | null
   model: string | null

@@ -47,6 +47,10 @@ test('a short traffic-light pause does not become a stop', () => {
     legs.every((l) => l.kind === 'drive'),
     'a pause under 30 minutes must not surface as a stop leg',
   )
+  // Regression: at dense (~30s) ELD polling a brief still blip used to still cut the
+  // drive into fragments around it, even though it never became a visible stop leg —
+  // e.g. one continuous highway drive showing up as a handful of "1 mi · 1m" rows.
+  assert.equal(legs.length, 1, 'the pause must not fracture one continuous drive into pieces')
 })
 
 test('parking for 45 minutes shows up as a stop, not a long rest', () => {

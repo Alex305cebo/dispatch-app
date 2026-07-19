@@ -105,6 +105,27 @@ export async function saveCompany(c: Company): Promise<{ error: string } | void>
 
 export type NewLoad = QrLoad & { source: 'manual' | 'qr'; truckId: number }
 
+/**
+ * Deadhead — empty miles from wherever the truck sits right now to this load's
+ * pickup city — is the one thing no document can ever print (see qr-load.ts). If
+ * the caller didn't already supply it, compute it from the truck's live GPS
+ * (fleet_status, joined by unit number) via the same road-routing used everywhere
+ * else. No GPS yet, or no pickup city → leave it as given (usually 0, dispatcher
+ * fixes it by hand same as always).
+ */
+async function fillDeadhead(truckId: number, deadheadMiles: number, origin: string | null): Promise<number> {
+  if (deadheadMiles > 0 || !origin) return deadheadMiles
+  const rows = (await sql`
+    SELECT fs.lat, fs.lng FROM trucks t
+    LEFT JOIN fleet_status fs ON fs.unit = t.number
+    WHERE t.id = ${truckId}`) as { lat: number | null; lng: number | null }[]
+  const t = rows[0]
+  if (t?.lat == null || t?.lng == null) return deadheadMiles
+  const { deliveryInfo } = await import('@/lib/geo-routing')
+  const d = await deliveryInfo({ lat: t.lat, lng: t.lng }, origin)
+  return d ? d.miles : deadheadMiles
+}
+
 export async function createLoad(
   load: NewLoad,
   /** Pre-uploaded document (the imported RC) that becomes this load's paperwork. */
@@ -112,14 +133,20 @@ export async function createLoad(
 ): Promise<{ error: string } | void> {
   let id: number
   try {
+    const deadheadMiles = await fillDeadhead(load.truckId, load.deadheadMiles, load.origin)
     const rows = await sql`
       INSERT INTO loads (rate, loaded_miles, deadhead_miles, transit_days, origin,
                          destination, truck_location, spot_rpm, broker_mc, broker_email,
-                         broker_phone, reference_id, source, truck_id)
-      VALUES (${load.rate}, ${load.loadedMiles}, ${load.deadheadMiles}, ${load.transitDays},
+                         broker_phone, reference_id, source, truck_id, pickup_date,
+                         delivery_date, broker_notes, pickup_time, delivery_time,
+                         pickup_address, delivery_address)
+      VALUES (${load.rate}, ${load.loadedMiles}, ${deadheadMiles}, ${load.transitDays},
               ${load.origin}, ${load.destination}, ${load.truckLocation}, ${load.spotRpm},
               ${load.brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
-              ${load.source}, ${load.truckId})
+              ${load.source}, ${load.truckId}, ${load.pickupDate ?? null},
+              ${load.deliveryDate ?? null}, ${load.brokerNotes ?? null},
+              ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
+              ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null})
       RETURNING id`
     id = (rows[0] as { id: number }).id
     if (docId) {
@@ -147,14 +174,36 @@ export async function createLoadFromRc(
   docId?: number,
 ): Promise<{ loadId: number } | { error: string }> {
   try {
+    // Plenty of real rate cons never print a mileage figure. loads.loaded_miles has
+    // CHECK (> 0), so those used to die on a raw constraint violation — the load
+    // silently never appeared. Fall back to actual road miles between the two cities
+    // (same OSRM routing the map uses). Every RC path funnels through here, so this
+    // one guard covers the truck-page drop, /import and the new-load scanner alike.
+    let loadedMiles = load.loadedMiles
+    if (!(loadedMiles > 0) && load.origin && load.destination) {
+      const { routeMiles } = await import('@/lib/geo-routing')
+      const r = await routeMiles(load.origin, load.destination)
+      if ('miles' in r) loadedMiles = r.miles
+    }
+    if (!(loadedMiles > 0))
+      return {
+        error:
+          'В рейтконе не указан пробег, и рассчитать его по городам не вышло. Создай груз вручную и впиши мили.',
+      }
+    const deadheadMiles = await fillDeadhead(truckId, load.deadheadMiles, load.origin)
+
     const rows = await sql`
       INSERT INTO loads (rate, loaded_miles, deadhead_miles, transit_days, origin,
                          destination, truck_location, spot_rpm, broker_mc, broker_email,
-                         broker_phone, reference_id, source, truck_id)
-      VALUES (${load.rate}, ${load.loadedMiles}, ${load.deadheadMiles}, ${load.transitDays},
+                         broker_phone, reference_id, source, truck_id, pickup_date,
+                         delivery_date, broker_notes, pickup_time, delivery_time,
+                         pickup_address, delivery_address)
+      VALUES (${load.rate}, ${loadedMiles}, ${deadheadMiles}, ${load.transitDays},
               ${load.origin}, ${load.destination}, ${load.truckLocation}, ${load.spotRpm},
               ${load.brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
-              'qr', ${truckId})
+              'qr', ${truckId}, ${load.pickupDate ?? null}, ${load.deliveryDate ?? null},
+              ${load.brokerNotes ?? null}, ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
+              ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null})
       RETURNING id`
     const loadId = (rows[0] as { id: number }).id
     if (docId) await sql`UPDATE documents SET load_id = ${loadId} WHERE id = ${docId} AND load_id IS NULL`
@@ -165,6 +214,38 @@ export async function createLoadFromRc(
   } catch (e) {
     return { error: humanError(e) }
   }
+}
+
+/**
+ * Turn an ALREADY-UPLOADED rate con into a load, entirely server-side.
+ *
+ * The browser-orchestrated path (upload → AI → create, in TruckRcDrop) leaves a
+ * stranded document if the page is reloaded during the AI read — which on a scanned
+ * PDF takes over a minute, long enough to look frozen. This runs the whole thing in
+ * one server action, so nothing is lost to a navigation, and it rescues documents
+ * already stranded that way.
+ */
+export async function createLoadFromExistingRc(
+  docId: number,
+  truckId: number,
+): Promise<{ loadId: number } | { error: string }> {
+  // Postgres' encode() wraps base64 at PEM width; Gemini's inlineData rejects the
+  // embedded newlines with a 400, hence the replace().
+  const rows = await sql`
+    SELECT replace(encode(data, 'base64'), E'\n', '') AS b64, mime, load_id
+    FROM documents WHERE id = ${docId} AND kind = 'ratecon'`
+  const doc = rows[0] as { b64: string; mime: string; load_id: number | null } | undefined
+  if (!doc) return { error: 'Рейткон не найден.' }
+  if (doc.load_id) return { error: 'Из этого рейткона груз уже создан.' }
+
+  const { geminiExtract } = await import('@/lib/ratecon-gemini')
+  const res = await geminiExtract({ pdfBase64: doc.b64, mime: doc.mime })
+  if ('error' in res)
+    return { error: res.error === 'no_key' ? 'Нет ключа ИИ (GEMINI_API_KEY).' : `ИИ не прочитал: ${res.error}` }
+
+  const { aiToFields } = await import('@/lib/ratecon-ai-contract')
+  const { toQrLoad } = await import('@/lib/ratecon')
+  return createLoadFromRc(truckId, toQrLoad(aiToFields(res.fields, res.model)), docId)
 }
 
 export async function setStatus(id: number, status: LoadStatus): Promise<void> {
@@ -194,7 +275,9 @@ export async function saveTruck(
         driver_pay_mode = ${t.driverPay.mode},
         driver_cents_per_mile = ${cpm},
         driver_percent_of_gross = ${pct},
-        fixed_cost_per_day = ${t.fixedCostPerDay},
+        truck_payment_per_day = ${t.truckPaymentPerDay},
+        insurance_per_day = ${t.insurancePerDay},
+        eld_permits_per_day = ${t.eldPermitsPerDay},
         maintenance_cost_per_mile = ${t.maintenanceCostPerMile},
         factoring_percent = ${t.factoringPercent},
         dispatch_percent = ${t.dispatchPercent}
@@ -313,6 +396,8 @@ export type LoadDetailsPatch = {
   brokerMc: string | null
   brokerPhone: string | null
   brokerEmail: string | null
+  pickupDate: string | null
+  deliveryDate: string | null
 }
 
 export async function updateLoadDetails(
@@ -329,7 +414,8 @@ export async function updateLoadDetails(
       rate = ${p.rate}, loaded_miles = ${p.loadedMiles}, deadhead_miles = ${p.deadheadMiles},
       transit_days = ${p.transitDays}, spot_rpm = ${p.spotRpm},
       broker_mc = ${p.brokerMc || null}, broker_phone = ${p.brokerPhone || null},
-      broker_email = ${p.brokerEmail || null}
+      broker_email = ${p.brokerEmail || null}, pickup_date = ${p.pickupDate || null},
+      delivery_date = ${p.deliveryDate || null}
       WHERE id = ${loadId}`
   } catch (e) {
     return { error: humanError(e) }
@@ -352,26 +438,36 @@ export async function setBrokerNotes(
   revalidatePath(`/loads/${loadId}`)
 }
 
+/** Translates a load's broker notes (Russian dispatcher, English rate cons). */
+export async function translateBrokerNotes(
+  text: string,
+  targetLang: 'ru' | 'en',
+): Promise<{ text: string } | { error: string }> {
+  if (!text.trim()) return { error: 'Пустой текст.' }
+  const { translatePlainText } = await import('@/lib/ratecon-gemini')
+  const res = await translatePlainText(text, targetLang === 'ru' ? 'Russian' : 'English')
+  if ('error' in res)
+    return { error: res.error === 'no_key' ? 'Нет ключа ИИ (GEMINI_API_KEY).' : `Не вышло перевести: ${res.error}` }
+  return res
+}
+
 /** Dispatcher acknowledged the broker notes — stops highlighting them. */
 export async function markNotesRead(loadId: number): Promise<void> {
   await sql`UPDATE loads SET notes_read_at = now() WHERE id = ${loadId} AND notes_read_at IS NULL`
   revalidatePath(`/loads/${loadId}`)
 }
 
-const parseMdY = (s?: string | null): number | null => {
-  if (!s) return null
-  const m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/)
-  if (!m) return null
-  const [, mm, dd, yy] = m.map(Number) as number[]
-  const t = Date.UTC(yy! < 100 ? 2000 + yy! : yy!, mm! - 1, dd!)
-  return Number.isFinite(t) ? t : null
-}
-
 /**
- * Re-read the load's attached rate con with Gemini and fill the "Важное от брокера"
- * block with the full operational briefing (instructions, contacts, appointments,
- * references, requirements, fines). Resets notes_read_at so it must be read again.
- * Also fixes transit days from the pickup→delivery dates on the document.
+ * Re-read the load's attached rate con with Gemini and fill in everything the
+ * document itself carries but this load was created without: the "Важное от
+ * брокера" briefing, pickup/delivery date+time, pickup/delivery street address (for
+ * the exact map pin), and transit days. Resets notes_read_at so notes must be read
+ * again. Never touches rate/miles/origin/destination — those the dispatcher may have
+ * already corrected by hand, and this button's job is filling gaps, not overwriting.
+ *
+ * Reuses the exact same aiToFields → toQrLoad mapping the initial RC-drop creation
+ * path uses (app/actions.ts createLoadFromRc), so a load created before those fields
+ * existed catches up to one created after, field for field.
  */
 export async function parseRcForNotes(
   loadId: number,
@@ -392,23 +488,25 @@ export async function parseRcForNotes(
       error: res.error === 'no_key' ? 'Нет ключа Gemini на сервере.' : `Не вышло распознать: ${res.error}`,
     }
 
-  const notes = res.fields.importantNotes?.trim() || null
-  const pu = parseMdY(res.fields.pickupDate)
-  const del = parseMdY(res.fields.deliveryDate)
-  const days = pu != null && del != null ? Math.max(1, Math.round((del - pu) / 86_400_000)) : null
+  const { aiToFields } = await import('@/lib/ratecon-ai-contract')
+  const { toQrLoad } = await import('@/lib/ratecon')
+  const load = toQrLoad(aiToFields(res.fields, res.model))
 
   try {
-    if (days != null) {
-      await sql`UPDATE loads SET broker_notes = ${notes}, notes_read_at = NULL, transit_days = ${days} WHERE id = ${loadId}`
-    } else {
-      await sql`UPDATE loads SET broker_notes = ${notes}, notes_read_at = NULL WHERE id = ${loadId}`
-    }
+    await sql`UPDATE loads SET
+      broker_notes = ${load.brokerNotes}, notes_read_at = NULL,
+      transit_days = ${load.transitDays},
+      pickup_date = ${load.pickupDate}, delivery_date = ${load.deliveryDate},
+      pickup_time = ${load.pickupTime}, delivery_time = ${load.deliveryTime},
+      pickup_address = ${load.pickupAddress}, delivery_address = ${load.deliveryAddress}
+      WHERE id = ${loadId}`
   } catch (e) {
     return { error: humanError(e) }
   }
   revalidatePath(`/loads/${loadId}`)
+  revalidatePath('/trucks', 'layout')
   revalidatePath('/', 'layout')
-  return { ok: true, found: !!notes }
+  return { ok: true, found: !!load.brokerNotes }
 }
 
 /**
@@ -512,6 +610,7 @@ export async function toggleTodo(id: number, truckId: number): Promise<void> {
 export type TruckMetaInput = {
   vin: string
   plate: string
+  trailerNumber: string
   year: number | null
   make: string
   model: string
@@ -588,16 +687,18 @@ export async function saveTruckMeta(
 ): Promise<{ error: string } | void> {
   try {
     await sql`
-      INSERT INTO truck_meta (truck_id, vin, plate, year, make, model, oil_interval_mi,
-                              oil_last_odometer, driver_phone, notes, registration_expiry,
-                              inspection_expiry, insurance_expiry, cdl_expiry, medcard_expiry)
-      VALUES (${truckId}, ${m.vin.trim() || null}, ${m.plate.trim() || null}, ${m.year},
+      INSERT INTO truck_meta (truck_id, vin, plate, trailer_number, year, make, model,
+                              oil_interval_mi, oil_last_odometer, driver_phone, notes,
+                              registration_expiry, inspection_expiry, insurance_expiry,
+                              cdl_expiry, medcard_expiry)
+      VALUES (${truckId}, ${m.vin.trim() || null}, ${m.plate.trim() || null},
+              ${m.trailerNumber.trim() || null}, ${m.year},
               ${m.make.trim() || null}, ${m.model.trim() || null}, ${m.oilIntervalMi},
               ${m.oilLastOdometer}, ${m.driverPhone.trim() || null}, ${m.notes.trim() || null},
               ${d(m.registrationExpiry)}, ${d(m.inspectionExpiry)}, ${d(m.insuranceExpiry)},
               ${d(m.cdlExpiry)}, ${d(m.medcardExpiry)})
       ON CONFLICT (truck_id) DO UPDATE SET
-        vin = EXCLUDED.vin, plate = EXCLUDED.plate, year = EXCLUDED.year,
+        vin = EXCLUDED.vin, plate = EXCLUDED.plate, trailer_number = EXCLUDED.trailer_number, year = EXCLUDED.year,
         make = EXCLUDED.make, model = EXCLUDED.model,
         oil_interval_mi = EXCLUDED.oil_interval_mi,
         oil_last_odometer = EXCLUDED.oil_last_odometer,
@@ -621,12 +722,12 @@ export async function addTruck(t: TruckInput): Promise<{ error: string } | void>
     const rows = await sql`
       INSERT INTO trucks (name, number, driver_name, mpg, fuel_price_per_gallon,
                           driver_pay_mode, driver_cents_per_mile, driver_percent_of_gross,
-                          fixed_cost_per_day, maintenance_cost_per_mile, factoring_percent,
-                          dispatch_percent)
+                          truck_payment_per_day, insurance_per_day, eld_permits_per_day,
+                          maintenance_cost_per_mile, factoring_percent, dispatch_percent)
       VALUES (${t.number || 'Трак'}, ${t.number}, ${t.driverName}, ${t.mpg},
               ${t.fuelPricePerGallon}, ${t.driverPay.mode}, ${cpm}, ${pct},
-              ${t.fixedCostPerDay}, ${t.maintenanceCostPerMile}, ${t.factoringPercent},
-              ${t.dispatchPercent})
+              ${t.truckPaymentPerDay}, ${t.insurancePerDay}, ${t.eldPermitsPerDay},
+              ${t.maintenanceCostPerMile}, ${t.factoringPercent}, ${t.dispatchPercent})
       RETURNING id`
     id = (rows[0] as { id: number }).id
   } catch (e) {

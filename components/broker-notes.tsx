@@ -6,8 +6,36 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { markNotesRead, parseRcForNotes, setBrokerNotes } from '@/app/actions'
+import { markNotesRead, parseRcForNotes, setBrokerNotes, translateBrokerNotes } from '@/app/actions'
 import { notify } from '@/lib/notify'
+
+// The AI prompt (lib/ratecon-ai-contract.ts) tags each fact line with one of these —
+// lets the wall of prose from the RC render as a scannable list instead of one blob.
+// Untagged lines (older notes, or anything typed by hand) just render as plain text.
+const TAGS: Record<string, { label: string; icon: string; warn?: boolean }> = {
+  SAFETY: { label: 'Безопасность', icon: '🦺' },
+  LOAD: { label: 'Погрузка', icon: '📦' },
+  SCHEDULE: { label: 'График', icon: '🕐' },
+  CONTACT: { label: 'Контакт', icon: '📞' },
+  REF: { label: 'Номера', icon: '🔖' },
+  DOCS: { label: 'Документы', icon: '📄' },
+  INSURANCE: { label: 'Страховка', icon: '🛡' },
+  PENALTY: { label: 'Штрафы', icon: '💸', warn: true },
+  WARNING: { label: 'Важно', icon: '❗', warn: true },
+}
+
+type NoteLine = { tag: string | null; text: string }
+
+function parseNotes(text: string): NoteLine[] {
+  return text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const m = line.match(/^\[(\w+)\]\s*(.*)$/)
+      return m && TAGS[m[1]!] ? { tag: m[1]!, text: m[2]!.trim() } : { tag: null, text: line }
+    })
+}
 
 export function BrokerNotes({
   loadId,
@@ -25,6 +53,28 @@ export function BrokerNotes({
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(notes ?? '')
   const [pending, start] = useTransition()
+  // Not persisted — re-translated on demand each time the page reloads, which is
+  // cheap enough (short text, free-tier Gemini) that a DB column would be overkill.
+  const [ru, setRu] = useState<string | null>(null)
+  const [showRu, setShowRu] = useState(false)
+  const [translating, setTranslating] = useState(false)
+
+  function toggleTranslate() {
+    if (ru) {
+      setShowRu((v) => !v)
+      return
+    }
+    setTranslating(true)
+    start(async () => {
+      const res = await translateBrokerNotes(notes ?? '', 'ru')
+      setTranslating(false)
+      if ('error' in res) notify('error', res.error)
+      else {
+        setRu(res.text)
+        setShowRu(true)
+      }
+    })
+  }
 
   function parse() {
     start(async () => {
@@ -35,6 +85,8 @@ export function BrokerNotes({
           res.found ? 'ok' : 'warn',
           res.found ? 'Рейткон разобран — проверь важное' : 'В рейтконе не нашлось особых заметок',
         )
+        setRu(null)
+        setShowRu(false)
         router.refresh()
       }
     })
@@ -47,6 +99,8 @@ export function BrokerNotes({
       else {
         notify('ok', 'Заметка сохранена')
         setEditing(false)
+        setRu(null)
+        setShowRu(false)
         router.refresh()
       }
     })
@@ -122,8 +176,12 @@ export function BrokerNotes({
   }
 
   const unread = !readAt
-  // One-line taste of the note while collapsed — the full text is a wall.
-  const preview = notes.replace(/\s+/g, ' ').trim()
+  const shown = showRu && ru ? ru : notes
+  const lines = parseNotes(shown)
+  const structured = lines.some((l) => l.tag !== null)
+  // One-line taste of the note while collapsed — the full text is a wall, and tags
+  // are noise at a glance, so strip them here even for structured notes.
+  const preview = shown.replace(/\[\w+\]/g, '').replace(/\s+/g, ' ').trim()
 
   return (
     <details
@@ -156,9 +214,45 @@ export function BrokerNotes({
       </summary>
 
       <div className="px-3.5 pb-3.5">
-        <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-white/85">{notes}</p>
+        {structured ? (
+          <ul className="flex flex-col gap-2">
+            {lines.map((l, i) => {
+              const meta = l.tag ? TAGS[l.tag] : null
+              return (
+                <li key={i} className="flex items-baseline gap-2 text-[13.5px] leading-relaxed">
+                  {meta ? (
+                    <>
+                      <span className="shrink-0" aria-hidden>
+                        {meta.icon}
+                      </span>
+                      <span>
+                        <span
+                          className={`mr-1.5 font-semibold ${meta.warn ? 'text-warn-300' : 'text-white/55'}`}
+                        >
+                          {meta.label}:
+                        </span>
+                        <span className="text-white/85">{l.text}</span>
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-white/85">{l.text}</span>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-white/85">{shown}</p>
+        )}
 
         <div className="mt-3 flex items-center gap-2">
+        <button
+          disabled={translating}
+          onClick={toggleTranslate}
+          className="text-[12px] text-white/55 transition-colors hover:text-white/85 disabled:opacity-40"
+        >
+          {translating ? 'Перевожу…' : showRu && ru ? 'Оригинал (EN)' : '🌐 На русский'}
+        </button>
         {unread && (
           <button
             disabled={pending}

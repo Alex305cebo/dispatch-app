@@ -4,7 +4,7 @@ import { truckLabel, type TruckRecord } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { sql } from '@/lib/db'
 import { deliveryInfo } from '@/lib/geo-routing'
-import { fleetExpiryAlerts, truckPhotoFlags } from '@/lib/maintenance'
+import { fleetExpiryAlerts, truckPhotoFlags, truckTrailerNumbers } from '@/lib/maintenance'
 import { usd, usd2, driveTime } from '@/lib/fmt'
 import { StatusBadge } from '@/components/status'
 import { RateConButton } from '@/components/ratecon-button'
@@ -32,13 +32,14 @@ function cityOf(location: string | null): string | null {
 }
 
 export default async function Page() {
-  const [loads, trucks, fleetRaw, alerts, rateCons, photoIds] = await Promise.all([
+  const [loads, trucks, fleetRaw, alerts, rateCons, photoIds, trailers] = await Promise.all([
     listLoads(),
     listTrucks(),
     sql`SELECT unit, drive_status, location, lat, lng FROM fleet_status`,
     fleetExpiryAlerts(),
     rateConByLoad(),
     truckPhotoFlags(),
+    truckTrailerNumbers(),
   ])
   const fleet = fleetRaw as FS[]
   const byId = new Map<number, TruckRecord>(trucks.map((t) => [t.id, t]))
@@ -165,6 +166,7 @@ export default async function Page() {
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[14px] font-medium">{truckLabel(t)}</div>
                   <div className="truncate text-[12px] text-white/60">
+                    {trailers.has(t.id) && <>Трейлер {trailers.get(t.id)} · </>}
                     {cityOf(fs?.location ?? null) ?? 'Нет данных с ELD'}
                   </div>
                 </div>

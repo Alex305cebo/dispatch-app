@@ -52,6 +52,19 @@ CREATE TABLE IF NOT EXISTS loads (
 -- migration ladder until a shipped column actually needs altering.
 ALTER TABLE trucks ADD COLUMN IF NOT EXISTS number      TEXT;
 ALTER TABLE trucks ADD COLUMN IF NOT EXISTS driver_name TEXT;
+-- Split "Постоянные расходы" into what it's actually made of, each independently
+-- editable and shown as its own line, instead of one lumped number. Defaults are
+-- 2026 US owner-operator market rates (researched, not guessed):
+--   truck payment  ~$1,200-2,400/mo for a used Class 8   -> $60/day
+--   insurance      ~$900-1,600/mo, own authority          -> $40/day
+--   ELD+permits    ELD $20-45/mo + IRP/IFTA $185-300/mo   -> $8/day
+-- fixed_cost_per_day is retired (superseded by the three columns below) but kept in
+-- the table rather than dropped — nothing reads it anymore, dropping it risks nothing
+-- but also gains nothing on a local dev DB.
+ALTER TABLE trucks ALTER COLUMN fixed_cost_per_day SET DEFAULT 0;
+ALTER TABLE trucks ADD COLUMN IF NOT EXISTS truck_payment_per_day DOUBLE PRECISION NOT NULL DEFAULT 60;
+ALTER TABLE trucks ADD COLUMN IF NOT EXISTS insurance_per_day     DOUBLE PRECISION NOT NULL DEFAULT 40;
+ALTER TABLE trucks ADD COLUMN IF NOT EXISTS eld_permits_per_day   DOUBLE PRECISION NOT NULL DEFAULT 8;
 UPDATE trucks SET number = COALESCE(number, name) WHERE number IS NULL;
 
 CREATE INDEX IF NOT EXISTS loads_status ON loads(status);
@@ -74,11 +87,11 @@ CREATE TABLE IF NOT EXISTS logins (
   at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 -- Geolocated city of the login IP ("Откуда" in the Журнал). Best-effort, filled at
--- sign-in; localhost/private IPs stay NULL.
+-- sign-in — localhost/private IPs stay NULL.
 ALTER TABLE logins ADD COLUMN IF NOT EXISTS city TEXT;
 
 -- Action audit: who did a sensitive thing (deleting a document), kept for the
--- Журнал. The PIN is shared, so "who" is a name typed at the moment of the action;
+-- Журнал. The PIN is shared, so "who" is a name typed at the moment of the action —
 -- from_loc/to_loc carry the deleted rate con's load route for the "откуда/куда"
 -- columns. Nothing is cascade-deleted here — it outlives the document it describes.
 CREATE TABLE IF NOT EXISTS audit_log (
@@ -192,9 +205,10 @@ CREATE INDEX IF NOT EXISTS todos_truck ON truck_todos(truck_id, done_at NULLS FI
 
 -- Seed one truck so a fresh DB has something to assign loads to.
 INSERT INTO trucks (id, name, number, driver_name, mpg, fuel_price_per_gallon,
-                    driver_pay_mode, driver_cents_per_mile, fixed_cost_per_day,
+                    driver_pay_mode, driver_cents_per_mile,
+                    truck_payment_per_day, insurance_per_day, eld_permits_per_day,
                     maintenance_cost_per_mile, factoring_percent, dispatch_percent)
-VALUES (1, 'Truck 1', '1', '', 6.5, 3.85, 'cpm', 60, 250, 0.18, 2, 0)
+VALUES (1, 'Truck 1', '1', '', 6.5, 3.85, 'cpm', 60, 60, 40, 8, 0.18, 2, 0)
 ON CONFLICT (id) DO NOTHING;
 
 -- ===== Roadmap features (invoicing/AR, compliance dates, broker vetting) =====
@@ -206,6 +220,8 @@ ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS inspection_expiry   DATE;
 ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS insurance_expiry    DATE;
 ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS cdl_expiry          DATE;
 ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS medcard_expiry      DATE;
+-- Wherever the truck number is shown, the trailer number belongs right next to it.
+ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS trailer_number       TEXT;
 
 -- Invoicing + AR aging live on the load itself (one invoice per load for a small
 -- fleet). invoiced_at set when the packet is generated, paid_at when broker pays.
@@ -213,6 +229,17 @@ ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS medcard_expiry      DATE;
 -- load. notes_read_at NULL = not yet acknowledged (shown highlighted).
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS broker_notes  TEXT;
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS notes_read_at TIMESTAMPTZ;
+-- Delivery date, alongside the existing pickup_date — both printed on the rate con,
+-- both worth tracking on their own (not just as a day-count derived from the pair).
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_date DATE;
+-- Raw appointment text as printed on the RC ("07/15/26 12:00 Appt") — the map's
+-- pickup pin shows this verbatim, since a bare date loses the actual appointment time.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS pickup_time   TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_time TEXT;
+-- Full street address, when the RC printed one — the map pin geocodes this instead
+-- of origin/destination (city-level) so it lands on the exact building, not the city center.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS pickup_address   TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_address TEXT;
 
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS invoiced_at        TIMESTAMPTZ;
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS paid_at            TIMESTAMPTZ;

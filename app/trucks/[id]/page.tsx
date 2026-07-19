@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { BackButton } from '@/components/back-button'
 import { currentLoadForTruck, getTruck, listDocs, listLoads, rateConByLoad } from '@/lib/loads'
 import { truckLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
-import { deliveryInfo } from '@/lib/geo-routing'
+import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
 import {
   fleetStatusByUnit,
   getTruckMeta,
@@ -19,6 +20,7 @@ import { TruckForm } from '@/components/truck-form'
 import { TruckCare } from '@/components/truck-care'
 import { DriverCard } from '@/components/driver-card'
 import { TruckRcDrop } from '@/components/truck-rc-drop'
+import { OrphanRateCons } from '@/components/orphan-ratecons'
 import { DocList, DocUpload } from '@/components/docs'
 import { RateConButton } from '@/components/ratecon-button'
 import { TripHistory } from '@/components/trip-history'
@@ -65,6 +67,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const openTodos = todos.filter((t) => !t.doneAt).length
   const oil = oilStatus(meta, fs?.odometer ?? null)
 
+  // The truck's current assignment — feeds the hero's route/dates summary AND the
+  // map below it, so it's fetched once, unconditionally (a truck can have an active
+  // load worth showing even with no live GPS fix yet).
+  const activeLoad = await currentLoadForTruck(truck.id)
+
   // Map: the truck where it sits (ELD GPS) plus a delivery pin at its active load's
   // destination city, with rough miles + drive time to it.
   const mapMarkers: MapMarker[] = []
@@ -82,16 +89,55 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       kind: 'truck',
       heading: heading ?? undefined,
     }
-    const activeLoad = await currentLoadForTruck(truck.id)
-    const dest = activeLoad?.destination
-      ? await deliveryInfo({ lat, lng }, activeLoad.destination)
-      : null
-    if (dest && activeLoad) {
-      truckM.eta = `${dest.miles} mi · ~${driveTime(dest.etaMin)} до delivery`
-      mapRoutes.push({ from: [lat, lng], to: [dest.lat, dest.lng], coords: dest.coords })
+    // Prefer the RC's exact street address over the bare city — pins the real dock,
+    // not just the city center. Falls back to ZIP then city if OSM can't resolve that
+    // specific address (common for rural/warehouse addresses).
+    const pickup = await cityCoordsBest(activeLoad?.pickupAddress, activeLoad?.origin)
+    // Not picked up yet: the real road ahead is truck → pickup (the actual deadhead)
+    // → delivery (the loaded miles) — never a straight line to delivery that skips
+    // the pickup stop entirely.
+    let legToPickup: Awaited<ReturnType<typeof deliveryInfoBest>> = null
+    let legToDelivery: Awaited<ReturnType<typeof deliveryInfoBest>> = null
+    if (activeLoad?.status === 'booked' && pickup) {
+      ;[legToPickup, legToDelivery] = await Promise.all([
+        deliveryInfoBest({ lat, lng }, activeLoad.pickupAddress, activeLoad.origin),
+        deliveryInfoBest(pickup, activeLoad.deliveryAddress, activeLoad.destination),
+      ])
+    } else if (activeLoad) {
+      legToDelivery = await deliveryInfoBest({ lat, lng }, activeLoad.deliveryAddress, activeLoad.destination)
+    }
+    if (pickup && activeLoad) {
       mapMarkers.push({
-        lat: dest.lat,
-        lng: dest.lng,
+        lat: pickup.lat,
+        lng: pickup.lng,
+        label: `Пикап · ${activeLoad.origin}`,
+        sub: [activeLoad.pickupTime || (activeLoad.pickupDate ? activeLoad.pickupDate.slice(0, 10) : null)]
+          .filter(Boolean)
+          .join('\n'),
+        kind: 'pickup',
+      })
+    }
+    if (legToDelivery && activeLoad) {
+      const routeMiles = (legToPickup?.miles ?? 0) + legToDelivery.miles
+      const routeEtaMin = (legToPickup?.etaMin ?? 0) + legToDelivery.etaMin
+      truckM.eta = `${routeMiles} mi · ~${driveTime(routeEtaMin)} до delivery`
+      if (legToPickup && pickup) {
+        mapRoutes.push({ from: [lat, lng], to: [pickup.lat, pickup.lng], coords: legToPickup.coords })
+        mapRoutes.push({
+          from: [pickup.lat, pickup.lng],
+          to: [legToDelivery.lat, legToDelivery.lng],
+          coords: legToDelivery.coords,
+        })
+      } else {
+        mapRoutes.push({
+          from: [lat, lng],
+          to: [legToDelivery.lat, legToDelivery.lng],
+          coords: legToDelivery.coords,
+        })
+      }
+      mapMarkers.push({
+        lat: legToDelivery.lat,
+        lng: legToDelivery.lng,
         label: `Delivery · ${activeLoad.destination}`,
         sub: activeLoad.origin ? `Из ${activeLoad.origin}` : undefined,
         kind: 'dest',
@@ -108,14 +154,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-10">
-      <Link href="/trucks" className="text-[13px] text-white/65 transition-colors hover:text-white/90">
-        ← Все траки
-      </Link>
+      <BackButton href="/trucks" label="Все траки" />
 
       {/* ===== HERO: the truck in the centre, key info around it ===== */}
       <section className="relative mt-3 overflow-hidden rounded-3xl border border-white/8 bg-gradient-to-b from-ink-800/80 to-ink-950 px-4 pt-5 pb-4 sm:px-8">
         <div className="text-center">
           <h1 className="text-[26px] font-bold leading-none">{truck.number ?? truck.name}</h1>
+          {meta?.trailerNumber && (
+            <p className="mt-1 text-[13px] text-white/55">Трейлер {meta.trailerNumber}</p>
+          )}
           <p className="mt-1 text-[14px] text-white/70">{truck.driverName || 'Без водителя'}</p>
           {/* Driver contact — the number a dispatcher actually needs at hand. */}
           {meta?.driverPhone ? (
@@ -166,19 +213,66 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             tone={oil?.tone}
           />
         </div>
-      </section>
 
-      {/* ===== Driver: name, phone, licence dates — one findable place ===== */}
-      <div className="mt-4">
-        <DriverCard
-          truckId={truck.id}
-          name={truck.driverName}
-          phone={meta?.driverPhone ?? null}
-          cdlExpiry={meta?.cdlExpiry ?? null}
-          medcardExpiry={meta?.medcardExpiry ?? null}
-          hasPhoto={meta?.hasPhoto ?? false}
-        />
-      </div>
+        {/* ===== Current assignment: route, pickup/delivery dates, at a glance ===== */}
+        <div className="mt-4 border-t border-white/8 pt-4">
+          <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+            Текущее задание
+            <Info text="Куда едет этот трак прямо сейчас: маршрут активного груза, когда пикап и когда delivery. Полная информация о ставке, брокере и особых условиях — по клику, на странице груза." />
+          </h2>
+          {activeLoad ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Link
+                  href={`/loads/${activeLoad.id}`}
+                  className="truncate text-[16px] font-semibold hover:text-haul-400"
+                >
+                  {activeLoad.origin ?? '—'} → {activeLoad.destination ?? '—'}
+                </Link>
+                <StatusBadge status={activeLoad.status} />
+              </div>
+              <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] sm:grid-cols-3">
+                <div>
+                  <dt className="text-[10px] uppercase tracking-wider text-white/45">Пикап</dt>
+                  <dd className="font-medium text-white/85">
+                    {activeLoad.pickupTime || activeLoad.pickupDate?.slice(0, 10) || '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] uppercase tracking-wider text-white/45">Delivery</dt>
+                  <dd className="font-medium text-white/85">
+                    {activeLoad.deliveryTime || activeLoad.deliveryDate?.slice(0, 10) || '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] uppercase tracking-wider text-white/45">Ставка</dt>
+                  <dd className="font-medium text-white/85">{usd.format(activeLoad.rate)}</dd>
+                </div>
+              </dl>
+            </>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-white/55">
+              Груза сейчас нет — трак свободен.
+              <Link href={`/loads/new?truck=${truck.id}`} className="text-haul-400 hover:underline">
+                + груз
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* ===== Driver: name, phone, licence dates — merged into the same card ===== */}
+        <div className="mt-4 border-t border-white/8 pt-4">
+          <DriverCard
+            truckId={truck.id}
+            name={truck.driverName}
+            phone={meta?.driverPhone ?? null}
+            cdlExpiry={meta?.cdlExpiry ?? null}
+            medcardExpiry={meta?.medcardExpiry ?? null}
+            hasPhoto={meta?.hasPhoto ?? false}
+            embedded
+          />
+        </div>
+      </section>
 
       {/* ===== Map: where the truck sits + where delivery is ===== */}
       {mapMarkers.length > 0 && (
@@ -217,6 +311,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </Link>
         </div>
         <TruckRcDrop truckId={truck.id} />
+        <OrphanRateCons
+          truckId={truck.id}
+          docs={docs
+            .filter((d) => d.kind === 'ratecon' && d.loadId === null)
+            .map((d) => ({ id: d.id, title: d.title, uploadedAt: d.uploadedAt }))}
+        />
       </section>
 
       {/* ===== Around the truck: loads + documents ===== */}
@@ -250,13 +350,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                           <StatusBadge status={load.status} />
                         </div>
                         <div className="nums mt-0.5 text-[12px] text-white/60">
-                          {usd.format(load.rate)} · {usd2.format(r.allInRpm)}/mi
+                          чистыми{' '}
+                          <span className={r.net >= 0 ? 'text-good-400/90' : 'text-bad-400/90'}>
+                            {usd.format(r.net)}
+                          </span>{' '}
+                          · {usd2.format(r.allInRpm)}/mi
                         </div>
                       </div>
-                      <span
-                        className={`nums shrink-0 text-[14px] font-bold ${r.net >= 0 ? 'text-good-400' : 'text-bad-400'}`}
-                      >
-                        {usd.format(r.net)}
+                      {/* Headline is the load's actual RATE, never net — the owner reads
+                          these cards as "what this load is worth". Net is the small line. */}
+                      <span className="nums shrink-0 text-[14px] font-bold">
+                        {usd.format(load.rate)}
                       </span>
                     </Link>
                     {rcId && <RateConButton docId={rcId} compact />}
@@ -311,7 +415,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               mpg: truck.mpg,
               fuelPricePerGallon: truck.fuelPricePerGallon,
               driverPay: truck.driverPay,
-              fixedCostPerDay: truck.fixedCostPerDay,
+              truckPaymentPerDay: truck.truckPaymentPerDay,
+              insurancePerDay: truck.insurancePerDay,
+              eldPermitsPerDay: truck.eldPermitsPerDay,
               maintenanceCostPerMile: truck.maintenanceCostPerMile,
               factoringPercent: truck.factoringPercent,
               dispatchPercent: truck.dispatchPercent,

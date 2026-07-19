@@ -11,7 +11,15 @@ export type TrailPoint = {
 }
 
 export type HistoryLeg =
-  | { kind: 'drive'; from: string; to: string; miles: number; minutes: number }
+  | {
+      kind: 'drive'
+      from: string
+      to: string
+      miles: number
+      minutes: number
+      fromLocation: string | null
+      toLocation: string | null
+    }
   | { kind: 'stop'; from: string; to: string; minutes: number; location: string | null; long: boolean }
 
 const STOP_RADIUS_MI = 0.5 // GPS jitter while parked stays well inside this
@@ -24,6 +32,26 @@ export function segmentTrail(points: TrailPoint[]): HistoryLeg[] {
   if (points.length < 2) return []
 
   const stillGap = points.slice(1).map((p, k) => haversineMiles(points[k], p) <= STOP_RADIUS_MI)
+
+  // A still run shorter than MIN_STOP_MIN was already excluded from ever showing up
+  // as its own "stop" leg below — but at today's ~30s ELD polling, a stoplight or a
+  // moment of GPS jitter still registers as momentarily "still", and left as-is it
+  // would fracture one continuous drive into several tiny fragments around that
+  // invisible gap. Un-flag those runs first, so the surrounding drive stays one leg.
+  for (let k = 0; k < stillGap.length; ) {
+    if (!stillGap[k]) {
+      k++
+      continue
+    }
+    let end = k
+    while (end < stillGap.length && stillGap[end]) end++
+    const minutes = Math.round((new Date(points[end].at).getTime() - new Date(points[k].at).getTime()) / 60000)
+    if (minutes < MIN_STOP_MIN) {
+      for (let i = k; i < end; i++) stillGap[i] = false
+    }
+    k = end
+  }
+
   const legs: HistoryLeg[] = []
   let start = 0
   let runStill = stillGap[0]
@@ -34,13 +62,20 @@ export function segmentTrail(points: TrailPoint[]): HistoryLeg[] {
     const to = seg[seg.length - 1].at
     const minutes = Math.round((new Date(to).getTime() - new Date(from).getTime()) / 60000)
     if (still) {
-      if (minutes >= MIN_STOP_MIN) {
-        legs.push({ kind: 'stop', from, to, minutes, location: seg[0].location, long: minutes >= LONG_STOP_MIN })
-      }
+      // Surviving still runs are >= MIN_STOP_MIN by construction (see above).
+      legs.push({ kind: 'stop', from, to, minutes, location: seg[0].location, long: minutes >= LONG_STOP_MIN })
       return
     }
     const miles = seg.slice(1).reduce((s, p, i) => s + haversineMiles(seg[i], p), 0)
-    legs.push({ kind: 'drive', from, to, miles: Math.round(miles), minutes })
+    legs.push({
+      kind: 'drive',
+      from,
+      to,
+      miles: Math.round(miles),
+      minutes,
+      fromLocation: seg[0].location,
+      toLocation: seg[seg.length - 1].location,
+    })
   }
 
   for (let k = 0; k < stillGap.length; k++) {

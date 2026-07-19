@@ -73,6 +73,7 @@ export function TruckCare({
   const [m, setM] = useState<TruckMetaInput>({
     vin: meta?.vin ?? '',
     plate: meta?.plate ?? '',
+    trailerNumber: meta?.trailerNumber ?? '',
     year: meta?.year ?? null,
     make: meta?.make ?? '',
     model: meta?.model ?? '',
@@ -159,6 +160,11 @@ export function TruckCare({
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <TextField label="VIN" value={m.vin} onChange={(v) => setM({ ...m, vin: v })} />
             <TextField label="Номер (plate)" value={m.plate} onChange={(v) => setM({ ...m, plate: v })} />
+            <TextField
+              label="Номер трейлера"
+              value={m.trailerNumber}
+              onChange={(v) => setM({ ...m, trailerNumber: v })}
+            />
             <Field
               label="Год"
               value={m.year ?? NaN}

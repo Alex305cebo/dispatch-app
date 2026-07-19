@@ -21,6 +21,7 @@ export function TgSetup() {
   const [code, setCode] = useState('')
   const [password, setPassword] = useState('')
   const [token, setToken] = useState('')
+  const [deliveryHint, setDeliveryHint] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const sendCode = () =>
@@ -30,8 +31,9 @@ export function TgSetup() {
       if ('error' in res) setError(res.error)
       else {
         setToken(res.token)
+        setDeliveryHint(res.deliveryHint)
         setStep('code')
-        notify('ok', 'Код отправлен — смотри Telegram')
+        notify('ok', 'Код запрошен')
       }
     })
 
@@ -84,7 +86,12 @@ export function TgSetup() {
 
       {step === 'code' && (
         <div className="mt-4 flex flex-col gap-3">
-          <p className="text-[13px] text-white/65">Telegram прислал код — введи его:</p>
+          {deliveryHint && (
+            <p className="rounded-lg border border-haul-500/25 bg-haul-500/[0.07] px-3 py-2 text-[12.5px] leading-relaxed text-haul-300">
+              {deliveryHint}
+            </p>
+          )}
+          <p className="text-[13px] text-white/65">Введи код:</p>
           <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Код из Telegram" className={input} inputMode="numeric" autoFocus />
           <button
             disabled={pending || !code}

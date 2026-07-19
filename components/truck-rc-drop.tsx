@@ -4,7 +4,7 @@
 // attach the RC → show Driver Info + warnings, all without a manual form. The star
 // of the "everything in one place, fewer clicks" redesign.
 
-import { useRef, useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'motion/react'
 import Link from 'next/link'
@@ -35,16 +35,29 @@ const WTONE = {
 export function TruckRcDrop({ truckId }: { truckId: number }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
+  const [stage, setStage] = useState('')
+  const [elapsed, setElapsed] = useState(0)
   const [drag, setDrag] = useState(false)
   const [res, setRes] = useState<Result | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [, startCopy] = useTransition()
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // A scanned rate con through Gemini really can take 60-90s. Without a visible,
+  // ticking sign of life the page looks frozen — and a reload mid-flight loses the
+  // load (the document is already saved by then, the load isn't created yet).
+  useEffect(() => {
+    if (!busy) return
+    setElapsed(0)
+    const id = setInterval(() => setElapsed((s) => s + 1), 1000)
+    return () => clearInterval(id)
+  }, [busy])
+
   async function handle(file: File | undefined) {
     if (!file) return
     setError(null)
     setBusy(true)
+    setStage('Читаю файл…')
     setRes(null)
     try {
       const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
@@ -61,6 +74,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       }
 
       // 2) save the RC as a document on this truck
+      setStage('Сохраняю документ…')
       const fd = new FormData()
       fd.append('file', file)
       fd.append('kind', 'ratecon')
@@ -69,6 +83,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       const docId = 'id' in up ? up.id : undefined
 
       // 3) AI read (text for text-PDF, the file itself for scans/photos)
+      setStage(draft ? 'Распознаю ИИ…' : 'Распознаю скан через ИИ — это до полутора минут…')
       const ai = await aiParseRateCon(
         draft ? { text } : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf' },
       )
@@ -76,6 +91,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       if (!fields) throw new Error(ai.ok ? 'Пустой результат.' : 'Скан не распознан и нет ключа ИИ.')
 
       // 4) create the load on THIS truck, attach the RC
+      setStage('Создаю груз…')
       const made = await createLoadFromRc(truckId, toQrLoad(fields), docId)
       if ('error' in made) throw new Error(made.error)
 
@@ -95,6 +111,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       notify('error', `Не прочитался: ${msg}`)
     } finally {
       setBusy(false)
+      setStage('')
       if (inputRef.current) inputRef.current.value = ''
     }
   }
@@ -215,12 +232,25 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
         className="hidden"
         onChange={(e) => handle(e.target.files?.[0])}
       />
-      <span className="text-[14px] font-medium">
-        {busy ? 'Читаю rate con…' : '＋ Rate con → сразу груз на этот трак'}
-      </span>
-      <span className="mt-0.5 text-[12px] text-white/55">
-        PDF или фото. ИИ распознает, создаст груз и покажет, что проверить.
-      </span>
+      {busy ? (
+        <>
+          <span className="flex items-center gap-2 text-[14px] font-medium">
+            <span className="inline-block size-3.5 animate-spin rounded-full border-2 border-white/25 border-t-haul-400" />
+            {stage}
+            <span className="nums text-white/55">{elapsed}с</span>
+          </span>
+          <span className="mt-1 text-[12px] font-medium text-warn-400">
+            Не закрывай и не обновляй страницу — груз создастся в конце.
+          </span>
+        </>
+      ) : (
+        <>
+          <span className="text-[14px] font-medium">＋ Rate con → сразу груз на этот трак</span>
+          <span className="mt-0.5 text-[12px] text-white/55">
+            PDF или фото. ИИ распознает, создаст груз и покажет, что проверить.
+          </span>
+        </>
+      )}
       {error && <span className="mt-2 text-[12px] text-bad-400">{error}</span>}
     </motion.label>
   )
