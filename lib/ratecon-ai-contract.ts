@@ -1,0 +1,167 @@
+// Shared contract for AI rate-con parsing: prompt, JSON schema, and the mapping
+// from the model's answer to RateConFields. One source of truth used by the API
+// route (server), the client wrapper, and the batch-verification script — so the
+// harness proves exactly what the app runs.
+
+import type { Found, RateConFields, Stop } from './ratecon.ts'
+
+/** Try in order; 404 (renamed model) and 429 (quota) fall through to the next. */
+export const AI_MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash']
+
+export const AI_PROMPT = `You are reading a US trucking RATE CONFIRMATION document. Extract ONLY facts printed in the document. Never guess, never infer — use null for anything not present.
+
+Rules:
+- "stops" = every physical pickup (shipper) and delivery (consignee/receiver) stop, in trip order. The BROKER / logistics company in the letterhead and the CARRIER being paid are NEVER stops, even though their addresses are printed. A stop is where the truck loads or unloads freight.
+- company = the facility/shipper name at that stop. street = street address line. city/state/zip from that stop's address. time = the date/appointment window EXACTLY as written (e.g. "07/15/26 12:00 Appt"). refs = pickup#/delivery#/PO/BOL/SID numbers belonging to that stop.
+- rate = the TOTAL amount payable to the carrier for this load (line haul plus fuel surcharge if a total is printed). NEVER an insurance limit, declared value, or per-mile figure.
+- loadedMiles only if a mileage/distance is printed.
+- referenceId = the load/order number of this load. mcNumber = the MC number printed. brokerName/brokerPhone/brokerEmail = the broker's contact info.
+- pickupDate = first pickup date as MM/DD/YYYY. deliveryDate = final delivery date as MM/DD/YYYY.
+- weight like "42000 lbs" (keep the unit).
+- importantNotes = a thorough plain-text briefing of EVERYTHING the dispatcher and driver MUST know or do for THIS load, gathered from the WHOLE document (pickup & delivery instructions, notes, special-requirements boxes). Include, when present: load/unload type and detention (live load/unload, hours, $/hr detention), appointment required? and times per stop, WHO to call and WHEN with the actual phone numbers (e.g. "call 1 hour out from PU: LJ 919-760-9924"), reference/PO/BOL/trailer numbers to give at the gate, required paperwork and signatures (trailer interchange agreement, seal, POD with signature+stamp), cargo insurance/value minimums, TWIC/PPE, penalties/fines (heavy fines for late), and any warnings (NO FAIL, event shipment, team, hazmat, temp/reefer setpoint, driver may need to shuffle trailer). Write short clear lines, keep the real numbers and phone numbers. Do NOT invent — only what the document says. null if nothing noteworthy.`
+
+/** Gemini responseSchema (OpenAPI subset, uppercase type names). */
+export const AI_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    stops: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          role: { type: 'STRING', enum: ['pickup', 'delivery'] },
+          company: { type: 'STRING', nullable: true },
+          street: { type: 'STRING', nullable: true },
+          city: { type: 'STRING', nullable: true },
+          state: { type: 'STRING', nullable: true },
+          zip: { type: 'STRING', nullable: true },
+          time: { type: 'STRING', nullable: true },
+          refs: { type: 'ARRAY', items: { type: 'STRING' } },
+        },
+        required: ['role'],
+      },
+    },
+    rate: { type: 'NUMBER', nullable: true },
+    loadedMiles: { type: 'NUMBER', nullable: true },
+    referenceId: { type: 'STRING', nullable: true },
+    commodity: { type: 'STRING', nullable: true },
+    weight: { type: 'STRING', nullable: true },
+    brokerName: { type: 'STRING', nullable: true },
+    mcNumber: { type: 'STRING', nullable: true },
+    brokerPhone: { type: 'STRING', nullable: true },
+    brokerEmail: { type: 'STRING', nullable: true },
+    pickupDate: { type: 'STRING', nullable: true },
+    deliveryDate: { type: 'STRING', nullable: true },
+    importantNotes: { type: 'STRING', nullable: true },
+  },
+  required: ['stops'],
+}
+
+export type AiStop = {
+  role: 'pickup' | 'delivery'
+  company?: string | null
+  street?: string | null
+  city?: string | null
+  state?: string | null
+  zip?: string | null
+  time?: string | null
+  refs?: string[]
+}
+
+export type AiFields = {
+  stops: AiStop[]
+  rate?: number | null
+  loadedMiles?: number | null
+  referenceId?: string | null
+  commodity?: string | null
+  weight?: string | null
+  brokerName?: string | null
+  mcNumber?: string | null
+  brokerPhone?: string | null
+  brokerEmail?: string | null
+  pickupDate?: string | null
+  deliveryDate?: string | null
+  importantNotes?: string | null
+}
+
+const found = <T>(value: T | null | undefined, evidence: string): Found<T> | null =>
+  value === null || value === undefined || value === ('' as unknown) ? null : { value, evidence }
+
+function stopBlock(s: AiStop | undefined): Stop {
+  if (!s) return { block: null, time: null, ref: null }
+  const cityLine = [s.city, s.state, s.zip].filter(Boolean).join(', ').replace(/, (\d)/, ' $1')
+  const block = [s.company, s.street, cityLine].filter(Boolean).join('\n') || null
+  return {
+    block,
+    time: s.time ?? null,
+    ref: s.refs?.length ? s.refs.join('\n') : null,
+  }
+}
+
+const cityOf = (s: AiStop | undefined): string | null =>
+  s?.city && s.state ? `${s.city}, ${s.state}` : null
+
+/** "07/15/2026" → "2026-07-15" for <input type=date>; passes ISO through. */
+function toIso(d: string | null | undefined): string | null {
+  if (!d) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d
+  const m = d.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/)
+  if (!m) return null
+  const [, mm, dd, yy] = m.map(Number) as unknown as number[]
+  const year = yy! < 100 ? 2000 + yy! : yy!
+  if (mm! < 1 || mm! > 12 || dd! < 1 || dd! > 31) return null
+  return `${year}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
+}
+
+/** Map the model's JSON to the exact shape the whole import UI already speaks. */
+export function aiToFields(ai: AiFields, model: string): RateConFields {
+  const ev = `Распознано ИИ (${model})`
+  const pickups = ai.stops.filter((s) => s.role === 'pickup')
+  const deliveries = ai.stops.filter((s) => s.role === 'delivery')
+  // RateConFields carries one pickup and one delivery: first pickup, LAST delivery —
+  // the trip's two ends. Intermediate stops ride along in the refs the model returns.
+  const pu = pickups[0] ?? ai.stops[0]
+  const del = deliveries[deliveries.length - 1] ?? ai.stops[ai.stops.length - 1]
+
+  return {
+    rate: found(ai.rate, ev),
+    loadedMiles: found(ai.loadedMiles, ev),
+    origin: found(cityOf(pu), ev),
+    destination: found(cityOf(del), ev),
+    mcNumber: found(ai.mcNumber, ev),
+    brokerPhone: found(ai.brokerPhone, ev),
+    brokerEmail: found(ai.brokerEmail, ev),
+    referenceId: found(ai.referenceId, ev),
+    pickupDate: found(toIso(ai.pickupDate), ev),
+    deliveryDate: found(toIso(ai.deliveryDate), ev),
+    commodity: found(ai.commodity, ev),
+    weight: found(ai.weight, ev),
+    pickupStop: stopBlock(pu),
+    deliveryStop: stopBlock(del),
+  }
+}
+
+/** AI answer wins wherever it found something; regex fills what the model left null. */
+export function mergeAi(base: RateConFields, ai: RateConFields): RateConFields {
+  const stop = (a: Stop, b: Stop): Stop => ({
+    block: a.block ?? b.block,
+    time: a.time ?? b.time,
+    ref: a.ref ?? b.ref,
+  })
+  return {
+    rate: ai.rate ?? base.rate,
+    loadedMiles: ai.loadedMiles ?? base.loadedMiles,
+    origin: ai.origin ?? base.origin,
+    destination: ai.destination ?? base.destination,
+    mcNumber: ai.mcNumber ?? base.mcNumber,
+    brokerPhone: ai.brokerPhone ?? base.brokerPhone,
+    brokerEmail: ai.brokerEmail ?? base.brokerEmail,
+    referenceId: ai.referenceId ?? base.referenceId,
+    pickupDate: ai.pickupDate ?? base.pickupDate,
+    deliveryDate: ai.deliveryDate ?? base.deliveryDate,
+    commodity: ai.commodity ?? base.commodity,
+    weight: ai.weight ?? base.weight,
+    pickupStop: stop(ai.pickupStop, base.pickupStop),
+    deliveryStop: stop(ai.deliveryStop, base.deliveryStop),
+  }
+}

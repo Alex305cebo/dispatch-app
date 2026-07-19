@@ -1,0 +1,136 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-ink-950: #08090d;
+  --color-ink-900: #0d0f15;
+  --color-ink-800: #141821;
+  --color-ink-700: #1d2230;
+  --color-ink-600: #2a3142;
+  --color-haul-400: #5b9dff;
+  --color-haul-500: #3b7ff5;
+  --color-good-400: #34d99b;
+  --color-good-500: #14b87e;
+  --color-bad-400: #ff6168;
+  --color-bad-500: #f0353d;
+  --color-warn-400: #f5b34a;
+  --color-warn-500: #e09a2b;
+}
+
+/* Light theme by variable swap: Tailwind v4 compiles text-white/bg-ink/etc. to
+   var(--color-*), so redefining those under [data-theme=light] flips the whole app
+   without touching a single component. --color-white becomes near-black ink, so
+   every text-white/•, bg-white/•, border-white/• inverts to a readable dark tone. */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-white: #14181f;
+  --color-ink-950: #eef1f6; /* page background */
+  --color-ink-900: #ffffff; /* inputs, raised cards */
+  --color-ink-800: #e7eaf1;
+  --color-ink-700: #dbdfe8;
+  --color-ink-600: #c6ccd8;
+  --color-good-400: #0f9d6e;
+  --color-bad-400: #e02531;
+  --color-warn-400: #b7791f;
+  --color-haul-400: #2f6fe0;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+    /* Nothing in this app legitimately needs to scroll sideways — a safety net for
+       any card/row that overflows its container on a narrow phone instead of that
+       overflow becoming a visible, scrollable strip that clips content. */
+    overflow-x: hidden;
+  }
+
+  body {
+    overflow-x: hidden;
+    /* Full white, not white/90: on #08090d every step down costs contrast, and the
+       muted scale below already carries the hierarchy. */
+    @apply bg-ink-950 text-white antialiased;
+    background-image: radial-gradient(
+      120% 90% at 50% -20%,
+      rgba(59, 127, 245, 0.16),
+      transparent 60%
+    );
+    background-attachment: fixed;
+    transition:
+      background-color 0.2s,
+      color 0.2s;
+    /* Home-screen PWA on iPhone: keep content clear of the notch and the bar. */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+      env(safe-area-inset-left);
+  }
+
+  /* Spinners steal width and nobody nudges a rate by 1 with arrows. */
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+}
+
+@utility panel {
+  @apply rounded-2xl border border-white/8 bg-white/[0.025] backdrop-blur-xl;
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.04) inset,
+    0 24px 60px -30px rgba(0, 0, 0, 0.9);
+}
+
+/* Light theme: white cards on a light page, soft shadow, gentler top glow. */
+:root[data-theme='light'] .panel {
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 20, 30, 0.06), 0 8px 30px -18px rgba(15, 20, 30, 0.18);
+}
+:root[data-theme='light'] body {
+  background-image: radial-gradient(120% 90% at 50% -20%, rgba(59, 127, 245, 0.1), transparent 60%);
+}
+
+/* On a filled accent (buttons, badges) text must stay light in BOTH themes — the
+   var swap would otherwise flip button labels to dark. Plain rules (unlayered) beat
+   the text-white utility, so labels stay white. */
+:root[data-theme='light'] .bg-haul-500,
+:root[data-theme='light'] .bg-haul-400,
+:root[data-theme='light'] .bg-good-500,
+:root[data-theme='light'] .bg-bad-500 {
+  color: #fff;
+}
+
+@utility nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Leaflet ships its own light-theme popup/container styles, loaded dynamically at
+   runtime (see fleet-map.tsx) — that stylesheet lands AFTER this one, so a plain
+   same-specificity override loses the cascade regardless of source order here.
+   Qualifying every selector under .fleet-map (the component's own wrapper class)
+   beats it on specificity instead of reaching for !important. (Tailwind's `[&_...]`
+   arbitrary variants were tried first and never generated a rule at all in this
+   build — plain CSS instead.) */
+.fleet-map .leaflet-container {
+  background: var(--color-ink-900);
+}
+.fleet-map .leaflet-popup-content-wrapper {
+  background: var(--color-ink-900);
+  color: var(--color-white);
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.6);
+}
+.fleet-map .leaflet-popup-content {
+  margin: 8px 10px;
+}
+.fleet-map .leaflet-popup-tip {
+  background: var(--color-ink-900);
+}
+.fleet-map .leaflet-popup-close-button {
+  color: rgba(128, 128, 128, 0.8);
+}
+.fleet-map .leaflet-popup-close-button:hover {
+  color: var(--color-white);
+}

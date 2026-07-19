@@ -1,0 +1,36 @@
+{
+  "name": "dispatch-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "db:init": "node --env-file=.env.local scripts/db-init.mjs",
+    "test": "node --test lib/profit.test.ts lib/qr-load.test.ts lib/map.test.ts lib/ratecon.test.ts lib/geo.test.ts lib/trip-history.test.ts"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "leaflet": "^1.9.4",
+    "motion": "^12.42.2",
+    "next": "^15.5.4",
+    "nodemailer": "^9.0.3",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.1.200",
+    "postcss": "^8.5.19",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "server-only": "^0.0.1",
+    "tailwindcss": "^4.3.3",
+    "telegram": "^2.26.22"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.21",
+    "@types/node": "^24.5.2",
+    "@types/nodemailer": "^8.0.1",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "typescript": "^5.9.2"
+  }
+}

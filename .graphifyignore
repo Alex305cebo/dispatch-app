@@ -1,0 +1,19 @@
+# .graphifyignore — what to keep OUT of the knowledge graph (.gitignore syntax).
+# Goal: our own source only — no deps, build output, or graph sidecars.
+
+graphify-out/
+node_modules/
+.next/
+.git/
+dist/
+build/
+out/
+
+# lockfiles & generated
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# vendored / third-party bundles
+**/*.min.js
+**/vendor/**

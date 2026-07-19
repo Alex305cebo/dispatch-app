@@ -1,0 +1,39 @@
+To: sales@zigzageld.com
+Cc: support@zigzageld.com
+Subject: API access for our own fleet data (GPS + hours)
+
+Hi,
+
+We run our trucks on ZigZag ELD and have been paying customers for a while now.
+
+Account email: [ваш email аккаунта ZigZag]
+Company: [название компании]
+USDOT / MC: [номер]
+
+We put together a small dispatch board for our own office, and we'd like it to
+pull our truck locations and driver hours automatically instead of us retyping
+everything off the dashboard every morning. Read only, only our own account.
+
+Two things we're after:
+
+Truck GPS (unit number, lat/long, speed, odometer)
+Driver hours left (drive, shift, cycle, break)
+
+A few questions:
+
+1. How do we get an API key or token for our account? And what does your server
+expect it in, a bearer token or something like x-api-key?
+
+2. Is this covered by what we already pay, or is there a separate charge? If
+there's a cost, please let us know what it is.
+
+3. If you don't issue API keys directly, could you switch on a project44 or
+MacroPoint feed for our account instead? We saw both listed as integrations on
+your site, and we can take the data from either one.
+
+We don't need write access and we're not asking for anything outside our own
+account. Just our own trucks.
+
+Thanks,
+[Имя]
+[Телефон]

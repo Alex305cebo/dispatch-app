@@ -1,0 +1,42 @@
+import type { Metadata, Viewport } from 'next'
+import { Nav } from '@/components/nav'
+import { getCompany } from '@/lib/invoice'
+import './globals.css'
+
+// Apply the saved theme before first paint — no flash of the wrong colours.
+const THEME_INIT = `try{var t=localStorage.getItem('theme');if(t==='light')document.documentElement.dataset.theme='light'}catch(e){}`
+
+export const metadata: Metadata = {
+  title: 'Dispatch',
+  description: 'Брать или не брать: что груз реально оставляет на траке.',
+  applicationName: 'Dispatch',
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Dispatch' },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#08090d',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const company = await getCompany()
+
+  return (
+    // suppressHydrationWarning: the inline script sets data-theme before hydration,
+    // so the server HTML (no attr) and client (attr) legitimately differ on <html>.
+    <html lang="ru" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+      </head>
+      <body>
+        {/* Nav carries the notifications bell and the theme switch — nothing floats
+            over the page any more. */}
+        <Nav companyName={company.name} />
+        {/* Room for the bottom bar on phones (tabs + utility strip), sidebar on desktop. */}
+        <div className="pb-28 md:pb-0 md:pl-52">{children}</div>
+      </body>
+    </html>
+  )
+}

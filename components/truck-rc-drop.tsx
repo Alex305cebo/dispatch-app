@@ -1,0 +1,227 @@
+'use client'
+
+// Drop a rate con on the TRUCK page: parse (AI) → auto-create a load on THIS truck →
+// attach the RC → show Driver Info + warnings, all without a manual form. The star
+// of the "everything in one place, fewer clicks" redesign.
+
+import { useRef, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { motion } from 'motion/react'
+import Link from 'next/link'
+import { extractPdf, looksScanned } from '@/lib/pdf-text'
+import { formatDriverInfo, parseRateCon, toQrLoad, type RateConFields } from '@/lib/ratecon'
+import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
+import { mergeAi } from '@/lib/ratecon-ai-contract'
+import { rcWarnings, type RcWarning } from '@/lib/rc-warnings'
+import { createLoadFromRc, uploadDocument } from '@/app/actions'
+import { notify } from '@/lib/notify'
+import { BrokerCheckPanel } from '@/components/broker-check'
+
+type Result = {
+  loadId: number
+  fields: RateConFields
+  warnings: RcWarning[]
+  ai: boolean
+  docId?: number
+  fileName: string
+}
+
+const WTONE = {
+  danger: 'bg-bad-500/12 text-bad-400',
+  warn: 'bg-warn-400/12 text-warn-400',
+  info: 'bg-white/6 text-white/70',
+}
+
+export function TruckRcDrop({ truckId }: { truckId: number }) {
+  const router = useRouter()
+  const [busy, setBusy] = useState(false)
+  const [drag, setDrag] = useState(false)
+  const [res, setRes] = useState<Result | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [, startCopy] = useTransition()
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  async function handle(file: File | undefined) {
+    if (!file) return
+    setError(null)
+    setBusy(true)
+    setRes(null)
+    try {
+      const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
+      const isImage = file.type.startsWith('image/')
+      if (!isPdf && !isImage) throw new Error('Нужен PDF или фото rate confirmation.')
+
+      // 1) local draft + text (for warnings) when it's a text PDF
+      let draft: RateConFields | null = null
+      let text = ''
+      if (isPdf) {
+        const ex = await extractPdf(file)
+        text = ex.text
+        if (!looksScanned(text)) draft = parseRateCon(text, ex.items)
+      }
+
+      // 2) save the RC as a document on this truck
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('kind', 'ratecon')
+      fd.append('truckId', String(truckId))
+      const up = await uploadDocument(fd)
+      const docId = 'id' in up ? up.id : undefined
+
+      // 3) AI read (text for text-PDF, the file itself for scans/photos)
+      const ai = await aiParseRateCon(
+        draft ? { text } : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf' },
+      )
+      const fields = ai.ok ? (draft ? mergeAi(draft, ai.fields) : ai.fields) : draft
+      if (!fields) throw new Error(ai.ok ? 'Пустой результат.' : 'Скан не распознан и нет ключа ИИ.')
+
+      // 4) create the load on THIS truck, attach the RC
+      const made = await createLoadFromRc(truckId, toQrLoad(fields), docId)
+      if ('error' in made) throw new Error(made.error)
+
+      setRes({
+        loadId: made.loadId,
+        fields,
+        warnings: rcWarnings(fields, text),
+        ai: ai.ok,
+        docId,
+        fileName: file.name,
+      })
+      notify('ok', 'Груз создан из rate con', file.name)
+      router.refresh()
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(msg)
+      notify('error', `Не прочитался: ${msg}`)
+    } finally {
+      setBusy(false)
+      if (inputRef.current) inputRef.current.value = ''
+    }
+  }
+
+  if (res) {
+    const driverInfo = formatDriverInfo(res.fields)
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[13px] font-semibold text-good-400">
+            ✓ Груз создан {res.ai ? '· проверено ИИ' : '· базовый разбор'}
+          </span>
+          <div className="flex gap-2">
+            <Link
+              href={`/loads/${res.loadId}`}
+              className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold hover:bg-haul-400"
+            >
+              Открыть груз
+            </Link>
+            <button
+              onClick={() => setRes(null)}
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] text-white/75 hover:bg-white/5"
+            >
+              ещё RC
+            </button>
+          </div>
+        </div>
+
+        {/* The rate con itself: view it, or save a copy to the computer. It's already
+            stored on the server with the load; this is a local copy. */}
+        {res.docId && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[12px] text-white/55">Rate confirmation:</span>
+            <a
+              href={`/view/${res.docId}`}
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/85 hover:bg-white/5"
+            >
+              Открыть
+            </a>
+            <a
+              href={`/api/docs/${res.docId}?download=1`}
+              download={res.fileName || 'rate-con.pdf'}
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/85 hover:bg-white/5"
+            >
+              Сохранить на компьютер
+            </a>
+          </div>
+        )}
+
+        {res.warnings.length > 0 && (
+          <div>
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+              Проверь по грузу
+            </p>
+            <ul className="flex flex-col gap-1.5">
+              {res.warnings.map((w, i) => (
+                <li key={i} className={`rounded-lg px-3 py-2 text-[13px] ${WTONE[w.level]}`}>
+                  {w.level === 'danger' ? '⛔ ' : w.level === 'warn' ? '⚠ ' : 'ℹ '}
+                  {w.text}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <BrokerCheckPanel fields={res.fields} />
+
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-white/62">
+              Driver Information
+            </p>
+            <button
+              onClick={() =>
+                startCopy(async () => {
+                  try {
+                    await navigator.clipboard.writeText(driverInfo)
+                    notify('ok', 'Скопировано — можно слать водителю')
+                  } catch {
+                    notify('warn', 'Браузер не дал буфер — выдели вручную')
+                  }
+                })
+              }
+              className="rounded-lg bg-haul-500 px-3 py-1 text-[12px] font-semibold hover:bg-haul-400"
+            >
+              Копировать
+            </button>
+          </div>
+          <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-ink-900/60 p-3 font-mono text-[12px] leading-relaxed text-white/85">
+            {driverInfo}
+          </pre>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <motion.label
+      onDragOver={(e) => {
+        e.preventDefault()
+        setDrag(true)
+      }}
+      onDragLeave={() => setDrag(false)}
+      onDrop={(e) => {
+        e.preventDefault()
+        setDrag(false)
+        handle(e.dataTransfer.files[0])
+      }}
+      animate={{ scale: drag ? 1.01 : 1 }}
+      className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-4 py-6 text-center transition-colors ${
+        drag ? 'border-haul-500/60 bg-haul-500/10' : 'border-white/15 hover:border-white/30'
+      }`}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/pdf,.pdf,image/*"
+        className="hidden"
+        onChange={(e) => handle(e.target.files?.[0])}
+      />
+      <span className="text-[14px] font-medium">
+        {busy ? 'Читаю rate con…' : '＋ Rate con → сразу груз на этот трак'}
+      </span>
+      <span className="mt-0.5 text-[12px] text-white/55">
+        PDF или фото. ИИ распознает, создаст груз и покажет, что проверить.
+      </span>
+      {error && <span className="mt-2 text-[12px] text-bad-400">{error}</span>}
+    </motion.label>
+  )
+}
