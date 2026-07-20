@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { signIn } from './actions'
 import { LOCALE_COOKIE, LOCALES, resolveLocale, t, type Locale } from '@/lib/i18n'
 
@@ -12,7 +11,6 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [locale, setLocale] = useState<Locale>('ru')
   const [pending, start] = useTransition()
-  const router = useRouter()
 
   // Prefill the name from this device so a returning person doesn't retype it, and
   // pick up any language chosen earlier (cookie).
@@ -39,9 +37,14 @@ export default function LoginPage() {
         setError(res.error)
         return
       }
-      // refresh(), not push(): middleware rewrote this response, so the address bar
-      // still holds the real URL — including a QR's #load data. Re-render in place.
-      router.refresh()
+      // A full reload, not router.refresh(): middleware rewrote this response, so the
+      // address bar already holds the real URL — including a QR's #load data — and
+      // reloading it fetches that same URL fresh, same as refresh() intended. Unlike
+      // refresh()'s RSC-only fetch, a plain reload is just an ordinary page request,
+      // which behaves correctly behind reverse proxies that don't handle Next's RSC
+      // response format cleanly (seen in production on Hostinger: refresh() surfaced
+      // as "An unexpected response was received from the server").
+      window.location.reload()
     })
   }
 
