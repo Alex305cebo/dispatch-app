@@ -104,6 +104,22 @@ export async function setOpenAccess(enabled: boolean): Promise<{ error: string }
   revalidatePath('/admin')
 }
 
+export async function getTgDispatcherAccess(): Promise<boolean> {
+  await assertAdmin()
+  return (await getSetting('tg_dispatcher_access')) === '1'
+}
+
+/** Off by default — a freshly connected Telegram account stays admin-only (nav link
+ * hidden, /telegram itself refuses non-admins) until the admin explicitly opens it
+ * up to every dispatcher. Connect/disconnect stay admin-only either way. */
+export async function setTgDispatcherAccess(enabled: boolean): Promise<{ error: string } | void> {
+  await assertAdmin()
+  await setSetting('tg_dispatcher_access', enabled ? '1' : '0')
+  revalidatePath('/admin')
+  revalidatePath('/telegram')
+  revalidatePath('/', 'layout')
+}
+
 export type TgAdminStatus =
   | { connected: false }
   | {

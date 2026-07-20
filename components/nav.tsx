@@ -70,9 +70,22 @@ const ITEMS: Item[] = [
   { href: '/invoices', label: 'Оплаты', icon: 'money', desktopOnly: true },
 ]
 
-export function Nav({ companyName, user }: { companyName: string; user: CurrentUser | null }) {
+export function Nav({
+  companyName,
+  user,
+  showTelegram,
+}: {
+  companyName: string
+  user: CurrentUser | null
+  /** Off by default (admin panel toggle) — a freshly connected account stays
+   * admin-only until opened up to every dispatcher; the tab itself would 404 into
+   * an "ask the admin" message for a hidden dispatcher, but there's no reason to
+   * show the tab at all if it's just going to say that. */
+  showTelegram: boolean
+}) {
   const pathname = usePathname()
   const brand = brandName(companyName)
+  const items = showTelegram ? ITEMS : ITEMS.filter((it) => it.href !== '/telegram')
 
   // Every login and every section switch is a chance to nudge GPS forward — no
   // external cron ever got set up, so this was the only thing actually keeping
@@ -104,7 +117,7 @@ export function Nav({ companyName, user }: { companyName: string; user: CurrentU
 
       {/* Tabs: a row on the phone, a column in the sidebar. */}
       <div className="flex items-stretch justify-around gap-1 md:flex-col md:gap-0.5">
-        {ITEMS.map((it) => {
+        {items.map((it) => {
         const active = !it.soon && (it.href === '/' ? pathname === '/' : pathname.startsWith(it.href))
 
         const body = (

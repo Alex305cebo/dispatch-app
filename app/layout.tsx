@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Nav } from '@/components/nav'
 import { getCompany } from '@/lib/invoice'
 import { getCurrentUser } from '@/lib/session'
+import { getSetting } from '@/lib/settings'
 import './globals.css'
 
 // Apply the saved theme before first paint — no flash of the wrong colours.
@@ -22,7 +23,12 @@ export const viewport: Viewport = {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [company, user] = await Promise.all([getCompany(), getCurrentUser()])
+  const [company, user, tgOpenToAll] = await Promise.all([
+    getCompany(),
+    getCurrentUser(),
+    getSetting('tg_dispatcher_access'),
+  ])
+  const showTelegram = user?.role === 'admin' || tgOpenToAll === '1'
 
   return (
     // suppressHydrationWarning: the inline script sets data-theme before hydration,
@@ -36,7 +42,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             over the page any more. On /login, middleware never set the user headers,
             so `user` is null here and Nav just doesn't render the account row —
             harmless anyway, since the login form covers the nav completely. */}
-        <Nav companyName={company.name} user={user} />
+        <Nav companyName={company.name} user={user} showTelegram={showTelegram} />
         {/* Room for the bottom bar on phones (tabs + utility strip), sidebar on desktop. */}
         <div className="pb-28 md:pb-0 md:pl-52">{children}</div>
       </body>
