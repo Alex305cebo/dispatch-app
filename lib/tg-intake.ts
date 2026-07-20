@@ -11,7 +11,7 @@ import { classifyDocument } from './ai-doc.ts'
 const digits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '')
 
 /** phone(last10) → {truckId, number}, from truck passports. */
-async function phoneMap(): Promise<Map<string, { truckId: number; number: string }>> {
+export async function phoneMap(): Promise<Map<string, { truckId: number; number: string }>> {
   const rows = (await sql`
     SELECT m.truck_id, m.driver_phone, t.number FROM truck_meta m
     JOIN trucks t ON t.id = m.truck_id WHERE m.driver_phone IS NOT NULL`) as any[]

@@ -1,8 +1,13 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { confirmLogin, disconnectTelegram, startLogin, tgSend } from '@/lib/telegram'
-import { intakeDriverMedia, remindMissingPods } from '@/lib/tg-intake'
+import { confirmLogin, disconnectTelegram, startLogin, tgMedia, tgSend } from '@/lib/telegram'
+import { intakeDriverMedia, phoneMap, remindMissingPods } from '@/lib/tg-intake'
+import { activeLoadForTruck } from '@/lib/loads'
+import { classifyDocument } from '@/lib/ai-doc'
+import { sql } from '@/lib/db'
+
+const digits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '')
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -53,6 +58,40 @@ export async function tgCheckNow(): Promise<
 export async function tgDisconnectAccount(): Promise<void> {
   await disconnectTelegram()
   revalidatePath('/telegram')
+}
+
+/** Manual "file this to the driver's load" for one chat attachment — covers what
+ * auto-intake deliberately skips (rate cons, anything not pod/bol), routed by the
+ * open chat's phone match, same as the automatic path. */
+export async function tgAttachToLoad(
+  chatId: string,
+  msgId: number,
+  driverPhone: string | null,
+): Promise<{ ok: true; loadRoute: string } | { error: string }> {
+  if (!driverPhone) return { error: 'У этого чата нет номера телефона.' }
+  const phones = await phoneMap()
+  const truck = phones.get(digits(driverPhone).slice(-10))
+  if (!truck) return { error: 'Этот номер не привязан ни к одному траку — укажи его в паспорте трака.' }
+  const load = await activeLoadForTruck(truck.truckId)
+  if (!load) return { error: 'У этого трака сейчас нет активного груза.' }
+
+  const media = await tgMedia(chatId, msgId).catch(() => null)
+  if (!media) return { error: 'Не удалось скачать файл из Telegram.' }
+
+  const kind =
+    media.mime.startsWith('image/') || media.mime === 'application/pdf'
+      ? await classifyDocument(media.bytes.toString('base64'), media.mime)
+      : 'other'
+  const ext = media.mime.includes('pdf') ? 'pdf' : 'jpg'
+  await sql`
+    INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data)
+    VALUES (${load.id}, ${truck.truckId}, ${kind},
+            ${`${kind.toUpperCase()} #${truck.number} tg.${ext}`}, ${media.mime}, ${media.bytes.length},
+            decode(${media.bytes.toString('hex')}, 'hex'))`
+
+  revalidatePath(`/loads/${load.id}`)
+  revalidatePath('/docs')
+  return { ok: true, loadRoute: `${load.origin ?? ''} → ${load.destination ?? ''}` }
 }
 
 export async function tgSendMessage(

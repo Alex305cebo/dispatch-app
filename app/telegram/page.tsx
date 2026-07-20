@@ -5,6 +5,7 @@ import { TgSetup } from './tg-setup'
 import { TgSendBox } from './tg-chat'
 import { TgCheckButton } from './tg-check-button'
 import { TgDisconnectButton } from './tg-disconnect-button'
+import { TgAttachButton } from './tg-attach-button'
 import { Info } from '@/components/info'
 
 export const dynamic = 'force-dynamic'
@@ -145,23 +146,29 @@ export default async function Page({
                     }`}
                   >
                     {m.media === 'image' && (
-                      <a href={`/api/tg-media/${open.id}/${m.id}`} target="_blank" rel="noreferrer" className="mb-1 block">
-                        <img
-                          src={`/api/tg-media/${open.id}/${m.id}`}
-                          alt="Вложение"
-                          className="max-h-64 rounded-lg"
-                        />
-                      </a>
+                      <>
+                        <a href={`/api/tg-media/${open.id}/${m.id}`} target="_blank" rel="noreferrer" className="mb-1 block">
+                          <img
+                            src={`/api/tg-media/${open.id}/${m.id}`}
+                            alt="Вложение"
+                            className="max-h-64 rounded-lg"
+                          />
+                        </a>
+                        <TgAttachButton chatId={open.id} msgId={m.id} phone={open.phone} />
+                      </>
                     )}
                     {m.media === 'pdf' && (
-                      <a
-                        href={`/api/tg-media/${open.id}/${m.id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mb-1 flex items-center gap-1.5 text-haul-300 underline"
-                      >
-                        📄 Открыть PDF
-                      </a>
+                      <>
+                        <a
+                          href={`/api/tg-media/${open.id}/${m.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mb-1 flex items-center gap-1.5 text-haul-300 underline"
+                        >
+                          📄 Открыть PDF
+                        </a>
+                        <TgAttachButton chatId={open.id} msgId={m.id} phone={open.phone} />
+                      </>
                     )}
                     {m.media === 'other' && !m.text && <span className="text-white/45">[вложение]</span>}
                     {m.text}
