@@ -5,8 +5,15 @@
 
 import type { Found, RateConFields, Stop } from './ratecon.ts'
 
-/** Try in order; 404 (renamed model) and 429 (quota) fall through to the next. */
-export const AI_MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash']
+/** Try in order; 404 (renamed model) and 429 (quota) fall through to the next.
+ * Ends on gemini-3.1-flash-lite on purpose — its free-tier daily cap (500/day) is far
+ * above the others (20/day), so it's the one still standing after a heavy day. */
+export const AI_MODELS = [
+  'gemini-3-flash-preview',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-3.1-flash-lite',
+]
 
 export const AI_PROMPT = `You are reading a US trucking RATE CONFIRMATION document. Extract ONLY facts printed in the document. Never guess, never infer — use null for anything not present.
 

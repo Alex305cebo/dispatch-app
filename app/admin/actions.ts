@@ -5,6 +5,7 @@ import { sql } from '@/lib/db'
 import { humanError } from '@/lib/msg'
 import { hashPassword } from '@/lib/auth'
 import { getCurrentUser } from '@/lib/session'
+import { getSetting, setSetting } from '@/lib/settings'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -85,5 +86,19 @@ export async function resetUserPassword(userId: number, newPassword: string): Pr
   await sql`UPDATE users SET password_hash = ${await hashPassword(newPassword)} WHERE id = ${userId}`
   // A reset password should force a real re-login, not leave old sessions valid.
   await sql`DELETE FROM sessions WHERE user_id = ${userId}`
+  revalidatePath('/admin')
+}
+
+export async function getOpenAccess(): Promise<boolean> {
+  await assertAdmin()
+  return (await getSetting('open_access')) === '1'
+}
+
+/** middleware.ts checks this flag on every request — when on, the whole app (except
+ * /admin itself) skips the login check entirely. /admin always still requires a real
+ * admin session, so this switch can always be found and flipped back off. */
+export async function setOpenAccess(enabled: boolean): Promise<{ error: string } | void> {
+  await assertAdmin()
+  await setSetting('open_access', enabled ? '1' : '0')
   revalidatePath('/admin')
 }

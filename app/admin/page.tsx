@@ -4,8 +4,9 @@ import { getCurrentUser } from '@/lib/session'
 import { getCompany } from '@/lib/invoice'
 import { CompanyForm } from '@/components/invoice-actions'
 import { Info } from '@/components/info'
-import { listUsers } from './actions'
+import { getOpenAccess, listUsers } from './actions'
 import { UserList } from './user-list'
+import { OpenAccessToggle } from './open-access-toggle'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,7 +16,7 @@ export default async function AdminPage() {
   // dispatcher typing the URL directly must still be bounced, not shown the panel.
   if (!user || user.role !== 'admin') redirect('/')
 
-  const [users, company] = await Promise.all([listUsers(), getCompany()])
+  const [users, company, openAccess] = await Promise.all([listUsers(), getCompany(), getOpenAccess()])
 
   return (
     <main className="mx-auto max-w-3xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -30,6 +31,14 @@ export default async function AdminPage() {
           <Info text="Кто может войти в приложение. Диспетчер видит и делает всё то же, что и раньше — просто под своим именем, а не общим PIN. Отключить — сразу гасит все его текущие входы, не только блокирует новые." />
         </h2>
         <UserList users={users} currentUserId={user.id} />
+      </section>
+
+      <section className="panel mt-4 p-5">
+        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          Открытый доступ
+          <Info text="Временно убрать вход для всех — например, чтобы кто-то посмотрел живые данные без своего аккаунта. Эта панель всегда остаётся под входом, чтобы можно было выключить обратно." />
+        </h2>
+        <OpenAccessToggle enabled={openAccess} />
       </section>
 
       <section className="panel mt-4 p-5">

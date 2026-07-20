@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { SESSION_COOKIE, sessionUser } from '@/lib/auth'
+import { getSetting } from '@/lib/settings'
 
 export async function middleware(req: NextRequest) {
   // Strip any client-supplied identity headers FIRST, unconditionally, on every
@@ -15,6 +16,13 @@ export async function middleware(req: NextRequest) {
 
   // Public, no session needed — a fake-data preview, see app/demo/page.tsx.
   if (req.nextUrl.pathname.startsWith('/demo')) {
+    return NextResponse.next({ request: { headers } })
+  }
+
+  // Open-access mode (admin-panel switch, app/admin/actions.ts): the whole app
+  // works without signing in. /admin stays exempt so the switch that turns this
+  // back off can never itself be reached without a real login.
+  if (!req.nextUrl.pathname.startsWith('/admin') && (await getSetting('open_access')) === '1') {
     return NextResponse.next({ request: { headers } })
   }
 
