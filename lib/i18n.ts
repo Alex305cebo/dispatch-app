@@ -13,8 +13,16 @@ export function resolveLocale(v: string | undefined | null): Locale {
 
 // key → { ru, en }. Grows as screens get translated; keys are dot-namespaced by area.
 const DICT = {
-  'login.subtitle': { ru: 'Вход по PIN', en: 'Sign in with a PIN' },
+  'login.subtitle': { ru: 'Вход', en: 'Sign in' },
   'login.name': { ru: 'Ваше имя', en: 'Your name' },
+  'login.email': { ru: 'Email', en: 'Email' },
+  'login.password': { ru: 'Пароль', en: 'Password' },
+  'login.bootstrap_title': { ru: 'Первый запуск', en: 'First run' },
+  'login.bootstrap_subtitle': {
+    ru: 'Аккаунтов ещё нет — создай первый, он станет администратором.',
+    en: 'No accounts yet — create the first one, it becomes the administrator.',
+  },
+  'login.bootstrap_submit': { ru: 'Создать аккаунт', en: 'Create account' },
   'login.remember': { ru: 'Запомнить этот компьютер', en: 'Remember this computer' },
   'login.remember_on': {
     ru: 'Войдёшь один раз — устройство запомнит вход надолго. Не включай на чужом компьютере.',

@@ -1,0 +1,203 @@
+'use client'
+
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { createUser, resetUserPassword, setUserDisabled, setUserRole, type AdminUser } from './actions'
+import { notify } from '@/lib/notify'
+
+const input =
+  'w-full rounded-lg border border-white/10 bg-ink-950/70 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500'
+
+const ROLE_LABEL = { admin: 'Админ', dispatcher: 'Диспетчер' } as const
+
+export function UserList({ users, currentUserId }: { users: AdminUser[]; currentUserId: number }) {
+  const router = useRouter()
+  const [pending, start] = useTransition()
+  const [adding, setAdding] = useState(false)
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [role, setRole] = useState<'admin' | 'dispatcher'>('dispatcher')
+  const [resetFor, setResetFor] = useState<number | null>(null)
+  const [resetPw, setResetPw] = useState('')
+
+  function submitNew() {
+    start(async () => {
+      const res = await createUser(name, email, password, role)
+      if (res?.error) {
+        notify('error', res.error)
+        return
+      }
+      notify('ok', 'Пользователь добавлен')
+      setName('')
+      setEmail('')
+      setPassword('')
+      setRole('dispatcher')
+      setAdding(false)
+      router.refresh()
+    })
+  }
+
+  function toggleDisabled(u: AdminUser) {
+    start(async () => {
+      const res = await setUserDisabled(u.id, !u.disabledAt)
+      if (res?.error) notify('error', res.error)
+      else {
+        notify('ok', u.disabledAt ? 'Доступ включён' : 'Доступ отключён')
+        router.refresh()
+      }
+    })
+  }
+
+  function changeRole(u: AdminUser, next: 'admin' | 'dispatcher') {
+    start(async () => {
+      const res = await setUserRole(u.id, next)
+      if (res?.error) notify('error', res.error)
+      else router.refresh()
+    })
+  }
+
+  function submitReset(userId: number) {
+    start(async () => {
+      const res = await resetUserPassword(userId, resetPw)
+      if (res?.error) {
+        notify('error', res.error)
+        return
+      }
+      notify('ok', 'Пароль сброшен — прежние сессии этого пользователя завершены')
+      setResetFor(null)
+      setResetPw('')
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {users.map((u) => (
+        <div key={u.id} className="rounded-xl border border-white/6 bg-white/[0.015] p-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="truncate text-[14px] font-medium">{u.name}</span>
+                {u.id === currentUserId && (
+                  <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] text-white/55">это ты</span>
+                )}
+                {u.disabledAt && (
+                  <span className="rounded-full bg-bad-500/15 px-1.5 py-0.5 text-[10px] font-medium text-bad-400">
+                    отключён
+                  </span>
+                )}
+              </div>
+              <div className="text-[12px] text-white/55">{u.email}</div>
+            </div>
+
+            <select
+              value={u.role}
+              disabled={pending || u.id === currentUserId}
+              onChange={(e) => changeRole(u, e.target.value as 'admin' | 'dispatcher')}
+              className="rounded-lg border border-white/10 bg-ink-950/70 px-2 py-1.5 text-[12px] text-white outline-none disabled:opacity-40"
+            >
+              <option value="dispatcher">{ROLE_LABEL.dispatcher}</option>
+              <option value="admin">{ROLE_LABEL.admin}</option>
+            </select>
+
+            <button
+              disabled={pending}
+              onClick={() => setResetFor(resetFor === u.id ? null : u.id)}
+              className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[12px] text-white/70 transition-colors hover:border-white/25 hover:text-white disabled:opacity-40"
+            >
+              Пароль
+            </button>
+
+            <button
+              disabled={pending || u.id === currentUserId}
+              onClick={() => toggleDisabled(u)}
+              className={`rounded-lg border px-2.5 py-1.5 text-[12px] transition-colors disabled:opacity-40 ${
+                u.disabledAt
+                  ? 'border-good-500/25 text-good-400 hover:border-good-500/50'
+                  : 'border-bad-500/25 text-bad-400 hover:border-bad-500/50'
+              }`}
+            >
+              {u.disabledAt ? 'Включить' : 'Отключить'}
+            </button>
+          </div>
+
+          {resetFor === u.id && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-white/6 pt-2.5">
+              <input
+                type="password"
+                value={resetPw}
+                onChange={(e) => setResetPw(e.target.value)}
+                placeholder="Новый пароль, минимум 8 символов"
+                className={`${input} max-w-xs`}
+              />
+              <button
+                disabled={pending || resetPw.length < 8}
+                onClick={() => submitReset(u.id)}
+                className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
+              >
+                Сохранить
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {adding ? (
+        <div className="mt-1 rounded-xl border border-white/8 bg-white/[0.02] p-3">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Имя"
+              className={input}
+            />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              className={input}
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Пароль, минимум 8 символов"
+              className={input}
+            />
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as 'admin' | 'dispatcher')}
+              className={input}
+            >
+              <option value="dispatcher">{ROLE_LABEL.dispatcher}</option>
+              <option value="admin">{ROLE_LABEL.admin}</option>
+            </select>
+          </div>
+          <div className="mt-2.5 flex gap-2">
+            <button
+              disabled={pending || !name || !email || password.length < 8}
+              onClick={submitNew}
+              className="rounded-lg bg-haul-500 px-4 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
+            >
+              Добавить
+            </button>
+            <button
+              onClick={() => setAdding(false)}
+              className="rounded-lg px-4 py-1.5 text-[12px] text-white/70 transition-colors hover:text-white"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          className="mt-1 rounded-xl border border-dashed border-white/15 px-4 py-2.5 text-[13px] text-white/60 transition-colors hover:border-white/30 hover:text-white/85"
+        >
+          + Добавить пользователя
+        </button>
+      )}
+    </div>
+  )
+}

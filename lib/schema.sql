@@ -110,6 +110,30 @@ CREATE INDEX IF NOT EXISTS audit_at ON audit_log(at DESC);
 -- Geolocated city of the actor's IP ("Откуда" in the Журнал), same as logins.city.
 ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS city TEXT;
 
+-- Real per-person accounts, replacing the one shared APP_PIN. admin manages users
+-- and company settings — dispatcher has the same full working access everyone had before.
+CREATE TABLE IF NOT EXISTS users (
+  id            SERIAL PRIMARY KEY,
+  name          TEXT NOT NULL,
+  email         TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  role          TEXT NOT NULL DEFAULT 'dispatcher' CHECK (role IN ('admin', 'dispatcher')),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  disabled_at   TIMESTAMPTZ
+);
+
+-- A row per signed-in device. Deleting a row logs that device out immediately —
+-- the point of a real session table over a signed cookie: an admin can actually
+-- revoke access (disable a user, or one day add a "log out everywhere" button).
+CREATE TABLE IF NOT EXISTS sessions (
+  token      TEXT PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS sessions_expires ON sessions(expires_at);
+
 -- Live fleet status from ZigZag ELD, keyed by unit number (matches trucks.number).
 -- Filled by the ELD API poller (lib/eld.ts via /api/eld-poll) once the vendor key
 -- arrives. One row per truck, upserted — this is the newest snapshot, not history.

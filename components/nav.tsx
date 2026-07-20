@@ -1,9 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useTransition } from 'react'
 import { Notifier } from '@/components/notifier'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { signOut } from '@/app/login/actions'
+import type { CurrentUser } from '@/lib/session'
 
 // Hand-rolled 20px stroke icons — an icon library for seven glyphs is a dependency
 // to render seven paths.
@@ -18,6 +21,8 @@ const icons: Record<string, string> = {
   chat: 'M21 3L3 10.5l6.5 3L13 21z M9.5 13.5L21 3',
   who: 'M20 21a8 8 0 1 0-16 0 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   money: 'M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
+  shield: 'M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6z M9.5 12l1.8 1.8 3.2-3.6',
+  logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9',
 }
 
 function Icon({ d }: { d: string }) {
@@ -63,9 +68,18 @@ const ITEMS: Item[] = [
   { href: '/invoices', label: 'Оплаты', icon: 'money', desktopOnly: true },
 ]
 
-export function Nav({ companyName }: { companyName: string }) {
+export function Nav({ companyName, user }: { companyName: string; user: CurrentUser | null }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const [pending, start] = useTransition()
   const brand = brandName(companyName)
+
+  function logout() {
+    start(async () => {
+      await signOut()
+      router.refresh()
+    })
+  }
 
   return (
     <nav
@@ -136,10 +150,39 @@ export function Nav({ companyName }: { companyName: string }) {
         })}
       </div>
 
+      {/* Account row: name, admin link (if any), logout — desktop only, same as the
+          Журнал link below always was. Phone bottom bar has no room for it. */}
+      {user && (
+        <div className="order-first mb-1.5 hidden flex-col gap-1 rounded-xl border border-white/6 bg-white/[0.02] px-2.5 py-2 md:order-none md:mt-auto md:flex">
+          <span className="truncate text-[12px] font-medium text-white/85">{user.name}</span>
+          <div className="flex items-center gap-3 text-[11px] text-white/55">
+            {user.role === 'admin' && (
+              <Link
+                href="/admin"
+                className={`flex items-center gap-1 transition-colors hover:text-white/85 ${
+                  pathname.startsWith('/admin') ? 'text-haul-400' : ''
+                }`}
+              >
+                <Icon d={icons.shield} />
+                Админ
+              </Link>
+            )}
+            <button
+              onClick={logout}
+              disabled={pending}
+              className="flex items-center gap-1 transition-colors hover:text-white/85 disabled:opacity-40"
+            >
+              <Icon d={icons.logout} />
+              {pending ? '…' : 'Выйти'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Utility row: notifications + theme, and the login log on desktop.
           order-first puts it above the tabs on the phone; on desktop source order
           plus mt-auto pins it to the bottom of the sidebar. */}
-      <div className="order-first flex items-center justify-end gap-1.5 px-1 pb-1 md:order-none md:mt-auto md:justify-between md:px-0 md:pb-0">
+      <div className="order-first flex items-center justify-end gap-1.5 px-1 pb-1 md:order-none md:justify-between md:px-0 md:pb-0">
         <Link
           href="/logins"
           aria-current={pathname.startsWith('/logins') ? 'page' : undefined}

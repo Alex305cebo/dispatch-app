@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Nav } from '@/components/nav'
 import { getCompany } from '@/lib/invoice'
+import { getCurrentUser } from '@/lib/session'
 import './globals.css'
 
 // Apply the saved theme before first paint — no flash of the wrong colours.
@@ -21,7 +22,7 @@ export const viewport: Viewport = {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const company = await getCompany()
+  const [company, user] = await Promise.all([getCompany(), getCurrentUser()])
 
   return (
     // suppressHydrationWarning: the inline script sets data-theme before hydration,
@@ -32,8 +33,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         {/* Nav carries the notifications bell and the theme switch — nothing floats
-            over the page any more. */}
-        <Nav companyName={company.name} />
+            over the page any more. On /login, middleware never set the user headers,
+            so `user` is null here and Nav just doesn't render the account row —
+            harmless anyway, since the login form covers the nav completely. */}
+        <Nav companyName={company.name} user={user} />
         {/* Room for the bottom bar on phones (tabs + utility strip), sidebar on desktop. */}
         <div className="pb-28 md:pb-0 md:pl-52">{children}</div>
       </body>
