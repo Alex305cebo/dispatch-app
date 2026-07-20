@@ -4,7 +4,7 @@
 // MUST read. Until acknowledged (notes_read_at is null) it's highlighted amber with
 // a "Прочитано" button; after, it goes quiet. Editable so notes can be fixed/added.
 
-import { useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { markNotesRead, parseRcForNotes, setBrokerNotes, translateBrokerNotes } from '@/app/actions'
 import { notify } from '@/lib/notify'
@@ -58,6 +58,21 @@ export function BrokerNotes({
   const [ru, setRu] = useState<string | null>(null)
   const [showRu, setShowRu] = useState(false)
   const [translating, setTranslating] = useState(false)
+
+  const unread = !readAt
+  // Auto-open shows the full note once, then folds itself away after 10s so it
+  // doesn't just sit there blocking the page — the amber glow (CSS, while folded)
+  // keeps it impossible to miss until "Прочитано" is actually clicked. Direct DOM
+  // mutation (not React state) because <details> already owns its own open/close
+  // from the user clicking <summary> — mirroring that in state would fight it.
+  const detailsRef = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    if (!unread) return
+    const t = setTimeout(() => {
+      if (detailsRef.current) detailsRef.current.open = false
+    }, 10_000)
+    return () => clearTimeout(t)
+  }, [unread])
 
   function toggleTranslate() {
     if (ru) {
@@ -175,7 +190,6 @@ export function BrokerNotes({
     )
   }
 
-  const unread = !readAt
   const shown = showRu && ru ? ru : notes
   const lines = parseNotes(shown)
   const structured = lines.some((l) => l.tag !== null)
@@ -185,10 +199,11 @@ export function BrokerNotes({
 
   return (
     <details
+      ref={detailsRef}
       open={unread}
       className={`group overflow-hidden rounded-2xl border ${
         unread
-          ? 'border-warn-400/40 bg-warn-400/10 ring-1 ring-warn-400/25'
+          ? 'animate-pulse border-warn-400/40 bg-warn-400/10 ring-1 ring-warn-400/25 group-open:animate-none'
           : 'border-white/8 bg-ink-900/50'
       }`}
     >
