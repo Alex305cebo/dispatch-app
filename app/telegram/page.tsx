@@ -4,6 +4,7 @@ import { tgConnected, tgDialogs, tgMessages, type TgDialog, type TgMsg } from '@
 import { TgSetup } from './tg-setup'
 import { TgSendBox } from './tg-chat'
 import { TgCheckButton } from './tg-check-button'
+import { TgDisconnectButton } from './tg-disconnect-button'
 import { Info } from '@/components/info'
 
 export const dynamic = 'force-dynamic'
@@ -68,7 +69,10 @@ export default async function Page({
             Переписка с водителями — прямо здесь, через твой аккаунт.
           </p>
         </div>
-        <TgCheckButton />
+        <div className="flex flex-col items-end gap-1.5">
+          <TgCheckButton />
+          <TgDisconnectButton />
+        </div>
       </header>
 
       {error && <p className="panel mb-4 p-4 text-[13px] text-bad-400">{error}</p>}

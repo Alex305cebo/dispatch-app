@@ -12,3 +12,7 @@ export async function setSetting(key: string, value: string): Promise<void> {
   await sql`INSERT INTO settings (key, value) VALUES (${key}, ${value})
             ON CONFLICT (key) DO UPDATE SET value = ${value}`
 }
+
+export async function deleteSetting(key: string): Promise<void> {
+  await sql`DELETE FROM settings WHERE key = ${key}`
+}

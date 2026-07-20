@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { confirmLogin, startLogin, tgSend } from '@/lib/telegram'
+import { confirmLogin, disconnectTelegram, startLogin, tgSend } from '@/lib/telegram'
 import { intakeDriverMedia, remindMissingPods } from '@/lib/tg-intake'
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -47,6 +47,12 @@ export async function tgCheckNow(): Promise<
   revalidatePath('/telegram')
   revalidatePath('/loads')
   return { attached: intake.attached, skipped: intake.skipped, nudged: reminders.nudged }
+}
+
+/** Wrong account connected — drop the session so the connect form comes back up. */
+export async function tgDisconnectAccount(): Promise<void> {
+  await disconnectTelegram()
+  revalidatePath('/telegram')
 }
 
 export async function tgSendMessage(

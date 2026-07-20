@@ -12,7 +12,7 @@
 import { randomUUID } from 'node:crypto'
 import { Api, TelegramClient } from 'telegram'
 import { StringSession } from 'telegram/sessions/index.js'
-import { getSetting, setSetting } from './settings'
+import { deleteSetting, getSetting, setSetting } from './settings'
 
 export { getSetting, setSetting }
 
@@ -29,6 +29,16 @@ async function creds(): Promise<{ apiId: number; apiHash: string; session: strin
 
 export async function tgConnected(): Promise<boolean> {
   return (await creds()) !== null
+}
+
+/** Drops the stored session so /telegram shows the connect form again — for
+ * switching which Telegram account is behind the app (wrong account connected). */
+export async function disconnectTelegram(): Promise<void> {
+  if (client) {
+    await client.disconnect().catch(() => {})
+    client = null
+  }
+  await Promise.all([deleteSetting('tg_session'), deleteSetting('tg_api_id'), deleteSetting('tg_api_hash')])
 }
 
 // One shared, kept-alive connection for the whole server process instead of a fresh
