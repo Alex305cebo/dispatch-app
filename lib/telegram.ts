@@ -54,11 +54,12 @@ export async function tgAccountInfo(): Promise<{ name: string; phone: string | n
 
 /* ---------- which chats show up in the app ---------- */
 
-/** Admin-curated allow list — everyone who opens /telegram sees the same chats,
- * so noise (personal chats, random groups) can be hidden without deleting anything
- * on the Telegram side. Empty set = nothing hidden yet = show everything. */
-export async function tgHiddenChats(): Promise<Set<string>> {
-  const raw = (await getSetting('tg_hidden_chats')) ?? '[]'
+/** Admin-curated allow list — everyone who opens /telegram sees the same chats, and
+ * ONLY those chats: a connected account's ~100 dialogs are mostly noise (personal
+ * chats, randoms who message in), so nothing shows until the admin explicitly
+ * approves it here. Empty set = nothing approved yet = show nothing. */
+export async function tgShownChats(): Promise<Set<string>> {
+  const raw = (await getSetting('tg_shown_chats')) ?? '[]'
   try {
     return new Set(JSON.parse(raw) as string[])
   } catch {
@@ -66,8 +67,8 @@ export async function tgHiddenChats(): Promise<Set<string>> {
   }
 }
 
-export async function setTgHiddenChats(ids: string[]): Promise<void> {
-  await setSetting('tg_hidden_chats', JSON.stringify(ids))
+export async function setTgShownChats(ids: string[]): Promise<void> {
+  await setSetting('tg_shown_chats', JSON.stringify(ids))
 }
 
 /** Manual chat → truck override — for groups (no phone at all) or a driver whose

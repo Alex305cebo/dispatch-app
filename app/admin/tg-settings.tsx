@@ -23,7 +23,7 @@ export function TgSettings({ status }: { status: TgAdminStatus | { error: string
     <ConnectedTgSettings
       account={status.account}
       dialogs={status.dialogs}
-      hidden={status.hidden}
+      shown={status.shown}
       chatTruck={status.chatTruck}
       trucks={status.trucks}
     />
@@ -33,13 +33,13 @@ export function TgSettings({ status }: { status: TgAdminStatus | { error: string
 function ConnectedTgSettings({
   account,
   dialogs,
-  hidden,
+  shown,
   chatTruck,
   trucks,
 }: Omit<Extract<TgAdminStatus, { connected: true }>, 'connected'>) {
-  const [hiddenSet, setHiddenSet] = useState(new Set(hidden))
+  const [shownSet, setShownSet] = useState(new Set(shown))
   const [pending, start] = useTransition()
-  const dirty = hiddenSet.size !== hidden.length || hidden.some((id) => !hiddenSet.has(id))
+  const dirty = shownSet.size !== shown.length || shown.some((id) => !shownSet.has(id))
   const [truckPending, startTruck] = useTransition()
 
   function assignTruck(chatId: string, value: string) {
@@ -50,7 +50,7 @@ function ConnectedTgSettings({
   }
 
   function toggle(id: string) {
-    setHiddenSet((prev) => {
+    setShownSet((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
@@ -60,7 +60,7 @@ function ConnectedTgSettings({
 
   function save() {
     start(async () => {
-      const res = await setTgVisibility([...hiddenSet])
+      const res = await setTgVisibility([...shownSet])
       if (res?.error) notify('error', res.error)
       else notify('ok', 'Список чатов обновлён')
     })
@@ -74,6 +74,9 @@ function ConnectedTgSettings({
           {account.phone && <span className="text-white/45"> · +{account.phone}</span>}
         </p>
       )}
+      <p className="mb-3 text-[12px] text-white/50">
+        Отмеченные диалоги видны диспетчерам на /telegram. Всё остальное — не видно нигде, даже мельком.
+      </p>
 
       {dialogs.length === 0 ? (
         <p className="text-[13px] text-white/55">Диалогов не видно на этом аккаунте.</p>
@@ -86,7 +89,7 @@ function ConnectedTgSettings({
             >
               <input
                 type="checkbox"
-                checked={!hiddenSet.has(d.id)}
+                checked={shownSet.has(d.id)}
                 onChange={() => toggle(d.id)}
                 className="size-4 shrink-0 accent-haul-500"
               />

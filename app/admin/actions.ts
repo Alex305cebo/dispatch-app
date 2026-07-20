@@ -8,12 +8,12 @@ import { getCurrentUser } from '@/lib/session'
 import { getSetting, setSetting } from '@/lib/settings'
 import {
   setTgChatTruck,
-  setTgHiddenChats,
+  setTgShownChats,
   tgAccountInfo,
   tgChatTruckMap,
   tgConnected,
   tgDialogs,
-  tgHiddenChats,
+  tgShownChats,
   type TgDialog,
 } from '@/lib/telegram'
 import { listTrucks } from '@/lib/loads'
@@ -136,7 +136,7 @@ export type TgAdminStatus =
       connected: true
       account: { name: string; phone: string | null; username: string | null } | null
       dialogs: TgDialog[]
-      hidden: string[]
+      shown: string[]
       chatTruck: Record<string, number>
       trucks: { id: number; number: string }[]
     }
@@ -145,10 +145,10 @@ export async function tgAdminStatus(): Promise<TgAdminStatus | { error: string }
   await assertAdmin()
   if (!(await tgConnected())) return { connected: false }
   try {
-    const [account, dialogs, hidden, chatTruck, trucks] = await Promise.all([
+    const [account, dialogs, shown, chatTruck, trucks] = await Promise.all([
       tgAccountInfo(),
       tgDialogs(),
-      tgHiddenChats(),
+      tgShownChats(),
       tgChatTruckMap(),
       listTrucks(),
     ])
@@ -156,7 +156,7 @@ export async function tgAdminStatus(): Promise<TgAdminStatus | { error: string }
       connected: true,
       account,
       dialogs,
-      hidden: [...hidden],
+      shown: [...shown],
       chatTruck,
       trucks: trucks.map((t) => ({ id: t.id, number: t.number ?? t.name })),
     }
@@ -174,11 +174,12 @@ export async function setChatTruck(chatId: string, truckId: number | null): Prom
   revalidatePath('/telegram')
 }
 
-/** Which of the connected account's chats show up on /telegram — same list for
- * every dispatcher, curated here instead of per-viewer. */
-export async function setTgVisibility(hiddenIds: string[]): Promise<{ error: string } | void> {
+/** Which of the connected account's chats show up on /telegram — an allow list, same
+ * for every dispatcher: unapproved chats (most of a real account's dialogs) never
+ * appear at all, not even briefly. */
+export async function setTgVisibility(shownIds: string[]): Promise<{ error: string } | void> {
   await assertAdmin()
-  await setTgHiddenChats(hiddenIds)
+  await setTgShownChats(shownIds)
   revalidatePath('/admin')
   revalidatePath('/telegram')
 }

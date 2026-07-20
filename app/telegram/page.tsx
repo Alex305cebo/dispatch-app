@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getCurrentUser } from '@/lib/session'
 import { getSetting } from '@/lib/settings'
-import { tgConnected, tgDialogs, tgHiddenChats, tgMessages, type TgDialog, type TgMsg } from '@/lib/telegram'
+import { tgConnected, tgDialogs, tgMessages, tgShownChats, type TgDialog, type TgMsg } from '@/lib/telegram'
 import { resolveTruckForChat } from '@/lib/tg-intake'
 import { TgSetup } from './tg-setup'
 import { TgSendBox } from './tg-chat'
@@ -66,9 +66,10 @@ export default async function Page({
   let msgs: TgMsg[] | null = null
   let error: string | null = null
   try {
-    const [all, hidden] = await Promise.all([tgDialogs(), tgHiddenChats()])
-    // Admin-curated in the admin panel — same list for every dispatcher, not per-viewer.
-    dialogs = all.filter((d) => !hidden.has(d.id))
+    const [all, shown] = await Promise.all([tgDialogs(), tgShownChats()])
+    // Allow list, curated in the admin panel — same list for every dispatcher, not
+    // per-viewer, and nothing shows until explicitly approved there.
+    dialogs = all.filter((d) => shown.has(d.id))
     if (chatId) msgs = await tgMessages(chatId)
   } catch (e) {
     error = e instanceof Error ? e.message : String(e)
