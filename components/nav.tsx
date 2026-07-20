@@ -6,6 +6,7 @@ import { useTransition } from 'react'
 import { Notifier } from '@/components/notifier'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { signOut } from '@/app/login/actions'
+import { UserPanel } from '@/components/user-panel'
 import type { CurrentUser } from '@/lib/session'
 
 // Hand-rolled 20px stroke icons — an icon library for seven glyphs is a dependency
@@ -154,7 +155,7 @@ export function Nav({ companyName, user }: { companyName: string; user: CurrentU
           Журнал link below always was. Phone bottom bar has no room for it. */}
       {user && (
         <div className="order-first mb-1.5 hidden flex-col gap-1 rounded-xl border border-white/6 bg-white/[0.02] px-2.5 py-2 md:order-none md:mt-auto md:flex">
-          <span className="truncate text-[12px] font-medium text-white/85">{user.name}</span>
+          <UserPanel user={user} />
           <div className="flex items-center gap-3 text-[11px] text-white/55">
             {user.role === 'admin' && (
               <Link

@@ -50,17 +50,16 @@ export function TgSetup() {
     })
 
   return (
-    <div className="panel mx-auto max-w-md p-6">
-      <h2 className="text-[15px] font-semibold">Подключение Telegram</h2>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-white/65">
-        Подключается <b>твой</b> аккаунт — водители ничего не устанавливают и не нажимают:
-        переписка с ними появится здесь как есть.
+    <div className="panel mx-auto max-w-sm p-4">
+      <h2 className="text-[14px] font-semibold">Подключение Telegram</h2>
+      <p className="mt-1 text-[12px] leading-snug text-white/60">
+        Подключается <b>твой</b> аккаунт — водители ничего не устанавливают и не нажимают.
       </p>
 
       {step === 'creds' && (
-        <div className="mt-4 flex flex-col gap-3">
-          <p className="text-[12px] leading-relaxed text-white/55">
-            api_id и api_hash — с{' '}
+        <div className="mt-3 flex flex-col gap-2">
+          <p className="text-[11px] leading-snug text-white/50">
+            api_id/api_hash —{' '}
             <a
               href="https://my.telegram.org"
               target="_blank"
@@ -69,15 +68,17 @@ export function TgSetup() {
             >
               my.telegram.org
             </a>{' '}
-            → API development tools (бесплатно, один раз).
+            → API development tools.
           </p>
-          <input value={apiId} onChange={(e) => setApiId(e.target.value)} placeholder="api_id" className={input} inputMode="numeric" />
-          <input value={apiHash} onChange={(e) => setApiHash(e.target.value)} placeholder="api_hash" className={input} />
+          <div className="grid grid-cols-2 gap-2">
+            <input value={apiId} onChange={(e) => setApiId(e.target.value)} placeholder="api_id" className={input} inputMode="numeric" />
+            <input value={apiHash} onChange={(e) => setApiHash(e.target.value)} placeholder="api_hash" className={input} />
+          </div>
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Телефон (+1...)" className={input} inputMode="tel" />
           <button
             disabled={pending || !apiId || !apiHash || !phone}
             onClick={sendCode}
-            className="rounded-xl bg-haul-500 py-2.5 text-[14px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
+            className="mt-1 rounded-xl bg-haul-500 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
           >
             {pending ? 'Отправляю код…' : 'Получить код в Telegram'}
           </button>
@@ -85,18 +86,17 @@ export function TgSetup() {
       )}
 
       {step === 'code' && (
-        <div className="mt-4 flex flex-col gap-3">
+        <div className="mt-3 flex flex-col gap-2">
           {deliveryHint && (
-            <p className="rounded-lg border border-haul-500/25 bg-haul-500/[0.07] px-3 py-2 text-[12.5px] leading-relaxed text-haul-300">
+            <p className="rounded-lg border border-haul-500/25 bg-haul-500/[0.07] px-2.5 py-1.5 text-[11.5px] leading-snug text-haul-300">
               {deliveryHint}
             </p>
           )}
-          <p className="text-[13px] text-white/65">Введи код:</p>
           <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Код из Telegram" className={input} inputMode="numeric" autoFocus />
           <button
             disabled={pending || !code}
             onClick={confirm}
-            className="rounded-xl bg-haul-500 py-2.5 text-[14px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
+            className="rounded-xl bg-haul-500 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
           >
             {pending ? 'Проверяю…' : 'Войти'}
           </button>
@@ -104,26 +104,23 @@ export function TgSetup() {
       )}
 
       {step === '2fa' && (
-        <div className="mt-4 flex flex-col gap-3">
-          <p className="text-[13px] text-white/65">
-            На аккаунте включён облачный пароль (2FA) — введи его:
-          </p>
+        <div className="mt-3 flex flex-col gap-2">
+          <p className="text-[12px] text-white/60">Включён облачный пароль (2FA) — введи его:</p>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Облачный пароль" className={input} autoFocus />
           <button
             disabled={pending || !password}
             onClick={confirm}
-            className="rounded-xl bg-haul-500 py-2.5 text-[14px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
+            className="rounded-xl bg-haul-500 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
           >
             {pending ? 'Проверяю…' : 'Подтвердить'}
           </button>
         </div>
       )}
 
-      {error && <p className="mt-3 text-[13px] text-bad-400">{error}</p>}
+      {error && <p className="mt-2 text-[12px] text-bad-400">{error}</p>}
 
-      <p className="mt-4 text-[11px] leading-relaxed text-white/45">
-        Вход делается один раз и на этом компьютере (локально). Дальше сессия хранится на
-        сервере приложения и работает везде.
+      <p className="mt-3 text-[10.5px] leading-snug text-white/40">
+        Вход — один раз, локально. Дальше сессия хранится на сервере и работает везде.
       </p>
     </div>
   )
