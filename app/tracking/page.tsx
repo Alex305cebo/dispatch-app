@@ -100,7 +100,9 @@ export default async function Page() {
   let totalDeliveryMiles = 0
 
   for (const { t, fs, load, pickup, legToPickup, legToDelivery, weather, idleAt, heading } of perTruck) {
-    const st = eldStatus(fs?.drive_status ?? null)
+    // Unconditional on load — a parked empty truck shouldn't say "moving" either.
+    const idleHoursAny = idleAt ? Math.floor((Date.now() - idleAt.getTime()) / 3_600_000) : null
+    const st = eldStatus(fs?.drive_status ?? null, idleHoursAny)
     if (st.tone === 'move') moving++
     else if (st.tone === 'on') onDuty++
     else resting++
@@ -109,7 +111,7 @@ export default async function Page() {
 
     // A truck with an active load that hasn't moved in hours is worth a flag
     // (detention, breakdown). An idle EMPTY truck is just parked — unremarkable.
-    const idleHoursRaw = load && idleAt ? Math.floor((Date.now() - idleAt.getTime()) / 3_600_000) : null
+    const idleHoursRaw = load && idleAt ? idleHoursAny : null
 
     // Real total to delivery: deadhead (truck→pickup) + loaded miles (pickup→delivery)
     // when the load hasn't been picked up yet, or just the direct leg once it has.

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { sql } from '@/lib/db'
 import { eldStatus } from '@/lib/map'
 import { agoText } from '@/lib/fmt'
+import { idleSince } from '@/lib/eld'
 import { FleetMap, type MapMarker } from '@/components/fleet-map'
 
 // Public, no login — a link a dispatcher can hand to a broker/customer so they can
@@ -22,8 +23,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const row = rows[0]
   if (!row) notFound()
 
-  const st = eldStatus(row.drive_status)
   const hasFix = row.lat !== null && row.lng !== null
+  const idleAt =
+    hasFix && row.number ? await idleSince(row.number, row.lat!, row.lng!).catch(() => null) : null
+  const idleHours = idleAt ? Math.floor((Date.now() - idleAt.getTime()) / 3_600_000) : null
+  const st = eldStatus(row.drive_status, idleHours)
   const markers: MapMarker[] = hasFix
     ? [{ lat: row.lat!, lng: row.lng!, label: row.number ?? '—', sub: row.location ?? undefined, tone: st.tone, kind: 'truck' }]
     : []

@@ -61,8 +61,20 @@ export function truckLabel(t: TruckRecord): string {
 }
 
 /** ZigZag duty codes → a plain label + a colour bucket. Shared between /tracking
- * and the public /track/[id] link so both read a truck's status the same way. */
-export function eldStatus(s: string | null): { text: string; tone: 'move' | 'on' | 'rest' } {
+ * and the public /track/[id] link so both read a truck's status the same way.
+ *
+ * `idleHours`, when given, is the REAL time-in-one-spot from the GPS breadcrumb
+ * trail (lib/eld.ts idleSince) — it wins over a self-reported speed. Live Share's
+ * "speed" field can get stuck on an old non-zero value while the truck is parked
+ * (seen live: "59 mi/h" shown 7 hours after the truck actually stopped), so past a
+ * few hours of measured zero movement, trust the trail over the label. */
+export function eldStatus(
+  s: string | null,
+  idleHours: number | null = null,
+): { text: string; tone: 'move' | 'on' | 'rest' } {
+  if (idleHours !== null && idleHours >= 3) {
+    return { text: `Стоит ~${idleHours}ч (нет движения по GPS)`, tone: 'rest' }
+  }
   if (!s) return { text: '—', tone: 'rest' }
   if (/mi\/h/.test(s)) return { text: `В движении · ${s}`, tone: 'move' }
   if (s === 'D') return { text: 'В движении', tone: 'move' }
