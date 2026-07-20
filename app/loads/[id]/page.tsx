@@ -4,6 +4,9 @@ import { getLoad, listDocs, truckForLoad } from '@/lib/loads'
 import { truckLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { getCompany } from '@/lib/invoice'
+import { fleetStatusByUnit } from '@/lib/maintenance'
+import { loadMapData } from '@/lib/load-map'
+import { FleetMap } from '@/components/fleet-map'
 import { Analysis } from '@/components/analysis'
 import { LoadEditNumbers } from '@/components/load-edit-numbers'
 import { BrokerNotes } from '@/components/broker-notes'
@@ -33,6 +36,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const rateConDoc = docs.find((d) => d.kind === 'ratecon')
   // Needed to tell the dispatcher up front if an invoice can even be built.
   const company = await getCompany()
+
+  // This load's own map — truck → pickup → delivery for THIS load specifically,
+  // not just whatever the truck page happens to call its "current" assignment.
+  const fleet = await fleetStatusByUnit()
+  const fs = truck.number ? fleet.get(truck.number) : undefined
+  const { markers: mapMarkers, routes: mapRoutes, etaText } = await loadMapData(load, truck, fs)
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -82,6 +91,19 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <Analysis r={r} mpg={truck.mpg} spotRpm={load.spotRpm} />
         </div>
       </section>
+
+      {/* This load's assignment on the map — truck's live GPS, pickup (while still
+          booked), delivery, and the road route between them. */}
+      {mapMarkers.length > 0 && (
+        <section className="panel mt-4 p-4">
+          <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+            На карте
+            <Info text="Где сейчас трак и куда ему ехать по этому грузу: пикап (пока груз не забран) и доставка, маршрут по дорогам между ними." />
+            {etaText && <span className="ml-auto text-[11px] font-normal normal-case text-white/55">{etaText}</span>}
+          </h2>
+          <FleetMap markers={mapMarkers} routes={mapRoutes} height={280} />
+        </section>
+      )}
 
       <section className="panel mt-4 p-5">
         <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-white/62">

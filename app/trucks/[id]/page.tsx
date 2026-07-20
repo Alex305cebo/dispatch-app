@@ -4,7 +4,6 @@ import { BackButton } from '@/components/back-button'
 import { currentLoadForTruck, getTruck, listDocs, listLoads, rateConByLoad } from '@/lib/loads'
 import { truckLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
-import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
 import {
   fleetStatusByUnit,
   getTruckMeta,
@@ -12,9 +11,10 @@ import {
   listTodos,
   oilStatus,
 } from '@/lib/maintenance'
-import { headingOf, tripHistory } from '@/lib/eld'
-import { driveTime, usd, usd2 } from '@/lib/fmt'
-import { FleetMap, type MapMarker, type MapRoute } from '@/components/fleet-map'
+import { tripHistory } from '@/lib/eld'
+import { loadMapData, statusTone } from '@/lib/load-map'
+import { usd, usd2 } from '@/lib/fmt'
+import { FleetMap } from '@/components/fleet-map'
 import { StatusBadge } from '@/components/status'
 import { TruckForm } from '@/components/truck-form'
 import { TruckCare } from '@/components/truck-care'
@@ -27,14 +27,6 @@ import { TripHistory } from '@/components/trip-history'
 import { Info } from '@/components/info'
 
 export const dynamic = 'force-dynamic'
-
-// ZigZag duty codes → colour bucket for the live badge.
-function statusTone(s: string | null): 'move' | 'on' | 'rest' {
-  if (!s) return 'rest'
-  if (/mi\/h|^d$/i.test(s)) return 'move'
-  if (/^on$/i.test(s)) return 'on'
-  return 'rest'
-}
 
 // truck_position_log is pruned to 7 days on every write (lib/eld.ts) — that's the
 // real ceiling on how far back "full history" can ever reach, not a UI choice.
@@ -92,79 +84,7 @@ export default async function Page({
 
   // Map: the truck where it sits (ELD GPS) plus a delivery pin at its active load's
   // destination city, with rough miles + drive time to it.
-  const mapMarkers: MapMarker[] = []
-  const mapRoutes: MapRoute[] = []
-  const lat = fs?.lat ?? null
-  const lng = fs?.lng ?? null
-  if (lat != null && lng != null) {
-    const heading = truck.number ? await headingOf(truck.number, lat, lng).catch(() => null) : null
-    const truckM: MapMarker = {
-      lat,
-      lng,
-      label: truck.number ?? truck.name,
-      sub: [fs?.location, fs?.driveStatus].filter(Boolean).join('\n'),
-      tone: statusTone(fs?.driveStatus ?? null),
-      kind: 'truck',
-      heading: heading ?? undefined,
-    }
-    // Prefer the RC's exact street address over the bare city — pins the real dock,
-    // not just the city center. Falls back to ZIP then city if OSM can't resolve that
-    // specific address (common for rural/warehouse addresses).
-    const pickup = await cityCoordsBest(activeLoad?.pickupAddress, activeLoad?.origin)
-    // Not picked up yet: the real road ahead is truck → pickup (the actual deadhead)
-    // → delivery (the loaded miles) — never a straight line to delivery that skips
-    // the pickup stop entirely.
-    let legToPickup: Awaited<ReturnType<typeof deliveryInfoBest>> = null
-    let legToDelivery: Awaited<ReturnType<typeof deliveryInfoBest>> = null
-    if (activeLoad?.status === 'booked' && pickup) {
-      ;[legToPickup, legToDelivery] = await Promise.all([
-        deliveryInfoBest({ lat, lng }, activeLoad.pickupAddress, activeLoad.origin),
-        deliveryInfoBest(pickup, activeLoad.deliveryAddress, activeLoad.destination),
-      ])
-    } else if (activeLoad) {
-      legToDelivery = await deliveryInfoBest({ lat, lng }, activeLoad.deliveryAddress, activeLoad.destination)
-    }
-    // Only while still booked — once picked up, the truck IS at/past this stop and
-    // the pin has nothing left to say, just a second (wrong-looking) dot on the map.
-    if (pickup && activeLoad?.status === 'booked') {
-      mapMarkers.push({
-        lat: pickup.lat,
-        lng: pickup.lng,
-        label: `Пикап · ${activeLoad.origin}`,
-        sub: [activeLoad.pickupTime || (activeLoad.pickupDate ? activeLoad.pickupDate.slice(0, 10) : null)]
-          .filter(Boolean)
-          .join('\n'),
-        kind: 'pickup',
-      })
-    }
-    if (legToDelivery && activeLoad) {
-      const routeMiles = (legToPickup?.miles ?? 0) + legToDelivery.miles
-      const routeEtaMin = (legToPickup?.etaMin ?? 0) + legToDelivery.etaMin
-      truckM.eta = `${routeMiles} mi · ~${driveTime(routeEtaMin)} до delivery`
-      if (legToPickup && pickup) {
-        mapRoutes.push({ from: [lat, lng], to: [pickup.lat, pickup.lng], coords: legToPickup.coords })
-        mapRoutes.push({
-          from: [pickup.lat, pickup.lng],
-          to: [legToDelivery.lat, legToDelivery.lng],
-          coords: legToDelivery.coords,
-        })
-      } else {
-        mapRoutes.push({
-          from: [lat, lng],
-          to: [legToDelivery.lat, legToDelivery.lng],
-          coords: legToDelivery.coords,
-        })
-      }
-      mapMarkers.push({
-        lat: legToDelivery.lat,
-        lng: legToDelivery.lng,
-        label: `Delivery · ${activeLoad.destination}`,
-        sub: activeLoad.origin ? `Из ${activeLoad.origin}` : undefined,
-        kind: 'dest',
-      })
-    }
-    mapMarkers.push(truckM)
-  }
+  const { markers: mapMarkers, routes: mapRoutes } = await loadMapData(activeLoad, truck, fs)
 
   const toneClass = {
     move: 'text-good-400',
