@@ -22,6 +22,9 @@ const icons: Record<string, string> = {
   docs: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5',
   chat: 'M21 3L3 10.5l6.5 3L13 21z M9.5 13.5L21 3',
   who: 'M20 21a8 8 0 1 0-16 0 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  // Clock + counter-clockwise arrow — reads as "activity history", not "profile",
+  // for the Журнал button (a person silhouette there looked like an account avatar).
+  history: 'M12 8v4l3 3 M3.05 11a9 9 0 1 0 .5-4 M3 4v6h6',
   money: 'M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
   shield: 'M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6z M9.5 12l1.8 1.8 3.2-3.6',
   logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9',
@@ -186,7 +189,7 @@ export function Nav({ companyName, user }: { companyName: string; user: CurrentU
                     : 'border-white/10 bg-ink-800/80 text-white/72 hover:border-white/25 hover:text-white/90'
                 }`}
               >
-                <Icon d={icons.who} />
+                <Icon d={icons.history} />
               </Link>
               <Notifier />
               <ThemeToggle />
