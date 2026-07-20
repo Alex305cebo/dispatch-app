@@ -135,14 +135,19 @@ export async function activeLoadForTruck(truckId: number): Promise<LoadRecord | 
  * other non-cancelled status), which meant a truck that had already unloaded still
  * showed a delivery pin and a route to a city it had left — the map claiming a trip
  * that was over. A finished load is history, not a destination.
+ *
+ * Newest wins, full stop — no in_transit-over-booked preference. That preference
+ * used to mean an old in_transit load a dispatcher forgot to close out would keep
+ * beating a brand new load added for the same truck, so the map and "Текущее
+ * задание" silently kept pointing at the trip that was actually over instead of
+ * the one just added. The next load added for a truck IS the current one; closing
+ * out the old one is a separate, later step, not a precondition for this to update.
  */
 export async function currentLoadForTruck(truckId: number): Promise<LoadRecord | null> {
   const rows = (await sql`
     SELECT * FROM loads
     WHERE truck_id = ${truckId} AND status IN ('in_transit', 'booked')
-    ORDER BY
-      CASE status WHEN 'in_transit' THEN 0 ELSE 1 END,
-      created_at DESC
+    ORDER BY created_at DESC
     LIMIT 1`) as LoadRow[]
   return rows[0] ? rowToLoad(rows[0]) : null
 }
