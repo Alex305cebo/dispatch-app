@@ -8,6 +8,7 @@ import { TgSendBox } from './tg-chat'
 import { TgCheckButton } from './tg-check-button'
 import { TgDisconnectButton } from './tg-disconnect-button'
 import { TgAttachButton } from './tg-attach-button'
+import { TgImage } from './tg-image'
 import { Info } from '@/components/info'
 
 export const dynamic = 'force-dynamic'
@@ -171,13 +172,7 @@ export default async function Page({
                   >
                     {m.media === 'image' && (
                       <>
-                        <a href={`/api/tg-media/${open.id}/${m.id}`} target="_blank" rel="noreferrer" className="mb-1 block">
-                          <img
-                            src={`/api/tg-media/${open.id}/${m.id}`}
-                            alt="Вложение"
-                            className="max-h-64 rounded-lg"
-                          />
-                        </a>
+                        <TgImage src={`/api/tg-media/${open.id}/${m.id}`} />
                         <TgAttachButton chatId={open.id} msgId={m.id} phone={open.phone} />
                       </>
                     )}
