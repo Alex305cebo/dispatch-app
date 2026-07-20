@@ -9,9 +9,8 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'motion/react'
 import Link from 'next/link'
 import { extractPdf, looksScanned } from '@/lib/pdf-text'
-import { formatDriverInfo, parseRateCon, toQrLoad, type RateConFields } from '@/lib/ratecon'
+import { formatDriverInfo, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
-import { mergeAi } from '@/lib/ratecon-ai-contract'
 import { rcWarnings, type RcWarning } from '@/lib/rc-warnings'
 import { createLoadFromRc, uploadDocument } from '@/app/actions'
 import { notify } from '@/lib/notify'
@@ -21,7 +20,6 @@ type Result = {
   loadId: number
   fields: RateConFields
   warnings: RcWarning[]
-  ai: boolean
   docId?: number
   fileName: string
 }
@@ -64,14 +62,10 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       const isImage = file.type.startsWith('image/')
       if (!isPdf && !isImage) throw new Error('Нужен PDF или фото rate confirmation.')
 
-      // 1) local draft + text (for warnings) when it's a text PDF
-      let draft: RateConFields | null = null
+      // 1) text (for warnings + cheap AI input) when it's a text PDF
       let text = ''
-      if (isPdf) {
-        const ex = await extractPdf(file)
-        text = ex.text
-        if (!looksScanned(text)) draft = parseRateCon(text, ex.items)
-      }
+      if (isPdf) text = (await extractPdf(file)).text
+      const hasText = isPdf && !looksScanned(text)
 
       // 2) save the RC as a document on this truck
       setStage('Сохраняю документ…')
@@ -82,24 +76,26 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       const up = await uploadDocument(fd)
       const docId = 'id' in up ? up.id : undefined
 
-      // 3) AI read (text for text-PDF, the file itself for scans/photos)
-      setStage(draft ? 'Распознаю ИИ…' : 'Распознаю скан через ИИ — это до полутора минут…')
+      // 3) AI read (text for text-PDF, the file itself for scans/photos) — the only
+      // recognizer that ever creates a load here; no regex fallback (a wrong guess
+      // shouldn't get to auto-create a load, only a checked one should).
+      setStage(hasText ? 'Распознаю ИИ…' : 'Распознаю скан через ИИ — это до полутора минут…')
       const ai = await aiParseRateCon(
-        draft ? { text } : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf' },
+        hasText ? { text } : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf' },
       )
-      const fields = ai.ok ? (draft ? mergeAi(draft, ai.fields) : ai.fields) : draft
-      if (!fields) throw new Error(ai.ok ? 'Пустой результат.' : 'Скан не распознан и нет ключа ИИ.')
+      if (!ai.ok) {
+        throw new Error(ai.reason === 'no_key' ? 'ИИ не настроен — добавь GEMINI_API_KEY.' : `Не распознался: ${ai.detail ?? 'ИИ недоступен'}. Попробуй ещё раз.`)
+      }
 
       // 4) create the load on THIS truck, attach the RC
       setStage('Создаю груз…')
-      const made = await createLoadFromRc(truckId, toQrLoad(fields), docId)
+      const made = await createLoadFromRc(truckId, toQrLoad(ai.fields), docId)
       if ('error' in made) throw new Error(made.error)
 
       setRes({
         loadId: made.loadId,
-        fields,
-        warnings: rcWarnings(fields, text),
-        ai: ai.ok,
+        fields: ai.fields,
+        warnings: rcWarnings(ai.fields, text),
         docId,
         fileName: file.name,
       })
@@ -122,7 +118,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-[13px] font-semibold text-good-400">
-            ✓ Груз создан {res.ai ? '· проверено ИИ' : '· базовый разбор'}
+            ✓ Груз создан · проверено ИИ
           </span>
           <div className="flex gap-2">
             <Link

@@ -1,18 +1,17 @@
 'use client'
 
 // New-load page: a compact "scan rate con" bar on top of the manual form. Drop a
-// PDF/photo → the same pipeline the /import page uses (instant regex draft, then
-// Gemini) fills the form below. Manual entry still works if you skip the scan.
+// PDF/photo → the same pipeline the /import page uses (Gemini reads it) fills the
+// form below. Manual entry still works if you skip the scan.
 // ponytail: the scan orchestration mirrors ImportClient.handle — both lean on the
-// shared lib fns (extractPdf/parseRateCon/aiParseRateCon/mergeAi), so the real
-// logic isn't duplicated, only the ~30 lines of glue.
+// shared lib fns (extractPdf/aiParseRateCon), so the real logic isn't duplicated,
+// only the ~30 lines of glue.
 
 import { useRef, useState } from 'react'
 import type { TruckRecord } from '@/lib/map'
 import { extractPdf, looksScanned } from '@/lib/pdf-text'
-import { missingFields, parseRateCon, toQrLoad, type RateConFields } from '@/lib/ratecon'
+import { missingFields, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
-import { mergeAi } from '@/lib/ratecon-ai-contract'
 import { uploadDocument } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { LoadForm } from '@/components/load-form'
@@ -28,7 +27,7 @@ export function NewLoadClient({
   const [fields, setFields] = useState<RateConFields | null>(null)
   const [docId, setDocId] = useState<number | undefined>(undefined)
   const [busy, setBusy] = useState(false)
-  const [ai, setAi] = useState<'idle' | 'loading' | 'done' | 'fallback'>('idle')
+  const [ai, setAi] = useState<'idle' | 'loading' | 'done'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [drag, setDrag] = useState(false)
   const [scanKey, setScanKey] = useState(0) // remount the form to load a fresh scan
@@ -45,19 +44,14 @@ export function NewLoadClient({
       const isImage = file.type.startsWith('image/')
       if (!isPdf && !isImage) throw new Error('Нужен PDF или фото rate confirmation.')
 
-      // Instant regex draft for text PDFs; scans/photos wait for the AI reader.
-      let draft: RateConFields | null = null
+      // Nothing shows until the AI answers — text PDFs still extract their text
+      // first (cheaper to send than the raw file), scans/photos send the file itself.
       let text = ''
       if (isPdf) {
-        const extracted = await extractPdf(file)
-        text = extracted.text
-        if (!looksScanned(text)) {
-          draft = parseRateCon(text, extracted.items)
-          if (reqId.current !== my) return
-          setFields(draft)
-          setScanKey((k) => k + 1)
-        }
+        text = (await extractPdf(file)).text
+        if (reqId.current !== my) return
       }
+      const hasText = isPdf && !looksScanned(text)
 
       // Save the RC as a document — attached to the load on save.
       setDocId(undefined)
@@ -68,27 +62,23 @@ export function NewLoadClient({
         if (reqId.current === my && 'id' in r) setDocId(r.id)
       })
 
-      // AI pass.
       setAi('loading')
-      const input = draft
+      const input = hasText
         ? { text }
         : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf' }
       const res = await aiParseRateCon(input)
       if (reqId.current !== my) return
 
       if (res.ok) {
-        setFields(draft ? mergeAi(draft, res.fields) : res.fields)
+        setFields(res.fields)
         setScanKey((k) => k + 1)
         setAi('done')
         notify('ok', 'Rate con распознан — проверь поля', file.name)
-      } else if (draft) {
-        setAi('fallback')
-        notify('warn', res.reason === 'no_key' ? 'ИИ не настроен — базовый разбор' : 'ИИ недоступен — базовый разбор')
       } else {
         throw new Error(
           res.reason === 'no_key'
-            ? 'Это скан/фото — без ИИ не прочитать (нет GEMINI_API_KEY).'
-            : `Скан не распознался: ${res.detail ?? 'ИИ недоступен'}.`,
+            ? 'ИИ не настроен — добавь GEMINI_API_KEY на сервер.'
+            : `Не распознался: ${res.detail ?? 'ИИ недоступен'}. Попробуй ещё раз.`,
         )
       }
     } catch (e) {
@@ -117,10 +107,6 @@ export function NewLoadClient({
     ) : ai === 'done' ? (
       <span className="rounded-full bg-good-500/15 px-2 py-0.5 text-[10px] font-medium text-good-400">
         ✓ Распознано ИИ
-      </span>
-    ) : ai === 'fallback' ? (
-      <span className="rounded-full bg-warn-400/15 px-2 py-0.5 text-[10px] font-medium text-warn-400">
-        Базовый разбор
       </span>
     ) : null
 
@@ -160,7 +146,7 @@ export function NewLoadClient({
             тоже читаются.
           </div>
         </div>
-        <Info text="Тот же распознаватель, что на странице «Rate con»: за миллисекунды собирается черновик, затем Google Gemini перечитывает документ и заполняет форму. Работает с любым шаблоном и со сканами. Документ отправляется в Gemini." />
+        <Info text="Тот же распознаватель, что на странице «Rate con»: Google Gemini читает документ и заполняет форму. Работает с любым шаблоном и со сканами. Документ отправляется в Gemini." />
       </label>
 
       {error && <p className="mb-3 text-[13px] text-bad-400">{error}</p>}

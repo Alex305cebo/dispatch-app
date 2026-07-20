@@ -4,23 +4,19 @@ import { useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import type { TruckRecord } from '@/lib/map'
 import { extractPdf, looksScanned } from '@/lib/pdf-text'
-import {
-  formatDriverInfo,
-  missingFields,
-  parseRateCon,
-  toQrLoad,
-  type RateConFields,
-} from '@/lib/ratecon'
+import { formatDriverInfo, missingFields, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
-import { mergeAi } from '@/lib/ratecon-ai-contract'
 import { uploadDocument } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { LoadForm } from '@/components/load-form'
 import { BrokerCheckPanel } from '@/components/broker-check'
 import { Info } from '@/components/info'
 
-/** Where the fields on screen came from — shown as a badge over Driver Information. */
-type AiState = 'idle' | 'loading' | 'done' | 'fallback'
+/** Where the fields on screen came from — shown as a badge over Driver Information.
+ * Only the AI ever fills the screen now — no regex draft, not even as a fallback:
+ * a wrong guess (pickup address copied into delivery, a blank load ID) shown as if
+ * it were real data did more damage than an honest "try again" ever would. */
+type AiState = 'idle' | 'loading' | 'done'
 
 // Only the single-value fields. pickupStop/deliveryStop/importantNotes are whole
 // text blocks shown inside Driver Information / broker notes; pickup/deliveryAddress
@@ -83,19 +79,15 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
         throw new Error('Нужен PDF или фото rate confirmation.')
       }
 
-      // 1) Instant local draft for text PDFs. Photos and scans have no text layer —
-      //    for them the AI pass below IS the reader.
-      let draft: RateConFields | null = null
+      // Text PDFs feed Gemini their extracted text (cheap); scans/photos send the
+      // file itself — the AI reads it directly. Either way nothing shows on screen
+      // until the AI actually answers.
       let text = ''
       if (isPdf) {
-        const extracted = await extractPdf(file)
-        text = extracted.text
-        if (!looksScanned(text)) {
-          draft = parseRateCon(text, extracted.items)
-          if (reqId.current !== my) return
-          setFields(draft)
-        }
+        text = (await extractPdf(file)).text
+        if (reqId.current !== my) return
       }
+      const hasText = isPdf && !looksScanned(text)
 
       // Save the RC itself as a document in parallel — on load save it gets attached,
       // so the paperwork lives next to the money.
@@ -107,32 +99,22 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
         if (reqId.current === my && 'id' in r) setDocId(r.id)
       })
 
-      // 2) AI pass: text for text-PDFs (cheap), the file itself for scans/photos.
       setAi('loading')
-      const input = draft
+      const input = hasText
         ? { text }
         : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf' }
       const res = await aiParseRateCon(input)
       if (reqId.current !== my) return
 
       if (res.ok) {
-        setFields(draft ? mergeAi(draft, res.fields) : res.fields)
+        setFields(res.fields)
         setAi('done')
         notify('ok', 'Rate con распознан ИИ — проверь глазами и отправляй', file.name)
-      } else if (draft) {
-        // AI unavailable but the local draft exists — degrade honestly, not silently.
-        setAi('fallback')
-        notify(
-          'warn',
-          res.reason === 'no_key'
-            ? 'ИИ не настроен (нет GEMINI_API_KEY) — показан базовый разбор'
-            : 'ИИ недоступен — показан базовый разбор',
-        )
       } else {
         throw new Error(
           res.reason === 'no_key'
-            ? 'Это скан/фото — без ИИ его не прочитать. Добавь GEMINI_API_KEY на сервер.'
-            : `Скан не распознался: ${res.detail ?? 'ИИ недоступен'}. Попробуй ещё раз.`,
+            ? 'ИИ не настроен — добавь GEMINI_API_KEY на сервер.'
+            : `Не распознался: ${res.detail ?? 'ИИ недоступен'}. Попробуй ещё раз.`,
         )
       }
     } catch (e) {
@@ -185,11 +167,6 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
               {ai === 'done' && (
                 <span className="rounded-full bg-good-500/15 px-2 py-0.5 text-[10px] font-medium text-good-400">
                   ✓ Проверено ИИ
-                </span>
-              )}
-              {ai === 'fallback' && (
-                <span className="rounded-full bg-warn-400/15 px-2 py-0.5 text-[10px] font-medium text-warn-400">
-                  Базовый разбор — ИИ недоступен
                 </span>
               )}
             </div>
@@ -311,7 +288,7 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
       <p className="flex items-center justify-center gap-1.5 text-[15px] font-medium">
         {busy ? 'Читаю документ…' : 'Перетащи rate confirmation'}
         {!busy && (
-          <Info text="Перетащи или выбери PDF/фото rate confirmation от брокера. Сначала за миллисекунды собирается черновик в браузере, затем ИИ (Google Gemini) перечитывает документ и исправляет — работает с любым шаблоном брокера и со сканами-фото." />
+          <Info text="Перетащи или выбери PDF/фото rate confirmation от брокера. Документ читает ИИ (Google Gemini) — работает с любым шаблоном брокера и со сканами-фото." />
         )}
       </p>
       <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-white/65">
