@@ -41,6 +41,35 @@ export async function disconnectTelegram(): Promise<void> {
   await Promise.all([deleteSetting('tg_session'), deleteSetting('tg_api_id'), deleteSetting('tg_api_hash')])
 }
 
+/** Whose Telegram this actually is — the admin panel shows this so "wrong account
+ * connected" (like Alex vs. Mike Keller) is obvious without guessing from dialogs. */
+export async function tgAccountInfo(): Promise<{ name: string; phone: string | null; username: string | null } | null> {
+  if (!(await tgConnected())) return null
+  return withClient(async (c) => {
+    const me = await c.getMe()
+    const name = [me.firstName, me.lastName].filter(Boolean).join(' ') || me.username || 'Без имени'
+    return { name, phone: me.phone ?? null, username: me.username ?? null }
+  })
+}
+
+/* ---------- which chats show up in the app ---------- */
+
+/** Admin-curated allow list — everyone who opens /telegram sees the same chats,
+ * so noise (personal chats, random groups) can be hidden without deleting anything
+ * on the Telegram side. Empty set = nothing hidden yet = show everything. */
+export async function tgHiddenChats(): Promise<Set<string>> {
+  const raw = (await getSetting('tg_hidden_chats')) ?? '[]'
+  try {
+    return new Set(JSON.parse(raw) as string[])
+  } catch {
+    return new Set()
+  }
+}
+
+export async function setTgHiddenChats(ids: string[]): Promise<void> {
+  await setSetting('tg_hidden_chats', JSON.stringify(ids))
+}
+
 // One shared, kept-alive connection for the whole server process instead of a fresh
 // MTProto handshake per request — connecting per-call was fine for one page load's
 // two requests, but every attachment image is its own request too, and a handshake

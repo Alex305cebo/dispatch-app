@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { sql } from '@/lib/db'
-import { tgConnected, tgDialogs, tgMessages, type TgDialog, type TgMsg } from '@/lib/telegram'
+import { tgConnected, tgDialogs, tgHiddenChats, tgMessages, type TgDialog, type TgMsg } from '@/lib/telegram'
 import { TgSetup } from './tg-setup'
 import { TgSendBox } from './tg-chat'
 import { TgCheckButton } from './tg-check-button'
@@ -41,7 +41,9 @@ export default async function Page({
   let msgs: TgMsg[] | null = null
   let error: string | null = null
   try {
-    dialogs = await tgDialogs()
+    const [all, hidden] = await Promise.all([tgDialogs(), tgHiddenChats()])
+    // Admin-curated in the admin panel — same list for every dispatcher, not per-viewer.
+    dialogs = all.filter((d) => !hidden.has(d.id))
     if (chatId) msgs = await tgMessages(chatId)
   } catch (e) {
     error = e instanceof Error ? e.message : String(e)

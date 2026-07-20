@@ -6,6 +6,7 @@ import { humanError } from '@/lib/msg'
 import { hashPassword } from '@/lib/auth'
 import { getCurrentUser } from '@/lib/session'
 import { getSetting, setSetting } from '@/lib/settings'
+import { tgAccountInfo, tgConnected, tgDialogs, tgHiddenChats, setTgHiddenChats, type TgDialog } from '@/lib/telegram'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -101,4 +102,33 @@ export async function setOpenAccess(enabled: boolean): Promise<{ error: string }
   await assertAdmin()
   await setSetting('open_access', enabled ? '1' : '0')
   revalidatePath('/admin')
+}
+
+export type TgAdminStatus =
+  | { connected: false }
+  | {
+      connected: true
+      account: { name: string; phone: string | null; username: string | null } | null
+      dialogs: TgDialog[]
+      hidden: string[]
+    }
+
+export async function tgAdminStatus(): Promise<TgAdminStatus | { error: string }> {
+  await assertAdmin()
+  if (!(await tgConnected())) return { connected: false }
+  try {
+    const [account, dialogs, hidden] = await Promise.all([tgAccountInfo(), tgDialogs(), tgHiddenChats()])
+    return { connected: true, account, dialogs, hidden: [...hidden] }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+/** Which of the connected account's chats show up on /telegram — same list for
+ * every dispatcher, curated here instead of per-viewer. */
+export async function setTgVisibility(hiddenIds: string[]): Promise<{ error: string } | void> {
+  await assertAdmin()
+  await setTgHiddenChats(hiddenIds)
+  revalidatePath('/admin')
+  revalidatePath('/telegram')
 }

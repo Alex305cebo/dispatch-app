@@ -4,9 +4,10 @@ import { getCurrentUser } from '@/lib/session'
 import { getCompany } from '@/lib/invoice'
 import { CompanyForm } from '@/components/invoice-actions'
 import { Info } from '@/components/info'
-import { getOpenAccess, listUsers } from './actions'
+import { getOpenAccess, listUsers, tgAdminStatus } from './actions'
 import { UserList } from './user-list'
 import { OpenAccessToggle } from './open-access-toggle'
+import { TgSettings } from './tg-settings'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +17,12 @@ export default async function AdminPage() {
   // dispatcher typing the URL directly must still be bounced, not shown the panel.
   if (!user || user.role !== 'admin') redirect('/')
 
-  const [users, company, openAccess] = await Promise.all([listUsers(), getCompany(), getOpenAccess()])
+  const [users, company, openAccess, tgStatus] = await Promise.all([
+    listUsers(),
+    getCompany(),
+    getOpenAccess(),
+    tgAdminStatus(),
+  ])
 
   return (
     <main className="mx-auto max-w-3xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -47,6 +53,14 @@ export default async function AdminPage() {
           <Info text="Название, MC/DOT, реквизиты — то, что попадает в счета брокерам." />
         </h2>
         <CompanyForm initial={company} />
+      </section>
+
+      <section className="panel mt-4 p-5">
+        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          Telegram
+          <Info text="Какой аккаунт подключён, и какие чаты из него показывать в приложении — снятые галочки скрывают чат для всех, не только для тебя." />
+        </h2>
+        <TgSettings status={tgStatus} />
       </section>
 
       <section className="panel mt-4 p-5">
