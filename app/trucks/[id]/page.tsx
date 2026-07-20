@@ -36,10 +36,28 @@ function statusTone(s: string | null): 'move' | 'on' | 'rest' {
   return 'rest'
 }
 
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+// truck_position_log is pruned to 7 days on every write (lib/eld.ts) — that's the
+// real ceiling on how far back "full history" can ever reach, not a UI choice.
+const HISTORY_WINDOWS = [
+  { hours: 24, label: '24 часа' },
+  { hours: 72, label: '3 дня' },
+  { hours: 168, label: '7 дней' },
+] as const
+
+export default async function Page({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ history?: string }>
+}) {
   const { id } = await params
   const truck = await getTruck(Number(id))
   if (!truck) notFound()
+
+  const requestedHours = Number((await searchParams).history)
+  const historyWindow =
+    HISTORY_WINDOWS.find((w) => w.hours === requestedHours) ?? HISTORY_WINDOWS[0]
 
   const [loads, meta, records, todos, fleet, docs, rateCons, history] = await Promise.all([
     listLoads({ truckId: truck.id }),
@@ -49,7 +67,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     fleetStatusByUnit(),
     listDocs({ truckId: truck.id }),
     rateConByLoad(),
-    truck.number ? tripHistory(truck.number, 24) : Promise.resolve([]),
+    truck.number ? tripHistory(truck.number, historyWindow.hours) : Promise.resolve([]),
   ])
   const fs = truck.number ? fleet.get(truck.number) : undefined
 
@@ -287,9 +305,24 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
       {/* ===== Trip history: drive legs + stops, long rests called out ===== */}
       <details className="panel mt-4 p-4" open={history.length > 0}>
-        <summary className="flex cursor-pointer items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          История пути · 24 часа
-          <Info text="Путь трака по GPS-точкам из ELD, разбитый на движение и стоянки. Остановки короче 30 минут (светофоры, пробки) не показываются — только заметные: погрузка/выгрузка, заправка, отдых. Стоянки от 6 часов подряд помечены как долгий отдых." />
+        <summary className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          История пути · {historyWindow.label}
+          <Info text="Путь трака по GPS-точкам из ELD, разбитый на движение и стоянки. Остановки короче 30 минут (светофоры, пробки) не показываются — только заметные: погрузка/выгрузка, заправка, отдых. Стоянки от 6 часов подряд помечены как долгий отдых. GPS-история хранится 7 дней." />
+          <span className="ml-auto flex gap-1 normal-case">
+            {HISTORY_WINDOWS.map((w) => (
+              <Link
+                key={w.hours}
+                href={w.hours === 24 ? `/trucks/${truck.id}` : `/trucks/${truck.id}?history=${w.hours}`}
+                className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                  w.hours === historyWindow.hours
+                    ? 'bg-haul-500/15 text-haul-400'
+                    : 'text-white/45 hover:text-white/75'
+                }`}
+              >
+                {w.label}
+              </Link>
+            ))}
+          </span>
         </summary>
         <div className="mt-3">
           <TripHistory legs={history} />
