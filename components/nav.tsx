@@ -151,11 +151,24 @@ export function Nav({ companyName, user }: { companyName: string; user: CurrentU
         })}
       </div>
 
-      {/* Account row: name, admin link (if any), logout — desktop only, same as the
-          Журнал link below always was. Phone bottom bar has no room for it. */}
+      {/* Phone: just bell + theme above the tab row — everything else below is
+          desktop-only (no room for it in the bottom bar). */}
+      <div className="order-first flex items-center justify-end gap-1.5 px-1 pb-1 md:hidden">
+        <Notifier />
+        <ThemeToggle />
+      </div>
+
+      {/* One combined card, desktop only: identity, bell/theme, then admin/journal/
+          logout as a row of small links — previously two separate stacked blocks. */}
       {user && (
-        <div className="order-first mb-1.5 hidden flex-col gap-1 rounded-xl border border-white/6 bg-white/[0.02] px-2.5 py-2 md:order-none md:mt-auto md:flex">
-          <UserPanel user={user} />
+        <div className="mb-1.5 hidden flex-col gap-2 rounded-xl border border-white/6 bg-white/[0.02] px-2.5 py-2.5 md:mt-auto md:flex">
+          <div className="flex items-center justify-between gap-2">
+            <UserPanel user={user} />
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Notifier />
+              <ThemeToggle />
+            </div>
+          </div>
           <div className="flex items-center gap-3 text-[11px] text-white/55">
             {user.role === 'admin' && (
               <Link
@@ -168,6 +181,16 @@ export function Nav({ companyName, user }: { companyName: string; user: CurrentU
                 Админ
               </Link>
             )}
+            <Link
+              href="/logins"
+              aria-current={pathname.startsWith('/logins') ? 'page' : undefined}
+              className={`flex items-center gap-1 transition-colors hover:text-white/85 ${
+                pathname.startsWith('/logins') ? 'text-haul-400' : ''
+              }`}
+            >
+              <Icon d={icons.who} />
+              Журнал
+            </Link>
             <button
               onClick={logout}
               disabled={pending}
@@ -179,28 +202,6 @@ export function Nav({ companyName, user }: { companyName: string; user: CurrentU
           </div>
         </div>
       )}
-
-      {/* Utility row: notifications + theme, and the login log on desktop.
-          order-first puts it above the tabs on the phone; on desktop source order
-          plus mt-auto pins it to the bottom of the sidebar. */}
-      <div className="order-first flex items-center justify-end gap-1.5 px-1 pb-1 md:order-none md:justify-between md:px-0 md:pb-0">
-        <Link
-          href="/logins"
-          aria-current={pathname.startsWith('/logins') ? 'page' : undefined}
-          className={`hidden items-center gap-2 rounded-xl px-2 py-2 text-[12px] transition-colors md:flex ${
-            pathname.startsWith('/logins')
-              ? 'bg-white/6 text-white'
-              : 'text-white/55 hover:bg-white/4 hover:text-white/85'
-          }`}
-        >
-          <Icon d={icons.who} />
-          Журнал
-        </Link>
-        <div className="flex items-center gap-1.5">
-          <Notifier />
-          <ThemeToggle />
-        </div>
-      </div>
     </nav>
   )
 }
