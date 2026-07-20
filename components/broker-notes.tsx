@@ -185,6 +185,7 @@ export function BrokerNotes({
 
   return (
     <details
+      open={unread}
       className={`group overflow-hidden rounded-2xl border ${
         unread
           ? 'border-warn-400/40 bg-warn-400/10 ring-1 ring-warn-400/25'
@@ -208,7 +209,7 @@ export function BrokerNotes({
           {preview}
         </span>
         <span className="shrink-0 text-[11px] text-white/45">
-          {unread ? 'нажми, чтобы прочитать' : `прочитано ${readAt!.slice(0, 10)}`}
+          {unread ? 'новое' : `прочитано ${readAt!.slice(0, 10)}`}
         </span>
         <span className="shrink-0 text-white/40 transition-transform group-open:rotate-90">▸</span>
       </summary>

@@ -38,6 +38,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <BackButton href="/loads" label="Грузы" />
 
+      {/* Broker's must-read instructions — first thing on the page, expanded by
+          default while unread, so it can't be missed under everything else. */}
+      <div className="mt-3">
+        <BrokerNotes
+          loadId={load.id}
+          notes={load.brokerNotes}
+          readAt={load.notesReadAt}
+          hasRc={!!rateConDoc}
+        />
+      </div>
+
       {/* ===== HERO: route, truck, status and the rate — one card, not four loose pieces ===== */}
       <section className="relative mt-3 overflow-hidden rounded-3xl border border-white/8 bg-gradient-to-b from-ink-800/80 to-ink-950 p-5 sm:p-8">
         <h1 className="text-[22px] font-semibold sm:text-[26px]">
@@ -93,17 +104,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           }}
         />
       </section>
-
-      {/* Broker's must-read instructions — a compact strip under the details;
-          collapsed by default because the full text is a wall. */}
-      <div className="mt-4">
-        <BrokerNotes
-          loadId={load.id}
-          notes={load.brokerNotes}
-          readAt={load.notesReadAt}
-          hasRc={!!rateConDoc}
-        />
-      </div>
 
       {/* The truck economics that drive every cost line above — editable inline. */}
       <details className="group mt-4">
