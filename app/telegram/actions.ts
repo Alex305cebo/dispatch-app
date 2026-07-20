@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { confirmLogin, startLogin, tgSend } from '@/lib/telegram'
+import { intakeDriverMedia, remindMissingPods } from '@/lib/tg-intake'
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -32,6 +33,20 @@ export async function tgConfirmLogin(
   } catch (e) {
     return { error: `Вход не удался: ${msg(e)}` }
   }
+}
+
+/** Manual trigger for the same work /api/tg-poll does on a schedule — lets the
+ * dispatcher pull in a driver's photos right after connecting, without waiting on
+ * the external cron ping to be set up. */
+export async function tgCheckNow(): Promise<
+  { attached: number; skipped: number; nudged: number } | { error: string }
+> {
+  const [intake, reminders] = await Promise.all([intakeDriverMedia(), remindMissingPods()])
+  if ('error' in intake) return { error: intake.error }
+  if ('error' in reminders) return { error: reminders.error }
+  revalidatePath('/telegram')
+  revalidatePath('/loads')
+  return { attached: intake.attached, skipped: intake.skipped, nudged: reminders.nudged }
 }
 
 export async function tgSendMessage(

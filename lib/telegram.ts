@@ -120,7 +120,16 @@ export type TgDialog = {
   isUser: boolean
 }
 
-export type TgMsg = { id: number; out: boolean; text: string; at: string }
+export type TgMsg = { id: number; out: boolean; text: string; at: string; media: 'image' | 'pdf' | 'other' | null }
+
+function mediaKind(m: { media?: unknown }): TgMsg['media'] {
+  if (!m.media) return null
+  const media = m.media as { document?: { mimeType?: string }; photo?: unknown }
+  const mime = media.document?.mimeType ?? (media.photo ? 'image/jpeg' : '')
+  if (mime === 'application/pdf') return 'pdf'
+  if (mime.startsWith('image/')) return 'image'
+  return 'other'
+}
 
 export async function tgDialogs(): Promise<TgDialog[]> {
   return withClient(async (client) => {
@@ -159,8 +168,25 @@ export async function tgMessages(chatId: string): Promise<TgMsg[]> {
         out: !!m.out,
         text: m.message ?? '',
         at: new Date(m.date * 1000).toISOString(),
+        media: mediaKind(m),
       }))
       .reverse()
+  })
+}
+
+/** On-demand download for one message's attachment — the chat view links here
+ * instead of eagerly downloading every photo/PDF just to render the message list. */
+export async function tgMedia(chatId: string, msgId: number): Promise<{ bytes: Buffer; mime: string } | null> {
+  return withClient(async (client) => {
+    const dialogs = await client.getDialogs({ limit: 30 })
+    const d = dialogs.find((x) => String(x.id) === chatId)
+    if (!d?.entity) return null
+    const [m] = await client.getMessages(d.entity, { ids: [msgId] })
+    if (!m?.media) return null
+    const doc = (m.media as { document?: { mimeType?: string } }).document
+    const mime = doc?.mimeType ?? 'image/jpeg'
+    const buf = (await client.downloadMedia(m)) as Buffer | undefined
+    return buf?.length ? { bytes: buf, mime } : null
   })
 }
 

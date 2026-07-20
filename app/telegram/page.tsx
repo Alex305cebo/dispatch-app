@@ -3,6 +3,7 @@ import { sql } from '@/lib/db'
 import { tgConnected, tgDialogs, tgMessages, type TgDialog, type TgMsg } from '@/lib/telegram'
 import { TgSetup } from './tg-setup'
 import { TgSendBox } from './tg-chat'
+import { TgCheckButton } from './tg-check-button'
 import { Info } from '@/components/info'
 
 export const dynamic = 'force-dynamic'
@@ -57,14 +58,17 @@ export default async function Page({
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <header className="mb-4">
-        <h1 className="flex items-center gap-2 text-[17px] font-semibold">
-          Telegram
-          <Info side="bottom" text="Переписка с водителями прямо в приложении через твой Telegram-аккаунт (не бот) — водителям ничего ставить и нажимать не нужно. Чат с чипом #трака — если телефон водителя указан в паспорте трака. Фото POD/BOL от водителя ИИ сам прикрепит к грузу." />
-        </h1>
-        <p className="text-[13px] text-white/65">
-          Переписка с водителями — прямо здесь, через твой аккаунт.
-        </p>
+      <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="flex items-center gap-2 text-[17px] font-semibold">
+            Telegram
+            <Info side="bottom" text="Переписка с водителями прямо в приложении через твой Telegram-аккаунт (не бот) — водителям ничего ставить и нажимать не нужно. Чат с чипом #трака — если телефон водителя указан в паспорте трака. Фото POD/BOL от водителя ИИ сам прикрепит к грузу." />
+          </h1>
+          <p className="text-[13px] text-white/65">
+            Переписка с водителями — прямо здесь, через твой аккаунт.
+          </p>
+        </div>
+        <TgCheckButton />
       </header>
 
       {error && <p className="panel mb-4 p-4 text-[13px] text-bad-400">{error}</p>}
@@ -134,7 +138,27 @@ export default async function Page({
                         : 'self-start rounded-bl-sm bg-white/8 text-white/90'
                     }`}
                   >
-                    {m.text || <span className="text-white/45">[вложение]</span>}
+                    {m.media === 'image' && (
+                      <a href={`/api/tg-media/${open.id}/${m.id}`} target="_blank" rel="noreferrer" className="mb-1 block">
+                        <img
+                          src={`/api/tg-media/${open.id}/${m.id}`}
+                          alt="Вложение"
+                          className="max-h-64 rounded-lg"
+                        />
+                      </a>
+                    )}
+                    {m.media === 'pdf' && (
+                      <a
+                        href={`/api/tg-media/${open.id}/${m.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mb-1 flex items-center gap-1.5 text-haul-300 underline"
+                      >
+                        📄 Открыть PDF
+                      </a>
+                    )}
+                    {m.media === 'other' && !m.text && <span className="text-white/45">[вложение]</span>}
+                    {m.text}
                     <span className="mt-0.5 block text-right text-[10px] text-white/40">
                       {when(m.at)}
                     </span>
