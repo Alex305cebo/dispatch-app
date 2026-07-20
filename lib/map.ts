@@ -60,6 +60,18 @@ export function truckLabel(t: TruckRecord): string {
   return drv ? `${num} · ${drv}` : num
 }
 
+/** ZigZag duty codes → a plain label + a colour bucket. Shared between /tracking
+ * and the public /track/[id] link so both read a truck's status the same way. */
+export function eldStatus(s: string | null): { text: string; tone: 'move' | 'on' | 'rest' } {
+  if (!s) return { text: '—', tone: 'rest' }
+  if (/mi\/h/.test(s)) return { text: `В движении · ${s}`, tone: 'move' }
+  if (s === 'D') return { text: 'В движении', tone: 'move' }
+  if (s === 'ON') return { text: 'On Duty', tone: 'on' }
+  if (s === 'SB') return { text: 'Sleeper', tone: 'rest' }
+  if (s === 'OFF') return { text: 'Off Duty', tone: 'rest' }
+  return { text: s, tone: 'on' }
+}
+
 export type LoadRow = {
   id: number
   truck_id: number | null

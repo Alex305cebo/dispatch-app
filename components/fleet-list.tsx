@@ -5,6 +5,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { notify } from '@/lib/notify'
 
 export type TrackingRow = {
   id: number
@@ -34,6 +35,12 @@ export function FleetList({ rows }: { rows: TrackingRow[] }) {
   const freeCount = rows.filter((r) => !r.hasLoad).length
   const shown = freeOnly ? rows.filter((r) => !r.hasLoad) : rows
 
+  async function copyLink(id: number) {
+    const url = `${window.location.origin}/track/${id}`
+    await navigator.clipboard.writeText(url)
+    notify('ok', 'Ссылка скопирована — открывается без входа, показывает только этот трак на карте')
+  }
+
   return (
     <div>
       {freeCount > 0 && (
@@ -55,9 +62,20 @@ export function FleetList({ rows }: { rows: TrackingRow[] }) {
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="truncate text-[15px] font-semibold">{r.label}</div>
-                <div className="mt-0.5 truncate text-[12px] text-white/60">
-                  {r.city ?? 'Нет данных с ELD'}
-                  {r.eldSeen && <span className="text-white/40"> · {r.eldSeen}</span>}
+                <div className="mt-0.5 flex min-w-0 items-center gap-1 truncate text-[12px] text-white/60">
+                  <span className="truncate">{r.city ?? 'Нет данных с ELD'}</span>
+                  {r.eldSeen && (
+                    <>
+                      <span className="shrink-0 text-white/40"> · {r.eldSeen}</span>
+                      <button
+                        onClick={() => copyLink(r.id)}
+                        title="Скопировать ссылку на карту этого трака"
+                        className="shrink-0 text-white/40 transition-colors hover:text-white/80"
+                      >
+                        🔗
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
               <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${toneClass[r.statusTone]}`}>

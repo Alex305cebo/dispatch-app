@@ -19,6 +19,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next({ request: { headers } })
   }
 
+  // Public, no session needed — a single truck's live map for sharing with a
+  // broker/customer, see app/track/[id]/page.tsx. Only truck number + location.
+  if (req.nextUrl.pathname.startsWith('/track/')) {
+    return NextResponse.next({ request: { headers } })
+  }
+
   // Open-access mode (admin-panel switch, app/admin/actions.ts): the whole app
   // works without signing in. /admin stays exempt so the switch that turns this
   // back off can never itself be reached without a real login.

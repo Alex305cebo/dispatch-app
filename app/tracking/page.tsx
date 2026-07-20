@@ -1,6 +1,6 @@
 import { sql } from '@/lib/db'
 import { listTrucks, currentLoadForTruck } from '@/lib/loads'
-import { truckLabel } from '@/lib/map'
+import { truckLabel, eldStatus } from '@/lib/map'
 import { FleetMap, type MapMarker, type MapRoute } from '@/components/fleet-map'
 import { EldLinks } from '@/components/eld-links'
 import { RefreshFleetButton } from '@/components/refresh-fleet-button'
@@ -23,18 +23,6 @@ type FS = {
   lng: number | null
   eld_seen: string | null
   updated_at: string
-}
-
-// ZigZag duty codes → a plain label + a colour bucket. A speed like "54 mi/h"
-// means the truck is rolling.
-function status(s: string | null): { text: string; tone: 'move' | 'on' | 'rest' } {
-  if (!s) return { text: '—', tone: 'rest' }
-  if (/mi\/h/.test(s)) return { text: `В движении · ${s}`, tone: 'move' }
-  if (s === 'D') return { text: 'В движении', tone: 'move' }
-  if (s === 'ON') return { text: 'On Duty', tone: 'on' }
-  if (s === 'SB') return { text: 'Sleeper', tone: 'rest' }
-  if (s === 'OFF') return { text: 'Off Duty', tone: 'rest' }
-  return { text: s, tone: 'on' }
 }
 
 export default async function Page() {
@@ -112,7 +100,7 @@ export default async function Page() {
   let totalDeliveryMiles = 0
 
   for (const { t, fs, load, pickup, legToPickup, legToDelivery, weather, idleAt, heading } of perTruck) {
-    const st = status(fs?.drive_status ?? null)
+    const st = eldStatus(fs?.drive_status ?? null)
     if (st.tone === 'move') moving++
     else if (st.tone === 'on') onDuty++
     else resting++
