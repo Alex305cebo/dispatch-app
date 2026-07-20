@@ -3,8 +3,11 @@ import { AI_MODELS, AI_PROMPT, AI_SCHEMA, type AiFields } from '@/lib/ratecon-ai
 import { bumpGeminiUsage } from '@/lib/gemini-usage'
 
 export const dynamic = 'force-dynamic'
-// Vision on a multi-page scan can take a while; Hobby allows up to 60s.
-export const maxDuration = 60
+// Vision on a multi-page scan can take up to ~90s (that's what the UI promises) —
+// 60 cut it short and surfaced as a raw "Unexpected token '<'" JSON-parse error on
+// the client (Hostinger's own proxy answering with its timeout page). Self-hosted
+// now, not Vercel Hobby, so there's no platform ceiling forcing 60 here.
+export const maxDuration = 120
 
 // Sits behind the PIN-gate middleware (same-origin fetch carries the cookie), so
 // only a signed-in dispatcher can spend the Gemini quota.

@@ -27,7 +27,16 @@ export async function aiParseRateCon(input: {
     if ('ok' in data) return { ok: true, fields: aiToFields(data.fields, data.model), model: data.model }
     return { ok: false, reason: data.error === 'no_key' ? 'no_key' : 'failed', detail: data.error }
   } catch (e) {
-    return { ok: false, reason: 'failed', detail: e instanceof Error ? e.message : String(e) }
+    const msg = e instanceof Error ? e.message : String(e)
+    // A slow scan (60-90s) can outlast the hosting proxy's own timeout, which
+    // answers with its own HTML error page instead of our JSON — res.json() then
+    // throws exactly this "Unexpected token '<'" parse error. The raw message means
+    // nothing to a dispatcher; the document is already saved regardless (the
+    // caller's orphan-RC panel picks it up from there), so say that instead.
+    const detail = /Unexpected token|is not valid JSON/.test(msg)
+      ? 'Сервер долго отвечал (обычно так со сканами). Документ уже сохранён — собери груз кнопкой «Создать груз» ниже, либо попробуй ещё раз.'
+      : msg
+    return { ok: false, reason: 'failed', detail }
   }
 }
 
