@@ -69,7 +69,7 @@ export async function tgAttachToLoad(
   chatId: string,
   msgId: number,
   driverPhone: string | null,
-): Promise<{ ok: true; loadRoute: string } | { error: string }> {
+): Promise<{ ok: true; loadId: number; loadRoute: string } | { error: string }> {
   const truck = await resolveTruckForChat(chatId, driverPhone)
   if (!truck)
     return { error: 'Этот чат не привязан ни к одному траку — укажи телефон в паспорте трака или привяжи чат в админке.' }
@@ -92,7 +92,7 @@ export async function tgAttachToLoad(
 
   revalidatePath(`/loads/${load.id}`)
   revalidatePath('/docs')
-  return { ok: true, loadRoute: `${load.origin ?? ''} → ${load.destination ?? ''}` }
+  return { ok: true, loadId: load.id, loadRoute: `${load.origin ?? ''} → ${load.destination ?? ''}` }
 }
 
 /** Gate for sending a Telegram message — same shared PIN as guarded deletes. The
