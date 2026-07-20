@@ -1,8 +1,8 @@
 import Link from 'next/link'
-import { sql } from '@/lib/db'
 import { getCurrentUser } from '@/lib/session'
 import { getSetting } from '@/lib/settings'
 import { tgConnected, tgDialogs, tgHiddenChats, tgMessages, type TgDialog, type TgMsg } from '@/lib/telegram'
+import { resolveTruckForChat } from '@/lib/tg-intake'
 import { TgSetup } from './tg-setup'
 import { TgSendBox } from './tg-chat'
 import { TgCheckButton } from './tg-check-button'
@@ -13,8 +13,6 @@ import { Info } from '@/components/info'
 export const dynamic = 'force-dynamic'
 // Two round-trips to Telegram (dialogs + messages) don't fit the default 10s.
 export const maxDuration = 60
-
-const digits = (s: string | null) => (s ?? '').replace(/\D/g, '')
 
 function when(iso: string | null): string {
   if (!iso) return ''
@@ -76,14 +74,13 @@ export default async function Page({
     error = e instanceof Error ? e.message : String(e)
   }
 
-  // Chat ↔ truck match by the driver's phone from the truck passport.
-  const phones = (await sql`
-    SELECT m.driver_phone, t.number FROM truck_meta m
-    JOIN trucks t ON t.id = m.truck_id WHERE m.driver_phone IS NOT NULL`) as {
-    driver_phone: string
-    number: string
-  }[]
-  const truckByPhone = new Map(phones.map((p) => [digits(p.driver_phone), p.number]))
+  // Chat ↔ truck: admin's manual pick (admin panel) wins, else driver's phone from
+  // the truck passport.
+  const truckByChat = new Map(
+    await Promise.all(
+      dialogs.map(async (d) => [d.id, (await resolveTruckForChat(d.id, d.phone))?.number] as const),
+    ),
+  )
   const open = chatId ? dialogs.find((d) => d.id === chatId) : undefined
 
   return (
@@ -114,7 +111,7 @@ export default async function Page({
           ) : (
             <ul className="max-h-[70vh] overflow-y-auto">
               {dialogs.map((d) => {
-                const truck = truckByPhone.get(digits(d.phone))
+                const truck = truckByChat.get(d.id)
                 return (
                   <li key={d.id}>
                     <Link

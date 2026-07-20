@@ -6,7 +6,17 @@ import { humanError } from '@/lib/msg'
 import { hashPassword } from '@/lib/auth'
 import { getCurrentUser } from '@/lib/session'
 import { getSetting, setSetting } from '@/lib/settings'
-import { tgAccountInfo, tgConnected, tgDialogs, tgHiddenChats, setTgHiddenChats, type TgDialog } from '@/lib/telegram'
+import {
+  setTgChatTruck,
+  setTgHiddenChats,
+  tgAccountInfo,
+  tgChatTruckMap,
+  tgConnected,
+  tgDialogs,
+  tgHiddenChats,
+  type TgDialog,
+} from '@/lib/telegram'
+import { listTrucks } from '@/lib/loads'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -127,17 +137,41 @@ export type TgAdminStatus =
       account: { name: string; phone: string | null; username: string | null } | null
       dialogs: TgDialog[]
       hidden: string[]
+      chatTruck: Record<string, number>
+      trucks: { id: number; number: string }[]
     }
 
 export async function tgAdminStatus(): Promise<TgAdminStatus | { error: string }> {
   await assertAdmin()
   if (!(await tgConnected())) return { connected: false }
   try {
-    const [account, dialogs, hidden] = await Promise.all([tgAccountInfo(), tgDialogs(), tgHiddenChats()])
-    return { connected: true, account, dialogs, hidden: [...hidden] }
+    const [account, dialogs, hidden, chatTruck, trucks] = await Promise.all([
+      tgAccountInfo(),
+      tgDialogs(),
+      tgHiddenChats(),
+      tgChatTruckMap(),
+      listTrucks(),
+    ])
+    return {
+      connected: true,
+      account,
+      dialogs,
+      hidden: [...hidden],
+      chatTruck,
+      trucks: trucks.map((t) => ({ id: t.id, number: t.number ?? t.name })),
+    }
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) }
   }
+}
+
+/** Manual override for which truck a chat belongs to — for group chats (no phone at
+ * all) or a driver whose Telegram number doesn't match the phone on file. */
+export async function setChatTruck(chatId: string, truckId: number | null): Promise<{ error: string } | void> {
+  await assertAdmin()
+  await setTgChatTruck(chatId, truckId)
+  revalidatePath('/admin')
+  revalidatePath('/telegram')
 }
 
 /** Which of the connected account's chats show up on /telegram — same list for

@@ -4,7 +4,7 @@
 
 import { sql } from './db.ts'
 import { getSetting, setSetting } from './settings.ts'
-import { tgConnected, tgInboundMedia, tgSend } from './telegram.ts'
+import { tgChatTruckMap, tgConnected, tgInboundMedia, tgSend } from './telegram.ts'
 import { activeLoadForTruck } from './loads.ts'
 import { classifyDocument } from './ai-doc.ts'
 
@@ -18,6 +18,20 @@ export async function phoneMap(): Promise<Map<string, { truckId: number; number:
   return new Map(rows.map((r) => [digits(r.driver_phone).slice(-10), { truckId: r.truck_id, number: r.number }]))
 }
 
+/** Which truck a chat belongs to — the admin's manual pick (needed for groups, which
+ * have no phone at all, and for phone mismatches) wins over the automatic phone match. */
+export async function resolveTruckForChat(
+  chatId: string,
+  phone: string | null,
+): Promise<{ truckId: number; number: string } | undefined> {
+  const manual = (await tgChatTruckMap())[chatId]
+  if (manual) {
+    const rows = (await sql`SELECT id, number FROM trucks WHERE id = ${manual}`) as { id: number; number: string }[]
+    if (rows[0]) return { truckId: rows[0].id, number: rows[0].number }
+  }
+  return phone ? (await phoneMap()).get(digits(phone).slice(-10)) : undefined
+}
+
 /**
  * Pull new inbound media, file BOL/POD to the sender's active load. Returns a
  * summary. Idempotent via per-chat last-processed message id in settings.
@@ -27,7 +41,6 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
 
   const seenRaw = (await getSetting('tg_last_seen')) ?? '{}'
   const since: Record<string, number> = JSON.parse(seenRaw)
-  const phones = await phoneMap()
 
   let media
   try {
@@ -42,7 +55,7 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
 
   for (const m of media) {
     maxSeen[m.chatId] = Math.max(maxSeen[m.chatId] ?? 0, m.msgId)
-    const truck = m.phone ? phones.get(digits(m.phone).slice(-10)) : undefined
+    const truck = await resolveTruckForChat(m.chatId, m.phone)
     if (!truck) {
       skipped++
       continue // not a known driver — leave it alone

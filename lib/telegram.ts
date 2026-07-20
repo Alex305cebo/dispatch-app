@@ -70,6 +70,25 @@ export async function setTgHiddenChats(ids: string[]): Promise<void> {
   await setSetting('tg_hidden_chats', JSON.stringify(ids))
 }
 
+/** Manual chat → truck override — for groups (no phone at all) or a driver whose
+ * Telegram number doesn't match the phone on file. Takes priority over the
+ * automatic phone match wherever a truck needs to be found for a chat. */
+export async function tgChatTruckMap(): Promise<Record<string, number>> {
+  const raw = (await getSetting('tg_chat_truck')) ?? '{}'
+  try {
+    return JSON.parse(raw) as Record<string, number>
+  } catch {
+    return {}
+  }
+}
+
+export async function setTgChatTruck(chatId: string, truckId: number | null): Promise<void> {
+  const map = await tgChatTruckMap()
+  if (truckId === null) delete map[chatId]
+  else map[chatId] = truckId
+  await setSetting('tg_chat_truck', JSON.stringify(map))
+}
+
 // One shared, kept-alive connection for the whole server process instead of a fresh
 // MTProto handshake per request — connecting per-call was fine for one page load's
 // two requests, but every attachment image is its own request too, and a handshake

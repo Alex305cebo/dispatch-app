@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { setTgVisibility, type TgAdminStatus } from './actions'
+import { setChatTruck, setTgVisibility, type TgAdminStatus } from './actions'
 import { notify } from '@/lib/notify'
 
 export function TgSettings({ status }: { status: TgAdminStatus | { error: string } }) {
@@ -19,17 +19,35 @@ export function TgSettings({ status }: { status: TgAdminStatus | { error: string
       </p>
     )
   }
-  return <ConnectedTgSettings account={status.account} dialogs={status.dialogs} hidden={status.hidden} />
+  return (
+    <ConnectedTgSettings
+      account={status.account}
+      dialogs={status.dialogs}
+      hidden={status.hidden}
+      chatTruck={status.chatTruck}
+      trucks={status.trucks}
+    />
+  )
 }
 
 function ConnectedTgSettings({
   account,
   dialogs,
   hidden,
+  chatTruck,
+  trucks,
 }: Omit<Extract<TgAdminStatus, { connected: true }>, 'connected'>) {
   const [hiddenSet, setHiddenSet] = useState(new Set(hidden))
   const [pending, start] = useTransition()
   const dirty = hiddenSet.size !== hidden.length || hidden.some((id) => !hiddenSet.has(id))
+  const [truckPending, startTruck] = useTransition()
+
+  function assignTruck(chatId: string, value: string) {
+    startTruck(async () => {
+      const res = await setChatTruck(chatId, value ? Number(value) : null)
+      if (res?.error) notify('error', res.error)
+    })
+  }
 
   function toggle(id: string) {
     setHiddenSet((prev) => {
@@ -78,6 +96,19 @@ function ConnectedTgSettings({
                   группа
                 </span>
               )}
+              <select
+                disabled={truckPending}
+                defaultValue={chatTruck[d.id] ?? ''}
+                onChange={(e) => assignTruck(d.id, e.target.value)}
+                className="shrink-0 rounded-md border border-white/10 bg-ink-800 px-1.5 py-1 text-[11px] disabled:opacity-40"
+              >
+                <option value="">— трак —</option>
+                {trucks.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    #{t.number}
+                  </option>
+                ))}
+              </select>
             </label>
           ))}
         </div>

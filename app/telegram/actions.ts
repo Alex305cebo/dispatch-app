@@ -2,13 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 import { confirmLogin, disconnectTelegram, startLogin, tgMedia, tgSend } from '@/lib/telegram'
-import { intakeDriverMedia, phoneMap, remindMissingPods } from '@/lib/tg-intake'
+import { intakeDriverMedia, remindMissingPods, resolveTruckForChat } from '@/lib/tg-intake'
 import { activeLoadForTruck } from '@/lib/loads'
 import { classifyDocument } from '@/lib/ai-doc'
 import { sql } from '@/lib/db'
 import { requireAdmin } from '@/lib/session'
-
-const digits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '')
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -72,10 +70,9 @@ export async function tgAttachToLoad(
   msgId: number,
   driverPhone: string | null,
 ): Promise<{ ok: true; loadRoute: string } | { error: string }> {
-  if (!driverPhone) return { error: 'У этого чата нет номера телефона.' }
-  const phones = await phoneMap()
-  const truck = phones.get(digits(driverPhone).slice(-10))
-  if (!truck) return { error: 'Этот номер не привязан ни к одному траку — укажи его в паспорте трака.' }
+  const truck = await resolveTruckForChat(chatId, driverPhone)
+  if (!truck)
+    return { error: 'Этот чат не привязан ни к одному траку — укажи телефон в паспорте трака или привяжи чат в админке.' }
   const load = await activeLoadForTruck(truck.truckId)
   if (!load) return { error: 'У этого трака сейчас нет активного груза.' }
 
