@@ -31,19 +31,31 @@ export async function tgConnected(): Promise<boolean> {
   return (await creds()) !== null
 }
 
-/** Connect → run → disconnect. A connection per request is slow-ish but stateless. */
+// One shared, kept-alive connection for the whole server process instead of a fresh
+// MTProto handshake per request — connecting per-call was fine for one page load's
+// two requests, but every attachment image is its own request too, and a handshake
+// takes real time; done concurrently they queued up and started timing out each
+// other out on Telegram's end (seen live: a burst of "Error: TIMEOUT" in prod).
+let client: TelegramClient | null = null
+let connecting: Promise<TelegramClient> | null = null
+
 async function withClient<T>(fn: (c: TelegramClient) => Promise<T>): Promise<T> {
-  const c = await creds()
-  if (!c) throw new Error('Telegram не подключён')
-  const client = new TelegramClient(new StringSession(c.session), c.apiId, c.apiHash, {
-    connectionRetries: 3,
-  })
-  await client.connect()
-  try {
-    return await fn(client)
-  } finally {
-    await client.disconnect().catch(() => {})
+  if (client?.connected) return fn(client)
+  if (!connecting) {
+    connecting = (async () => {
+      const c = await creds()
+      if (!c) throw new Error('Telegram не подключён')
+      const tc = new TelegramClient(new StringSession(c.session), c.apiId, c.apiHash, {
+        connectionRetries: 3,
+      })
+      await tc.connect()
+      client = tc
+      return tc
+    })().finally(() => {
+      connecting = null
+    })
   }
+  return fn(await connecting)
 }
 
 /* ---------- one-time login flow ---------- */
