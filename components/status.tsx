@@ -1,8 +1,8 @@
 import type { LoadStatus } from '@/lib/map'
 
 export const STATUS_LABEL: Record<LoadStatus, string> = {
-  quoted: 'Квоут',
-  booked: 'Букинг',
+  quoted: 'Букинг',
+  booked: 'Загрузка',
   in_transit: 'В пути',
   delivered: 'Доставлен',
   paid: 'Оплачен',
