@@ -118,9 +118,11 @@ export default async function Page() {
     const totalMiles = (legToPickup?.miles ?? 0) + (legToDelivery?.miles ?? 0)
     const totalEtaMin = (legToPickup?.etaMin ?? 0) + (legToDelivery?.etaMin ?? 0)
 
-    // Pickup pin — where and when this load loads. Shown alongside delivery so the
-    // dispatcher can see the whole trip, not just where the truck is headed today.
-    if (pickup && load) {
+    // Pickup pin — only while the load is still booked (not yet picked up). Once
+    // it's in_transit the truck IS at/past the pickup and this pin has nothing left
+    // to say — leaving it up read as a second, wrong location for the same stop
+    // (reported live: driver already at pickup, pin still sitting somewhere else).
+    if (pickup && load && load.status === 'booked') {
       markers.push({
         lat: pickup.lat,
         lng: pickup.lng,

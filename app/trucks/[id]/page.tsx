@@ -124,7 +124,9 @@ export default async function Page({
     } else if (activeLoad) {
       legToDelivery = await deliveryInfoBest({ lat, lng }, activeLoad.deliveryAddress, activeLoad.destination)
     }
-    if (pickup && activeLoad) {
+    // Only while still booked — once picked up, the truck IS at/past this stop and
+    // the pin has nothing left to say, just a second (wrong-looking) dot on the map.
+    if (pickup && activeLoad?.status === 'booked') {
       mapMarkers.push({
         lat: pickup.lat,
         lng: pickup.lng,
