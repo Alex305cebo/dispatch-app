@@ -1,11 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useTransition } from 'react'
+import { usePathname } from 'next/navigation'
+import { useEffect } from 'react'
 import { Notifier } from '@/components/notifier'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { signOut } from '@/app/login/actions'
 import { autoRefreshFleet } from '@/app/actions'
 import { UserPanel } from '@/components/user-panel'
 import type { CurrentUser } from '@/lib/session'
@@ -26,8 +25,6 @@ const icons: Record<string, string> = {
   // for the Журнал button (a person silhouette there looked like an account avatar).
   history: 'M12 8v4l3 3 M3.05 11a9 9 0 1 0 .5-4 M3 4v6h6',
   money: 'M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
-  shield: 'M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6z M9.5 12l1.8 1.8 3.2-3.6',
-  logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9',
 }
 
 function Icon({ d }: { d: string }) {
@@ -75,16 +72,7 @@ const ITEMS: Item[] = [
 
 export function Nav({ companyName, user }: { companyName: string; user: CurrentUser | null }) {
   const pathname = usePathname()
-  const router = useRouter()
-  const [pending, start] = useTransition()
   const brand = brandName(companyName)
-
-  function logout() {
-    start(async () => {
-      await signOut()
-      router.refresh()
-    })
-  }
 
   // Every login and every section switch is a chance to nudge GPS forward — no
   // external cron ever got set up, so this was the only thing actually keeping
@@ -164,60 +152,33 @@ export function Nav({ companyName, user }: { companyName: string; user: CurrentU
         })}
       </div>
 
-      {/* Phone: just bell + theme above the tab row — everything else below is
-          desktop-only (no room for it in the bottom bar). */}
-      <div className="order-first flex items-center justify-end gap-1.5 px-1 pb-1 md:hidden">
+      {/* Account row — one round icon set, visible at every width. Used to be split
+          into a mobile-only bell/theme strip and a separate desktop-only card, which
+          meant the account menu, Журнал and even the logout button were completely
+          unreachable below the md breakpoint (reported live: "the block disappeared,
+          can't do anything"). Admin/logout now live inside UserPanel's own popover. */}
+      <div className="order-first mb-1.5 flex items-center justify-end gap-1.5 px-1 pb-1 md:order-none md:mt-auto md:justify-start md:px-0 md:pb-0">
+        {user && (
+          <>
+            <UserPanel user={user} />
+            <Link
+              href="/logins"
+              title="Журнал"
+              aria-label="Журнал"
+              aria-current={pathname.startsWith('/logins') ? 'page' : undefined}
+              className={`flex size-9 items-center justify-center rounded-full border transition-colors ${
+                pathname.startsWith('/logins')
+                  ? 'border-haul-500/50 text-haul-400'
+                  : 'border-white/10 bg-ink-800/80 text-white/72 hover:border-white/25 hover:text-white/90'
+              }`}
+            >
+              <Icon d={icons.history} />
+            </Link>
+          </>
+        )}
         <Notifier />
         <ThemeToggle />
       </div>
-
-      {/* One combined card, desktop only: identity, bell/theme, then admin/journal/
-          logout as a row of small links — previously two separate stacked blocks. */}
-      {user && (
-        <div className="mb-1.5 hidden flex-col gap-2 rounded-xl border border-white/6 bg-white/[0.02] px-2.5 py-2.5 md:mt-auto md:flex">
-          <div className="flex items-center justify-between gap-2">
-            <UserPanel user={user} />
-            <div className="flex shrink-0 items-center gap-1.5">
-              <Link
-                href="/logins"
-                title="Журнал"
-                aria-label="Журнал"
-                aria-current={pathname.startsWith('/logins') ? 'page' : undefined}
-                className={`flex size-9 items-center justify-center rounded-full border transition-colors ${
-                  pathname.startsWith('/logins')
-                    ? 'border-haul-500/50 text-haul-400'
-                    : 'border-white/10 bg-ink-800/80 text-white/72 hover:border-white/25 hover:text-white/90'
-                }`}
-              >
-                <Icon d={icons.history} />
-              </Link>
-              <Notifier />
-              <ThemeToggle />
-            </div>
-          </div>
-          <div className="flex items-center gap-3 text-[11px] text-white/55">
-            {user.role === 'admin' && (
-              <Link
-                href="/admin"
-                className={`flex items-center gap-1 transition-colors hover:text-white/85 ${
-                  pathname.startsWith('/admin') ? 'text-haul-400' : ''
-                }`}
-              >
-                <Icon d={icons.shield} />
-                Админ
-              </Link>
-            )}
-            <button
-              onClick={logout}
-              disabled={pending}
-              className="flex items-center gap-1 transition-colors hover:text-white/85 disabled:opacity-40"
-            >
-              <Icon d={icons.logout} />
-              {pending ? '…' : 'Выйти'}
-            </button>
-          </div>
-        </div>
-      )}
     </nav>
   )
 }

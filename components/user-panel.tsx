@@ -1,30 +1,50 @@
 'use client'
 
-// Click the name in the sidebar → small popover with the account's own settings.
-// Room to grow later; for now just what every account needs day one: its own
-// password change, without waiting on an admin to reset it.
+// The one account-menu entry point, visible at every screen width (it used to live
+// only inside a `hidden md:flex` card, so on a narrower window there was no way to
+// reach it at all). A round avatar button — consistent trigger everywhere — opens a
+// popover with password change, admin link, and logout, instead of those being
+// separate elements that could each independently vanish at some breakpoint.
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
 import { changeMyPassword } from '@/app/account/actions'
+import { signOut } from '@/app/login/actions'
 import { notify } from '@/lib/notify'
 import type { CurrentUser } from '@/lib/session'
 
 const ROLE_LABEL = { admin: 'Админ', dispatcher: 'Диспетчер' } as const
 
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase()
+  return (parts[0]![0]! + parts[1]![0]!).toUpperCase()
+}
+
 export function UserPanel({ user }: { user: CurrentUser }) {
+  const pathname = usePathname()
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [pw, setPw] = useState('')
   const [pending, start] = useTransition()
 
-  function save() {
+  function savePassword() {
     start(async () => {
       const res = await changeMyPassword(pw)
       if (res?.error) notify('error', res.error)
       else {
         notify('ok', 'Пароль изменён')
         setPw('')
-        setOpen(false)
       }
+    })
+  }
+
+  function logout() {
+    start(async () => {
+      await signOut()
+      router.refresh()
     })
   }
 
@@ -32,9 +52,11 @@ export function UserPanel({ user }: { user: CurrentUser }) {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="truncate text-[12px] font-medium text-white/85 transition-colors hover:text-white"
+        title={user.name}
+        aria-label={user.name}
+        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-haul-500/35 to-good-500/25 text-[12px] font-semibold text-white/85 ring-1 ring-white/10 transition-colors hover:ring-white/25"
       >
-        {user.name}
+        {initialsOf(user.name)}
       </button>
 
       {open && (
@@ -55,10 +77,31 @@ export function UserPanel({ user }: { user: CurrentUser }) {
             />
             <button
               disabled={pending || pw.length < 8}
-              onClick={save}
+              onClick={savePassword}
               className="mt-2 w-full rounded-lg bg-haul-500 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
             >
               {pending ? 'Сохраняю…' : 'Сохранить'}
+            </button>
+          </div>
+
+          <div className="mt-3 flex items-center gap-3 border-t border-white/8 pt-3 text-[12px]">
+            {user.role === 'admin' && (
+              <Link
+                href="/admin"
+                onClick={() => setOpen(false)}
+                className={`transition-colors hover:text-white/85 ${
+                  pathname.startsWith('/admin') ? 'text-haul-400' : 'text-white/70'
+                }`}
+              >
+                🛡 Админ
+              </Link>
+            )}
+            <button
+              onClick={logout}
+              disabled={pending}
+              className="text-white/70 transition-colors hover:text-white/85 disabled:opacity-40"
+            >
+              {pending ? '…' : '⏻ Выйти'}
             </button>
           </div>
         </div>
