@@ -115,6 +115,21 @@ async function withClient<T>(fn: (c: TelegramClient) => Promise<T>): Promise<T> 
   }
 }
 
+// getDialogs is called once per exported function just to resolve a chat entity —
+// fine alone, but opening a chat with several photos fires it once per thumbnail in
+// a burst, and Telegram flood-waits GetDialogs specifically (seen live: stacked
+// "Sleeping for Ns on flood wait" in prod logs). Short TTL cache so a burst for the
+// same open chat reuses one fetch instead of five.
+let dialogsCache: { at: number; dialogs: Awaited<ReturnType<TelegramClient['getDialogs']>> } | null = null
+const DIALOGS_TTL_MS = 5000
+
+async function cachedDialogs(client: TelegramClient) {
+  if (dialogsCache && Date.now() - dialogsCache.at < DIALOGS_TTL_MS) return dialogsCache.dialogs
+  const dialogs = await client.getDialogs({ limit: 30 })
+  dialogsCache = { at: Date.now(), dialogs }
+  return dialogs
+}
+
 function connectClient(): Promise<TelegramClient> {
   return (async () => {
     const c = await creds()
@@ -217,7 +232,7 @@ function mediaKind(m: { media?: unknown }): TgMsg['media'] {
 
 export async function tgDialogs(): Promise<TgDialog[]> {
   return withClient(async (client) => {
-    const dialogs = await client.getDialogs({ limit: 30 })
+    const dialogs = await cachedDialogs(client)
     return dialogs
       .filter((d) => d.id !== undefined)
       .map((d) => {
@@ -242,7 +257,7 @@ export async function tgDialogs(): Promise<TgDialog[]> {
  */
 export async function tgMessages(chatId: string): Promise<TgMsg[]> {
   return withClient(async (client) => {
-    const dialogs = await client.getDialogs({ limit: 30 })
+    const dialogs = await cachedDialogs(client)
     const d = dialogs.find((x) => String(x.id) === chatId)
     if (!d?.entity) throw new Error('Чат не найден среди последних диалогов.')
     const msgs = await client.getMessages(d.entity, { limit: 40 })
@@ -262,7 +277,7 @@ export async function tgMessages(chatId: string): Promise<TgMsg[]> {
  * instead of eagerly downloading every photo/PDF just to render the message list. */
 export async function tgMedia(chatId: string, msgId: number): Promise<{ bytes: Buffer; mime: string } | null> {
   return withClient(async (client) => {
-    const dialogs = await client.getDialogs({ limit: 30 })
+    const dialogs = await cachedDialogs(client)
     const d = dialogs.find((x) => String(x.id) === chatId)
     if (!d?.entity) return null
     const [m] = await client.getMessages(d.entity, { ids: [msgId] })
@@ -276,7 +291,7 @@ export async function tgMedia(chatId: string, msgId: number): Promise<{ bytes: B
 
 export async function tgSend(chatId: string, text: string): Promise<void> {
   await withClient(async (client) => {
-    const dialogs = await client.getDialogs({ limit: 30 })
+    const dialogs = await cachedDialogs(client)
     const d = dialogs.find((x) => String(x.id) === chatId)
     if (!d?.entity) throw new Error('Чат не найден среди последних диалогов.')
     await client.sendMessage(d.entity, { message: text })
@@ -298,7 +313,7 @@ export type InboundMedia = {
 export async function tgInboundMedia(since: Record<string, number>): Promise<InboundMedia[]> {
   return withClient(async (client) => {
     const out: InboundMedia[] = []
-    const dialogs = await client.getDialogs({ limit: 30 })
+    const dialogs = await cachedDialogs(client)
     for (const d of dialogs) {
       const ent = d.entity as { className?: string; phone?: string } | undefined
       if (ent?.className !== 'User' || !d.entity) continue
