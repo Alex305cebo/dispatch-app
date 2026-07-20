@@ -211,7 +211,14 @@ export function BrokerNotes({
         <span className="shrink-0 text-[11px] text-white/45">
           {unread ? 'новое' : `прочитано ${readAt!.slice(0, 10)}`}
         </span>
-        <span className="shrink-0 text-white/40 transition-transform group-open:rotate-90">▸</span>
+        {/* Explicit fold/unfold hint — this being a <details> (click to toggle) isn't
+            obvious on its own, especially now that unread notes open by default. */}
+        <span className="hidden shrink-0 items-center gap-1 text-[11px] text-white/45 group-open:flex">
+          Свернуть <span className="text-white/40 transition-transform rotate-90">▸</span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1 text-[11px] text-white/45 group-open:hidden">
+          Развернуть <span className="text-white/40 transition-transform">▸</span>
+        </span>
       </summary>
 
       <div className="px-3.5 pb-3.5">
