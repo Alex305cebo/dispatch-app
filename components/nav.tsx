@@ -165,6 +165,19 @@ export function Nav({ companyName, user }: { companyName: string; user: CurrentU
           <div className="flex items-center justify-between gap-2">
             <UserPanel user={user} />
             <div className="flex shrink-0 items-center gap-1.5">
+              <Link
+                href="/logins"
+                title="Журнал"
+                aria-label="Журнал"
+                aria-current={pathname.startsWith('/logins') ? 'page' : undefined}
+                className={`flex size-9 items-center justify-center rounded-full border transition-colors ${
+                  pathname.startsWith('/logins')
+                    ? 'border-haul-500/50 text-haul-400'
+                    : 'border-white/10 bg-ink-800/80 text-white/72 hover:border-white/25 hover:text-white/90'
+                }`}
+              >
+                <Icon d={icons.who} />
+              </Link>
               <Notifier />
               <ThemeToggle />
             </div>
@@ -181,16 +194,6 @@ export function Nav({ companyName, user }: { companyName: string; user: CurrentU
                 Админ
               </Link>
             )}
-            <Link
-              href="/logins"
-              aria-current={pathname.startsWith('/logins') ? 'page' : undefined}
-              className={`flex items-center gap-1 transition-colors hover:text-white/85 ${
-                pathname.startsWith('/logins') ? 'text-haul-400' : ''
-              }`}
-            >
-              <Icon d={icons.who} />
-              Журнал
-            </Link>
             <button
               onClick={logout}
               disabled={pending}
