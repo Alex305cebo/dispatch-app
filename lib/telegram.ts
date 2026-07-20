@@ -79,22 +79,35 @@ let client: TelegramClient | null = null
 let connecting: Promise<TelegramClient> | null = null
 
 async function withClient<T>(fn: (c: TelegramClient) => Promise<T>): Promise<T> {
-  if (client?.connected) return fn(client)
-  if (!connecting) {
-    connecting = (async () => {
-      const c = await creds()
-      if (!c) throw new Error('Telegram не подключён')
-      const tc = new TelegramClient(new StringSession(c.session), c.apiId, c.apiHash, {
-        connectionRetries: 3,
-      })
-      await tc.connect()
-      client = tc
-      return tc
-    })().finally(() => {
-      connecting = null
-    })
+  const c = client?.connected ? client : await (connecting ??= connectClient())
+  try {
+    return await fn(c)
+  } catch (e) {
+    // AUTH_KEY_DUPLICATED: the same session was connected from somewhere else at the
+    // same time (e.g. localhost open while prod is also live) — Telegram kills this
+    // side. Drop the cached client so the NEXT call reconnects instead of reusing a
+    // connection that will keep failing the same way forever.
+    if (String(e).includes('AUTH_KEY_DUPLICATED') && client === c) {
+      await client.disconnect().catch(() => {})
+      client = null
+    }
+    throw e
   }
-  return fn(await connecting)
+}
+
+function connectClient(): Promise<TelegramClient> {
+  return (async () => {
+    const c = await creds()
+    if (!c) throw new Error('Telegram не подключён')
+    const tc = new TelegramClient(new StringSession(c.session), c.apiId, c.apiHash, {
+      connectionRetries: 3,
+    })
+    await tc.connect()
+    client = tc
+    return tc
+  })().finally(() => {
+    connecting = null
+  })
 }
 
 /* ---------- one-time login flow ---------- */
