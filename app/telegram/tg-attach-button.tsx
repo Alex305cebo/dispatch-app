@@ -32,9 +32,13 @@ export function TgAttachButton({
           }
         })
       }
-      className="mb-1 flex items-center gap-1 text-[11px] text-white/45 underline decoration-dotted transition-colors hover:text-white/75 disabled:no-underline disabled:opacity-70"
+      className={`mb-1 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11.5px] font-medium transition-colors disabled:cursor-default ${
+        done
+          ? 'bg-good-500/15 text-good-400'
+          : 'bg-white/10 text-white/80 hover:bg-white/16 disabled:opacity-60'
+      }`}
     >
-      {done ? '✓ В грузе' : pending ? 'Добавляю…' : '+ В груз водителя'}
+      {done ? '✓ В грузе' : pending ? 'Добавляю…' : '📎 В груз водителя'}
     </button>
   )
 }

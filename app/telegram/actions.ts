@@ -95,6 +95,14 @@ export async function tgAttachToLoad(
   return { ok: true, loadRoute: `${load.origin ?? ''} → ${load.destination ?? ''}` }
 }
 
+/** Gate for sending a Telegram message — same shared PIN as guarded deletes. The
+ * client re-checks this once per unlock window (2 min), not per message. */
+export async function verifyTgSendPin(pin: string): Promise<{ ok: true } | { error: string }> {
+  if (!process.env.APP_PIN) return { error: 'APP_PIN не настроен на сервере.' }
+  if (pin !== process.env.APP_PIN) return { error: 'Неверный PIN.' }
+  return { ok: true }
+}
+
 export async function tgSendMessage(
   chatId: string,
   text: string,
