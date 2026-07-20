@@ -6,6 +6,7 @@ import { intakeDriverMedia, phoneMap, remindMissingPods } from '@/lib/tg-intake'
 import { activeLoadForTruck } from '@/lib/loads'
 import { classifyDocument } from '@/lib/ai-doc'
 import { sql } from '@/lib/db'
+import { requireAdmin } from '@/lib/session'
 
 const digits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '')
 
@@ -16,6 +17,7 @@ export async function tgStartLogin(
   apiHash: string,
   phone: string,
 ): Promise<{ token: string; deliveryHint: string } | { error: string }> {
+  await requireAdmin()
   const id = Number(apiId.trim())
   if (!id || !apiHash.trim() || !phone.trim())
     return { error: 'Нужны api_id, api_hash и телефон.' }
@@ -31,6 +33,7 @@ export async function tgConfirmLogin(
   code: string,
   password?: string,
 ): Promise<{ ok: true } | { need2fa: true } | { error: string }> {
+  await requireAdmin()
   try {
     const res = await confirmLogin(token, code.trim(), password || undefined)
     if ('ok' in res) revalidatePath('/telegram')
@@ -56,6 +59,7 @@ export async function tgCheckNow(): Promise<
 
 /** Wrong account connected — drop the session so the connect form comes back up. */
 export async function tgDisconnectAccount(): Promise<void> {
+  await requireAdmin()
   await disconnectTelegram()
   revalidatePath('/telegram')
 }

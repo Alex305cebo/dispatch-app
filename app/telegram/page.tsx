@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { sql } from '@/lib/db'
+import { getCurrentUser } from '@/lib/session'
 import { tgConnected, tgDialogs, tgHiddenChats, tgMessages, type TgDialog, type TgMsg } from '@/lib/telegram'
 import { TgSetup } from './tg-setup'
 import { TgSendBox } from './tg-chat'
@@ -28,11 +29,22 @@ export default async function Page({
 }: {
   searchParams: Promise<{ chat?: string }>
 }) {
+  const user = await getCurrentUser()
+  const isAdmin = user?.role === 'admin'
+
   if (!(await tgConnected())) {
     return (
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
         <h1 className="mb-5 text-[17px] font-semibold">Telegram</h1>
-        <TgSetup />
+        {/* Connecting/reconnecting picks whose Telegram the whole company uses —
+            an admin-only call, not something any dispatcher should trigger. */}
+        {isAdmin ? (
+          <TgSetup />
+        ) : (
+          <p className="panel p-4 text-[13px] text-white/65">
+            Telegram ещё не подключён — обратись к администратору.
+          </p>
+        )}
       </main>
     )
   }
@@ -74,7 +86,7 @@ export default async function Page({
         </div>
         <div className="flex flex-col items-end gap-1.5">
           <TgCheckButton />
-          <TgDisconnectButton />
+          {isAdmin && <TgDisconnectButton />}
         </div>
       </header>
 
