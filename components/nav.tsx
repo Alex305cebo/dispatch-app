@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useTransition } from 'react'
+import { useEffect, useTransition } from 'react'
 import { Notifier } from '@/components/notifier'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { signOut } from '@/app/login/actions'
+import { autoRefreshFleet } from '@/app/actions'
 import { UserPanel } from '@/components/user-panel'
 import type { CurrentUser } from '@/lib/session'
 
@@ -81,6 +82,15 @@ export function Nav({ companyName, user }: { companyName: string; user: CurrentU
       router.refresh()
     })
   }
+
+  // Every login and every section switch is a chance to nudge GPS forward — no
+  // external cron ever got set up, so this was the only thing actually keeping
+  // Live Share data from going stale between manual "Обновить" clicks.
+  useEffect(() => {
+    if (!user) return
+    autoRefreshFleet().catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, user?.id])
 
   return (
     <nav

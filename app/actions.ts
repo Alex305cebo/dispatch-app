@@ -11,7 +11,7 @@ import type { TruckSettings } from '@/lib/profit'
 import { checkBroker, type BrokerCheck, type RcContext } from '@/lib/fmcsa'
 import { getLoad } from '@/lib/loads'
 import { buildInvoicePacket, type Company } from '@/lib/invoice'
-import { setSetting } from '@/lib/settings'
+import { getSetting, setSetting } from '@/lib/settings'
 
 export async function vetBroker(
   mc: string,
@@ -63,6 +63,24 @@ export async function refreshFleetStatus(): Promise<{ updated: number; errors: s
   revalidatePath('/tracking')
   revalidatePath('/', 'layout')
   return { updated, errors }
+}
+
+/** Fired from the nav on every page load/section switch — no cron ever got set up
+ * (that needed the owner to sign up for an external pinger, cron-job.org), so GPS
+ * only ever moved on the manual "Обновить" click. Riding real navigation instead
+ * means it stays fresh while anyone is actually using the app. Throttled server-side
+ * (not per-tab) so ten dispatchers clicking around at once still means one real poll,
+ * not ten — a Live Share link is 2 HTTP calls each, times however many trucks. */
+export async function autoRefreshFleet(): Promise<void> {
+  const THROTTLE_MS = 3 * 60 * 1000
+  const last = await getSetting('fleet_auto_refresh_at')
+  if (last && Date.now() - new Date(last).getTime() < THROTTLE_MS) return
+  await setSetting('fleet_auto_refresh_at', new Date().toISOString())
+
+  const { fleetSnapshot, liveShareSnapshot } = await import('@/lib/eld')
+  await Promise.all([liveShareSnapshot().catch(() => {}), fleetSnapshot().catch(() => {})])
+  revalidatePath('/tracking')
+  revalidatePath('/', 'layout')
 }
 
 /* ---------- Invoicing / AR ---------- */
