@@ -53,6 +53,19 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
   const [docId, setDocId] = useState<number | undefined>(undefined)
   // "другой файл" mid-flight must not let a stale AI answer resurrect old fields.
   const reqId = useRef(0)
+  // Kept so "Повторить" can re-run the same file without asking to re-pick it —
+  // the doc is already uploaded either way, only the AI call needs retrying.
+  const [lastFile, setLastFile] = useState<File | undefined>(undefined)
+
+  /** One automatic retry before ever bothering the dispatcher — a slow scan is
+   * usually just a slow scan, not a real failure, and a second attempt clears most
+   * of them without anyone having to click anything. */
+  async function parseWithRetry(input: Parameters<typeof aiParseRateCon>[0]) {
+    const first = await aiParseRateCon(input)
+    if (first.ok) return first
+    await new Promise((r) => setTimeout(r, 1500))
+    return aiParseRateCon(input)
+  }
 
   async function copyDriverInfo(text: string) {
     try {
@@ -69,6 +82,7 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
   async function handle(file: File | undefined) {
     if (!file) return
     const my = ++reqId.current
+    setLastFile(file)
     setError(null)
     setBusy(true)
     setAi('idle')
@@ -103,7 +117,7 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
       const input = hasText
         ? { text }
         : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf' }
-      const res = await aiParseRateCon(input)
+      const res = await parseWithRetry(input)
       if (reqId.current !== my) return
 
       if (res.ok) {
@@ -295,7 +309,22 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
         PDF или фото от брокера. Сканы тоже читаются. Для распознавания документ
         отправляется в Google Gemini (ИИ).
       </p>
-      {error && <p className="mt-3 max-w-sm text-[13px] text-bad-400">{error}</p>}
+      {error && (
+        <div className="mt-3 max-w-sm">
+          <p className="text-[13px] text-bad-400">{error}</p>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              handle(lastFile)
+            }}
+            className="mt-2 rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-haul-400"
+          >
+            ↻ Повторить сканирование
+          </button>
+        </div>
+      )}
     </motion.label>
   )
 }

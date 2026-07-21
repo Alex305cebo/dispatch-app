@@ -40,6 +40,8 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
   const [error, setError] = useState<string | null>(null)
   const [, startCopy] = useTransition()
   const inputRef = useRef<HTMLInputElement>(null)
+  // Kept so "Повторить" can re-run the same file without asking to re-pick it.
+  const [lastFile, setLastFile] = useState<File | undefined>(undefined)
 
   // A scanned rate con through Gemini really can take 60-90s. Without a visible,
   // ticking sign of life the page looks frozen — and a reload mid-flight loses the
@@ -53,6 +55,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
 
   async function handle(file: File | undefined) {
     if (!file) return
+    setLastFile(file)
     setError(null)
     setBusy(true)
     setStage('Читаю файл…')
@@ -80,9 +83,17 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       // recognizer that ever creates a load here; no regex fallback (a wrong guess
       // shouldn't get to auto-create a load, only a checked one should).
       setStage(hasText ? 'Распознаю ИИ…' : 'Распознаю скан через ИИ — это до полутора минут…')
-      const ai = await aiParseRateCon(
-        hasText ? { text } : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf' },
-      )
+      const aiInput = hasText
+        ? { text }
+        : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf' }
+      // One automatic retry before bothering the dispatcher — a slow scan is usually
+      // just slow, not a real failure, and this clears most of them silently.
+      let ai = await aiParseRateCon(aiInput)
+      if (!ai.ok) {
+        setStage('Не получилось с первого раза — пробую ещё раз…')
+        await new Promise((r) => setTimeout(r, 1500))
+        ai = await aiParseRateCon(aiInput)
+      }
       if (!ai.ok) {
         throw new Error(ai.reason === 'no_key' ? 'ИИ не настроен — добавь GEMINI_API_KEY.' : `Не распознался: ${ai.detail ?? 'ИИ недоступен'}. Попробуй ещё раз.`)
       }
@@ -247,7 +258,22 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
           </span>
         </>
       )}
-      {error && <span className="mt-2 text-[12px] text-bad-400">{error}</span>}
+      {error && (
+        <span className="mt-2 flex flex-col items-center gap-1.5">
+          <span className="text-[12px] text-bad-400">{error}</span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              handle(lastFile)
+            }}
+            className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-haul-400"
+          >
+            ↻ Повторить сканирование
+          </button>
+        </span>
+      )}
     </motion.label>
   )
 }

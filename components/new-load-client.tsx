@@ -32,10 +32,13 @@ export function NewLoadClient({
   const [drag, setDrag] = useState(false)
   const [scanKey, setScanKey] = useState(0) // remount the form to load a fresh scan
   const reqId = useRef(0)
+  // Kept so "Повторить" can re-run the same file without asking to re-pick it.
+  const [lastFile, setLastFile] = useState<File | undefined>(undefined)
 
   async function handle(file: File | undefined) {
     if (!file) return
     const my = ++reqId.current
+    setLastFile(file)
     setError(null)
     setBusy(true)
     setAi('idle')
@@ -66,7 +69,13 @@ export function NewLoadClient({
       const input = hasText
         ? { text }
         : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf' }
-      const res = await aiParseRateCon(input)
+      // One automatic retry before bothering the dispatcher — a slow scan is usually
+      // just slow, not a real failure.
+      let res = await aiParseRateCon(input)
+      if (!res.ok) {
+        await new Promise((r) => setTimeout(r, 1500))
+        res = await aiParseRateCon(input)
+      }
       if (reqId.current !== my) return
 
       if (res.ok) {
@@ -149,7 +158,18 @@ export function NewLoadClient({
         <Info text="Тот же распознаватель, что на странице «Rate con»: Google Gemini читает документ и заполняет форму. Работает с любым шаблоном и со сканами. Документ отправляется в Gemini." />
       </label>
 
-      {error && <p className="mb-3 text-[13px] text-bad-400">{error}</p>}
+      {error && (
+        <div className="mb-3 flex items-center gap-3">
+          <p className="text-[13px] text-bad-400">{error}</p>
+          <button
+            type="button"
+            onClick={() => handle(lastFile)}
+            className="shrink-0 rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-haul-400"
+          >
+            ↻ Повторить
+          </button>
+        </div>
+      )}
       {fields && (
         <div className="mb-3 flex items-center gap-3 text-[12px] text-white/60">
           <span>Форма заполнена из rate con — проверь и сохрани.</span>
