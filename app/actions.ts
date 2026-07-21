@@ -275,10 +275,20 @@ export async function createLoadFromExistingRc(
   return createLoadFromRc(truckId, toQrLoad(aiToFields(res.fields, res.model)), docId)
 }
 
+/** Status can also be set here (not just via markPaid's "Отметить оплаченным"
+ * button) — 'paid' and 'delivered' must still keep paid_at in sync either way, or a
+ * load can end up "paid" by status but invisible on the AR page's Оплачено tab
+ * (which goes by paid_at), exactly the split state that happened before this. */
 export async function setStatus(id: number, status: LoadStatus): Promise<void> {
-  await sql`UPDATE loads SET status = ${status} WHERE id = ${id}`
+  await sql`
+    UPDATE loads SET status = ${status},
+      paid_at = CASE WHEN ${status} = 'paid' THEN COALESCE(paid_at, now())
+                     WHEN paid_at IS NOT NULL THEN NULL
+                     ELSE paid_at END
+    WHERE id = ${id}`
   revalidatePath(`/loads/${id}`)
   revalidatePath('/loads')
+  revalidatePath('/invoices')
   revalidatePath('/')
   revalidatePath('/trucks', 'layout')
 }
