@@ -268,7 +268,7 @@ export async function createLoadFromExistingRc(
   const { geminiExtract } = await import('@/lib/ratecon-gemini')
   const res = await geminiExtract({ pdfBase64: doc.b64, mime: doc.mime })
   if ('error' in res)
-    return { error: res.error === 'no_key' ? 'Нет ключа ИИ (GEMINI_API_KEY).' : `ИИ не прочитал: ${res.error}` }
+    return { error: res.error === 'no_key' ? 'ИИ временно недоступен — обратись к администратору.' : `ИИ не прочитал: ${res.error}` }
 
   const { aiToFields } = await import('@/lib/ratecon-ai-contract')
   const { toQrLoad } = await import('@/lib/ratecon')
@@ -404,7 +404,7 @@ export async function deleteDocument(
   who: string,
   pin: string,
 ): Promise<{ error: string } | void> {
-  if (!process.env.APP_PIN) return { error: 'APP_PIN не настроен на сервере.' }
+  if (!process.env.APP_PIN) return { error: 'PIN не настроен — обратись к администратору.' }
   if (pin !== process.env.APP_PIN) return { error: 'Неверный PIN.' }
   if (!who?.trim()) return { error: 'Впиши имя — кто удаляет.' }
 
@@ -447,7 +447,7 @@ export async function purgeDocument(
   who: string,
   pin: string,
 ): Promise<{ error: string } | void> {
-  if (!process.env.APP_PIN) return { error: 'APP_PIN не настроен на сервере.' }
+  if (!process.env.APP_PIN) return { error: 'PIN не настроен — обратись к администратору.' }
   if (pin !== process.env.APP_PIN) return { error: 'Неверный PIN.' }
   if (!who?.trim()) return { error: 'Впиши имя — кто удаляет.' }
 
@@ -539,7 +539,7 @@ export async function translateBrokerNotes(
   const { translatePlainText } = await import('@/lib/ratecon-gemini')
   const res = await translatePlainText(text, targetLang === 'ru' ? 'Russian' : 'English')
   if ('error' in res)
-    return { error: res.error === 'no_key' ? 'Нет ключа ИИ (GEMINI_API_KEY).' : `Не вышло перевести: ${res.error}` }
+    return { error: res.error === 'no_key' ? 'ИИ временно недоступен — обратись к администратору.' : `Не вышло перевести: ${res.error}` }
   return res
 }
 
@@ -577,7 +577,7 @@ export async function parseRcForNotes(
   const res = await geminiExtract({ pdfBase64: doc.b64, mime: doc.mime })
   if ('error' in res)
     return {
-      error: res.error === 'no_key' ? 'Нет ключа Gemini на сервере.' : `Не вышло распознать: ${res.error}`,
+      error: res.error === 'no_key' ? 'ИИ временно недоступен — обратись к администратору.' : `Не вышло распознать: ${res.error}`,
     }
 
   const { aiToFields } = await import('@/lib/ratecon-ai-contract')
@@ -611,7 +611,7 @@ export async function deleteLoad(
   who: string,
   pin: string,
 ): Promise<{ error: string } | void> {
-  if (!process.env.APP_PIN) return { error: 'APP_PIN не настроен на сервере.' }
+  if (!process.env.APP_PIN) return { error: 'PIN не настроен — обратись к администратору.' }
   if (pin !== process.env.APP_PIN) return { error: 'Неверный PIN.' }
   if (!who?.trim()) return { error: 'Впиши имя — кто удаляет.' }
 
@@ -683,7 +683,7 @@ export async function deleteMaintenance(
   who: string,
   pin: string,
 ): Promise<{ error: string } | void> {
-  if (!process.env.APP_PIN) return { error: 'APP_PIN не настроен на сервере.' }
+  if (!process.env.APP_PIN) return { error: 'PIN не настроен — обратись к администратору.' }
   if (pin !== process.env.APP_PIN) return { error: 'Неверный PIN.' }
   if (!who?.trim()) return { error: 'Впиши имя — кто удаляет.' }
 
@@ -724,7 +724,7 @@ export async function deleteTodo(
   who: string,
   pin: string,
 ): Promise<{ error: string } | void> {
-  if (!process.env.APP_PIN) return { error: 'APP_PIN не настроен на сервере.' }
+  if (!process.env.APP_PIN) return { error: 'PIN не настроен — обратись к администратору.' }
   if (pin !== process.env.APP_PIN) return { error: 'Неверный PIN.' }
   if (!who?.trim()) return { error: 'Впиши имя — кто удаляет.' }
 

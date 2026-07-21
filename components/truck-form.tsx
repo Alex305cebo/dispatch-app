@@ -74,10 +74,7 @@ export function TruckForm({ id, initial }: { id: number | null; initial: TruckIn
                   set({ fuelPricePerGallon: res.price })
                   notify('ok', `Дизель по стране (EIA): $${res.price} на ${res.asOf}`)
                 } else
-                  notify(
-                    'warn',
-                    res.error === 'no_key' ? 'Нет ключа EIA' : `Не вышло: ${res.error}`,
-                  )
+                  notify('warn', 'Не удалось получить цену дизеля — попробуй позже')
               })
             }
             className="mt-1 text-[11px] text-haul-400 hover:underline disabled:text-white/30"
@@ -85,7 +82,7 @@ export function TruckForm({ id, initial }: { id: number | null; initial: TruckIn
             {dieselBusy ? 'тяну…' : 'текущий по стране (EIA)'}
           </button>
           <span className="ml-1.5 inline-block align-middle">
-            <Info text="Подставит актуальную среднюю цену дизеля по США из официальных данных EIA (обновляется еженедельно) — чтобы себестоимость топлива в расчётах была реальной, а не устаревшей. Нужен бесплатный ключ EIA." />
+            <Info text="Подставит актуальную среднюю цену дизеля по США из официальных данных EIA (обновляется еженедельно) — чтобы себестоимость топлива в расчётах была реальной, а не устаревшей." />
           </span>
         </div>
 

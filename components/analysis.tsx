@@ -29,9 +29,9 @@ export function Analysis({
         <span className={`nums font-semibold ${good ? 'text-good-400' : 'text-bad-400'}`}>
           {usd.format(r.net)}
         </span>
-        {` · маржа ${r.marginPercent.toFixed(0)}% · минимальная ставка `}
+        {` · маржа ${r.marginPercent.toFixed(0)}% · себестоимость груза (за вычетом всех расходов) `}
         <span className="nums text-white/85">{usd.format(r.breakEvenRate)}</span>
-        {' (ниже неё — в убыток)'}
+        {' — ниже неё в убыток'}
       </p>
 
       {vsSpot !== null && (

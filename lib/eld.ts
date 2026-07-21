@@ -142,7 +142,7 @@ export async function fleetSnapshot(): Promise<{ updated: number } | { error: st
     // 401 is the everyday failure here — the dashboard token is short-lived — so
     // name it plainly instead of leaving a bare status code in the logs.
     if (vRes.status === 401 || vRes.status === 403) {
-      return { error: 'unauthorized — ELD_API_KEY отсутствует, протух или не тот' }
+      return { error: 'ELD недоступен — обратись к администратору' }
     }
     if (!vRes.ok) return { error: `vehicleStatuses HTTP ${vRes.status}` }
     vehicles = (await vRes.json()) as VehicleStatus[]

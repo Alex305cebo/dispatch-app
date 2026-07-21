@@ -86,7 +86,7 @@ export function NewLoadClient({
       } else {
         throw new Error(
           res.reason === 'no_key'
-            ? 'ИИ не настроен — добавь GEMINI_API_KEY на сервер.'
+            ? 'ИИ временно недоступен — обратись к администратору.'
             : `Не распознался: ${res.detail ?? 'ИИ недоступен'}. Попробуй ещё раз.`,
         )
       }

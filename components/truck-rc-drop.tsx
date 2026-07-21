@@ -95,7 +95,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
         ai = await aiParseRateCon(aiInput)
       }
       if (!ai.ok) {
-        throw new Error(ai.reason === 'no_key' ? 'ИИ не настроен — добавь GEMINI_API_KEY.' : `Не распознался: ${ai.detail ?? 'ИИ недоступен'}. Попробуй ещё раз.`)
+        throw new Error(ai.reason === 'no_key' ? 'ИИ временно недоступен — обратись к администратору.' : `Не распознался: ${ai.detail ?? 'ИИ недоступен'}. Попробуй ещё раз.`)
       }
 
       // 4) create the load on THIS truck, attach the RC
