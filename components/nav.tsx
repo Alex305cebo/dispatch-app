@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { Notifier } from '@/components/notifier'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -84,15 +84,22 @@ export function Nav({
   showTelegram: boolean
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const brand = brandName(companyName)
   const items = showTelegram ? ITEMS : ITEMS.filter((it) => it.href !== '/telegram')
 
   // Every login and every section switch is a chance to nudge GPS forward — no
   // external cron ever got set up, so this was the only thing actually keeping
-  // Live Share data from going stale between manual "Обновить" clicks.
+  // Live Share data from going stale between manual "Обновить" clicks. Polling GPS
+  // into the DB is useless on its own though — the page already on screen was
+  // rendered with the OLD snapshot and nothing tells it to re-fetch, so a truck could
+  // sit shown "in the wrong place" indefinitely. router.refresh() re-renders the
+  // current route once fresh data actually landed (skipped entirely if throttled).
   useEffect(() => {
     if (!user) return
-    autoRefreshFleet().catch(() => {})
+    autoRefreshFleet()
+      .then((refreshed) => refreshed && router.refresh())
+      .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, user?.id])
 

@@ -70,17 +70,22 @@ export async function refreshFleetStatus(): Promise<{ updated: number; errors: s
  * only ever moved on the manual "Обновить" click. Riding real navigation instead
  * means it stays fresh while anyone is actually using the app. Throttled server-side
  * (not per-tab) so ten dispatchers clicking around at once still means one real poll,
- * not ten — a Live Share link is 2 HTTP calls each, times however many trucks. */
-export async function autoRefreshFleet(): Promise<void> {
+ * not ten — a Live Share link is 2 HTTP calls each, times however many trucks.
+ * Returns whether it actually polled (vs. throttled) — fetching new GPS is useless if
+ * the page already on screen never re-renders to show it, so the caller only forces a
+ * re-render when there's actually fresh data behind it. */
+export async function autoRefreshFleet(): Promise<boolean> {
   const THROTTLE_MS = 3 * 60 * 1000
   const last = await getSetting('fleet_auto_refresh_at')
-  if (last && Date.now() - new Date(last).getTime() < THROTTLE_MS) return
+  if (last && Date.now() - new Date(last).getTime() < THROTTLE_MS) return false
   await setSetting('fleet_auto_refresh_at', new Date().toISOString())
 
   const { fleetSnapshot, liveShareSnapshot } = await import('@/lib/eld')
   await Promise.all([liveShareSnapshot().catch(() => {}), fleetSnapshot().catch(() => {})])
   revalidatePath('/tracking')
+  revalidatePath('/trucks', 'layout')
   revalidatePath('/', 'layout')
+  return true
 }
 
 /* ---------- Invoicing / AR ---------- */
