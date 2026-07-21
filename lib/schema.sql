@@ -283,6 +283,11 @@ ALTER TABLE documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 -- specific record, not just a matching title, so the row can open its own receipt.
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS maintenance_id INTEGER REFERENCES truck_maintenance(id);
 
+-- Which dispatcher (app user) created this load — auto-set at creation, feeds the
+-- weekly per-dispatcher/driver report on the Финансы page. NULL for loads created
+-- before this existed — nothing to backfill it from.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS dispatcher_id INTEGER REFERENCES users(id);
+
 -- Broker vetting cache (FMCSA lookup by MC) + basis for our own pay history.
 CREATE TABLE IF NOT EXISTS brokers (
   mc                TEXT PRIMARY KEY,

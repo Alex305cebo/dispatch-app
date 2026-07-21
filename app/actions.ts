@@ -12,6 +12,7 @@ import { checkBroker, type BrokerCheck, type RcContext } from '@/lib/fmcsa'
 import { getLoad } from '@/lib/loads'
 import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
 import { getSetting, setSetting } from '@/lib/settings'
+import { getCurrentUser } from '@/lib/session'
 
 export async function vetBroker(
   mc: string,
@@ -157,19 +158,22 @@ export async function createLoad(
   let id: number
   try {
     const deadheadMiles = await fillDeadhead(load.truckId, load.deadheadMiles, load.origin)
+    // Auto-credited to whoever's actually signed in and clicking "create" — no
+    // manual assignment step, feeds the weekly per-dispatcher report on Финансы.
+    const dispatcherId = (await getCurrentUser())?.id ?? null
     const rows = await sql`
       INSERT INTO loads (rate, loaded_miles, deadhead_miles, transit_days, origin,
                          destination, truck_location, spot_rpm, broker_mc, broker_email,
                          broker_phone, reference_id, source, truck_id, pickup_date,
                          delivery_date, broker_notes, pickup_time, delivery_time,
-                         pickup_address, delivery_address)
+                         pickup_address, delivery_address, dispatcher_id)
       VALUES (${load.rate}, ${load.loadedMiles}, ${deadheadMiles}, ${load.transitDays},
               ${load.origin}, ${load.destination}, ${load.truckLocation}, ${load.spotRpm},
               ${load.brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
               ${load.source}, ${load.truckId}, ${load.pickupDate ?? null},
               ${load.deliveryDate ?? null}, ${load.brokerNotes ?? null},
               ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
-              ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null})
+              ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, ${dispatcherId})
       RETURNING id`
     id = (rows[0] as { id: number }).id
     if (docId) {
@@ -214,6 +218,9 @@ export async function createLoadFromRc(
           'В рейтконе не указан пробег, и рассчитать его по городам не вышло. Создай груз вручную и впиши мили.',
       }
     const deadheadMiles = await fillDeadhead(truckId, load.deadheadMiles, load.origin)
+    // Auto-credited to whoever's actually signed in and dropping the RC — no manual
+    // assignment step, feeds the weekly per-dispatcher report on Финансы.
+    const dispatcherId = (await getCurrentUser())?.id ?? null
 
     // A rate confirmation IS a confirmed booking — there's nothing left to "quote".
     // Defaulting to the schema's 'quoted' here meant every RC-sourced load needed a
@@ -224,13 +231,13 @@ export async function createLoadFromRc(
                          destination, truck_location, spot_rpm, broker_mc, broker_email,
                          broker_phone, reference_id, source, truck_id, pickup_date,
                          delivery_date, broker_notes, pickup_time, delivery_time,
-                         pickup_address, delivery_address, status)
+                         pickup_address, delivery_address, status, dispatcher_id)
       VALUES (${load.rate}, ${loadedMiles}, ${deadheadMiles}, ${load.transitDays},
               ${load.origin}, ${load.destination}, ${load.truckLocation}, ${load.spotRpm},
               ${load.brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
               'qr', ${truckId}, ${load.pickupDate ?? null}, ${load.deliveryDate ?? null},
               ${load.brokerNotes ?? null}, ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
-              ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, 'booked')
+              ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, 'booked', ${dispatcherId})
       RETURNING id`
     const loadId = (rows[0] as { id: number }).id
     if (docId) await sql`UPDATE documents SET load_id = ${loadId} WHERE id = ${docId} AND load_id IS NULL`

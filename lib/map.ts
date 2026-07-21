@@ -44,6 +44,8 @@ export type LoadRecord = Load & {
   invoicedAt: string | null
   paidAt: string | null
   paymentTermsDays: number
+  /** Which app user created this load — auto-set, null for loads predating this. */
+  dispatcherId: number | null
 }
 
 export type TruckRecord = TruckSettings & {
@@ -114,6 +116,7 @@ export type LoadRow = {
   invoiced_at?: Date | string | null
   paid_at?: Date | string | null
   payment_terms_days?: number | null
+  dispatcher_id?: number | null
 }
 
 export type TruckRow = {
@@ -169,6 +172,7 @@ export function rowToLoad(r: LoadRow): LoadRecord {
     invoicedAt: r.invoiced_at ? new Date(r.invoiced_at).toISOString() : null,
     paidAt: r.paid_at ? new Date(r.paid_at).toISOString() : null,
     paymentTermsDays: r.payment_terms_days ?? 30,
+    dispatcherId: r.dispatcher_id ?? null,
   }
 }
 

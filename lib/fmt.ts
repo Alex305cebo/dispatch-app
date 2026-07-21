@@ -20,15 +20,33 @@ export function driveTime(min: number): string {
   return h > 0 ? `${h}ч ${m}м` : `${m}м`
 }
 
+/** Midnight of the Monday on/before the given time — the start of ITS calendar week.
+ * Shared by weekStart() (now) and anything bucketing PAST timestamps into weeks
+ * (e.g. the per-dispatcher weekly report), so "which week" is computed one way. */
+export function mondayOf(ms: number): number {
+  const d = new Date(ms)
+  const sinceMonday = (d.getDay() + 6) % 7 // Mon=0, Tue=1, ..., Sun=6
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() - sinceMonday)
+  return d.getTime()
+}
+
 /** Midnight of this week's Monday — "за неделю" stats reset on the calendar week,
  * not a rolling 7 days from whenever the page happens to load. */
 export function weekStart(): number {
-  const now = new Date()
-  const sinceMonday = (now.getDay() + 6) % 7 // Mon=0, Tue=1, ..., Sun=6
-  const monday = new Date(now)
-  monday.setHours(0, 0, 0, 0)
-  monday.setDate(monday.getDate() - sinceMonday)
-  return monday.getTime()
+  return mondayOf(Date.now())
+}
+
+/** "21–27 июля 2026" for a week starting at the given Monday timestamp. */
+export function weekLabel(mondayMs: number): string {
+  const start = new Date(mondayMs)
+  const end = new Date(mondayMs + 6 * 24 * 60 * 60 * 1000)
+  const sameMonth = start.getMonth() === end.getMonth()
+  const day = (d: Date) => d.getDate()
+  const month = (d: Date) => d.toLocaleDateString('ru-RU', { month: 'long' })
+  return sameMonth
+    ? `${day(start)}–${day(end)} ${month(end)} ${end.getFullYear()}`
+    : `${day(start)} ${month(start)} – ${day(end)} ${month(end)} ${end.getFullYear()}`
 }
 
 /** Timestamp → "5 мин назад" / "2 ч назад" / "18.07" once it's a day+ stale. */

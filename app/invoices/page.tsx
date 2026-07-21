@@ -1,30 +1,59 @@
 import Link from 'next/link'
-import { listPaidLoads, listReceivables, listUninvoicedDelivered, rateConByLoad, truckForLoad } from '@/lib/loads'
+import {
+  listLoadsByDispatcher,
+  listPaidLoads,
+  listReceivables,
+  listTrucks,
+  listUninvoicedDelivered,
+  rateConByLoad,
+  truckForLoad,
+  type LoadWithDispatcher,
+} from '@/lib/loads'
 import { getCompany } from '@/lib/invoice'
 import { calcLoad, type Breakdown } from '@/lib/profit'
-import { usd } from '@/lib/fmt'
+import { usd, mondayOf, weekLabel, weekStart } from '@/lib/fmt'
+import { truckLabel, type TruckRecord } from '@/lib/map'
+import { getCurrentUser } from '@/lib/session'
+import { getSetting } from '@/lib/settings'
 import { CompanyForm, PaidToggle } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
 import { Info } from '@/components/info'
 
 export const dynamic = 'force-dynamic'
 
+const TAB_DESCRIPTION: Record<string, string> = {
+  unpaid: 'Кто ещё не заплатил. Инвойс собирается на странице груза после загрузки POD.',
+  paid: 'Уже оплаченные грузы и что каждый из них принёс.',
+  dispatchers: 'Кто из диспетчеров сколько заработал по неделям, в разбивке по своим водителям.',
+}
+
 export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  const tab = (await searchParams).tab === 'paid' ? 'paid' : 'unpaid'
+  const isAdmin = (await getCurrentUser())?.role === 'admin'
+  const tabParam = (await searchParams).tab
+  // Who-earned-what-by-dispatcher is admin-only — it's a cross-dispatcher earnings
+  // comparison, not something every dispatcher should see about their colleagues.
+  // Falls back to "unpaid" if a non-admin somehow lands on ?tab=dispatchers directly.
+  const tab =
+    tabParam === 'paid' ? 'paid' : tabParam === 'dispatchers' && isAdmin ? 'dispatchers' : 'unpaid'
   const [company, rateCons] = await Promise.all([getCompany(), rateConByLoad()])
 
   return (
     <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <header className="mb-5">
         <h1 className="flex items-center gap-2 text-[17px] font-semibold">
-          Оплаты (AR)
-          <Info side="bottom" text="Не оплачено — выставленные, но ещё не оплаченные счета, по возрасту долга. Оплачено — уже пришедшие деньги, с разбивкой прибыли по каждому грузу. Инвойс собирается на странице груза после загрузки POD." />
+          Финансы
+          <Info
+            side="bottom"
+            text={
+              'Не оплачено — выставленные, но ещё не оплаченные счета, по возрасту долга. Оплачено — уже пришедшие деньги, с разбивкой прибыли по каждому грузу.' +
+              (isAdmin
+                ? ' По диспетчерам — кто из диспетчеров сколько заработал по неделям вместе со своими водителями (видно только админу).'
+                : '') +
+              ' Инвойс собирается на странице груза после загрузки POD.'
+            }
+          />
         </h1>
-        <p className="text-[13px] text-white/65">
-          {tab === 'unpaid'
-            ? 'Кто ещё не заплатил. Инвойс собирается на странице груза после загрузки POD.'
-            : 'Уже оплаченные грузы и что каждый из них принёс.'}
-        </p>
+        <p className="text-[13px] text-white/65">{TAB_DESCRIPTION[tab]}</p>
       </header>
 
       <div className="mb-5 flex gap-1.5 border-b border-white/8">
@@ -34,12 +63,19 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         <Tab href="/invoices?tab=paid" active={tab === 'paid'}>
           Оплачено
         </Tab>
+        {isAdmin && (
+          <Tab href="/invoices?tab=dispatchers" active={tab === 'dispatchers'}>
+            По диспетчерам
+          </Tab>
+        )}
       </div>
 
       {tab === 'unpaid' ? (
         <Unpaid rateCons={rateCons} />
-      ) : (
+      ) : tab === 'paid' ? (
         <Paid rateCons={rateCons} />
+      ) : (
+        <ByDispatcher />
       )}
 
       <details className="panel mt-6 p-4" open={!company.name}>
@@ -223,6 +259,167 @@ async function Paid({ rateCons }: { rateCons: Map<number, number> }) {
         </div>
       )}
     </>
+  )
+}
+
+type DriverBucket = {
+  truckId: number
+  label: string
+  loads: LoadWithDispatcher[]
+  gross: number
+  net: number
+  miles: number
+}
+type DispatcherBucket = { key: string; name: string; drivers: Map<number, DriverBucket>; gross: number; net: number }
+type WeekBucket = { weekStartMs: number; dispatchers: Map<string, DispatcherBucket>; gross: number; net: number }
+
+/** Weekly settlement view: every load, grouped by the calendar week it was booked
+ * in, then by which dispatcher created it, then by that dispatcher's driver/truck —
+ * "who earned what, with which driver, which week" in one place. Dispatcher is
+ * whoever was actually signed in when the load was created (auto, not assigned by
+ * hand) — loads from before this was tracked land under "Без диспетчера". */
+async function ByDispatcher() {
+  const [loads, trucks, openAccess] = await Promise.all([
+    listLoadsByDispatcher(),
+    listTrucks(),
+    getSetting('open_access'),
+  ])
+  const byTruckId = new Map<number, TruckRecord>(trucks.map((t) => [t.id, t]))
+  const fallback = trucks[0]
+
+  const weeks = new Map<number, WeekBucket>()
+  for (const load of loads) {
+    const truck = (load.truckId !== null ? byTruckId.get(load.truckId) : undefined) ?? fallback
+    if (!truck) continue // no truck configured at all — nothing sensible to cost against
+    let r: Breakdown | null = null
+    try {
+      r = calcLoad(load, truck)
+    } catch {
+      r = null
+    }
+    const gross = load.rate
+    const net = r?.net ?? 0
+    // Straight from the load, not r.totalMiles — calcLoad can throw for reasons that
+    // have nothing to do with mileage (e.g. transitDays <= 0), which would silently
+    // zero out this driver's mile total while the row right below it still shows the
+    // load's real miles. Raw miles don't need calcLoad to be valid.
+    const miles = load.loadedMiles + load.deadheadMiles
+
+    const weekMs = mondayOf(new Date(load.createdAt).getTime())
+    let week = weeks.get(weekMs)
+    if (!week) {
+      week = { weekStartMs: weekMs, dispatchers: new Map(), gross: 0, net: 0 }
+      weeks.set(weekMs, week)
+    }
+    const dKey = load.dispatcherId != null ? String(load.dispatcherId) : 'none'
+    let disp = week.dispatchers.get(dKey)
+    if (!disp) {
+      disp = { key: dKey, name: load.dispatcherName ?? 'Без диспетчера', drivers: new Map(), gross: 0, net: 0 }
+      week.dispatchers.set(dKey, disp)
+    }
+    let drv = disp.drivers.get(truck.id)
+    if (!drv) {
+      drv = { truckId: truck.id, label: truckLabel(truck), loads: [], gross: 0, net: 0, miles: 0 }
+      disp.drivers.set(truck.id, drv)
+    }
+
+    drv.loads.push(load)
+    drv.gross += gross
+    drv.net += net
+    drv.miles += miles
+    disp.gross += gross
+    disp.net += net
+    week.gross += gross
+    week.net += net
+  }
+
+  const sortedWeeks = [...weeks.values()].sort((a, b) => b.weekStartMs - a.weekStartMs)
+  const thisWeek = weekStart()
+
+  // Open access bypasses login entirely (app/admin's own toggle) — while it's on,
+  // getCurrentUser() returns null for everyone, so every load created during that
+  // window gets no dispatcher at all. Without this, the whole report would just
+  // silently go quiet with no clue why.
+  const openAccessWarning = openAccess === '1' && (
+    <p className="mb-3 rounded-lg border border-warn-400/25 bg-warn-400/[0.06] px-3 py-2 text-[12px] leading-relaxed text-warn-300">
+      Сейчас включён «Открытый доступ» (Админка) — пока он включён, новые грузы создаются без привязки к
+      диспетчеру и попадут в «Без диспетчера». Выключи его в админке, чтобы отчёт снова считал верно.
+    </p>
+  )
+
+  if (sortedWeeks.length === 0) {
+    return (
+      <>
+        {openAccessWarning}
+        <p className="panel p-6 text-[13px] text-white/60">Пока нет грузов.</p>
+      </>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {openAccessWarning}
+      {sortedWeeks.map((week) => (
+        <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[13px] font-semibold">
+            <span className="capitalize">{weekLabel(week.weekStartMs)}</span>
+            <span className="nums shrink-0 text-[12.5px] font-normal text-white/60">
+              {usd.format(week.gross)} · чистыми {usd.format(week.net)}
+            </span>
+          </summary>
+
+          <div className="mt-3 flex flex-col gap-2.5">
+            {[...week.dispatchers.values()]
+              .sort((a, b) => b.gross - a.gross)
+              .map((disp) => (
+                <div key={disp.key} className="rounded-xl border border-white/8 p-3">
+                  <div className="flex items-center justify-between gap-3 text-[13px] font-semibold text-haul-300">
+                    <span>{disp.name}</span>
+                    <span className="nums shrink-0 text-[12px] font-normal text-white/60">
+                      {usd.format(disp.gross)} · чистыми {usd.format(disp.net)}
+                    </span>
+                  </div>
+
+                  <div className="mt-2 flex flex-col gap-2">
+                    {[...disp.drivers.values()]
+                      .sort((a, b) => b.gross - a.gross)
+                      .map((drv) => (
+                        <div key={drv.truckId} className="rounded-lg border border-white/6 bg-white/[0.015] p-2.5">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-[12.5px] font-medium">
+                            <span>{drv.label}</span>
+                            <span className="nums shrink-0 text-[11.5px] font-normal text-white/60">
+                              {drv.loads.length} груз(ов) · {usd.format(drv.gross)} · чистыми{' '}
+                              {usd.format(drv.net)} · {Math.round(drv.miles)} mi
+                            </span>
+                          </div>
+                          <ul className="mt-1.5 flex flex-col gap-1">
+                            {drv.loads.map((load) => (
+                              <li key={load.id}>
+                                <Link
+                                  href={`/loads/${load.id}`}
+                                  className="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-[11.5px] text-white/60 transition-colors hover:bg-white/5 hover:text-white/85"
+                                >
+                                  <span className="min-w-0 truncate">
+                                    {load.referenceId ? `#${load.referenceId} · ` : ''}
+                                    {load.origin ?? '—'} → {load.destination ?? '—'}
+                                  </span>
+                                  <span className="nums shrink-0">
+                                    {Math.round(load.loadedMiles + load.deadheadMiles)} mi ·{' '}
+                                    {usd.format(load.rate)}
+                                  </span>
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              ))}
+          </div>
+        </details>
+      ))}
+    </div>
   )
 }
 

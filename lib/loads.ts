@@ -144,6 +144,25 @@ export async function listUninvoicedDelivered(): Promise<LoadRecord[]> {
   return rows.map(rowToLoad)
 }
 
+export type LoadWithDispatcher = LoadRecord & { dispatcherName: string | null }
+
+/** Every committed (booked or further) load with who dispatched it (by name) — feeds
+ * the weekly per-dispatcher/driver "who earned what" report on Финансы. Excludes
+ * 'quoted' on purpose: a quote nobody's confirmed yet isn't earned money, and
+ * 'cancelled' since it never happened. Grouping by week/dispatcher/truck happens in
+ * the page itself (same JS-side pattern as the other weekly stats in this app), not
+ * in SQL — the report needs calcLoad() per load anyway, which is a JS function. */
+export async function listLoadsByDispatcher(): Promise<LoadWithDispatcher[]> {
+  const rows = await sql`
+    SELECT l.*, u.name AS dispatcher_name
+    FROM loads l
+    LEFT JOIN users u ON u.id = l.dispatcher_id
+    WHERE l.status IN ('booked', 'in_transit', 'delivered', 'paid')
+    ORDER BY l.created_at DESC`
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  return (rows as any[]).map((r) => ({ ...rowToLoad(r as LoadRow), dispatcherName: r.dispatcher_name ?? null }))
+}
+
 /** Paid loads, newest first — feeds the "Оплачено" tab on the AR page. */
 export async function listPaidLoads(): Promise<LoadRecord[]> {
   const rows = (await sql`SELECT * FROM loads WHERE paid_at IS NOT NULL ORDER BY paid_at DESC`) as LoadRow[]

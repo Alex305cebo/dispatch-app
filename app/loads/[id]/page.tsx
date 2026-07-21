@@ -158,7 +158,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
             Инвойс брокеру
-            <Info text="Собирает счёт брокеру: инвойс + rate con + POD в один PDF-пакет, готовый к отправке или факторингу. Нужен загруженный POD (без него брокер не платит). После — отметь «Оплачено», когда деньги пришли; неоплаченные видны в разделе Оплаты." />
+            <Info text="Собирает счёт брокеру: инвойс + rate con + POD в один PDF-пакет, готовый к отправке или факторингу. Нужен загруженный POD (без него брокер не платит). После — отметь «Оплачено», когда деньги пришли; неоплаченные видны в разделе Финансы." />
           </h2>
           {load.paidAt && (
             <span className="rounded-full bg-good-500/15 px-2 py-0.5 text-[11px] font-medium text-good-400">

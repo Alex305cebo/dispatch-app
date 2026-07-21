@@ -67,7 +67,7 @@ const ITEMS: Item[] = [
   { href: '/docs', label: 'Документы', icon: 'docs' },
   { href: '/telegram', label: 'Telegram', icon: 'chat' },
   // The phone tab bar fits 6 — this stays reachable from dashboard/load pages there.
-  { href: '/invoices', label: 'Оплаты', icon: 'money', desktopOnly: true },
+  { href: '/invoices', label: 'Финансы', icon: 'money', desktopOnly: true },
 ]
 
 export function Nav({
