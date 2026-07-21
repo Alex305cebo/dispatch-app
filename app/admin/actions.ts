@@ -6,17 +6,6 @@ import { humanError } from '@/lib/msg'
 import { hashPassword } from '@/lib/auth'
 import { getCurrentUser } from '@/lib/session'
 import { getSetting, setSetting } from '@/lib/settings'
-import {
-  setTgChatTruck,
-  setTgShownChats,
-  tgAccountInfo,
-  tgChatTruckMap,
-  tgConnected,
-  tgDialogs,
-  tgShownChats,
-  type TgDialog,
-} from '@/lib/telegram'
-import { listTrucks } from '@/lib/loads'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -119,67 +108,13 @@ export async function getTgDispatcherAccess(): Promise<boolean> {
   return (await getSetting('tg_dispatcher_access')) === '1'
 }
 
-/** Off by default — a freshly connected Telegram account stays admin-only (nav link
- * hidden, /telegram itself refuses non-admins) until the admin explicitly opens it
- * up to every dispatcher. Connect/disconnect stay admin-only either way. */
+/** Off by default — a master switch: until the admin turns it on, non-admin
+ * dispatchers can't open the Telegram section at all. Each user connects their OWN
+ * account and curates their own chats there (self-service on /telegram). */
 export async function setTgDispatcherAccess(enabled: boolean): Promise<{ error: string } | void> {
   await assertAdmin()
   await setSetting('tg_dispatcher_access', enabled ? '1' : '0')
   revalidatePath('/admin')
   revalidatePath('/telegram')
   revalidatePath('/', 'layout')
-}
-
-export type TgAdminStatus =
-  | { connected: false }
-  | {
-      connected: true
-      account: { name: string; phone: string | null; username: string | null } | null
-      dialogs: TgDialog[]
-      shown: string[]
-      chatTruck: Record<string, number>
-      trucks: { id: number; number: string }[]
-    }
-
-export async function tgAdminStatus(): Promise<TgAdminStatus | { error: string }> {
-  await assertAdmin()
-  if (!(await tgConnected())) return { connected: false }
-  try {
-    const [account, dialogs, shown, chatTruck, trucks] = await Promise.all([
-      tgAccountInfo(),
-      tgDialogs(),
-      tgShownChats(),
-      tgChatTruckMap(),
-      listTrucks(),
-    ])
-    return {
-      connected: true,
-      account,
-      dialogs,
-      shown: [...shown],
-      chatTruck,
-      trucks: trucks.map((t) => ({ id: t.id, number: t.number ?? t.name })),
-    }
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : String(e) }
-  }
-}
-
-/** Manual override for which truck a chat belongs to — for group chats (no phone at
- * all) or a driver whose Telegram number doesn't match the phone on file. */
-export async function setChatTruck(chatId: string, truckId: number | null): Promise<{ error: string } | void> {
-  await assertAdmin()
-  await setTgChatTruck(chatId, truckId)
-  revalidatePath('/admin')
-  revalidatePath('/telegram')
-}
-
-/** Which of the connected account's chats show up on /telegram — an allow list, same
- * for every dispatcher: unapproved chats (most of a real account's dialogs) never
- * appear at all, not even briefly. */
-export async function setTgVisibility(shownIds: string[]): Promise<{ error: string } | void> {
-  await assertAdmin()
-  await setTgShownChats(shownIds)
-  revalidatePath('/admin')
-  revalidatePath('/telegram')
 }

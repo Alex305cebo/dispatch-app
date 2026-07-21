@@ -1,53 +1,29 @@
 'use client'
 
+// Self-service curation of MY connected account: which of my chats show up on
+// /telegram, and which truck each belongs to. Same idea the admin panel used to do
+// globally — now every user does it for their own account.
+
 import { useState, useTransition } from 'react'
-import Link from 'next/link'
-import { setChatTruck, setTgVisibility, type TgAdminStatus } from './actions'
+import { setMyChatTruck, setMyShownChats } from './actions'
 import { notify } from '@/lib/notify'
+import type { TgDialog } from '@/lib/telegram'
 
-export function TgSettings({ status }: { status: TgAdminStatus | { error: string } }) {
-  if ('error' in status) {
-    return <p className="text-[13px] text-bad-400">Не удалось загрузить: {status.error}</p>
-  }
-  if (!status.connected) {
-    return (
-      <p className="text-[13px] text-white/65">
-        Telegram ещё не подключён.{' '}
-        <Link href="/telegram" className="text-haul-400 hover:underline">
-          Подключить →
-        </Link>
-      </p>
-    )
-  }
-  return (
-    <ConnectedTgSettings
-      account={status.account}
-      dialogs={status.dialogs}
-      shown={status.shown}
-      chatTruck={status.chatTruck}
-      trucks={status.trucks}
-    />
-  )
-}
-
-function ConnectedTgSettings({
-  account,
+export function TgChatSettings({
   dialogs,
   shown,
   chatTruck,
   trucks,
-}: Omit<Extract<TgAdminStatus, { connected: true }>, 'connected'>) {
+}: {
+  dialogs: TgDialog[]
+  shown: string[]
+  chatTruck: Record<string, number>
+  trucks: { id: number; number: string }[]
+}) {
   const [shownSet, setShownSet] = useState(new Set(shown))
   const [pending, start] = useTransition()
-  const dirty = shownSet.size !== shown.length || shown.some((id) => !shownSet.has(id))
   const [truckPending, startTruck] = useTransition()
-
-  function assignTruck(chatId: string, value: string) {
-    startTruck(async () => {
-      const res = await setChatTruck(chatId, value ? Number(value) : null)
-      if (res?.error) notify('error', res.error)
-    })
-  }
+  const dirty = shownSet.size !== shown.length || shown.some((id) => !shownSet.has(id))
 
   function toggle(id: string) {
     setShownSet((prev) => {
@@ -60,28 +36,37 @@ function ConnectedTgSettings({
 
   function save() {
     start(async () => {
-      const res = await setTgVisibility([...shownSet])
+      const res = await setMyShownChats([...shownSet])
       if (res?.error) notify('error', res.error)
       else notify('ok', 'Список чатов обновлён')
     })
   }
 
+  function assignTruck(chatId: string, value: string) {
+    startTruck(async () => {
+      const res = await setMyChatTruck(chatId, value ? Number(value) : null)
+      if (res?.error) notify('error', res.error)
+    })
+  }
+
   return (
-    <div>
-      {account && (
-        <p className="mb-3 text-[12.5px] text-white/65">
-          Подключён аккаунт: <span className="font-medium text-white/85">{account.name}</span>
-          {account.phone && <span className="text-white/45"> · +{account.phone}</span>}
-        </p>
-      )}
-      <p className="mb-3 text-[12px] text-white/50">
-        Отмеченные диалоги видны диспетчерам на /telegram. Всё остальное — не видно нигде, даже мельком.
+    <details className="panel mb-3 p-4">
+      <summary className="cursor-pointer text-[13px] font-semibold text-white/85">
+        Настроить, какие чаты показывать
+        <span className="ml-2 text-[12px] font-normal text-white/50">
+          отмечено {shownSet.size} из {dialogs.length}
+        </span>
+      </summary>
+
+      <p className="mt-2 text-[12px] text-white/55">
+        Отмеченные диалоги видны в списке слева. Всё остальное скрыто. Рядом можно привязать чат к траку —
+        так фото POD/BOL от водителя сами прикрепятся к его грузу.
       </p>
 
       {dialogs.length === 0 ? (
-        <p className="text-[13px] text-white/55">Диалогов не видно на этом аккаунте.</p>
+        <p className="mt-3 text-[13px] text-white/55">Диалогов не видно на этом аккаунте.</p>
       ) : (
-        <div className="flex flex-col gap-1.5">
+        <div className="mt-3 flex flex-col gap-1.5">
           {dialogs.map((d) => (
             <label
               key={d.id}
@@ -122,8 +107,8 @@ function ConnectedTgSettings({
         onClick={save}
         className="mt-3 rounded-lg bg-haul-500 px-4 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
       >
-        {pending ? 'Сохраняю…' : 'Сохранить'}
+        {pending ? 'Сохраняю…' : 'Сохранить список'}
       </button>
-    </div>
+    </details>
   )
 }

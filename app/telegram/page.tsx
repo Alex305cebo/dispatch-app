@@ -1,14 +1,25 @@
 import Link from 'next/link'
 import { getCurrentUser } from '@/lib/session'
 import { getSetting } from '@/lib/settings'
-import { tgConnected, tgDialogs, tgMessages, tgShownChats, type TgDialog, type TgMsg } from '@/lib/telegram'
+import {
+  tgAccountInfo,
+  tgChatTruckMap,
+  tgConnected,
+  tgDialogs,
+  tgMessages,
+  tgShownChats,
+  type TgDialog,
+  type TgMsg,
+} from '@/lib/telegram'
 import { resolveTruckForChat } from '@/lib/tg-intake'
+import { listTrucks } from '@/lib/loads'
 import { TgSetup } from './tg-setup'
 import { TgSendBox } from './tg-chat'
 import { TgCheckButton } from './tg-check-button'
 import { TgDisconnectButton } from './tg-disconnect-button'
 import { TgAttachButton } from './tg-attach-button'
 import { TgImage } from './tg-image'
+import { TgChatSettings } from './tg-chat-settings'
 import { Info } from '@/components/info'
 
 export const dynamic = 'force-dynamic'
@@ -32,8 +43,21 @@ export default async function Page({
   const user = await getCurrentUser()
   const isAdmin = user?.role === 'admin'
 
-  // Off by default (admin panel toggle) — a freshly connected account stays
-  // admin-only until the admin explicitly opens it up to every dispatcher.
+  // Under "open access" there's no signed-in user, so a personal Telegram account
+  // can't be attached to anyone. Ask them to log in properly.
+  if (!user) {
+    return (
+      <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
+        <h1 className="mb-5 text-[17px] font-semibold">Telegram</h1>
+        <p className="panel p-4 text-[13px] text-white/65">
+          Войди под своим аккаунтом, чтобы подключить личный Telegram.
+        </p>
+      </main>
+    )
+  }
+
+  // Master toggle (admin panel), off by default — until the admin opens Telegram to
+  // dispatchers, only the admin can use the section at all.
   if (!isAdmin && (await getSetting('tg_dispatcher_access')) !== '1') {
     return (
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -45,42 +69,45 @@ export default async function Page({
     )
   }
 
-  if (!(await tgConnected())) {
+  // Every user connects their OWN account — so the connect form is self-service now,
+  // not admin-only.
+  if (!(await tgConnected(user.id))) {
     return (
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
         <h1 className="mb-5 text-[17px] font-semibold">Telegram</h1>
-        {/* Connecting/reconnecting picks whose Telegram the whole company uses —
-            an admin-only call, not something any dispatcher should trigger. */}
-        {isAdmin ? (
-          <TgSetup />
-        ) : (
-          <p className="panel p-4 text-[13px] text-white/65">
-            Telegram ещё не подключён — обратись к администратору.
-          </p>
-        )}
+        <TgSetup />
       </main>
     )
   }
 
   const chatId = (await searchParams).chat
-  let dialogs: TgDialog[] = []
+  let allDialogs: TgDialog[] = []
   let msgs: TgMsg[] | null = null
   let error: string | null = null
+  let account: Awaited<ReturnType<typeof tgAccountInfo>> = null
+  let shown = new Set<string>()
+  let chatTruck: Record<string, number> = {}
   try {
-    const [all, shown] = await Promise.all([tgDialogs(), tgShownChats()])
-    // Allow list, curated in the admin panel — same list for every dispatcher, not
-    // per-viewer, and nothing shows until explicitly approved there.
-    dialogs = all.filter((d) => shown.has(d.id))
-    if (chatId) msgs = await tgMessages(chatId)
+    ;[allDialogs, shown, chatTruck, account] = await Promise.all([
+      tgDialogs(user.id),
+      tgShownChats(user.id),
+      tgChatTruckMap(user.id),
+      tgAccountInfo(user.id),
+    ])
+    if (chatId) msgs = await tgMessages(user.id, chatId)
   } catch (e) {
     error = e instanceof Error ? e.message : String(e)
   }
 
-  // Chat ↔ truck: admin's manual pick (admin panel) wins, else driver's phone from
+  const trucks = (await listTrucks()).map((t) => ({ id: t.id, number: t.number ?? t.name }))
+  // Only approved chats appear in the list; the settings panel sees them all.
+  const dialogs = allDialogs.filter((d) => shown.has(d.id))
+
+  // Chat ↔ truck within MY account: my manual pick wins, else driver's phone from
   // the truck passport.
   const truckByChat = new Map(
     await Promise.all(
-      dialogs.map(async (d) => [d.id, (await resolveTruckForChat(d.id, d.phone))?.number] as const),
+      dialogs.map(async (d) => [d.id, (await resolveTruckForChat(user.id, d.id, d.phone))?.number] as const),
     ),
   )
   const open = chatId ? dialogs.find((d) => d.id === chatId) : undefined
@@ -91,17 +118,20 @@ export default async function Page({
         <div>
           <h1 className="flex items-center gap-2 text-[17px] font-semibold">
             Telegram
-            <Info side="bottom" text="Переписка с водителями прямо в приложении через твой Telegram-аккаунт (не бот) — водителям ничего ставить и нажимать не нужно. Чат с чипом #трака — если телефон водителя указан в паспорте трака. Фото POD/BOL от водителя ИИ сам прикрепит к грузу." />
+            <Info side="bottom" text="Переписка с водителями прямо в приложении через ТВОЙ Telegram-аккаунт (не бот) — водителям ничего ставить и нажимать не нужно. У каждого диспетчера свой аккаунт со своими диалогами. Отметь в настройках, какие чаты показывать, и привяжи их к тракам — фото POD/BOL от водителя ИИ сам прикрепит к грузу." />
           </h1>
           <p className="text-[13px] text-white/65">
-            Переписка с водителями — прямо здесь, через твой аккаунт.
+            Твой аккаунт{account?.phone ? ` · +${account.phone}` : ''}
+            {account?.name ? ` · ${account.name}` : ''}
           </p>
         </div>
         <div className="flex flex-col items-end gap-1.5">
           <TgCheckButton />
-          {isAdmin && <TgDisconnectButton />}
+          <TgDisconnectButton />
         </div>
       </header>
+
+      <TgChatSettings dialogs={allDialogs} shown={[...shown]} chatTruck={chatTruck} trucks={trucks} />
 
       {error && <p className="panel mb-4 p-4 text-[13px] text-bad-400">{error}</p>}
 
@@ -109,7 +139,9 @@ export default async function Page({
         {/* Dialog list — on phones it hides once a chat is open (back link shows it). */}
         <div className={`panel overflow-hidden ${open ? 'max-md:hidden' : ''}`}>
           {dialogs.length === 0 && !error ? (
-            <p className="p-4 text-[13px] text-white/55">Диалогов не видно.</p>
+            <p className="p-4 text-[13px] text-white/55">
+              Пока ни один чат не отмечен для показа — открой «Настроить, какие чаты показывать» выше.
+            </p>
           ) : (
             <ul className="max-h-[70vh] overflow-y-auto">
               {dialogs.map((d) => {

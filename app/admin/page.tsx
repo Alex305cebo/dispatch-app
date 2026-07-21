@@ -4,11 +4,10 @@ import { getCurrentUser } from '@/lib/session'
 import { getCompany } from '@/lib/invoice'
 import { CompanyForm } from '@/components/invoice-actions'
 import { Info } from '@/components/info'
-import { getOpenAccess, getTgDispatcherAccess, listUsers, tgAdminStatus } from './actions'
+import { getOpenAccess, getTgDispatcherAccess, listUsers } from './actions'
 import { UserList } from './user-list'
 import { OpenAccessToggle } from './open-access-toggle'
 import { TgAccessToggle } from './tg-access-toggle'
-import { TgSettings } from './tg-settings'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,11 +17,10 @@ export default async function AdminPage() {
   // dispatcher typing the URL directly must still be bounced, not shown the panel.
   if (!user || user.role !== 'admin') redirect('/')
 
-  const [users, company, openAccess, tgStatus, tgDispatcherAccess] = await Promise.all([
+  const [users, company, openAccess, tgDispatcherAccess] = await Promise.all([
     listUsers(),
     getCompany(),
     getOpenAccess(),
-    tgAdminStatus(),
     getTgDispatcherAccess(),
   ])
 
@@ -60,10 +58,9 @@ export default async function AdminPage() {
       <section className="panel mt-4 p-5">
         <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
           Telegram
-          <Info text="Какой аккаунт подключён, и какие чаты из него показывать в приложении — снятые галочки скрывают чат для всех, не только для тебя." />
+          <Info text="Общий выключатель: пока он выключен, раздел Telegram доступен только тебе. Включи — и каждый диспетчер сможет подключить СВОЙ Telegram-аккаунт и на странице Telegram сам выбрать, какие свои чаты показывать и к каким тракам их привязать." />
         </h2>
         <TgAccessToggle enabled={tgDispatcherAccess} />
-        <TgSettings status={tgStatus} />
       </section>
 
       <section className="panel mt-4 p-5">

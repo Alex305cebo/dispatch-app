@@ -288,6 +288,20 @@ ALTER TABLE documents ADD COLUMN IF NOT EXISTS maintenance_id INTEGER REFERENCES
 -- before this existed — nothing to backfill it from.
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS dispatcher_id INTEGER REFERENCES users(id);
 
+-- Telegram went from one shared global account to one account PER user. Migrate the
+-- single legacy global session (+ its curation) to the first admin as their personal
+-- account, then drop the globals so runtime only ever reads the per-user keys. Each
+-- copy is idempotent via ON CONFLICT DO NOTHING. The final delete is guarded to fire
+-- only once the per-user session actually exists, so a re-run after the admin
+-- disconnects cannot resurrect the account. No-op on a fresh install.
+INSERT INTO settings (key, value) SELECT 'tg_session:' || u.id, s.value FROM settings s CROSS JOIN (SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1) u WHERE s.key='tg_session' ON CONFLICT (key) DO NOTHING;
+INSERT INTO settings (key, value) SELECT 'tg_api_id:' || u.id, s.value FROM settings s CROSS JOIN (SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1) u WHERE s.key='tg_api_id' ON CONFLICT (key) DO NOTHING;
+INSERT INTO settings (key, value) SELECT 'tg_api_hash:' || u.id, s.value FROM settings s CROSS JOIN (SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1) u WHERE s.key='tg_api_hash' ON CONFLICT (key) DO NOTHING;
+INSERT INTO settings (key, value) SELECT 'tg_shown_chats:' || u.id, s.value FROM settings s CROSS JOIN (SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1) u WHERE s.key='tg_shown_chats' ON CONFLICT (key) DO NOTHING;
+INSERT INTO settings (key, value) SELECT 'tg_chat_truck:' || u.id, s.value FROM settings s CROSS JOIN (SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1) u WHERE s.key='tg_chat_truck' ON CONFLICT (key) DO NOTHING;
+INSERT INTO settings (key, value) SELECT 'tg_last_seen:' || u.id, s.value FROM settings s CROSS JOIN (SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1) u WHERE s.key='tg_last_seen' ON CONFLICT (key) DO NOTHING;
+DELETE FROM settings WHERE key IN ('tg_session','tg_api_id','tg_api_hash','tg_shown_chats','tg_chat_truck','tg_last_seen') AND EXISTS (SELECT 1 FROM settings x WHERE x.key = 'tg_session:' || (SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1));
+
 -- Broker vetting cache (FMCSA lookup by MC) + basis for our own pay history.
 CREATE TABLE IF NOT EXISTS brokers (
   mc                TEXT PRIMARY KEY,
