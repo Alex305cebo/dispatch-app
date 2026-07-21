@@ -108,22 +108,18 @@ async function Unpaid({ rateCons }: { rateCons: Map<number, number> }) {
           </h2>
           <div className="flex flex-col gap-2">
             {uninvoiced.map((load) => (
-              <Link
-                key={load.id}
-                href={`/loads/${load.id}`}
-                className="panel flex items-center gap-4 p-4 border-warn-400/20"
-              >
-                <div className="min-w-0 flex-1">
+              <div key={load.id} className="panel flex items-center gap-4 p-4 border-warn-400/20">
+                <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
                   <div className="truncate text-[14px] font-medium">
                     {load.origin ?? '—'} → {load.destination ?? '—'}
                   </div>
                   <div className="mt-0.5 text-[12px] text-white/60">
                     {load.brokerMc ? `MC ${load.brokerMc} · ` : ''}собери инвойс на странице груза
                   </div>
-                </div>
+                </Link>
                 <span className="nums shrink-0 text-[15px] font-bold">{usd.format(load.rate)}</span>
                 {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
-              </Link>
+              </div>
             ))}
           </div>
         </div>
