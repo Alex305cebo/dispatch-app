@@ -24,6 +24,7 @@ import { OrphanRateCons } from '@/components/orphan-ratecons'
 import { DocList, DocUpload } from '@/components/docs'
 import { RateConButton } from '@/components/ratecon-button'
 import { TripHistory } from '@/components/trip-history'
+import { SmallRefreshButton } from '@/components/small-refresh-button'
 import { Info } from '@/components/info'
 
 export const dynamic = 'force-dynamic'
@@ -217,10 +218,13 @@ export default async function Page({
       {/* ===== Map: where the truck sits + where delivery is ===== */}
       {mapMarkers.length > 0 && (
         <section className="panel mt-4 p-4">
-          <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            На карте
-            <Info text="Где сейчас трак (по GPS из ELD) и куда идёт доставка — точка delivery из активного груза этого трака. Линия и подпись показывают примерное расстояние и время в пути до места выгрузки." />
-          </h2>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+              На карте
+              <Info text="Где сейчас трак (по GPS из ELD) и куда идёт доставка — точка delivery из активного груза этого трака. Линия и подпись показывают примерное расстояние и время в пути до места выгрузки." />
+            </h2>
+            <SmallRefreshButton />
+          </div>
           <FleetMap markers={mapMarkers} routes={mapRoutes} height={300} />
         </section>
       )}
@@ -230,6 +234,7 @@ export default async function Page({
         <summary className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
           История пути · {historyWindow.label}
           <Info text="Путь трака по GPS-точкам из ELD, разбитый на движение и стоянки. Остановки короче 30 минут (светофоры, пробки) не показываются — только заметные: погрузка/выгрузка, заправка, отдых. Стоянки от 6 часов подряд помечены как долгий отдых. GPS-история хранится 7 дней." />
+          <SmallRefreshButton />
           <span className="ml-auto flex gap-1 normal-case">
             {HISTORY_WINDOWS.map((w) => (
               <Link
