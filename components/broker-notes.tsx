@@ -192,6 +192,11 @@ export function BrokerNotes({
 
   const shown = showRu && ru ? ru : notes
   const lines = parseNotes(shown)
+  // Reference/appointment numbers first — without a PU/appointment confirmation #
+  // the driver can't check in to load or unload at all, so it can't sit buried
+  // under safety notes or paperwork reminders. Array.sort is stable, so everything
+  // else keeps its original order.
+  const sortedLines = [...lines].sort((a, b) => (a.tag === 'REF' ? -1 : 0) - (b.tag === 'REF' ? -1 : 0))
   const structured = lines.some((l) => l.tag !== null)
   // One-line taste of the note while collapsed — the full text is a wall, and tags
   // are noise at a glance, so strip them here even for structured notes.
@@ -243,7 +248,7 @@ export function BrokerNotes({
       <div className="px-3.5 pb-3.5">
         {structured ? (
           <ul className="flex flex-col gap-2">
-            {lines.map((l, i) => {
+            {sortedLines.map((l, i) => {
               const meta = l.tag ? TAGS[l.tag] : null
               return (
                 <li key={i} className="flex items-baseline gap-2 text-[13.5px] leading-relaxed">
