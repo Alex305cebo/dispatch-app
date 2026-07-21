@@ -13,6 +13,7 @@ import {
   deleteTodo,
   saveTruckMeta,
   toggleTodo,
+  uploadDocument,
   type MaintenanceInput,
   type TruckMetaInput,
 } from '@/app/actions'
@@ -117,6 +118,26 @@ export function TruckCare({
         router.refresh()
       }
     })
+
+  /** Attach a document to one specific repair row — same documents pipeline as the
+   * generic uploader above, just titled after the record so it's identifiable in
+   * the truck's Документы section and the general /docs library. */
+  function attachReceipt(file: File | undefined, recordTitle: string) {
+    if (!file) return
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('kind', 'repair')
+    fd.append('truckId', String(truckId))
+    fd.append('title', `${recordTitle} — чек`)
+    start(async () => {
+      const res = await uploadDocument(fd)
+      if ('error' in res) notify('error', res.error)
+      else {
+        notify('ok', 'Документ добавлен')
+        router.refresh()
+      }
+    })
+  }
 
   const oilTone = { good: 'text-good-400', warn: 'text-warn-400', bad: 'text-bad-400' }
 
@@ -426,6 +447,22 @@ export function TruckCare({
                     <span className="nums text-[13px] text-white/70">
                       {r.cost !== null ? usd.format(r.cost) : ''}
                     </span>
+                    <label
+                      title="Прикрепить документ"
+                      className={`cursor-pointer text-white/35 transition-colors hover:text-haul-400 ${pending ? 'opacity-40' : ''}`}
+                    >
+                      📎
+                      <input
+                        type="file"
+                        accept="application/pdf,image/*"
+                        className="hidden"
+                        disabled={pending}
+                        onChange={(e) => {
+                          attachReceipt(e.target.files?.[0], r.title)
+                          e.target.value = ''
+                        }}
+                      />
+                    </label>
                     <button
                       disabled={pending}
                       onClick={() => run(() => deleteMaintenance(r.id, truckId), 'Удалено')}
