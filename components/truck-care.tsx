@@ -18,6 +18,7 @@ import {
 } from '@/app/actions'
 import { expiries, type MaintenanceRecord, type TruckMeta, type TruckTodo } from '@/lib/maintenance-core'
 import { Field, TextField } from '@/components/ui'
+import { DocUpload } from '@/components/docs'
 import { Info } from '@/components/info'
 import { notify } from '@/lib/notify'
 import { usd } from '@/lib/fmt'
@@ -339,6 +340,12 @@ export function TruckCare({
           >
             {showMaint ? 'скрыть' : '+ Запись'}
           </button>
+        </div>
+
+        {/* Receipt/paperwork for a repair — lands in the truck's own Документы
+            section AND the общий /docs library, same as any other document. */}
+        <div className="mt-3">
+          <DocUpload truckId={truckId} defaultKind="repair" />
         </div>
 
         {showMaint && (

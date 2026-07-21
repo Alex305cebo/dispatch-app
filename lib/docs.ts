@@ -8,6 +8,7 @@ export const DOC_KINDS = {
   invoice: 'Инвойс',
   insurance: 'Страховка',
   registration: 'Регистрация',
+  repair: 'Чек за ремонт',
   other: 'Другое',
 } as const
 export type DocKind = keyof typeof DOC_KINDS

@@ -15,15 +15,19 @@ export function DocUpload({
   truckId,
   loadId,
   trucks,
+  defaultKind = 'other',
 }: {
   truckId?: number
   loadId?: number
   /** Global /docs page passes the fleet so a file can be filed under a truck. */
   trucks?: { id: number; label: string }[]
+  /** Pre-select a kind when the surrounding context already implies one (e.g. a
+   * repair receipt uploaded right from the maintenance log). */
+  defaultKind?: DocKind
 }) {
   const router = useRouter()
   const [pending, start] = useTransition()
-  const [kind, setKind] = useState<DocKind>('other')
+  const [kind, setKind] = useState<DocKind>(defaultKind)
   const [pickTruck, setPickTruck] = useState<string>('')
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -96,6 +100,7 @@ const KIND_TONE: Record<DocKind, string> = {
   invoice: 'bg-haul-500/15 text-haul-400',
   insurance: 'bg-warn-400/15 text-warn-400',
   registration: 'bg-warn-400/15 text-warn-400',
+  repair: 'bg-amber-400/15 text-amber-300',
   other: 'bg-white/8 text-white/60',
 }
 

@@ -273,7 +273,7 @@ ALTER TABLE loads ADD COLUMN IF NOT EXISTS payment_terms_days INTEGER NOT NULL D
 -- The generated invoice PDF is stored as a document — widen the kind check.
 ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_kind_check;
 ALTER TABLE documents ADD CONSTRAINT documents_kind_check
-  CHECK (kind IN ('ratecon','bol','pod','invoice','insurance','registration','other'));
+  CHECK (kind IN ('ratecon','bol','pod','invoice','insurance','registration','repair','other'));
 
 -- Broker vetting cache (FMCSA lookup by MC) + basis for our own pay history.
 CREATE TABLE IF NOT EXISTS brokers (
