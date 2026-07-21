@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import {
   addMaintenance,
   addTodo,
+  deleteMaintenance,
   deleteTodo,
   saveTruckMeta,
   toggleTodo,
@@ -414,8 +415,18 @@ export function TruckCare({
               <li key={r.id} className="rounded-lg border border-white/6 px-3 py-2">
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="text-[14px] text-white/85">{r.title}</span>
-                  <span className="nums shrink-0 text-[13px] text-white/70">
-                    {r.cost !== null ? usd.format(r.cost) : ''}
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="nums text-[13px] text-white/70">
+                      {r.cost !== null ? usd.format(r.cost) : ''}
+                    </span>
+                    <button
+                      disabled={pending}
+                      onClick={() => run(() => deleteMaintenance(r.id, truckId), 'Удалено')}
+                      title="Удалить"
+                      className="text-white/35 transition-colors hover:text-bad-400 disabled:opacity-40"
+                    >
+                      ✕
+                    </button>
                   </span>
                 </div>
                 <div className="mt-0.5 text-[12px] text-white/50">

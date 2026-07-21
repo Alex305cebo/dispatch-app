@@ -627,6 +627,11 @@ export async function addMaintenance(
   revalidatePath(`/trucks/${truckId}`)
 }
 
+export async function deleteMaintenance(id: number, truckId: number): Promise<void> {
+  await sql`DELETE FROM truck_maintenance WHERE id = ${id}`
+  revalidatePath(`/trucks/${truckId}`)
+}
+
 export async function addTodo(
   truckId: number,
   title: string,
