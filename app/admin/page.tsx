@@ -4,10 +4,9 @@ import { getCurrentUser } from '@/lib/session'
 import { getCompany } from '@/lib/invoice'
 import { CompanyForm } from '@/components/invoice-actions'
 import { Info } from '@/components/info'
-import { getOpenAccess, getTgDispatcherAccess, listUsers } from './actions'
+import { getOpenAccess, listUsers } from './actions'
 import { UserList } from './user-list'
 import { OpenAccessToggle } from './open-access-toggle'
-import { TgAccessToggle } from './tg-access-toggle'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,24 +16,19 @@ export default async function AdminPage() {
   // dispatcher typing the URL directly must still be bounced, not shown the panel.
   if (!user || user.role !== 'admin') redirect('/')
 
-  const [users, company, openAccess, tgDispatcherAccess] = await Promise.all([
-    listUsers(),
-    getCompany(),
-    getOpenAccess(),
-    getTgDispatcherAccess(),
-  ])
+  const [users, company, openAccess] = await Promise.all([listUsers(), getCompany(), getOpenAccess()])
 
   return (
     <main className="mx-auto max-w-3xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <h1 className="text-[17px] font-semibold">Админ-панель</h1>
       <p className="mb-6 text-[13px] text-white/65">
-        Пользователи, настройки компании и журнал действий — видно только администраторам.
+        Пользователи, права, настройки компании и журнал действий — видно только администраторам.
       </p>
 
       <section className="panel p-5">
         <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          Пользователи
-          <Info text="Кто может войти в приложение. Диспетчер видит и делает всё то же, что и раньше — просто под своим именем, а не общим PIN. Отключить — сразу гасит все его текущие входы, не только блокирует новые." />
+          Пользователи и права
+          <Info text="Кто может войти в приложение. У каждого диспетчера под «Права диспетчера» — переключатели доступа к функциям (отчёты, Telegram, финансы и т.д.). Отключить пользователя — сразу гасит все его текущие входы." />
         </h2>
         <UserList users={users} currentUserId={user.id} />
       </section>
@@ -53,14 +47,6 @@ export default async function AdminPage() {
           <Info text="Название, MC/DOT, реквизиты — то, что попадает в счета брокерам." />
         </h2>
         <CompanyForm initial={company} />
-      </section>
-
-      <section className="panel mt-4 p-5">
-        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          Telegram
-          <Info text="Общий выключатель: пока он выключен, раздел Telegram доступен только тебе. Включи — и каждый диспетчер сможет подключить СВОЙ Telegram-аккаунт и на странице Telegram сам выбрать, какие свои чаты показывать и к каким тракам их привязать." />
-        </h2>
-        <TgAccessToggle enabled={tgDispatcherAccess} />
       </section>
 
       <section className="panel mt-4 p-5">

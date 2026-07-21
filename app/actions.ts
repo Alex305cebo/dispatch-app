@@ -13,6 +13,8 @@ import { getLoad } from '@/lib/loads'
 import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
 import { getSetting, setSetting } from '@/lib/settings'
 import { getCurrentUser } from '@/lib/session'
+import { can } from '@/lib/capabilities-server'
+import type { CapabilityKey } from '@/lib/capabilities'
 
 export async function vetBroker(
   mc: string,
@@ -91,9 +93,19 @@ export async function autoRefreshFleet(): Promise<boolean> {
 
 /* ---------- Invoicing / AR ---------- */
 
+/** Server-side capability gate for actions — the UI already hides gated features, but
+ * a dispatcher could still POST an action directly, so the mutating ones re-check. */
+async function assertCan(key: CapabilityKey): Promise<{ error: string } | null> {
+  const user = await getCurrentUser()
+  if (!(await can(user, key))) return { error: 'Нет доступа к этой функции.' }
+  return null
+}
+
 export async function generateInvoice(
   loadId: number,
 ): Promise<{ docId: number; invoiceNumber: string } | { error: string }> {
+  const denied = await assertCan('finances')
+  if (denied) return denied
   const load = await getLoad(loadId)
   if (!load) return { error: 'Груз не найден.' }
   const res = await buildInvoicePacket(load)
@@ -104,7 +116,9 @@ export async function generateInvoice(
   return res
 }
 
-export async function markPaid(loadId: number, paid: boolean): Promise<void> {
+export async function markPaid(loadId: number, paid: boolean): Promise<{ error: string } | void> {
+  const denied = await assertCan('finances')
+  if (denied) return denied
   await sql`UPDATE loads SET paid_at = ${paid ? new Date().toISOString() : null},
             status = ${paid ? 'paid' : 'delivered'} WHERE id = ${loadId}`
   revalidatePath(`/loads/${loadId}`)
@@ -113,6 +127,8 @@ export async function markPaid(loadId: number, paid: boolean): Promise<void> {
 }
 
 export async function saveCompany(c: Company): Promise<{ error: string } | void> {
+  const denied = await assertCan('finances')
+  if (denied) return denied
   if (!c.name.trim() || !c.mcdot.trim()) return { error: 'Нужны минимум название и MC/DOT.' }
   await Promise.all([
     setSetting('co_name', c.name.trim()),
@@ -307,6 +323,8 @@ export async function saveTruck(
   id: number,
   t: TruckInput,
 ): Promise<{ error: string } | void> {
+  const denied = await assertCan('edit_trucks')
+  if (denied) return denied
   const cpm = t.driverPay.mode === 'cpm' ? t.driverPay.centsPerMile : null
   const pct = t.driverPay.mode === 'percent' ? t.driverPay.percentOfGross : null
   try {

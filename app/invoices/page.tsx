@@ -13,8 +13,10 @@ import { getCompany } from '@/lib/invoice'
 import { calcLoad, type Breakdown } from '@/lib/profit'
 import { usd, mondayOf, weekLabel, weekStart } from '@/lib/fmt'
 import { truckLabel, type TruckRecord } from '@/lib/map'
+import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/session'
 import { getSetting } from '@/lib/settings'
+import { can } from '@/lib/capabilities-server'
 import { CompanyForm, PaidToggle } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
 import { Info } from '@/components/info'
@@ -28,13 +30,15 @@ const TAB_DESCRIPTION: Record<string, string> = {
 }
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  const isAdmin = (await getCurrentUser())?.role === 'admin'
+  const user = await getCurrentUser()
+  // Whole section is capability-gated — a dispatcher without it can't even URL in.
+  if (!(await can(user, 'finances'))) redirect('/')
+  // "По диспетчерам" is its own capability (default on) — a cross-dispatcher earnings
+  // view. A user without it who lands on ?tab=dispatchers falls back to "unpaid".
+  const canReport = await can(user, 'dispatcher_report')
   const tabParam = (await searchParams).tab
-  // Who-earned-what-by-dispatcher is admin-only — it's a cross-dispatcher earnings
-  // comparison, not something every dispatcher should see about their colleagues.
-  // Falls back to "unpaid" if a non-admin somehow lands on ?tab=dispatchers directly.
   const tab =
-    tabParam === 'paid' ? 'paid' : tabParam === 'dispatchers' && isAdmin ? 'dispatchers' : 'unpaid'
+    tabParam === 'paid' ? 'paid' : tabParam === 'dispatchers' && canReport ? 'dispatchers' : 'unpaid'
   const [company, rateCons] = await Promise.all([getCompany(), rateConByLoad()])
 
   return (
@@ -46,8 +50,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
             side="bottom"
             text={
               'Не оплачено — выставленные, но ещё не оплаченные счета, по возрасту долга. Оплачено — уже пришедшие деньги, с разбивкой прибыли по каждому грузу.' +
-              (isAdmin
-                ? ' По диспетчерам — кто из диспетчеров сколько заработал по неделям вместе со своими водителями (видно только админу).'
+              (canReport
+                ? ' По диспетчерам — кто из диспетчеров сколько заработал по неделям вместе со своими водителями.'
                 : '') +
               ' Инвойс собирается на странице груза после загрузки POD.'
             }
@@ -63,7 +67,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         <Tab href="/invoices?tab=paid" active={tab === 'paid'}>
           Оплачено
         </Tab>
-        {isAdmin && (
+        {canReport && (
           <Tab href="/invoices?tab=dispatchers" active={tab === 'dispatchers'}>
             По диспетчерам
           </Tab>

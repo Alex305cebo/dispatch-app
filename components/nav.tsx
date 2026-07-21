@@ -74,15 +74,15 @@ export function Nav({
   companyName,
   user,
   showTelegram,
+  showFinances,
   urgentDocs,
 }: {
   companyName: string
   user: CurrentUser | null
-  /** Off by default (admin panel toggle) — a freshly connected account stays
-   * admin-only until opened up to every dispatcher; the tab itself would 404 into
-   * an "ask the admin" message for a hidden dispatcher, but there's no reason to
-   * show the tab at all if it's just going to say that. */
+  /** Capability-gated (admin panel → per-dispatcher). Hidden when the user lacks it;
+   * the page itself also refuses, so this just avoids showing a dead tab. */
   showTelegram: boolean
+  showFinances: boolean
   /** Count of truck/driver documents overdue or ≤30 days out — badged on Траки so
    * it's visible from any page, not just the one banner on the dashboard. */
   urgentDocs: number
@@ -90,7 +90,10 @@ export function Nav({
   const pathname = usePathname()
   const router = useRouter()
   const brand = brandName(companyName)
-  const items = showTelegram ? ITEMS : ITEMS.filter((it) => it.href !== '/telegram')
+  const hidden = new Set<string>()
+  if (!showTelegram) hidden.add('/telegram')
+  if (!showFinances) hidden.add('/invoices')
+  const items = hidden.size ? ITEMS.filter((it) => !hidden.has(it.href)) : ITEMS
 
   // Every login and every section switch is a chance to nudge GPS forward — no
   // external cron ever got set up, so this was the only thing actually keeping

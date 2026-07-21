@@ -6,8 +6,11 @@ import { humanError } from '@/lib/msg'
 import { hashPassword } from '@/lib/auth'
 import { getCurrentUser } from '@/lib/session'
 import { getSetting, setSetting } from '@/lib/settings'
+import { CAPABILITIES, type CapabilityKey } from '@/lib/capabilities'
+import { capabilitiesFor, setUserCapability } from '@/lib/capabilities-server'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const CAP_KEYS = new Set(CAPABILITIES.map((c) => c.key))
 
 async function assertAdmin() {
   const user = await getCurrentUser()
@@ -21,6 +24,8 @@ export type AdminUser = {
   role: 'admin' | 'dispatcher'
   createdAt: string
   disabledAt: string | null
+  /** Effective feature access, for dispatchers only (admins have everything). */
+  capabilities: Record<CapabilityKey, boolean> | null
 }
 
 export async function listUsers(): Promise<AdminUser[]> {
@@ -34,14 +39,31 @@ export async function listUsers(): Promise<AdminUser[]> {
     created_at: string
     disabled_at: string | null
   }[]
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    email: r.email,
-    role: r.role,
-    createdAt: r.created_at,
-    disabledAt: r.disabled_at,
-  }))
+  return Promise.all(
+    rows.map(async (r) => ({
+      id: r.id,
+      name: r.name,
+      email: r.email,
+      role: r.role,
+      createdAt: r.created_at,
+      disabledAt: r.disabled_at,
+      capabilities: r.role === 'dispatcher' ? await capabilitiesFor(r.id) : null,
+    })),
+  )
+}
+
+/** Toggle one dispatcher's access to one capability. Admins have everything, so this
+ * only ever targets dispatchers. */
+export async function setDispatcherCapability(
+  userId: number,
+  key: string,
+  allowed: boolean,
+): Promise<{ error: string } | void> {
+  await assertAdmin()
+  if (!CAP_KEYS.has(key as CapabilityKey)) return { error: 'Неизвестное право.' }
+  await setUserCapability(userId, key as CapabilityKey, allowed)
+  revalidatePath('/admin')
+  revalidatePath('/', 'layout')
 }
 
 export async function createUser(
@@ -101,20 +123,4 @@ export async function setOpenAccess(enabled: boolean): Promise<{ error: string }
   await assertAdmin()
   await setSetting('open_access', enabled ? '1' : '0')
   revalidatePath('/admin')
-}
-
-export async function getTgDispatcherAccess(): Promise<boolean> {
-  await assertAdmin()
-  return (await getSetting('tg_dispatcher_access')) === '1'
-}
-
-/** Off by default — a master switch: until the admin turns it on, non-admin
- * dispatchers can't open the Telegram section at all. Each user connects their OWN
- * account and curates their own chats there (self-service on /telegram). */
-export async function setTgDispatcherAccess(enabled: boolean): Promise<{ error: string } | void> {
-  await assertAdmin()
-  await setSetting('tg_dispatcher_access', enabled ? '1' : '0')
-  revalidatePath('/admin')
-  revalidatePath('/telegram')
-  revalidatePath('/', 'layout')
 }

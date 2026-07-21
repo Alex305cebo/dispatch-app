@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getCurrentUser } from '@/lib/session'
-import { getSetting } from '@/lib/settings'
+import { can } from '@/lib/capabilities-server'
 import {
   tgAccountInfo,
   tgChatTruckMap,
@@ -41,7 +41,6 @@ export default async function Page({
   searchParams: Promise<{ chat?: string }>
 }) {
   const user = await getCurrentUser()
-  const isAdmin = user?.role === 'admin'
 
   // Under "open access" there's no signed-in user, so a personal Telegram account
   // can't be attached to anyone. Ask them to log in properly.
@@ -56,9 +55,8 @@ export default async function Page({
     )
   }
 
-  // Master toggle (admin panel), off by default — until the admin opens Telegram to
-  // dispatchers, only the admin can use the section at all.
-  if (!isAdmin && (await getSetting('tg_dispatcher_access')) !== '1') {
+  // Per-dispatcher capability (admin grants it). Admins always pass.
+  if (!(await can(user, 'telegram'))) {
     return (
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
         <h1 className="mb-5 text-[17px] font-semibold">Telegram</h1>

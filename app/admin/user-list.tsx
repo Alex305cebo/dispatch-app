@@ -2,7 +2,15 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { createUser, resetUserPassword, setUserDisabled, setUserRole, type AdminUser } from './actions'
+import {
+  createUser,
+  resetUserPassword,
+  setDispatcherCapability,
+  setUserDisabled,
+  setUserRole,
+  type AdminUser,
+} from './actions'
+import { CAPABILITIES } from '@/lib/capabilities'
 import { notify } from '@/lib/notify'
 
 const input =
@@ -67,6 +75,17 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
       notify('ok', 'Пароль сброшен — прежние сессии этого пользователя завершены')
       setResetFor(null)
       setResetPw('')
+    })
+  }
+
+  function toggleCap(userId: number, key: string, allowed: boolean) {
+    start(async () => {
+      const res = await setDispatcherCapability(userId, key, allowed)
+      if (res?.error) notify('error', res.error)
+      else {
+        notify('ok', 'Права обновлены')
+        router.refresh()
+      }
     })
   }
 
@@ -138,6 +157,39 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
                 Сохранить
               </button>
             </div>
+          )}
+
+          {/* Per-dispatcher feature access. Admins have everything, so no toggles for
+              them. New capabilities added to the registry show up here automatically. */}
+          {u.capabilities && (
+            <details className="mt-2.5 border-t border-white/6 pt-2.5">
+              <summary className="cursor-pointer text-[12px] font-medium text-white/70">
+                Права диспетчера
+              </summary>
+              <div className="mt-2 flex flex-col gap-2">
+                {CAPABILITIES.map((c) => {
+                  const on = u.capabilities![c.key]
+                  return (
+                    <label
+                      key={c.key}
+                      className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-white/6 bg-white/[0.015] px-3 py-2 select-none"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        disabled={pending}
+                        onChange={() => toggleCap(u.id, c.key, !on)}
+                        className="mt-0.5 size-4 shrink-0 accent-good-500"
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-[13px] font-medium">{c.label}</span>
+                        <span className="block text-[11.5px] leading-snug text-white/55">{c.description}</span>
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+            </details>
           )}
         </div>
       ))}

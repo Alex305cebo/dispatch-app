@@ -16,18 +16,17 @@ import { classifyDocument } from '@/lib/ai-doc'
 import { autoInvoiceIfReady } from '@/lib/invoice'
 import { sql } from '@/lib/db'
 import { getCurrentUser, type CurrentUser } from '@/lib/session'
-import { getSetting } from '@/lib/settings'
+import { can } from '@/lib/capabilities-server'
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 /** Everyone connects/manages their OWN account, so these aren't admin-only — but a
- * dispatcher can only reach Telegram at all when the admin's master toggle is on
- * (same gate the nav + page use). Returns the acting user, or throws. */
+ * dispatcher needs the 'telegram' capability (admin grants it per user). Returns the
+ * acting user, or throws. */
 async function requireTgUser(): Promise<CurrentUser> {
   const user = await getCurrentUser()
   if (!user) throw new Error('Нужно войти.')
-  if (user.role !== 'admin' && (await getSetting('tg_dispatcher_access')) !== '1')
-    throw new Error('Доступ к Telegram пока даёт только администратор.')
+  if (!(await can(user, 'telegram'))) throw new Error('Доступ к Telegram пока не открыт администратором.')
   return user
 }
 

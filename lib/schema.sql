@@ -302,6 +302,21 @@ INSERT INTO settings (key, value) SELECT 'tg_chat_truck:' || u.id, s.value FROM 
 INSERT INTO settings (key, value) SELECT 'tg_last_seen:' || u.id, s.value FROM settings s CROSS JOIN (SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1) u WHERE s.key='tg_last_seen' ON CONFLICT (key) DO NOTHING;
 DELETE FROM settings WHERE key IN ('tg_session','tg_api_id','tg_api_hash','tg_shown_chats','tg_chat_truck','tg_last_seen') AND EXISTS (SELECT 1 FROM settings x WHERE x.key = 'tg_session:' || (SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1));
 
+-- Per-dispatcher feature access (lib/capabilities.ts). Only stores OVERRIDES — a
+-- missing row means "use the capability's coded default". Admins are never listed
+-- here (they implicitly have everything).
+CREATE TABLE IF NOT EXISTS user_capabilities (
+  user_id    INTEGER NOT NULL REFERENCES users(id),
+  capability TEXT NOT NULL,
+  allowed    BOOLEAN NOT NULL,
+  PRIMARY KEY (user_id, capability)
+);
+-- Fold the old global "Telegram открыт диспетчерам" switch into the new per-user
+-- capability: if it was ON, grant the telegram capability to every current dispatcher
+-- (its coded default is OFF, so without this they'd lose access they already had).
+INSERT INTO user_capabilities (user_id, capability, allowed) SELECT u.id, 'telegram', TRUE FROM users u WHERE u.role='dispatcher' AND (SELECT value FROM settings WHERE key='tg_dispatcher_access')='1' ON CONFLICT (user_id, capability) DO NOTHING;
+DELETE FROM settings WHERE key='tg_dispatcher_access';
+
 -- Broker vetting cache (FMCSA lookup by MC) + basis for our own pay history.
 CREATE TABLE IF NOT EXISTS brokers (
   mc                TEXT PRIMARY KEY,
