@@ -376,10 +376,27 @@ export async function attachDocumentToLoad(docId: number, loadId: number): Promi
   if ((rows[0] as { kind: string } | undefined)?.kind === 'pod') await autoInvoiceIfReady(loadId)
 }
 
+async function auditDelete(
+  who: string,
+  action: string,
+  target: string,
+  docKind: string | null,
+  fromLoc: string | null,
+  toLoc: string | null,
+): Promise<void> {
+  const h = await headers()
+  const ip = (h.get('x-forwarded-for') ?? '').split(',')[0]!.trim() || null
+  const { ipCity } = await import('@/lib/geo-routing')
+  const city = await ipCity(ip)
+  await sql`
+    INSERT INTO audit_log (who, action, target, doc_kind, from_loc, to_loc, ip, user_agent, city)
+    VALUES (${who.trim()}, ${action}, ${target}, ${docKind}, ${fromLoc}, ${toLoc}, ${ip}, ${h.get('user-agent')}, ${city})`
+}
+
 /**
- * Deleting a document is guarded: the person types their name and the PIN, and we
- * keep an audit row (who, what, the load route) that outlives the file — shown in
- * the Журнал. The PIN is the same shared APP_PIN used to sign in.
+ * "Deleting" a document only moves it to the trash (deleted_at) — the file itself
+ * stays put until purgeDocument removes it for real. Guarded: name + PIN, audited
+ * (who, what, the load route) — shown in the Журнал. PIN is the shared APP_PIN.
  */
 export async function deleteDocument(
   id: number,
@@ -391,11 +408,10 @@ export async function deleteDocument(
   if (!who?.trim()) return { error: 'Впиши имя — кто удаляет.' }
 
   try {
-    // Snapshot the doc + its load route BEFORE deleting, for the audit trail.
     const rows = (await sql`
       SELECT d.title, d.kind, l.origin, l.destination
       FROM documents d LEFT JOIN loads l ON l.id = d.load_id
-      WHERE d.id = ${id}`) as {
+      WHERE d.id = ${id} AND d.deleted_at IS NULL`) as {
       title: string
       kind: string
       origin: string | null
@@ -404,16 +420,8 @@ export async function deleteDocument(
     const doc = rows[0]
     if (!doc) return { error: 'Документ не найден.' }
 
-    await sql`DELETE FROM documents WHERE id = ${id}`
-
-    const h = await headers()
-    const ip = (h.get('x-forwarded-for') ?? '').split(',')[0]!.trim() || null
-    const { ipCity } = await import('@/lib/geo-routing')
-    const city = await ipCity(ip)
-    await sql`
-      INSERT INTO audit_log (who, action, target, doc_kind, from_loc, to_loc, ip, user_agent, city)
-      VALUES (${who.trim()}, 'delete_document', ${doc.title}, ${doc.kind},
-              ${doc.origin}, ${doc.destination}, ${ip}, ${h.get('user-agent')}, ${city})`
+    await sql`UPDATE documents SET deleted_at = now() WHERE id = ${id}`
+    await auditDelete(who, 'delete_document', doc.title, doc.kind, doc.origin, doc.destination)
   } catch (e) {
     return { error: humanError(e) }
   }
@@ -421,6 +429,47 @@ export async function deleteDocument(
   revalidatePath('/logins')
   revalidatePath('/trucks', 'layout')
   revalidatePath('/loads', 'layout')
+}
+
+/** Pull a document back out of the trash — the safe direction, no PIN needed. */
+export async function restoreDocument(id: number): Promise<void> {
+  await sql`UPDATE documents SET deleted_at = NULL WHERE id = ${id}`
+  revalidatePath('/docs')
+  revalidatePath('/trucks', 'layout')
+  revalidatePath('/loads', 'layout')
+}
+
+/** Erases a trashed document for real — same name + PIN guard as the soft delete,
+ * since this direction can't be undone. */
+export async function purgeDocument(
+  id: number,
+  who: string,
+  pin: string,
+): Promise<{ error: string } | void> {
+  if (!process.env.APP_PIN) return { error: 'APP_PIN не настроен на сервере.' }
+  if (pin !== process.env.APP_PIN) return { error: 'Неверный PIN.' }
+  if (!who?.trim()) return { error: 'Впиши имя — кто удаляет.' }
+
+  try {
+    const rows = (await sql`
+      SELECT d.title, d.kind, l.origin, l.destination
+      FROM documents d LEFT JOIN loads l ON l.id = d.load_id
+      WHERE d.id = ${id} AND d.deleted_at IS NOT NULL`) as {
+      title: string
+      kind: string
+      origin: string | null
+      destination: string | null
+    }[]
+    const doc = rows[0]
+    if (!doc) return { error: 'Документ не найден в корзине.' }
+
+    await sql`DELETE FROM documents WHERE id = ${id}`
+    await auditDelete(who, 'purge_document', doc.title, doc.kind, doc.origin, doc.destination)
+  } catch (e) {
+    return { error: humanError(e) }
+  }
+  revalidatePath('/docs')
+  revalidatePath('/logins')
 }
 
 /**
@@ -627,9 +676,23 @@ export async function addMaintenance(
   revalidatePath(`/trucks/${truckId}`)
 }
 
-export async function deleteMaintenance(id: number, truckId: number): Promise<void> {
+export async function deleteMaintenance(
+  id: number,
+  truckId: number,
+  who: string,
+  pin: string,
+): Promise<{ error: string } | void> {
+  if (!process.env.APP_PIN) return { error: 'APP_PIN не настроен на сервере.' }
+  if (pin !== process.env.APP_PIN) return { error: 'Неверный PIN.' }
+  if (!who?.trim()) return { error: 'Впиши имя — кто удаляет.' }
+
+  const rows = (await sql`SELECT title FROM truck_maintenance WHERE id = ${id}`) as { title: string }[]
+  if (!rows[0]) return { error: 'Запись не найдена.' }
+
   await sql`DELETE FROM truck_maintenance WHERE id = ${id}`
+  await auditDelete(who, 'delete_maintenance', rows[0].title, null, null, null)
   revalidatePath(`/trucks/${truckId}`)
+  revalidatePath('/logins')
 }
 
 export async function addTodo(
@@ -654,9 +717,23 @@ export async function toggleTodo(id: number, truckId: number): Promise<void> {
   revalidatePath(`/trucks/${truckId}`)
 }
 
-export async function deleteTodo(id: number, truckId: number): Promise<void> {
+export async function deleteTodo(
+  id: number,
+  truckId: number,
+  who: string,
+  pin: string,
+): Promise<{ error: string } | void> {
+  if (!process.env.APP_PIN) return { error: 'APP_PIN не настроен на сервере.' }
+  if (pin !== process.env.APP_PIN) return { error: 'Неверный PIN.' }
+  if (!who?.trim()) return { error: 'Впиши имя — кто удаляет.' }
+
+  const rows = (await sql`SELECT title FROM truck_todos WHERE id = ${id}`) as { title: string }[]
+  if (!rows[0]) return { error: 'Запись не найдена.' }
+
   await sql`DELETE FROM truck_todos WHERE id = ${id}`
+  await auditDelete(who, 'delete_todo', rows[0].title, null, null, null)
   revalidatePath(`/trucks/${truckId}`)
+  revalidatePath('/logins')
 }
 
 export type TruckMetaInput = {

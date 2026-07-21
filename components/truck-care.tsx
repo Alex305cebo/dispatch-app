@@ -20,6 +20,7 @@ import {
 import { expiries, type MaintenanceRecord, type TruckMeta, type TruckTodo } from '@/lib/maintenance-core'
 import { Field, TextField } from '@/components/ui'
 import { DocUpload } from '@/components/docs'
+import { DeleteButton } from '@/components/delete-button'
 import { Info } from '@/components/info'
 import { notify } from '@/lib/notify'
 import { usd } from '@/lib/fmt'
@@ -335,14 +336,11 @@ export function TruckCare({
                     {PRIO_LABEL[t.priority]}
                   </span>
                 )}
-                <button
-                  disabled={pending}
-                  onClick={() => run(() => deleteTodo(t.id, truckId), 'Удалено')}
-                  title="Удалить"
-                  className="shrink-0 text-white/35 transition-colors hover:text-bad-400 disabled:opacity-40"
-                >
-                  ✕
-                </button>
+                <DeleteButton
+                  action={(id, who, pin) => deleteTodo(id, truckId, who, pin)}
+                  id={t.id}
+                  title={t.title}
+                />
               </li>
             ))}
           </ul>
@@ -449,7 +447,7 @@ export function TruckCare({
                     </span>
                     <label
                       title="Прикрепить документ"
-                      className={`cursor-pointer text-white/35 transition-colors hover:text-haul-400 ${pending ? 'opacity-40' : ''}`}
+                      className={`flex size-6 cursor-pointer items-center justify-center rounded-md bg-white/8 text-[13px] text-white/70 transition-colors hover:bg-white/16 hover:text-haul-400 ${pending ? 'opacity-40' : ''}`}
                     >
                       📎
                       <input
@@ -463,14 +461,11 @@ export function TruckCare({
                         }}
                       />
                     </label>
-                    <button
-                      disabled={pending}
-                      onClick={() => run(() => deleteMaintenance(r.id, truckId), 'Удалено')}
-                      title="Удалить"
-                      className="text-white/35 transition-colors hover:text-bad-400 disabled:opacity-40"
-                    >
-                      ✕
-                    </button>
+                    <DeleteButton
+                      action={(id, who, pin) => deleteMaintenance(id, truckId, who, pin)}
+                      id={r.id}
+                      title={r.title}
+                    />
                   </span>
                 </div>
                 <div className="mt-0.5 text-[12px] text-white/50">

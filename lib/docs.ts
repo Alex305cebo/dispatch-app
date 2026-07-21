@@ -22,6 +22,8 @@ export type DocMeta = {
   mime: string
   sizeBytes: number
   uploadedAt: string
+  /** Set once "deleted" — the file stays in the trash until purged for real. */
+  deletedAt: string | null
 }
 
 /** A document plus the truck/driver it belongs to and its load route — for the

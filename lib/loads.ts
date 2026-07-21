@@ -13,13 +13,15 @@ import type { DocMeta, DocLibRow } from './docs.ts'
 /** Document metadata (the bytea itself only leaves the DB via /api/docs/[id]). */
 export async function listDocs(filter?: { truckId?: number; loadId?: number }): Promise<DocMeta[]> {
   const rows = filter?.loadId
-    ? await sql`SELECT id, truck_id, load_id, kind, title, mime, size_bytes, uploaded_at
-                FROM documents WHERE load_id = ${filter.loadId} ORDER BY uploaded_at DESC`
+    ? await sql`SELECT id, truck_id, load_id, kind, title, mime, size_bytes, uploaded_at, deleted_at
+                FROM documents WHERE load_id = ${filter.loadId} AND deleted_at IS NULL
+                ORDER BY uploaded_at DESC`
     : filter?.truckId
-      ? await sql`SELECT id, truck_id, load_id, kind, title, mime, size_bytes, uploaded_at
-                  FROM documents WHERE truck_id = ${filter.truckId} ORDER BY uploaded_at DESC`
-      : await sql`SELECT id, truck_id, load_id, kind, title, mime, size_bytes, uploaded_at
-                  FROM documents ORDER BY uploaded_at DESC LIMIT 200`
+      ? await sql`SELECT id, truck_id, load_id, kind, title, mime, size_bytes, uploaded_at, deleted_at
+                  FROM documents WHERE truck_id = ${filter.truckId} AND deleted_at IS NULL
+                  ORDER BY uploaded_at DESC`
+      : await sql`SELECT id, truck_id, load_id, kind, title, mime, size_bytes, uploaded_at, deleted_at
+                  FROM documents WHERE deleted_at IS NULL ORDER BY uploaded_at DESC LIMIT 200`
   /* eslint-disable @typescript-eslint/no-explicit-any */
   return rows.map((r: any) => ({
     id: r.id,
@@ -30,25 +32,47 @@ export async function listDocs(filter?: { truckId?: number; loadId?: number }): 
     mime: r.mime,
     sizeBytes: r.size_bytes,
     uploadedAt: new Date(r.uploaded_at).toISOString(),
+    deletedAt: r.deleted_at ? new Date(r.deleted_at).toISOString() : null,
   }))
 }
 
-/** Every document enriched with its truck/driver and load route, for the library.
- *  A rate con attached to a load files under that load's truck even when the doc
- *  itself has no truck_id (COALESCE). */
+/** Every (non-trashed) document enriched with its truck/driver and load route, for
+ *  the library. A rate con attached to a load files under that load's truck even
+ *  when the doc itself has no truck_id (COALESCE). */
 export async function listDocsForLibrary(): Promise<DocLibRow[]> {
   const rows = await sql`
-    SELECT d.id, d.truck_id, d.load_id, d.kind, d.title, d.mime, d.size_bytes, d.uploaded_at,
+    SELECT d.id, d.truck_id, d.load_id, d.kind, d.title, d.mime, d.size_bytes, d.uploaded_at, d.deleted_at,
            COALESCE(d.truck_id, l.truck_id) AS group_truck_id,
            tt.number AS truck_number, tt.driver_name,
            l.origin, l.destination
     FROM documents d
     LEFT JOIN loads  l  ON l.id = d.load_id
     LEFT JOIN trucks tt ON tt.id = COALESCE(d.truck_id, l.truck_id)
+    WHERE d.deleted_at IS NULL
     ORDER BY d.uploaded_at DESC
     LIMIT 500`
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  return rows.map((r: any) => ({
+  return rows.map(rowToDocLibRow)
+}
+
+/** Trashed documents, most-recently-deleted first — restore or purge for good. */
+export async function listTrashedDocs(): Promise<DocLibRow[]> {
+  const rows = await sql`
+    SELECT d.id, d.truck_id, d.load_id, d.kind, d.title, d.mime, d.size_bytes, d.uploaded_at, d.deleted_at,
+           COALESCE(d.truck_id, l.truck_id) AS group_truck_id,
+           tt.number AS truck_number, tt.driver_name,
+           l.origin, l.destination
+    FROM documents d
+    LEFT JOIN loads  l  ON l.id = d.load_id
+    LEFT JOIN trucks tt ON tt.id = COALESCE(d.truck_id, l.truck_id)
+    WHERE d.deleted_at IS NOT NULL
+    ORDER BY d.deleted_at DESC
+    LIMIT 500`
+  return rows.map(rowToDocLibRow)
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function rowToDocLibRow(r: any): DocLibRow {
+  return {
     id: r.id,
     truckId: r.truck_id,
     loadId: r.load_id,
@@ -57,12 +81,13 @@ export async function listDocsForLibrary(): Promise<DocLibRow[]> {
     mime: r.mime,
     sizeBytes: r.size_bytes,
     uploadedAt: new Date(r.uploaded_at).toISOString(),
+    deletedAt: r.deleted_at ? new Date(r.deleted_at).toISOString() : null,
     groupTruckId: r.group_truck_id,
     truckNumber: r.truck_number,
     driverName: r.driver_name,
     origin: r.origin,
     destination: r.destination,
-  }))
+  }
 }
 
 export async function listLoads(opts: { truckId?: number; status?: LoadStatus } = {}): Promise<

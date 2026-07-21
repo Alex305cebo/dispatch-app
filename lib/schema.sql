@@ -275,6 +275,10 @@ ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_kind_check;
 ALTER TABLE documents ADD CONSTRAINT documents_kind_check
   CHECK (kind IN ('ratecon','bol','pod','invoice','insurance','registration','repair','other'));
 
+-- Soft delete: "deleting" a document moves it to the trash instead of erasing it —
+-- only deleting again FROM the trash is unrecoverable.
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
 -- Broker vetting cache (FMCSA lookup by MC) + basis for our own pay history.
 CREATE TABLE IF NOT EXISTS brokers (
   mc                TEXT PRIMARY KEY,

@@ -1,12 +1,17 @@
 import Link from 'next/link'
-import { listDocsForLibrary, listTrucks } from '@/lib/loads'
-import { DocLibrary, DocUpload } from '@/components/docs'
+import { listDocsForLibrary, listTrashedDocs, listTrucks } from '@/lib/loads'
+import { DocLibrary, DocTrash, DocUpload } from '@/components/docs'
 import { Info } from '@/components/info'
 
 export const dynamic = 'force-dynamic'
 
-export default async function Page() {
-  const [rows, trucks] = await Promise.all([listDocsForLibrary(), listTrucks()])
+export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const tab = (await searchParams).tab === 'trash' ? 'trash' : 'library'
+  const [rows, trash, trucks] = await Promise.all([
+    listDocsForLibrary(),
+    listTrashedDocs(),
+    listTrucks(),
+  ])
   const groups = trucks.map((t) => ({
     id: t.id,
     label: t.number ?? t.name,
@@ -18,7 +23,7 @@ export default async function Page() {
       <header className="mb-5">
         <h1 className="flex items-center gap-2 text-[17px] font-semibold">
           Документы
-          <Info side="bottom" text="Единая библиотека всех бумаг: rate con, BOL, POD, страховки, регистрации, инвойсы. Сгруппированы по тракам и водителям, свежие сверху, с фильтром по типу. Rate con можно распознать и сразу создать груз кнопкой сверху. Удаление под именем и PIN, запись остаётся в Журнале." />
+          <Info side="bottom" text="Единая библиотека всех бумаг: rate con, BOL, POD, страховки, регистрации, инвойсы. Сгруппированы по тракам и водителям, свежие сверху, с фильтром по типу. Rate con можно распознать и сразу создать груз кнопкой сверху. Удаление под именем и PIN перемещает в корзину — насовсем только оттуда, запись остаётся в Журнале." />
         </h1>
         <p className="text-[13px] text-white/65">
           Все бумаги в одном месте — по водителям и датам, как в библиотеке.
@@ -48,8 +53,27 @@ export default async function Page() {
         <DocUpload trucks={groups.map((g) => ({ id: g.id, label: g.driver ? `${g.label} · ${g.driver}` : g.label }))} />
       </div>
 
+      <div className="mb-4 flex gap-1.5 border-b border-white/8">
+        <Link
+          href="/docs"
+          className={`-mb-px border-b-2 px-3 py-2 text-[13px] font-medium transition-colors ${
+            tab === 'library' ? 'border-haul-500 text-white' : 'border-transparent text-white/55 hover:text-white/85'
+          }`}
+        >
+          Библиотека
+        </Link>
+        <Link
+          href="/docs?tab=trash"
+          className={`-mb-px border-b-2 px-3 py-2 text-[13px] font-medium transition-colors ${
+            tab === 'trash' ? 'border-haul-500 text-white' : 'border-transparent text-white/55 hover:text-white/85'
+          }`}
+        >
+          Корзина{trash.length > 0 ? ` · ${trash.length}` : ''}
+        </Link>
+      </div>
+
       <div className="panel p-4">
-        <DocLibrary rows={rows} trucks={groups} />
+        {tab === 'library' ? <DocLibrary rows={rows} trucks={groups} /> : <DocTrash rows={trash} />}
       </div>
     </main>
   )

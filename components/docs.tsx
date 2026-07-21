@@ -6,7 +6,8 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { deleteDocument, uploadDocument } from '@/app/actions'
+import { deleteDocument, purgeDocument, restoreDocument, uploadDocument } from '@/app/actions'
+import { DeleteButton } from '@/components/delete-button'
 import { DOC_KINDS, fmtSize, type DocKind, type DocLibRow, type DocMeta } from '@/lib/docs'
 import { notify } from '@/lib/notify'
 import { Info } from '@/components/info'
@@ -146,8 +147,8 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
       >
         <h3 className="text-[15px] font-semibold">Удалить документ</h3>
         <p className="mt-1 text-[12.5px] leading-relaxed text-white/60">
-          «{doc.title}» пропадёт насовсем. Впиши имя и PIN — запись, кто удалил,
-          останется в Журнале.
+          «{doc.title}» переместится в корзину — насовсем удаляется только оттуда.
+          Впиши имя и PIN — запись, кто удалил, останется в Журнале.
         </p>
         <div className="mt-4 flex flex-col gap-2">
           <input
@@ -365,5 +366,53 @@ export function DocLibrary({
       )}
       {del && <DeleteDialog doc={del} onClose={() => setDel(null)} />}
     </>
+  )
+}
+
+/** The trash: documents "deleted" elsewhere land here first — restore needs no
+ * PIN (the safe direction), purging for real needs the same guard as any delete. */
+export function DocTrash({ rows }: { rows: DocLibRow[] }) {
+  const router = useRouter()
+  const [pending, start] = useTransition()
+
+  function restore(id: number, title: string) {
+    start(async () => {
+      await restoreDocument(id)
+      notify('ok', 'Восстановлено', title)
+      router.refresh()
+    })
+  }
+
+  if (rows.length === 0) return <p className="text-[13px] text-white/55">Корзина пуста.</p>
+
+  return (
+    <ul className="flex flex-col gap-1.5">
+      {rows.map((d) => (
+        <li key={d.id} className="flex items-center gap-3 rounded-lg border border-white/6 px-3 py-2">
+          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${KIND_TONE[d.kind]}`}>
+            {DOC_KINDS[d.kind]}
+          </span>
+          <div className="min-w-0 flex-1">
+            <span className="block truncate text-[14px] text-white/70">{d.title}</span>
+            <span className="text-[11px] text-white/45">
+              удалено {d.deletedAt?.slice(0, 10)} · {fmtSize(d.sizeBytes)}
+            </span>
+          </div>
+          <button
+            disabled={pending}
+            onClick={() => restore(d.id, d.title)}
+            className="shrink-0 rounded-lg bg-white/8 px-2.5 py-1 text-[12px] font-medium text-white/80 transition-colors hover:bg-white/16 disabled:opacity-40"
+          >
+            Восстановить
+          </button>
+          <DeleteButton
+            action={purgeDocument}
+            id={d.id}
+            title={d.title}
+            note="удалится навсегда — без возможности восстановить."
+          />
+        </li>
+      ))}
+    </ul>
   )
 }

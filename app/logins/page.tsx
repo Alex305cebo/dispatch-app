@@ -93,16 +93,25 @@ export default async function Page() {
     ),
     ...audits.map((r): Event => {
       const route = [r.from_loc, r.to_loc].filter(Boolean).join(' → ')
-      const isLoad = r.action === 'delete_load'
-      const what = isLoad
-        ? `Удалил груз «${r.target ?? route ?? '—'}»`
-        : `Удалил ${DOC_KINDS[r.doc_kind as DocKind] ?? 'документ'} «${r.target ?? '—'}»`
+      const docLabel = DOC_KINDS[r.doc_kind as DocKind] ?? 'документ'
+      const target = r.target ?? '—'
+      const what =
+        r.action === 'delete_load'
+          ? `Удалил груз «${r.target ?? route ?? '—'}»`
+          : r.action === 'purge_document'
+            ? `Удалил из корзины насовсем ${docLabel} «${target}»`
+            : r.action === 'delete_todo'
+              ? `Удалил задачу «${target}»`
+              : r.action === 'delete_maintenance'
+                ? `Удалил запись ремонта «${target}»`
+                : `Удалил (в корзину) ${docLabel} «${target}»`
+      // For a load the route is already in the title; for a doc show it as detail.
+      const detail = r.action === 'delete_load' || r.action === 'delete_todo' || r.action === 'delete_maintenance' ? '' : route
       return {
         at: r.at,
         who: r.who ?? 'Без имени',
         what,
-        // For a load the route is already in the title; for a doc show it as detail.
-        detail: isLoad ? '' : route,
+        detail,
         where: r.city ?? 'локально',
         tone: 'delete',
       }
