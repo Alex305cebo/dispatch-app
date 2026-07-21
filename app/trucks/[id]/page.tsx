@@ -160,13 +160,24 @@ export default async function Page({
             label="Рейт за неделю"
             value={usd.format(weekGross)}
             tone={weekGross > 0 ? 'good' : undefined}
+            info="Сумма ставок (гросс) всех активных грузов трака, забронированных на этой календарной неделе — с понедельника, а не 7 дней от текущего момента."
           />
-          <Chip label="Чистыми" value={usd.format(totalNet)} tone={totalNet >= 0 ? 'good' : 'bad'} />
-          <Chip label="Ставка/миля" value={`${usd2.format(avgRpm)}`} />
+          <Chip
+            label="Чистыми"
+            value={usd.format(totalNet)}
+            tone={totalNet >= 0 ? 'good' : 'bad'}
+            info="Что останется после всех расходов (топливо, водитель, платёж за трак, страховка, обслуживание, факторинг, диспетч) — по тем же грузам этой недели, что и «Рейт за неделю»."
+          />
+          <Chip
+            label="Ставка/миля"
+            value={`${usd2.format(avgRpm)}`}
+            info="Средний доход на милю (RPM) по грузам этой недели: выручка ÷ мили (гружёные + порожние)."
+          />
           <Chip
             label="Масло через"
             value={oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—'}
             tone={oil?.tone}
+            info="Сколько миль осталось до следующей замены масла. Зелёный → жёлтый → красный по мере приближения к интервалу замены."
           />
         </div>
 
@@ -409,17 +420,22 @@ function Chip({
   label,
   value,
   tone,
+  info,
 }: {
   label: string
   value: string
   tone?: 'good' | 'bad' | 'warn'
+  info?: string
 }) {
   const color =
     tone === 'good' ? 'text-good-400' : tone === 'bad' ? 'text-bad-400' : tone === 'warn' ? 'text-warn-400' : 'text-white'
   return (
     <div className="rounded-xl border border-white/8 bg-ink-900/50 px-3 py-2 text-center backdrop-blur">
       <div className={`nums text-[16px] font-bold ${color}`}>{value}</div>
-      <div className="mt-0.5 text-[10px] uppercase tracking-wider text-white/55">{label}</div>
+      <div className="mt-0.5 flex items-center justify-center gap-1 text-[10px] uppercase tracking-wider text-white/55">
+        {label}
+        {info && <Info text={info} />}
+      </div>
     </div>
   )
 }

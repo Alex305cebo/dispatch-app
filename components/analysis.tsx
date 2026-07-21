@@ -3,6 +3,7 @@
 import type { Breakdown } from '@/lib/profit'
 import { usd, usd2 } from '@/lib/fmt'
 import { CostBar, Money } from './ui'
+import { Info } from './info'
 
 export function Analysis({
   r,
@@ -54,7 +55,11 @@ export function Analysis({
 
         <div className="mt-4 grid grid-cols-3 gap-2">
           {[
-            { label: 'All-in RPM', node: <Money value={r.allInRpm} format={usd2} /> },
+            {
+              label: 'All-in RPM',
+              node: <Money value={r.allInRpm} format={usd2} />,
+              info: 'Доход на милю с учётом всех расходов по этому грузу: чистыми ÷ мили (гружёные + порожние). Ниже нуля — груз в убыток.',
+            },
             {
               label: 'Spot rate / mi',
               node:
@@ -63,12 +68,20 @@ export function Analysis({
                 ) : (
                   <span className="text-white/35">—</span>
                 ),
+              info: 'Рыночная ставка за милю по DAT для похожего маршрута — ориентир, есть ли смысл торговаться по цене. Прочерк — не указана.',
             },
-            { label: 'Чистыми / день', node: <Money value={r.netPerDay} /> },
+            {
+              label: 'Чистыми / день',
+              node: <Money value={r.netPerDay} />,
+              info: 'Чистыми, поделённые на дни в пути — сколько груз приносит в день, чтобы сравнивать грузы разной длины между собой.',
+            },
           ].map((s) => (
             <div key={s.label} className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5">
               <div className="nums text-lg font-semibold">{s.node}</div>
-              <div className="text-[10px] uppercase tracking-wider text-white/62">{s.label}</div>
+              <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/62">
+                {s.label}
+                <Info text={s.info} />
+              </div>
             </div>
           ))}
         </div>

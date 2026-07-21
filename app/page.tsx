@@ -24,6 +24,13 @@ function driveDot(s: string | null): string {
   return 'bg-white/30'
 }
 
+function driveDotTitle(s: string | null): string {
+  if (!s) return 'Нет данных с ELD'
+  if (/mi\/h|^d$/i.test(s)) return 'В движении'
+  if (/^on$/i.test(s)) return 'На месте (on duty)'
+  return 'Стоит'
+}
+
 // ELD gives "12.0mi N from Ashland, VA" — the card just wants "Ashland, VA".
 function cityOf(location: string | null): string | null {
   if (!location) return null
@@ -160,6 +167,7 @@ export default async function Page() {
                 <div className="relative shrink-0">
                   <DriverAvatar truckId={t.id} name={t.driverName} hasPhoto={photoIds.has(t.id)} size={40} />
                   <span
+                    title={driveDotTitle(fs?.drive_status ?? null)}
                     className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-ink-900 ${driveDot(fs?.drive_status ?? null)}`}
                   />
                 </div>
@@ -176,7 +184,10 @@ export default async function Page() {
                   >
                     {usd.format(week)}
                   </div>
-                  <div className="text-[9px] uppercase tracking-wider text-white/40">за неделю</div>
+                  <div className="flex items-center justify-end gap-1 text-[9px] uppercase tracking-wider text-white/40">
+                    за неделю
+                    <Info text="Ставки (гросс) активных грузов этого трака за текущую календарную неделю — с понедельника." />
+                  </div>
                 </div>
               </div>
               {del && (

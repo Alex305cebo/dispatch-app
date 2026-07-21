@@ -5,6 +5,7 @@ import { getCompany } from '@/lib/invoice'
 import { truckPhotoFlags, truckTrailerNumbers } from '@/lib/maintenance'
 import { usd, weekStart } from '@/lib/fmt'
 import { DriverAvatar } from '@/components/driver-avatar'
+import { Info } from '@/components/info'
 
 export const dynamic = 'force-dynamic'
 
@@ -87,7 +88,10 @@ export default async function Page() {
               >
                 {usd.format(weekGross)}
               </div>
-              <div className="text-[10px] uppercase tracking-wider text-white/45">рейт за неделю</div>
+              <div className="flex items-center justify-end gap-1 text-[10px] uppercase tracking-wider text-white/45">
+                рейт за неделю
+                <Info text="Ставки (гросс) активных грузов этого трака за текущую календарную неделю — с понедельника, сбрасывается каждый понедельник." />
+              </div>
             </div>
           </Link>
         ))}

@@ -9,6 +9,7 @@ import { RateConButton } from '@/components/ratecon-button'
 import { DeleteButton } from '@/components/delete-button'
 import { DriverAvatar } from '@/components/driver-avatar'
 import { deleteLoad } from '@/app/actions'
+import { Info } from '@/components/info'
 
 export const dynamic = 'force-dynamic'
 
@@ -53,7 +54,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-[17px] font-semibold">Грузы</h1>
+          <h1 className="flex items-center gap-1.5 text-[17px] font-semibold">
+            Грузы
+            <Info side="bottom" text="«По водителю» — грузы сгруппированы по траку. «По статусу» — цветная доска: одна колонка на каждый статус груза, чтобы видеть всё сразу, а не открывать каждого водителя по очереди. «Чистыми» — что остаётся после всех расходов трака; число после точки — доход на милю (RPM)." />
+          </h1>
           <p className="text-[13px] text-white/65">{loads.length} шт.</p>
         </div>
         <Link
