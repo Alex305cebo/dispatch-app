@@ -27,7 +27,13 @@ const TAGS: Record<string, { label: string; icon: string; warn?: boolean }> = {
 type NoteLine = { tag: string | null; text: string }
 
 function parseNotes(text: string): NoteLine[] {
+  // The AI sometimes returns every tagged fact on ONE run-on line ("...stop.[LOAD]
+  // Trailer...[SCHEDULE] FCFS...") with no newlines, which rendered as a single
+  // unbroken blob under the first tag. Put each [TAG] on its own line first — before
+  // a tag that isn't at the very start — so both the newline-separated and the
+  // run-on forms split into one item per fact.
   return text
+    .replace(/(?!^)\s*(\[\w+\])/g, '\n$1')
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean)
