@@ -9,7 +9,9 @@ export const STATUS_LABEL: Record<LoadStatus, string> = {
   cancelled: 'Отменён',
 }
 
-const STYLE: Record<LoadStatus, string> = {
+// Exported so other views (the status board) can tint by the same status colors
+// instead of inventing a second color scheme that could drift from this one.
+export const STATUS_STYLE: Record<LoadStatus, string> = {
   quoted: 'bg-white/8 text-white/72',
   booked: 'bg-haul-500/15 text-haul-400 ring-1 ring-haul-500/25',
   in_transit: 'bg-amber-400/12 text-amber-300 ring-1 ring-amber-400/25',
@@ -21,7 +23,7 @@ const STYLE: Record<LoadStatus, string> = {
 export function StatusBadge({ status }: { status: LoadStatus }) {
   return (
     <span
-      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STYLE[status]}`}
+      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_STYLE[status]}`}
     >
       {STATUS_LABEL[status]}
     </span>

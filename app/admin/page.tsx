@@ -67,6 +67,41 @@ export default async function AdminPage() {
       </section>
 
       <section className="panel mt-4 p-5">
+        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          На очереди
+          <Info text="Реально можно построить, но нужны детали от тебя, прежде чем начинать — без них это просто макет, а не рабочая функция." />
+        </h2>
+        <div className="flex flex-col gap-2.5">
+          <div className="rounded-lg border border-white/6 bg-white/[0.015] p-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] font-medium">Факторинг в 1 клик</span>
+              <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white/55">
+                скоро
+              </span>
+            </div>
+            <p className="mt-1 text-[12px] leading-relaxed text-white/60">
+              Автоматическая отправка собранного инвойса твоей факторинговой компании. Нужно от
+              тебя: с какой компанией работаешь (Apex Capital, Triumph, RTS и т.п.) и доступ к их
+              API/порталу — обычно выдают клиенту по запросу.
+            </p>
+          </div>
+          <div className="rounded-lg border border-white/6 bg-white/[0.015] p-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] font-medium">IFTA-отчёт в 1 клик</span>
+              <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white/55">
+                скоро
+              </span>
+            </div>
+            <p className="mt-1 text-[12px] leading-relaxed text-white/60">
+              Автоматический расчёт квартального топливного налога по штатам. Нужно от тебя: базовый
+              штат регистрации IFTA и источник миль/топлива по штатам (ELD, если провайдер их отдаёт,
+              или квитанции вручную).
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="panel mt-4 p-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
             Журнал действий

@@ -74,6 +74,7 @@ export function Nav({
   companyName,
   user,
   showTelegram,
+  urgentDocs,
 }: {
   companyName: string
   user: CurrentUser | null
@@ -82,6 +83,9 @@ export function Nav({
    * an "ask the admin" message for a hidden dispatcher, but there's no reason to
    * show the tab at all if it's just going to say that. */
   showTelegram: boolean
+  /** Count of truck/driver documents overdue or ≤30 days out — badged on Траки so
+   * it's visible from any page, not just the one banner on the dashboard. */
+  urgentDocs: number
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -129,7 +133,17 @@ export function Nav({
 
         const body = (
           <>
-            <Icon d={icons[it.icon]} />
+            <span className="relative inline-flex">
+              <Icon d={icons[it.icon]} />
+              {it.href === '/trucks' && urgentDocs > 0 && (
+                <span
+                  className="nums absolute -right-1.5 -top-1.5 flex size-3.5 items-center justify-center rounded-full bg-bad-500 text-[8px] font-bold text-white"
+                  title={`Просрочено/истекает документов: ${urgentDocs}`}
+                >
+                  {urgentDocs > 9 ? '9+' : urgentDocs}
+                </span>
+              )}
+            </span>
             <span className="text-[10px] font-medium md:text-[13px]">{it.label}</span>
             {it.soon && (
               <span className="ml-auto hidden rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-white/62 md:inline">

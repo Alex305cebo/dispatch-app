@@ -1,10 +1,10 @@
 import Link from 'next/link'
 import { listLoads, listTrucks, rateConByLoad } from '@/lib/loads'
-import { truckLabel, type TruckRecord, type LoadRecord } from '@/lib/map'
+import { truckLabel, STATUSES, type TruckRecord, type LoadRecord } from '@/lib/map'
 import { calcLoad, type Breakdown } from '@/lib/profit'
 import { truckPhotoFlags } from '@/lib/maintenance'
 import { usd, usd2 } from '@/lib/fmt'
-import { StatusBadge } from '@/components/status'
+import { StatusBadge, STATUS_LABEL } from '@/components/status'
 import { RateConButton } from '@/components/ratecon-button'
 import { DeleteButton } from '@/components/delete-button'
 import { DriverAvatar } from '@/components/driver-avatar'
@@ -12,7 +12,19 @@ import { deleteLoad } from '@/app/actions'
 
 export const dynamic = 'force-dynamic'
 
-export default async function Page() {
+// Same hue family as STATUS_STYLE (components/status.tsx) — a column accent, not a
+// second color scheme, so the board and the badges never drift apart.
+const COLUMN_ACCENT: Record<LoadRecord['status'], string> = {
+  quoted: 'border-t-white/20',
+  booked: 'border-t-haul-500/60',
+  in_transit: 'border-t-amber-400/60',
+  delivered: 'border-t-violet-400/60',
+  paid: 'border-t-good-500/60',
+  cancelled: 'border-t-bad-500/50',
+}
+
+export default async function Page({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+  const view = (await searchParams).view === 'board' ? 'board' : 'driver'
   const [loads, trucks, rateCons, photoIds] = await Promise.all([
     listLoads(),
     listTrucks(),
@@ -39,7 +51,7 @@ export default async function Page() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <div className="mb-6 flex items-end justify-between gap-4">
+      <div className="mb-4 flex items-end justify-between gap-4">
         <div>
           <h1 className="text-[17px] font-semibold">Грузы</h1>
           <p className="text-[13px] text-white/65">{loads.length} шт.</p>
@@ -52,6 +64,17 @@ export default async function Page() {
         </Link>
       </div>
 
+      {loads.length > 0 && (
+        <div className="mb-5 flex gap-1.5 border-b border-white/8">
+          <ViewTab href="/loads" active={view === 'driver'}>
+            По водителю
+          </ViewTab>
+          <ViewTab href="/loads?view=board" active={view === 'board'}>
+            По статусу
+          </ViewTab>
+        </div>
+      )}
+
       {loads.length === 0 ? (
         <div className="panel p-8 text-center">
           <p className="text-[15px] font-medium">Пока пусто</p>
@@ -60,6 +83,8 @@ export default async function Page() {
             вместе с аналитикой.
           </p>
         </div>
+      ) : view === 'board' ? (
+        <StatusBoard loads={loads} byId={byId} fallback={fallback} rateCons={rateCons} />
       ) : (
         <div className="flex flex-col gap-3">
           {groups.map(({ truck, loads }) => (
@@ -74,6 +99,76 @@ export default async function Page() {
         </div>
       )}
     </main>
+  )
+}
+
+function ViewTab({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className={`-mb-px border-b-2 px-3 py-2 text-[13px] font-medium transition-colors ${
+        active ? 'border-haul-500 text-white' : 'border-transparent text-white/55 hover:text-white/85'
+      }`}
+    >
+      {children}
+    </Link>
+  )
+}
+
+/** The color-coded dispatch board — every load in one glance, grouped by status
+ * instead of by driver, so "what's still quoted" or "what's in transit right now"
+ * doesn't require opening every driver's section to count. */
+function StatusBoard({
+  loads,
+  byId,
+  fallback,
+  rateCons,
+}: {
+  loads: LoadRecord[]
+  byId: Map<number, TruckRecord>
+  fallback: TruckRecord | undefined
+  rateCons: Map<number, number>
+}) {
+  const columns = STATUSES.map((status) => ({
+    status,
+    loads: loads.filter((l) => l.status === status),
+  })).filter((c) => c.loads.length > 0)
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {columns.map(({ status, loads }) => (
+        <section
+          key={status}
+          className={`panel border-t-2 p-3 ${COLUMN_ACCENT[status]}`}
+        >
+          <h2 className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-white/62">
+            {STATUS_LABEL[status]}
+            <span className="nums font-normal text-white/40">{loads.length}</span>
+          </h2>
+          <div className="flex flex-col gap-1.5">
+            {loads.map((load) => {
+              const truck = (load.truckId !== null ? byId.get(load.truckId) : undefined) ?? fallback
+              const r = truck ? calcLoad(load, truck) : null
+              return (
+                <div key={load.id} className="flex items-center gap-2 rounded-lg border border-white/6 p-2.5">
+                  <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
+                    <div className="truncate text-[13px] font-medium">
+                      {load.origin ?? '—'} → {load.destination ?? '—'}
+                    </div>
+                    <div className="mt-0.5 truncate text-[11px] text-white/55">
+                      {truck ? truckLabel(truck) : '—'}
+                      {r && ` · чистыми ${usd.format(r.net)}`}
+                    </div>
+                  </Link>
+                  <span className="nums shrink-0 text-[13px] font-bold">{usd.format(load.rate)}</span>
+                  {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      ))}
+    </div>
   )
 }
 
