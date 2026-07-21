@@ -5,6 +5,7 @@ import { confirmLogin, disconnectTelegram, startLogin, tgMedia, tgSend } from '@
 import { intakeDriverMedia, remindMissingPods, resolveTruckForChat } from '@/lib/tg-intake'
 import { activeLoadForTruck } from '@/lib/loads'
 import { classifyDocument } from '@/lib/ai-doc'
+import { autoInvoiceIfReady } from '@/lib/invoice'
 import { sql } from '@/lib/db'
 import { requireAdmin } from '@/lib/session'
 
@@ -89,6 +90,7 @@ export async function tgAttachToLoad(
     VALUES (${load.id}, ${truck.truckId}, ${kind},
             ${`${kind.toUpperCase()} #${truck.number} tg.${ext}`}, ${media.mime}, ${media.bytes.length},
             decode(${media.bytes.toString('hex')}, 'hex'))`
+  if (kind === 'pod') await autoInvoiceIfReady(load.id)
 
   revalidatePath(`/loads/${load.id}`)
   revalidatePath('/docs')

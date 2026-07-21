@@ -7,6 +7,7 @@ import { getSetting, setSetting } from './settings.ts'
 import { tgChatTruckMap, tgConnected, tgInboundMedia, tgSend } from './telegram.ts'
 import { activeLoadForTruck } from './loads.ts'
 import { classifyDocument } from './ai-doc.ts'
+import { autoInvoiceIfReady } from './invoice.ts'
 
 const digits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '')
 
@@ -80,6 +81,9 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
               ${`${kind.toUpperCase()} #${truck.number} tg.${ext}`}, ${m.mime}, ${m.bytes.length},
               decode(${hex}, 'hex'))`
     attached++
+    // A dispatcher only ever has POD/BOL/rate con, never an "invoice" of their own —
+    // the invoice is generated FROM the POD, so once it lands there's no manual step.
+    if (kind === 'pod') await autoInvoiceIfReady(load.id)
     // Acknowledge like a human dispatcher would — short, so the channel stays trusted.
     await tgSend(m.chatId, kind === 'pod' ? 'POD получил, спасибо 👍' : 'BOL получил, спасибо').catch(() => {})
   }

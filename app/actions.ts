@@ -10,7 +10,7 @@ import type { QrLoad } from '@/lib/qr-load'
 import type { TruckSettings } from '@/lib/profit'
 import { checkBroker, type BrokerCheck, type RcContext } from '@/lib/fmcsa'
 import { getLoad } from '@/lib/loads'
-import { buildInvoicePacket, type Company } from '@/lib/invoice'
+import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
 import { getSetting, setSetting } from '@/lib/settings'
 
 export async function vetBroker(
@@ -349,6 +349,9 @@ export async function uploadDocument(
     revalidatePath('/docs')
     if (truckId) revalidatePath(`/trucks/${truckId}`)
     if (loadId) revalidatePath(`/loads/${loadId}`)
+    // A dispatcher only ever has POD/BOL/rate con, never an "invoice" of their own —
+    // the invoice is generated FROM the POD, so once it lands there's no manual step.
+    if (loadId && kind === 'pod') await autoInvoiceIfReady(loadId)
     return { id: (rows[0] as { id: number }).id }
   } catch (e) {
     return { error: humanError(e) }
@@ -356,9 +359,11 @@ export async function uploadDocument(
 }
 
 export async function attachDocumentToLoad(docId: number, loadId: number): Promise<void> {
-  await sql`UPDATE documents SET load_id = ${loadId} WHERE id = ${docId} AND load_id IS NULL`
+  const rows = await sql`
+    UPDATE documents SET load_id = ${loadId} WHERE id = ${docId} AND load_id IS NULL RETURNING kind`
   revalidatePath(`/loads/${loadId}`)
   revalidatePath('/docs')
+  if ((rows[0] as { kind: string } | undefined)?.kind === 'pod') await autoInvoiceIfReady(loadId)
 }
 
 /**
