@@ -7,7 +7,8 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createLoadFromExistingRc } from '@/app/actions'
+import { createLoadFromExistingRc, deleteDocument } from '@/app/actions'
+import { DeleteButton } from '@/components/delete-button'
 import { notify } from '@/lib/notify'
 
 export type OrphanRc = { id: number; title: string; uploadedAt: string }
@@ -63,6 +64,12 @@ export function OrphanRateCons({ truckId, docs }: { truckId: number; docs: Orpha
             >
               {working === d.id ? 'Читаю ИИ…' : 'Создать груз'}
             </button>
+            <DeleteButton
+              action={deleteDocument}
+              id={d.id}
+              title={d.title}
+              note="лишний рейткон — переместится в корзину, груз из него уже не создать."
+            />
           </li>
         ))}
       </ul>
