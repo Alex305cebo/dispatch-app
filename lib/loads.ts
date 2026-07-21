@@ -105,6 +105,16 @@ export async function listReceivables(): Promise<Receivable[]> {
   })
 }
 
+/** Delivered but never invoiced — these were falling through the cracks entirely:
+ * invisible on the AR page until someone remembered to generate an invoice first,
+ * even though the money is just as owed the moment the load is delivered. */
+export async function listUninvoicedDelivered(): Promise<LoadRecord[]> {
+  const rows = (await sql`
+    SELECT * FROM loads WHERE status = 'delivered' AND invoiced_at IS NULL
+    ORDER BY created_at DESC`) as LoadRow[]
+  return rows.map(rowToLoad)
+}
+
 /** Paid loads, newest first — feeds the "Оплачено" tab on the AR page. */
 export async function listPaidLoads(): Promise<LoadRecord[]> {
   const rows = (await sql`SELECT * FROM loads WHERE paid_at IS NOT NULL ORDER BY paid_at DESC`) as LoadRow[]

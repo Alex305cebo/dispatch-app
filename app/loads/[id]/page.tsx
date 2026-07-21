@@ -47,17 +47,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <BackButton href="/loads" label="Грузы" />
 
-      {/* Broker's must-read instructions — first thing on the page, expanded by
-          default while unread, so it can't be missed under everything else. */}
-      <div className="mt-3">
-        <BrokerNotes
-          loadId={load.id}
-          notes={load.brokerNotes}
-          readAt={load.notesReadAt}
-          hasRc={!!rateConDoc}
-        />
-      </div>
-
       {/* ===== HERO: route, truck, status and the rate — one card, not four loose pieces ===== */}
       <section className="relative mt-3 overflow-hidden rounded-3xl border border-white/8 bg-gradient-to-b from-ink-800/80 to-ink-950 p-5 sm:p-8">
         <h1 className="text-[22px] font-semibold sm:text-[26px]">
@@ -104,6 +93,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <FleetMap markers={mapMarkers} routes={mapRoutes} height={280} />
         </section>
       )}
+
+      {/* Broker's must-read instructions — below the map, above the load's own
+          details, expanded by default while unread so it can't be missed. */}
+      <div className="mt-4">
+        <BrokerNotes
+          loadId={load.id}
+          notes={load.brokerNotes}
+          readAt={load.notesReadAt}
+          hasRc={!!rateConDoc}
+        />
+      </div>
 
       <section className="panel mt-4 p-5">
         <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-white/62">

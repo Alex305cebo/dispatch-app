@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { listPaidLoads, listReceivables, rateConByLoad, truckForLoad } from '@/lib/loads'
+import { listPaidLoads, listReceivables, listUninvoicedDelivered, rateConByLoad, truckForLoad } from '@/lib/loads'
 import { getCompany } from '@/lib/invoice'
 import { calcLoad, type Breakdown } from '@/lib/profit'
 import { usd } from '@/lib/fmt'
@@ -71,8 +71,9 @@ function Tab({ href, active, children }: { href: string; active: boolean; childr
 }
 
 async function Unpaid({ rateCons }: { rateCons: Map<number, number> }) {
-  const rec = await listReceivables()
+  const [rec, uninvoiced] = await Promise.all([listReceivables(), listUninvoicedDelivered()])
   const total = rec.reduce((s, r) => s + r.load.rate, 0)
+  const uninvoicedTotal = uninvoiced.reduce((s, l) => s + l.rate, 0)
   const overdue = rec.filter((r) => r.overdue)
   const buckets = {
     '0-30': rec.filter((r) => r.bucket === '0-30'),
@@ -97,10 +98,43 @@ async function Unpaid({ rateCons }: { rateCons: Map<number, number> }) {
         />
       </div>
 
+      {/* Delivered but never invoiced — these used to just vanish: not in this list
+          (no invoiced_at yet), not visible anywhere else either. */}
+      {uninvoiced.length > 0 && (
+        <div className="mb-5">
+          <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+            Доставлено, счёт не выставлен · {usd.format(uninvoicedTotal)}
+            <Info text="Груз довезли, но инвойс ещё не собран (это делается на странице груза) — эти деньги не попадают в возрастные корзины выше, пока инвойс не выставлен." />
+          </h2>
+          <div className="flex flex-col gap-2">
+            {uninvoiced.map((load) => (
+              <Link
+                key={load.id}
+                href={`/loads/${load.id}`}
+                className="panel flex items-center gap-4 p-4 border-warn-400/20"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[14px] font-medium">
+                    {load.origin ?? '—'} → {load.destination ?? '—'}
+                  </div>
+                  <div className="mt-0.5 text-[12px] text-white/60">
+                    {load.brokerMc ? `MC ${load.brokerMc} · ` : ''}собери инвойс на странице груза
+                  </div>
+                </div>
+                <span className="nums shrink-0 text-[15px] font-bold">{usd.format(load.rate)}</span>
+                {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {rec.length === 0 ? (
-        <p className="panel p-6 text-[13px] text-white/60">
-          Нет неоплаченных инвойсов. Собери инвойс на странице доставленного груза.
-        </p>
+        uninvoiced.length === 0 && (
+          <p className="panel p-6 text-[13px] text-white/60">
+            Нет неоплаченных инвойсов. Собери инвойс на странице доставленного груза.
+          </p>
+        )
       ) : (
         <div className="flex flex-col gap-2">
           {rec.map((r) => (

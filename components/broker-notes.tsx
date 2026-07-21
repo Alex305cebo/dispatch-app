@@ -201,16 +201,20 @@ export function BrokerNotes({
     <details
       ref={detailsRef}
       open={unread}
-      className={`group overflow-hidden rounded-2xl border ${
+      // A slight amber tint always, so this doesn't blend into the page even once
+      // read — stronger while unread, but no longer *blinking*: a whole-card opacity
+      // pulse read as an alarm/glitch. Only the small ring behind ⚠ animates now.
+      className={`group overflow-hidden rounded-2xl border transition-colors ${
         unread
-          ? 'animate-pulse border-warn-400/40 bg-warn-400/10 ring-1 ring-warn-400/25 group-open:animate-none'
-          : 'border-white/8 bg-ink-900/50'
+          ? 'border-warn-400/40 bg-warn-400/10 ring-1 ring-warn-400/25'
+          : 'border-warn-400/15 bg-warn-400/[0.03]'
       }`}
     >
       <summary className="flex cursor-pointer list-none items-center gap-2 p-3.5">
         {unread && (
-          <span className="shrink-0 text-warn-300" aria-hidden>
-            ⚠
+          <span className="relative flex size-4 shrink-0 items-center justify-center" aria-hidden>
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-warn-400/50" />
+            <span className="relative text-warn-300">⚠</span>
           </span>
         )}
         <span
