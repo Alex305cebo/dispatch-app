@@ -5,7 +5,7 @@ import { calcLoad } from '@/lib/profit'
 import { sql } from '@/lib/db'
 import { deliveryInfo } from '@/lib/geo-routing'
 import { fleetExpiryAlerts, truckPhotoFlags, truckTrailerNumbers } from '@/lib/maintenance'
-import { usd, usd2, driveTime } from '@/lib/fmt'
+import { usd, usd2, driveTime, weekStart } from '@/lib/fmt'
 import { StatusBadge } from '@/components/status'
 import { RateConButton } from '@/components/ratecon-button'
 import { DriverAvatar } from '@/components/driver-avatar'
@@ -71,12 +71,12 @@ export default async function Page() {
   const avgRpm = totalMiles > 0 ? rows.reduce((s, x) => s + x.r.gross, 0) / totalMiles : 0
   const active = live.filter((l) => l.status === 'booked' || l.status === 'in_transit').length
 
-  // Per-truck gross (rate) booked in the last 7 days — replaces the useless HOS % in
-  // the fleet list now that HOS isn't wired up.
-  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+  // Per-truck gross (rate) booked this calendar week (Mon–Mon) — replaces the useless
+  // HOS % in the fleet list now that HOS isn't wired up.
+  const weekBegin = weekStart()
   const weekGrossByTruck = new Map<number, number>()
   for (const l of live) {
-    if (l.truckId == null || new Date(l.createdAt).getTime() < weekAgo) continue
+    if (l.truckId == null || new Date(l.createdAt).getTime() < weekBegin) continue
     weekGrossByTruck.set(l.truckId, (weekGrossByTruck.get(l.truckId) ?? 0) + l.rate)
   }
 

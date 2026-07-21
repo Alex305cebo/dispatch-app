@@ -3,7 +3,7 @@ import { listLoads, listTrucks } from '@/lib/loads'
 import { truckLabel } from '@/lib/map'
 import { getCompany } from '@/lib/invoice'
 import { truckPhotoFlags, truckTrailerNumbers } from '@/lib/maintenance'
-import { usd } from '@/lib/fmt'
+import { usd, weekStart } from '@/lib/fmt'
 import { DriverAvatar } from '@/components/driver-avatar'
 
 export const dynamic = 'force-dynamic'
@@ -17,14 +17,14 @@ export default async function Page() {
   ])
   // Per-truck loads in parallel — the whole point is strict separation, so each
   // truck's money is computed only from its own loads.
-  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+  const weekBegin = weekStart()
   const perTruck = await Promise.all(
     trucks.map(async (t) => {
       const loads = (await listLoads({ truckId: t.id })).filter((l) => l.status !== 'cancelled')
       // The card headline is the week's total rate (gross) — the number the owner
-      // watches — not net. Scoped to loads booked in the last 7 days.
+      // watches — not net. Scoped to this calendar week (Mon–Mon).
       const weekGross = loads
-        .filter((l) => new Date(l.createdAt).getTime() >= weekAgo)
+        .filter((l) => new Date(l.createdAt).getTime() >= weekBegin)
         .reduce((s, l) => s + l.rate, 0)
       return {
         truck: t,

@@ -13,7 +13,7 @@ import {
 } from '@/lib/maintenance'
 import { tripHistory } from '@/lib/eld'
 import { loadMapData, statusTone } from '@/lib/load-map'
-import { usd, usd2 } from '@/lib/fmt'
+import { usd, usd2, weekStart } from '@/lib/fmt'
 import { FleetMap } from '@/components/fleet-map'
 import { StatusBadge } from '@/components/status'
 import { TruckForm } from '@/components/truck-form'
@@ -70,10 +70,10 @@ export default async function Page({
   const totalMiles = rows.reduce((s, x) => s + x.r.totalMiles, 0)
   const avgRpm = totalMiles > 0 ? rows.reduce((s, x) => s + x.r.gross, 0) / totalMiles : 0
   const active = live.filter((l) => l.status === 'booked' || l.status === 'in_transit').length
-  // Replaces the HOS chip: what this truck actually booked in the last 7 days.
-  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+  // Replaces the HOS chip: what this truck actually booked this calendar week (Mon–Mon).
+  const weekBegin = weekStart()
   const weekGross = live
-    .filter((l) => new Date(l.createdAt).getTime() >= weekAgo)
+    .filter((l) => new Date(l.createdAt).getTime() >= weekBegin)
     .reduce((s, l) => s + l.rate, 0)
   const openTodos = todos.filter((t) => !t.doneAt).length
   const oil = oilStatus(meta, fs?.odometer ?? null)
@@ -101,34 +101,46 @@ export default async function Page({
       <section className="relative mt-3 overflow-hidden rounded-3xl border border-white/8 bg-gradient-to-b from-ink-800/80 to-ink-950 px-4 pt-5 pb-4 sm:px-8">
         <div className="text-center">
           <h1 className="text-[26px] font-bold leading-none">{truck.number ?? truck.name}</h1>
-          {meta?.trailerNumber && (
-            <p className="mt-1 text-[13px] text-white/55">Трейлер {meta.trailerNumber}</p>
-          )}
-          <p className="mt-1 text-[14px] text-white/70">{truck.driverName || 'Без водителя'}</p>
-          {/* Driver contact — the number a dispatcher actually needs at hand. */}
-          {meta?.driverPhone ? (
-            <a
-              href={`tel:${meta.driverPhone}`}
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-white/8 px-3 py-1 text-[13px] font-medium text-white/85 transition-colors hover:bg-white/12"
-            >
-              📞 {meta.driverPhone}
-            </a>
-          ) : (
-            <p className="mt-1.5 text-[12px] text-white/40">
-              ☎ телефон не указан — заполни ниже, в блоке «Водитель»
-            </p>
-          )}
+
+          {/* One wrapping row instead of a stack of full-width lines — trailer,
+              driver, phone and live GPS all read as one compact block on any width,
+              wrapping to extra lines on narrow phones instead of stretching tall. */}
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1.5 text-[13px]">
+            {meta?.trailerNumber && (
+              <>
+                <span className="text-white/55">Трейлер {meta.trailerNumber}</span>
+                <span aria-hidden className="text-white/25">·</span>
+              </>
+            )}
+            <span className="font-medium text-white/85">{truck.driverName || 'Без водителя'}</span>
+            <span aria-hidden className="text-white/25">·</span>
+            {/* Driver contact — the number a dispatcher actually needs at hand. */}
+            {meta?.driverPhone ? (
+              <a
+                href={`tel:${meta.driverPhone}`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1 font-medium text-white/85 transition-colors hover:bg-white/12"
+              >
+                📞 {meta.driverPhone}
+              </a>
+            ) : (
+              <span className="text-white/40">☎ не указан</span>
+            )}
+            {fs?.location && (
+              <>
+                <span aria-hidden className="text-white/25">·</span>
+                <span className={toneClass[statusTone(fs.driveStatus)]}>
+                  📍 {fs.location}
+                  {fs.driveStatus && ` · ${fs.driveStatus}`}
+                </span>
+              </>
+            )}
+          </div>
+
           {(meta?.vin || meta?.plate) && (
             <p className="mt-1.5 text-[11px] text-white/45">
               {[meta.plate && `Номер ${meta.plate}`, meta.vin && `VIN ${meta.vin}`]
                 .filter(Boolean)
                 .join(' · ')}
-            </p>
-          )}
-          {fs?.location && (
-            <p className={`mt-1.5 text-[13px] ${toneClass[statusTone(fs.driveStatus)]}`}>
-              📍 {fs.location}
-              {fs.driveStatus && ` · ${fs.driveStatus}`}
             </p>
           )}
         </div>
@@ -141,13 +153,13 @@ export default async function Page({
 
         {/* Info ring — the truck's numbers at a glance. */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Chip label="Чистыми" value={usd.format(totalNet)} tone={totalNet >= 0 ? 'good' : 'bad'} />
-          <Chip label="Ставка/миля" value={`${usd2.format(avgRpm)}`} />
           <Chip
             label="Рейт за неделю"
             value={usd.format(weekGross)}
             tone={weekGross > 0 ? 'good' : undefined}
           />
+          <Chip label="Чистыми" value={usd.format(totalNet)} tone={totalNet >= 0 ? 'good' : 'bad'} />
+          <Chip label="Ставка/миля" value={`${usd2.format(avgRpm)}`} />
           <Chip
             label="Масло через"
             value={oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—'}

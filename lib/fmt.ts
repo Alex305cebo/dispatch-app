@@ -20,6 +20,17 @@ export function driveTime(min: number): string {
   return h > 0 ? `${h}ч ${m}м` : `${m}м`
 }
 
+/** Midnight of this week's Monday — "за неделю" stats reset on the calendar week,
+ * not a rolling 7 days from whenever the page happens to load. */
+export function weekStart(): number {
+  const now = new Date()
+  const sinceMonday = (now.getDay() + 6) % 7 // Mon=0, Tue=1, ..., Sun=6
+  const monday = new Date(now)
+  monday.setHours(0, 0, 0, 0)
+  monday.setDate(monday.getDate() - sinceMonday)
+  return monday.getTime()
+}
+
 /** Timestamp → "5 мин назад" / "2 ч назад" / "18.07" once it's a day+ stale. */
 export function agoText(iso: string | Date): string {
   const d = typeof iso === 'string' ? new Date(iso) : iso
