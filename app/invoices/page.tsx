@@ -84,7 +84,11 @@ async function Unpaid({ rateCons }: { rateCons: Map<number, number> }) {
   return (
     <>
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Ждём всего" value={usd.format(total)} />
+        <Stat
+          label="Ждём всего"
+          value={usd.format(total + uninvoicedTotal)}
+          info={uninvoicedTotal > 0 ? `Включая ${usd.format(uninvoicedTotal)} без выставленного счёта` : undefined}
+        />
         <Stat label="0–30 дн." value={usd.format(buckets['0-30'].reduce((s, r) => s + r.load.rate, 0))} />
         <Stat
           label="31–45 дн."
@@ -222,7 +226,17 @@ async function Paid({ rateCons }: { rateCons: Map<number, number> }) {
   )
 }
 
-function Stat({ label, value, tone }: { label: string; value: string; tone?: 'warn' | 'bad' }) {
+function Stat({
+  label,
+  value,
+  tone,
+  info,
+}: {
+  label: string
+  value: string
+  tone?: 'warn' | 'bad'
+  info?: string
+}) {
   return (
     <div className="panel px-4 py-3">
       <div
@@ -232,7 +246,10 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'wa
       >
         {value}
       </div>
-      <div className="mt-0.5 text-[10px] uppercase tracking-wider text-white/62">{label}</div>
+      <div className="mt-0.5 flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/62">
+        {label}
+        {info && <Info text={info} />}
+      </div>
     </div>
   )
 }
