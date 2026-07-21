@@ -62,6 +62,7 @@ export function TruckCare({
   todos,
   currentOdometer,
   oil,
+  docs,
 }: {
   truckId: number
   meta: TruckMeta | null
@@ -69,6 +70,9 @@ export function TruckCare({
   todos: TruckTodo[]
   currentOdometer: number | null
   oil: { milesLeft: number; tone: 'good' | 'warn' | 'bad' } | null
+  /** This truck's documents (already fetched for the Документы section) — reused
+   * here to find each repair's own attached receipt, keyed by maintenance_id. */
+  docs: { id: number; maintenanceId: number | null }[]
 }) {
   const router = useRouter()
   const [pending, start] = useTransition()
@@ -121,14 +125,15 @@ export function TruckCare({
     })
 
   /** Attach a document to one specific repair row — same documents pipeline as the
-   * generic uploader above, just titled after the record so it's identifiable in
-   * the truck's Документы section and the general /docs library. */
-  function attachReceipt(file: File | undefined, recordTitle: string) {
+   * generic uploader above, linked back to this exact record (maintenanceId) so the
+   * row can open its own receipt instead of just filing it under the truck. */
+  function attachReceipt(file: File | undefined, recordTitle: string, maintenanceId: number) {
     if (!file) return
     const fd = new FormData()
     fd.append('file', file)
     fd.append('kind', 'repair')
     fd.append('truckId', String(truckId))
+    fd.append('maintenanceId', String(maintenanceId))
     fd.append('title', `${recordTitle} — чек`)
     start(async () => {
       const res = await uploadDocument(fd)
@@ -437,44 +442,69 @@ export function TruckCare({
           <p className="mt-3 text-[13px] text-white/55">Записей пока нет.</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-1.5">
-            {records.map((r) => (
-              <li key={r.id} className="rounded-lg border border-white/6 px-3 py-2">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-[14px] text-white/85">{r.title}</span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    <span className="nums text-[13px] text-white/70">
-                      {r.cost !== null ? usd.format(r.cost) : ''}
-                    </span>
-                    <label
-                      title="Прикрепить документ"
-                      className={`flex size-6 cursor-pointer items-center justify-center rounded-md bg-white/8 text-[13px] text-white/70 transition-colors hover:bg-white/16 hover:text-haul-400 ${pending ? 'opacity-40' : ''}`}
-                    >
-                      📎
-                      <input
-                        type="file"
-                        accept="application/pdf,image/*"
-                        className="hidden"
-                        disabled={pending}
-                        onChange={(e) => {
-                          attachReceipt(e.target.files?.[0], r.title)
-                          e.target.value = ''
-                        }}
+            {records.map((r) => {
+              // Most recently attached receipt for THIS record, if any — real link
+              // via maintenance_id, not a fuzzy title match.
+              const receipt = docs.filter((d) => d.maintenanceId === r.id).at(-1)
+              return (
+                <li key={r.id} className="rounded-lg border border-white/6 px-3 py-2">
+                  <div className="flex items-baseline justify-between gap-3">
+                    {receipt ? (
+                      <a
+                        href={`/view/${receipt.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Открыть чек"
+                        className="text-[14px] text-white/85 hover:text-haul-400 hover:underline"
+                      >
+                        {r.title}
+                      </a>
+                    ) : (
+                      <span className="text-[14px] text-white/85">{r.title}</span>
+                    )}
+                    <span className="flex shrink-0 items-center gap-2">
+                      <span className="nums text-[13px] text-white/70">
+                        {r.cost !== null ? usd.format(r.cost) : ''}
+                      </span>
+                      <label
+                        title="Прикрепить документ"
+                        className={`flex size-6 cursor-pointer items-center justify-center rounded-md bg-white/8 text-[13px] text-white/70 transition-colors hover:bg-white/16 hover:text-haul-400 ${pending ? 'opacity-40' : ''}`}
+                      >
+                        📎
+                        <input
+                          type="file"
+                          accept="application/pdf,image/*"
+                          className="hidden"
+                          disabled={pending}
+                          onChange={(e) => {
+                            attachReceipt(e.target.files?.[0], r.title, r.id)
+                            e.target.value = ''
+                          }}
+                        />
+                      </label>
+                      <DeleteButton
+                        action={(id, who, pin) => deleteMaintenance(id, truckId, who, pin)}
+                        id={r.id}
+                        title={r.title}
                       />
-                    </label>
-                    <DeleteButton
-                      action={(id, who, pin) => deleteMaintenance(id, truckId, who, pin)}
-                      id={r.id}
-                      title={r.title}
-                    />
-                  </span>
-                </div>
-                <div className="mt-0.5 text-[12px] text-white/50">
-                  {KIND_LABEL[r.kind]} · {r.doneAt}
-                  {r.odometer !== null && ` · ${Math.round(r.odometer).toLocaleString('en-US')} mi`}
-                  {r.notes && ` · ${r.notes}`}
-                </div>
-              </li>
-            ))}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 text-[12px] text-white/50">
+                    {KIND_LABEL[r.kind]} · {r.doneAt}
+                    {r.odometer !== null && ` · ${Math.round(r.odometer).toLocaleString('en-US')} mi`}
+                    {r.notes && ` · ${r.notes}`}
+                    {receipt && (
+                      <>
+                        {' · '}
+                        <a href={`/view/${receipt.id}`} target="_blank" rel="noreferrer" className="text-haul-400 hover:underline">
+                          📄 чек
+                        </a>
+                      </>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
           </ul>
         )}
       </section>

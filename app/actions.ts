@@ -333,8 +333,8 @@ export async function saveTruck(
 const MAX_DOC_BYTES = 8 * 1024 * 1024
 
 /**
- * FormData: file, kind, title?, truckId?, loadId?. Returns the new id so the RC
- * import can attach the document to the load it creates a moment later.
+ * FormData: file, kind, title?, truckId?, loadId?, maintenanceId?. Returns the new
+ * id so the RC import can attach the document to the load it creates a moment later.
  */
 export async function uploadDocument(
   fd: FormData,
@@ -347,13 +347,14 @@ export async function uploadDocument(
   const title = String(fd.get('title') || '').trim() || file.name
   const truckId = fd.get('truckId') ? Number(fd.get('truckId')) : null
   const loadId = fd.get('loadId') ? Number(fd.get('loadId')) : null
+  const maintenanceId = fd.get('maintenanceId') ? Number(fd.get('maintenanceId')) : null
   // Hex round-trip: Neon's HTTP driver JSON-encodes params, raw bytes don't survive.
   const hex = Buffer.from(await file.arrayBuffer()).toString('hex')
 
   try {
     const rows = await sql`
-      INSERT INTO documents (truck_id, load_id, kind, title, mime, size_bytes, data)
-      VALUES (${truckId}, ${loadId}, ${kind}, ${title},
+      INSERT INTO documents (truck_id, load_id, maintenance_id, kind, title, mime, size_bytes, data)
+      VALUES (${truckId}, ${loadId}, ${maintenanceId}, ${kind}, ${title},
               ${file.type || 'application/octet-stream'}, ${file.size}, decode(${hex}, 'hex'))
       RETURNING id`
     revalidatePath('/docs')

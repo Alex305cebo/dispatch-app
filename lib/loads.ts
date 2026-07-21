@@ -13,20 +13,21 @@ import type { DocMeta, DocLibRow } from './docs.ts'
 /** Document metadata (the bytea itself only leaves the DB via /api/docs/[id]). */
 export async function listDocs(filter?: { truckId?: number; loadId?: number }): Promise<DocMeta[]> {
   const rows = filter?.loadId
-    ? await sql`SELECT id, truck_id, load_id, kind, title, mime, size_bytes, uploaded_at, deleted_at
+    ? await sql`SELECT id, truck_id, load_id, maintenance_id, kind, title, mime, size_bytes, uploaded_at, deleted_at
                 FROM documents WHERE load_id = ${filter.loadId} AND deleted_at IS NULL
                 ORDER BY uploaded_at DESC`
     : filter?.truckId
-      ? await sql`SELECT id, truck_id, load_id, kind, title, mime, size_bytes, uploaded_at, deleted_at
+      ? await sql`SELECT id, truck_id, load_id, maintenance_id, kind, title, mime, size_bytes, uploaded_at, deleted_at
                   FROM documents WHERE truck_id = ${filter.truckId} AND deleted_at IS NULL
                   ORDER BY uploaded_at DESC`
-      : await sql`SELECT id, truck_id, load_id, kind, title, mime, size_bytes, uploaded_at, deleted_at
+      : await sql`SELECT id, truck_id, load_id, maintenance_id, kind, title, mime, size_bytes, uploaded_at, deleted_at
                   FROM documents WHERE deleted_at IS NULL ORDER BY uploaded_at DESC LIMIT 200`
   /* eslint-disable @typescript-eslint/no-explicit-any */
   return rows.map((r: any) => ({
     id: r.id,
     truckId: r.truck_id,
     loadId: r.load_id,
+    maintenanceId: r.maintenance_id,
     kind: r.kind,
     title: r.title,
     mime: r.mime,
@@ -41,7 +42,8 @@ export async function listDocs(filter?: { truckId?: number; loadId?: number }): 
  *  when the doc itself has no truck_id (COALESCE). */
 export async function listDocsForLibrary(): Promise<DocLibRow[]> {
   const rows = await sql`
-    SELECT d.id, d.truck_id, d.load_id, d.kind, d.title, d.mime, d.size_bytes, d.uploaded_at, d.deleted_at,
+    SELECT d.id, d.truck_id, d.load_id, d.maintenance_id, d.kind, d.title, d.mime, d.size_bytes,
+           d.uploaded_at, d.deleted_at,
            COALESCE(d.truck_id, l.truck_id) AS group_truck_id,
            tt.number AS truck_number, tt.driver_name,
            l.origin, l.destination
@@ -57,7 +59,8 @@ export async function listDocsForLibrary(): Promise<DocLibRow[]> {
 /** Trashed documents, most-recently-deleted first — restore or purge for good. */
 export async function listTrashedDocs(): Promise<DocLibRow[]> {
   const rows = await sql`
-    SELECT d.id, d.truck_id, d.load_id, d.kind, d.title, d.mime, d.size_bytes, d.uploaded_at, d.deleted_at,
+    SELECT d.id, d.truck_id, d.load_id, d.maintenance_id, d.kind, d.title, d.mime, d.size_bytes,
+           d.uploaded_at, d.deleted_at,
            COALESCE(d.truck_id, l.truck_id) AS group_truck_id,
            tt.number AS truck_number, tt.driver_name,
            l.origin, l.destination
@@ -76,6 +79,7 @@ function rowToDocLibRow(r: any): DocLibRow {
     id: r.id,
     truckId: r.truck_id,
     loadId: r.load_id,
+    maintenanceId: r.maintenance_id,
     kind: r.kind,
     title: r.title,
     mime: r.mime,

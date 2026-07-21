@@ -279,6 +279,10 @@ ALTER TABLE documents ADD CONSTRAINT documents_kind_check
 -- only deleting again FROM the trash is unrecoverable.
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
+-- A repair receipt uploaded from the maintenance log — real link back to the
+-- specific record, not just a matching title, so the row can open its own receipt.
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS maintenance_id INTEGER REFERENCES truck_maintenance(id);
+
 -- Broker vetting cache (FMCSA lookup by MC) + basis for our own pay history.
 CREATE TABLE IF NOT EXISTS brokers (
   mc                TEXT PRIMARY KEY,

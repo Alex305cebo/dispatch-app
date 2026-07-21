@@ -17,6 +17,8 @@ export type DocMeta = {
   id: number
   truckId: number | null
   loadId: number | null
+  /** Set when this doc is a repair receipt uploaded from that specific log row. */
+  maintenanceId: number | null
   kind: DocKind
   title: string
   mime: string

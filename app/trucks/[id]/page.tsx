@@ -364,6 +364,7 @@ export default async function Page({
           todos={todos}
           currentOdometer={fs?.odometer ?? null}
           oil={oil}
+          docs={docs}
         />
       </div>
       {openTodos > 0 && (
