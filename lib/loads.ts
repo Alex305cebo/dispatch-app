@@ -105,6 +105,12 @@ export async function listReceivables(): Promise<Receivable[]> {
   })
 }
 
+/** Paid loads, newest first — feeds the "Оплачено" tab on the AR page. */
+export async function listPaidLoads(): Promise<LoadRecord[]> {
+  const rows = (await sql`SELECT * FROM loads WHERE paid_at IS NOT NULL ORDER BY paid_at DESC`) as LoadRow[]
+  return rows.map(rowToLoad)
+}
+
 /**
  * loadId → id of that load's rate con document (newest one, if it has several).
  * Lets every load list show an "open the rate con" button without an N+1 query.

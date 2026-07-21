@@ -106,8 +106,9 @@ export function InvoiceBox({
   )
 }
 
-/** Mark-paid toggle used in the AR list. */
-export function PaidToggle({ loadId }: { loadId: number }) {
+/** Mark-paid toggle used in the AR list — also doubles as the "Оплачено" tab's
+ * undo (paid=true flips it back to unpaid instead). */
+export function PaidToggle({ loadId, paid = false }: { loadId: number; paid?: boolean }) {
   const router = useRouter()
   const [pending, start] = useTransition()
   return (
@@ -115,14 +116,18 @@ export function PaidToggle({ loadId }: { loadId: number }) {
       disabled={pending}
       onClick={() =>
         start(async () => {
-          await markPaid(loadId, true)
-          notify('ok', 'Оплачено')
+          await markPaid(loadId, !paid)
+          notify('ok', paid ? 'Отметка снята' : 'Оплачено')
           router.refresh()
         })
       }
-      className="shrink-0 rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-50"
+      className={`shrink-0 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-50 ${
+        paid
+          ? 'border border-white/10 text-white/60 hover:border-white/25 hover:text-white'
+          : 'bg-haul-500 hover:bg-haul-400'
+      }`}
     >
-      Оплачено
+      {paid ? 'Снять отметку' : 'Оплачено'}
     </button>
   )
 }
