@@ -66,15 +66,18 @@ export default async function Page({
 
   const live = loads.filter((l) => l.status !== 'cancelled')
   const rows = live.map((l) => ({ load: l, r: calcLoad(l, truck) }))
-  const totalNet = rows.reduce((s, x) => s + x.r.net, 0)
-  const totalMiles = rows.reduce((s, x) => s + x.r.totalMiles, 0)
-  const avgRpm = totalMiles > 0 ? rows.reduce((s, x) => s + x.r.gross, 0) / totalMiles : 0
   const active = live.filter((l) => l.status === 'booked' || l.status === 'in_transit').length
-  // Replaces the HOS chip: what this truck actually booked this calendar week (Mon–Mon).
+
+  // The hero chips are all "this truck's week at a glance" — Чистыми/Ставка-миля
+  // must come from the SAME loads as Рейт за неделю, or net (from every active
+  // load ever) reads as bigger than gross (from just this week), which looks like
+  // the math is broken even though each number was individually correct.
   const weekBegin = weekStart()
-  const weekGross = live
-    .filter((l) => new Date(l.createdAt).getTime() >= weekBegin)
-    .reduce((s, l) => s + l.rate, 0)
+  const weekRows = rows.filter((x) => new Date(x.load.createdAt).getTime() >= weekBegin)
+  const weekGross = weekRows.reduce((s, x) => s + x.load.rate, 0)
+  const totalNet = weekRows.reduce((s, x) => s + x.r.net, 0)
+  const weekMiles = weekRows.reduce((s, x) => s + x.r.totalMiles, 0)
+  const avgRpm = weekMiles > 0 ? weekRows.reduce((s, x) => s + x.r.gross, 0) / weekMiles : 0
   const openTodos = todos.filter((t) => !t.doneAt).length
   const oil = oilStatus(meta, fs?.odometer ?? null)
 
