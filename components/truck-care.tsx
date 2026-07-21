@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import {
   addMaintenance,
   addTodo,
+  deleteTodo,
   saveTruckMeta,
   toggleTodo,
   type MaintenanceInput,
@@ -248,11 +249,12 @@ export function TruckCare({
         </section>
       )}
 
-      {/* To-fix list */}
+      {/* To-fix list + maintenance log — one card: what's still broken, and what's
+          already been fixed, are the same ongoing story for this truck. */}
       <section className="panel p-4">
         <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
           Нужно починить
-          <Info text="Список того, что на траке надо починить или заменить. Впиши, выбери срочность (срочное — красным) и жми +. Отмечай галочкой сделанное. Количество открытых задач показано в шапке трака." />
+          <Info text="Список того, что на траке надо починить или заменить. Впиши, выбери срочность (срочное — красным) и жми +. Отмечай галочкой сделанное, ✕ — удалить. Количество открытых задач показано в шапке трака." />
         </h2>
 
         <div className="mt-3 flex gap-2">
@@ -310,15 +312,22 @@ export function TruckCare({
                     {PRIO_LABEL[t.priority]}
                   </span>
                 )}
+                <button
+                  disabled={pending}
+                  onClick={() => run(() => deleteTodo(t.id, truckId), 'Удалено')}
+                  title="Удалить"
+                  className="shrink-0 text-white/35 transition-colors hover:text-bad-400 disabled:opacity-40"
+                >
+                  ✕
+                </button>
               </li>
             ))}
           </ul>
         )}
-      </section>
 
-      {/* Maintenance log */}
-      <section className="panel p-4">
-        <div className="flex items-center justify-between gap-3">
+        {/* Maintenance log — same card as "Нужно починить": one ongoing story of
+            what's broken and what's already been fixed on this truck. */}
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/8 pt-4">
           <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
             Журнал ремонтов и обслуживания
             <Info text="История: что чинилось и обслуживалось, когда, за сколько и при каком пробеге. Тип «Обслуживание» + слово «масло» + одометр автоматически обновляет счётчик замены масла выше." />

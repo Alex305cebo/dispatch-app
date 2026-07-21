@@ -634,6 +634,11 @@ export async function toggleTodo(id: number, truckId: number): Promise<void> {
   revalidatePath(`/trucks/${truckId}`)
 }
 
+export async function deleteTodo(id: number, truckId: number): Promise<void> {
+  await sql`DELETE FROM truck_todos WHERE id = ${id}`
+  revalidatePath(`/trucks/${truckId}`)
+}
+
 export type TruckMetaInput = {
   vin: string
   plate: string
