@@ -178,7 +178,7 @@ export function LoginForm({ bootstrap }: { bootstrap: boolean }) {
             href="/demo"
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-haul-500/30 bg-haul-500/10 py-3 text-[14px] font-semibold text-haul-300 transition-colors hover:border-haul-500/50 hover:bg-haul-500/15 hover:text-haul-200"
           >
-            🧪 Посмотреть живое демо — без регистрации
+            {t(locale, 'login.demo')}
           </a>
         )}
       </form>

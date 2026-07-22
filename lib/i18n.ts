@@ -29,11 +29,15 @@ const DICT = {
     en: 'Sign in once and this device stays signed in. Do not enable it on a shared computer.',
   },
   'login.remember_off': {
-    ru: 'Вход только до закрытия браузера — при следующем заходе спросим PIN снова.',
-    en: 'Signed in only until you close the browser — we will ask for the PIN again next time.',
+    ru: 'Вход только до закрытия браузера — при следующем заходе спросим пароль снова.',
+    en: 'Signed in only until you close the browser — we will ask for your password again next time.',
   },
   'login.submit': { ru: 'Войти', en: 'Sign in' },
   'login.checking': { ru: 'Проверяю…', en: 'Checking…' },
+  'login.demo': {
+    ru: '🧪 Посмотреть живое демо — без регистрации',
+    en: '🧪 View live demo — no sign-up',
+  },
   'login.language': { ru: 'Язык', en: 'Language' },
 } as const
 
