@@ -4,10 +4,9 @@
 // SERVER ONLY.
 
 import 'server-only'
-import { cookies } from 'next/headers'
 import { sql } from './db.ts'
 import { getSetting, setSetting } from './settings.ts'
-import { createSession, SESSION_COOKIE } from './auth.ts'
+import { createSession } from './auth.ts'
 
 const DEMO_EMAIL = 'demo@dispatch4you.pro'
 const RESET_KEY = 'demo_last_reset'
@@ -351,22 +350,13 @@ async function demoDataIsStale(): Promise<boolean> {
 /**
  * Entry point for the public "Попробовать демо" link (app/demo/route.ts). Refreshes
  * the sandbox if it's gone stale (>24h since the last visitor's reset — nightly in
- * spirit, without needing an external cron), then signs the browser in as the shared
- * demo account. Every dispatcher who clicks the link sees the same fleet — simplest
- * thing that works for a public teaser, not meant to survive a real edit forever.
+ * spirit, without needing an external cron), then returns a session token for the
+ * shared demo account. The route sets it as a cookie ON the redirect response — not
+ * via next/headers here — so it reliably attaches behind the reverse proxy. Every
+ * dispatcher who clicks the link sees the same fleet.
  */
-export async function startDemoSession(): Promise<void> {
+export async function startDemoSession(): Promise<string> {
   const userId = await demoUserId()
   if (await demoDataIsStale()) await resetDemoData(userId)
-
-  const token = await createSession(userId)
-  const jar = await cookies()
-  jar.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    // Session-only cookie (no maxAge) — a demo visit shouldn't linger like a
-    // remembered real login.
-  })
+  return createSession(userId)
 }
