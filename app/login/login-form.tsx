@@ -30,7 +30,7 @@ export function LoginForm({ bootstrap }: { bootstrap: boolean }) {
   const [remember, setRemember] = useState(true)
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [locale, setLocale] = useState<Locale>('ru')
+  const [locale, setLocale] = useState<Locale>('en')
   const [pending, start] = useTransition()
 
   // Pick up any language chosen earlier (cookie).

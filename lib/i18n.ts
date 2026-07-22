@@ -6,9 +6,9 @@ export type Locale = 'ru' | 'en'
 export const LOCALES: Locale[] = ['ru', 'en']
 export const LOCALE_COOKIE = 'locale'
 
-/** Cookie value → Locale, defaulting to Russian for anything unexpected. */
+/** Cookie value → Locale, defaulting to English. Russian only when explicitly chosen. */
 export function resolveLocale(v: string | undefined | null): Locale {
-  return v === 'en' ? 'en' : 'ru'
+  return v === 'ru' ? 'ru' : 'en'
 }
 
 // key → { ru, en }. Grows as screens get translated; keys are dot-namespaced by area.

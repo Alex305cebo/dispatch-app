@@ -5,7 +5,7 @@
 export function DemoModeBanner() {
   return (
     <div className="fixed inset-x-0 top-0 z-40 flex items-center justify-center gap-2 bg-haul-500 px-3 py-1.5 text-center text-[12px] font-medium text-white md:pl-52">
-      🧪 Демо-режим — все данные ненастоящие, изменения не сохранятся навсегда.
+      🧪 ДЕМО-режим — все данные ненастоящие, изменения не сохранятся навсегда.
       <a href="/login" className="underline underline-offset-2 hover:no-underline">
         Войти в свой аккаунт →
       </a>
