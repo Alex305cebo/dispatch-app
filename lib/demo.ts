@@ -7,37 +7,11 @@ import 'server-only'
 import { sql } from './db.ts'
 import { getSetting, setSetting } from './settings.ts'
 import { createSession } from './auth.ts'
+import { DEMO_AVATARS_JPEG_BASE64 } from './demo-avatars.ts'
 
 const DEMO_EMAIL = 'demo@dispatch4you.pro'
 const RESET_KEY = 'demo_last_reset'
 const RESET_AFTER_MS = 24 * 60 * 60 * 1000
-
-// Flat-illustration portraits for the demo drivers. Real photos aren't available to
-// seed, and a plain-initials avatar everywhere reads as "empty demo" — a distinct
-// generated face per driver makes the sandbox feel like a real, populated fleet.
-// Stored as SVG bytes in driver_photo, served by /api/driver-photo like any upload.
-const AVATARS = [
-  { bg: ['#5b8def', '#2f5fd0'], skin: '#f1c8a0', hair: '#3a2a1c' },
-  { bg: ['#ff9a62', '#e35d3b'], skin: '#dca878', hair: '#171310' },
-  { bg: ['#45c8a0', '#2a9d78'], skin: '#f4d2b2', hair: '#5c3c20' },
-  { bg: ['#b483ff', '#8a4fd0'], skin: '#c99f79', hair: '#2b2b2b' },
-]
-
-function avatarSvg(i: number, id: string): string {
-  const a = AVATARS[i % AVATARS.length]!
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <defs><linearGradient id="bg${id}" x1="0" y1="0" x2="1" y2="1">
-    <stop offset="0" stop-color="${a.bg[0]}"/><stop offset="1" stop-color="${a.bg[1]}"/>
-  </linearGradient></defs>
-  <rect width="100" height="100" fill="url(#bg${id})"/>
-  <path d="M18 100c0-19 14-31 32-31s32 12 32 31z" fill="${a.skin}"/>
-  <circle cx="50" cy="44" r="21" fill="${a.skin}"/>
-  <path d="M29 45a21 21 0 0 1 42 0c3-6 1-25-21-25S26 39 29 45z" fill="${a.hair}"/>
-  <circle cx="43" cy="45" r="2.4" fill="#2a1e14"/>
-  <circle cx="57" cy="45" r="2.4" fill="#2a1e14"/>
-  <path d="M45 53q5 4 10 0" fill="none" stroke="#a86f4a" stroke-width="2" stroke-linecap="round"/>
-</svg>`
-}
 
 async function demoUserId(): Promise<number> {
   const rows = (await sql`SELECT id FROM users WHERE email = ${DEMO_EMAIL}`) as { id: number }[]
@@ -182,7 +156,10 @@ async function resetDemoData(dispatcherId: number): Promise<void> {
       RETURNING id`
     const id = (rows[0] as { id: number }).id
     truckIds.push(id)
-    const photoHex = Buffer.from(avatarSvg(i, t.number.slice(-3)), 'utf8').toString('hex')
+    const photoHex = Buffer.from(
+      DEMO_AVATARS_JPEG_BASE64[i % DEMO_AVATARS_JPEG_BASE64.length]!,
+      'base64',
+    ).toString('hex')
     await sql`
       INSERT INTO truck_meta (truck_id, driver_phone, trailer_number, vin, plate, year, make, model,
                               oil_last_odometer, registration_expiry, inspection_expiry,
@@ -190,7 +167,7 @@ async function resetDemoData(dispatcherId: number): Promise<void> {
       VALUES (${id}, ${t.phone}, ${'TR-' + t.number.slice(-3)}, ${t.vin}, ${t.plate}, ${t.year},
               ${t.make}, ${t.model}, ${t.oilLastOdometer}, ${t.registrationExpiry}, ${t.inspectionExpiry},
               ${t.insuranceExpiry}, ${t.cdlExpiry}, ${t.medcardExpiry},
-              decode(${photoHex}, 'hex'), 'image/svg+xml')`
+              decode(${photoHex}, 'hex'), 'image/jpeg')`
     // fleet_status is normally filled by the ELD poller (lib/eld.ts) — faking one row
     // per demo truck is what makes the map pin, live location and oil countdown (it
     // needs a CURRENT odometer, not just the last-change one) show up at all.
