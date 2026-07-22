@@ -257,6 +257,7 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
           source="qr"
           needsAttention={missingFields(fields)}
           docId={docId}
+          driverInfo={driverInfo}
         />
       </>
     )

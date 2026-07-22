@@ -11,6 +11,7 @@ import { activeAlert, type WeatherAlert } from '@/lib/weather'
 import { getSetting } from '@/lib/settings'
 import { agoText, driveTime } from '@/lib/fmt'
 import { Info } from '@/components/info'
+import { companyScope } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,7 +27,8 @@ type FS = {
 }
 
 export default async function Page() {
-  const trucks = await listTrucks()
+  const companyId = await companyScope()
+  const trucks = await listTrucks(companyId)
   const shareRaw = await getSetting('eld_share_tokens')
   const shareCount = shareRaw ? (JSON.parse(shareRaw) as string[]).length : 0
   const [rowsRaw, phoneRowsRaw] = await Promise.all([
@@ -50,7 +52,7 @@ export default async function Page() {
   const perTruck = await Promise.all(
     trucks.map(async (t) => {
       const fs = t.number ? byUnit.get(t.number) : undefined
-      const load = await currentLoadForTruck(t.id)
+      const load = await currentLoadForTruck(companyId, t.id)
       // Pickup is a fixed address, not relative to the truck — geocode it independent
       // of whether we have live GPS (unlike the route legs below, which route FROM
       // the truck's fix). Prefer the exact street address the RC printed; falls back
@@ -131,6 +133,7 @@ export default async function Page() {
           .filter(Boolean)
           .join('\n'),
         kind: 'pickup',
+        href: `/loads/${load.id}`,
       })
     }
 
@@ -158,6 +161,7 @@ export default async function Page() {
         label: `Delivery · ${load.destination}`,
         sub: load.origin ? `Из ${load.origin}` : undefined,
         kind: 'dest',
+        href: `/loads/${load.id}`,
       })
     }
     if (hasGps && fs) {
@@ -170,6 +174,7 @@ export default async function Page() {
         kind: 'truck',
         heading: heading ?? undefined,
         eta: legToDelivery ? `${totalMiles} mi · ~${driveTime(totalEtaMin)} до delivery` : undefined,
+        href: `/trucks/${t.id}`,
       })
     }
 
@@ -188,6 +193,7 @@ export default async function Page() {
       driveTimeText: legToDelivery ? driveTime(totalEtaMin) : null,
       weather: weather ? { event: weather.event, headline: weather.headline } : null,
       idleHours: idleHoursRaw !== null && idleHoursRaw >= 3 ? idleHoursRaw : null,
+      unavailable: t.unavailable,
     })
   }
 
@@ -196,10 +202,10 @@ export default async function Page() {
       <header className="mb-5">
         <h1 className="flex items-center gap-2 text-[17px] font-semibold">
           Трекинг
-          <Info side="bottom" text="Живая карта парка из ELD. На карте — где сейчас каждый трак и линия по дорогам до места выгрузки. В списке — статус (в движении/off/on), последняя локация, скорость и сколько осталось ехать до выгрузки. Координаты обновляются сами по Live Share ссылкам, бесплатно." />
+          <Info side="bottom" text="Живая карта парка. На карте — где сейчас каждый трак и линия по дорогам до места выгрузки. В списке — статус (в движении/off/on), последняя локация, скорость и сколько осталось ехать до выгрузки. Координаты обновляются автоматически." />
         </h1>
         <p className="text-[13px] text-white/65">
-          Где траки, куда едут и сколько осталось до выгрузки — живые данные из ELD.
+          Где траки, куда едут и сколько осталось до выгрузки — вживую.
         </p>
       </header>
 

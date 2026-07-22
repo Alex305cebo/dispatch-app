@@ -5,12 +5,12 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { tgSendMessage, verifyTgSendPin } from './actions'
+import { tgSendMessage, verifyTgSendPassword } from './actions'
 import { notify } from '@/lib/notify'
 
-// A message to a real driver can't be unsent — the PIN is a deliberate speed bump
-// (same shared PIN as guarded deletes), not per-message: once entered, sending stays
-// unlocked for a couple minutes so a real conversation doesn't need a PIN per line.
+// A message to a real driver can't be unsent — the password is a deliberate speed
+// bump (the dispatcher's own login password), not per-message: once entered, sending
+// stays unlocked for a couple minutes so a real conversation doesn't need it per line.
 const UNLOCK_MS = 2 * 60 * 1000
 const UNLOCK_KEY = 'tg_send_unlocked_until'
 
@@ -23,9 +23,9 @@ export function TgSendBox({ chatId }: { chatId: string }) {
   const [text, setText] = useState('')
   const [pending, start] = useTransition()
   const [confirming, setConfirming] = useState(false)
-  const [pin, setPin] = useState('')
-  const [pinError, setPinError] = useState<string | null>(null)
-  const [pinPending, startPin] = useTransition()
+  const [pw, setPw] = useState('')
+  const [pwError, setPwError] = useState<string | null>(null)
+  const [pwPending, startPw] = useTransition()
   const [unlockedUntil, setUnlockedUntil] = useState(0)
   const [now, setNow] = useState(0)
 
@@ -40,6 +40,15 @@ export function TgSendBox({ chatId }: { chatId: string }) {
     setNow(Date.now())
     return () => clearInterval(t)
   }, [])
+
+  // Escape always closes the confirm popover — a modal-ish thing must never be able to
+  // trap the user with no way out.
+  useEffect(() => {
+    if (!confirming) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setConfirming(false)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [confirming])
 
   // Poll while the chat is open — ~15s keeps it "live" without hammering Telegram.
   useEffect(() => {
@@ -66,16 +75,16 @@ export function TgSendBox({ chatId }: { chatId: string }) {
       send()
       return
     }
-    setPin('')
-    setPinError(null)
+    setPw('')
+    setPwError(null)
     setConfirming(true)
   }
 
   function confirmSend() {
-    startPin(async () => {
-      const res = await verifyTgSendPin(pin)
+    startPw(async () => {
+      const res = await verifyTgSendPassword(pw)
       if ('error' in res) {
-        setPinError(res.error)
+        setPwError(res.error)
         return
       }
       const until = Date.now() + UNLOCK_MS
@@ -104,12 +113,12 @@ export function TgSendBox({ chatId }: { chatId: string }) {
         <button
           disabled={pending || !text.trim()}
           onClick={trySend}
-          title={unlocked ? `Отправка разблокирована ещё ${remaining}с` : 'Нужен PIN для отправки'}
-          className={`relative shrink-0 rounded-xl px-4 text-[13px] font-semibold transition-colors disabled:opacity-40 ${
+          title={unlocked ? `Отправка разблокирована ещё ${remaining}с` : 'Отправить — сначала подтверди своим паролем'}
+          className={`relative shrink-0 rounded-xl px-4 text-[15px] font-semibold transition-colors disabled:opacity-40 ${
             unlocked ? 'bg-haul-500 hover:bg-haul-400' : 'bg-white/10 text-white/70 hover:bg-white/16'
           }`}
         >
-          {pending ? '…' : unlocked ? '➤' : '🔒'}
+          {pending ? '…' : '➤'}
           {unlocked && (
             <span className="nums absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-ink-950 px-1 text-[9px] text-white/50">
               {remaining}с
@@ -119,36 +128,37 @@ export function TgSendBox({ chatId }: { chatId: string }) {
       </div>
 
       {confirming && (
-        <div className="absolute inset-x-3 bottom-full z-10 mb-2 rounded-xl border border-white/10 bg-ink-900 p-3.5 shadow-2xl">
+        <div className="absolute inset-x-3 bottom-full z-10 mb-2 rounded-xl border border-white/10 bg-ink-900 p-3.5 pr-9 shadow-2xl">
+          <button
+            type="button"
+            aria-label="Закрыть"
+            onClick={() => setConfirming(false)}
+            className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full text-[15px] text-white/50 transition-colors hover:bg-white/10 hover:text-white/90"
+          >
+            ✕
+          </button>
           <p className="text-[12.5px] text-white/70">
-            Сообщение уйдёт водителю — отменить будет нельзя. Введи PIN, чтобы разблокировать отправку на 2 минуты:
+            Сообщение уйдёт водителю — отменить будет нельзя. Введи свой пароль (тот, которым входишь), чтобы разблокировать отправку на 2 минуты:
           </p>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <input
               autoFocus
               type="password"
-              inputMode="numeric"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && pin && confirmSend()}
-              placeholder="PIN"
-              className="w-24 rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-[14px] text-white outline-none focus:border-haul-500"
+              value={pw}
+              onChange={(e) => setPw(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && pw && confirmSend()}
+              placeholder="Твой пароль"
+              className="w-40 rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-[14px] text-white outline-none focus:border-haul-500"
             />
             <button
-              disabled={pinPending || !pin}
+              disabled={pwPending || !pw}
               onClick={confirmSend}
               className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
             >
-              {pinPending ? '…' : 'Разблокировать'}
-            </button>
-            <button
-              onClick={() => setConfirming(false)}
-              className="rounded-lg px-3 py-1.5 text-[12px] text-white/60 hover:text-white/85"
-            >
-              Отмена
+              {pwPending ? '…' : 'Разблокировать'}
             </button>
           </div>
-          {pinError && <p className="mt-1.5 text-[12px] text-bad-400">{pinError}</p>}
+          {pwError && <p className="mt-1.5 text-[12px] text-bad-400">{pwError}</p>}
         </div>
       )}
     </div>

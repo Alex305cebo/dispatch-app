@@ -265,7 +265,18 @@ export type TgDialog = {
   isUser: boolean
 }
 
-export type TgMsg = { id: number; out: boolean; text: string; at: string; media: 'image' | 'pdf' | 'other' | null }
+export type TgMsg = {
+  id: number
+  out: boolean
+  text: string
+  at: string
+  media: 'image' | 'pdf' | 'other' | null
+  // For document media (PDF/other): the real filename + size, and whether Telegram
+  // generated a page-1 thumbnail we can show as a mini preview.
+  fileName?: string
+  fileSize?: number
+  hasThumb?: boolean
+}
 
 function mediaKind(m: { media?: unknown }): TgMsg['media'] {
   if (!m.media) return null
@@ -274,6 +285,24 @@ function mediaKind(m: { media?: unknown }): TgMsg['media'] {
   if (mime === 'application/pdf') return 'pdf'
   if (mime.startsWith('image/')) return 'image'
   return 'other'
+}
+
+// A real (downloadable) thumbnail — PhotoStrippedSize is just inline blur bytes, not
+// something downloadMedia can fetch, so it doesn't count as a preview.
+const isRealThumb = (t: { className?: string }) =>
+  t.className === 'PhotoSize' || t.className === 'PhotoCachedSize'
+
+function mediaFile(m: { media?: unknown }): { name: string; size: number; hasThumb: boolean } | null {
+  const doc = (m.media as { document?: { attributes?: unknown[]; size?: unknown; thumbs?: unknown[] } })
+    ?.document
+  if (!doc) return null
+  const name =
+    ((doc.attributes ?? []).find(
+      (a): a is { className: string; fileName: string } =>
+        (a as { className?: string }).className === 'DocumentAttributeFilename',
+    )?.fileName) ?? ''
+  const thumbs = (doc.thumbs ?? []) as { className?: string }[]
+  return { name, size: Number(doc.size ?? 0), hasThumb: thumbs.some(isRealThumb) }
 }
 
 export async function tgDialogs(uid: number): Promise<TgDialog[]> {
@@ -308,27 +337,49 @@ export async function tgMessages(uid: number, chatId: string): Promise<TgMsg[]> 
     if (!d?.entity) throw new Error('Чат не найден среди последних диалогов.')
     const msgs = await client.getMessages(d.entity, { limit: 40 })
     return msgs
-      .map((m) => ({
-        id: m.id,
-        out: !!m.out,
-        text: m.message ?? '',
-        at: new Date(m.date * 1000).toISOString(),
-        media: mediaKind(m),
-      }))
+      .map((m) => {
+        const media = mediaKind(m)
+        const file = media === 'pdf' || media === 'other' ? mediaFile(m) : null
+        return {
+          id: m.id,
+          out: !!m.out,
+          text: m.message ?? '',
+          at: new Date(m.date * 1000).toISOString(),
+          media,
+          fileName: file?.name || undefined,
+          fileSize: file?.size || undefined,
+          hasThumb: file?.hasThumb || undefined,
+        }
+      })
       .reverse()
   })
 }
 
 /** On-demand download for one message's attachment — the chat view links here
  * instead of eagerly downloading every photo/PDF just to render the message list. */
-export async function tgMedia(uid: number, chatId: string, msgId: number): Promise<{ bytes: Buffer; mime: string } | null> {
+export async function tgMedia(
+  uid: number,
+  chatId: string,
+  msgId: number,
+  thumb = false,
+): Promise<{ bytes: Buffer; mime: string } | null> {
   return withClient(uid, async (client) => {
     const dialogs = await cachedDialogs(uid, client)
     const d = dialogs.find((x) => String(x.id) === chatId)
     if (!d?.entity) return null
     const [m] = await client.getMessages(d.entity, { ids: [msgId] })
     if (!m?.media) return null
-    const doc = (m.media as { document?: { mimeType?: string } }).document
+    const doc = (m.media as { document?: { mimeType?: string; thumbs?: { className?: string }[] } })
+      .document
+    if (thumb) {
+      // Grab the largest real (non-stripped) thumbnail — a page-1 preview of the PDF.
+      const thumbs = doc?.thumbs ?? []
+      let idx = -1
+      for (let i = 0; i < thumbs.length; i++) if (isRealThumb(thumbs[i]!)) idx = i
+      if (idx < 0) return null
+      const buf = (await client.downloadMedia(m, { thumb: idx })) as Buffer | undefined
+      return buf?.length ? { bytes: buf, mime: 'image/jpeg' } : null
+    }
     const mime = doc?.mimeType ?? 'image/jpeg'
     const buf = (await client.downloadMedia(m)) as Buffer | undefined
     return buf?.length ? { bytes: buf, mime } : null
@@ -350,12 +401,19 @@ export type InboundMedia = {
   msgId: number
   bytes: Buffer
   mime: string
+  /** True if the account owner (dispatcher) sent it, not the driver. */
+  mine: boolean
+  /** The message caption — drives keyword filing ("rate con" → rate con). */
+  text: string
 }
 
 /**
- * New inbound photos/PDFs across one account's driver chats, since each chat's
- * last-seen id. `since` maps chatId → last processed msg id. Only USER chats (not
- * groups).
+ * New photos/PDFs across one account's driver chats, since each chat's last-seen id.
+ * `since` maps chatId → last processed msg id. Only USER chats (not groups).
+ *
+ * Driver (inbound) media is always returned for auto-classification. The dispatcher's
+ * OWN (outbound) media is returned only when it carries a caption — the only reason to
+ * look at it is a keyword like "rate con", which needs a caption anyway.
  */
 export async function tgInboundMedia(uid: number, since: Record<string, number>): Promise<InboundMedia[]> {
   return withClient(uid, async (client) => {
@@ -368,13 +426,23 @@ export async function tgInboundMedia(uid: number, since: Record<string, number>)
       const last = since[chatId] ?? 0
       const msgs = await client.getMessages(d.entity, { limit: 15 })
       for (const m of msgs) {
-        if (m.out || m.id <= last || !m.media) continue
+        if (m.id <= last || !m.media) continue
+        if (m.out && !(m.message ?? '').trim()) continue // uncaptioned own photo — ignore
         // photo → jpeg; document → its own mime (skip stickers/video by mime).
         const doc = (m.media as any)?.document
         const mime: string = doc?.mimeType ?? 'image/jpeg'
         if (!/^image\/|^application\/pdf/.test(mime)) continue
         const buf = (await client.downloadMedia(m)) as Buffer | undefined
-        if (buf?.length) out.push({ chatId, phone: ent.phone ?? null, msgId: m.id, bytes: buf, mime })
+        if (buf?.length)
+          out.push({
+            chatId,
+            phone: ent.phone ?? null,
+            msgId: m.id,
+            bytes: buf,
+            mime,
+            mine: !!m.out,
+            text: m.message ?? '',
+          })
       }
     }
     return out

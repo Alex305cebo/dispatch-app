@@ -30,8 +30,12 @@ export type AdminUser = {
 
 export async function listUsers(): Promise<AdminUser[]> {
   await assertAdmin()
+  // The seeded public-demo account (lib/demo.ts) is a real row in this table so
+  // sessions/dispatcher_id work for it — but it's not a dispatcher anyone here
+  // manages, so it must never show up for a real admin to edit or get confused by.
   const rows = (await sql`
-    SELECT id, name, email, role, created_at, disabled_at FROM users ORDER BY created_at ASC`) as {
+    SELECT id, name, email, role, created_at, disabled_at FROM users
+    WHERE is_demo = FALSE ORDER BY created_at ASC`) as {
     id: number
     name: string
     email: string

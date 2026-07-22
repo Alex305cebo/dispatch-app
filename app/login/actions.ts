@@ -58,7 +58,7 @@ export async function bootstrapAdmin(
   if (!EMAIL_RE.test(email.trim())) return { error: 'Некорректный email.' }
   if (password.length < 8) return { error: 'Пароль — минимум 8 символов.' }
 
-  const existing = await sql`SELECT 1 FROM users LIMIT 1`
+  const existing = await sql`SELECT 1 FROM users WHERE is_demo = FALSE LIMIT 1`
   if (existing.length > 0) return { error: 'Аккаунт уже создан — используй форму входа.' }
 
   let userId: number

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import {
+  listLoads,
   listLoadsByDispatcher,
   listPaidLoads,
   listReceivables,
@@ -9,12 +10,13 @@ import {
   truckForLoad,
   type LoadWithDispatcher,
 } from '@/lib/loads'
+import type { LoadRecord } from '@/lib/map'
 import { getCompany } from '@/lib/invoice'
 import { calcLoad, type Breakdown } from '@/lib/profit'
 import { usd, mondayOf, weekLabel, weekStart } from '@/lib/fmt'
 import { truckLabel, type TruckRecord } from '@/lib/map'
 import { redirect } from 'next/navigation'
-import { getCurrentUser } from '@/lib/session'
+import { companyScope, getCurrentUser } from '@/lib/session'
 import { getSetting } from '@/lib/settings'
 import { can } from '@/lib/capabilities-server'
 import { CompanyForm, PaidToggle } from '@/components/invoice-actions'
@@ -27,6 +29,7 @@ const TAB_DESCRIPTION: Record<string, string> = {
   unpaid: 'Кто ещё не заплатил. Инвойс собирается на странице груза после загрузки POD.',
   paid: 'Уже оплаченные грузы и что каждый из них принёс.',
   dispatchers: 'Кто из диспетчеров сколько заработал по неделям, в разбивке по своим водителям.',
+  drivers: 'Зарплата водителей по неделям: грузы, мили и ставка по каждому — итог к выплате.',
 }
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
@@ -38,8 +41,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   const canReport = await can(user, 'dispatcher_report')
   const tabParam = (await searchParams).tab
   const tab =
-    tabParam === 'paid' ? 'paid' : tabParam === 'dispatchers' && canReport ? 'dispatchers' : 'unpaid'
-  const [company, rateCons] = await Promise.all([getCompany(), rateConByLoad()])
+    tabParam === 'paid'
+      ? 'paid'
+      : tabParam === 'drivers'
+        ? 'drivers'
+        : tabParam === 'dispatchers' && canReport
+          ? 'dispatchers'
+          : 'unpaid'
+  const companyId = await companyScope()
+  const [company, rateCons] = await Promise.all([getCompany(), rateConByLoad(companyId)])
 
   return (
     <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -53,6 +63,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
               (canReport
                 ? ' По диспетчерам — кто из диспетчеров сколько заработал по неделям вместе со своими водителями.'
                 : '') +
+              ' Водители — недельная ведомость зарплаты по каждому водителю (мили и ставка из экономики трака).' +
               ' Инвойс собирается на странице груза после загрузки POD.'
             }
           />
@@ -61,25 +72,30 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       </header>
 
       <div className="mb-5 flex gap-1.5 border-b border-white/8">
+        {canReport && (
+          <Tab href="/invoices?tab=dispatchers" active={tab === 'dispatchers'}>
+            По диспетчерам
+          </Tab>
+        )}
         <Tab href="/invoices" active={tab === 'unpaid'}>
           Не оплачено
         </Tab>
         <Tab href="/invoices?tab=paid" active={tab === 'paid'}>
           Оплачено
         </Tab>
-        {canReport && (
-          <Tab href="/invoices?tab=dispatchers" active={tab === 'dispatchers'}>
-            По диспетчерам
-          </Tab>
-        )}
+        <Tab href="/invoices?tab=drivers" active={tab === 'drivers'}>
+          Водители
+        </Tab>
       </div>
 
       {tab === 'unpaid' ? (
-        <Unpaid rateCons={rateCons} />
+        <Unpaid companyId={companyId} rateCons={rateCons} />
       ) : tab === 'paid' ? (
-        <Paid rateCons={rateCons} />
+        <Paid companyId={companyId} rateCons={rateCons} />
+      ) : tab === 'drivers' ? (
+        <ByDriver companyId={companyId} />
       ) : (
-        <ByDispatcher />
+        <ByDispatcher companyId={companyId} />
       )}
 
       <details className="panel mt-6 p-4" open={!company.name}>
@@ -93,6 +109,23 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           <CompanyForm initial={company} />
         </div>
       </details>
+
+      {/* IFTA — prototype/coming-soon. It needs full per-state GPS mileage history,
+          which we only keep for 7 days today, so this is a placeholder that sets the
+          expectation without ever showing a fake number. */}
+      <div className="mt-4 rounded-xl border border-dashed border-white/12 bg-white/[0.02] p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[13px] font-semibold text-white/80">⛽ IFTA — топливный налог по штатам</span>
+          <span className="rounded-full bg-haul-500/15 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-haul-400">
+            Скоро
+          </span>
+        </div>
+        <p className="mt-1.5 max-w-2xl text-[12.5px] leading-relaxed text-white/55">
+          Автоматический расчёт квартального топливного налога: мили по каждому штату из
+          GPS-истории траков × ставка штата, минус уплаченное на заправках — готовый отчёт
+          для подачи. В разработке — нужна полная история пробега по штатам. Появится здесь.
+        </p>
+      </div>
     </main>
   )
 }
@@ -110,8 +143,8 @@ function Tab({ href, active, children }: { href: string; active: boolean; childr
   )
 }
 
-async function Unpaid({ rateCons }: { rateCons: Map<number, number> }) {
-  const [rec, uninvoiced] = await Promise.all([listReceivables(), listUninvoicedDelivered()])
+async function Unpaid({ companyId, rateCons }: { companyId: 'default' | 'demo'; rateCons: Map<number, number> }) {
+  const [rec, uninvoiced] = await Promise.all([listReceivables(companyId), listUninvoicedDelivered(companyId)])
   const total = rec.reduce((s, r) => s + r.load.rate, 0)
   const uninvoicedTotal = uninvoiced.reduce((s, l) => s + l.rate, 0)
   const overdue = rec.filter((r) => r.overdue)
@@ -205,9 +238,9 @@ async function Unpaid({ rateCons }: { rateCons: Map<number, number> }) {
   )
 }
 
-async function Paid({ rateCons }: { rateCons: Map<number, number> }) {
-  const loads = await listPaidLoads()
-  const trucks = await Promise.all(loads.map((l) => truckForLoad(l)))
+async function Paid({ companyId, rateCons }: { companyId: 'default' | 'demo'; rateCons: Map<number, number> }) {
+  const loads = await listPaidLoads(companyId)
+  const trucks = await Promise.all(loads.map((l) => truckForLoad(companyId, l)))
   // Old/incomplete loads can be missing miles or transit days — calcLoad throws on
   // those rather than guess, so a paid row without clean economics just shows the
   // rate with no breakdown instead of taking the whole tab down.
@@ -282,10 +315,10 @@ type WeekBucket = { weekStartMs: number; dispatchers: Map<string, DispatcherBuck
  * "who earned what, with which driver, which week" in one place. Dispatcher is
  * whoever was actually signed in when the load was created (auto, not assigned by
  * hand) — loads from before this was tracked land under "Без диспетчера". */
-async function ByDispatcher() {
+async function ByDispatcher({ companyId }: { companyId: 'default' | 'demo' }) {
   const [loads, trucks, openAccess] = await Promise.all([
-    listLoadsByDispatcher(),
-    listTrucks(),
+    listLoadsByDispatcher(companyId),
+    listTrucks(companyId),
     getSetting('open_access'),
   ])
   const byTruckId = new Map<number, TruckRecord>(trucks.map((t) => [t.id, t]))
@@ -418,6 +451,109 @@ async function ByDispatcher() {
                         </div>
                       ))}
                   </div>
+                </div>
+              ))}
+          </div>
+        </details>
+      ))}
+    </div>
+  )
+}
+
+type DriverWeek = {
+  weekStartMs: number
+  trucks: Map<number, { label: string; loads: { load: LoadRecord; pay: number | null; miles: number }[]; pay: number; miles: number }>
+  pay: number
+}
+
+/** Driver settlements — EZLoads-style недельная ведомость: every committed load,
+ * grouped by week → driver/truck, with THAT load's driver pay from calcLoad (the
+ * same cpm/percent settings the truck's economics already hold). No new pay math:
+ * the settlement shows exactly the driver line every profit breakdown charges. */
+async function ByDriver({ companyId }: { companyId: 'default' | 'demo' }) {
+  const [loads, trucks] = await Promise.all([listLoads(companyId), listTrucks(companyId)])
+  const byTruckId = new Map<number, TruckRecord>(trucks.map((t) => [t.id, t]))
+  const fallback = trucks[0]
+  // Committed work only — a dead quote or a cancelled load never owes driver pay.
+  const committed = loads.filter((l) => l.status !== 'quoted' && l.status !== 'cancelled')
+
+  const weeks = new Map<number, DriverWeek>()
+  for (const load of committed) {
+    const truck = (load.truckId !== null ? byTruckId.get(load.truckId) : undefined) ?? fallback
+    if (!truck) continue
+    let pay: number | null = null
+    try {
+      pay = calcLoad(load, truck).driver
+    } catch {
+      pay = null // legacy rows with broken economics — listed, just without a pay figure
+    }
+    const miles = load.loadedMiles + load.deadheadMiles
+
+    const weekMs = mondayOf(new Date(load.createdAt).getTime())
+    let week = weeks.get(weekMs)
+    if (!week) {
+      week = { weekStartMs: weekMs, trucks: new Map(), pay: 0 }
+      weeks.set(weekMs, week)
+    }
+    let drv = week.trucks.get(truck.id)
+    if (!drv) {
+      drv = { label: truckLabel(truck), loads: [], pay: 0, miles: 0 }
+      week.trucks.set(truck.id, drv)
+    }
+    drv.loads.push({ load, pay, miles })
+    drv.pay += pay ?? 0
+    drv.miles += miles
+    week.pay += pay ?? 0
+  }
+
+  const sortedWeeks = [...weeks.values()].sort((a, b) => b.weekStartMs - a.weekStartMs)
+  const thisWeek = weekStart()
+
+  if (sortedWeeks.length === 0) {
+    return <p className="panel p-6 text-[13px] text-white/60">Пока нет подтверждённых грузов — нечего выплачивать.</p>
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {sortedWeeks.map((week) => (
+        <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[13px] font-semibold">
+            <span className="capitalize">{weekLabel(week.weekStartMs)}</span>
+            <span className="nums shrink-0 text-[12.5px] font-normal text-white/60">
+              к выплате <span className="font-semibold text-good-400">{usd.format(week.pay)}</span>
+            </span>
+          </summary>
+
+          <div className="mt-3 flex flex-col gap-2.5">
+            {[...week.trucks.values()]
+              .sort((a, b) => b.pay - a.pay)
+              .map((drv) => (
+                <div key={drv.label} className="rounded-xl border border-white/8 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] font-semibold">
+                    <span className="text-haul-300">{drv.label}</span>
+                    <span className="nums text-[12.5px] font-normal text-white/60">
+                      {drv.loads.length} груз(ов) · {Math.round(drv.miles)} mi · к выплате{' '}
+                      <span className="font-semibold text-good-400">{usd.format(drv.pay)}</span>
+                    </span>
+                  </div>
+                  <ul className="mt-1.5 flex flex-col gap-1">
+                    {drv.loads.map(({ load, pay, miles }) => (
+                      <li key={load.id}>
+                        <Link
+                          href={`/loads/${load.id}`}
+                          className="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-[11.5px] text-white/60 transition-colors hover:bg-white/5 hover:text-white/85"
+                        >
+                          <span className="min-w-0 truncate">
+                            {load.referenceId ? `#${load.referenceId} · ` : ''}
+                            {load.origin ?? '—'} → {load.destination ?? '—'}
+                          </span>
+                          <span className="nums shrink-0">
+                            {Math.round(miles)} mi · {pay !== null ? usd.format(pay) : '—'}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ))}
           </div>

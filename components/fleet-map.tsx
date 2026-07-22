@@ -13,6 +13,7 @@
 // popup and in the list underneath the map, same as every product researched does.
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 export type MapMarker = {
   lat: number
@@ -23,6 +24,9 @@ export type MapMarker = {
   tone?: 'move' | 'on' | 'rest'
   kind?: 'truck' | 'dest' | 'pickup'
   heading?: number // 0-360, compass — rotates the moving-truck arrow to face it
+  /** Where the plaque's "→ Открыть" arrow (and a click on the marker) leads — the
+   * truck's card for a truck pin, the load's card for a pickup/delivery pin. */
+  href?: string
 }
 
 export type MapRoute = {
@@ -58,9 +62,15 @@ function popupHtml(m: MapMarker): string {
   const eta = m.eta
     ? `<div style="color:${DEST};font-weight:600;margin-top:3px">🎯 ${esc(m.eta)}</div>`
     : ''
+  // The arrow: a clear "open the card" affordance. The tooltip is made interactive
+  // and the whole plaque navigates (see the marker loop), so this doubles as the hint
+  // and the visible click target.
+  const open = m.href
+    ? `<div style="display:flex;align-items:center;gap:4px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.12);color:${DEST};font-weight:700">Открыть <span style="font-size:13px">→</span></div>`
+    : ''
   return `<div style="font:500 10.5px/1.4 system-ui,sans-serif">
     <div style="font-weight:700;font-size:11.5px;color:#fff;margin-bottom:2px">${esc(m.label)}</div>
-    ${lines}${eta}
+    ${lines}${eta}${open}
   </div>`
 }
 
@@ -157,6 +167,11 @@ export function FleetMap({
   // that effect only re-runs when the DATA changes, not the basemap choice.
   const satelliteRef = useRef(satellite)
   satelliteRef.current = satellite
+  // Same pattern for the router — a marker/plaque click uses it to open the card,
+  // without becoming a dep that rebuilds the whole map.
+  const router = useRouter()
+  const routerRef = useRef(router)
+  routerRef.current = router
   const mapRef = useRef<import('leaflet').Map | null>(null)
   const tileRef = useRef<import('leaflet').TileLayer | null>(null)
 
@@ -197,14 +212,49 @@ export function FleetMap({
       }
       for (const m of markers) {
         const marker = L.marker([m.lat, m.lng], { icon: icon(L, m) }).addTo(map!)
-        marker.bindPopup(popupHtml(m), { maxWidth: 190 })
-        // Click ANY marker — truck or destination — to focus in: one solid step
-        // closer than "whole fleet" but nowhere near street-level, so the
-        // dispatcher isn't fighting the map to back out again. Never zooms OUT —
-        // only takes over once you're further out than the focus level.
-        marker.on('click', () => {
-          map!.flyTo([m.lat, m.lng], Math.max(map!.getZoom(), 14), { duration: 0.6 })
-        })
+        // Tooltip, not Popup: shows on hover, hides the moment the cursor leaves — no
+        // click, no lingering close button. NOT Leaflet-`interactive` on purpose: that
+        // routes the click through Leaflet's target system, which swallowed our own
+        // handler. Instead the plaque gets pointer-events via CSS (globals.css) and a
+        // plain DOM click listener below — simplest thing that actually fires.
+        marker.bindTooltip(popupHtml(m), { direction: 'top', offset: [0, -8], opacity: 1 })
+        if (m.href) {
+          const href = m.href
+          const go = () => routerRef.current.push(href)
+          // Clicking the marker OR the plaque's "Открыть →" arrow opens the card.
+          // (Zoom stays on scroll, double-click, and the +/- buttons.)
+          marker.on('click', go)
+          // Leaflet closes a hover tooltip the instant the cursor leaves the marker
+          // dot — too soon to ever reach the plaque and click its arrow. Drop that
+          // instant close and keep the plaque open while the cursor is over EITHER
+          // the marker or the plaque, closing on a short delay once it leaves both.
+          let closeT: ReturnType<typeof setTimeout> | undefined
+          const scheduleClose = () => {
+            closeT = setTimeout(() => marker.closeTooltip(), 160)
+          }
+          const keepOpen = () => {
+            if (closeT) clearTimeout(closeT)
+          }
+          marker.off('mouseout')
+          marker.on('mouseover', keepOpen)
+          marker.on('mouseout', scheduleClose)
+          marker.on('tooltipopen', (e) => {
+            const el = (e as { tooltip: import('leaflet').Tooltip }).tooltip.getElement()
+            if (!el) return
+            el.style.cursor = 'pointer'
+            el.addEventListener('mouseenter', keepOpen)
+            el.addEventListener('mouseleave', scheduleClose)
+            el.addEventListener('click', (ev) => {
+              ev.stopPropagation()
+              go()
+            })
+          })
+        } else {
+          // Plain address pins with no card behind them keep the focus-in zoom.
+          marker.on('click', () => {
+            map!.flyTo([m.lat, m.lng], Math.max(map!.getZoom(), 14), { duration: 0.6 })
+          })
+        }
         bounds.extend([m.lat, m.lng])
       }
       map.fitBounds(bounds.pad(0.2), { maxZoom: 8 })
@@ -235,7 +285,7 @@ export function FleetMap({
   if (markers.length === 0) {
     return (
       <div className="panel flex items-center justify-center p-8 text-[13px] text-white/55">
-        Координат пока нет — добавь Live Share ссылки в разделе «Трекинг».
+        Координат пока нет — подключи отслеживание траков в разделе «Трекинг».
       </div>
     )
   }

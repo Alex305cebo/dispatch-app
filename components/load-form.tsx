@@ -20,6 +20,7 @@ export function LoadForm({
   /** Fields the QR couldn't carry — ringed amber so the gap is visible, not guessed. */
   needsAttention = [],
   docId,
+  driverInfo,
 }: {
   trucks: TruckRecord[]
   defaultTruckId?: number
@@ -28,6 +29,9 @@ export function LoadForm({
   needsAttention?: string[]
   /** An already-uploaded document (the imported RC) to attach to the created load. */
   docId?: number
+  /** The "Driver Information" block already rendered from the AI read (/import) —
+   * omitted for manual entry, which has nothing to render. */
+  driverInfo?: string
 }) {
   const [load, setLoad] = useState<QrLoad>(initial)
   const [truckId, setTruckId] = useState<number>(defaultTruckId ?? trucks[0]?.id ?? 0)
@@ -56,7 +60,7 @@ export function LoadForm({
       return
     }
     start(async () => {
-      const res = await createLoad({ ...load, source, truckId: truck.id }, docId)
+      const res = await createLoad({ ...load, source, truckId: truck.id }, docId, driverInfo)
       // On success createLoad redirects and never returns.
       if (res?.error) {
         setError(res.error)

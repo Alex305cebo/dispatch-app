@@ -22,6 +22,9 @@ export type TrackingRow = {
   driveTimeText: string | null
   weather: { event: string; headline: string } | null
   idleHours: number | null
+  /** Manual flag from the truck: 'repair' | 'vacation' | null. Badged, and never
+   * counted as free — a truck in the shop isn't available just because it's empty. */
+  unavailable: 'repair' | 'vacation' | null
 }
 
 const toneClass = {
@@ -32,13 +35,17 @@ const toneClass = {
 
 export function FleetList({ rows }: { rows: TrackingRow[] }) {
   const [freeOnly, setFreeOnly] = useState(false)
-  const freeCount = rows.filter((r) => !r.hasLoad).length
-  const shown = freeOnly ? rows.filter((r) => !r.hasLoad) : rows
+  const isFree = (r: TrackingRow) => !r.hasLoad && !r.unavailable
+  const freeCount = rows.filter(isFree).length
+  const shown = freeOnly ? rows.filter(isFree) : rows
 
-  async function copyLink(id: number) {
-    const url = `${window.location.origin}/track/${id}`
-    await navigator.clipboard.writeText(url)
-    notify('ok', 'Ссылка скопирована — открывается без входа, показывает только этот трак на карте')
+  async function copyLocation(city: string) {
+    try {
+      await navigator.clipboard.writeText(city)
+      notify('ok', `Адрес скопирован: ${city}`)
+    } catch {
+      notify('warn', 'Браузер не дал буфер — выдели адрес вручную')
+    }
   }
 
   return (
@@ -61,21 +68,26 @@ export function FleetList({ rows }: { rows: TrackingRow[] }) {
           <div key={r.id} className="panel p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="truncate text-[15px] font-semibold">{r.label}</div>
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate text-[15px] font-semibold">{r.label}</span>
+                  {r.unavailable && (
+                    <span className="shrink-0 rounded-full bg-warn-400/15 px-2 py-0.5 text-[10.5px] font-semibold text-warn-400">
+                      {r.unavailable === 'repair' ? '🔧 В ремонте' : '🌴 Отпуск'}
+                    </span>
+                  )}
+                </div>
                 <div className="mt-0.5 flex min-w-0 items-center gap-1 truncate text-[12px] text-white/60">
                   <span className="truncate">{r.city ?? 'Нет данных с ELD'}</span>
-                  {r.eldSeen && (
-                    <>
-                      <span className="shrink-0 text-white/40"> · {r.eldSeen}</span>
-                      <button
-                        onClick={() => copyLink(r.id)}
-                        title="Скопировать ссылку на карту этого трака"
-                        className="shrink-0 text-white/40 transition-colors hover:text-white/80"
-                      >
-                        🔗
-                      </button>
-                    </>
+                  {r.city && (
+                    <button
+                      onClick={() => copyLocation(r.city!)}
+                      title="Скопировать адрес местоположения трака"
+                      className="shrink-0 text-white/40 transition-colors hover:text-white/80"
+                    >
+                      📋
+                    </button>
                   )}
+                  {r.eldSeen && <span className="shrink-0 text-white/40"> · {r.eldSeen}</span>}
                 </div>
               </div>
               <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${toneClass[r.statusTone]}`}>

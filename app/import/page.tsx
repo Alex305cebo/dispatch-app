@@ -1,11 +1,12 @@
 import { listTrucks } from '@/lib/loads'
 import { ImportClient } from './import-client'
 import { BackButton } from '@/components/back-button'
+import { companyScope } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Page() {
-  const trucks = await listTrucks()
+  const trucks = await listTrucks(await companyScope())
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <BackButton href="/loads" label="Грузы" />

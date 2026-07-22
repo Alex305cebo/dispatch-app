@@ -1,14 +1,13 @@
 'use client'
 
-// Guarded delete: a ✕ that opens a name + PIN confirm and calls a server action
-// (id, who, pin). Used for documents and loads — anything whose removal must land
-// in the Журнал with who did it. The action itself validates the PIN and audits.
+// Guarded delete: a ✕ that opens a password confirm and calls a server action
+// (id, password). Used for documents and loads — anything whose removal must land
+// in the Журнал. The action verifies the SIGNED-IN user's own login password and
+// stamps the audit row with their name, so there's no "кто удалил" field to type.
 
-import { useEffect, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { notify } from '@/lib/notify'
-
-const NAME_KEY = 'doc_actor' // remembered per device — same person deletes docs & loads
 
 export function DeleteButton({
   action,
@@ -16,32 +15,26 @@ export function DeleteButton({
   title,
   note,
 }: {
-  action: (id: number, who: string, pin: string) => Promise<{ error?: string } | void>
+  action: (id: number, password: string) => Promise<{ error?: string } | void>
   id: number
   title: string
   note?: string // e.g. "и его расчёты удалятся насовсем."
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [name, setName] = useState('')
-  const [pin, setPin] = useState('')
+  const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
   const [pending, start] = useTransition()
-
-  useEffect(() => {
-    if (open) setName(localStorage.getItem(NAME_KEY) ?? '')
-  }, [open])
 
   function submit() {
     setErr('')
     start(async () => {
-      const res = await action(id, name, pin)
+      const res = await action(id, password)
       if (res?.error) setErr(res.error)
       else {
-        localStorage.setItem(NAME_KEY, name.trim())
         notify('ok', 'Удалено', title)
         setOpen(false)
-        setPin('')
+        setPassword('')
         router.refresh()
       }
     })
@@ -70,23 +63,17 @@ export function DeleteButton({
           >
             <h3 className="text-[15px] font-semibold">Удалить</h3>
             <p className="mt-1 text-[12.5px] leading-relaxed text-white/60">
-              «{title}» {note ?? 'удалится насовсем.'} Впиши имя и PIN — запись, кто удалил,
-              останется в Журнале.
+              «{title}» {note ?? 'удалится насовсем.'} Введи свой пароль — тот, которым входишь.
+              Запись, кто удалил, останется в Журнале.
             </p>
             <div className="mt-4 flex flex-col gap-2">
               <input
                 autoFocus
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Твоё имя"
-                className={field}
-              />
-              <input
                 type="password"
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && name.trim() && pin && submit()}
-                placeholder="PIN"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && password && submit()}
+                placeholder="Твой пароль"
                 className={field}
               />
             </div>
@@ -99,7 +86,7 @@ export function DeleteButton({
                 Отмена
               </button>
               <button
-                disabled={pending || !name.trim() || !pin}
+                disabled={pending || !password}
                 onClick={submit}
                 className="rounded-xl bg-bad-500 px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-bad-400 disabled:opacity-40"
               >

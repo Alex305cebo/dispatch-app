@@ -1,12 +1,13 @@
 import { listTrucks } from '@/lib/loads'
 import { QrClient } from './qr-client'
 import { BackButton } from '@/components/back-button'
+import { companyScope } from '@/lib/session'
 
 // Reads the DB — without this it prerenders at build time and serves that snapshot forever.
 export const dynamic = 'force-dynamic'
 
 export default async function Page() {
-  const trucks = await listTrucks()
+  const trucks = await listTrucks(await companyScope())
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <BackButton href="/loads" label="Грузы" />

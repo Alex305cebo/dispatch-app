@@ -4,7 +4,7 @@
 // it in; the file itself travels through the uploadDocument server action (≤8MB).
 // Deleting is guarded (name + PIN) and audited — see DeleteDialog / deleteDocument.
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { deleteDocument, purgeDocument, restoreDocument, uploadDocument } from '@/app/actions'
 import { DeleteButton } from '@/components/delete-button'
@@ -105,27 +105,19 @@ const KIND_TONE: Record<DocKind, string> = {
   other: 'bg-white/8 text-white/60',
 }
 
-const NAME_KEY = 'doc_actor' // remember who's deleting, per device — like the login name
-
-/** Confirm a deletion with name + PIN. One dialog per list, opened for one doc. */
+/** Confirm a deletion with the signed-in user's own password. One dialog per list. */
 function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
   const router = useRouter()
-  const [name, setName] = useState('')
-  const [pin, setPin] = useState('')
+  const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
   const [pending, start] = useTransition()
-
-  useEffect(() => {
-    setName(localStorage.getItem(NAME_KEY) ?? '')
-  }, [])
 
   function submit() {
     setErr('')
     start(async () => {
-      const res = await deleteDocument(doc.id, name, pin)
+      const res = await deleteDocument(doc.id, password)
       if (res?.error) setErr(res.error)
       else {
-        localStorage.setItem(NAME_KEY, name.trim())
         notify('ok', 'Документ удалён', doc.title)
         onClose()
         router.refresh()
@@ -148,22 +140,16 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
         <h3 className="text-[15px] font-semibold">Удалить документ</h3>
         <p className="mt-1 text-[12.5px] leading-relaxed text-white/60">
           «{doc.title}» переместится в корзину — насовсем удаляется только оттуда.
-          Впиши имя и PIN — запись, кто удалил, останется в Журнале.
+          Введи свой пароль — запись, кто удалил, останется в Журнале.
         </p>
         <div className="mt-4 flex flex-col gap-2">
           <input
             autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Твоё имя"
-            className={field}
-          />
-          <input
             type="password"
-            value={pin}
-            onChange={(e) => setPin(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && name.trim() && pin && submit()}
-            placeholder="PIN"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && password && submit()}
+            placeholder="Твой пароль"
             className={field}
           />
         </div>
@@ -176,7 +162,7 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
             Отмена
           </button>
           <button
-            disabled={pending || !name.trim() || !pin}
+            disabled={pending || !password}
             onClick={submit}
             className="rounded-xl bg-bad-500 px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-bad-400 disabled:opacity-40"
           >

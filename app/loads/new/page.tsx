@@ -1,6 +1,7 @@
 import { listTrucks } from '@/lib/loads'
 import { NewLoadClient } from '@/components/new-load-client'
 import { BackButton } from '@/components/back-button'
+import { companyScope } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,7 +10,7 @@ export default async function Page({
 }: {
   searchParams: Promise<{ truck?: string }>
 }) {
-  const trucks = await listTrucks()
+  const trucks = await listTrucks(await companyScope())
   const truckParam = Number((await searchParams).truck)
   const defaultTruckId = trucks.some((t) => t.id === truckParam) ? truckParam : undefined
   return (

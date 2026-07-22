@@ -3,7 +3,8 @@ import { listLoads, listTrucks, rateConByLoad } from '@/lib/loads'
 import { truckLabel, STATUSES, type TruckRecord, type LoadRecord } from '@/lib/map'
 import { calcLoad, type Breakdown } from '@/lib/profit'
 import { truckPhotoFlags } from '@/lib/maintenance'
-import { usd, usd2 } from '@/lib/fmt'
+import { companyScope } from '@/lib/session'
+import { usd, usd2, mondayOf, weekLabel, weekStart } from '@/lib/fmt'
 import { StatusBadge, STATUS_LABEL } from '@/components/status'
 import { RateConButton } from '@/components/ratecon-button'
 import { DeleteButton } from '@/components/delete-button'
@@ -24,13 +25,24 @@ const COLUMN_ACCENT: Record<LoadRecord['status'], string> = {
   cancelled: 'border-t-bad-500/50',
 }
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
-  const view = (await searchParams).view === 'board' ? 'board' : 'driver'
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string; week?: string; day?: string }>
+}) {
+  const sp = await searchParams
+  const view = sp.view === 'board' ? 'board' : sp.view === 'calendar' ? 'calendar' : 'driver'
+  // Snapped to Monday even if the URL was hand-edited to a mid-week date — a
+  // calendar link can never land on a broken, non-Monday week.
+  const parsedWeek = sp.week ? Date.parse(`${sp.week}T00:00:00`) : NaN
+  const weekMonday = Number.isNaN(parsedWeek) ? weekStart() : mondayOf(parsedWeek)
+  const selectedDay = sp.day ?? null
+  const companyId = await companyScope()
   const [loads, trucks, rateCons, photoIds] = await Promise.all([
-    listLoads(),
-    listTrucks(),
-    rateConByLoad(),
-    truckPhotoFlags(),
+    listLoads(companyId),
+    listTrucks(companyId),
+    rateConByLoad(companyId),
+    truckPhotoFlags(companyId),
   ])
   const byId = new Map<number, TruckRecord>(trucks.map((t) => [t.id, t]))
   const fallback = trucks[0]
@@ -56,7 +68,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
         <div>
           <h1 className="flex items-center gap-1.5 text-[17px] font-semibold">
             Грузы
-            <Info side="bottom" text="«По водителю» — грузы сгруппированы по траку. «По статусу» — цветная доска: одна колонка на каждый статус груза, чтобы видеть всё сразу, а не открывать каждого водителя по очереди. «Чистыми» — что остаётся после всех расходов трака; число после точки — доход на милю (RPM)." />
+            <Info side="bottom" text="«По водителю» — грузы сгруппированы по траку. «По статусу» — цветная доска: одна колонка на каждый статус груза, чтобы видеть всё сразу, а не открывать каждого водителя по очереди. «Календарь» — вся история грузов по неделям, листается назад и вперёд. «Чистыми» — что остаётся после всех расходов трака; число после точки — доход на милю (RPM)." />
           </h1>
           <p className="text-[13px] text-white/65">{loads.length} шт.</p>
         </div>
@@ -76,6 +88,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
           <ViewTab href="/loads?view=board" active={view === 'board'}>
             По статусу
           </ViewTab>
+          <ViewTab href="/loads?view=calendar" active={view === 'calendar'}>
+            Календарь
+          </ViewTab>
         </div>
       )}
 
@@ -89,6 +104,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
         </div>
       ) : view === 'board' ? (
         <StatusBoard loads={loads} byId={byId} fallback={fallback} rateCons={rateCons} />
+      ) : view === 'calendar' ? (
+        <Calendar
+          loads={loads}
+          weekMonday={weekMonday}
+          selectedDay={selectedDay}
+          byId={byId}
+          fallback={fallback}
+          rateCons={rateCons}
+        />
       ) : (
         <div className="flex flex-col gap-3">
           {groups.map(({ truck, loads }) => (
@@ -164,7 +188,14 @@ function StatusBoard({
                       {r && ` · чистыми ${usd.format(r.net)}`}
                     </div>
                   </Link>
-                  <span className="nums shrink-0 text-[13px] font-bold">{usd.format(load.rate)}</span>
+                  <span className="shrink-0 text-right">
+                    <span className="nums block text-[13px] font-bold">{usd.format(load.rate)}</span>
+                    {load.loadedMiles > 0 && (
+                      <span className="nums block text-[10.5px] font-medium text-haul-300">
+                        {Math.round(load.loadedMiles).toLocaleString('en-US')} mi
+                      </span>
+                    )}
+                  </span>
                   {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
                 </div>
               )
@@ -172,6 +203,223 @@ function StatusBoard({
           </div>
         </section>
       ))}
+    </div>
+  )
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000
+const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+
+/** ISO date (YYYY-MM-DD, local) — the calendar buckets by calendar day, not by
+ * timestamp, so this must never go through toISOString() (UTC) or a load booked
+ * late at night can land on the wrong day's column. */
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** History of every load (any status, including cancelled — this is a record, not
+ * a work queue), one week at a time. Pickup date is the natural anchor — "what's
+ * moving this day" — falling back to when the load was entered for anything the
+ * rate con never printed a pickup date for, so nothing silently vanishes from the
+ * calendar entirely.
+ *
+ * Layout is a day STRIP + a detail pane, not seven cramped columns: a week of
+ * full load cards never fit 7-abreast (routes truncated to "Atl…"), so the days
+ * themselves are big tappable tiles (with a load-count badge) and the selected
+ * day's loads render below at full size — same card language as the Обзор list. */
+function Calendar({
+  loads,
+  weekMonday,
+  selectedDay,
+  byId,
+  fallback,
+  rateCons,
+}: {
+  loads: LoadRecord[]
+  weekMonday: number
+  selectedDay: string | null
+  byId: Map<number, TruckRecord>
+  fallback: TruckRecord | undefined
+  rateCons: Map<number, number>
+}) {
+  const days = Array.from({ length: 7 }, (_, i) => new Date(weekMonday + i * DAY_MS))
+  const weekIsos = days.map(isoDate)
+  const todayIso = isoDate(new Date())
+
+  const byDay = new Map<string, LoadRecord[]>()
+  for (const l of loads) {
+    const anchor = l.pickupDate ?? l.createdAt.slice(0, 10)
+    if (!byDay.has(anchor)) byDay.set(anchor, [])
+    byDay.get(anchor)!.push(l)
+  }
+
+  // Which day is open: the URL's pick if it's inside this week, else today (when
+  // browsing the current week), else the week's first day that has loads — landing
+  // on a past week should open something interesting, not an empty Monday.
+  const activeIso =
+    selectedDay && weekIsos.includes(selectedDay)
+      ? selectedDay
+      : weekIsos.includes(todayIso)
+        ? todayIso
+        : (weekIsos.find((iso) => (byDay.get(iso) ?? []).length > 0) ?? weekIsos[0]!)
+
+  const dayLoads = byDay.get(activeIso) ?? []
+  const dayGross = dayLoads.reduce((s, l) => s + l.rate, 0)
+  const activeDate = new Date(`${activeIso}T00:00:00`)
+  const dayTitle = activeDate.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
+
+  const prevWeek = isoDate(new Date(weekMonday - 7 * DAY_MS))
+  const nextWeek = isoDate(new Date(weekMonday + 7 * DAY_MS))
+  const isCurrentWeek = weekMonday === weekStart()
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <Link
+          href={`/loads?view=calendar&week=${prevWeek}`}
+          className="rounded-xl border border-white/10 px-3.5 py-2 text-[12px] font-semibold text-white/75 transition-colors hover:border-white/25 hover:bg-white/5"
+        >
+          ← Раньше
+        </Link>
+        <span className="flex items-center gap-2 text-[13.5px] font-semibold capitalize text-white/90">
+          {weekLabel(weekMonday)}
+          {!isCurrentWeek && (
+            <Link
+              href="/loads?view=calendar"
+              className="rounded-full bg-haul-500/15 px-2 py-0.5 text-[11px] font-semibold normal-case text-haul-400 transition-colors hover:bg-haul-500/25"
+            >
+              Сегодня
+            </Link>
+          )}
+        </span>
+        <Link
+          href={`/loads?view=calendar&week=${nextWeek}`}
+          className="rounded-xl border border-white/10 px-3.5 py-2 text-[12px] font-semibold text-white/75 transition-colors hover:border-white/25 hover:bg-white/5"
+        >
+          Позже →
+        </Link>
+      </div>
+
+      {/* The week itself: 7 big tap targets. The count bubble is the "something
+          happened this day" signal at a glance; selection is the filled tile. */}
+      <div className="mb-4 grid grid-cols-7 gap-1.5 sm:gap-2">
+        {days.map((d, i) => {
+          const iso = weekIsos[i]!
+          const count = (byDay.get(iso) ?? []).length
+          const isToday = iso === todayIso
+          const isActive = iso === activeIso
+          return (
+            <Link
+              key={iso}
+              href={`/loads?view=calendar&week=${weekIsos[0]}&day=${iso}`}
+              className={`group relative flex flex-col items-center gap-0.5 rounded-2xl border px-1 py-2.5 text-center transition-all sm:py-3.5 ${
+                isActive
+                  ? 'border-haul-500/60 bg-gradient-to-b from-haul-500/25 to-haul-500/10 shadow-lg shadow-haul-500/10'
+                  : 'border-white/8 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]'
+              }`}
+            >
+              <span
+                className={`text-[10px] font-semibold uppercase tracking-wider ${
+                  isActive ? 'text-haul-300' : isToday ? 'text-haul-400' : 'text-white/45'
+                }`}
+              >
+                {WEEKDAYS[i]}
+              </span>
+              <span
+                className={`nums text-[17px] font-bold leading-none sm:text-[20px] ${
+                  isActive ? 'text-white' : isToday ? 'text-haul-400' : count > 0 ? 'text-white/85' : 'text-white/35'
+                }`}
+              >
+                {d.getDate()}
+              </span>
+              {count > 0 ? (
+                <span
+                  className={`nums mt-0.5 rounded-full px-1.5 py-px text-[10px] font-bold ${
+                    isActive ? 'bg-haul-500 text-white' : 'bg-white/10 text-white/70 group-hover:bg-white/15'
+                  }`}
+                >
+                  {count}
+                </span>
+              ) : (
+                <span className="mt-0.5 text-[10px] text-white/20">·</span>
+              )}
+              {isToday && !isActive && (
+                <span className="absolute -bottom-px left-1/2 h-0.5 w-5 -translate-x-1/2 rounded-full bg-haul-500" />
+              )}
+            </Link>
+          )
+        })}
+      </div>
+
+      {/* The selected day, full size. */}
+      <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-[15px] font-semibold capitalize">{dayTitle}</h2>
+        {dayLoads.length > 0 && (
+          <span className="nums text-[13px] text-white/60">
+            {dayLoads.length} груз(ов) · <span className="font-semibold text-white/85">{usd.format(dayGross)}</span>
+          </span>
+        )}
+      </div>
+
+      {dayLoads.length === 0 ? (
+        <div className="panel flex flex-col items-center gap-1 p-10 text-center">
+          <span className="text-[22px]" aria-hidden>
+            🗓
+          </span>
+          <p className="text-[14px] font-medium text-white/80">В этот день грузов не было</p>
+          <p className="text-[12.5px] text-white/50">Выбери другой день или листай недели стрелками выше.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {dayLoads.map((l) => {
+            const truck = (l.truckId !== null ? byId.get(l.truckId) : undefined) ?? fallback
+            let r: Breakdown | null = null
+            try {
+              r = truck ? calcLoad(l, truck) : null
+            } catch {
+              r = null // legacy rows with broken economics still deserve a card
+            }
+            const rcId = rateCons.get(l.id)
+            return (
+              <div
+                key={l.id}
+                className="panel flex items-center gap-3 p-4 transition-colors hover:border-white/20 hover:bg-white/[0.03] sm:p-5"
+              >
+                <Link href={`/loads/${l.id}`} className="flex min-w-0 flex-1 items-center gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate text-[15.5px] font-semibold sm:text-[17px]">
+                        {l.origin ?? '—'} → {l.destination ?? '—'}
+                      </span>
+                      <StatusBadge status={l.status} />
+                    </div>
+                    <div className="nums mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px] text-white/60">
+                      {truck && <span className="text-white/45">{truckLabel(truck)}</span>}
+                      {r && (
+                        <>
+                          <span>
+                            чистыми{' '}
+                            <span className={`font-semibold ${r.net >= 0 ? 'text-good-400' : 'text-bad-400'}`}>
+                              {usd.format(r.net)}
+                            </span>
+                          </span>
+                          <span>{Math.round(r.totalMiles)} mi</span>
+                          <span>{usd2.format(r.allInRpm)}/mi</span>
+                        </>
+                      )}
+                      {l.pickupTime && <span className="text-white/45">🕐 {l.pickupTime}</span>}
+                    </div>
+                  </div>
+                  <span className="nums shrink-0 text-right text-[19px] font-bold sm:text-[22px]">
+                    {usd.format(l.rate)}
+                  </span>
+                </Link>
+                {rcId && <RateConButton docId={rcId} compact />}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -255,7 +503,14 @@ function LoadRow({
             · {Math.round(r.totalMiles)} mi · {usd2.format(r.allInRpm)}/mi
           </div>
         </div>
-        <div className="nums shrink-0 text-right text-lg font-bold">{usd.format(load.rate)}</div>
+        <div className="shrink-0 text-right">
+          <div className="nums text-lg font-bold">{usd.format(load.rate)}</div>
+          {load.loadedMiles > 0 && (
+            <div className="nums text-[11.5px] font-medium text-haul-300">
+              {Math.round(load.loadedMiles).toLocaleString('en-US')} mi
+            </div>
+          )}
+        </div>
       </Link>
       {rcId && <RateConButton docId={rcId} compact />}
       <DeleteButton

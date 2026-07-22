@@ -57,7 +57,16 @@ export const SESSION_COOKIE = 'dispatch_session'
 // dropping the (session-only) cookie on close, not by the server-side row expiring.
 export const SESSION_DAYS = 365
 
-export type SessionUser = { id: number; name: string; email: string; role: 'admin' | 'dispatcher' }
+export type SessionUser = {
+  id: number
+  name: string
+  email: string
+  role: 'admin' | 'dispatcher'
+  /** 'demo' for the seeded public sandbox account, 'default' for every real user —
+   * every trucks/loads/documents query is filtered by this so demo data can never
+   * mix with real company data. */
+  companyId: 'default' | 'demo'
+}
 
 export async function createSession(userId: number): Promise<string> {
   // Two UUIDs concatenated: 72 hex chars of entropy, plenty for a bearer token that
@@ -72,11 +81,14 @@ export async function createSession(userId: number): Promise<string> {
  * expired/deleted session both come back null, no separate check needed. */
 export async function sessionUser(token: string | undefined | null): Promise<SessionUser | null> {
   if (!token) return null
-  const rows = await sql`
-    SELECT u.id, u.name, u.email, u.role FROM sessions s
+  const rows = (await sql`
+    SELECT u.id, u.name, u.email, u.role, u.is_demo FROM sessions s
     JOIN users u ON u.id = s.user_id
-    WHERE s.token = ${token} AND s.expires_at > now() AND u.disabled_at IS NULL`
-  return (rows[0] as SessionUser | undefined) ?? null
+    WHERE s.token = ${token} AND s.expires_at > now() AND u.disabled_at IS NULL`) as
+    | { id: number; name: string; email: string; role: 'admin' | 'dispatcher'; is_demo: boolean }[]
+  const row = rows[0]
+  if (!row) return null
+  return { id: row.id, name: row.name, email: row.email, role: row.role, companyId: row.is_demo ? 'demo' : 'default' }
 }
 
 export async function destroySession(token: string | undefined | null): Promise<void> {

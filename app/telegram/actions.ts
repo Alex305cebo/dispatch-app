@@ -15,7 +15,7 @@ import { activeLoadForTruck } from '@/lib/loads'
 import { classifyDocument } from '@/lib/ai-doc'
 import { autoInvoiceIfReady } from '@/lib/invoice'
 import { sql } from '@/lib/db'
-import { getCurrentUser, type CurrentUser } from '@/lib/session'
+import { getCurrentUser, verifyMyPassword, type CurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -140,7 +140,9 @@ export async function tgAttachToLoad(
   const truck = await resolveTruckForChat(user.id, chatId, driverPhone)
   if (!truck)
     return { error: 'Этот чат не привязан ни к одному траку — укажи телефон в паспорте трака или привяжи чат к траку.' }
-  const load = await activeLoadForTruck(truck.truckId)
+  // Telegram is real-accounts-only (never the public demo sandbox) — see the REAL
+  // constant + comment in lib/tg-intake.ts.
+  const load = await activeLoadForTruck('default', truck.truckId)
   if (!load) return { error: 'У этого трака сейчас нет активного груза.' }
 
   const media = await tgMedia(user.id, chatId, msgId).catch(() => null)
@@ -152,22 +154,22 @@ export async function tgAttachToLoad(
       : 'other'
   const ext = media.mime.includes('pdf') ? 'pdf' : 'jpg'
   await sql`
-    INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data)
+    INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data, company_id)
     VALUES (${load.id}, ${truck.truckId}, ${kind},
             ${`${kind.toUpperCase()} #${truck.number} tg.${ext}`}, ${media.mime}, ${media.bytes.length},
-            decode(${media.bytes.toString('hex')}, 'hex'))`
-  if (kind === 'pod') await autoInvoiceIfReady(load.id)
+            decode(${media.bytes.toString('hex')}, 'hex'), 'default')`
+  if (kind === 'pod') await autoInvoiceIfReady('default', load.id)
 
   revalidatePath(`/loads/${load.id}`)
   revalidatePath('/docs')
   return { ok: true, loadId: load.id, loadRoute: `${load.origin ?? ''} → ${load.destination ?? ''}` }
 }
 
-/** Gate for sending a Telegram message — same shared PIN as guarded deletes. The
- * client re-checks this once per unlock window (2 min), not per message. */
-export async function verifyTgSendPin(pin: string): Promise<{ ok: true } | { error: string }> {
-  if (!process.env.APP_PIN) return { error: 'PIN не настроен — обратись к администратору.' }
-  if (pin !== process.env.APP_PIN) return { error: 'Неверный PIN.' }
+/** Gate for sending a Telegram message — the dispatcher confirms with their OWN login
+ * password. The client re-checks this once per unlock window (2 min), not per message. */
+export async function verifyTgSendPassword(password: string): Promise<{ ok: true } | { error: string }> {
+  const check = await verifyMyPassword(password)
+  if ('error' in check) return { error: check.error }
   return { ok: true }
 }
 

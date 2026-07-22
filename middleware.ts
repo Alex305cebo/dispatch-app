@@ -13,8 +13,10 @@ export async function middleware(req: NextRequest) {
   headers.delete('x-user-id')
   headers.delete('x-user-name')
   headers.delete('x-user-role')
+  headers.delete('x-company-id')
 
-  // Public, no session needed — a fake-data preview, see app/demo/page.tsx.
+  // Public, no session needed — signs the browser in as the demo account and
+  // redirects, see app/demo/route.ts.
   if (req.nextUrl.pathname.startsWith('/demo')) {
     return NextResponse.next({ request: { headers } })
   }
@@ -43,9 +45,14 @@ export async function middleware(req: NextRequest) {
 
   // Downstream Server Components read these via next/headers' headers() instead of
   // hitting the DB again — middleware already did the one lookup for this request.
+  // encodeURIComponent: HTTP header VALUES must be Latin1/ASCII (the Headers API
+  // throws on anything past code point 255) — a name in Cyrillic (real dispatchers,
+  // and the seeded "Демо" account) would otherwise crash every single request.
+  // lib/session.ts decodes it back on the read side.
   headers.set('x-user-id', String(user.id))
-  headers.set('x-user-name', user.name)
+  headers.set('x-user-name', encodeURIComponent(user.name))
   headers.set('x-user-role', user.role)
+  headers.set('x-company-id', user.companyId)
   return NextResponse.next({ request: { headers } })
 }
 

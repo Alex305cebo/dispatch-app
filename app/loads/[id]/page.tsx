@@ -5,6 +5,7 @@ import { truckLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { getCompany } from '@/lib/invoice'
 import { fleetStatusByUnit } from '@/lib/maintenance'
+import { companyScope } from '@/lib/session'
 import { loadMapData } from '@/lib/load-map'
 import { FleetMap } from '@/components/fleet-map'
 import { Analysis } from '@/components/analysis'
@@ -15,6 +16,7 @@ import { DocList, DocUpload } from '@/components/docs'
 import { InvoiceBox } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
 import { BackButton } from '@/components/back-button'
+import { DriverInfoCard } from '@/components/driver-info-card'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
 
@@ -22,16 +24,17 @@ export const dynamic = 'force-dynamic'
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const load = await getLoad(Number(id))
+  const companyId = await companyScope()
+  const load = await getLoad(companyId, Number(id))
   if (!load) notFound()
   // The load's OWN truck — money is computed with the economics of the truck that
   // hauls it, not some global default.
-  const truck = await truckForLoad(load)
+  const truck = await truckForLoad(companyId, load)
 
   // Never throws: the DB CHECKs mirror calcLoad's throw conditions, so every stored
   // row is a valid input by construction.
   const r = calcLoad(load, truck)
-  const docs = await listDocs({ loadId: load.id })
+  const docs = await listDocs(companyId, { loadId: load.id })
   const invoiceDoc = docs.find((d) => d.kind === 'invoice')
   const rateConDoc = docs.find((d) => d.kind === 'ratecon')
   // Needed to tell the dispatcher up front if an invoice can even be built.
@@ -126,6 +129,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           }}
         />
       </section>
+
+      {/* Copyable "send to driver" text, saved when the rate con was read — hidden
+          by default, since it's only needed occasionally (resend, new driver). */}
+      {load.driverInfo && <DriverInfoCard text={load.driverInfo} />}
 
       {/* The truck economics that drive every cost line above — editable inline. */}
       <details className="group mt-4">

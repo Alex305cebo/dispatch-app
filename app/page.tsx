@@ -1,10 +1,19 @@
 import Link from 'next/link'
-import { currentLoadForTruck, listLoads, listTrucks, rateConByLoad } from '@/lib/loads'
+import {
+  currentLoadForTruck,
+  listLoads,
+  listReceivables,
+  listTrucks,
+  listUninvoicedDelivered,
+  rateConByLoad,
+} from '@/lib/loads'
 import { truckLabel, type TruckRecord } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { sql } from '@/lib/db'
 import { deliveryInfo } from '@/lib/geo-routing'
 import { fleetExpiryAlerts, truckPhotoFlags, truckTrailerNumbers } from '@/lib/maintenance'
+import { companyScope, getCurrentUser } from '@/lib/session'
+import { can } from '@/lib/capabilities-server'
 import { usd, usd2, driveTime, weekStart } from '@/lib/fmt'
 import { StatusBadge } from '@/components/status'
 import { RateConButton } from '@/components/ratecon-button'
@@ -39,15 +48,23 @@ function cityOf(location: string | null): string | null {
 }
 
 export default async function Page() {
-  const [loads, trucks, fleetRaw, alerts, rateCons, photoIds, trailers] = await Promise.all([
-    listLoads(),
-    listTrucks(),
-    sql`SELECT unit, drive_status, location, lat, lng FROM fleet_status`,
-    fleetExpiryAlerts(),
-    rateConByLoad(),
-    truckPhotoFlags(),
-    truckTrailerNumbers(),
-  ])
+  const companyId = await companyScope()
+  const user = await getCurrentUser()
+  const showFinances = await can(user, 'finances')
+  const [loads, trucks, fleetRaw, alerts, rateCons, photoIds, trailers, receivables, uninvoiced] =
+    await Promise.all([
+      listLoads(companyId),
+      listTrucks(companyId),
+      sql`SELECT unit, drive_status, location, lat, lng FROM fleet_status`,
+      fleetExpiryAlerts(companyId),
+      rateConByLoad(companyId),
+      truckPhotoFlags(companyId),
+      truckTrailerNumbers(companyId),
+      // Only fetched when actually shown below — a dispatcher without the finances
+      // capability shouldn't see money figures even loaded, not just hidden by CSS.
+      showFinances ? listReceivables(companyId) : Promise.resolve([]),
+      showFinances ? listUninvoicedDelivered(companyId) : Promise.resolve([]),
+    ])
   const fleet = fleetRaw as FS[]
   const byId = new Map<number, TruckRecord>(trucks.map((t) => [t.id, t]))
   const byUnit = new Map(fleet.map((f) => [f.unit, f]))
@@ -59,7 +76,7 @@ export default async function Page() {
     trucks.map(async (t) => {
       const fs = t.number ? byUnit.get(t.number) : undefined
       if (!fs || fs.lat === null || fs.lng === null) return
-      const load = await currentLoadForTruck(t.id)
+      const load = await currentLoadForTruck(companyId, t.id)
       if (!load?.destination) return
       const dest = await deliveryInfo({ lat: fs.lat, lng: fs.lng }, load.destination)
       if (dest) deliveryByTruck.set(t.id, { miles: dest.miles, etaMin: dest.etaMin, to: load.destination })
@@ -77,6 +94,12 @@ export default async function Page() {
   const totalMiles = rows.reduce((s, x) => s + x.r.totalMiles, 0)
   const avgRpm = totalMiles > 0 ? rows.reduce((s, x) => s + x.r.gross, 0) / totalMiles : 0
   const active = live.filter((l) => l.status === 'booked' || l.status === 'in_transit').length
+  // Trucks with nothing booked/in_transit right now — free to take a load. A truck
+  // manually flagged в ремонте/отпуск isn't free either, whatever its load list says.
+  const busyTruckIds = new Set(
+    live.filter((l) => (l.status === 'booked' || l.status === 'in_transit') && l.truckId != null).map((l) => l.truckId),
+  )
+  const freeTrucks = trucks.filter((t) => !busyTruckIds.has(t.id) && !t.unavailable).length
 
   // Per-truck gross (rate) booked this calendar week (Mon–Mon) — replaces the useless
   // HOS % in the fleet list now that HOS isn't wired up.
@@ -86,6 +109,18 @@ export default async function Page() {
     if (l.truckId == null || new Date(l.createdAt).getTime() < weekBegin) continue
     weekGrossByTruck.set(l.truckId, (weekGrossByTruck.get(l.truckId) ?? 0) + l.rate)
   }
+
+  // Ждём оплаты: everything invoiced-but-unpaid, plus delivered loads with no
+  // invoice yet at all — same two buckets the Финансы page's "Не оплачено" tab uses,
+  // just summed to one figure for the dashboard.
+  const unpaidTotal = receivables.reduce((s, r) => s + r.load.rate, 0) + uninvoiced.reduce((s, l) => s + l.rate, 0)
+  const overdue = receivables.filter((r) => r.overdue)
+  const overdueTotal = overdue.reduce((s, r) => s + r.load.rate, 0)
+
+  // Важное от брокера, ещё не прочитанное — the same "must-read" flag BrokerNotes
+  // highlights on the load page, surfaced here so it can't get missed by never
+  // opening that particular load.
+  const unreadNotes = live.filter((l) => l.brokerNotes && !l.notesReadAt)
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -130,11 +165,66 @@ export default async function Page() {
         </div>
       )}
 
+      {unreadNotes.length > 0 && (
+        <div className="mb-5 rounded-xl border border-warn-400/25 bg-warn-400/[0.06] px-4 py-3">
+          <p className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-warn-400">
+            ⚠ Важное от брокера — не прочитано
+            <Info text="Особые инструкции брокера (detention, аппойнтмент, требования к POD и т.д.), распознанные из rate con, которые ещё никто не отметил прочитанными на странице груза." />
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
+            {unreadNotes.slice(0, 6).map((l) => (
+              <Link key={l.id} href={`/loads/${l.id}`} className="text-white/80 hover:underline">
+                {l.origin ?? '—'} → {l.destination ?? '—'}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showFinances && unpaidTotal > 0 && (
+        <div
+          className={`mb-5 rounded-xl border px-4 py-3 ${
+            overdueTotal > 0 ? 'border-bad-500/25 bg-bad-500/[0.06]' : 'border-white/8 bg-white/[0.02]'
+          }`}
+        >
+          <p
+            className={`flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider ${
+              overdueTotal > 0 ? 'text-bad-400' : 'text-white/62'
+            }`}
+          >
+            Ждём оплаты
+            <Info text="Выставленные, но ещё не оплаченные счета, плюс доставленные грузы без выставленного счёта — то же, что «Не оплачено» на странице Финансы, одной цифрой." />
+          </p>
+          <p className="mt-1 text-[13px] text-white/80">
+            <Link href="/invoices" className="nums font-semibold hover:underline">
+              {usd.format(unpaidTotal)}
+            </Link>
+            {overdueTotal > 0 && (
+              <span className="text-bad-400">
+                {' '}
+                — из них просрочено{' '}
+                <Link href="/invoices" className="nums font-semibold hover:underline">
+                  {usd.format(overdueTotal)}
+                </Link>{' '}
+                ({overdue.length})
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+
       {loads.length > 0 && (
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat href="/loads" label="Рейт всего" value={usd.format(totalGross)} sub={`чистыми ${usd.format(totalNet)}`} subTone={totalNet >= 0 ? 'good' : 'bad'} info="Полная ставка за все активные грузы (гросс) — самое важное: сколько всего работы взято. Снизу «чистыми» — что останется после всех расходов (топливо, водитель, фикс, обслуживание, факторинг), это доп. информация." />
           <Stat href="/trucks" label="RPM · доход на милю" value={`${usd2.format(avgRpm)}/mi`} info="RPM (rate per mile) — средний доход на милю по всему парку: общая выручка ÷ общие мили (гружёные + порожние). Главный ориентир, брать груз или нет." />
-          <Stat href="/loads" label="В работе" value={String(active)} info="Сколько грузов сейчас в статусе «забронирован» или «в пути»." />
+          <Stat
+            href="/loads"
+            label="В работе"
+            value={String(active)}
+            sub={trucks.length > 0 ? `${freeTrucks} свободно` : undefined}
+            subTone={freeTrucks > 0 ? 'good' : undefined}
+            info="Сколько грузов сейчас в статусе «забронирован» или «в пути». Снизу — сколько траков сейчас без активного груза и готовы взять новый."
+          />
           <Stat href="/tracking" label="Всего миль" value={Math.round(totalMiles).toLocaleString('en-US')} info="Суммарные мили всех активных грузов — гружёные плюс порожние (deadhead)." />
         </div>
       )}
@@ -143,7 +233,7 @@ export default async function Page() {
       <div className="mb-2 mt-2 flex items-center justify-between">
         <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
           Парк
-          <Info text="Все траки с живыми данными из ELD: где сейчас трак и сколько он заработал за последние 7 дней. Кружок слева — статус движения по GPS: зелёный едет, синий on-duty, серый стоит. Нажми на трак — вся его карточка." />
+          <Info text="Все траки с живыми данными: где сейчас трак и сколько он заработал за неделю. Кружок слева — статус движения по GPS: зелёный едет, синий on-duty, серый стоит. Нажми на трак — вся его карточка." />
         </h2>
         <Link href="/tracking" className="text-[12px] text-haul-400 hover:underline">
           Трекинг →
@@ -172,7 +262,14 @@ export default async function Page() {
                   />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[14px] font-medium">{truckLabel(t)}</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-[14px] font-medium">{truckLabel(t)}</span>
+                    {t.unavailable && (
+                      <span className="shrink-0 rounded-full bg-warn-400/15 px-1.5 py-0.5 text-[9.5px] font-semibold text-warn-400">
+                        {t.unavailable === 'repair' ? '🔧 ремонт' : '🌴 отпуск'}
+                      </span>
+                    )}
+                  </div>
                   <div className="truncate text-[12px] text-white/60">
                     {trailers.has(t.id) && <>Трейлер {trailers.get(t.id)} · </>}
                     {cityOf(fs?.location ?? null) ?? 'Нет данных с ELD'}
@@ -234,7 +331,14 @@ export default async function Page() {
                         · {usd2.format(r.allInRpm)}/mi
                       </div>
                     </div>
-                    <div className="nums shrink-0 text-[15px] font-bold">{usd.format(load.rate)}</div>
+                    <div className="shrink-0 text-right">
+                      <div className="nums text-[15px] font-bold">{usd.format(load.rate)}</div>
+                      {load.loadedMiles > 0 && (
+                        <div className="nums text-[11px] font-medium text-haul-300">
+                          {Math.round(load.loadedMiles).toLocaleString('en-US')} mi
+                        </div>
+                      )}
+                    </div>
                   </Link>
                   {rcId && <RateConButton docId={rcId} compact />}
                 </div>

@@ -342,7 +342,7 @@ export function TruckCare({
                   </span>
                 )}
                 <DeleteButton
-                  action={(id, who, pin) => deleteTodo(id, truckId, who, pin)}
+                  action={(id, password) => deleteTodo(id, truckId, password)}
                   id={t.id}
                   title={t.title}
                 />
@@ -483,7 +483,7 @@ export function TruckCare({
                         />
                       </label>
                       <DeleteButton
-                        action={(id, who, pin) => deleteMaintenance(id, truckId, who, pin)}
+                        action={(id, password) => deleteMaintenance(id, truckId, password)}
                         id={r.id}
                         title={r.title}
                       />

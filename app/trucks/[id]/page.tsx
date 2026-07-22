@@ -25,7 +25,9 @@ import { DocList, DocUpload } from '@/components/docs'
 import { RateConButton } from '@/components/ratecon-button'
 import { TripHistory } from '@/components/trip-history'
 import { SmallRefreshButton } from '@/components/small-refresh-button'
+import { TruckAvailability } from '@/components/truck-availability'
 import { Info } from '@/components/info'
+import { companyScope } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,7 +47,8 @@ export default async function Page({
   searchParams: Promise<{ history?: string }>
 }) {
   const { id } = await params
-  const truck = await getTruck(Number(id))
+  const companyId = await companyScope()
+  const truck = await getTruck(companyId, Number(id))
   if (!truck) notFound()
 
   const requestedHours = Number((await searchParams).history)
@@ -53,13 +56,13 @@ export default async function Page({
     HISTORY_WINDOWS.find((w) => w.hours === requestedHours) ?? HISTORY_WINDOWS[0]
 
   const [loads, meta, records, todos, fleet, docs, rateCons, history] = await Promise.all([
-    listLoads({ truckId: truck.id }),
+    listLoads(companyId, { truckId: truck.id }),
     getTruckMeta(truck.id),
     listMaintenance(truck.id),
     listTodos(truck.id),
     fleetStatusByUnit(),
-    listDocs({ truckId: truck.id }),
-    rateConByLoad(),
+    listDocs(companyId, { truckId: truck.id }),
+    rateConByLoad(companyId),
     truck.number ? tripHistory(truck.number, historyWindow.hours) : Promise.resolve([]),
   ])
   const fs = truck.number ? fleet.get(truck.number) : undefined
@@ -84,7 +87,7 @@ export default async function Page({
   // The truck's current assignment — feeds the hero's route/dates summary AND the
   // map below it, so it's fetched once, unconditionally (a truck can have an active
   // load worth showing even with no live GPS fix yet).
-  const activeLoad = await currentLoadForTruck(truck.id)
+  const activeLoad = await currentLoadForTruck(companyId, truck.id)
 
   // Map: the truck where it sits (ELD GPS) plus a delivery pin at its active load's
   // destination city, with rough miles + drive time to it.
@@ -146,6 +149,11 @@ export default async function Page({
                 .join(' · ')}
             </p>
           )}
+          {/* Manual availability — dims the truck across the app and pulls it out of
+              the "свободно" counters until it's flipped back. */}
+          <div className="mt-2.5">
+            <TruckAvailability truckId={truck.id} current={truck.unavailable} />
+          </div>
         </div>
 
         <img

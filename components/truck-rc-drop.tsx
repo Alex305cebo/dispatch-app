@@ -100,7 +100,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
 
       // 4) create the load on THIS truck, attach the RC
       setStage('Создаю груз…')
-      const made = await createLoadFromRc(truckId, toQrLoad(ai.fields), docId)
+      const made = await createLoadFromRc(truckId, toQrLoad(ai.fields), docId, formatDriverInfo(ai.fields))
       if ('error' in made) throw new Error(made.error)
 
       setRes({

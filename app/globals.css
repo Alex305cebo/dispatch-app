@@ -134,3 +134,24 @@
 .fleet-map .leaflet-popup-close-button:hover {
   color: var(--color-white);
 }
+/* Marker info now shows on hover (Tooltip), not click (Popup) — see fleet-map.tsx.
+   Tooltip's own DOM has no separate content wrapper, so the box styles land right
+   on .leaflet-tooltip itself; only the little direction arrow is a separate element. */
+.fleet-map .leaflet-tooltip {
+  background: var(--color-ink-900);
+  color: var(--color-white);
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.65);
+  padding: 7px 11px;
+  /* Each fact in popupHtml is its own <div>, so nowrap keeps a line like "12 mi N
+     from Ashland, VA" whole and lets the box grow to the widest line — instead of
+     the default squeezing every word onto its own line. */
+  white-space: nowrap;
+  /* Leaflet tooltips default to pointer-events:none; ours carry a clickable
+     "Открыть →" arrow (fleet-map.tsx), so the box must receive clicks/hover. */
+  pointer-events: auto;
+}
+.fleet-map .leaflet-tooltip-top:before {
+  border-top-color: var(--color-ink-900);
+}

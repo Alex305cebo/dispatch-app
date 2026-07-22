@@ -46,6 +46,13 @@ export type LoadRecord = Load & {
   paymentTermsDays: number
   /** Which app user created this load — auto-set, null for loads predating this. */
   dispatcherId: number | null
+  /** 'default' = the real fleet, 'demo' = the public sandbox (lib/demo.ts) — carried
+   * along so anything holding a LoadRecord (e.g. buildInvoicePacket) can stamp the
+   * same scope on documents it creates, without a second parameter everywhere. */
+  companyId: 'default' | 'demo'
+  /** Pre-rendered "Driver Information" text (lib/ratecon.ts formatDriverInfo) — set
+   * once when the load is sourced from a rate con, null for manual entries. */
+  driverInfo: string | null
 }
 
 export type TruckRecord = TruckSettings & {
@@ -53,6 +60,8 @@ export type TruckRecord = TruckSettings & {
   name: string
   number: string | null
   driverName: string | null
+  /** Manual flag: null = active, 'repair' = в ремонте, 'vacation' = отпуск. */
+  unavailable: 'repair' | 'vacation' | null
 }
 
 /** "425 · Ravil" for the fleet UI — number first, driver second. */
@@ -117,6 +126,8 @@ export type LoadRow = {
   paid_at?: Date | string | null
   payment_terms_days?: number | null
   dispatcher_id?: number | null
+  company_id?: string | null
+  driver_info?: string | null
 }
 
 export type TruckRow = {
@@ -124,6 +135,7 @@ export type TruckRow = {
   name: string
   number: string | null
   driver_name: string | null
+  unavailable?: string | null
   mpg: number
   fuel_price_per_gallon: number
   driver_pay_mode: string
@@ -173,6 +185,8 @@ export function rowToLoad(r: LoadRow): LoadRecord {
     paidAt: r.paid_at ? new Date(r.paid_at).toISOString() : null,
     paymentTermsDays: r.payment_terms_days ?? 30,
     dispatcherId: r.dispatcher_id ?? null,
+    companyId: r.company_id === 'demo' ? 'demo' : 'default',
+    driverInfo: r.driver_info ?? null,
   }
 }
 
@@ -182,6 +196,7 @@ export function rowToTruck(r: TruckRow): TruckRecord {
     name: r.name,
     number: r.number ?? null,
     driverName: r.driver_name ?? null,
+    unavailable: r.unavailable === 'repair' || r.unavailable === 'vacation' ? r.unavailable : null,
     mpg: r.mpg,
     fuelPricePerGallon: r.fuel_price_per_gallon,
     // The branch that matters: pick the wrong arm and every number in the app is

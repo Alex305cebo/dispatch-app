@@ -2,15 +2,17 @@ import Link from 'next/link'
 import { listDocsForLibrary, listTrashedDocs, listTrucks } from '@/lib/loads'
 import { DocLibrary, DocTrash, DocUpload } from '@/components/docs'
 import { Info } from '@/components/info'
+import { companyScope } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const tab = (await searchParams).tab === 'trash' ? 'trash' : 'library'
+  const companyId = await companyScope()
   const [rows, trash, trucks] = await Promise.all([
-    listDocsForLibrary(),
-    listTrashedDocs(),
-    listTrucks(),
+    listDocsForLibrary(companyId),
+    listTrashedDocs(companyId),
+    listTrucks(companyId),
   ])
   const groups = trucks.map((t) => ({
     id: t.id,

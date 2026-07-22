@@ -15,16 +15,22 @@ import {
   tgSend,
 } from './telegram.ts'
 import { activeLoadForTruck } from './loads.ts'
-import { classifyDocument } from './ai-doc.ts'
+import { classifyDocument, type DocClass } from './ai-doc.ts'
+import { captionKind } from './caption-kind.ts'
 import { autoInvoiceIfReady } from './invoice.ts'
 
 const digits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '')
+
+// Telegram accounts are always real people talking to real drivers — the public demo
+// sandbox never has one connected, and never should. Every truck/load lookup in this
+// file is pinned to the real fleet explicitly, never derived from a session.
+const REAL = 'default'
 
 /** phone(last10) → {truckId, number}, from truck passports. */
 export async function phoneMap(): Promise<Map<string, { truckId: number; number: string }>> {
   const rows = (await sql`
     SELECT m.truck_id, m.driver_phone, t.number FROM truck_meta m
-    JOIN trucks t ON t.id = m.truck_id WHERE m.driver_phone IS NOT NULL`) as any[]
+    JOIN trucks t ON t.id = m.truck_id WHERE t.company_id = ${REAL} AND m.driver_phone IS NOT NULL`) as any[]
   return new Map(rows.map((r) => [digits(r.driver_phone).slice(-10), { truckId: r.truck_id, number: r.number }]))
 }
 
@@ -38,7 +44,8 @@ export async function resolveTruckForChat(
 ): Promise<{ truckId: number; number: string } | undefined> {
   const manual = (await tgChatTruckMap(uid))[chatId]
   if (manual) {
-    const rows = (await sql`SELECT id, number FROM trucks WHERE id = ${manual}`) as { id: number; number: string }[]
+    const rows = (await sql`
+      SELECT id, number FROM trucks WHERE id = ${manual} AND company_id = ${REAL}`) as { id: number; number: string }[]
     if (rows[0]) return { truckId: rows[0].id, number: rows[0].number }
   }
   return phone ? (await phoneMap()).get(digits(phone).slice(-10)) : undefined
@@ -76,13 +83,19 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
       // `handled` stays false only if a TRANSIENT error threw (e.g. Gemini timeout on
       // classify) — in that case the cursor below doesn't advance, so this one message
       // is retried next run. A deliberate skip (not a known driver / no active load /
-      // not pod-bol / duplicate) IS handled: advance so it's not reprocessed forever.
+      // nothing we file / duplicate) IS handled: advance so it's not reprocessed forever.
       let handled = true
       try {
         const truck = await resolveTruckForChat(uid, m.chatId, m.phone)
-        const load = truck ? await activeLoadForTruck(truck.truckId) : null
-        const kind = truck && load ? await classifyDocument(m.bytes.toString('base64'), m.mime) : null
-        if (!truck || !load || (kind !== 'pod' && kind !== 'bol')) {
+        const load = truck ? await activeLoadForTruck(REAL, truck.truckId) : null
+        // Caption keyword wins (trusted label, no AI). Otherwise only INBOUND driver
+        // media gets vision-classified — the dispatcher's own posts file solely by
+        // caption, never guessed as a POD/BOL.
+        const forced = captionKind(m.text)
+        const kind: DocClass | null = !truck || !load
+          ? null
+          : forced ?? (m.mine ? null : await classifyDocument(m.bytes.toString('base64'), m.mime))
+        if (!truck || !load || (kind !== 'pod' && kind !== 'bol' && kind !== 'ratecon')) {
           skipped++
         } else {
           // A driver who sends the SAME photo to two dispatchers would otherwise file it
@@ -98,17 +111,26 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
             const hex = m.bytes.toString('hex')
             const ext = m.mime.includes('pdf') ? 'pdf' : 'jpg'
             await sql`
-              INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data)
+              INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data, company_id)
               VALUES (${load.id}, ${truck.truckId}, ${kind},
                       ${`${kind.toUpperCase()} #${truck.number} tg.${ext}`}, ${m.mime}, ${m.bytes.length},
-                      decode(${hex}, 'hex'))`
+                      decode(${hex}, 'hex'), ${REAL})`
             attached++
             // A dispatcher only ever has POD/BOL/rate con, never an "invoice" of their
             // own — the invoice is generated FROM the POD, so once it lands there's no
             // manual step.
-            if (kind === 'pod') await autoInvoiceIfReady(load.id)
-            // Acknowledge like a human dispatcher would — short, keeps the channel trusted.
-            await tgSend(uid, m.chatId, kind === 'pod' ? 'POD получил, спасибо 👍' : 'BOL получил, спасибо').catch(() => {})
+            if (kind === 'pod') await autoInvoiceIfReady(REAL, load.id)
+            // Acknowledge like a human dispatcher would — but only when the DRIVER sent
+            // it; acking your own posted rate con would be talking to yourself.
+            if (!m.mine) {
+              const ack =
+                kind === 'pod'
+                  ? 'POD получил, спасибо 👍'
+                  : kind === 'bol'
+                    ? 'BOL получил, спасибо'
+                    : 'Рейткон получил, прикрепил к грузу 👍'
+              await tgSend(uid, m.chatId, ack).catch(() => {})
+            }
           }
         }
       } catch {
@@ -139,7 +161,7 @@ export async function remindMissingPods(): Promise<{ nudged: number } | { error:
     FROM loads l
     JOIN trucks t ON t.id = l.truck_id
     LEFT JOIN truck_meta m ON m.truck_id = t.id
-    WHERE l.status = 'delivered' AND l.invoiced_at IS NULL
+    WHERE l.company_id = ${REAL} AND l.status = 'delivered' AND l.invoiced_at IS NULL
       AND l.created_at < now() - interval '45 minutes'
       AND m.driver_phone IS NOT NULL
       AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.load_id = l.id AND d.kind = 'pod')`) as any[]

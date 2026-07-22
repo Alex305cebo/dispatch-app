@@ -4,6 +4,7 @@ import { getCompany } from '@/lib/invoice'
 import { getCurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
 import { fleetExpiryAlerts } from '@/lib/maintenance'
+import { DemoModeBanner } from '@/components/demo-mode-banner'
 import './globals.css'
 
 // Apply the saved theme before first paint — no flash of the wrong colours.
@@ -24,7 +25,9 @@ export const viewport: Viewport = {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [company, user, alerts] = await Promise.all([getCompany(), getCurrentUser(), fleetExpiryAlerts()])
+  const user = await getCurrentUser()
+  const companyId = user?.companyId ?? 'default'
+  const [company, alerts] = await Promise.all([getCompany(), fleetExpiryAlerts(companyId)])
   // Capability-gated nav items — admins always see them; dispatchers per their access.
   const [showTelegram, showFinances] = await Promise.all([can(user, 'telegram'), can(user, 'finances')])
   // Overdue/≤30-day document expiries — a badge on the Траки nav item, visible from
@@ -50,8 +53,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           showFinances={showFinances}
           urgentDocs={urgentDocs}
         />
-        {/* Room for the bottom bar on phones (tabs + utility strip), sidebar on desktop. */}
-        <div className="pb-28 md:pb-0 md:pl-52">{children}</div>
+        {user?.isDemo && <DemoModeBanner />}
+        {/* Room for the bottom bar on phones (tabs + utility strip), sidebar on desktop.
+            Extra top padding while the demo banner is up — it's fixed, so it would
+            otherwise sit on top of the page's own first heading. */}
+        <div className={`pb-28 md:pb-0 md:pl-52 ${user?.isDemo ? 'pt-9' : ''}`}>{children}</div>
       </body>
     </html>
   )

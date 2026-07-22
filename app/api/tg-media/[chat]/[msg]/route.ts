@@ -15,7 +15,8 @@ export async function GET(
   const user = await getCurrentUser()
   if (!user) return new NextResponse('Unauthorized', { status: 401 })
   const { chat, msg } = await params
-  const media = await tgMedia(user.id, chat, Number(msg)).catch(() => null)
+  const thumb = _req.nextUrl.searchParams.get('thumb') === '1'
+  const media = await tgMedia(user.id, chat, Number(msg), thumb).catch(() => null)
   if (!media) return new NextResponse('Not found', { status: 404 })
   return new NextResponse(Buffer.from(media.bytes), {
     headers: {

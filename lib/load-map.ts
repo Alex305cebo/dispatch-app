@@ -10,7 +10,7 @@ import { headingOf } from './eld'
 import { driveTime } from './fmt'
 import type { MapMarker, MapRoute } from '@/components/fleet-map'
 
-// ZigZag duty codes → colour bucket for the live badge.
+// ELD duty codes → colour bucket for the live badge.
 export function statusTone(s: string | null): 'move' | 'on' | 'rest' {
   if (!s) return 'rest'
   if (/mi\/h|^d$/i.test(s)) return 'move'
@@ -41,6 +41,7 @@ export async function loadMapData(
     tone: statusTone(fs?.driveStatus ?? null),
     kind: 'truck',
     heading: heading ?? undefined,
+    href: `/trucks/${truck.id}`,
   }
 
   // Prefer the RC's exact street address over the bare city — pins the real dock,
@@ -72,6 +73,7 @@ export async function loadMapData(
         .filter(Boolean)
         .join('\n'),
       kind: 'pickup',
+      href: `/loads/${load.id}`,
     })
   }
 
@@ -96,6 +98,7 @@ export async function loadMapData(
       label: `Delivery · ${load.destination}`,
       sub: load.origin ? `Из ${load.origin}` : undefined,
       kind: 'dest',
+      href: `/loads/${load.id}`,
     })
   }
 

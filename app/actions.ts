@@ -9,10 +9,11 @@ import type { LoadStatus } from '@/lib/map'
 import type { QrLoad } from '@/lib/qr-load'
 import type { TruckSettings } from '@/lib/profit'
 import { checkBroker, type BrokerCheck, type RcContext } from '@/lib/fmcsa'
-import { getLoad } from '@/lib/loads'
+import { formatDriverInfo, toQrLoad } from '@/lib/ratecon'
+import { docBelongs, getLoad, loadBelongs, truckBelongs } from '@/lib/loads'
 import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
 import { getSetting, setSetting } from '@/lib/settings'
-import { getCurrentUser } from '@/lib/session'
+import { companyScope, getCurrentUser, verifyMyPassword } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
 import type { CapabilityKey } from '@/lib/capabilities'
 
@@ -106,7 +107,7 @@ export async function generateInvoice(
 ): Promise<{ docId: number; invoiceNumber: string } | { error: string }> {
   const denied = await assertCan('finances')
   if (denied) return denied
-  const load = await getLoad(loadId)
+  const load = await getLoad(await companyScope(), loadId)
   if (!load) return { error: 'Груз не найден.' }
   const res = await buildInvoicePacket(load)
   if ('error' in res) return res
@@ -120,15 +121,20 @@ export async function markPaid(loadId: number, paid: boolean): Promise<{ error: 
   const denied = await assertCan('finances')
   if (denied) return denied
   await sql`UPDATE loads SET paid_at = ${paid ? new Date().toISOString() : null},
-            status = ${paid ? 'paid' : 'delivered'} WHERE id = ${loadId}`
+            status = ${paid ? 'paid' : 'delivered'} WHERE id = ${loadId} AND company_id = ${await companyScope()}`
   revalidatePath(`/loads/${loadId}`)
   revalidatePath('/invoices')
   revalidatePath('/')
 }
 
+/** The company profile is one global record, not per-tenant (it's printed on every
+ * real invoice) — so unlike everything else in this file, capability alone isn't
+ * enough here: the demo account is blocked outright, whatever its capabilities say,
+ * so a public demo visitor can never overwrite the real business's invoice letterhead. */
 export async function saveCompany(c: Company): Promise<{ error: string } | void> {
   const denied = await assertCan('finances')
   if (denied) return denied
+  if ((await companyScope()) === 'demo') return { error: 'В демо-режиме недоступно.' }
   if (!c.name.trim() || !c.mcdot.trim()) return { error: 'Нужны минимум название и MC/DOT.' }
   await Promise.all([
     setSetting('co_name', c.name.trim()),
@@ -153,12 +159,17 @@ export type NewLoad = QrLoad & { source: 'manual' | 'qr'; truckId: number }
  * else. No GPS yet, or no pickup city → leave it as given (usually 0, dispatcher
  * fixes it by hand same as always).
  */
-async function fillDeadhead(truckId: number, deadheadMiles: number, origin: string | null): Promise<number> {
+async function fillDeadhead(
+  companyId: 'default' | 'demo',
+  truckId: number,
+  deadheadMiles: number,
+  origin: string | null,
+): Promise<number> {
   if (deadheadMiles > 0 || !origin) return deadheadMiles
   const rows = (await sql`
     SELECT fs.lat, fs.lng FROM trucks t
     LEFT JOIN fleet_status fs ON fs.unit = t.number
-    WHERE t.id = ${truckId}`) as { lat: number | null; lng: number | null }[]
+    WHERE t.id = ${truckId} AND t.company_id = ${companyId}`) as { lat: number | null; lng: number | null }[]
   const t = rows[0]
   if (t?.lat == null || t?.lng == null) return deadheadMiles
   const { deliveryInfo } = await import('@/lib/geo-routing')
@@ -170,10 +181,15 @@ export async function createLoad(
   load: NewLoad,
   /** Pre-uploaded document (the imported RC) that becomes this load's paperwork. */
   docId?: number,
+  /** The "Driver Information" block already rendered from the AI read (LoadForm's
+   * /import path) — null for a manual/QR entry, which has nothing to render. */
+  driverInfo?: string,
 ): Promise<{ error: string } | void> {
   let id: number
   try {
-    const deadheadMiles = await fillDeadhead(load.truckId, load.deadheadMiles, load.origin)
+    const companyId = await companyScope()
+    if (!(await truckBelongs(companyId, load.truckId))) return { error: 'Трак не найден.' }
+    const deadheadMiles = await fillDeadhead(companyId, load.truckId, load.deadheadMiles, load.origin)
     // Auto-credited to whoever's actually signed in and clicking "create" — no
     // manual assignment step, feeds the weekly per-dispatcher report on Финансы.
     const dispatcherId = (await getCurrentUser())?.id ?? null
@@ -182,17 +198,18 @@ export async function createLoad(
                          destination, truck_location, spot_rpm, broker_mc, broker_email,
                          broker_phone, reference_id, source, truck_id, pickup_date,
                          delivery_date, broker_notes, pickup_time, delivery_time,
-                         pickup_address, delivery_address, dispatcher_id)
+                         pickup_address, delivery_address, dispatcher_id, company_id, driver_info)
       VALUES (${load.rate}, ${load.loadedMiles}, ${deadheadMiles}, ${load.transitDays},
               ${load.origin}, ${load.destination}, ${load.truckLocation}, ${load.spotRpm},
               ${load.brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
               ${load.source}, ${load.truckId}, ${load.pickupDate ?? null},
               ${load.deliveryDate ?? null}, ${load.brokerNotes ?? null},
               ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
-              ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, ${dispatcherId})
+              ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, ${dispatcherId}, ${companyId},
+              ${driverInfo ?? null})
       RETURNING id`
     id = (rows[0] as { id: number }).id
-    if (docId) {
+    if (docId && (await docBelongs(companyId, docId))) {
       await sql`UPDATE documents SET load_id = ${id} WHERE id = ${docId} AND load_id IS NULL`
     }
   } catch (e) {
@@ -215,8 +232,14 @@ export async function createLoadFromRc(
   truckId: number,
   load: QrLoad,
   docId?: number,
+  /** The "Driver Information" block rendered from the same AI read that produced
+   * `load` — stored so it can be re-copied from the load page later, not just once
+   * in the browser session right after the RC was read. */
+  driverInfo?: string,
 ): Promise<{ loadId: number } | { error: string }> {
   try {
+    const companyId = await companyScope()
+    if (!(await truckBelongs(companyId, truckId))) return { error: 'Трак не найден.' }
     // Plenty of real rate cons never print a mileage figure. loads.loaded_miles has
     // CHECK (> 0), so those used to die on a raw constraint violation — the load
     // silently never appeared. Fall back to actual road miles between the two cities
@@ -233,7 +256,7 @@ export async function createLoadFromRc(
         error:
           'В рейтконе не указан пробег, и рассчитать его по городам не вышло. Создай груз вручную и впиши мили.',
       }
-    const deadheadMiles = await fillDeadhead(truckId, load.deadheadMiles, load.origin)
+    const deadheadMiles = await fillDeadhead(companyId, truckId, load.deadheadMiles, load.origin)
     // Auto-credited to whoever's actually signed in and dropping the RC — no manual
     // assignment step, feeds the weekly per-dispatcher report on Финансы.
     const dispatcherId = (await getCurrentUser())?.id ?? null
@@ -247,16 +270,18 @@ export async function createLoadFromRc(
                          destination, truck_location, spot_rpm, broker_mc, broker_email,
                          broker_phone, reference_id, source, truck_id, pickup_date,
                          delivery_date, broker_notes, pickup_time, delivery_time,
-                         pickup_address, delivery_address, status, dispatcher_id)
+                         pickup_address, delivery_address, status, dispatcher_id, company_id, driver_info)
       VALUES (${load.rate}, ${loadedMiles}, ${deadheadMiles}, ${load.transitDays},
               ${load.origin}, ${load.destination}, ${load.truckLocation}, ${load.spotRpm},
               ${load.brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
               'qr', ${truckId}, ${load.pickupDate ?? null}, ${load.deliveryDate ?? null},
               ${load.brokerNotes ?? null}, ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
-              ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, 'booked', ${dispatcherId})
+              ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, 'booked', ${dispatcherId}, ${companyId},
+              ${driverInfo ?? null})
       RETURNING id`
     const loadId = (rows[0] as { id: number }).id
-    if (docId) await sql`UPDATE documents SET load_id = ${loadId} WHERE id = ${docId} AND load_id IS NULL`
+    if (docId && (await docBelongs(companyId, docId)))
+      await sql`UPDATE documents SET load_id = ${loadId} WHERE id = ${docId} AND load_id IS NULL`
     revalidatePath(`/trucks/${truckId}`)
     revalidatePath('/loads')
     revalidatePath('/')
@@ -279,11 +304,12 @@ export async function createLoadFromExistingRc(
   docId: number,
   truckId: number,
 ): Promise<{ loadId: number } | { error: string }> {
+  const companyId = await companyScope()
   // Postgres' encode() wraps base64 at PEM width; Gemini's inlineData rejects the
   // embedded newlines with a 400, hence the replace().
   const rows = await sql`
     SELECT replace(encode(data, 'base64'), E'\n', '') AS b64, mime, load_id
-    FROM documents WHERE id = ${docId} AND kind = 'ratecon'`
+    FROM documents WHERE id = ${docId} AND kind = 'ratecon' AND company_id = ${companyId}`
   const doc = rows[0] as { b64: string; mime: string; load_id: number | null } | undefined
   if (!doc) return { error: 'Рейткон не найден.' }
   if (doc.load_id) return { error: 'Из этого рейткона груз уже создан.' }
@@ -294,8 +320,8 @@ export async function createLoadFromExistingRc(
     return { error: res.error === 'no_key' ? 'ИИ временно недоступен — обратись к администратору.' : `ИИ не прочитал: ${res.error}` }
 
   const { aiToFields } = await import('@/lib/ratecon-ai-contract')
-  const { toQrLoad } = await import('@/lib/ratecon')
-  return createLoadFromRc(truckId, toQrLoad(aiToFields(res.fields, res.model)), docId)
+  const fields = aiToFields(res.fields, res.model)
+  return createLoadFromRc(truckId, toQrLoad(fields), docId, formatDriverInfo(fields))
 }
 
 /** Status can also be set here (not just via markPaid's "Отметить оплаченным"
@@ -308,7 +334,7 @@ export async function setStatus(id: number, status: LoadStatus): Promise<void> {
       paid_at = CASE WHEN ${status} = 'paid' THEN COALESCE(paid_at, now())
                      WHEN paid_at IS NOT NULL THEN NULL
                      ELSE paid_at END
-    WHERE id = ${id}`
+    WHERE id = ${id} AND company_id = ${await companyScope()}`
   revalidatePath(`/loads/${id}`)
   revalidatePath('/loads')
   revalidatePath('/invoices')
@@ -343,13 +369,26 @@ export async function saveTruck(
         maintenance_cost_per_mile = ${t.maintenanceCostPerMile},
         factoring_percent = ${t.factoringPercent},
         dispatch_percent = ${t.dispatchPercent}
-      WHERE id = ${id}`
+      WHERE id = ${id} AND company_id = ${await companyScope()}`
   } catch (e) {
     return { error: humanError(e) }
   }
   // Blunt on purpose: a truck's settings feed calcLoad on every page that shows its
   // money. Enumerating them is more code, and one forgotten path means silently
   // wrong numbers.
+  revalidatePath('/', 'layout')
+}
+
+/** Manual availability: 'active' clears the flag, 'repair'/'vacation' set it. An
+ * unavailable truck is badged across the app and excluded from "свободно" counts. */
+export async function setTruckAvailability(
+  truckId: number,
+  status: 'active' | 'repair' | 'vacation',
+): Promise<{ error: string } | void> {
+  const denied = await assertCan('edit_trucks')
+  if (denied) return denied
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: 'Трак не найден.' }
+  await sql`UPDATE trucks SET unavailable = ${status === 'active' ? null : status} WHERE id = ${truckId}`
   revalidatePath('/', 'layout')
 }
 
@@ -373,21 +412,24 @@ export async function uploadDocument(
   const truckId = fd.get('truckId') ? Number(fd.get('truckId')) : null
   const loadId = fd.get('loadId') ? Number(fd.get('loadId')) : null
   const maintenanceId = fd.get('maintenanceId') ? Number(fd.get('maintenanceId')) : null
+  const companyId = await companyScope()
+  if (truckId && !(await truckBelongs(companyId, truckId))) return { error: 'Трак не найден.' }
+  if (loadId && !(await loadBelongs(companyId, loadId))) return { error: 'Груз не найден.' }
   // Hex round-trip: Neon's HTTP driver JSON-encodes params, raw bytes don't survive.
   const hex = Buffer.from(await file.arrayBuffer()).toString('hex')
 
   try {
     const rows = await sql`
-      INSERT INTO documents (truck_id, load_id, maintenance_id, kind, title, mime, size_bytes, data)
+      INSERT INTO documents (truck_id, load_id, maintenance_id, kind, title, mime, size_bytes, data, company_id)
       VALUES (${truckId}, ${loadId}, ${maintenanceId}, ${kind}, ${title},
-              ${file.type || 'application/octet-stream'}, ${file.size}, decode(${hex}, 'hex'))
+              ${file.type || 'application/octet-stream'}, ${file.size}, decode(${hex}, 'hex'), ${companyId})
       RETURNING id`
     revalidatePath('/docs')
     if (truckId) revalidatePath(`/trucks/${truckId}`)
     if (loadId) revalidatePath(`/loads/${loadId}`)
     // A dispatcher only ever has POD/BOL/rate con, never an "invoice" of their own —
     // the invoice is generated FROM the POD, so once it lands there's no manual step.
-    if (loadId && kind === 'pod') await autoInvoiceIfReady(loadId)
+    if (loadId && kind === 'pod') await autoInvoiceIfReady(companyId, loadId)
     return { id: (rows[0] as { id: number }).id }
   } catch (e) {
     return { error: humanError(e) }
@@ -395,14 +437,22 @@ export async function uploadDocument(
 }
 
 export async function attachDocumentToLoad(docId: number, loadId: number): Promise<void> {
+  const companyId = await companyScope()
+  if (!(await docBelongs(companyId, docId)) || !(await loadBelongs(companyId, loadId))) return
   const rows = await sql`
     UPDATE documents SET load_id = ${loadId} WHERE id = ${docId} AND load_id IS NULL RETURNING kind`
   revalidatePath(`/loads/${loadId}`)
   revalidatePath('/docs')
-  if ((rows[0] as { kind: string } | undefined)?.kind === 'pod') await autoInvoiceIfReady(loadId)
+  if ((rows[0] as { kind: string } | undefined)?.kind === 'pod') await autoInvoiceIfReady(companyId, loadId)
 }
 
+/** audit_log/logins have no company column of their own — they're keyed by a free-
+ * text "who" name, not a row a company_id filter could attach to. So instead of
+ * filtering the real Журнал for demo noise, we simply never write it: a demo
+ * session's deletes have no audit value for the real business, and the DEMO
+ * companyId check here is what keeps "Демо" out of it entirely. */
 async function auditDelete(
+  companyId: 'default' | 'demo',
   who: string,
   action: string,
   target: string,
@@ -410,6 +460,7 @@ async function auditDelete(
   fromLoc: string | null,
   toLoc: string | null,
 ): Promise<void> {
+  if (companyId === 'demo') return
   const h = await headers()
   const ip = (h.get('x-forwarded-for') ?? '').split(',')[0]!.trim() || null
   const { ipCity } = await import('@/lib/geo-routing')
@@ -421,17 +472,14 @@ async function auditDelete(
 
 /**
  * "Deleting" a document only moves it to the trash (deleted_at) — the file itself
- * stays put until purgeDocument removes it for real. Guarded: name + PIN, audited
- * (who, what, the load route) — shown in the Журнал. PIN is the shared APP_PIN.
+ * stays put until purgeDocument removes it for real. Guarded by the signed-in user's
+ * own password, audited (who, what, the load route) — shown in the Журнал.
  */
-export async function deleteDocument(
-  id: number,
-  who: string,
-  pin: string,
-): Promise<{ error: string } | void> {
-  if (!process.env.APP_PIN) return { error: 'PIN не настроен — обратись к администратору.' }
-  if (pin !== process.env.APP_PIN) return { error: 'Неверный PIN.' }
-  if (!who?.trim()) return { error: 'Впиши имя — кто удаляет.' }
+export async function deleteDocument(id: number, password: string): Promise<{ error: string } | void> {
+  const check = await verifyMyPassword(password)
+  if ('error' in check) return { error: check.error }
+  const who = check.user.name || 'диспетчер'
+  if (!(await docBelongs(check.user.companyId, id))) return { error: 'Документ не найден.' }
 
   try {
     const rows = (await sql`
@@ -447,7 +495,7 @@ export async function deleteDocument(
     if (!doc) return { error: 'Документ не найден.' }
 
     await sql`UPDATE documents SET deleted_at = now() WHERE id = ${id}`
-    await auditDelete(who, 'delete_document', doc.title, doc.kind, doc.origin, doc.destination)
+    await auditDelete(check.user.companyId, who, 'delete_document', doc.title, doc.kind, doc.origin, doc.destination)
   } catch (e) {
     return { error: humanError(e) }
   }
@@ -459,6 +507,8 @@ export async function deleteDocument(
 
 /** Pull a document back out of the trash — the safe direction, no PIN needed. */
 export async function restoreDocument(id: number): Promise<void> {
+  const companyId = await companyScope()
+  if (!(await docBelongs(companyId, id))) return
   await sql`UPDATE documents SET deleted_at = NULL WHERE id = ${id}`
   revalidatePath('/docs')
   revalidatePath('/trucks', 'layout')
@@ -467,14 +517,11 @@ export async function restoreDocument(id: number): Promise<void> {
 
 /** Erases a trashed document for real — same name + PIN guard as the soft delete,
  * since this direction can't be undone. */
-export async function purgeDocument(
-  id: number,
-  who: string,
-  pin: string,
-): Promise<{ error: string } | void> {
-  if (!process.env.APP_PIN) return { error: 'PIN не настроен — обратись к администратору.' }
-  if (pin !== process.env.APP_PIN) return { error: 'Неверный PIN.' }
-  if (!who?.trim()) return { error: 'Впиши имя — кто удаляет.' }
+export async function purgeDocument(id: number, password: string): Promise<{ error: string } | void> {
+  const check = await verifyMyPassword(password)
+  if ('error' in check) return { error: check.error }
+  const who = check.user.name || 'диспетчер'
+  if (!(await docBelongs(check.user.companyId, id))) return { error: 'Документ не найден в корзине.' }
 
   try {
     const rows = (await sql`
@@ -490,7 +537,7 @@ export async function purgeDocument(
     if (!doc) return { error: 'Документ не найден в корзине.' }
 
     await sql`DELETE FROM documents WHERE id = ${id}`
-    await auditDelete(who, 'purge_document', doc.title, doc.kind, doc.origin, doc.destination)
+    await auditDelete(check.user.companyId, who, 'purge_document', doc.title, doc.kind, doc.origin, doc.destination)
   } catch (e) {
     return { error: humanError(e) }
   }
@@ -533,7 +580,7 @@ export async function updateLoadDetails(
       broker_mc = ${p.brokerMc || null}, broker_phone = ${p.brokerPhone || null},
       broker_email = ${p.brokerEmail || null}, pickup_date = ${p.pickupDate || null},
       delivery_date = ${p.deliveryDate || null}
-      WHERE id = ${loadId}`
+      WHERE id = ${loadId} AND company_id = ${await companyScope()}`
   } catch (e) {
     return { error: humanError(e) }
   }
@@ -548,7 +595,8 @@ export async function setBrokerNotes(
   notes: string,
 ): Promise<{ error: string } | void> {
   try {
-    await sql`UPDATE loads SET broker_notes = ${notes.trim() || null} WHERE id = ${loadId}`
+    await sql`UPDATE loads SET broker_notes = ${notes.trim() || null}
+      WHERE id = ${loadId} AND company_id = ${await companyScope()}`
   } catch (e) {
     return { error: humanError(e) }
   }
@@ -570,7 +618,8 @@ export async function translateBrokerNotes(
 
 /** Dispatcher acknowledged the broker notes — stops highlighting them. */
 export async function markNotesRead(loadId: number): Promise<void> {
-  await sql`UPDATE loads SET notes_read_at = now() WHERE id = ${loadId} AND notes_read_at IS NULL`
+  await sql`UPDATE loads SET notes_read_at = now()
+    WHERE id = ${loadId} AND company_id = ${await companyScope()} AND notes_read_at IS NULL`
   revalidatePath(`/loads/${loadId}`)
 }
 
@@ -589,11 +638,13 @@ export async function markNotesRead(loadId: number): Promise<void> {
 export async function parseRcForNotes(
   loadId: number,
 ): Promise<{ error: string } | { ok: true; found: boolean }> {
+  const companyId = await companyScope()
+  if (!(await loadBelongs(companyId, loadId))) return { error: 'Груз не найден.' }
   // Postgres base64 comes newline-wrapped (PEM style); Gemini's decoder rejects the
   // newlines, so strip them.
   const docs = (await sql`
     SELECT replace(encode(data, 'base64'), E'\n', '') AS b64, mime
-    FROM documents WHERE load_id = ${loadId} AND kind = 'ratecon'
+    FROM documents WHERE load_id = ${loadId} AND company_id = ${companyId} AND kind = 'ratecon'
     ORDER BY uploaded_at DESC LIMIT 1`) as { b64: string; mime: string }[]
   const doc = docs[0]
   if (!doc) return { error: 'К этому грузу не прикреплён rate con.' }
@@ -606,8 +657,9 @@ export async function parseRcForNotes(
     }
 
   const { aiToFields } = await import('@/lib/ratecon-ai-contract')
-  const { toQrLoad } = await import('@/lib/ratecon')
-  const load = toQrLoad(aiToFields(res.fields, res.model))
+  const fields = aiToFields(res.fields, res.model)
+  const load = toQrLoad(fields)
+  const driverInfo = formatDriverInfo(fields)
 
   try {
     await sql`UPDATE loads SET
@@ -615,8 +667,9 @@ export async function parseRcForNotes(
       transit_days = ${load.transitDays},
       pickup_date = ${load.pickupDate}, delivery_date = ${load.deliveryDate},
       pickup_time = ${load.pickupTime}, delivery_time = ${load.deliveryTime},
-      pickup_address = ${load.pickupAddress}, delivery_address = ${load.deliveryAddress}
-      WHERE id = ${loadId}`
+      pickup_address = ${load.pickupAddress}, delivery_address = ${load.deliveryAddress},
+      driver_info = ${driverInfo}
+      WHERE id = ${loadId} AND company_id = ${companyId}`
   } catch (e) {
     return { error: humanError(e) }
   }
@@ -627,18 +680,15 @@ export async function parseRcForNotes(
 }
 
 /**
- * Delete a load. Guarded like document deletion (name + PIN → audit row in the
- * Журнал). Its documents are kept but detached, so the paperwork stays in the
+ * Delete a load. Guarded like document deletion (the user's own password → audit row
+ * in the Журнал). Its documents are kept but detached, so the paperwork stays in the
  * library instead of blocking the delete on the foreign key.
  */
-export async function deleteLoad(
-  id: number,
-  who: string,
-  pin: string,
-): Promise<{ error: string } | void> {
-  if (!process.env.APP_PIN) return { error: 'PIN не настроен — обратись к администратору.' }
-  if (pin !== process.env.APP_PIN) return { error: 'Неверный PIN.' }
-  if (!who?.trim()) return { error: 'Впиши имя — кто удаляет.' }
+export async function deleteLoad(id: number, password: string): Promise<{ error: string } | void> {
+  const check = await verifyMyPassword(password)
+  if ('error' in check) return { error: check.error }
+  const who = check.user.name || 'диспетчер'
+  if (!(await loadBelongs(check.user.companyId, id))) return { error: 'Груз не найден.' }
 
   try {
     const rows = (await sql`SELECT origin, destination FROM loads WHERE id = ${id}`) as {
@@ -651,15 +701,8 @@ export async function deleteLoad(
     await sql`UPDATE documents SET load_id = NULL WHERE load_id = ${id}`
     await sql`DELETE FROM loads WHERE id = ${id}`
 
-    const h = await headers()
-    const ip = (h.get('x-forwarded-for') ?? '').split(',')[0]!.trim() || null
-    const { ipCity } = await import('@/lib/geo-routing')
-    const city = await ipCity(ip)
     const route = [load.origin, load.destination].filter(Boolean).join(' → ') || `#${id}`
-    await sql`
-      INSERT INTO audit_log (who, action, target, doc_kind, from_loc, to_loc, ip, user_agent, city)
-      VALUES (${who.trim()}, 'delete_load', ${route}, NULL,
-              ${load.origin}, ${load.destination}, ${ip}, ${h.get('user-agent')}, ${city})`
+    await auditDelete(check.user.companyId, who, 'delete_load', route, null, load.origin, load.destination)
   } catch (e) {
     return { error: humanError(e) }
   }
@@ -685,6 +728,7 @@ export async function addMaintenance(
   m: MaintenanceInput,
 ): Promise<{ error: string } | void> {
   if (!m.title.trim()) return { error: 'Напиши, что делали.' }
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: 'Трак не найден.' }
   try {
     await sql`
       INSERT INTO truck_maintenance (truck_id, kind, title, notes, cost, odometer, done_at)
@@ -705,18 +749,19 @@ export async function addMaintenance(
 export async function deleteMaintenance(
   id: number,
   truckId: number,
-  who: string,
-  pin: string,
+  password: string,
 ): Promise<{ error: string } | void> {
-  if (!process.env.APP_PIN) return { error: 'PIN не настроен — обратись к администратору.' }
-  if (pin !== process.env.APP_PIN) return { error: 'Неверный PIN.' }
-  if (!who?.trim()) return { error: 'Впиши имя — кто удаляет.' }
+  const check = await verifyMyPassword(password)
+  if ('error' in check) return { error: check.error }
+  const who = check.user.name || 'диспетчер'
+  if (!(await truckBelongs(check.user.companyId, truckId))) return { error: 'Трак не найден.' }
 
-  const rows = (await sql`SELECT title FROM truck_maintenance WHERE id = ${id}`) as { title: string }[]
+  const rows = (await sql`
+    SELECT title FROM truck_maintenance WHERE id = ${id} AND truck_id = ${truckId}`) as { title: string }[]
   if (!rows[0]) return { error: 'Запись не найдена.' }
 
   await sql`DELETE FROM truck_maintenance WHERE id = ${id}`
-  await auditDelete(who, 'delete_maintenance', rows[0].title, null, null, null)
+  await auditDelete(check.user.companyId, who, 'delete_maintenance', rows[0].title, null, null, null)
   revalidatePath(`/trucks/${truckId}`)
   revalidatePath('/logins')
 }
@@ -727,6 +772,7 @@ export async function addTodo(
   priority: 'low' | 'normal' | 'urgent',
 ): Promise<{ error: string } | void> {
   if (!title.trim()) return { error: 'Напиши, что нужно починить.' }
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: 'Трак не найден.' }
   try {
     await sql`INSERT INTO truck_todos (truck_id, title, priority)
               VALUES (${truckId}, ${title.trim()}, ${priority})`
@@ -737,27 +783,28 @@ export async function addTodo(
 }
 
 export async function toggleTodo(id: number, truckId: number): Promise<void> {
+  if (!(await truckBelongs(await companyScope(), truckId))) return
   await sql`UPDATE truck_todos
             SET done_at = CASE WHEN done_at IS NULL THEN now() ELSE NULL END
-            WHERE id = ${id}`
+            WHERE id = ${id} AND truck_id = ${truckId}`
   revalidatePath(`/trucks/${truckId}`)
 }
 
 export async function deleteTodo(
   id: number,
   truckId: number,
-  who: string,
-  pin: string,
+  password: string,
 ): Promise<{ error: string } | void> {
-  if (!process.env.APP_PIN) return { error: 'PIN не настроен — обратись к администратору.' }
-  if (pin !== process.env.APP_PIN) return { error: 'Неверный PIN.' }
-  if (!who?.trim()) return { error: 'Впиши имя — кто удаляет.' }
+  const check = await verifyMyPassword(password)
+  if ('error' in check) return { error: check.error }
+  const who = check.user.name || 'диспетчер'
+  if (!(await truckBelongs(check.user.companyId, truckId))) return { error: 'Трак не найден.' }
 
-  const rows = (await sql`SELECT title FROM truck_todos WHERE id = ${id}`) as { title: string }[]
+  const rows = (await sql`SELECT title FROM truck_todos WHERE id = ${id} AND truck_id = ${truckId}`) as { title: string }[]
   if (!rows[0]) return { error: 'Запись не найдена.' }
 
   await sql`DELETE FROM truck_todos WHERE id = ${id}`
-  await auditDelete(who, 'delete_todo', rows[0].title, null, null, null)
+  await auditDelete(check.user.companyId, who, 'delete_todo', rows[0].title, null, null, null)
   revalidatePath(`/trucks/${truckId}`)
   revalidatePath('/logins')
 }
@@ -791,6 +838,7 @@ export async function saveDriverInfo(
   truckId: number,
   d: { name: string; phone: string; cdlExpiry: string; medcardExpiry: string },
 ): Promise<{ error: string } | void> {
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: 'Трак не найден.' }
   try {
     await sql`UPDATE trucks SET driver_name = ${d.name.trim() || null} WHERE id = ${truckId}`
     await sql`
@@ -819,6 +867,7 @@ export async function saveDriverPhoto(
   if (!(file instanceof File) || file.size === 0) return { error: 'Файл не выбран.' }
   if (file.size > MAX_PHOTO_BYTES) return { error: 'Фото больше 4 МБ — сожми или пришли меньше.' }
   if (!file.type.startsWith('image/')) return { error: 'Нужно изображение (JPG/PNG).' }
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: 'Трак не найден.' }
 
   const hex = Buffer.from(await file.arrayBuffer()).toString('hex')
   try {
@@ -840,6 +889,7 @@ export async function saveTruckMeta(
   truckId: number,
   m: TruckMetaInput,
 ): Promise<{ error: string } | void> {
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: 'Трак не найден.' }
   try {
     await sql`
       INSERT INTO truck_meta (truck_id, vin, plate, trailer_number, year, make, model,
@@ -878,11 +928,11 @@ export async function addTruck(t: TruckInput): Promise<{ error: string } | void>
       INSERT INTO trucks (name, number, driver_name, mpg, fuel_price_per_gallon,
                           driver_pay_mode, driver_cents_per_mile, driver_percent_of_gross,
                           truck_payment_per_day, insurance_per_day, eld_permits_per_day,
-                          maintenance_cost_per_mile, factoring_percent, dispatch_percent)
+                          maintenance_cost_per_mile, factoring_percent, dispatch_percent, company_id)
       VALUES (${t.number || 'Трак'}, ${t.number}, ${t.driverName}, ${t.mpg},
               ${t.fuelPricePerGallon}, ${t.driverPay.mode}, ${cpm}, ${pct},
               ${t.truckPaymentPerDay}, ${t.insurancePerDay}, ${t.eldPermitsPerDay},
-              ${t.maintenanceCostPerMile}, ${t.factoringPercent}, ${t.dispatchPercent})
+              ${t.maintenanceCostPerMile}, ${t.factoringPercent}, ${t.dispatchPercent}, ${await companyScope()})
       RETURNING id`
     id = (rows[0] as { id: number }).id
   } catch (e) {

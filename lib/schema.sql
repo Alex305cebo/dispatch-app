@@ -317,6 +317,24 @@ CREATE TABLE IF NOT EXISTS user_capabilities (
 INSERT INTO user_capabilities (user_id, capability, allowed) SELECT u.id, 'telegram', TRUE FROM users u WHERE u.role='dispatcher' AND (SELECT value FROM settings WHERE key='tg_dispatcher_access')='1' ON CONFLICT (user_id, capability) DO NOTHING;
 DELETE FROM settings WHERE key='tg_dispatcher_access';
 
+-- Live sandbox for the public "Попробовать демо" link (lib/demo.ts): one real user
+-- row so sessions/dispatcher_id work exactly like a real dispatcher, but is_demo
+-- routes every trucks/loads/documents query at the demo (company_id='demo') data
+-- instead of the real fleet. password_hash is deliberately empty — verifyPassword's
+-- "salt:hash".split(':') always fails on it, so this account can never be reached by
+-- typing a password, only via the dedicated demo-login flow.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE;
+INSERT INTO users (name, email, password_hash, role, is_demo)
+VALUES ('Демо', 'demo@dispatch4you.pro', '', 'dispatcher', TRUE)
+ON CONFLICT (email) DO UPDATE SET is_demo = TRUE;
+
+-- documents has no owning company_id of its own today (only inferred via truck_id/
+-- load_id) — the /docs library and /api/docs/[id] list or fetch by raw id with no
+-- other scope, so a demo session needs its own direct column to filter by, same as
+-- trucks/loads already have. Existing rows default to 'default' (real data), which is
+-- already correct for every row that exists before this line ever runs.
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS company_id TEXT NOT NULL DEFAULT 'default';
+
 -- Broker vetting cache (FMCSA lookup by MC) + basis for our own pay history.
 CREATE TABLE IF NOT EXISTS brokers (
   mc                TEXT PRIMARY KEY,
@@ -331,3 +349,15 @@ CREATE TABLE IF NOT EXISTS brokers (
   raw               JSONB,
   checked_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Manual availability flag: NULL = active, 'repair' = в ремонте, 'vacation' =
+-- водитель в отпуске. An unavailable truck is highlighted across the app and never
+-- counted as "свободен" on the dashboard.
+ALTER TABLE trucks ADD COLUMN IF NOT EXISTS unavailable TEXT
+  CHECK (unavailable IN ('repair', 'vacation'));
+
+-- Pre-rendered "Driver Information" block (lib/ratecon.ts formatDriverInfo) — saved
+-- once at the moment a rate con is read, so a dispatcher can come back and copy it
+-- again from the load page any time, not just in the one browser session right after
+-- import. NULL for loads never sourced from an RC (manual entry has nothing to render).
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS driver_info TEXT;

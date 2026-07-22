@@ -26,6 +26,12 @@ export const dynamic = 'force-dynamic'
 // Two round-trips to Telegram (dialogs + messages) don't fit the default 10s.
 export const maxDuration = 60
 
+function humanSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} Б`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} КБ`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`
+}
+
 function when(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
@@ -97,7 +103,8 @@ export default async function Page({
     error = e instanceof Error ? e.message : String(e)
   }
 
-  const trucks = (await listTrucks()).map((t) => ({ id: t.id, number: t.number ?? t.name }))
+  // Telegram is real-accounts-only — always the real fleet, never the demo sandbox.
+  const trucks = (await listTrucks('default')).map((t) => ({ id: t.id, number: t.number ?? t.name }))
   // Only approved chats appear in the list; the settings panel sees them all.
   const dialogs = allDialogs.filter((d) => shown.has(d.id))
 
@@ -212,9 +219,27 @@ export default async function Page({
                           href={`/api/tg-media/${open.id}/${m.id}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="mb-1 flex items-center gap-1.5 text-haul-300 underline"
+                          className="mb-1 block overflow-hidden rounded-lg border border-white/10 bg-white/5 transition-colors hover:bg-white/8"
                         >
-                          📄 Открыть PDF
+                          {m.hasThumb && (
+                            // Page-1 preview Telegram made for the file — "видно, что внутри".
+                            <img
+                              src={`/api/tg-media/${open.id}/${m.id}?thumb=1`}
+                              alt="Превью PDF"
+                              className="max-h-44 w-full object-cover object-top"
+                            />
+                          )}
+                          <span className="flex items-center gap-2 px-2.5 py-2">
+                            <span className="text-[17px]">📄</span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[12.5px] font-medium text-white/90">
+                                {m.fileName || 'Документ.pdf'}
+                              </span>
+                              <span className="block text-[11px] text-white/45">
+                                {m.fileSize ? `${humanSize(m.fileSize)} · ` : ''}Открыть PDF
+                              </span>
+                            </span>
+                          </span>
                         </a>
                         <TgAttachButton chatId={open.id} msgId={m.id} phone={open.phone} />
                       </>

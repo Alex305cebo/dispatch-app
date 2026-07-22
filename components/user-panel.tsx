@@ -6,7 +6,7 @@
 // popover with password change, admin link, and logout, instead of those being
 // separate elements that could each independently vanish at some breakpoint.
 
-import { useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { changeMyPassword } from '@/app/account/actions'
@@ -29,6 +29,25 @@ export function UserPanel({ user }: { user: CurrentUser }) {
   const [open, setOpen] = useState(false)
   const [pw, setPw] = useState('')
   const [pending, start] = useTransition()
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  // Escape, or a click anywhere outside the popover, closes it — same as every other
+  // popover in the app, it must never be able to trap the user with no way out.
+  useEffect(() => {
+    if (!open) return
+    function onPointerDown(e: PointerEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
 
   function savePassword() {
     start(async () => {
@@ -49,7 +68,7 @@ export function UserPanel({ user }: { user: CurrentUser }) {
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={panelRef}>
       <button
         onClick={() => setOpen((v) => !v)}
         title={user.name}
@@ -60,7 +79,15 @@ export function UserPanel({ user }: { user: CurrentUser }) {
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-0 z-20 mb-2 w-64 rounded-xl border border-white/10 bg-ink-900 p-3.5 shadow-2xl">
+        <div className="absolute bottom-full left-0 z-20 mb-2 w-64 rounded-xl border border-white/10 bg-ink-900 p-3.5 pr-9 shadow-2xl">
+          <button
+            type="button"
+            aria-label="Закрыть"
+            onClick={() => setOpen(false)}
+            className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full text-[15px] text-white/50 transition-colors hover:bg-white/10 hover:text-white/90"
+          >
+            ✕
+          </button>
           <p className="truncate text-[13px] font-medium">{user.name}</p>
           <p className="text-[11px] text-white/45">{ROLE_LABEL[user.role]}</p>
 

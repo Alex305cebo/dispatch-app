@@ -146,7 +146,7 @@ export async function buildInvoicePacket(
   // POD gate.
   const docs = (await sql`
     SELECT kind, mime, encode(data,'base64') AS b64 FROM documents
-    WHERE load_id = ${load.id} ORDER BY kind`) as { kind: string; mime: string; b64: string }[]
+    WHERE load_id = ${load.id} AND company_id = ${load.companyId} ORDER BY kind`) as { kind: string; mime: string; b64: string }[]
   if (!docs.some((d) => d.kind === 'pod'))
     return { error: 'Нет POD у этого груза — брокер не заплатит без него. Загрузи POD и повтори.' }
 
@@ -169,16 +169,16 @@ export async function buildInvoicePacket(
   const bytes = Buffer.from(await packet.save())
   const hex = bytes.toString('hex')
   const rows = await sql`
-    INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data)
+    INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data, company_id)
     VALUES (${load.id}, ${load.truckId}, 'invoice', ${`${invoiceNumber} packet.pdf`},
-            'application/pdf', ${bytes.length}, decode(${hex}, 'hex'))
+            'application/pdf', ${bytes.length}, decode(${hex}, 'hex'), ${load.companyId})
     RETURNING id`
   const docId = (rows[0] as { id: number }).id
 
   await sql`
     UPDATE loads SET invoice_number = ${invoiceNumber}, invoiced_at = now(),
       status = CASE WHEN status IN ('quoted','booked','in_transit','delivered') THEN 'delivered' ELSE status END
-    WHERE id = ${load.id}`
+    WHERE id = ${load.id} AND company_id = ${load.companyId}`
 
   return { docId, invoiceNumber }
 }
@@ -189,8 +189,8 @@ export async function buildInvoicePacket(
  * on someone remembering a manual button. Silent no-op if company info or the rate
  * con isn't ready yet — buildInvoicePacket's own gates just don't fire, and the load
  * stays visible in the AR page's "не выставлен" bucket until they are. */
-export async function autoInvoiceIfReady(loadId: number): Promise<void> {
-  const load = await getLoad(loadId)
+export async function autoInvoiceIfReady(companyId: 'default' | 'demo', loadId: number): Promise<void> {
+  const load = await getLoad(companyId, loadId)
   if (!load || load.invoicedAt) return
   try {
     await buildInvoicePacket(load)

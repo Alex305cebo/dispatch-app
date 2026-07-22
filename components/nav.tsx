@@ -130,7 +130,7 @@ export function Nav({
       </div>
 
       {/* Tabs: a row on the phone, a column in the sidebar. */}
-      <div className="flex items-stretch justify-around gap-1 md:flex-col md:gap-0.5">
+      <div className="flex items-stretch justify-around gap-0.5 md:flex-col md:gap-0.5">
         {items.map((it) => {
         const active = !it.soon && (it.href === '/' ? pathname === '/' : pathname.startsWith(it.href))
 
@@ -147,7 +147,7 @@ export function Nav({
                 </span>
               )}
             </span>
-            <span className="text-[10px] font-medium md:text-[13px]">{it.label}</span>
+            <span className="max-w-full truncate text-[10px] font-medium md:text-[13px]">{it.label}</span>
             {it.soon && (
               <span className="ml-auto hidden rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-white/62 md:inline">
                 скоро
@@ -157,7 +157,7 @@ export function Nav({
         )
 
         const shape =
-          'flex flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 transition-colors md:flex-none md:flex-row md:gap-3 md:px-3 md:py-2.5'
+          'flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-2 transition-colors md:flex-none md:flex-row md:gap-3 md:px-3 md:py-2.5'
 
         if (it.soon) {
           return (
