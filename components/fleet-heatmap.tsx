@@ -16,6 +16,7 @@
 // React — its route can be a Link straight to the load.
 
 import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usd } from '@/lib/fmt'
 import { statusLabel } from '@/components/status'
@@ -26,7 +27,7 @@ import { dayKey, type HeatDayLoad, type HeatRow } from '@/lib/heatmap'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-type Hover = { x: number; y: number; label: string; day: string; loads: HeatDayLoad[] }
+type Hover = { x: number; top: number; bottom: number; label: string; day: string; loads: HeatDayLoad[] }
 
 export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: number }) {
   const locale = useLocale()
@@ -104,7 +105,8 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                         const box = e.currentTarget.getBoundingClientRect()
                         setHover({
                           x: box.left + box.width / 2,
-                          y: box.top,
+                          top: box.top,
+                          bottom: box.bottom,
                           label: r.label,
                           day: key,
                           loads: loads ?? [],
@@ -147,16 +149,32 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
 
       {/* One shared hover card, fixed to the viewport so the panel's overflow can't clip
           it. Positioned above the cell; the pointer-events let a load link be clicked. */}
-      {hover && (
-        <div
-          className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-full pb-1.5"
-          style={{ left: hover.x, top: hover.y }}
-        >
-          <div
-            onMouseEnter={cancelClose}
-            onMouseLeave={scheduleClose}
-            className="pointer-events-auto min-w-[180px] max-w-[240px] rounded-lg border border-white/12 bg-ink-900 p-2.5 shadow-2xl"
-          >
+      {hover &&
+        createPortal(
+          // Portaled to <body>, NOT left in the panel. The panel has backdrop-blur, and
+          // a backdrop-filter makes its element the containing block for position:fixed
+          // descendants — so a fixed card "anchored to the viewport" was actually
+          // anchored to the panel, and the cell's viewport coords flung it to the
+          // bottom-right. In the body it has no transformed ancestor, so fixed means
+          // fixed. x is clamped to the viewport and the card flips below the cell when
+          // there isn't room above — it always lands next to the square, never off-edge.
+          (() => {
+            const CARD_W = 240
+            const CARD_H = 120
+            const left = Math.min(Math.max(hover.x, CARD_W / 2 + 8), window.innerWidth - CARD_W / 2 - 8)
+            const above = hover.top > CARD_H
+            return (
+              <div
+                className={`pointer-events-none fixed z-[60] -translate-x-1/2 ${
+                  above ? '-translate-y-full pb-1.5' : 'pt-1.5'
+                }`}
+                style={{ left, top: above ? hover.top : hover.bottom }}
+              >
+                <div
+                  onMouseEnter={cancelClose}
+                  onMouseLeave={scheduleClose}
+                  className="pointer-events-auto min-w-[180px] max-w-[240px] rounded-lg border border-white/12 bg-ink-900 p-2.5 shadow-2xl"
+                >
             <div className="mb-1 flex items-baseline justify-between gap-2">
               <span className="text-2xs font-semibold uppercase tracking-wider text-white/50">{hover.label}</span>
               <span className="nums text-2xs text-white/45">{prettyDay(hover.day)}</span>
@@ -182,9 +200,12 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                 ))}
               </div>
             )}
-          </div>
-        </div>
-      )}
+                </div>
+              </div>
+            )
+          })(),
+          document.body,
+        )}
     </div>
   )
 }

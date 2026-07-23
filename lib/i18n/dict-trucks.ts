@@ -35,8 +35,8 @@ export const trucksDict = {
   'trucks.page.unavailable': { ru: 'недоступно', en: 'unavailable' },
   'trucks.page.weekGross': { ru: 'нед. гросс', en: 'wk gross' },
   'trucks.page.weekGrossInfo': {
-    ru: 'Сумма ставок (гросс) активных грузов всего парка за текущую календарную неделю — с понедельника.',
-    en: 'Sum of active-load rates (gross) for the whole fleet in the current calendar week — starting Monday.',
+    ru: 'Сумма ставок (гросс) по всему парку за грузы, которые едут на этой неделе — по дате погрузки, понедельник–понедельник. Не по дате внесения груза.',
+    en: 'Sum of rates (gross) across the fleet for loads running THIS week — by pickup date, Monday to Monday. Not by when the load was entered.',
   },
   'trucks.card.available': { ru: 'Свободен', en: 'Available' },
   'trucks.card.noData': { ru: 'нет данных', en: 'no data' },

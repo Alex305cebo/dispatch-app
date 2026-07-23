@@ -13,7 +13,7 @@ import {
 } from '@/lib/maintenance'
 import { tripHistory } from '@/lib/eld'
 import { loadMapData, statusTone } from '@/lib/load-map'
-import { usd, usd2, weekStart } from '@/lib/fmt'
+import { usd, usd2, weekBounds, loadWeekAnchorMs } from '@/lib/fmt'
 import { FleetMap } from '@/components/fleet-map'
 import { StatusBadge } from '@/components/status'
 import { TruckForm } from '@/components/truck-form'
@@ -78,8 +78,13 @@ export default async function Page({
   // must come from the SAME loads as Рейт за неделю, or net (from every active
   // load ever) reads as bigger than gross (from just this week), which looks like
   // the math is broken even though each number was individually correct.
-  const weekBegin = weekStart()
-  const weekRows = rows.filter((x) => new Date(x.load.createdAt).getTime() >= weekBegin)
+  const { start: weekBegin, end: weekEnd } = weekBounds()
+  // Same anchoring as the trucks list: this week's rows are the loads RUN this week
+  // (pickup date, Monday→Monday), so week gross/net/RPM all describe the same 7 days.
+  const weekRows = rows.filter((x) => {
+    const ms = loadWeekAnchorMs(x.load.pickupDate, x.load.createdAt)
+    return ms >= weekBegin && ms < weekEnd
+  })
   const weekGross = weekRows.reduce((s, x) => s + x.load.rate, 0)
   const totalNet = weekRows.reduce((s, x) => s + x.r.net, 0)
   const weekMiles = weekRows.reduce((s, x) => s + x.r.totalMiles, 0)

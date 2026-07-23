@@ -40,6 +40,27 @@ export function weekStart(): number {
   return mondayOf(Date.now())
 }
 
+/** This week as a half-open range [Monday, next Monday). The upper bound matters: a
+ * load pre-booked for next week must NOT count toward this week's figures, and the old
+ * "created_at >= Monday" check had no ceiling. */
+export function weekBounds(): { start: number; end: number } {
+  const start = weekStart()
+  return { start, end: start + 7 * 24 * 60 * 60 * 1000 }
+}
+
+/** The instant a load counts toward for weekly stats: the PICKUP date — the day the
+ * truck actually ran it — not when the row was entered. Falls back to entry time only
+ * when the rate con carried no pickup date, so a manual load never vanishes. Anchoring
+ * on entry time made every freshly-imported load land in "this week" regardless of when
+ * the haul happened, which is why the fleet total read like an all-time sum. */
+export function loadWeekAnchorMs(pickupDate: string | null, createdAt: string): number {
+  if (pickupDate) {
+    const ms = Date.parse(`${pickupDate}T12:00:00`)
+    if (!Number.isNaN(ms)) return ms
+  }
+  return Date.parse(createdAt)
+}
+
 /** "21–27 июля 2026" (ru) / "Jul 21–27, 2026" (en) for a week starting at the given
  * Monday timestamp — each locale in its own natural date order, not a shared format. */
 export function weekLabel(mondayMs: number, locale: Locale): string {

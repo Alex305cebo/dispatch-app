@@ -14,7 +14,7 @@ import {
   truckPhotoFlags,
 } from '@/lib/maintenance'
 import { sql } from '@/lib/db'
-import { usd, weekStart } from '@/lib/fmt'
+import { usd, weekBounds, loadWeekAnchorMs } from '@/lib/fmt'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t, type Locale } from '@/lib/i18n'
@@ -64,7 +64,7 @@ export default async function Page() {
 
   // Per-truck loads in parallel — the whole point is strict separation, so each
   // truck's money is computed only from its own loads.
-  const weekBegin = weekStart()
+  const { start: weekBegin, end: weekEnd } = weekBounds()
   const perTruck = await Promise.all(
     trucks.map(async (t) => {
       const loads = await listLoads(companyId, { truckId: t.id })
@@ -74,8 +74,13 @@ export default async function Page() {
       const current = currentLoadsByTruck(live).get(t.id) ?? null
       // The card headline is the week's total rate (gross) — the number the owner
       // watches — not net. Scoped to this calendar week (Mon–Mon).
+      // This week's gross = loads the truck actually RAN this week (pickup date,
+      // Monday→Monday), not loads entered this week. The whole point of the fix.
       const weekGross = live
-        .filter((l) => new Date(l.createdAt).getTime() >= weekBegin)
+        .filter((l) => {
+          const ms = loadWeekAnchorMs(l.pickupDate, l.createdAt)
+          return ms >= weekBegin && ms < weekEnd
+        })
         .reduce((s, l) => s + l.rate, 0)
       // Working days for the utilisation grid: every day from a load's pickup to its
       // delivery, so a multi-day haul fills every day it ran, not just the booking day.
