@@ -297,7 +297,7 @@ export default async function Page() {
           {tr(locale, 'overview.trackingLink')}
         </Link>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="stagger grid gap-2 sm:grid-cols-2">
         {trucks.map((t) => {
           const fs = t.number ? byUnit.get(t.number) : undefined
           const week = weekGrossByTruck.get(t.id) ?? 0

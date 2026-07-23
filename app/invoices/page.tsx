@@ -25,7 +25,9 @@ import { can } from '@/lib/capabilities-server'
 import { CompanyForm, PaidToggle } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
 import { Info } from '@/components/info'
+import { CircleCheckBig, Wallet } from 'lucide-react'
 import { Collapse } from '@/components/collapse'
+import { Empty } from '@/components/empty'
 
 export const dynamic = 'force-dynamic'
 
@@ -223,7 +225,7 @@ async function Unpaid({
 
       {rec.length === 0 ? (
         uninvoiced.length === 0 && (
-          <p className="panel p-6 text-[13px] text-white/60">{t(locale, 'finances.unpaid.empty')}</p>
+          <Empty icon={CircleCheckBig} title={t(locale, 'finances.unpaid.empty')} />
         )
       ) : (
         /* Was one flat column of every outstanding invoice — fine at eight rows, a
@@ -355,7 +357,7 @@ async function Paid({
       </div>
 
       {rows.length === 0 ? (
-        <p className="panel p-6 text-[13px] text-white/60">{t(locale, 'finances.paid.empty')}</p>
+        <Empty icon={Wallet} title={t(locale, 'finances.paid.empty')} />
       ) : (
         /* Grouped by the month the money landed, newest month open. Paid loads only
            accumulate — this list is 25 rows on a demo fleet and will be hundreds on a

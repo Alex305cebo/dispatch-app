@@ -141,7 +141,7 @@ export default async function Page() {
         />
       </div>
 
-      <div className="grid gap-2.5 sm:grid-cols-2">
+      <div className="stagger grid gap-2.5 sm:grid-cols-2">
         {perTruck.map(({ truck, count, current, weekGross }) => {
           const fs = truck.number ? byUnit.get(truck.number) : undefined
           const meta = metas.get(truck.id) ?? null

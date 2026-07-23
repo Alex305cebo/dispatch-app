@@ -1,6 +1,6 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useOptimistic, useTransition } from 'react'
 import { Ban, Check } from 'lucide-react'
 import { setStatus } from '@/app/actions'
 import { type LoadStatus } from '@/lib/map'
@@ -36,18 +36,25 @@ const STEP_TONE: Record<LoadStatus, { dot: string; text: string; line: string }>
 export function StatusPicker({ id, current }: { id: number; current: LoadStatus }) {
   const [pending, start] = useTransition()
   const locale = useLocale()
-  const cancelled = current === 'cancelled'
+  // The rail redraws the instant a step is clicked, then the server action confirms it.
+  // Before this the whole control greyed out for the round trip and only moved once the
+  // server answered — on a mobile connection that reads as "my tap didn't register",
+  // which is exactly when a dispatcher taps again. React reverts `shown` by itself if
+  // the action throws, so a failed write can't leave the rail showing a lie.
+  const [shown, setShown] = useOptimistic(current)
+  const cancelled = shown === 'cancelled'
   // -1 while cancelled, which correctly leaves every step unreached below.
-  const currentIdx = PIPELINE.indexOf(current)
+  const currentIdx = PIPELINE.indexOf(shown)
 
   const go = (s: LoadStatus) =>
     start(async () => {
+      setShown(s)
       await setStatus(id, s)
       notify('ok', `${t(locale, 'loads.loadHash')}${id}: ${statusLabel(locale, s)}`)
     })
 
   return (
-    <div aria-busy={pending} className={pending ? 'pointer-events-none opacity-60' : undefined}>
+    <div aria-busy={pending}>
       {/* Classic stepper geometry: each step is a fixed-width column, and the
           connectors between them are the flexible part. Doing it the other way round
           (flexible steps, fixed connectors) makes the dots drift apart at different
@@ -71,7 +78,7 @@ export function StatusPicker({ id, current }: { id: number; current: LoadStatus 
               <div className="flex w-[72px] shrink-0 flex-col items-center gap-1">
                 <button
                   type="button"
-                  disabled={pending || s === current}
+                  disabled={s === shown}
                   onClick={() => go(s)}
                   aria-current={isCurrent ? 'step' : undefined}
                   title={statusLabel(locale, s)}
@@ -103,7 +110,7 @@ export function StatusPicker({ id, current }: { id: number; current: LoadStatus 
       <div className="mt-3 flex justify-end">
         <button
           type="button"
-          disabled={pending || cancelled}
+          disabled={cancelled}
           onClick={() => go('cancelled')}
           className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-2xs font-medium transition-colors ${
             cancelled

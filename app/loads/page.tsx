@@ -1,6 +1,7 @@
-import { Plus } from 'lucide-react'
+import { CalendarDays, PackageOpen, Plus } from 'lucide-react'
 import { Button } from '@/components/button'
 import { ShowMore } from '@/components/collapse'
+import { Empty } from '@/components/empty'
 import Link from 'next/link'
 import { listLoads, listTrucks, rateConByLoad } from '@/lib/loads'
 import { truckLabel, STATUSES, type TruckRecord, type LoadRecord } from '@/lib/map'
@@ -98,12 +99,16 @@ export default async function Page({
       )}
 
       {loads.length === 0 ? (
-        <div className="panel p-8 text-center">
-          <p className="text-[15px] font-medium">{t(locale, 'loads.page.emptyTitle')}</p>
-          <p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-white/70">
-            {t(locale, 'loads.page.emptyText')}
-          </p>
-        </div>
+        <Empty
+          icon={PackageOpen}
+          title={t(locale, 'loads.page.emptyTitle')}
+          text={t(locale, 'loads.page.emptyText')}
+          action={{
+            href: '/loads/new',
+            label: t(locale, 'loads.page.new'),
+            icon: <Plus size={14} strokeWidth={2.5} />,
+          }}
+        />
       ) : view === 'board' ? (
         <StatusBoard loads={loads} byId={byId} fallback={fallback} rateCons={rateCons} locale={locale} />
       ) : view === 'calendar' ? (
@@ -117,7 +122,7 @@ export default async function Page({
           locale={locale}
         />
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="stagger flex flex-col gap-3">
           {groups.map(({ truck, loads }) => (
             <DriverGroup
               key={truck.id}
@@ -173,7 +178,7 @@ function StatusBoard({
        board into three ~230px columns, which is narrower than a US city pair needs
        ("Phoenix, AZ → Los Angeles, CA") — so every card truncated to earn a column
        nobody could read. Two roomy columns beat three cramped ones. */
-    <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+    <div className="stagger grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
       {columns.map(({ status, loads }) => (
         <section
           key={status}
@@ -418,13 +423,11 @@ function Calendar({
       </div>
 
       {dayLoads.length === 0 ? (
-        <div className="panel flex flex-col items-center gap-1 p-10 text-center">
-          <span className="text-[22px]" aria-hidden>
-            🗓
-          </span>
-          <p className="text-[14px] font-medium text-white/80">{t(locale, 'loads.page.emptyDayTitle')}</p>
-          <p className="text-[12.5px] text-white/50">{t(locale, 'loads.page.emptyDayText')}</p>
-        </div>
+        <Empty
+          icon={CalendarDays}
+          title={t(locale, 'loads.page.emptyDayTitle')}
+          text={t(locale, 'loads.page.emptyDayText')}
+        />
       ) : (
         <div className="flex flex-col gap-2.5">
           {dayLoads.map((l) => {

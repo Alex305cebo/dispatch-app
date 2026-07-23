@@ -1,6 +1,8 @@
 'use client'
 
+import { FileX2, FolderOpen, Trash2 } from 'lucide-react'
 import { Button } from '@/components/button'
+import { Empty } from '@/components/empty'
 // Upload + list + library for documents. Server pages fetch the metadata and pass
 // it in; the file itself travels through the uploadDocument server action (≤8MB).
 // Deleting is guarded (name + PIN) and audited — see DeleteDialog / deleteDocument.
@@ -159,12 +161,9 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
         </div>
         {err && <p className="mt-2 text-[12.5px] text-bad-400">{err}</p>}
         <div className="mt-4 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="rounded-xl px-4 py-2 text-[13px] text-white/70 transition-colors hover:text-white"
-          >
+          <Button variant="ghost" onClick={onClose}>
             {t(locale, 'docs.delete.cancel')}
-          </button>
+          </Button>
           <Button variant="danger" disabled={pending || !password}
             onClick={submit}>
             {pending ? t(locale, 'docs.delete.deleting') : t(locale, 'docs.delete.confirm')}
@@ -252,7 +251,7 @@ export function DocList({ docs, showLinks }: { docs: DocMeta[]; showLinks?: bool
   const locale = useLocale()
   const [del, setDel] = useState<DocMeta | null>(null)
   if (docs.length === 0)
-    return <p className="mt-3 text-[13px] text-white/55">{t(locale, 'docs.list.empty')}</p>
+    return <Empty compact icon={FileX2} title={t(locale, 'docs.list.empty')} />
   return (
     <>
       <ul className="mt-3 flex flex-col gap-1.5">
@@ -316,7 +315,7 @@ export function DocLibrary({
       </div>
 
       {groups.length === 0 ? (
-        <p className="text-[13px] text-white/55">{t(locale, 'docs.library.empty')}</p>
+        <Empty compact icon={FolderOpen} title={t(locale, 'docs.library.empty')} />
       ) : (
         <div className="flex flex-col gap-2">
           {groups.map((g) => {
@@ -380,7 +379,7 @@ export function DocTrash({ rows }: { rows: DocLibRow[] }) {
     })
   }
 
-  if (rows.length === 0) return <p className="text-[13px] text-white/55">{t(locale, 'docs.trash.empty')}</p>
+  if (rows.length === 0) return <Empty compact icon={Trash2} title={t(locale, 'docs.trash.empty')} />
 
   return (
     <ul className="flex flex-col gap-1.5">

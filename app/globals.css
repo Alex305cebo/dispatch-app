@@ -454,3 +454,51 @@
     box-shadow: none;
   }
 }
+
+/* Entrance animation for lists and grids.
+ *
+ * Server-rendered pages appeared fully formed — technically instant, but it reads as a
+ * hard cut with nothing telling the eye where the content came from.
+ *
+ * Done as a CSS utility on the CONTAINER rather than a motion wrapper around each row:
+ * a wrapper element would become the grid/flex item in place of the card, which quietly
+ * breaks every `grid-cols-2` and `flex-1` it touches. This adds no DOM at all.
+ *
+ * `backwards` fill matters — without it each row is briefly visible at full opacity
+ * before its delay elapses, which flashes the whole list in and then animates it. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility stagger {
+  & > * {
+    animation: rise-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  /* Only the first ten are staggered; a 60-row list must not spend two seconds dealing
+     itself out. Everything past the tenth rides the same 260ms delay. */
+  & > *:nth-child(1) { animation-delay: 0ms; }
+  & > *:nth-child(2) { animation-delay: 26ms; }
+  & > *:nth-child(3) { animation-delay: 52ms; }
+  & > *:nth-child(4) { animation-delay: 78ms; }
+  & > *:nth-child(5) { animation-delay: 104ms; }
+  & > *:nth-child(6) { animation-delay: 130ms; }
+  & > *:nth-child(7) { animation-delay: 156ms; }
+  & > *:nth-child(8) { animation-delay: 182ms; }
+  & > *:nth-child(9) { animation-delay: 208ms; }
+  & > *:nth-child(n + 10) { animation-delay: 234ms; }
+}
+
+/* Anyone who has asked their OS for less motion gets none of it. The content still
+   has to appear, so the animation is removed rather than merely shortened. */
+@media (prefers-reduced-motion: reduce) {
+  .stagger > * {
+    animation: none;
+  }
+}

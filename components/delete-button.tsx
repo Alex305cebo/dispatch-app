@@ -82,12 +82,9 @@ export function DeleteButton({
             </div>
             {err && <p className="mt-2 text-[12.5px] text-bad-400">{err}</p>}
             <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={() => setOpen(false)}
-                className="rounded-xl px-4 py-2 text-[13px] text-white/70 transition-colors hover:text-white"
-              >
+              <Button variant="ghost" onClick={() => setOpen(false)}>
                 {t(locale, 'common.cancel')}
-              </button>
+              </Button>
               <Button variant="danger" disabled={pending || !password}
                 onClick={submit}>
                 {pending ? t(locale, 'common.deleting') : t(locale, 'common.delete')}
