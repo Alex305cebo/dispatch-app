@@ -95,7 +95,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {/* Room for the bottom bar on phones (tabs + utility strip), sidebar on desktop.
               Extra top padding while the demo banner is up — it's fixed, so it would
               otherwise sit on top of the page's own first heading. */}
-          <div className={`pb-28 md:pb-0 md:pl-52 ${user?.isDemo ? 'pt-9' : ''}`}>{children}</div>
+          <div
+            className={`pb-28 md:pb-0 md:pl-[var(--sidebar-w)] md:transition-[padding] md:duration-200 md:ease-out ${
+              user?.isDemo ? 'pt-9' : ''
+            }`}
+          >
+            {children}
+          </div>
           {/* Fixed overlay — outside the padded content wrapper so it isn't offset by
               the desktop sidebar's md:pl-52. */}
           <Toaster />

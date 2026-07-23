@@ -13,6 +13,8 @@ export const navDict = {
   'nav.finances': { ru: 'Финансы', en: 'Finances' },
   'nav.journal': { ru: 'Журнал', en: 'Log' },
   'nav.soon': { ru: 'скоро', en: 'soon' },
+  'nav.collapse': { ru: 'Свернуть меню', en: 'Collapse menu' },
+  'nav.expand': { ru: 'Развернуть меню', en: 'Expand menu' },
   'nav.notDoneYet': { ru: 'Ещё не сделано', en: 'Not built yet' },
   'nav.urgentDocs': { ru: 'Просрочено/истекает документов', en: 'Overdue/expiring documents' },
   'nav.switchToEnglish': { ru: 'Переключить на английский', en: 'Switch to English' },

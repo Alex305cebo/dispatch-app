@@ -103,6 +103,19 @@ export function Nav({
   const [dockExpanded, setDockExpanded] = useState(true)
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Desktop sidebar fold. Starts expanded to match the server render (no hydration
+  // mismatch); an effect then reads the saved choice and toggles .nav-collapsed on
+  // <html>, which the CSS variable --sidebar-w keys off for both the rail and the
+  // content offset. ponytail: a one-frame flash for users who had it folded is fine.
+  const [railFolded, setRailFolded] = useState(false)
+  useEffect(() => {
+    if (localStorage.getItem('nav-folded') === '1') setRailFolded(true)
+  }, [])
+  useEffect(() => {
+    document.documentElement.classList.toggle('nav-collapsed', railFolded)
+    localStorage.setItem('nav-folded', railFolded ? '1' : '0')
+  }, [railFolded])
+
   function bumpDockTimer() {
     if (collapseTimer.current) clearTimeout(collapseTimer.current)
     collapseTimer.current = setTimeout(() => setDockExpanded(false), 5000)
@@ -151,18 +164,41 @@ export function Nav({
         // there's no bar underneath any of it to lean on.
         'fixed inset-x-0 bottom-0 z-50 flex flex-col',
         'px-2 pt-1',
-        'md:inset-y-0 md:right-auto md:w-52 md:justify-start md:border-r md:border-white/8 md:bg-ink-950/80 md:p-3 md:backdrop-blur-xl',
+        'md:inset-y-0 md:right-auto md:w-[var(--sidebar-w)] md:justify-start md:border-r md:border-white/8 md:bg-ink-950/80 md:p-3 md:backdrop-blur-xl md:transition-[width] md:duration-200 md:ease-out',
       ].join(' ')}
       // A fixed bar sits against the viewport, so body's safe-area padding does not
       // protect it — without this it lands under the iPhone home indicator.
       style={{ paddingBottom: 'max(0.375rem, env(safe-area-inset-bottom))' }}
     >
-      <div className="mb-4 mt-1 hidden items-center gap-2.5 px-2 md:flex">
+      {/* Brand row doubles as the fold toggle (desktop only). Click the logo — or the
+          chevron — to collapse the sidebar to an icon rail and back. */}
+      <button
+        type="button"
+        onClick={() => setRailFolded((f) => !f)}
+        title={t(locale, railFolded ? 'nav.expand' : 'nav.collapse')}
+        aria-label={t(locale, railFolded ? 'nav.expand' : 'nav.collapse')}
+        aria-expanded={!railFolded}
+        className="nav-brand-row group mb-4 mt-1 hidden w-full items-center gap-2.5 rounded-lg px-2 py-1 text-left hover:bg-white/5 md:flex"
+      >
         <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-haul-500 to-good-500 text-[15px] font-bold">
           {brand.charAt(0)}
         </div>
-        <span className="truncate text-[15px] font-semibold">{brand}</span>
-      </div>
+        <span className="nav-brand-name min-w-0 flex-1 truncate text-[15px] font-semibold">{brand}</span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`size-4 shrink-0 text-white/40 transition-transform group-hover:text-white/70 ${
+            railFolded ? 'rotate-180' : ''
+          }`}
+          aria-hidden
+        >
+          <path d="M15 18l-6-6 6-6" />
+        </svg>
+      </button>
 
       {/* Tabs: a row on the phone, a column in the sidebar. */}
       <div className="flex items-stretch justify-around gap-0.5 md:flex-col md:gap-0.5">
@@ -182,9 +218,11 @@ export function Nav({
                 </span>
               )}
             </span>
-            <span className="max-w-full truncate text-[11px] font-medium md:text-[13px]">{t(locale, it.labelKey)}</span>
+            <span className="nav-label max-w-full truncate text-[11px] font-medium md:text-[13px]">
+              {t(locale, it.labelKey)}
+            </span>
             {it.soon && (
-              <span className="ml-auto hidden rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-white/62 md:inline">
+              <span className="nav-label ml-auto hidden rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-white/62 md:inline">
                 {t(locale, 'nav.soon')}
               </span>
             )}
@@ -211,6 +249,7 @@ export function Nav({
           <Link
             key={it.href}
             href={it.href}
+            title={t(locale, it.labelKey)}
             aria-current={active ? 'page' : undefined}
             className={`${shape} ${it.desktopOnly ? 'max-md:hidden' : ''} ${
               active ? 'text-haul-400 md:text-white' : 'text-white/70 hover:text-white/90'
@@ -228,7 +267,7 @@ export function Nav({
           unreachable below the md breakpoint (reported live: "the block disappeared,
           can't do anything"). Admin/logout now live inside UserPanel's own popover. */}
       <div
-        className="order-first mb-1.5 flex items-center justify-end px-1 pb-1 md:order-none md:mt-auto md:justify-start md:px-0 md:pb-0"
+        className="nav-account-row order-first mb-1.5 flex items-center justify-end px-1 pb-1 md:order-none md:mt-auto md:justify-start md:px-0 md:pb-0"
         // Bubbles up from any button inside (locale/bell/journal/theme, and the
         // avatar's own reveal tap) — any interaction in the row restarts the
         // 5-second idle countdown, not just the tap that first opened it.

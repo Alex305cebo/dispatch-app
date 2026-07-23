@@ -458,6 +458,39 @@
   }
 }
 
+/* Collapsible desktop sidebar. ONE variable drives both the rail width and the content
+   offset (app/layout.tsx reads it via md:pl-[var(--sidebar-w)]), so folding the nav
+   reclaims the space in a single place. Toggled by .nav-collapsed on <html>. The width
+   is a touch narrower than before (12rem vs the old 13rem) for compactness. */
+:root {
+  --sidebar-w: 12rem;
+}
+:root.nav-collapsed {
+  --sidebar-w: 4rem;
+}
+@media (min-width: 768px) {
+  /* Icon-only rail: drop the labels and brand name, centre what's left. */
+  .nav-collapsed .nav-label,
+  .nav-collapsed .nav-brand-name {
+    display: none;
+  }
+  .nav-collapsed .nav-tab-btn {
+    justify-content: center;
+    gap: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .nav-collapsed .nav-account-row {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  /* Folded: logo over the (still-visible) chevron, so the unfold affordance stays. */
+  .nav-collapsed .nav-brand-row {
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+}
+
 /* Entrance animation for lists and grids.
  *
  * Server-rendered pages appeared fully formed — technically instant, but it reads as a
