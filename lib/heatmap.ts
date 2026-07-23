@@ -7,7 +7,17 @@ import type { LoadStatus, LoadRecord } from './map.ts'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-export type HeatDayLoad = { id: number; route: string; rate: number; status: LoadStatus }
+// isPickup/isDelivery mark the trip's endpoints so the grid can draw one load as a
+// journey (pickup → in-transit → delivery) instead of a run of identical squares that
+// reads as one priced load per day.
+export type HeatDayLoad = {
+  id: number
+  route: string
+  rate: number
+  status: LoadStatus
+  isPickup: boolean
+  isDelivery: boolean
+}
 /** dayKey → the load(s) that covered that day. Presence = working; absence = idle. */
 export type HeatRow = { id: number; label: string; working: Map<string, HeatDayLoad[]> }
 
@@ -42,17 +52,23 @@ export function buildWorkingDays(loads: LoadRecord[]): Map<string, HeatDayLoad[]
     const endMs = l.deliveryDate
       ? Date.parse(`${l.deliveryDate}T12:00:00`)
       : startMs + Math.max(0, (l.transitDays ?? 1) - 1) * 24 * 60 * 60 * 1000
-    const entry: HeatDayLoad = {
-      id: l.id,
-      route: `${l.origin ?? '—'} → ${l.destination ?? '—'}`,
-      rate: l.rate,
-      status: l.status,
-    }
-    for (const k of daysBetween(startMs, Number.isNaN(endMs) ? startMs : endMs)) {
+    const route = `${l.origin ?? '—'} → ${l.destination ?? '—'}`
+    const span = daysBetween(startMs, Number.isNaN(endMs) ? startMs : endMs)
+    span.forEach((k, idx) => {
+      // Per-day entry so each cell knows its role in the trip — the pickup day, the
+      // delivery day, or a driving day in between.
+      const entry: HeatDayLoad = {
+        id: l.id,
+        route,
+        rate: l.rate,
+        status: l.status,
+        isPickup: idx === 0,
+        isDelivery: idx === span.length - 1,
+      }
       const arr = working.get(k)
       if (arr) arr.push(entry)
       else working.set(k, [entry])
-    }
+    })
   }
   return working
 }

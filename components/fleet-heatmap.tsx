@@ -30,6 +30,32 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 type Hover = { x: number; top: number; bottom: number; label: string; day: string; loads: HeatDayLoad[] }
 
+type TripRole = 'idle' | 'pickup' | 'transit' | 'delivery'
+
+// One cell's glyph. A load reads as a journey — a dot where it's picked up, arrows
+// while it's driven, a diamond where it's delivered — so a multi-day haul is clearly
+// ONE trip, not one priced load per square. Idle days get a faint dot.
+function TripMark({ role }: { role: TripRole }) {
+  if (role === 'pickup') return <span className="size-2 rounded-full bg-good-400" />
+  if (role === 'delivery') return <span className="size-[7px] rotate-45 rounded-[1px] bg-good-500" />
+  if (role === 'transit')
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        className="size-2.5 text-good-400/70"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M9 6l6 6-6 6" />
+      </svg>
+    )
+  return <span className="size-1 rounded-full bg-white/12" />
+}
+
 export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: number }) {
   const locale = useLocale()
   const [hover, setHover] = useState<Hover | null>(null)
@@ -88,14 +114,18 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
           <Info text={t(locale, 'trucks.heatmap.info')} />
         </h2>
         <div className="flex items-center gap-3">
-          <span className="hidden items-center gap-2 text-2xs text-white/40 sm:flex">
+          <span className="hidden items-center gap-2.5 text-2xs text-white/45 sm:flex">
             <span className="flex items-center gap-1">
-              <span className="size-2.5 rounded-[3px] bg-good-400" />
-              {t(locale, 'trucks.heatmap.working')}
+              <span className="size-2 rounded-full bg-good-400" />
+              {t(locale, 'trucks.heatmap.pickup')}
             </span>
             <span className="flex items-center gap-1">
-              <span className="size-2.5 rounded-[3px] bg-white/[0.06]" />
-              {t(locale, 'trucks.heatmap.idle')}
+              <TripMark role="transit" />
+              {t(locale, 'trucks.heatmap.transit')}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="size-[7px] rotate-45 rounded-[1px] bg-good-500" />
+              {t(locale, 'trucks.heatmap.delivery')}
             </span>
           </span>
           {/* Page the 14-day window back/forward. Next is disabled at offset 0 — the
@@ -152,6 +182,9 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                 {cols.map((c, i) => {
                   const key = colKeys[i]!
                   const loads = r.working.get(key)
+                  const dl = loads?.[0]
+                  // A day is the pickup, the delivery, a driving day in between, or idle.
+                  const role: TripRole = !dl ? 'idle' : dl.isPickup ? 'pickup' : dl.isDelivery ? 'delivery' : 'transit'
                   return (
                     <span
                       key={key}
@@ -168,16 +201,12 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                         })
                       }}
                       onMouseLeave={scheduleClose}
-                      className={`size-3.5 rounded-[3px] transition-transform hover:scale-125 ${
-                        loads
-                          ? weekend[i]
-                            ? 'bg-good-400/80'
-                            : 'bg-good-400'
-                          : weekend[i]
-                            ? 'bg-white/[0.03]'
-                            : 'bg-white/[0.06]'
+                      className={`flex size-3.5 items-center justify-center rounded-[3px] transition-colors hover:bg-white/10 ${
+                        weekend[i] ? 'bg-haul-500/[0.13]' : ''
                       }`}
-                    />
+                    >
+                      <TripMark role={role} />
+                    </span>
                   )
                 })}
               </div>
@@ -216,8 +245,8 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
             {cols.map((c, i) => (
               <span
                 key={i}
-                className={`nums w-3.5 text-center text-[8.5px] leading-none ${
-                  weekend[i] ? 'text-haul-300/50' : 'text-white/30'
+                className={`nums w-3.5 text-center text-[8.5px] font-semibold leading-none ${
+                  weekend[i] ? 'text-haul-300/80' : 'font-normal text-white/30'
                 }`}
               >
                 {c.getDate()}
