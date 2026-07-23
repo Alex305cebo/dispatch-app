@@ -329,7 +329,7 @@ async function fuelByUnit(
 
 export async function fleetSnapshot(
   locale: Locale = 'ru',
-): Promise<{ updated: number; fuel?: string; bearing?: string } | { error: string }> {
+): Promise<{ updated: number; fuel?: string; bearing?: string; vin?: string } | { error: string }> {
   if (!process.env.ELD_USERNAME || !process.env.ELD_PASSWORD || !process.env.ELD_COMPANY_ID) {
     return { error: 'no_key' }
   }
@@ -432,10 +432,12 @@ export async function fleetSnapshot(
   // bearing rides along in VehicleStatuses, so if it is empty the devices simply are
   // not reporting it — worth saying out loud rather than leaving a null column.
   const withBearing = vehicles.filter((v) => typeof v.location?.bearing === 'number').length
+  const withVin = vehicles.filter((v) => v.vin && v.vin.trim()).length
   return {
     updated,
     fuel: fuelNote,
     bearing: `${withBearing}/${vehicles.length} vehicles report a heading`,
+    vin: `${withVin}/${vehicles.length} vehicles report a VIN`,
   }
 }
 
