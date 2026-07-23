@@ -213,6 +213,14 @@ export default async function Page() {
                     {truck.driverName ? `${truck.driverName} · ` : ''}
                     📍 {cityOf(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')}
                   </div>
+                  {/* VIN, once the ELD has reported it (auto-filled — see lib/eld.ts).
+                      Small and muted: it's the truck's legal identity for registration
+                      and compliance, wanted occasionally, never the headline. */}
+                  {meta?.vin && (
+                    <div className="nums mt-0.5 truncate text-[10.5px] tracking-tight text-white/35">
+                      VIN {meta.vin}
+                    </div>
+                  )}
                 </div>
                 <div className="shrink-0 text-right">
                   <div className={`nums whitespace-nowrap text-[16px] font-bold ${weekGross > 0 ? 'text-good-400' : 'text-white/40'}`}>
