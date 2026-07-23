@@ -275,10 +275,17 @@ const FUEL_EVERY_MS = 20 * 60 * 1000
 async function fuelByUnit(
   token: string,
   vehicles: VehicleStatus[],
-): Promise<Map<string, { fuel: number | null; odometer: number | null }>> {
+): Promise<{ map: Map<string, { fuel: number | null; odometer: number | null }>; note: string }> {
   const out = new Map<string, { fuel: number | null; odometer: number | null }>()
   const last = Number((await getSetting('eld:fuel_at')) ?? 0)
-  if (Date.now() - last < FUEL_EVERY_MS) return out
+  if (Date.now() - last < FUEL_EVERY_MS) {
+    const mins = Math.ceil((FUEL_EVERY_MS - (Date.now() - last)) / 60000)
+    return { map: out, note: `skipped, next in ~${mins}m` }
+  }
+  // Reported back through the poll response. Without this the only symptom of a
+  // role-gated endpoint is a silently empty column, which is indistinguishable from
+  // "the trucks have no fuel sensor" — two very different problems.
+  let note = 'no trips returned'
 
   for (const v of vehicles) {
     const unit = v.vehicleUnit != null ? String(v.vehicleUnit) : null
@@ -289,8 +296,14 @@ async function fuelByUnit(
       })
       // 403 = the credentials' role does not include trips. Stop asking for the rest
       // of the fleet rather than collecting the same refusal seven times.
-      if (res.status === 403 || res.status === 401) break
-      if (!res.ok) continue
+      if (res.status === 403 || res.status === 401) {
+        note = `Trips/Last forbidden (HTTP ${res.status}) — role does not include trips`
+        break
+      }
+      if (!res.ok) {
+        note = `Trips/Last HTTP ${res.status}`
+        continue
+      }
       const body = (await res.json()) as LastTrip | LastTrip[]
       const trip = Array.isArray(body) ? body[0] : body
       const pts = trip?.points
@@ -306,13 +319,17 @@ async function fuelByUnit(
       // A single truck's trip call failing is not worth losing the others over.
     }
   }
-  if (out.size > 0) await setSetting('eld:fuel_at', String(Date.now()))
-  return out
+  if (out.size > 0) {
+    await setSetting('eld:fuel_at', String(Date.now()))
+    const withFuel = [...out.values()].filter((x) => x.fuel !== null).length
+    note = `${out.size} trips read, ${withFuel} with a fuel reading`
+  }
+  return { map: out, note }
 }
 
 export async function fleetSnapshot(
   locale: Locale = 'ru',
-): Promise<{ updated: number } | { error: string }> {
+): Promise<{ updated: number; fuel?: string; bearing?: string } | { error: string }> {
   if (!process.env.ELD_USERNAME || !process.env.ELD_PASSWORD || !process.env.ELD_COMPANY_ID) {
     return { error: 'no_key' }
   }
@@ -340,7 +357,7 @@ export async function fleetSnapshot(
 
   // Best-effort extras. Empty map when the role forbids trips or the interval has
   // not elapsed, in which case COALESCE below keeps whatever we already had.
-  const extras = await fuelByUnit(token, vehicles)
+  const { map: extras, note: fuelNote } = await fuelByUnit(token, vehicles)
 
   let updated = 0
   for (const v of vehicles) {
@@ -394,7 +411,14 @@ export async function fleetSnapshot(
     )
     updated++
   }
-  return { updated }
+  // bearing rides along in VehicleStatuses, so if it is empty the devices simply are
+  // not reporting it — worth saying out loud rather than leaving a null column.
+  const withBearing = vehicles.filter((v) => typeof v.location?.bearing === 'number').length
+  return {
+    updated,
+    fuel: fuelNote,
+    bearing: `${withBearing}/${vehicles.length} vehicles report a heading`,
+  }
 }
 
 /* ===== Live Share path — no vendor key needed ============================== */
