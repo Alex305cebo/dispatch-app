@@ -35,23 +35,64 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'empty' }, { status: 400 })
   }
 
+  // Per-model deadline. The whole reason a rate con "didn't recognise, server took
+  // long" was that the models were tried back-to-back with NO timeout: a single slow
+  // model (a preview build, a cold start) held the connection until the hosting proxy
+  // gave up and answered with its own HTML page — which reached the browser as an
+  // "Unexpected token '<'" JSON error. Now a model that hasn't answered in MODEL_MS is
+  // aborted and the next one is tried, so one slow model can't sink the request.
+  // 55s, not less: a heavy multi-page scan can legitimately take 40-50s on a vision
+  // model, and cutting it shorter would abort work that was about to succeed — making
+  // the very problem worse. This is a ceiling on a HUNG model, not a target. A 55s
+  // first attempt still leaves room for one fallback inside the 108s total.
+  const MODEL_MS = 55_000
+  // Overall wall-clock guard: stop starting new attempts once there isn't time for one
+  // to finish before maxDuration (120s). Better to return a clean error than to begin
+  // an attempt the platform will kill mid-flight.
+  const startedAt = Date.now()
+  const TOTAL_MS = 108_000
+
+  // A model needs at least this much runway to be worth starting — below it, an attempt
+  // would almost certainly be killed mid-flight, so return the last error cleanly.
+  const MIN_SLICE_MS = 18_000
+
   let lastErr = 'no model answered'
   for (const model of AI_MODELS) {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            responseSchema: AI_SCHEMA,
-            temperature: 0,
-          },
-        }),
-      },
-    )
+    const remaining = TOTAL_MS - (Date.now() - startedAt)
+    if (remaining < MIN_SLICE_MS) {
+      lastErr = 'ran out of time before a model answered'
+      break
+    }
+    // This model gets whatever's left, capped at MODEL_MS — so after a slow first
+    // attempt the fallback still gets a real (if shorter) slice instead of being
+    // skipped entirely.
+    const ac = new AbortController()
+    const timer = setTimeout(() => ac.abort(), Math.min(MODEL_MS, remaining))
+    let res: Response
+    try {
+      res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts }],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              responseSchema: AI_SCHEMA,
+              temperature: 0,
+            },
+          }),
+          signal: ac.signal,
+        },
+      )
+    } catch (e) {
+      // Aborted (too slow) or a network drop — both just mean "try the next model".
+      lastErr = ac.signal.aborted ? `${model}: timed out after ${MODEL_MS / 1000}s` : `${model}: ${String(e)}`
+      continue
+    } finally {
+      clearTimeout(timer)
+    }
     if (!res.ok) {
       // 404 = model renamed, 429 = quota — both legitimately fall to the next model.
       lastErr = `${model}: HTTP ${res.status}`

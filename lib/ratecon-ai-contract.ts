@@ -9,11 +9,20 @@ import { t, type Locale } from './i18n.ts'
 /** Try in order; 404 (renamed model) and 429 (quota) fall through to the next.
  * Ends on gemini-3.1-flash-lite on purpose — its free-tier daily cap (500/day) is far
  * above the others (20/day), so it's the one still standing after a heavy day. */
+// Order is by MEASURED latency, not by version number, and it's the real fix for
+// "rate con took forever / didn't recognise". Measured 2026-07-23 on a trivial prompt:
+//   gemini-2.5-flash        0.7s   GA, reliable, plenty accurate for structured extract
+//   gemini-3.1-flash-lite   0.5s   fast fallback
+//   gemini-3-flash-preview  13s+   a preview build; on a real multi-page scan it was the
+//                                  one hanging past 55s. Kept only as a last resort.
+//   gemini-2.5-flash-lite   REMOVED — returned HTTP 404, a dead name that wasted a call
+//                                  on every single parse.
+// The per-model timeout in the route is the safety net; this ordering is the cure —
+// the common case now answers in ~1s instead of waiting out a slow preview model.
 export const AI_MODELS = [
-  'gemini-3-flash-preview',
   'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
   'gemini-3.1-flash-lite',
+  'gemini-3-flash-preview',
 ]
 
 export const AI_PROMPT = `You are reading a US trucking RATE CONFIRMATION document. Extract ONLY facts printed in the document. Never guess, never infer — use null for anything not present.
