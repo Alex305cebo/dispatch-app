@@ -98,3 +98,25 @@ export function agoText(iso: string | Date, locale: Locale): string {
   if (diffH < 24) return `${diffH}h ago`
   return d.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' })
 }
+
+/**
+ * Clean up an appointment-time string from a rate con before it's shown.
+ *
+ * The AI (and some rate cons) mash a pickup/delivery WINDOW into one field with no
+ * separator and military times with no colon — e.g. "07/22/2026 060007/22/2026 2100",
+ * which reads as gibberish. This makes it "07/22/2026 06:00 – 21:00":
+ *   1. a US date butted straight against a preceding 4-digit time gets a separator
+ *   2. bare HHMM (00:00–23:59) gets its colon — but only after a space/start, so the
+ *      YEAR inside a date (…/2026) is never turned into a time
+ *   3. a "DATE T1 – DATE T2" window with the SAME date collapses to "DATE T1 – T2"
+ * Anything already well-formed ("07/15/26 12:00 Appt") passes through untouched.
+ */
+export function normalizeApptTime(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  let s = String(raw).trim()
+  if (!s) return null
+  s = s.replace(/(\d{4})(?=\d{1,2}\/\d{1,2}\/\d{2,4}\b)/g, '$1 – ')
+  s = s.replace(/(^|\s)([01]\d|2[0-3])([0-5]\d)(?=\D|$)/g, '$1$2:$3')
+  s = s.replace(/^(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(.+?)\s+[–-]\s+\1\s+(.+)$/, '$1 $2 – $3')
+  return s.replace(/\s+/g, ' ').trim()
+}

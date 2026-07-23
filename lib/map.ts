@@ -5,6 +5,7 @@
 
 import type { Load, TruckSettings } from './profit.ts'
 import { t, type Locale } from './i18n.ts'
+import { normalizeApptTime } from './fmt.ts'
 
 export type LoadStatus = 'quoted' | 'booked' | 'in_transit' | 'delivered' | 'paid' | 'cancelled'
 
@@ -202,8 +203,10 @@ export function rowToLoad(r: LoadRow): LoadRecord {
     referenceId: r.reference_id,
     pickupDate: isoDate(r.pickup_date),
     deliveryDate: isoDate(r.delivery_date ?? null),
-    pickupTime: r.pickup_time ?? null,
-    deliveryTime: r.delivery_time ?? null,
+    // Normalised on read so existing rows with a mashed window still display
+    // cleanly, not only freshly-parsed ones.
+    pickupTime: normalizeApptTime(r.pickup_time),
+    deliveryTime: normalizeApptTime(r.delivery_time),
     pickupAddress: r.pickup_address ?? null,
     deliveryAddress: r.delivery_address ?? null,
     source: r.source as 'manual' | 'qr',

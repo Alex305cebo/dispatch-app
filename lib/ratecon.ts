@@ -15,6 +15,7 @@
 //    new broker shows up, expect to add a label here — that is the trade for free.
 
 import { EMPTY, type QrLoad } from './qr-load.ts'
+import { normalizeApptTime } from './fmt.ts'
 
 /** A parsed value plus the source line it came from — shown so the human can check. */
 export type Found<T> = { value: T; evidence: string }
@@ -683,8 +684,8 @@ export function toQrLoad(f: RateConFields): QrLoad {
     referenceId: f.referenceId?.value ?? null,
     pickupDate: f.pickupDate?.value ?? null,
     deliveryDate: f.deliveryDate?.value ?? null,
-    pickupTime: f.pickupStop.time,
-    deliveryTime: f.deliveryStop.time,
+    pickupTime: normalizeApptTime(f.pickupStop.time),
+    deliveryTime: normalizeApptTime(f.deliveryStop.time),
     pickupAddress: f.pickupAddress?.value ?? null,
     deliveryAddress: f.deliveryAddress?.value ?? null,
     brokerNotes: f.importantNotes?.value ?? null,
