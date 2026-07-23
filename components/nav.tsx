@@ -183,7 +183,7 @@ export function Nav({
         <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-haul-500 to-good-500 text-[15px] font-bold">
           {brand.charAt(0)}
         </div>
-        <span className="nav-brand-name min-w-0 flex-1 truncate text-[15px] font-semibold">{brand}</span>
+        <span className="nav-brand-name min-w-0 flex-1 text-[14px] font-semibold leading-tight">{brand}</span>
         <svg
           viewBox="0 0 24 24"
           fill="none"
