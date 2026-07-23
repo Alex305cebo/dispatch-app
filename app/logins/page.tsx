@@ -162,38 +162,26 @@ export default async function Page() {
           </p>
         </div>
       ) : (
-        <div className="panel overflow-x-auto p-0">
-          <table className="w-full min-w-[640px] border-collapse text-[13px]">
-            <thead>
-              <tr className="border-b border-white/8 text-left text-[10px] uppercase tracking-wider text-white/45">
-                <th className="px-4 py-2.5 font-medium">{t(locale, 'admin.logins.colWho')}</th>
-                <th className="px-4 py-2.5 font-medium">{t(locale, 'admin.logins.colWhat')}</th>
-                <th className="px-4 py-2.5 font-medium">{t(locale, 'admin.logins.colWhere')}</th>
-                <th className="px-4 py-2.5 font-medium">{t(locale, 'admin.logins.colWhen')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {events.map((e, i) => (
-                <tr key={i} className="border-b border-white/5 last:border-0 align-top">
-                  <td className="px-4 py-2.5 font-medium text-white/90">{e.who}</td>
-                  <td className="px-4 py-2.5 text-white/80">
-                    <span className="flex items-center gap-2">
-                      <span
-                        className={`size-1.5 shrink-0 rounded-full ${
-                          e.tone === 'delete' ? 'bg-bad-400' : 'bg-good-500'
-                        }`}
-                      />
-                      {e.what}
-                    </span>
-                    {e.detail && <span className="mt-0.5 block pl-3.5 text-[11px] text-white/45">{e.detail}</span>}
-                  </td>
-                  <td className="px-4 py-2.5 text-white/60">{e.where}</td>
-                  <td className="nums px-4 py-2.5 text-white/55">{when(e.at, locale)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ul className="panel divide-y divide-white/5 p-0">
+          {events.map((e, i) => (
+            <li key={i} className="flex flex-wrap items-start gap-x-4 gap-y-1 px-4 py-3 text-[13px]">
+              <div className="flex min-w-0 flex-1 basis-[220px] flex-col gap-0.5">
+                <span className="flex items-center gap-2">
+                  <span
+                    className={`size-1.5 shrink-0 rounded-full ${e.tone === 'delete' ? 'bg-bad-400' : 'bg-good-500'}`}
+                  />
+                  <span className="font-medium text-white/90">{e.who}</span>
+                </span>
+                <span className="pl-3.5 text-white/80">{e.what}</span>
+                {e.detail && <span className="pl-3.5 text-[11px] text-white/45">{e.detail}</span>}
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
+                <span className="nums text-[12px] text-white/55">{when(e.at, locale)}</span>
+                <span className="text-[11px] text-white/45">{e.where}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </main>
   )
