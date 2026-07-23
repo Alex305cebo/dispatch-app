@@ -206,9 +206,12 @@
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
-  /* JetBrains Mono runs optically larger than Inter at the same px — without this a
-     `nums` figure sitting inline next to body text looks a size up from its label. */
-  font-size: 0.96em;
+  /* NO font-size here. It once set 0.96em to shrink mono toward Inter's optical size,
+     but font-size:em resolves against the PARENT, so on the ~25 elements that combine
+     `nums` with an explicit `text-[Npx]` it silently overrode that size — most visibly
+     an 8px notification badge whose digit ballooned to ~12px and clipped its circle.
+     One optical nicety was not worth overriding every deliberate size; the tracking
+     that follows is size-independent and safe. */
   letter-spacing: -0.01em;
 }
 

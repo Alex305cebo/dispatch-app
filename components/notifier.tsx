@@ -150,21 +150,28 @@ export function Notifier({ collapsed = false }: { collapsed?: boolean }) {
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.7 21a2 2 0 0 1-3.4 0" />
         </svg>
-
-        <AnimatePresence>
-          {unread > 0 && (
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 18 }}
-              className="absolute -right-0.5 -top-0.5 flex min-w-[18px] items-center justify-center rounded-full bg-haul-500 px-1 text-[10px] font-bold text-white ring-2 ring-ink-950"
-            >
-              {unread > 9 ? '9+' : unread}
-            </motion.span>
-          )}
-        </AnimatePresence>
       </motion.button>
+
+      {/* The count sits OUTSIDE the button on purpose. .nav-icon-btn has overflow:hidden
+          (it needs it, so the icon can't peek out of the circle during the collapse
+          animation) — a badge inside it was clipped by that same rule, cutting the
+          number in half. As a sibling of the button, anchored to this relative wrapper,
+          it's free of the clip. pointer-events-none so it never eats a click meant for
+          the bell. size-[18px] with a fixed line-height keeps a single digit centred
+          instead of riding high. */}
+      <AnimatePresence>
+        {unread > 0 && (
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 18 }}
+            className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-haul-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-ink-950"
+          >
+            {unread > 9 ? '9+' : unread}
+          </motion.span>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
