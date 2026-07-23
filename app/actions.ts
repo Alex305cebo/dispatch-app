@@ -282,7 +282,9 @@ export async function createLoadFromRc(
       RETURNING id`
     const loadId = (rows[0] as { id: number }).id
     if (docId && (await docBelongs(companyId, docId)))
-      await sql`UPDATE documents SET load_id = ${loadId} WHERE id = ${docId} AND load_id IS NULL`
+      // kind='ratecon' too: if this doc was recognised out of a misclassified Telegram
+      // file, label it correctly now that we know what it is.
+      await sql`UPDATE documents SET load_id = ${loadId}, kind = 'ratecon' WHERE id = ${docId} AND load_id IS NULL`
     revalidatePath(`/trucks/${truckId}`)
     revalidatePath('/loads')
     revalidatePath('/')
@@ -309,9 +311,13 @@ export async function createLoadFromExistingRc(
   const locale = await getLocale()
   // Postgres' encode() wraps base64 at PEM width; Gemini's inlineData rejects the
   // embedded newlines with a 400, hence the replace().
+  // No kind filter: a rate con that arrived via Telegram may have been auto-classified
+  // as 'other' (a scan the classifier misread), and the whole point of "recognise from
+  // the truck's files" is to rescue exactly that case. Clicking recognise asserts it's a
+  // rate con; if the AI can't read one out of it, geminiExtract errors cleanly below.
   const rows = await sql`
     SELECT replace(encode(data, 'base64'), E'\n', '') AS b64, mime, load_id
-    FROM documents WHERE id = ${docId} AND kind = 'ratecon' AND company_id = ${companyId}`
+    FROM documents WHERE id = ${docId} AND company_id = ${companyId}`
   const doc = rows[0] as { b64: string; mime: string; load_id: number | null } | undefined
   if (!doc) return { error: t(locale, 'actions.rateconNotFound') }
   if (doc.load_id) return { error: t(locale, 'actions.rateconAlreadyUsed') }

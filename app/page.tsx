@@ -32,6 +32,8 @@ import { t as tr, type Locale } from '@/lib/i18n'
 import { can } from '@/lib/capabilities-server'
 import { usd, usd2, driveTime, weekStart } from '@/lib/fmt'
 import { StatusBadge } from '@/components/status'
+import { FleetHeatmap } from '@/components/fleet-heatmap'
+import { buildWorkingDays } from '@/lib/heatmap'
 import { RateConButton } from '@/components/ratecon-button'
 import { DriverAvatar } from '@/components/driver-avatar'
 import { Info } from '@/components/info'
@@ -291,6 +293,21 @@ export default async function Page() {
             label={tr(locale, 'overview.totalMiles')}
             value={Math.round(totalMiles).toLocaleString('en-US')}
             info={tr(locale, 'overview.totalMilesInfo')}
+          />
+        </div>
+      )}
+
+      {/* Fleet utilisation heatmap — the same section as /trucks, surfaced on the
+          Overview so idle trucks and fleet-wide gaps are visible without leaving the
+          dashboard. Only when there are loads to plot. */}
+      {trucks.length > 0 && live.length > 0 && (
+        <div className="mb-6">
+          <FleetHeatmap
+            rows={trucks.map((t) => ({
+              id: t.id,
+              label: t.number?.trim() || t.name,
+              working: buildWorkingDays(live.filter((l) => l.truckId === t.id)),
+            }))}
           />
         </div>
       )}

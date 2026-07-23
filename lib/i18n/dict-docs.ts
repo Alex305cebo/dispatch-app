@@ -1,6 +1,11 @@
 // Documents domain: app/docs/**, docs.tsx, doc-viewer.tsx, lib/docs.ts.
 
 export const docsDict = {
+  'docs.unattached.recognize': { ru: 'Распознать → груз', en: 'Recognise → load' },
+  'docs.unattached.working': { ru: 'Читаю…', en: 'Reading…' },
+  'docs.unattached.attachTo': { ru: 'Прикрепить к грузу…', en: 'Attach to load…' },
+  'docs.unattached.recognizedToast': { ru: 'Груз создан из rate con', en: 'Load created from the rate con' },
+  'docs.unattached.attachedToast': { ru: 'Файл прикреплён к грузу', en: 'File attached to the load' },
   // app/docs/page.tsx
   'docs.title': { ru: 'Документы', en: 'Documents' },
   'docs.info': {

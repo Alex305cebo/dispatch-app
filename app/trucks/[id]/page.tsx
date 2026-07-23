@@ -396,7 +396,16 @@ export default async function Page({
             </h2>
           </div>
           <DocUpload truckId={truck.id} />
-          <DocList docs={docs} />
+          {/* attachTargets = this truck's live loads, so a file that came in via
+              Telegram and landed under the truck can be recognised into a load or
+              linked to an existing one straight from the list. */}
+          <DocList
+            docs={docs}
+            attachTargets={live.map((l) => ({
+              id: l.id,
+              label: `${l.origin ?? '—'} → ${l.destination ?? '—'}`,
+            }))}
+          />
         </section>
       </div>
 

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { currentLoadsByTruck, truckLabel } from '@/lib/map'
 import { FleetHeatmap } from '@/components/fleet-heatmap'
-import { daysBetween, type HeatDayLoad } from '@/lib/heatmap'
+import { buildWorkingDays } from '@/lib/heatmap'
 import { getCompany } from '@/lib/invoice'
 import {
   expiries,
@@ -82,30 +82,8 @@ export default async function Page() {
           return ms >= weekBegin && ms < weekEnd
         })
         .reduce((s, l) => s + l.rate, 0)
-      // Working days for the utilisation grid: every day from a load's pickup to its
-      // delivery, so a multi-day haul fills every day it ran, not just the booking day.
-      // No delivery date? Fall back to pickup + transit_days, then to a single day —
-      // never leave a real load invisible. Each day carries the load(s) that covered it
-      // (route + id + rate), which the cell's hover card shows with a link through.
-      const working = new Map<string, HeatDayLoad[]>()
-      for (const l of live) {
-        const startMs = l.pickupDate ? Date.parse(`${l.pickupDate}T12:00:00`) : Date.parse(l.createdAt)
-        if (Number.isNaN(startMs)) continue
-        const endMs = l.deliveryDate
-          ? Date.parse(`${l.deliveryDate}T12:00:00`)
-          : startMs + Math.max(0, (l.transitDays ?? 1) - 1) * 24 * 60 * 60 * 1000
-        const entry: HeatDayLoad = {
-          id: l.id,
-          route: `${l.origin ?? '—'} → ${l.destination ?? '—'}`,
-          rate: l.rate,
-          status: l.status,
-        }
-        for (const k of daysBetween(startMs, Number.isNaN(endMs) ? startMs : endMs)) {
-          const arr = working.get(k)
-          if (arr) arr.push(entry)
-          else working.set(k, [entry])
-        }
-      }
+      // Utilisation grid days for this truck (shared helper — same shape on the dashboard).
+      const working = buildWorkingDays(live)
       return { truck: t, count: live.length, current, weekGross, working }
     }),
   )

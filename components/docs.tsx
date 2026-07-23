@@ -9,13 +9,20 @@ import { Empty } from '@/components/empty'
 
 import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { deleteDocument, purgeDocument, restoreDocument, uploadDocument } from '@/app/actions'
+import {
+  attachDocumentToLoad,
+  createLoadFromExistingRc,
+  deleteDocument,
+  purgeDocument,
+  restoreDocument,
+  uploadDocument,
+} from '@/app/actions'
 import { DeleteButton } from '@/components/delete-button'
 import { DOC_KINDS, docKindLabel, fmtSize, type DocKind, type DocLibRow, type DocMeta } from '@/lib/docs'
 import { notify } from '@/lib/notify'
 import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
-import { t } from '@/lib/i18n'
+import { t, type Locale } from '@/lib/i18n'
 
 export function DocUpload({
   truckId,
@@ -174,6 +181,82 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
   )
 }
 
+/** Actions for a doc that isn't tied to a load yet — the gap this fills: a file that
+ * arrived via Telegram sits under the truck with no load, and there was no way to act
+ * on it from the list. "Recognise" runs the AI on it as a rate con and spins up a load
+ * (works even if the file was auto-classified 'other'); the picker links it to an
+ * existing load. Only shown on the truck page, where `attachTargets` is passed. */
+function UnattachedActions({
+  docId,
+  kind,
+  truckId,
+  loads,
+  locale,
+}: {
+  docId: number
+  kind: DocKind
+  truckId: number
+  loads: { id: number; label: string }[]
+  locale: Locale
+}) {
+  // "Recognise" only for kinds that could actually BE a rate con: an explicit ratecon,
+  // or an 'other' that a Telegram classifier may have misread. Offering it on a clearly
+  // typed insurance/registration/POD would just be noise — those only get "attach".
+  const canRecognize = kind === 'ratecon' || kind === 'other'
+  const router = useRouter()
+  const [pending, start] = useTransition()
+
+  function recognize() {
+    start(async () => {
+      const res = await createLoadFromExistingRc(docId, truckId)
+      if ('error' in res) notify('error', res.error)
+      else {
+        notify('ok', t(locale, 'docs.unattached.recognizedToast'))
+        router.refresh()
+      }
+    })
+  }
+  function attach(loadId: number) {
+    start(async () => {
+      await attachDocumentToLoad(docId, loadId)
+      notify('ok', t(locale, 'docs.unattached.attachedToast'))
+      router.refresh()
+    })
+  }
+
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+      {canRecognize && (
+        <button
+          type="button"
+          onClick={recognize}
+          disabled={pending}
+          className="rounded-md bg-haul-500/15 px-2 py-1 text-2xs font-semibold text-haul-300 transition-colors hover:bg-haul-500/25 disabled:opacity-50"
+        >
+          {pending ? t(locale, 'docs.unattached.working') : t(locale, 'docs.unattached.recognize')}
+        </button>
+      )}
+      {loads.length > 0 && (
+        <select
+          disabled={pending}
+          defaultValue=""
+          onChange={(e) => e.target.value && attach(Number(e.target.value))}
+          className="max-w-[160px] rounded-md border border-white/10 bg-ink-900/80 px-1.5 py-1 text-2xs text-white/75 outline-none disabled:opacity-50"
+        >
+          <option value="" disabled>
+            {t(locale, 'docs.unattached.attachTo')}
+          </option>
+          {loads.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.label}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  )
+}
+
 /** One document line. Reused by the flat list and the grouped library. */
 function DocRow({
   doc,
@@ -181,12 +264,16 @@ function DocRow({
   from,
   to,
   onDelete,
+  attachTargets,
 }: {
   doc: DocMeta
   showLinks?: boolean
   from?: string | null
   to?: string | null
   onDelete: (d: DocMeta) => void
+  /** The truck's loads, passed only on the truck page — enables the recognise/attach
+   * row for a doc that isn't linked to a load yet. */
+  attachTargets?: { id: number; label: string }[]
 }) {
   const locale = useLocale()
   // items-start, and the size/date moved UNDER the filename rather than beside it. In
@@ -218,6 +305,9 @@ function DocRow({
         <span className="nums block text-xs text-white/40">
           {fmtSize(doc.sizeBytes)} · {doc.uploadedAt.slice(0, 10)}
         </span>
+        {doc.loadId === null && doc.truckId && attachTargets && (
+          <UnattachedActions docId={doc.id} kind={doc.kind} truckId={doc.truckId} loads={attachTargets} locale={locale} />
+        )}
       </div>
       {showLinks && doc.truckId && (
         <a
@@ -247,7 +337,17 @@ function DocRow({
 }
 
 /** Flat list — per-truck and per-load pages. */
-export function DocList({ docs, showLinks }: { docs: DocMeta[]; showLinks?: boolean }) {
+export function DocList({
+  docs,
+  showLinks,
+  attachTargets,
+}: {
+  docs: DocMeta[]
+  showLinks?: boolean
+  /** The truck's loads — passed on the truck page so an unattached doc can be
+   * recognised into a load or linked to an existing one right from the list. */
+  attachTargets?: { id: number; label: string }[]
+}) {
   const locale = useLocale()
   const [del, setDel] = useState<DocMeta | null>(null)
   if (docs.length === 0)
@@ -256,7 +356,7 @@ export function DocList({ docs, showLinks }: { docs: DocMeta[]; showLinks?: bool
     <>
       <ul className="mt-3 flex flex-col gap-1.5">
         {docs.map((d) => (
-          <DocRow key={d.id} doc={d} showLinks={showLinks} onDelete={setDel} />
+          <DocRow key={d.id} doc={d} showLinks={showLinks} onDelete={setDel} attachTargets={attachTargets} />
         ))}
       </ul>
       {del && <DeleteDialog doc={del} onClose={() => setDel(null)} />}
