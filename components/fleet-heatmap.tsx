@@ -17,6 +17,7 @@
 
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { usd } from '@/lib/fmt'
 import { statusLabel } from '@/components/status'
@@ -45,10 +46,29 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
     closeTimer.current = setTimeout(() => setHover(null), 140)
   }
 
+  // offset = whole windows shifted into the past (0 = the window ending today). The
+  // arrows step it by `days`, so each click pages a full 14 days back/forward; you can
+  // never page past today (offset floored at 0).
+  const [offset, setOffset] = useState(0)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const cols = Array.from({ length: days }, (_, i) => new Date(today.getTime() - (days - 1 - i) * DAY_MS))
+  const anchor = today.getTime() - offset * days * DAY_MS
+  const cols = Array.from({ length: days }, (_, i) => new Date(anchor - (days - 1 - i) * DAY_MS))
   const colKeys = cols.map(dayKey)
+
+  const loc = locale === 'ru' ? 'ru-RU' : 'en-US'
+  const monthShort = (d: Date) => d.toLocaleDateString(loc, { month: 'short' }).replace('.', '')
+  const first = cols[0]!
+  const last = cols[cols.length - 1]!
+  const m0 = monthShort(first)
+  const mN = monthShort(last)
+  // Left-gutter label: one month, or "jun–jul" when the window straddles a boundary.
+  const monthLabel = m0 === mN ? m0 : `${m0}–${mN}`
+  // Header range beside the arrows, e.g. "10–23 jul" or "28 jun–11 jul".
+  const rangeLabel =
+    m0 === mN
+      ? `${first.getDate()}–${last.getDate()} ${mN}`
+      : `${first.getDate()} ${m0}–${last.getDate()} ${mN}`
 
   // Nice date for the hover heading, e.g. "Tue, Jul 15".
   const prettyDay = (key: string) =>
@@ -65,16 +85,40 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
           {t(locale, 'trucks.heatmap.title')}
           <Info text={t(locale, 'trucks.heatmap.info')} />
         </h2>
-        <span className="flex items-center gap-2 text-2xs text-white/40">
-          <span className="flex items-center gap-1">
-            <span className="size-2.5 rounded-[3px] bg-good-400" />
-            {t(locale, 'trucks.heatmap.working')}
+        <div className="flex items-center gap-3">
+          <span className="hidden items-center gap-2 text-2xs text-white/40 sm:flex">
+            <span className="flex items-center gap-1">
+              <span className="size-2.5 rounded-[3px] bg-good-400" />
+              {t(locale, 'trucks.heatmap.working')}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="size-2.5 rounded-[3px] bg-white/[0.06]" />
+              {t(locale, 'trucks.heatmap.idle')}
+            </span>
           </span>
-          <span className="flex items-center gap-1">
-            <span className="size-2.5 rounded-[3px] bg-white/[0.06]" />
-            {t(locale, 'trucks.heatmap.idle')}
-          </span>
-        </span>
+          {/* Page the 14-day window back/forward. Next is disabled at offset 0 — the
+              window already ends today, there's nothing in the future to show. */}
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setOffset((o) => o + 1)}
+              aria-label={t(locale, 'trucks.heatmap.earlier')}
+              className="grid size-6 place-items-center rounded-md text-white/55 transition-colors hover:bg-white/8 hover:text-white/85"
+            >
+              <ChevronLeft size={15} />
+            </button>
+            <span className="nums w-[92px] text-center text-2xs tabular-nums text-white/50">{rangeLabel}</span>
+            <button
+              type="button"
+              onClick={() => setOffset((o) => Math.max(0, o - 1))}
+              disabled={offset === 0}
+              aria-label={t(locale, 'trucks.heatmap.later')}
+              className="grid size-6 place-items-center rounded-md text-white/55 transition-colors hover:bg-white/8 hover:text-white/85 disabled:pointer-events-none disabled:opacity-25"
+            >
+              <ChevronRight size={15} />
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="min-w-max">
@@ -136,11 +180,16 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
             </div>
           )
         })}
-        <div className="mt-1.5 flex items-center gap-1.5">
-          <span className="w-20 shrink-0" />
-          <div className="flex w-full justify-between text-[9px] text-white/25">
-            <span>{colKeys[0]!.slice(5)}</span>
-            <span>{colKeys[colKeys.length - 1]!.slice(5)}</span>
+        {/* Date axis: the month sits in the left gutter (under the truck names); each
+            cube gets its own day-of-month number so a cell reads as a real date. */}
+        <div className="mt-1 flex items-center gap-1.5">
+          <span className="w-20 shrink-0 truncate text-2xs font-medium capitalize text-white/45">{monthLabel}</span>
+          <div className="flex gap-1">
+            {cols.map((c, i) => (
+              <span key={i} className="nums w-3.5 text-center text-[8.5px] leading-none text-white/30">
+                {c.getDate()}
+              </span>
+            ))}
           </div>
           <span className="ml-2 w-10 shrink-0" />
           <span className="w-16 shrink-0" />

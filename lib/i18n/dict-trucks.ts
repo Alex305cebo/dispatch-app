@@ -26,6 +26,8 @@ export const trucksDict = {
   'trucks.heatmap.working': { ru: 'в рейсе', en: 'on a load' },
   'trucks.heatmap.idle': { ru: 'простой', en: 'idle' },
   'trucks.heatmap.idleDay': { ru: 'В этот день трак простаивал', en: 'The truck was idle this day' },
+  'trucks.heatmap.earlier': { ru: 'Предыдущие 14 дней', en: 'Previous 14 days' },
+  'trucks.heatmap.later': { ru: 'Следующие 14 дней', en: 'Next 14 days' },
   'trucks.page.title': { ru: 'Траки', en: 'Trucks' },
   'trucks.page.inFleet': { ru: 'в парке', en: 'in fleet' },
   'trucks.page.ownerPrefix': { ru: ' · владелец ', en: ' · owner ' },
