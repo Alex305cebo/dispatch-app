@@ -1,28 +1,32 @@
 // ELD polling — fills fleet_status from the ZigZag API, server-side, no browser.
 //
-// Endpoint contract CONFIRMED by probing the live API (2026-07-18), unauthenticated:
-//   GET https://api.zigzageld.com/eld/dashboard/vehicleStatuses?VehicleId=ALL → 401
-//   GET https://api.zigzageld.com/eld/dashboard/driverstatuses               → 401
-//   GET https://api.zigzageld.com/eld/<nonsense>                             → 404
-// A wrong path 404s while ours 401, so both routes are real and simply need auth.
-// The server states the scheme itself: `www-authenticate: Bearer`, and it sends
-// `access-control-allow-origin: https://zigzageld.com` — i.e. the dashboard calls
-// this same REST API from the browser. It is NOT a WebSocket feed.
+// Contract taken from the vendor's own OpenAPI document (title "ZIGZAG ELD API", v2):
+//   https://eldapi.zigzageld.com/swagger/v2/swagger.json
+// and verified end-to-end against their published sandbox account on 2026-07-23:
+//   POST /eld/v2/External/Authorize  {userName,password,companyId} → {"accessToken": JWT}
+//   GET  /eld/v2/External/VehicleStatuses   (Bearer)  → 28 vehicles, fields exactly:
+//        vehicleUnit, vin, location{description,latitude,longitude}, engineStatus
+//        (BOOLEAN), odometer, speed, updateDate (epoch MILLISECONDS)
 //
-// Host matters: the older `eldapi.zigzageld.com` serves the same routes but its TLS
-// certificate is EXPIRED, so any server-side fetch to it dies before sending. Use
-// `api.zigzageld.com` (valid cert, behind Cloudflare).
+// An earlier revision of this file guessed at /eld/dashboard/* with a static API key.
+// Those paths answered 401 rather than 404, which read like "real but unauthorised"
+// and kept the guess alive for days. They are not in the spec; the real scheme is a
+// login that mints a short-lived JWT.
 //
-// Still missing: the token itself. See docs/zigzag-api-request.txt — a durable key
-// has to come from the vendor; a dashboard session token works only for hours.
+// HOS is a separate endpoint (/eld/v2/External/DriverStatus/{username}) and the
+// vendor has NOT granted it: "HoS data is confidential and the access has to be
+// discussed" (2026-07-22), then "we cannot provide, right now, credentials with HoS
+// data" (2026-07-23). GPS only for now — hos_percent is left untouched by this path.
 //
 // Env:
-//   ELD_API_KEY   — the token/key from ZigZag. Absent → poller reports no_key.
-//   ELD_API_URL   — base, default https://api.zigzageld.com/eld
-//   ELD_API_AUTH  — 'bearer' (default, confirmed) | 'x-api-key' | 'x-auth-token'
+//   ELD_USERNAME    — vendor-issued account name
+//   ELD_PASSWORD    — vendor-issued password (never committed; set in the host's env)
+//   ELD_COMPANY_ID  — our company GUID; the credentials are scoped to it
+//   ELD_API_URL     — base, default https://eldapi.zigzageld.com
+// All three of the first must be present or the poller reports no_key and does nothing.
 
 import { sql } from './db.ts'
-import { getSetting } from './settings.ts'
+import { getSetting, setSetting } from './settings.ts'
 import { haversineMiles, bearing } from './geo.ts'
 import { segmentTrail, type HistoryLeg } from './trip-history.ts'
 import { t, type Locale } from './i18n.ts'
@@ -118,98 +122,187 @@ export async function tripHistory(unit: string, hours = 24): Promise<HistoryLeg[
   return segmentTrail(rows)
 }
 
+/* ===== Vendor-key path — ZigZag "External" API v2 =============================
+ *
+ * Contract taken from the vendor's own OpenAPI document, not guessed:
+ *   https://eldapi.zigzageld.com/swagger/v2/swagger.json   (title "ZIGZAG ELD API", v2)
+ *
+ * This replaced an earlier hand-written guess that was wrong in every dimension —
+ * wrong host, wrong paths (/dashboard/*, which do not exist in the spec), and a
+ * static API key where the real scheme is a login that mints a JWT. The old paths
+ * answered 401 rather than 404, which read like "real but unauthorised" and kept the
+ * guess alive far longer than it deserved.
+ *
+ * Two steps:
+ *   1) POST /eld/v2/External/Authorize  { userName, password, companyId } → JWT
+ *   2) GET  /eld/v2/External/VehicleStatuses   (Authorization: Bearer <JWT>)
+ *
+ * HOS lives at /eld/v2/External/DriverStatus/{username} and the vendor has NOT
+ * granted it ("HoS data is confidential... we cannot provide, right now"), so this
+ * path deliberately does not call it. `hosPercent` stays for whenever that changes.
+ *
+ * Host note: eldapi.zigzageld.com's TLS certificate WAS expired, which is why an
+ * older revision pointed at api.zigzageld.com. It is valid again (checked: expires
+ * 2026-09-02) and is the host the vendor documents, so it is the default here.
+ */
 type VehicleStatus = {
+  companyId?: string
+  vehicleId?: string
   vehicleUnit?: string | number
+  vin?: string
   driverName?: string
   odometer?: number
   speed?: number
-  engineStatus?: string
-  updateDate?: string
+  /** Spec says boolean (engine on/off), NOT the duty-status string the old code assumed. */
+  engineStatus?: boolean | string
+  /** Spec says integer. Observed as an epoch stamp; tolerated as a string too. */
+  updateDate?: number | string
   location?: {
+    locationType?: string
+    origin?: string
+    bearing?: number
     description?: string
     latitude?: number
     longitude?: number
   }
 }
 
+/** Spec: /eld/v2/External/DriverStatus/{username}. Times are INTEGERS here, not the
+ * "HH:MM" strings an earlier guess assumed. Unused until the vendor grants HOS. */
 type DriverStatus = {
+  username?: string
   driverName?: string
-  driverStatus?: string
-  vehicle?: string | number
-  driveTime?: string
-  shiftTime?: string
-  cycleTime?: string
-  breakTime?: string
+  vehicleId?: string
+  currentStatus?: string
+  breakTime?: number
+  driveTime?: number
+  shiftTime?: number
+  cycleTime?: number
 }
 
-function headers(): Record<string, string> {
-  const key = process.env.ELD_API_KEY!
-  switch (process.env.ELD_API_AUTH) {
-    case 'x-api-key':
-      return { 'x-api-key': key }
-    case 'x-auth-token':
-      return { 'X-AUTH-TOKEN': key }
-    default:
-      return { Authorization: `Bearer ${key}` }
+const ELD_BASE = (process.env.ELD_API_URL ?? 'https://eldapi.zigzageld.com').replace(/\/+$/, '')
+
+/** Minutes of drive time left → percent of the 11h clock. */
+function hosPercent(driveMinutes: number | undefined): number | null {
+  if (typeof driveMinutes !== 'number' || !Number.isFinite(driveMinutes)) return null
+  return Math.round(Math.min(100, (driveMinutes / 660) * 100) * 10) / 10
+}
+
+/**
+ * Log in and cache the JWT.
+ *
+ * Cached in `settings` rather than a module variable because every request can land
+ * in a fresh serverless instance — a per-process cache would mean a login on every
+ * poll. Expiry is read from the JWT itself and trimmed by a minute so a token can't
+ * die mid-request.
+ *
+ * The vendor's Swagger annotates the 200 response with the REQUEST schema (their bug),
+ * so the real shape is unknown from the document alone — hence accepting the common
+ * spellings rather than trusting one.
+ */
+async function eldToken(): Promise<string | null> {
+  const userName = process.env.ELD_USERNAME
+  const password = process.env.ELD_PASSWORD
+  const companyId = process.env.ELD_COMPANY_ID
+  if (!userName || !password || !companyId) return null
+
+  const cached = await getSetting('eld:token')
+  if (cached) {
+    try {
+      const c = JSON.parse(cached) as { token: string; exp: number }
+      if (c.exp > Date.now()) return c.token
+    } catch {
+      // fall through and re-authorize
+    }
   }
-}
 
-/** "HH:MM" remaining → percent of the 11h drive clock; unparseable → null. */
-function hosPercent(driveTime: string | undefined): number | null {
-  const m = driveTime?.match(/^(\d{1,2}):(\d{2})/)
-  if (!m) return null
-  const left = Number(m[1]) * 60 + Number(m[2])
-  return Math.round(Math.min(100, (left / 660) * 100) * 10) / 10
+  const res = await fetch(`${ELD_BASE}/eld/v2/External/Authorize`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ userName, password, companyId }),
+  })
+  if (!res.ok) return null
+  const raw = await res.text()
+  let token: string | null = null
+  try {
+    const j = JSON.parse(raw) as Record<string, unknown>
+    token = (j.accessToken ?? j.token ?? j.access_token ?? j.jwt) as string | null
+  } catch {
+    // A bare token string, unquoted, is a legitimate shape too.
+    token = raw.trim().replace(/^"|"$/g, '') || null
+  }
+  if (!token) return null
+
+  // exp is seconds since epoch, per JWT. No signature check — we are the client, not
+  // the verifier; this only decides when to ask for a new one.
+  let exp = Date.now() + 30 * 60 * 1000
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1]!, 'base64').toString())
+    if (typeof payload.exp === 'number') exp = payload.exp * 1000 - 60_000
+  } catch {
+    // Not a JWT, or an odd payload — the 30-minute default stands.
+  }
+  await setSetting('eld:token', JSON.stringify({ token, exp }))
+  return token
 }
 
 export async function fleetSnapshot(
   locale: Locale = 'ru',
 ): Promise<{ updated: number } | { error: string }> {
-  if (!process.env.ELD_API_KEY) return { error: 'no_key' }
-  const base = (process.env.ELD_API_URL ?? 'https://api.zigzageld.com/eld').replace(/\/$/, '')
+  if (!process.env.ELD_USERNAME || !process.env.ELD_PASSWORD || !process.env.ELD_COMPANY_ID) {
+    return { error: 'no_key' }
+  }
+  const token = await eldToken()
+  if (!token) return { error: t(locale, 'tracking.eldUnavailable') }
 
   let vehicles: VehicleStatus[] = []
-  let drivers: DriverStatus[] = []
   try {
-    // One fleet-wide call each — the owner's rule: few requests, human rhythm.
-    const [vRes, dRes] = await Promise.all([
-      fetch(`${base}/dashboard/vehicleStatuses?VehicleId=ALL`, { headers: headers() }),
-      fetch(`${base}/dashboard/driverstatuses`, { headers: headers() }),
-    ])
-    // 401 is the everyday failure here — the dashboard token is short-lived — so
-    // name it plainly instead of leaving a bare status code in the logs.
-    if (vRes.status === 401 || vRes.status === 403) {
+    // One fleet-wide call — the owner's rule: few requests, human rhythm.
+    const res = await fetch(`${ELD_BASE}/eld/v2/External/VehicleStatuses`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.status === 401 || res.status === 403) {
+      // Token rejected — drop it so the next poll logs in fresh rather than
+      // re-presenting a credential the server has already refused.
+      await setSetting('eld:token', '')
       return { error: t(locale, 'tracking.eldUnavailable') }
     }
-    if (!vRes.ok) return { error: `vehicleStatuses HTTP ${vRes.status}` }
-    vehicles = (await vRes.json()) as VehicleStatus[]
-    // HOS is nice-to-have; a failed driver call must not lose the GPS update.
-    if (dRes.ok) drivers = (await dRes.json()) as DriverStatus[]
+    if (!res.ok) return { error: `VehicleStatuses HTTP ${res.status}` }
+    const body = (await res.json()) as VehicleStatus[] | VehicleStatus
+    vehicles = Array.isArray(body) ? body : [body]
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) }
   }
 
-  const hosByUnit = new Map<string, DriverStatus>()
-  for (const d of drivers) {
-    if (d.vehicle !== undefined) hosByUnit.set(String(d.vehicle), d)
-  }
-
   let updated = 0
   for (const v of vehicles) {
-    const unit = v.vehicleUnit !== undefined ? String(v.vehicleUnit) : null
+    const unit = v.vehicleUnit !== undefined && v.vehicleUnit !== null ? String(v.vehicleUnit) : null
     if (!unit) continue
-    const d = hosByUnit.get(unit)
+    // engineStatus is a BOOLEAN in this API (engine on/off), not a duty code. Speed
+    // wins when the truck is actually rolling, same reading the Live Share path uses,
+    // so both sources write the same vocabulary into drive_status.
     const status =
-      d?.driverStatus ?? (v.speed && v.speed > 3 ? `${Math.round(v.speed)} mi/h` : (v.engineStatus ?? null))
+      v.speed && v.speed > 3
+        ? `${Math.round(v.speed)} mi/h`
+        : typeof v.engineStatus === 'boolean'
+          ? v.engineStatus
+            ? 'ON'
+            : 'OFF'
+          : (v.engineStatus ?? null)
+    // updateDate is an epoch integer; eld_seen is text and is rendered as a date.
+    const seen =
+      typeof v.updateDate === 'number'
+        ? new Date(v.updateDate > 1e12 ? v.updateDate : v.updateDate * 1000).toISOString()
+        : (v.updateDate ?? null)
     await sql`
       INSERT INTO fleet_status
-        (unit, driver_name, hos_percent, drive_status, location, lat, lng, odometer, eld_seen, updated_at)
-      VALUES (${unit}, ${v.driverName ?? d?.driverName ?? null}, ${hosPercent(d?.driveTime)},
+        (unit, driver_name, drive_status, location, lat, lng, odometer, eld_seen, updated_at)
+      VALUES (${unit}, ${v.driverName ?? null},
               ${status}, ${v.location?.description ?? null},
               ${v.location?.latitude ?? null}, ${v.location?.longitude ?? null},
-              ${v.odometer ?? null}, ${v.updateDate ?? null}, now())
+              ${v.odometer ?? null}, ${seen}, now())
       ON CONFLICT (unit) DO UPDATE SET
-        driver_name = EXCLUDED.driver_name, hos_percent = EXCLUDED.hos_percent,
+        driver_name = COALESCE(EXCLUDED.driver_name, fleet_status.driver_name),
         drive_status = EXCLUDED.drive_status, location = EXCLUDED.location,
         lat = EXCLUDED.lat, lng = EXCLUDED.lng, odometer = EXCLUDED.odometer,
         eld_seen = EXCLUDED.eld_seen, updated_at = now()`
