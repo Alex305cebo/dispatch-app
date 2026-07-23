@@ -51,6 +51,7 @@ export const trackingDict = {
   'tracking.noEldData': { ru: 'Нет данных с ELD', en: 'No data from ELD' },
   'tracking.repairLabel': { ru: '🔧 В ремонте', en: '🔧 In repair' },
   'tracking.vacationLabel': { ru: '🌴 Отпуск', en: '🌴 Vacation' },
+  'tracking.fuelTitle': { ru: 'Уровень топлива по датчику трака', en: 'Tank level from the truck sensor' },
   'tracking.idlePrefix': { ru: '⏸ стоит на месте ~', en: '⏸ stopped ~' },
   'tracking.idleSuffix': { ru: 'ч — груз в пути', en: 'h — load in transit' },
   'tracking.toDeliveryLabel': { ru: 'До выгрузки · ', en: 'To delivery · ' },

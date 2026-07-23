@@ -20,6 +20,8 @@ export const dynamic = 'force-dynamic'
 
 type FS = {
   unit: string
+  fuel: number | null
+  bearing: number | null
   driver_name: string | null
   drive_status: string | null
   location: string | null
@@ -113,7 +115,10 @@ async function FleetBoard({ locale }: { locale: Locale }) {
         ])
         weather = wx
         idleAt = signals?.idleAt ?? null
-        heading = signals?.heading ?? null
+        // Device heading first. The inferred one needs the truck to have moved far
+        // enough between two polls, so it is blank exactly when a truck is creeping
+        // around a yard — which is when the arrow's direction is most confusing.
+        heading = fs.bearing ?? signals?.heading ?? null
         if (load) {
           // Not picked up yet: the real road ahead is truck → pickup (the actual
           // deadhead) → delivery (the loaded miles) — never a straight line to
@@ -237,6 +242,7 @@ async function FleetBoard({ locale }: { locale: Locale }) {
       driveTimeText: legToDelivery ? driveTime(totalEtaMin, locale) : null,
       weather: weather ? { event: weather.event, headline: weather.headline } : null,
       idleHours: idleHoursRaw !== null && idleHoursRaw >= 3 ? idleHoursRaw : null,
+      fuel: fs?.fuel ?? null,
       unavailable: t.unavailable,
     })
   }

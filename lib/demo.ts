@@ -98,6 +98,8 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       cdlExpiry: dateAt(-5), // already expired · demonstrates "overdue"
       medcardExpiry: dateAt(400),
       driveStatus: 'ON',
+      fuel: 64,
+      bearing: 0,
       location: '2 mi N from Dallas, TX',
       lat: 32.8,
       lng: -96.79,
@@ -120,6 +122,8 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       cdlExpiry: dateAt(180),
       medcardExpiry: dateAt(90),
       driveStatus: 'ON',
+      fuel: 28,
+      bearing: 115,
       location: '5 mi S from Chicago, IL',
       lat: 41.79,
       lng: -87.65,
@@ -142,6 +146,8 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       cdlExpiry: dateAt(55), // warn
       medcardExpiry: dateAt(365),
       driveStatus: '58 mi/h',
+      fuel: 81,
+      bearing: 262,
       location: '45 mi W from Birmingham, AL',
       lat: 33.52,
       lng: -87.5,
@@ -164,6 +170,8 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       cdlExpiry: dateAt(100),
       medcardExpiry: dateAt(40), // warn
       driveStatus: 'SB',
+      fuel: 12,
+      bearing: 180,
       location: '1 mi E from Los Angeles, CA',
       lat: 34.05,
       lng: -118.24,
@@ -187,6 +195,8 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       cdlExpiry: dateAt(280),
       medcardExpiry: dateAt(320), // fully healthy truck — not every card needs a flag
       driveStatus: 'D',
+      fuel: 47,
+      bearing: 44,
       location: '10 mi S from Houston, TX',
       lat: 29.76,
       lng: -95.37,
@@ -209,6 +219,8 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       cdlExpiry: dateAt(20), // warn
       medcardExpiry: dateAt(250),
       driveStatus: 'OFF',
+      fuel: 93,
+      bearing: 330,
       location: '3 mi N from Nashville, TN',
       lat: 36.16,
       lng: -86.78,
@@ -231,6 +243,8 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       cdlExpiry: dateAt(200),
       medcardExpiry: dateAt(60), // warn
       driveStatus: '52 mi/h',
+      fuel: 35,
+      bearing: 88,
       location: '20 mi E from Charlotte, NC',
       lat: 35.23,
       lng: -80.84,
@@ -253,6 +267,8 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       cdlExpiry: dateAt(400),
       medcardExpiry: dateAt(15), // bad · urgent
       driveStatus: 'ON',
+      fuel: 58,
+      bearing: 205,
       location: '8 mi W from Miami, FL',
       lat: 25.76,
       lng: -80.19,
@@ -289,8 +305,10 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
     // per demo truck is what makes the map pin, live location and oil countdown (it
     // needs a CURRENT odometer, not just the last-change one) show up at all.
     await sql`
-      INSERT INTO fleet_status (unit, driver_name, drive_status, location, lat, lng, odometer, updated_at)
-      VALUES (${t.number}, ${driver}, ${t.driveStatus}, ${t.location}, ${t.lat}, ${t.lng}, ${t.odometer}, now())`
+      INSERT INTO fleet_status
+        (unit, driver_name, drive_status, location, lat, lng, odometer, fuel, bearing, updated_at)
+      VALUES (${t.number}, ${driver}, ${t.driveStatus}, ${t.location}, ${t.lat}, ${t.lng},
+              ${t.odometer}, ${t.fuel}, ${t.bearing}, now())`
     // Passport documents every real truck carries — insurance certificate and
     // registration copy, filed under the truck itself (not tied to any one load).
     await attachDoc('insurance', 'Certificate of Insurance.pdf', { truckId: id, uploadedAt: isoAt(-60) })

@@ -4,6 +4,7 @@
 // actions (call, open load) — plus a client-side filter for "who's free right now".
 
 import { useState } from 'react'
+import { Fuel } from 'lucide-react'
 import Link from 'next/link'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
@@ -24,6 +25,9 @@ export type TrackingRow = {
   driveTimeText: string | null
   weather: { event: string; headline: string } | null
   idleHours: number | null
+  /** Tank level in percent, straight from the truck's sensor (lib/eld.ts). Null when
+   * the ELD hasn't reported one — the app has no other way to know it. */
+  fuel: number | null
   /** Manual flag from the truck: 'repair' | 'vacation' | null. Badged, and never
    * counted as free — a truck in the shop isn't available just because it's empty. */
   unavailable: 'repair' | 'vacation' | null
@@ -101,8 +105,23 @@ export function FleetList({ rows }: { rows: TrackingRow[] }) {
               </span>
             </div>
 
-            {(r.weather || r.idleHours !== null) && (
+            {(r.weather || r.idleHours !== null || r.fuel !== null) && (
               <div className="mt-2 flex flex-wrap gap-1.5">
+                {r.fuel !== null && (
+                  <span
+                    title={t(locale, 'tracking.fuelTitle')}
+                    className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${
+                      r.fuel <= 15
+                        ? 'bg-bad-500/15 text-bad-400'
+                        : r.fuel <= 30
+                          ? 'bg-warn-400/15 text-warn-400'
+                          : 'bg-white/8 text-white/70'
+                    }`}
+                  >
+                    <Fuel size={12} strokeWidth={2.5} />
+                    <span className="nums">{Math.round(r.fuel)}%</span>
+                  </span>
+                )}
                 {r.weather && (
                   <span className="rounded-md bg-bad-500/15 px-2 py-1 text-[11px] font-medium text-bad-400">
                     ⚠ {r.weather.event}
