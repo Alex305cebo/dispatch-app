@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
@@ -152,13 +153,10 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
                 placeholder={t(locale, 'userPanel.newPasswordPlaceholder')}
                 className={`${input} max-w-xs`}
               />
-              <button
-                disabled={pending || resetPw.length < 8}
-                onClick={() => submitReset(u.id)}
-                className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
-              >
+              <Button variant="primary" size="sm" disabled={pending || resetPw.length < 8}
+                onClick={() => submitReset(u.id)}>
                 {t(locale, 'admin.users.save')}
-              </button>
+              </Button>
             </div>
           )}
 
@@ -231,13 +229,10 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
             </select>
           </div>
           <div className="mt-2.5 flex gap-2">
-            <button
-              disabled={pending || !name || !email || password.length < 8}
-              onClick={submitNew}
-              className="rounded-lg bg-haul-500 px-4 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
-            >
+            <Button variant="primary" size="sm" disabled={pending || !name || !email || password.length < 8}
+              onClick={submitNew}>
               {t(locale, 'admin.users.add')}
-            </button>
+            </Button>
             <button
               onClick={() => setAdding(false)}
               className="rounded-lg px-4 py-1.5 text-[12px] text-white/70 transition-colors hover:text-white"

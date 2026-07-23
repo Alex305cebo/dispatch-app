@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 // Collapsed by default — the "Driver Information" text block (lib/ratecon.ts
 // formatDriverInfo) saved when the load's rate con was read. Lets a dispatcher come
 // back and re-copy it any time (resend to the driver, a new driver on the load),
@@ -33,13 +34,10 @@ export function DriverInfoCard({ text, locale = 'en' }: { text: string; locale?:
       </summary>
       <div className="mt-3">
         <div className="mb-2 flex justify-end">
-          <button
-            type="button"
-            onClick={copy}
-            className="rounded-lg bg-haul-500 px-3 py-1 text-[12px] font-semibold text-white transition-colors hover:bg-haul-400"
-          >
+          <Button variant="primary" size="sm" type="button"
+            onClick={copy}>
             {t(locale, 'trucks.driverInfo.copyButton')}
-          </button>
+          </Button>
         </div>
         <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-ink-900/60 p-3 font-mono text-[12px] leading-relaxed text-white/85">
           {text}

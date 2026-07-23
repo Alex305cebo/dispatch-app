@@ -42,6 +42,7 @@ export const financesDict = {
     ru: 'Включая {amt} без выставленного счёта',
     en: 'Including {amt} with no invoice yet',
   },
+  'finances.group.overdue': { ru: 'Просрочено', en: 'Overdue' },
   'finances.stat.bucket030': { ru: '0–30 дн.', en: '0–30 days' },
   'finances.stat.bucket3145': { ru: '31–45 дн.', en: '31–45 days' },
   'finances.stat.bucket45plus': { ru: '45+ / просрочка', en: '45+ / overdue' },

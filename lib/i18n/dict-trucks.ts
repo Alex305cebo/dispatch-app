@@ -18,10 +18,14 @@ export const trucksDict = {
   'trucks.common.cancel': { ru: 'Отмена', en: 'Cancel' },
 
   // ---- app/trucks/page.tsx ----
+  'trucks.heatmap.title': { ru: 'Загрузка парка · 14 дней', en: 'Fleet utilisation · 14 days' },
+  'trucks.heatmap.less': { ru: 'меньше', en: 'less' },
+  'trucks.heatmap.more': { ru: 'больше', en: 'more' },
+  'trucks.heatmap.idle': { ru: 'простой', en: 'idle' },
   'trucks.page.title': { ru: 'Траки', en: 'Trucks' },
   'trucks.page.inFleet': { ru: 'в парке', en: 'in fleet' },
   'trucks.page.ownerPrefix': { ru: ' · владелец ', en: ' · owner ' },
-  'trucks.page.addTruck': { ru: '+ Трак', en: '+ Truck' },
+  'trucks.page.addTruck': { ru: 'Трак', en: 'Truck' },
   'trucks.page.withLoad': { ru: 'с грузом', en: 'on load' },
   'trucks.page.free': { ru: 'свободно', en: 'free' },
   'trucks.page.unavailable': { ru: 'недоступно', en: 'unavailable' },
@@ -238,6 +242,7 @@ export const trucksDict = {
     ru: 'Пока мало данных — история копится с каждым опросом ELD (раз в ~5 минут), за день-два здесь появится полная картина.',
     en: 'Not much data yet — history builds up with every ELD poll (about every 5 minutes); give it a day or two for the full picture.',
   },
+  'trucks.trip.wheelsTurning': { ru: 'За рулём:', en: 'Wheels turning:' },
   'trucks.trip.longRest': { ru: 'Долгий отдых', en: 'Long rest' },
   'trucks.trip.stop': { ru: 'Остановка', en: 'Stop' },
 

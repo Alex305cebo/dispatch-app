@@ -46,7 +46,7 @@ export default async function Page({
 
       <div className="mb-4 mt-2 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="truncate text-[17px] font-semibold">{doc.title}</h1>
+          <h1 className="truncate text-xl font-bold tracking-tight">{doc.title}</h1>
           <p className="text-[12px] text-white/55">
             {docKindLabel(doc.kind, locale)} · {fmtSize(doc.size_bytes)}
           </p>

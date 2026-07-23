@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 // One-time Telegram connect: api_id/api_hash → phone → code → [2FA password].
 // The OWNER types every credential; nothing is prefilled or stored client-side.
 
@@ -78,13 +79,10 @@ export function TgSetup() {
             <input value={apiHash} onChange={(e) => setApiHash(e.target.value)} placeholder="api_hash" className={input} />
           </div>
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t(locale, 'telegram.setup.phonePlaceholder')} className={input} inputMode="tel" />
-          <button
-            disabled={pending || !apiId || !apiHash || !phone}
-            onClick={sendCode}
-            className="mt-1 rounded-xl bg-haul-500 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
-          >
+          <Button variant="primary" className="mt-1" disabled={pending || !apiId || !apiHash || !phone}
+            onClick={sendCode}>
             {pending ? t(locale, 'telegram.setup.sendingCode') : t(locale, 'telegram.setup.getCode')}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -96,13 +94,10 @@ export function TgSetup() {
             </p>
           )}
           <input value={code} onChange={(e) => setCode(e.target.value)} placeholder={t(locale, 'telegram.setup.codePlaceholder')} className={input} inputMode="numeric" autoFocus />
-          <button
-            disabled={pending || !code}
-            onClick={confirm}
-            className="rounded-xl bg-haul-500 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
-          >
+          <Button variant="primary" disabled={pending || !code}
+            onClick={confirm}>
             {pending ? t(locale, 'telegram.setup.checking') : t(locale, 'telegram.setup.logIn')}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -110,13 +105,10 @@ export function TgSetup() {
         <div className="mt-3 flex flex-col gap-2">
           <p className="text-[12px] text-white/60">{t(locale, 'telegram.setup.twoFaText')}</p>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t(locale, 'telegram.setup.cloudPasswordPlaceholder')} className={input} autoFocus />
-          <button
-            disabled={pending || !password}
-            onClick={confirm}
-            className="rounded-xl bg-haul-500 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
-          >
+          <Button variant="primary" disabled={pending || !password}
+            onClick={confirm}>
             {pending ? t(locale, 'telegram.setup.checking') : t(locale, 'telegram.setup.confirm')}
-          </button>
+          </Button>
         </div>
       )}
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 // Send box + auto-refresh for an open conversation. Messages themselves are
 // server-rendered; this only writes and nudges the page to re-fetch.
 
@@ -153,13 +154,10 @@ export function TgSendBox({ chatId }: { chatId: string }) {
               placeholder={t(locale, 'telegram.chat.passwordPlaceholder')}
               className="w-40 rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-[14px] text-white outline-none focus:border-haul-500"
             />
-            <button
-              disabled={pwPending || !pw}
-              onClick={confirmSend}
-              className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
-            >
+            <Button variant="primary" size="sm" disabled={pwPending || !pw}
+              onClick={confirmSend}>
               {pwPending ? '…' : t(locale, 'telegram.chat.unlock')}
-            </button>
+            </Button>
           </div>
           {pwError && <p className="mt-1.5 text-[12px] text-bad-400">{pwError}</p>}
         </div>

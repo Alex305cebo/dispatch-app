@@ -3,7 +3,7 @@
 export const overviewDict = {
   'overview.title': { ru: 'Обзор', en: 'Overview' },
   'overview.truckCount': { ru: '{n} трак(ов) — что парк заработал и что везёт сейчас.', en: '{n} truck(s) — what the fleet earned and what it is hauling right now.' },
-  'overview.addLoad': { ru: '+ Груз', en: '+ Load' },
+  'overview.addLoad': { ru: 'Груз', en: 'Load' },
   'overview.addLoadInfo': {
     ru: 'Добавить груз вручную. Выберешь трак, введёшь ставку и мили — приложение сразу посчитает, что груз оставит на траке чистыми.',
     en: "Add a load manually. Pick a truck, enter the rate and miles — the app immediately calculates what the load nets the truck.",
@@ -36,7 +36,9 @@ export const overviewDict = {
     ru: 'Полная ставка за все активные грузы (гросс) — самое важное: сколько всего работы взято. Снизу «чистыми» — что останется после всех расходов (топливо, водитель, фикс, обслуживание, факторинг), это доп. информация.',
     en: 'The full rate across all active loads (gross) — the key figure: how much work is booked in total. "Net" below is what remains after all costs (fuel, driver pay, fixed costs, maintenance, factoring) — extra context.',
   },
-  'overview.rpm': { ru: 'RPM · доход на милю', en: 'RPM · revenue per mile' },
+  // Just the acronym: the tile is a quarter of the grid and the long form was being
+  // truncated to "RPM · REVENUE ...". The (i) tooltip beside it carries the meaning.
+  'overview.rpm': { ru: 'RPM', en: 'RPM' },
   'overview.rpmInfo': {
     ru: 'RPM (rate per mile) — средний доход на милю по всему парку: общая выручка ÷ общие мили (гружёные + порожние). Главный ориентир, брать груз или нет.',
     en: 'RPM (rate per mile) — average revenue per mile across the whole fleet: total revenue ÷ total miles (loaded + empty). The main yardstick for whether to take a load.',

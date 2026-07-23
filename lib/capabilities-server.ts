@@ -2,13 +2,22 @@
 // sql). The registry + types live in the client-safe lib/capabilities.ts.
 
 import 'server-only'
+import { cache } from 'react'
 import { sql } from './db'
 import type { CurrentUser } from './session'
 import { CAPABILITY_DEFAULTS, type CapabilityKey } from './capabilities'
 
 /** Effective capabilities for one dispatcher: defaults with their per-user overrides
- * applied. (Admins aren't stored here — they implicitly have everything.) */
-export async function capabilitiesFor(userId: number): Promise<Record<CapabilityKey, boolean>> {
+ * applied. (Admins aren't stored here — they implicitly have everything.)
+ *
+ * cache(): every `can()` call used to re-run this query. The layout alone asks twice
+ * (telegram + finances) and the dashboard a third time, so one request paid for three
+ * identical round trips to Neon — ~58 ms each on a warm connection. React's cache is
+ * per-request, so a capability changed in the admin panel still takes effect on the
+ * user's very next page load. */
+export const capabilitiesFor = cache(async function capabilitiesFor(
+  userId: number,
+): Promise<Record<CapabilityKey, boolean>> {
   const rows = (await sql`
     SELECT capability, allowed FROM user_capabilities WHERE user_id = ${userId}`) as {
     capability: string
@@ -17,7 +26,7 @@ export async function capabilitiesFor(userId: number): Promise<Record<Capability
   const out = { ...CAPABILITY_DEFAULTS }
   for (const r of rows) if (r.capability in out) out[r.capability as CapabilityKey] = r.allowed
   return out
-}
+})
 
 /** The gate: admins always pass; a dispatcher passes per their effective capability. */
 export async function can(user: CurrentUser | null, key: CapabilityKey): Promise<boolean> {

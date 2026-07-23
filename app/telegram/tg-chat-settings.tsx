@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 // Self-service curation of MY connected account: which of my chats show up on
 // /telegram, and which truck each belongs to. Same idea the admin panel used to do
 // globally — now every user does it for their own account.
@@ -104,13 +105,10 @@ export function TgChatSettings({
         </div>
       )}
 
-      <button
-        disabled={pending || !dirty}
-        onClick={save}
-        className="mt-3 rounded-lg bg-haul-500 px-4 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
-      >
+      <Button variant="primary" size="sm" className="mt-3" disabled={pending || !dirty}
+        onClick={save}>
         {pending ? t(locale, 'telegram.settings.saving') : t(locale, 'telegram.settings.save')}
-      </button>
+      </Button>
     </details>
   )
 }

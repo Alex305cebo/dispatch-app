@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 import { useState, useTransition } from 'react'
 import { addTruck, fetchDiesel, saveTruck, type TruckInput } from '@/app/actions'
 import { notify } from '@/lib/notify'
@@ -171,13 +172,10 @@ export function TruckForm({ id, initial, locale = 'en' }: { id: number | null; i
         />
       </div>
 
-      <button
-        onClick={save}
-        disabled={pending}
-        className="mt-5 w-full rounded-xl bg-haul-500 py-3 text-[15px] font-semibold transition-colors hover:bg-haul-400 disabled:bg-white/8 disabled:text-white/55"
-      >
+      <Button variant="primary" size="lg" block className="mt-5" onClick={save}
+        disabled={pending}>
         {pending ? tr(locale, 'trucks.common.saving') : id === null ? tr(locale, 'trucks.form.addTruck') : tr(locale, 'trucks.common.save')}
-      </button>
+      </Button>
       {error && <p className="mt-2 text-[13px] text-bad-400">{error}</p>}
     </section>
   )

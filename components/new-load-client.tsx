@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 // New-load page: a compact "scan rate con" bar on top of the manual form. Drop a
 // PDF/photo → the same pipeline the /import page uses (Gemini reads it) fills the
 // form below. Manual entry still works if you skip the scan.
@@ -162,13 +163,10 @@ export function NewLoadClient({
       {error && (
         <div className="mb-3 flex items-center gap-3">
           <p className="text-[13px] text-bad-400">{error}</p>
-          <button
-            type="button"
-            onClick={() => handle(lastFile)}
-            className="shrink-0 rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-haul-400"
-          >
+          <Button variant="primary" size="sm" className="shrink-0" type="button"
+            onClick={() => handle(lastFile)}>
             {t(locale, 'newLoad.retry')}
-          </button>
+          </Button>
         </div>
       )}
       {fields && (

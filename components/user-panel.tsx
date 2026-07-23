@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 // The one account-menu entry point, visible at every screen width (it used to live
 // only inside a `hidden md:flex` card, so on a narrower window there was no way to
 // reach it at all). A round avatar button — consistent trigger everywhere — opens a
@@ -129,13 +130,10 @@ export function UserPanel({
               placeholder={t(locale, 'userPanel.newPasswordPlaceholder')}
               className="w-full rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500"
             />
-            <button
-              disabled={pending || pw.length < 8}
-              onClick={savePassword}
-              className="mt-2 w-full rounded-lg bg-haul-500 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
-            >
+            <Button variant="primary" size="sm" block className="mt-2" disabled={pending || pw.length < 8}
+              onClick={savePassword}>
               {pending ? t(locale, 'common.saving') : t(locale, 'common.save')}
-            </button>
+            </Button>
           </div>
 
           <div className="mt-3 flex items-center gap-3 border-t border-white/8 pt-3 text-[12px]">

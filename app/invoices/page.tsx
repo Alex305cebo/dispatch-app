@@ -9,6 +9,7 @@ import {
   rateConByLoad,
   truckForLoad,
   type LoadWithDispatcher,
+  type Receivable,
 } from '@/lib/loads'
 import type { LoadRecord } from '@/lib/map'
 import { getCompany } from '@/lib/invoice'
@@ -24,6 +25,7 @@ import { can } from '@/lib/capabilities-server'
 import { CompanyForm, PaidToggle } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
 import { Info } from '@/components/info'
+import { Collapse } from '@/components/collapse'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,7 +61,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   return (
     <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <header className="mb-5">
-        <h1 className="flex items-center gap-2 text-[17px] font-semibold">
+        <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
           {t(locale, 'finances.title')}
           <Info
             side="bottom"
@@ -224,8 +226,35 @@ async function Unpaid({
           <p className="panel p-6 text-[13px] text-white/60">{t(locale, 'finances.unpaid.empty')}</p>
         )
       ) : (
+        /* Was one flat column of every outstanding invoice — fine at eight rows, a
+           scrolling wall at eighty, with the overdue ones buried somewhere inside it.
+           Now grouped by how late the money is: overdue opens by default because it
+           is the only group that needs acting on today; the healthy buckets stay
+           collapsed but still state their count and total in the header. */
         <div className="flex flex-col gap-2">
-          {rec.map((r) => (
+          {AGING_GROUPS.map((g) => {
+            const rows = g.pick(rec, overdue)
+            if (rows.length === 0) return null
+            return (
+              <Collapse
+                key={g.key}
+                title={t(locale, g.labelKey)}
+                count={rows.length}
+                amount={usd.format(rows.reduce((s, r) => s + r.load.rate, 0))}
+                tone={g.tone}
+                defaultOpen={g.open}
+              >
+                <div className="flex flex-col gap-2">{rows.map((r) => renderReceivable(r))}</div>
+              </Collapse>
+            )
+          })}
+        </div>
+      )}
+    </>
+  )
+
+  function renderReceivable(r: Receivable) {
+    return (
             <div
               key={r.load.id}
               className={`panel flex items-center gap-4 p-4 ${r.overdue ? 'border-bad-500/30' : ''}`}
@@ -248,12 +277,44 @@ async function Unpaid({
               {rateCons.get(r.load.id) && <RateConButton docId={rateCons.get(r.load.id)!} compact />}
               <PaidToggle loadId={r.load.id} />
             </div>
-          ))}
-        </div>
-      )}
-    </>
-  )
+    )
+  }
 }
+
+/** Aging groups for the unpaid tab, in the order a dispatcher works them: what is
+ * already late first, then the healthy buckets by age. `overdue` is deliberately its
+ * own group rather than a tint inside the buckets — a 20-day-old invoice past its
+ * terms and a 20-day-old invoice inside them call for different actions. */
+const AGING_GROUPS = [
+  {
+    key: 'overdue',
+    labelKey: 'finances.group.overdue' as const,
+    tone: 'bad' as const,
+    open: true,
+    pick: (_rec: Receivable[], overdue: Receivable[]) => overdue,
+  },
+  {
+    key: '0-30',
+    labelKey: 'finances.stat.bucket030' as const,
+    tone: 'plain' as const,
+    open: false,
+    pick: (rec: Receivable[]) => rec.filter((r) => !r.overdue && r.bucket === '0-30'),
+  },
+  {
+    key: '31-45',
+    labelKey: 'finances.stat.bucket3145' as const,
+    tone: 'warn' as const,
+    open: false,
+    pick: (rec: Receivable[]) => rec.filter((r) => !r.overdue && r.bucket === '31-45'),
+  },
+  {
+    key: '45+',
+    labelKey: 'finances.stat.bucket45plus' as const,
+    tone: 'bad' as const,
+    open: true,
+    pick: (rec: Receivable[]) => rec.filter((r) => !r.overdue && r.bucket === '45+'),
+  },
+]
 
 async function Paid({
   companyId,
@@ -296,8 +357,22 @@ async function Paid({
       {rows.length === 0 ? (
         <p className="panel p-6 text-[13px] text-white/60">{t(locale, 'finances.paid.empty')}</p>
       ) : (
+        /* Grouped by the month the money landed, newest month open. Paid loads only
+           accumulate — this list is 25 rows on a demo fleet and will be hundreds on a
+           real one, at which point a single flat column stops being a record you can
+           read and becomes one you have to scroll past. The month header carries its
+           own total, which is the figure anyone actually opens this tab for. */
         <div className="flex flex-col gap-2">
-          {rows.map(({ load, r }) => (
+          {groupByMonth(rows, locale).map((g, i) => (
+            <Collapse
+              key={g.key}
+              title={g.title}
+              count={g.rows.length}
+              amount={usd.format(g.gross)}
+              tone={i === 0 ? 'good' : 'plain'}
+              defaultOpen={i === 0}
+            >
+              <div className="flex flex-col gap-2">{g.rows.map(({ load, r }) => (
             <div key={load.id} className="panel flex items-center gap-4 p-4">
               <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
                 <div className="truncate text-[14px] font-medium">
@@ -320,11 +395,34 @@ async function Paid({
               {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
               <PaidToggle loadId={load.id} paid />
             </div>
+          ))}</div>
+            </Collapse>
           ))}
         </div>
       )}
     </>
   )
+}
+
+/** Paid rows bucketed by payment month, newest first. Rows with no paidAt (legacy
+ * data marked paid before the timestamp existed) fall into their own trailing group
+ * rather than being dropped or dumped into whatever month happens to be first. */
+function groupByMonth<T extends { load: { paidAt: string | null } }>(rows: T[], locale: Locale) {
+  const fmt = new Intl.DateTimeFormat(locale === 'ru' ? 'ru-RU' : 'en-US', {
+    month: 'long',
+    year: 'numeric',
+  })
+  const groups = new Map<string, { key: string; title: string; rows: T[]; gross: number }>()
+  for (const row of rows) {
+    const d = row.load.paidAt ? new Date(row.load.paidAt) : null
+    const key = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : 'zzz-unknown'
+    const title = d ? fmt.format(d) : '—'
+    if (!groups.has(key)) groups.set(key, { key, title, rows: [], gross: 0 })
+    const g = groups.get(key)!
+    g.rows.push(row)
+    g.gross += (row as unknown as { load: { rate: number } }).load.rate
+  }
+  return [...groups.values()].sort((a, b) => b.key.localeCompare(a.key))
 }
 
 type DriverBucket = {

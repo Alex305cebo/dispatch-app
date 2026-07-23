@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 // Rate cons uploaded to this truck that never became a load — usually because the
 // AI read (60-90s on a scan) was interrupted by a page reload. One button turns
 // each into a load server-side, so no re-uploading and nothing left stranded.
@@ -55,13 +56,10 @@ export function OrphanRateCons({ truckId, docs }: { truckId: number; docs: Orpha
             <span className="nums shrink-0 text-[11px] text-white/40">
               {d.uploadedAt.slice(0, 10)}
             </span>
-            <button
-              disabled={pending}
-              onClick={() => make(d.id)}
-              className="shrink-0 rounded-lg bg-haul-500 px-3 py-1 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
-            >
+            <Button variant="primary" size="sm" className="shrink-0" disabled={pending}
+              onClick={() => make(d.id)}>
               {working === d.id ? t(locale, 'orphanRc.aiReading') : t(locale, 'orphanRc.createLoad')}
-            </button>
+            </Button>
             <DeleteButton
               action={deleteDocument}
               id={d.id}

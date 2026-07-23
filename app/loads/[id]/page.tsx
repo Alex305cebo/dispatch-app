@@ -67,12 +67,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           {load.referenceId && ` · Ref ${load.referenceId}`}
         </p>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3">
+        {/* The rail needs the full width to lay five labelled steps out; sharing a flex
+            row with the rate-con control squeezed it to ~160px and clipped every label
+            to "Оплач…". Rate con moves onto its own line underneath. */}
+        <div className="mt-5">
           <StatusPicker id={load.id} current={load.status} />
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           {rateConDoc ? (
             <RateConButton docId={rateConDoc.id} />
           ) : (
-            <span className="text-[12px] text-white/45">{t(locale, 'loadDetail.noRateCon')}</span>
+            <span className="text-xs text-white/45">{t(locale, 'loadDetail.noRateCon')}</span>
           )}
         </div>
 

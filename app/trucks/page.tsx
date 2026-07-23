@@ -1,6 +1,9 @@
+import { Plus } from 'lucide-react'
+import { Button } from '@/components/button'
 import Link from 'next/link'
-import { currentLoadForTruck, listLoads, listTrucks } from '@/lib/loads'
-import { truckLabel } from '@/lib/map'
+import { listLoads, listTrucks } from '@/lib/loads'
+import { currentLoadsByTruck, truckLabel } from '@/lib/map'
+import { FleetHeatmap, dayKey } from '@/components/fleet-heatmap'
 import { getCompany } from '@/lib/invoice'
 import {
   expiries,
@@ -57,17 +60,27 @@ export default async function Page() {
   const weekBegin = weekStart()
   const perTruck = await Promise.all(
     trucks.map(async (t) => {
-      const [loads, current] = await Promise.all([
-        listLoads(companyId, { truckId: t.id }),
-        currentLoadForTruck(companyId, t.id),
-      ])
+      const loads = await listLoads(companyId, { truckId: t.id })
       const live = loads.filter((l) => l.status !== 'cancelled')
+      // The truck's current load is already sitting in `live` — asking the DB for it
+      // separately made this loop cost two round trips per truck instead of one.
+      const current = currentLoadsByTruck(live).get(t.id) ?? null
       // The card headline is the week's total rate (gross) — the number the owner
       // watches — not net. Scoped to this calendar week (Mon–Mon).
       const weekGross = live
         .filter((l) => new Date(l.createdAt).getTime() >= weekBegin)
         .reduce((s, l) => s + l.rate, 0)
-      return { truck: t, count: live.length, current, weekGross }
+      // Per-day money for the utilisation grid. Anchored on the PICKUP date — the day
+      // the truck actually worked — falling back to when the load was entered for rows
+      // whose rate con never printed one.
+      const byDay = new Map<string, number>()
+      for (const l of live) {
+        const when = l.pickupDate ? Date.parse(`${l.pickupDate}T12:00:00`) : Date.parse(l.createdAt)
+        if (Number.isNaN(when)) continue
+        const k = dayKey(when)
+        byDay.set(k, (byDay.get(k) ?? 0) + l.rate)
+      }
+      return { truck: t, count: live.length, current, weekGross, byDay }
     }),
   )
 
@@ -79,7 +92,7 @@ export default async function Page() {
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-[17px] font-semibold">{t(locale, 'trucks.page.title')}</h1>
+          <h1 className="text-xl font-bold tracking-tight">{t(locale, 'trucks.page.title')}</h1>
           <p className="text-[13px] text-white/65">
             {trucks.length} {t(locale, 'trucks.page.inFleet')}
             {company.owner && (
@@ -90,12 +103,9 @@ export default async function Page() {
             )}
           </p>
         </div>
-        <Link
-          href="/trucks/new"
-          className="rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400"
-        >
+        <Button href="/trucks/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
           {t(locale, 'trucks.page.addTruck')}
-        </Link>
+        </Button>
       </div>
 
       {/* Fleet at a glance — the same counters a dispatcher juggles in their head. */}
@@ -118,6 +128,17 @@ export default async function Page() {
           </span>
           <Info text={t(locale, 'trucks.page.weekGrossInfo')} />
         </span>
+      </div>
+
+      <div className="mb-4">
+        <FleetHeatmap
+          locale={locale}
+          rows={perTruck.map(({ truck, byDay }) => ({
+            id: truck.id,
+            label: truck.number?.trim() || truck.name,
+            byDay,
+          }))}
+        />
       </div>
 
       <div className="grid gap-2.5 sm:grid-cols-2">

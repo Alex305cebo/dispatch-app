@@ -42,8 +42,13 @@ export type MapRoute = {
 // comment below). Not red for "resting": a driver legally asleep in the sleeper
 // berth is normal, not an alert.
 const STATE_COLOR = { move: '#5AC41D', on: '#f59e0b', rest: '#8b93a5' }
-const DEST = '#5b9dff' // the app's own accent — destinations are a separate icon family, not a status color
-const PICKUP = '#c084fc' // distinct hue from delivery blue and every truck-state color
+// Destination follows the app's accent (haul-400) — destinations are a separate icon
+// family, not a truck status. Pickup used to be violet #c084fc, which was a fine
+// contrast against the OLD blue accent but collides head-on with the new violet one;
+// on a map the two pins of a single load must never read as the same marker. Cyan
+// keeps it clear of the accent AND of all three truck states (green/amber/grey).
+const DEST = '#9b8eff'
+const PICKUP = '#22d3ee'
 const INK = '#0d0f15'
 
 const STREET_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
@@ -228,9 +233,15 @@ export function FleetMap({
         if (m.href) {
           const href = m.href
           const go = () => routerRef.current.push(href)
-          // Clicking the marker OR the plaque's "Открыть →" arrow opens the card.
-          // (Zoom stays on scroll, double-click, and the +/- buttons.)
-          marker.on('click', go)
+          // Clicking the marker itself only focuses the map and opens the plaque —
+          // it must NOT jump straight to the card. Only the plaque's own "Открыть →"
+          // link (wired below, on tooltipopen) navigates. Also opens the tooltip
+          // explicitly: touch devices have no hover, so a tap is the only way a
+          // phone user ever sees the plaque (and its link) at all.
+          marker.on('click', () => {
+            map!.flyTo([m.lat, m.lng], Math.max(map!.getZoom(), 14), { duration: 0.6 })
+            marker.openTooltip()
+          })
           // Leaflet closes a hover tooltip the instant the cursor leaves the marker
           // dot — too soon to ever reach the plaque and click its arrow. Drop that
           // instant close and keep the plaque open while the cursor is over EITHER

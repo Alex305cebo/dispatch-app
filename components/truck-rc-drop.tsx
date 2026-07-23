@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 // Drop a rate con on the TRUCK page: parse (AI) → auto-create a load on THIS truck →
 // attach the RC → show Driver Info + warnings, all without a manual form. The star
 // of the "everything in one place, fewer clicks" redesign.
@@ -145,12 +146,9 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
             >
               {t(locale, 'rcDrop.openLoad')}
             </Link>
-            <button
-              onClick={() => setRes(null)}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] text-white/75 hover:bg-white/5"
-            >
+            <Button variant="secondary" size="sm" className="text-white/75" onClick={() => setRes(null)}>
               {t(locale, 'rcDrop.anotherRc')}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -198,8 +196,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
             <p className="text-[11px] font-semibold uppercase tracking-wider text-white/62">
               Driver Information
             </p>
-            <button
-              onClick={() =>
+            <Button variant="primary" size="sm" onClick={() =>
                 startCopy(async () => {
                   try {
                     await navigator.clipboard.writeText(driverInfo)
@@ -208,11 +205,9 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
                     notify('warn', t(locale, 'rcDrop.clipboardDenied'))
                   }
                 })
-              }
-              className="rounded-lg bg-haul-500 px-3 py-1 text-[12px] font-semibold hover:bg-haul-400"
-            >
+              }>
               {t(locale, 'import.copy')}
-            </button>
+            </Button>
           </div>
           <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-ink-900/60 p-3 font-mono text-[12px] leading-relaxed text-white/85">
             {driverInfo}
@@ -264,17 +259,14 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       {error && (
         <span className="mt-2 flex flex-col items-center gap-1.5">
           <span className="text-[12px] text-bad-400">{error}</span>
-          <button
-            type="button"
+          <Button variant="primary" size="sm" type="button"
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
               handle(lastFile)
-            }}
-            className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-haul-400"
-          >
+            }}>
             {t(locale, 'import.retryScan')}
-          </button>
+          </Button>
         </span>
       )}
     </motion.label>

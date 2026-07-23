@@ -4,7 +4,8 @@
 // Env: ORS_API_KEY (openrouteservice.org, driving-hgv), EIA_API_KEY (eia.gov).
 
 import { getSetting, setSetting } from './settings.ts'
-import { haversineMiles } from './geo.ts'
+import { sql } from './db.ts'
+import { cacheCell, haversineMiles } from './geo.ts'
 import { t, type Locale } from './i18n.ts'
 
 type LatLng = { lat: number; lng: number }
@@ -92,22 +93,62 @@ export async function cityCoordsBest(
   return city ? geocode(city) : null
 }
 
-type RoadPath = { miles: number; minutes: number; coords: [number, number][] }
+type RoadPath = { miles: number; minutes: number; coords?: [number, number][] }
 
 /**
- * Real driving route via the public OSRM demo server — no key, free. Returns the
- * road polyline (as [lat,lng] points) plus true road miles and drive minutes.
- * Cached ~30 min keyed by rounded endpoints so a moving fleet doesn't hammer it.
+ * The ORIGIN half of a route cache key is snapped to a ~3.5 mi cell (see cacheCell —
+ * the old 0.01° key meant a moving truck never hit this cache at all; measured
+ * before the fix: 231 cached routes for just 24 destinations, 17.4 MB, 4 of them
+ * live). That snapping is also the accuracy ceiling here: "miles to delivery" can
+ * lag the truck's true position by up to ~3.5 mi. Invisible on a 200-mile haul,
+ * noticeable on the last few miles.
+ */
+const ROUTE_TTL_MS = 30 * 60 * 1000
+
+/**
+ * Drop route entries whose TTL has run out. The TTL used to gate READS only — an
+ * expired route was ignored but never removed, and each miss wrote another ~78 KB
+ * row, so `settings` grew 4.7 MB/day (measured: 237 rows / 18 MB in under four days,
+ * of which 4 were live). Called on a fraction of writes, which is enough to hold the
+ * table flat without a cron job, an extra table, or a schema change.
+ *
+ * The regex pulls `at` straight out of the stored JSON: a row whose value doesn't
+ * match yields NULL, and `NULL < cutoff` is NULL, so anything unparseable is left
+ * alone rather than blowing up the whole statement on one bad row.
+ */
+async function sweepExpiredRoutes(): Promise<void> {
+  const cutoff = Date.now() - ROUTE_TTL_MS
+  try {
+    await sql`
+      DELETE FROM settings
+      WHERE key LIKE 'osrm%'
+        AND substring(value from '"at":([0-9]+)')::bigint < ${cutoff}`
+  } catch {
+    // Eviction is housekeeping — never fail a dispatcher's page over it.
+  }
+}
+
+/**
+ * Real driving route via the public OSRM demo server — no key, free. Returns true
+ * road miles and drive minutes, plus the road polyline when `geometry` is on.
+ *
+ * `geometry: false` asks OSRM for overview=false and caches under its own key. The
+ * map needs the polyline; the dashboard needs two integers. Sharing one cache entry
+ * meant every dashboard truck dragged a ~75 KB coordinate array out of Postgres just
+ * to read `miles` and throw the rest away.
+ *
  * ponytail: OSRM demo server has no SLA and light rate limits. Fine for a handful
  * of trucks with this cache; self-host OSRM or add an ORS key if it starts flaking.
  */
-async function roadRoute(from: LatLng, to: LatLng): Promise<RoadPath | null> {
-  const key = `osrm:${from.lat.toFixed(2)},${from.lng.toFixed(2)}->${to.lat.toFixed(3)},${to.lng.toFixed(3)}`
+async function roadRoute(from: LatLng, to: LatLng, geometry = true): Promise<RoadPath | null> {
+  const key =
+    `${geometry ? 'osrm' : 'osrmsum'}:${cacheCell(from.lat)},${cacheCell(from.lng)}` +
+    `->${to.lat.toFixed(3)},${to.lng.toFixed(3)}`
   const hit = await getSetting(key)
   if (hit) {
     try {
       const c = JSON.parse(hit) as { at: number; path: RoadPath }
-      if (Date.now() - c.at < 30 * 60 * 1000) return c.path
+      if (Date.now() - c.at < ROUTE_TTL_MS) return c.path
     } catch {
       // fall through and re-fetch
     }
@@ -121,20 +162,28 @@ async function roadRoute(from: LatLng, to: LatLng): Promise<RoadPath | null> {
     // route ever spans 1000+ miles this payload gets big enough to worth trimming.
     const url =
       `https://router.project-osrm.org/route/v1/driving/` +
-      `${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`
+      `${from.lng},${from.lat};${to.lng},${to.lat}` +
+      `?overview=${geometry ? 'full' : 'false'}&geometries=geojson`
     const res = await fetch(url, { headers: { 'User-Agent': 'DispatchApp/1.0 (fleet tool)' } })
     if (!res.ok) return null
     const data = (await res.json()) as {
-      routes?: { distance: number; duration: number; geometry: { coordinates: [number, number][] } }[]
+      routes?: { distance: number; duration: number; geometry?: { coordinates: [number, number][] } }[]
     }
     const r = data.routes?.[0]
-    if (!r?.geometry?.coordinates?.length) return null
+    // Distance is the thing every caller needs; geometry only comes back when asked
+    // for, so a missing polyline is no longer grounds to call the whole route a miss.
+    if (typeof r?.distance !== 'number') return null
+    const coords = r.geometry?.coordinates
+    if (geometry && !coords?.length) return null
     const path: RoadPath = {
       miles: Math.round(r.distance * 0.000621371),
       minutes: Math.round(r.duration / 60),
-      coords: r.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+      ...(coords?.length ? { coords: coords.map(([lng, lat]) => [lat, lng] as [number, number]) } : {}),
     }
     await setSetting(key, JSON.stringify({ at: Date.now(), path }))
+    // ponytail: sweep on ~1 write in 20 rather than every write — a cache miss already
+    // costs an OSRM round trip, and the table only needs to stay flat on average.
+    if (Math.random() < 0.05) await sweepExpiredRoutes()
     return path
   } catch {
     return null
@@ -150,9 +199,9 @@ type DeliveryPoint = {
 }
 
 /** Real road route from `from` to an already-resolved point; straight-line ×1.2 at 55mph if routing fails. */
-async function routeTo(from: LatLng, pt: LatLng | null): Promise<DeliveryPoint | null> {
+async function routeTo(from: LatLng, pt: LatLng | null, geometry = true): Promise<DeliveryPoint | null> {
   if (!pt) return null
-  const road = await roadRoute(from, pt)
+  const road = await roadRoute(from, pt, geometry)
   if (road) return { lat: pt.lat, lng: pt.lng, miles: road.miles, etaMin: road.minutes, coords: road.coords }
   const miles = Math.round(haversineMiles(from, pt) * 1.2)
   return { lat: pt.lat, lng: pt.lng, miles, etaMin: Math.round((miles / 55) * 60) }
@@ -160,15 +209,18 @@ async function routeTo(from: LatLng, pt: LatLng | null): Promise<DeliveryPoint |
 
 /**
  * Delivery point for a live truck: geocode the destination city, then the real road
- * route from the truck's current GPS (miles, drive time, and the road polyline). If
- * routing is unavailable it falls back to straight-line ×1.2 miles at 55 mph.
+ * route from the truck's current GPS (miles and drive time). If routing is
+ * unavailable it falls back to straight-line ×1.2 miles at 55 mph.
+ *
+ * No polyline — both callers (the dashboard fleet cards and the "miles left" server
+ * action) render text only. Use deliveryInfoBest for the map, which needs the line.
  */
 export async function deliveryInfo(
   from: LatLng,
   destCity: string | null | undefined,
 ): Promise<DeliveryPoint | null> {
   if (!destCity?.trim()) return null
-  return routeTo(from, await geocode(destCity))
+  return routeTo(from, await geocode(destCity), false)
 }
 
 /** Same address → ZIP → city fallback as cityCoordsBest, for the delivery pin + route. */
@@ -212,8 +264,8 @@ export async function routeMiles(
     }
   }
 
-  // Free path — OSRM demo, real driving miles, no key.
-  const road = await roadRoute(a, b)
+  // Free path — OSRM demo, real driving miles, no key. Miles only, no polyline.
+  const road = await roadRoute(a, b, false)
   if (road) return { miles: road.miles }
   return { error: t(locale, 'tracking.geoNoRoute') }
 }

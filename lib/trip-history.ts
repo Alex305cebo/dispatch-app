@@ -88,3 +88,39 @@ export function segmentTrail(points: TrailPoint[]): HistoryLeg[] {
   flush(stillGap.length, runStill)
   return legs
 }
+
+export const DAY_MS = 24 * 60 * 60 * 1000
+
+/** Local midnight of the day containing `ms`. Local, not UTC: a driver's day ends at
+ * their midnight, and a UTC boundary would slice it at 7pm in California. */
+export function startOfDay(ms: number): number {
+  const d = new Date(ms)
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
+}
+
+export type DaySpan = { leg: HistoryLeg; fromMs: number; toMs: number; leftPct: number; widthPct: number }
+
+/**
+ * Legs clipped to one calendar day and expressed as percentages of that day's width —
+ * the geometry behind the 24-hour ribbon in components/trip-history.tsx.
+ *
+ * Clipping is the whole point: a drive from 22:00 to 02:00 belongs to BOTH days, and
+ * drawn unclipped it would run off the end of the first bar and start the second one
+ * at a negative offset.
+ */
+export function daySpans(legs: HistoryLeg[], dayMs: number): DaySpan[] {
+  const dayEnd = dayMs + DAY_MS
+  return legs
+    .map((leg) => ({
+      leg,
+      fromMs: Math.max(Date.parse(leg.from), dayMs),
+      toMs: Math.min(Date.parse(leg.to), dayEnd),
+    }))
+    .filter((s) => s.toMs > s.fromMs)
+    .map((s) => ({
+      ...s,
+      leftPct: ((s.fromMs - dayMs) / DAY_MS) * 100,
+      widthPct: ((s.toMs - s.fromMs) / DAY_MS) * 100,
+    }))
+}

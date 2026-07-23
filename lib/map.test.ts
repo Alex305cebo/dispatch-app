@@ -1,6 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { rowToLoad, rowToTruck, type LoadRow, type TruckRow } from './map.ts'
+import {
+  currentLoadsByTruck,
+  rowToLoad,
+  rowToTruck,
+  type LoadRecord,
+  type LoadRow,
+  type TruckRow,
+} from './map.ts'
 import { calcLoad } from './profit.ts'
 
 const truckRow: TruckRow = {
@@ -96,4 +103,38 @@ test('every calcLoad input carries over — no undefined slips through', () => {
   for (const k of ['rate', 'loadedMiles', 'deadheadMiles', 'transitDays'] as const) {
     assert.equal(typeof l[k], 'number', `${k} must be a number, got ${l[k]}`)
   }
+})
+
+// currentLoadsByTruck replaces a per-truck DB query on every fleet page (/, /trucks,
+// /tracking). If it picks the wrong load nothing crashes — the dashboard just shows a
+// truck heading somewhere it isn't, which is exactly the kind of wrong that survives
+// unnoticed. These pin the three rules the old query enforced in SQL.
+const load = (over: Partial<LoadRow>): LoadRecord => rowToLoad({ ...loadRow, ...over })
+
+test('the current load is the newest active one, whatever order it arrives in', () => {
+  const older = load({ id: 1, status: 'booked', created_at: new Date('2026-07-01T00:00:00Z') })
+  const newer = load({ id: 2, status: 'in_transit', created_at: new Date('2026-07-10T00:00:00Z') })
+  assert.equal(currentLoadsByTruck([older, newer]).get(1)?.id, 2, 'oldest first')
+  assert.equal(currentLoadsByTruck([newer, older]).get(1)?.id, 2, 'newest first')
+})
+
+test('finished, quoted and unassigned loads are never "current"', () => {
+  const m = currentLoadsByTruck([
+    load({ id: 1, status: 'delivered' }),
+    load({ id: 2, status: 'paid' }),
+    load({ id: 3, status: 'cancelled' }),
+    load({ id: 4, status: 'quoted' }),
+    load({ id: 5, status: 'booked', truck_id: null }),
+  ])
+  assert.equal(m.size, 0)
+})
+
+test('each truck keeps its own load — no bleed between trucks', () => {
+  const m = currentLoadsByTruck([
+    load({ id: 1, truck_id: 1, destination: 'Dallas, TX' }),
+    load({ id: 2, truck_id: 2, destination: 'Reno, NV' }),
+  ])
+  assert.equal(m.get(1)?.destination, 'Dallas, TX')
+  assert.equal(m.get(2)?.destination, 'Reno, NV')
+  assert.equal(m.size, 2)
 })

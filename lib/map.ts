@@ -65,6 +65,29 @@ export type TruckRecord = TruckSettings & {
   unavailable: 'repair' | 'vacation' | null
 }
 
+/**
+ * The load each truck is running right now — newest booked/in_transit — picked out of
+ * a list the caller already has, keyed by truck id.
+ *
+ * Same rule as the currentLoadForTruck() query in lib/loads.ts, but free. Every fleet
+ * page was running that query once PER TRUCK on top of loads it had already fetched
+ * (/trucks paid for it twice per truck: the truck's loads AND this). Reach for the
+ * query only when a page genuinely holds no load list, e.g. a single truck's page.
+ *
+ * Recency is compared explicitly rather than trusting the caller to hand over a
+ * newest-first list — the callers' orderings are an implementation detail of their
+ * own queries, not a contract this helper should silently depend on.
+ */
+export function currentLoadsByTruck(loads: LoadRecord[]): Map<number, LoadRecord> {
+  const out = new Map<number, LoadRecord>()
+  for (const l of loads) {
+    if (l.truckId === null || (l.status !== 'booked' && l.status !== 'in_transit')) continue
+    const held = out.get(l.truckId)
+    if (!held || Date.parse(l.createdAt) > Date.parse(held.createdAt)) out.set(l.truckId, l)
+  }
+  return out
+}
+
 /** "425 · Ravil" for the fleet UI — number first, driver second. */
 export function truckLabel(t: TruckRecord): string {
   const num = t.number?.trim() || t.name

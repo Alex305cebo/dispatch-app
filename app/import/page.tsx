@@ -13,7 +13,7 @@ export default async function Page() {
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <BackButton href="/loads" label={t(locale, 'loads.page.title')} />
-      <h1 className="mb-1 mt-3 text-[17px] font-semibold">
+      <h1 className="mb-1 mt-3 text-xl font-bold tracking-tight">
         Rate confirmation <span className="text-[13px] font-normal text-white/50">{t(locale, 'import.titleSuffix')}</span>
       </h1>
       <p className="mb-6 max-w-2xl text-[13px] leading-relaxed text-white/65">{t(locale, 'import.subtitle')}</p>

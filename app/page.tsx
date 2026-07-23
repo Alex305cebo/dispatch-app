@@ -1,13 +1,26 @@
+import {
+  CalendarClock,
+  DollarSign,
+  MessageSquareWarning,
+  Package,
+  Palmtree,
+  Plus,
+  Route,
+  TrendingUp,
+  Wallet,
+  Wrench,
+} from 'lucide-react'
+import { Button } from '@/components/button'
+import { Suspense } from 'react'
 import Link from 'next/link'
 import {
-  currentLoadForTruck,
   listLoads,
   listReceivables,
   listTrucks,
   listUninvoicedDelivered,
   rateConByLoad,
 } from '@/lib/loads'
-import { truckLabel, type TruckRecord } from '@/lib/map'
+import { currentLoadsByTruck, truckLabel, type TruckRecord } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { sql } from '@/lib/db'
 import { deliveryInfo } from '@/lib/geo-routing'
@@ -73,21 +86,12 @@ export default async function Page() {
   const byUnit = new Map(fleet.map((f) => [f.unit, f]))
   const fallback = trucks[0]
 
-  // Miles + time left to delivery, per truck — same road-routed figure as /tracking.
-  const deliveryByTruck = new Map<number, { miles: number; etaMin: number; to: string }>()
-  await Promise.all(
-    trucks.map(async (t) => {
-      const fs = t.number ? byUnit.get(t.number) : undefined
-      if (!fs || fs.lat === null || fs.lng === null) return
-      const load = await currentLoadForTruck(companyId, t.id)
-      if (!load?.destination) return
-      const dest = await deliveryInfo({ lat: fs.lat, lng: fs.lng }, load.destination)
-      if (dest) deliveryByTruck.set(t.id, { miles: dest.miles, etaMin: dest.etaMin, to: load.destination })
-    }),
-  )
-
   // Each load is costed against its own truck, then summed across the fleet.
   const live = loads.filter((l) => l.status !== 'cancelled')
+
+  // Was a currentLoadForTruck() query PER TRUCK, on top of the listLoads() above that
+  // had already fetched every one of them. Same answer, N fewer round trips.
+  const currentByTruck = currentLoadsByTruck(live)
   const rows = live.flatMap((load) => {
     const truck = (load.truckId !== null ? byId.get(load.truckId) : undefined) ?? fallback
     return truck ? [{ load, truck, r: calcLoad(load, truck) }] : []
@@ -127,31 +131,34 @@ export default async function Page() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <header className="mb-6 flex items-end justify-between gap-4">
+      <header className="mb-4 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-[17px] font-semibold">{tr(locale, 'overview.title')}</h1>
-          <p className="text-[13px] text-white/65">
+          <h1 className="text-xl font-bold tracking-tight">{tr(locale, 'overview.title')}</h1>
+          <p className="mt-0.5 text-base text-white/60">
             {tr(locale, 'overview.truckCount').replace('{n}', String(trucks.length))}
           </p>
         </div>
         <span className="flex shrink-0 items-center gap-1.5">
-          <Link
-            href="/loads/new"
-            className="rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400"
-          >
+          <Button href="/loads/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
             {tr(locale, 'overview.addLoad')}
-          </Link>
+          </Button>
           <Info side="bottom" text={tr(locale, 'overview.addLoadInfo')} />
         </span>
       </header>
 
       {alerts.length > 0 && (
-        <div className="mb-5 rounded-xl border border-warn-400/25 bg-warn-400/[0.06] px-4 py-3">
-          <p className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-warn-400">
+        <div className="mb-3 flex gap-2.5 rounded-xl border border-warn-400/25 bg-warn-400/[0.07] px-3.5 py-2.5">
+          {/* A coloured rule down the left edge plus an icon chip: at a glance this is
+              now recognisably a WARNING block rather than one more card of text. */}
+          <span className="mt-px flex size-6 shrink-0 items-center justify-center rounded-md bg-warn-400/15 text-warn-400 ring-1 ring-warn-400/25">
+            <CalendarClock size={15} strokeWidth={2.5} />
+          </span>
+          <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider text-warn-400">
             {tr(locale, 'overview.docDeadlines')}
             <Info text={tr(locale, 'overview.docDeadlinesInfo')} />
           </p>
-          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
+          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-base">
             {alerts.slice(0, 6).map((a) => (
               <Link
                 key={`${a.truckId}-${a.item.label}`}
@@ -165,40 +172,59 @@ export default async function Page() {
               </Link>
             ))}
           </div>
+          </div>
         </div>
       )}
 
       {unreadNotes.length > 0 && (
-        <div className="mb-5 rounded-xl border border-warn-400/25 bg-warn-400/[0.06] px-4 py-3">
-          <p className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-warn-400">
-            {tr(locale, 'overview.brokerUnread')}
-            <Info text={tr(locale, 'overview.brokerUnreadInfo')} />
-          </p>
-          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
-            {unreadNotes.slice(0, 6).map((l) => (
-              <Link key={l.id} href={`/loads/${l.id}`} className="text-white/80 hover:underline">
-                {l.origin ?? '—'} → {l.destination ?? '—'}
-              </Link>
-            ))}
+        <div className="mb-3 flex gap-2.5 rounded-xl border border-haul-400/25 bg-haul-500/[0.09] px-3.5 py-2.5">
+          <span className="mt-px flex size-6 shrink-0 items-center justify-center rounded-md bg-haul-500/20 text-haul-300 ring-1 ring-haul-400/25">
+            <MessageSquareWarning size={15} strokeWidth={2.5} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider text-haul-300">
+              {tr(locale, 'overview.brokerUnread')}
+              <Info text={tr(locale, 'overview.brokerUnreadInfo')} />
+            </p>
+            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-base">
+              {unreadNotes.slice(0, 6).map((l) => (
+                <Link key={l.id} href={`/loads/${l.id}`} className="text-white/80 hover:underline">
+                  {l.origin ?? '—'} → {l.destination ?? '—'}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
       {showFinances && unpaidTotal > 0 && (
         <div
-          className={`mb-5 rounded-xl border px-4 py-3 ${
-            overdueTotal > 0 ? 'border-bad-500/25 bg-bad-500/[0.06]' : 'border-white/8 bg-white/[0.02]'
+          className={`mb-3 flex gap-2.5 rounded-xl border px-3.5 py-2.5 ${
+            overdueTotal > 0 ? 'border-bad-500/25 bg-bad-500/[0.07]' : 'border-white/10 bg-white/[0.03]'
           }`}
         >
+          {/* Same icon-chip anatomy as the two banners above, so the three of them read
+              as one family of "things needing attention" instead of three loose boxes.
+              The chip is the only part that changes colour when money is overdue. */}
+          <span
+            className={`mt-px flex size-6 shrink-0 items-center justify-center rounded-md ring-1 ${
+              overdueTotal > 0
+                ? 'bg-bad-500/15 text-bad-400 ring-bad-400/25'
+                : 'bg-white/[0.06] text-white/60 ring-white/10'
+            }`}
+          >
+            <Wallet size={15} strokeWidth={2.5} />
+          </span>
+          <div className="min-w-0 flex-1">
           <p
-            className={`flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider ${
-              overdueTotal > 0 ? 'text-bad-400' : 'text-white/62'
+            className={`flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider ${
+              overdueTotal > 0 ? 'text-bad-400' : 'text-white/55'
             }`}
           >
             {tr(locale, 'overview.awaitingPayment')}
             <Info text={tr(locale, 'overview.awaitingPaymentInfo')} />
           </p>
-          <p className="mt-1 text-[13px] text-white/80">
+          <p className="mt-1 text-base text-white/80">
             <Link href="/invoices" className="nums font-semibold hover:underline">
               {usd.format(unpaidTotal)}
             </Link>
@@ -213,29 +239,51 @@ export default async function Page() {
               </span>
             )}
           </p>
+          </div>
         </div>
       )}
 
       {loads.length > 0 && (
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           <Stat
             href="/loads"
+            icon={<DollarSign size={15} strokeWidth={2.5} />}
+            accent="haul"
             label={tr(locale, 'overview.rateTotal')}
             value={usd.format(totalGross)}
             sub={tr(locale, 'overview.rateTotalSub').replace('{v}', usd.format(totalNet))}
             subTone={totalNet >= 0 ? 'good' : 'bad'}
             info={tr(locale, 'overview.rateTotalInfo')}
+            /* Share of the gross that survives as profit — the one ratio an owner
+               actually watches, and the reason this tile is the widest. */
+            meter={totalGross > 0 ? Math.max(0, Math.min(1, totalNet / totalGross)) : 0}
           />
-          <Stat href="/trucks" label={tr(locale, 'overview.rpm')} value={`${usd2.format(avgRpm)}/mi`} info={tr(locale, 'overview.rpmInfo')} />
+          <Stat
+            href="/trucks"
+            icon={<TrendingUp size={15} strokeWidth={2.5} />}
+            accent="good"
+            label={tr(locale, 'overview.rpm')}
+            value={`${usd2.format(avgRpm)}/mi`}
+            info={tr(locale, 'overview.rpmInfo')}
+          />
           <Stat
             href="/loads"
+            icon={<Package size={15} strokeWidth={2.5} />}
+            accent="warn"
             label={tr(locale, 'overview.inWork')}
             value={String(active)}
             sub={trucks.length > 0 ? tr(locale, 'overview.inWorkSub').replace('{n}', String(freeTrucks)) : undefined}
             subTone={freeTrucks > 0 ? 'good' : undefined}
             info={tr(locale, 'overview.inWorkInfo')}
           />
-          <Stat href="/tracking" label={tr(locale, 'overview.totalMiles')} value={Math.round(totalMiles).toLocaleString('en-US')} info={tr(locale, 'overview.totalMilesInfo')} />
+          <Stat
+            href="/tracking"
+            icon={<Route size={15} strokeWidth={2.5} />}
+            accent="haul"
+            label={tr(locale, 'overview.totalMiles')}
+            value={Math.round(totalMiles).toLocaleString('en-US')}
+            info={tr(locale, 'overview.totalMilesInfo')}
+          />
         </div>
       )}
 
@@ -253,7 +301,13 @@ export default async function Page() {
         {trucks.map((t) => {
           const fs = t.number ? byUnit.get(t.number) : undefined
           const week = weekGrossByTruck.get(t.id) ?? 0
-          const del = deliveryByTruck.get(t.id)
+          // Where it's headed is known for free right here; how far is a routing call,
+          // so the destination paints instantly and only the mileage streams in.
+          const cur = currentByTruck.get(t.id)
+          const dest =
+            fs?.lat != null && fs.lng != null && cur?.destination
+              ? { lat: fs.lat, lng: fs.lng, to: cur.destination }
+              : null
           return (
             <Link
               key={t.id}
@@ -261,7 +315,7 @@ export default async function Page() {
               // min-w-0: this card is a grid item (single column below `sm`) and grid
               // items default to min-width:auto, so its own natural content width
               // was blowing out the grid track past the viewport on narrow phones.
-              className="panel flex min-w-0 flex-col gap-2.5 p-3.5 transition-colors hover:border-white/15 hover:bg-white/[0.03]"
+              className="panel panel-interactive group flex min-w-0 flex-col gap-2.5 p-3.5"
             >
               <div className="flex items-center gap-3">
                 <div className="relative shrink-0">
@@ -273,10 +327,25 @@ export default async function Page() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="truncate text-[14px] font-medium">{truckLabel(t)}</span>
+                    <span className="truncate text-md font-medium">{truckLabel(t)}</span>
+                    {/* Icon-only, with the words on hover. Spelled out ("🔧 в ремонте")
+                        this badge took ~55px out of the very row that holds the truck
+                        number and driver name, and those two are what the card is for
+                        — the wrench already says everything at a glance. */}
                     {t.unavailable && (
-                      <span className="shrink-0 rounded-full bg-warn-400/15 px-1.5 py-0.5 text-[9.5px] font-semibold text-warn-400">
-                        {t.unavailable === 'repair' ? tr(locale, 'overview.repair') : tr(locale, 'overview.onVacation')}
+                      <span
+                        title={
+                          t.unavailable === 'repair'
+                            ? tr(locale, 'overview.repair')
+                            : tr(locale, 'overview.onVacation')
+                        }
+                        className="flex size-4 shrink-0 items-center justify-center rounded-full bg-warn-400/15 text-warn-400"
+                      >
+                        {t.unavailable === 'repair' ? (
+                          <Wrench size={9.5} strokeWidth={2.75} />
+                        ) : (
+                          <Palmtree size={9.5} strokeWidth={2.75} />
+                        )}
                       </span>
                     )}
                   </div>
@@ -285,27 +354,28 @@ export default async function Page() {
                     {cityOf(fs?.location ?? null) ?? tr(locale, 'overview.noEldData')}
                   </div>
                 </div>
-                <div className="min-w-0 text-right">
+                {/* The week's money. It briefly had a tinted plate with its own ring
+                    and padding, which read well but stole ~24px from the same row as
+                    the driver's name — enough that "DEMO-428 · Casey Brooks" started
+                    clipping on any truck that also carries a repair/vacation badge.
+                    Colour alone carries the emphasis; the box was costing more than
+                    it was worth. */}
+                <div className="min-w-0 shrink-0 text-right">
                   <div
-                    className={`nums whitespace-nowrap text-[14px] font-bold ${week > 0 ? 'text-good-400' : 'text-white/40'}`}
+                    className={`nums whitespace-nowrap text-md font-bold leading-tight ${week > 0 ? 'text-good-400' : 'text-white/40'}`}
                   >
                     {usd.format(week)}
                   </div>
-                  <div className="flex items-center justify-end gap-1 text-[9px] uppercase tracking-wider text-white/40">
+                  <div className="flex items-center justify-end gap-1 text-2xs uppercase tracking-wider text-white/40">
                     {tr(locale, 'overview.perWeek')}
                     <Info text={tr(locale, 'overview.perWeekInfo')} />
                   </div>
                 </div>
               </div>
-              {del && (
-                <div className="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-1.5">
-                  <span className="min-w-0 truncate text-[11px] text-white/55">
-                    {tr(locale, 'overview.toDelivery')}<span className="text-white/75">{del.to}</span>
-                  </span>
-                  <span className="nums shrink-0 text-[11px] font-semibold text-white/80">
-                    {del.miles} mi · ~{driveTime(del.etaMin, locale)}
-                  </span>
-                </div>
+              {dest && (
+                <Suspense fallback={<DeliveryRow to={dest.to} locale={locale} />}>
+                  <DeliveryLine lat={dest.lat} lng={dest.lng} to={dest.to} locale={locale} />
+                </Suspense>
               )}
             </Link>
           )
@@ -363,24 +433,73 @@ export default async function Page() {
             {tr(locale, 'overview.noLoadsBody')}
           </p>
           <div className="mt-4 flex justify-center gap-2">
-            <Link
-              href="/loads/new"
-              className="rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400"
-            >
+            <Button href="/loads/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
               {tr(locale, 'overview.addLoad')}
-            </Link>
-            <Link
-              href="/import"
-              className="rounded-xl border border-white/10 px-4 py-2 text-[13px] font-semibold text-white/80 transition-colors hover:bg-white/5"
-            >
+            </Button>
+            <Button href="/import" variant="secondary">
               {tr(locale, 'overview.rateCon')}
-            </Link>
+            </Button>
           </div>
         </div>
       )}
     </main>
   )
 }
+
+/** The "→ Ashland, VA … 220 mi · ~4h" strip on a fleet card. Rendered by both the
+ * streamed result and its placeholder, so the card never changes height when the
+ * mileage lands — only the figure on the right swaps in. */
+function DeliveryRow({ to, locale, figure }: { to: string; locale: Locale; figure?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-1.5">
+      <span className="min-w-0 truncate text-[11px] text-white/55">
+        {tr(locale, 'overview.toDelivery')}
+        <span className="text-white/75">{to}</span>
+      </span>
+      <span className="nums shrink-0 text-[11px] font-semibold text-white/80">
+        {figure ?? (
+          <span className="inline-block h-3 w-20 animate-pulse rounded bg-white/10 align-middle" />
+        )}
+      </span>
+    </div>
+  )
+}
+
+/** Road miles + drive time from the truck's live GPS to its delivery, via a free
+ * external router (OSRM, no SLA). Streamed in its own Suspense boundary: the dashboard
+ * previously awaited this for EVERY truck before emitting a single byte of HTML, which
+ * put a third-party service squarely in the critical path of the whole page. */
+async function DeliveryLine({
+  lat,
+  lng,
+  to,
+  locale,
+}: {
+  lat: number
+  lng: number
+  to: string
+  locale: Locale
+}) {
+  const del = await deliveryInfo({ lat, lng }, to)
+  // Em-dash rather than nothing when routing can't answer — the row stays put instead
+  // of appearing and then vanishing under the reader's eye.
+  return (
+    <DeliveryRow
+      to={to}
+      locale={locale}
+      figure={del ? `${del.miles} mi · ~${driveTime(del.etaMin, locale)}` : '—'}
+    />
+  )
+}
+
+/** Tint used by a tile's icon chip and its meter. Kept to the semantic four so a
+ * figure's colour still means something rather than just decorating the grid. */
+const ACCENTS = {
+  haul: { chip: 'bg-haul-500/15 text-haul-300 ring-haul-400/20', bar: 'bg-haul-400' },
+  good: { chip: 'bg-good-500/15 text-good-400 ring-good-400/20', bar: 'bg-good-400' },
+  warn: { chip: 'bg-warn-400/15 text-warn-400 ring-warn-400/20', bar: 'bg-warn-400' },
+  bad: { chip: 'bg-bad-500/15 text-bad-400 ring-bad-400/20', bar: 'bg-bad-400' },
+} as const
 
 function Stat({
   label,
@@ -390,6 +509,9 @@ function Stat({
   subTone,
   info,
   href,
+  icon,
+  accent = 'haul',
+  meter,
 }: {
   label: string
   value: string
@@ -400,37 +522,65 @@ function Stat({
   info?: string
   /** Where the card leads — e.g. the loads list behind a rate total. */
   href?: string
+  icon?: React.ReactNode
+  accent?: keyof typeof ACCENTS
+  /** 0..1 — draws a thin fill bar along the bottom of the tile. */
+  meter?: number
 }) {
+  const a = ACCENTS[accent]
   const body = (
     <>
+      {/* Label first, figure second. The old tile led with the number and buried the
+          label underneath in 10px grey, so four tiles in a row read as four loose
+          numbers with no way to tell at a glance which was which. */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1 text-2xs font-semibold uppercase tracking-wider text-white/55">
+          <span className="truncate">{label}</span>
+          {info && <Info text={info} />}
+        </div>
+        {icon && (
+          <span
+            className={`flex size-6 shrink-0 items-center justify-center rounded-md ring-1 ${a.chip}`}
+          >
+            {icon}
+          </span>
+        )}
+      </div>
+
       <div
-        className={`nums text-xl font-bold ${
+        className={`nums mt-1.5 text-xl font-bold leading-none tracking-tight ${
           tone === 'good' ? 'text-good-400' : tone === 'bad' ? 'text-bad-400' : ''
         }`}
       >
         {value}
       </div>
+
       {sub && (
         <div
-          className={`nums mt-0.5 text-[11px] font-medium ${
+          className={`nums mt-1 text-xs font-medium ${
             subTone === 'good' ? 'text-good-400/90' : subTone === 'bad' ? 'text-bad-400/90' : 'text-white/55'
           }`}
         >
           {sub}
         </div>
       )}
-      <div className="mt-0.5 flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/62">
-        {label}
-        {info && <Info text={info} />}
-      </div>
+
+      {meter !== undefined && (
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/8">
+          <div
+            className={`h-full rounded-full ${a.bar}`}
+            style={{ width: `${Math.round(meter * 100)}%` }}
+          />
+        </div>
+      )}
     </>
   )
 
   if (href)
     return (
-      <Link href={href} className="panel block px-4 py-3 transition-colors hover:border-white/15 hover:bg-white/[0.03]">
+      <Link href={href} className="panel panel-interactive block px-3.5 py-2.5">
         {body}
       </Link>
     )
-  return <div className="panel px-4 py-3">{body}</div>
+  return <div className="panel px-3.5 py-2.5">{body}</div>
 }

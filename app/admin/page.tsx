@@ -23,7 +23,7 @@ export default async function AdminPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <h1 className="text-[17px] font-semibold">{t(locale, 'admin.title')}</h1>
+      <h1 className="text-xl font-bold tracking-tight">{t(locale, 'admin.title')}</h1>
       <p className="mb-6 text-[13px] text-white/65">{t(locale, 'admin.subtitle')}</p>
 
       <section className="panel p-5">

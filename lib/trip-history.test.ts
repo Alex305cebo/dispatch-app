@@ -1,6 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { segmentTrail, type TrailPoint } from './trip-history.ts'
+import {
+  daySpans,
+  segmentTrail,
+  startOfDay,
+  type HistoryLeg,
+  type TrailPoint,
+} from './trip-history.ts'
 
 const BASE = { lat: 35.96, lng: -83.92 }
 const t = (mins: number) => new Date(2026, 6, 19, 6, mins, 0).toISOString()
@@ -78,4 +84,32 @@ test('parking for 8 hours is flagged as a long rest', () => {
 test('fewer than two points yields no legs', () => {
   assert.deepEqual(segmentTrail([]), [])
   assert.deepEqual(segmentTrail([{ lat: 0, lng: 0, at: t(0), location: null }]), [])
+})
+
+// daySpans is the geometry behind the 24-hour ribbon. It fails silently and visibly:
+// a bad clip draws a bar running off its own container, or a leg that vanishes.
+const drive = (from: string, to: string): HistoryLeg => ({
+  kind: 'drive', from, to, miles: 100, minutes: 60, fromLocation: null, toLocation: null,
+})
+const day = (s: string) => startOfDay(Date.parse(s))
+
+test('a leg inside one day maps to its share of that day', () => {
+  const d = day('2026-07-20T00:00:00')
+  const [s] = daySpans([drive('2026-07-20T06:00:00', '2026-07-20T12:00:00')], d)
+  assert.ok(Math.abs(s!.leftPct - 25) < 0.01, 'starts a quarter into the day')
+  assert.ok(Math.abs(s!.widthPct - 25) < 0.01, 'spans a quarter of the day')
+})
+
+test('a leg crossing midnight is clipped to each day, never overflowing', () => {
+  const leg = drive('2026-07-20T22:00:00', '2026-07-21T02:00:00')
+  const first = daySpans([leg], day('2026-07-20T00:00:00'))[0]!
+  const second = daySpans([leg], day('2026-07-21T00:00:00'))[0]!
+  assert.ok(Math.abs(first.leftPct + first.widthPct - 100) < 0.01, 'day one ends exactly at midnight')
+  assert.equal(second.leftPct, 0, 'day two starts at midnight')
+  assert.ok(Math.abs(second.widthPct - (2 / 24) * 100) < 0.01, 'day two keeps only its 2 hours')
+})
+
+test('legs from other days are dropped, not drawn at a negative offset', () => {
+  const d = day('2026-07-20T00:00:00')
+  assert.equal(daySpans([drive('2026-07-18T06:00:00', '2026-07-18T09:00:00')], d).length, 0)
 })

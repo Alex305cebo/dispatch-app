@@ -2,6 +2,7 @@
 // lib/maintenance-core.ts; re-exported here so server callers can import both from
 // one place. Client components must import from maintenance-core, never from here.
 
+import { cache } from 'react'
 import { sql } from './db'
 import {
   expiries,
@@ -75,9 +76,14 @@ export async function truckTrailerNumbers(companyId: CompanyId): Promise<Map<num
 }
 
 /** Fleet-wide compliance: soonest-expiring doc per truck that's within 60 days. */
-export async function fleetExpiryAlerts(companyId: CompanyId, locale: Locale = 'en'): Promise<
-  { truckId: number; number: string; item: ExpiryItem }[]
-> {
+/** cache(): the root layout asks for this on EVERY page (the badge on the Траки nav
+ * item) and the dashboard asks again for its own banner — the same query, twice per
+ * dashboard request. Per-request only, so an expiry edited on the truck page shows up
+ * on the next render. */
+export const fleetExpiryAlerts = cache(async function fleetExpiryAlerts(
+  companyId: CompanyId,
+  locale: Locale = 'en',
+): Promise<{ truckId: number; number: string; item: ExpiryItem }[]> {
   const rows = await sql`
     SELECT m.truck_id, m.vin, m.plate, m.trailer_number, m.year, m.make, m.model,
       m.oil_interval_mi, m.oil_last_odometer, m.driver_phone, m.notes,
@@ -91,7 +97,7 @@ export async function fleetExpiryAlerts(companyId: CompanyId, locale: Locale = '
     if (soonest) out.push({ truckId: r.truck_id, number: r.number, item: soonest })
   }
   return out.sort((a, b) => a.item.daysLeft - b.item.daysLeft)
-}
+})
 
 /** Every truck's passport in one query — the /trucks list computes oil status and
  * expiry chips per card from these with the pure helpers (oilStatus/expiries),

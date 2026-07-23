@@ -2,10 +2,11 @@
 // from a load, then merges it with that load's rate con + POD into one PDF the
 // dispatcher sends (or emails). SERVER ONLY (DB + pdf-lib).
 
+import { cache } from 'react'
 import { revalidatePath } from 'next/cache'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { sql } from './db.ts'
-import { getSetting } from './settings.ts'
+import { getSettings } from './settings.ts'
 import { getLoad } from './loads.ts'
 import type { LoadRecord } from './map.ts'
 import { t, type Locale } from './i18n.ts'
@@ -20,26 +21,28 @@ export type Company = {
   remitTo: string // factoring remit-to; empty = pay us directly
 }
 
-export async function getCompany(): Promise<Company> {
-  const [name, owner, mcdot, address, email, phone, remitTo] = await Promise.all([
-    getSetting('co_name'),
-    getSetting('co_owner'),
-    getSetting('co_mcdot'),
-    getSetting('co_address'),
-    getSetting('co_email'),
-    getSetting('co_phone'),
-    getSetting('co_remit_to'),
+/** One query, not seven — and cache()d, because the root layout reads the company
+ * name on every page render. Was 7 separate HTTPS round trips to Neon per page. */
+export const getCompany = cache(async function getCompany(): Promise<Company> {
+  const s = await getSettings([
+    'co_name',
+    'co_owner',
+    'co_mcdot',
+    'co_address',
+    'co_email',
+    'co_phone',
+    'co_remit_to',
   ])
   return {
-    name: name ?? '',
-    owner: owner ?? '',
-    mcdot: mcdot ?? '',
-    address: address ?? '',
-    email: email ?? '',
-    phone: phone ?? '',
-    remitTo: remitTo ?? '',
+    name: s.get('co_name') ?? '',
+    owner: s.get('co_owner') ?? '',
+    mcdot: s.get('co_mcdot') ?? '',
+    address: s.get('co_address') ?? '',
+    email: s.get('co_email') ?? '',
+    phone: s.get('co_phone') ?? '',
+    remitTo: s.get('co_remit_to') ?? '',
   }
-}
+})
 
 const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
 

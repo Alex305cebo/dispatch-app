@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 // Tracking links (one per truck) → we pull GPS from them, no vendor key needed.
 // Deliberately generic and instruction-free in the UI: the owner sets this up once,
 // and no third-party product should be named or explained on their screen.
@@ -57,13 +58,10 @@ export function EldLinks({ count }: { count: number }) {
             placeholder={t(locale, 'tracking.eldLinksPlaceholder')}
             className="w-full rounded-lg border border-white/8 bg-ink-900/80 px-3 py-2 text-[12px] text-white outline-none focus:border-haul-500"
           />
-          <button
-            disabled={pending || !text.trim()}
-            onClick={save}
-            className="mt-2 rounded-lg bg-haul-500 px-4 py-2 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
-          >
+          <Button variant="primary" size="sm" className="mt-2" disabled={pending || !text.trim()}
+            onClick={save}>
             {pending ? t(locale, 'tracking.savingUpdating') : t(locale, 'tracking.saveAndUpdate')}
-          </button>
+          </Button>
         </div>
       )}
     </div>

@@ -335,33 +335,37 @@ export default async function Page({
               {rows.map(({ load, r }) => {
                 const rcId = rateCons.get(load.id)
                 return (
+                  /* Two lines, not one. This card sits in a half-width column beside the
+                     documents panel, and the old single row asked the route, the status
+                     badge, the rate and the RC button to share ~330px — so every route
+                     clipped to "Denver, CO → Kansas C…". Route owns line one; the money
+                     drops to line two, where it has the width to itself. */
                   <div
                     key={load.id}
-                    className="flex items-center gap-2 rounded-xl border border-white/6 p-3 transition-colors hover:border-white/15"
+                    className="rounded-xl border border-white/6 p-3 transition-colors hover:border-white/15"
                   >
-                    <Link href={`/loads/${load.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate text-[14px] font-medium">
-                            {load.origin ?? '—'} → {load.destination ?? '—'}
-                          </span>
-                          <StatusBadge status={load.status} locale={locale} />
-                        </div>
-                        <div className="nums mt-0.5 text-[12px] text-white/60">
-                          {t(locale, 'trucks.detail.netLower')}{' '}
-                          <span className={r.net >= 0 ? 'text-good-400/90' : 'text-bad-400/90'}>
-                            {usd.format(r.net)}
-                          </span>{' '}
-                          · {usd2.format(r.allInRpm)}/mi
-                        </div>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/loads/${load.id}`}
+                        className="min-w-0 flex-1 truncate text-md font-medium hover:text-haul-400"
+                      >
+                        {load.origin ?? '—'} → {load.destination ?? '—'}
+                      </Link>
+                      <StatusBadge status={load.status} locale={locale} />
+                      {rcId && <RateConButton docId={rcId} compact />}
+                    </div>
+                    <div className="mt-1 flex items-baseline justify-between gap-2">
+                      <span className="nums min-w-0 truncate text-sm text-white/60">
+                        {t(locale, 'trucks.detail.netLower')}{' '}
+                        <span className={r.net >= 0 ? 'text-good-400/90' : 'text-bad-400/90'}>
+                          {usd.format(r.net)}
+                        </span>{' '}
+                        · {usd2.format(r.allInRpm)}/mi
+                      </span>
                       {/* Headline is the load's actual RATE, never net — the owner reads
                           these cards as "what this load is worth". Net is the small line. */}
-                      <span className="nums shrink-0 text-[14px] font-bold">
-                        {usd.format(load.rate)}
-                      </span>
-                    </Link>
-                    {rcId && <RateConButton docId={rcId} compact />}
+                      <span className="nums shrink-0 text-md font-bold">{usd.format(load.rate)}</span>
+                    </div>
                   </div>
                 )
               })}

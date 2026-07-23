@@ -126,7 +126,7 @@ export default async function Page() {
   return (
     <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <div className="mb-4">
-        <h1 className="text-[17px] font-semibold">{t(locale, 'admin.logins.title')}</h1>
+        <h1 className="text-xl font-bold tracking-tight">{t(locale, 'admin.logins.title')}</h1>
         <p className="text-[13px] text-white/65">
           {t(locale, 'admin.logins.subtitle').replace('{n}', String(events.length))}
         </p>

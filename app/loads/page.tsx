@@ -1,3 +1,6 @@
+import { Plus } from 'lucide-react'
+import { Button } from '@/components/button'
+import { ShowMore } from '@/components/collapse'
 import Link from 'next/link'
 import { listLoads, listTrucks, rateConByLoad } from '@/lib/loads'
 import { truckLabel, STATUSES, type TruckRecord, type LoadRecord } from '@/lib/map'
@@ -20,9 +23,9 @@ export const dynamic = 'force-dynamic'
 // second color scheme, so the board and the badges never drift apart.
 const COLUMN_ACCENT: Record<LoadRecord['status'], string> = {
   quoted: 'border-t-white/20',
-  booked: 'border-t-haul-500/60',
+  booked: 'border-t-cyan-400/60',
   in_transit: 'border-t-amber-400/60',
-  delivered: 'border-t-violet-400/60',
+  delivered: 'border-t-fuchsia-400/60',
   paid: 'border-t-good-500/60',
   cancelled: 'border-t-bad-500/50',
 }
@@ -69,18 +72,15 @@ export default async function Page({
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
-          <h1 className="flex items-center gap-1.5 text-[17px] font-semibold">
+          <h1 className="flex items-center gap-1.5 text-xl font-bold tracking-tight">
             {t(locale, 'loads.page.title')}
             <Info side="bottom" text={t(locale, 'loads.page.tooltip')} />
           </h1>
           <p className="text-[13px] text-white/65">{t(locale, 'loads.page.countSuffix').replace('{n}', String(loads.length))}</p>
         </div>
-        <Link
-          href="/loads/new"
-          className="rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400"
-        >
+        <Button href="/loads/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
           {t(locale, 'loads.page.new')}
-        </Link>
+        </Button>
       </div>
 
       {loads.length > 0 && (
@@ -169,43 +169,78 @@ function StatusBoard({
   })).filter((c) => c.loads.length > 0)
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    /* Third column only at 2xl (1536px). At `lg` a 1280px laptop was splitting the
+       board into three ~230px columns, which is narrower than a US city pair needs
+       ("Phoenix, AZ → Los Angeles, CA") — so every card truncated to earn a column
+       nobody could read. Two roomy columns beat three cramped ones. */
+    <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
       {columns.map(({ status, loads }) => (
         <section
           key={status}
           className={`panel border-t-2 p-3 ${COLUMN_ACCENT[status]}`}
         >
-          <h2 className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            {statusLabel(locale, status)}
-            <span className="nums font-normal text-white/40">{loads.length}</span>
+          {/* Count AND money in the header. A column that says only "37" tells the
+              dispatcher how much work is in it but nothing about what it's worth,
+              which is the number they actually compare columns on. */}
+          <h2 className="mb-2 flex items-center justify-between gap-2 text-2xs font-semibold uppercase tracking-wider text-white/62">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate">{statusLabel(locale, status)}</span>
+              <span className="nums shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 font-bold text-white/70">
+                {loads.length}
+              </span>
+            </span>
+            <span className="nums shrink-0 text-base font-bold text-white/85">
+              {usd.format(loads.reduce((s, l) => s + l.rate, 0))}
+            </span>
           </h2>
           <div className="flex flex-col gap-1.5">
-            {loads.map((load) => {
+            {/* Long columns were the complaint: a single status could run to dozens of
+                rows and push everything below it off the screen. Six is roughly what
+                fits beside its neighbours before the grid stops reading as columns. */}
+            <ShowMore limit={6} label={t(locale, 'loads.page.showMore')} items={loads.map((load) => {
               const truck = (load.truckId !== null ? byId.get(load.truckId) : undefined) ?? fallback
               const r = truck ? calcLoad(load, truck) : null
               return (
-                <div key={load.id} className="flex items-center gap-2 rounded-lg border border-white/6 p-2.5">
-                  <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
-                    <div className="truncate text-[13px] font-medium">
-                      {load.origin ?? '—'} → {load.destination ?? '—'}
-                    </div>
-                    <div className="mt-0.5 truncate text-[11px] text-white/55">
-                      {truck ? truckLabel(truck) : '—'}
-                      {r && ` · ${t(locale, 'loads.page.net')} ${usd.format(r.net)}`}
-                    </div>
-                  </Link>
-                  <span className="shrink-0 text-right">
-                    <span className="nums block text-[13px] font-bold">{usd.format(load.rate)}</span>
-                    {load.loadedMiles > 0 && (
-                      <span className="nums block text-[10.5px] font-medium text-haul-300">
-                        {Math.round(load.loadedMiles).toLocaleString('en-US')} mi
+                /* Stacked, not side-by-side. Three columns on a laptop leave each card
+                   ~230px, and the old row put the route, the driver, the rate and the
+                   RC button in ONE horizontal line — measured: "Phoenix, AZ → Los
+                   Angeles, CA" losing 103px and every driver line losing 120-130px to
+                   the ellipsis. Giving the route the full width and dropping the meta
+                   underneath costs one extra line and truncates nothing. */
+                <div key={load.id} className="rounded-lg border border-white/6 p-2.5">
+                  <div className="flex items-start gap-2">
+                    <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
+                      <div className="truncate text-base font-medium">
+                        {load.origin ?? '—'} → {load.destination ?? '—'}
+                      </div>
+                    </Link>
+                    {rateCons.get(load.id) && (
+                      <span className="-mt-0.5 shrink-0">
+                        <RateConButton docId={rateCons.get(load.id)!} compact />
                       </span>
                     )}
-                  </span>
-                  {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between gap-2">
+                    {/* Truck NUMBER only, not truckLabel's "number · driver". In a
+                        230px column the driver's name pushed this line 110px past its
+                        box on every card; the number is what identifies a truck on a
+                        board about loads, and the driver is one click away. */}
+                    <span className="min-w-0 truncate text-xs text-white/55">
+                      {truck ? (truck.number?.trim() || truck.name) : '—'}
+                      {r && ` · ${t(locale, 'loads.page.net')} ${usd.format(r.net)}`}
+                    </span>
+                    <span className="shrink-0 whitespace-nowrap">
+                      <span className="nums text-base font-bold">{usd.format(load.rate)}</span>
+                      {load.loadedMiles > 0 && (
+                        <span className="nums ml-1.5 text-2xs font-medium text-haul-300">
+                          {Math.round(load.loadedMiles).toLocaleString('en-US')} mi
+                        </span>
+                      )}
+                    </span>
+                  </div>
                 </div>
               )
-            })}
+            })} />
           </div>
         </section>
       ))}

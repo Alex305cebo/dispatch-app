@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 // One obvious place to see and edit the driver: name, phone, licence dates. Before
 // this, the name was buried in the truck-economics form and the phone in the care
 // passport — nobody could find either.
@@ -119,13 +120,10 @@ export function DriverCard({
             <Field label={t(locale, 'trucks.driverCard.medcardLabel')} value={f.medcardExpiry} onChange={set('medcardExpiry')} type="date" />
           </div>
           <div className="flex gap-2">
-            <button
-              disabled={pending}
-              onClick={save}
-              className="rounded-lg bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
-            >
+            <Button variant="primary" disabled={pending}
+              onClick={save}>
               {pending ? t(locale, 'trucks.common.saving') : t(locale, 'trucks.common.save')}
-            </button>
+            </Button>
             <button
               onClick={() => {
                 setF({

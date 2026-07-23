@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 import { useEffect, useState, useTransition } from 'react'
 import { bootstrapAdmin, signIn } from './actions'
 import { LOCALE_COOKIE, LOCALES, resolveLocale, t, type Locale } from '@/lib/i18n'
@@ -163,23 +164,27 @@ export function LoginForm({ bootstrap }: { bootstrap: boolean }) {
           </>
         )}
 
-        <button
+        {/* loading, not just disabled: the old button only greyed out while the
+            request was in flight, which looks identical to "you haven't filled the
+            form in yet". The spinner says the click landed. */}
+        <Button
           type="submit"
-          disabled={pending || !email || !password || (bootstrap && !name)}
-          className="mt-4 w-full rounded-xl bg-haul-500 py-3 text-[15px] font-semibold transition-colors hover:bg-haul-400 disabled:bg-white/8 disabled:text-white/55"
+          variant="primary"
+          size="lg"
+          block
+          className="mt-4"
+          loading={pending}
+          disabled={!email || !password || (bootstrap && !name)}
         >
           {pending ? t(locale, 'login.checking') : bootstrap ? t(locale, 'login.bootstrap_submit') : t(locale, 'login.submit')}
-        </button>
+        </Button>
 
         {error && <p className="mt-2 text-[13px] text-bad-400">{error}</p>}
 
         {!bootstrap && (
-          <a
-            href="/demo"
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-haul-500/30 bg-haul-500/10 py-3 text-[14px] font-semibold text-haul-300 transition-colors hover:border-haul-500/50 hover:bg-haul-500/15 hover:text-haul-200"
-          >
+          <Button href="/demo" external variant="secondary" size="lg" block className="mt-3">
             {t(locale, 'login.demo')}
-          </a>
+          </Button>
         )}
       </form>
     </main>

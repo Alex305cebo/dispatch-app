@@ -45,34 +45,68 @@ async function logPosition(
 
 /** How long the truck's GPS has stayed within ~0.5mi of its current spot, walking
  * the breadcrumb trail backward. Null if it's been moving or there's no history. */
-export async function idleSince(unit: string, lat: number, lng: number): Promise<Date | null> {
-  const rows = (await sql`
-    SELECT lat, lng, at FROM truck_position_log
-    WHERE unit = ${unit} AND at >= now() - interval '12 hours'
-    ORDER BY at DESC`) as { lat: number; lng: number; at: string }[]
+export function idleSinceIn(trail: TrailPoint[], lat: number, lng: number): Date | null {
   let since: Date | null = null
-  for (const r of rows) {
+  for (const r of trail) {
     if (haversineMiles({ lat, lng }, { lat: r.lat, lng: r.lng }) > 0.5) break
     since = new Date(r.at)
   }
   return since
 }
 
-/** Compass heading (0-360) the truck is moving in, from its recent breadcrumb —
- * points the map's moving-truck arrow the right way instead of a fixed "up". Walks
- * back until it finds a point far enough away to give a real direction (skips GPS
- * jitter); null if the truck hasn't moved enough recently to know. */
-export async function headingOf(unit: string, lat: number, lng: number): Promise<number | null> {
-  const rows = (await sql`
-    SELECT lat, lng FROM truck_position_log
-    WHERE unit = ${unit} AND at >= now() - interval '2 hours'
-    ORDER BY at DESC`) as { lat: number; lng: number }[]
-  for (const r of rows) {
+export type TrailPoint = { lat: number; lng: number; at: string }
+
+/** The truck's breadcrumb trail, newest first. 12 h covers every reader below. */
+async function recentTrail(unit: string): Promise<TrailPoint[]> {
+  return (await sql`
+    SELECT lat, lng, at FROM truck_position_log
+    WHERE unit = ${unit} AND at >= now() - interval '12 hours'
+    ORDER BY at DESC`) as TrailPoint[]
+}
+
+/**
+ * Idle time and heading from ONE read of the trail. /tracking wants both for every
+ * truck and used to pay for two overlapping scans of truck_position_log per truck to
+ * get them — the 12-hour window already contains the 2-hour one.
+ */
+export async function positionSignals(
+  unit: string,
+  lat: number,
+  lng: number,
+): Promise<{ idleAt: Date | null; heading: number | null }> {
+  const trail = await recentTrail(unit)
+  return { idleAt: idleSinceIn(trail, lat, lng), heading: headingIn(trail, lat, lng) }
+}
+
+/** Single-signal wrapper, for callers that genuinely need only this one. */
+export async function idleSince(unit: string, lat: number, lng: number): Promise<Date | null> {
+  return idleSinceIn(await recentTrail(unit), lat, lng)
+}
+
+/**
+ * Compass heading (0-360) the truck is moving in, from its recent breadcrumb — points
+ * the map's moving-truck arrow the right way instead of a fixed "up". Walks back until
+ * it finds a point far enough away to give a real direction (skips GPS jitter); null
+ * if the truck hasn't moved enough recently to know.
+ *
+ * Only the last 2 hours count: an older breadcrumb says where the truck came from
+ * hours ago, not which way it points now. That cutoff is applied here rather than in
+ * SQL so a single query can also serve idleSinceIn's wider window.
+ */
+export function headingIn(trail: TrailPoint[], lat: number, lng: number): number | null {
+  const cutoff = Date.now() - 2 * 60 * 60 * 1000
+  for (const r of trail) {
+    if (Date.parse(r.at) < cutoff) break
     if (haversineMiles({ lat, lng }, { lat: r.lat, lng: r.lng }) > 0.3) {
       return bearing({ lat: r.lat, lng: r.lng }, { lat, lng })
     }
   }
   return null
+}
+
+/** Single-signal wrapper, for callers that genuinely need only this one. */
+export async function headingOf(unit: string, lat: number, lng: number): Promise<number | null> {
+  return headingIn(await recentTrail(unit), lat, lng)
 }
 
 /** The truck's day as drive/stop legs — what /trucks/[id] shows under "История пути". */

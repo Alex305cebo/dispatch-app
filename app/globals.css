@@ -6,14 +6,57 @@
   --color-ink-800: #141821;
   --color-ink-700: #1d2230;
   --color-ink-600: #2a3142;
-  --color-haul-400: #5b9dff;
-  --color-haul-500: #3b7ff5;
+
+  /* Accent — "haul" is the brand action colour: buttons, active tab, links, focus.
+     Deliberately violet and not blue, green, amber or red, because those four are
+     spoken for as STATUS (rolling / paid, deadline near, overdue, error) and an
+     action that shares a colour with a warning reads as a warning.
+     Contrast, measured against the surface each one actually lands on:
+       haul-500 + white label = 4.9:1  (WCAG AA for 13px semibold button text)
+       haul-400 on ink-950    = 7.2:1  (links and active tabs on the dark page) */
+  --color-haul-300: #b6acff;
+  --color-haul-400: #9b8eff;
+  --color-haul-500: #6d5ae8;
+  --color-haul-600: #5b46d6;
+
   --color-good-400: #34d99b;
   --color-good-500: #14b87e;
   --color-bad-400: #ff6168;
   --color-bad-500: #f0353d;
   --color-warn-400: #f5b34a;
   --color-warn-500: #e09a2b;
+
+  /* next/font puts --font-inter / --font-jetbrains on <html> (app/layout.tsx); these
+     two map them onto Tailwind's font-sans / font-mono utilities. The names have to
+     differ from the theme tokens — `--font-sans: var(--font-sans)` would resolve to
+     itself and silently fall through to the system stack. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  /* Type scale. The app had 21 distinct sizes, most of them one-offs including
+     12.5px / 11.5px / 9.5px — no ratio, no rhythm, so a heading, a label and a value
+     all carried the same visual weight. Seven steps, named by JOB rather than by
+     size, because that is what stops the next one-off from being invented.
+     (These override Tailwind's own text-xs/sm/... defaults on purpose.) */
+  --text-2xs: 0.625rem; /* 10px — uppercase micro-labels under a figure */
+  --text-xs: 0.6875rem; /* 11px — captions, secondary metadata */
+  --text-sm: 0.75rem; /* 12px — dense table/list text */
+  --text-base: 0.8125rem; /* 13px — default body, the app's workhorse size */
+  --text-md: 0.875rem; /* 14px — emphasised row titles */
+  --text-lg: 0.9375rem; /* 15px — card headlines */
+  --text-xl: 1.0625rem; /* 17px — page titles */
+  --text-2xl: 1.375rem; /* 22px — KPI figures */
+  --text-3xl: 1.75rem; /* 28px — hero figure on a dashboard tile */
+
+  /* Elevation. Depth was previously improvised per component; three named steps mean
+     a card, a popover and a dialog can't drift apart. Tuned for the dark surface —
+     the light theme overrides them further down, where a dark shadow reads much
+     heavier on white than the same shadow does on near-black. */
+  --shadow-e1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 0 0 rgba(255, 255, 255, 0.03) inset;
+  --shadow-e2: 0 4px 12px -2px rgba(0, 0, 0, 0.5), 0 1px 0 0 rgba(255, 255, 255, 0.05) inset;
+  --shadow-e3: 0 16px 40px -12px rgba(0, 0, 0, 0.75), 0 1px 0 0 rgba(255, 255, 255, 0.06) inset;
+  /* The accent's own glow, for a pressed/active control that should feel lit. */
+  --shadow-accent: 0 4px 16px -4px rgba(109, 90, 232, 0.5);
 }
 
 /* Light theme by variable swap: Tailwind v4 compiles text-white/bg-ink/etc. to
@@ -31,7 +74,12 @@
   --color-good-400: #0f9d6e;
   --color-bad-400: #e02531;
   --color-warn-400: #b7791f;
-  --color-haul-400: #2f6fe0;
+  --color-haul-400: #5b46d6;
+  /* haul-300 is the accent's TEXT tone. On the dark page it's a pale violet that
+     lifts off near-black; left unswapped it landed as pale violet on a pale violet
+     tint here, which is how the broker banner's heading came out near-invisible in
+     light mode. On white the same job needs the dark end of the ramp. */
+  --color-haul-300: #4e3ac4;
 }
 
 @layer base {
@@ -48,10 +96,10 @@
     overflow-x: hidden;
     /* Full white, not white/90: on #08090d every step down costs contrast, and the
        muted scale below already carries the hierarchy. */
-    @apply bg-ink-950 text-white antialiased;
+    @apply bg-ink-950 font-sans text-white antialiased;
     background-image: radial-gradient(
       120% 90% at 50% -20%,
-      rgba(59, 127, 245, 0.16),
+      rgba(109, 90, 232, 0.18),
       transparent 60%
     );
     background-attachment: fixed;
@@ -74,20 +122,71 @@
   }
 }
 
+/* Every card in the app is a .panel, so this one rule is the biggest single lever on
+   how the whole UI reads. It used to be a 2.5%-white wash inside an 8%-white hairline:
+   technically a card, visually indistinguishable from the page behind it, which is
+   most of why the app looked flat.
+   Now it is a real surface — a top-lit gradient so the card has a light source, a
+   border bright enough to actually draw an edge, and layered shadow for depth. */
 @utility panel {
-  @apply rounded-2xl border border-white/8 bg-white/[0.025] backdrop-blur-xl;
+  @apply rounded-2xl border border-white/10 backdrop-blur-xl;
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.055) 0%,
+    rgba(255, 255, 255, 0.022) 42%,
+    rgba(255, 255, 255, 0.012) 100%
+  );
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.04) inset,
-    0 24px 60px -30px rgba(0, 0, 0, 0.9);
+    /* the lit top edge — what makes it read as a raised plane, not a painted box */
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.10),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.28),
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 8px 24px -8px rgba(0, 0, 0, 0.6);
+}
+
+/* Cards that go somewhere. The lift is small on purpose — 2px and a brighter edge is
+   enough to say "clickable"; more turns a dense fleet list into a trampoline. */
+@utility panel-interactive {
+  transition:
+    transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+.panel-interactive:hover {
+  transform: translateY(-2px);
+  border-color: rgba(155, 142, 255, 0.35);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.28),
+    0 2px 4px rgba(0, 0, 0, 0.35),
+    0 14px 34px -10px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(109, 90, 232, 0.12);
+}
+.panel-interactive:active {
+  transform: translateY(0);
+  transition-duration: 0.08s;
 }
 
 /* Light theme: white cards on a light page, soft shadow, gentler top glow. */
+/* Light theme needs the opposite treatment: on white, a dark shadow does the lifting
+   and an inner highlight does nothing, so the gradient is dropped (the `background`
+   shorthand resets background-image) and the shadow carries the whole effect. */
 :root[data-theme='light'] .panel {
   background: #ffffff;
-  box-shadow: 0 1px 3px rgba(15, 20, 30, 0.06), 0 8px 30px -18px rgba(15, 20, 30, 0.18);
+  border-color: rgba(15, 20, 30, 0.09);
+  box-shadow:
+    0 1px 2px rgba(15, 20, 30, 0.05),
+    0 6px 18px -8px rgba(15, 20, 30, 0.14);
+}
+:root[data-theme='light'] .panel-interactive:hover {
+  border-color: rgba(91, 70, 214, 0.4);
+  box-shadow:
+    0 2px 4px rgba(15, 20, 30, 0.07),
+    0 14px 30px -10px rgba(15, 20, 30, 0.22),
+    0 0 0 1px rgba(91, 70, 214, 0.14);
 }
 :root[data-theme='light'] body {
-  background-image: radial-gradient(120% 90% at 50% -20%, rgba(59, 127, 245, 0.1), transparent 60%);
+  background-image: radial-gradient(120% 90% at 50% -20%, rgba(109, 90, 232, 0.12), transparent 60%);
 }
 
 /* On a filled accent (buttons, badges) text must stay light in BOTH themes — the
@@ -100,9 +199,17 @@
   color: #fff;
 }
 
+/* Every figure in the app already carries this: rates, miles, RPM, invoice numbers,
+   truck numbers. It now also switches face to the mono font, so a column of money
+   lines up digit-for-digit instead of only sharing an advance width. */
 @utility nums {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
+  /* JetBrains Mono runs optically larger than Inter at the same px — without this a
+     `nums` figure sitting inline next to body text looks a size up from its label. */
+  font-size: 0.96em;
+  letter-spacing: -0.01em;
 }
 
 /* Leaflet ships its own light-theme popup/container styles, loaded dynamically at
@@ -322,12 +429,12 @@
    so switching tabs reads as a clear little "pop" (spring easing above) rather
    than a flat colour swap. */
 .nav-tab-btn[aria-current='page'] {
-  border-color: rgba(91, 157, 255, 0.5);
-  background-color: rgb(37, 74, 148);
+  border-color: rgba(155, 142, 255, 0.5);
+  background-color: rgb(62, 50, 122);
   box-shadow:
     inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
     inset 0 -1px 1px 0 rgba(0, 0, 0, 0.2),
-    0 4px 12px -2px rgba(59, 127, 245, 0.35);
+    0 4px 12px -2px rgba(109, 90, 232, 0.4);
 }
 @media (min-width: 768px) {
   .nav-tab-btn {

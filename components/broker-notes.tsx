@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 // "Важное от брокера" — special instructions off the rate con that the dispatcher
 // MUST read. Until acknowledged (notes_read_at is null) it's highlighted amber with
 // a "Прочитано" button; after, it goes quiet. Editable so notes can be fixed/added.
@@ -161,13 +162,10 @@ export function BrokerNotes({
           className={textarea}
         />
         <div className="mt-2 flex gap-2">
-          <button
-            disabled={pending}
-            onClick={saveText}
-            className="rounded-lg bg-haul-500 px-4 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
-          >
+          <Button variant="primary" size="sm" disabled={pending}
+            onClick={saveText}>
             {pending ? t(locale, 'loadEdit.saving') : t(locale, 'loadEdit.save')}
-          </button>
+          </Button>
           <button
             onClick={() => {
               setText(notes ?? '')
@@ -187,13 +185,10 @@ export function BrokerNotes({
     return (
       <div className="panel flex flex-wrap items-center gap-3 p-4">
         {hasRc && (
-          <button
-            disabled={pending}
-            onClick={parse}
-            className="rounded-lg bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
-          >
+          <Button variant="primary" disabled={pending}
+            onClick={parse}>
             {pending ? t(locale, 'brokerNotes.parsing') : t(locale, 'brokerNotes.parseRc')}
-          </button>
+          </Button>
         )}
         <button
           onClick={() => setEditing(true)}

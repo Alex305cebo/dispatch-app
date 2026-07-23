@@ -57,7 +57,7 @@ export default async function Page({
   if (!user) {
     return (
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-        <h1 className="mb-5 text-[17px] font-semibold">Telegram</h1>
+        <h1 className="mb-5 text-xl font-bold tracking-tight">Telegram</h1>
         <p className="panel p-4 text-[13px] text-white/65">
           {t(locale, 'telegram.page.needLogin')}
         </p>
@@ -69,7 +69,7 @@ export default async function Page({
   if (!(await can(user, 'telegram'))) {
     return (
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-        <h1 className="mb-5 text-[17px] font-semibold">Telegram</h1>
+        <h1 className="mb-5 text-xl font-bold tracking-tight">Telegram</h1>
         <p className="panel p-4 text-[13px] text-white/65">
           {t(locale, 'telegram.page.noAccess')}
         </p>
@@ -82,7 +82,7 @@ export default async function Page({
   if (!(await tgConnected(user.id))) {
     return (
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-        <h1 className="mb-5 text-[17px] font-semibold">Telegram</h1>
+        <h1 className="mb-5 text-xl font-bold tracking-tight">Telegram</h1>
         <TgSetup />
       </main>
     )
@@ -125,7 +125,7 @@ export default async function Page({
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-[17px] font-semibold">
+          <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
             Telegram
             <Info side="bottom" text={t(locale, 'telegram.page.tooltip')} />
           </h1>

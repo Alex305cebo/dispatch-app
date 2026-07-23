@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 // Guarded delete: a ✕ that opens a password confirm and calls a server action
 // (id, password). Used for documents and loads — anything whose removal must land
 // in the Log. The action verifies the SIGNED-IN user's own login password and
@@ -87,13 +88,10 @@ export function DeleteButton({
               >
                 {t(locale, 'common.cancel')}
               </button>
-              <button
-                disabled={pending || !password}
-                onClick={submit}
-                className="rounded-xl bg-bad-500 px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-bad-400 disabled:opacity-40"
-              >
+              <Button variant="danger" disabled={pending || !password}
+                onClick={submit}>
                 {pending ? t(locale, 'common.deleting') : t(locale, 'common.delete')}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

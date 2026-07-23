@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 // Upload + list + library for documents. Server pages fetch the metadata and pass
 // it in; the file itself travels through the uploadDocument server action (≤8MB).
 // Deleting is guarded (name + PIN) and audited — see DeleteDialog / deleteDocument.
@@ -164,13 +165,10 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
           >
             {t(locale, 'docs.delete.cancel')}
           </button>
-          <button
-            disabled={pending || !password}
-            onClick={submit}
-            className="rounded-xl bg-bad-500 px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-bad-400 disabled:opacity-40"
-          >
+          <Button variant="danger" disabled={pending || !password}
+            onClick={submit}>
             {pending ? t(locale, 'docs.delete.deleting') : t(locale, 'docs.delete.confirm')}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -192,10 +190,15 @@ function DocRow({
   onDelete: (d: DocMeta) => void
 }) {
   const locale = useLocale()
+  // items-start, and the size/date moved UNDER the filename rather than beside it. In
+  // the truck page's half-width column the old single row gave the filename whatever
+  // was left after a type pill, a size, a date and a delete button — measured at
+  // "Certificate of Insurance.pdf" losing 89px to the ellipsis, which is the whole
+  // point of a filename.
   return (
-    <li className="flex items-center gap-3 rounded-lg border border-white/6 px-3 py-2">
+    <li className="flex items-start gap-2.5 rounded-lg border border-white/6 px-3 py-2">
       <span
-        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${KIND_TONE[doc.kind]}`}
+        className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-2xs font-medium ${KIND_TONE[doc.kind]}`}
       >
         {docKindLabel(doc.kind, locale)}
       </span>
@@ -203,19 +206,20 @@ function DocRow({
         {/* Viewer, not the raw file — see components/ratecon-button.tsx. */}
         <a
           href={`/view/${doc.id}`}
-          className="block truncate text-[14px] text-white/85 hover:text-haul-400 hover:underline"
+          className="block truncate text-md text-white/85 hover:text-haul-400 hover:underline"
+          title={doc.title}
         >
           {doc.title}
         </a>
         {(from || to) && (
-          <div className="truncate text-[11px] text-white/45">
+          <div className="truncate text-xs text-white/45">
             {from ?? '—'} → {to ?? '—'}
           </div>
         )}
+        <span className="nums block text-xs text-white/40">
+          {fmtSize(doc.sizeBytes)} · {doc.uploadedAt.slice(0, 10)}
+        </span>
       </div>
-      <span className="nums shrink-0 text-[11px] text-white/45">
-        {fmtSize(doc.sizeBytes)} · {doc.uploadedAt.slice(0, 10)}
-      </span>
       {showLinks && doc.truckId && (
         <a
           href={`/trucks/${doc.truckId}`}

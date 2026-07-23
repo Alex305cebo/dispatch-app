@@ -13,6 +13,7 @@
     "@neondatabase/serverless": "^1.1.0",
     "@tailwindcss/postcss": "^4.3.3",
     "leaflet": "^1.9.4",
+    "lucide-react": "^1.25.0",
     "motion": "^12.42.2",
     "next": "^15.5.4",
     "nodemailer": "^9.0.3",

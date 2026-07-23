@@ -34,6 +34,25 @@ export function deadheadEstimate(truck: LatLng, origin: LatLng): number {
   return Math.round(haversineMiles(truck, origin) * CIRCUITY)
 }
 
+/**
+ * Snap a coordinate onto a ~3.5 mile grid, for the CACHE KEY of anything looked up by
+ * a moving truck's position — road routes and weather alerts both do this.
+ *
+ * Both caches used to key on the coordinate rounded to 0.01° (~0.7 mi). A truck at
+ * highway speed leaves that cell in about 40 seconds, so their 30-minute TTLs never
+ * got a single hit while a truck was rolling: every page load re-asked a free
+ * external service and left another row behind in `settings`. 0.05° holds one cell
+ * for ~3.5 minutes of driving.
+ *
+ * This is the accuracy/traffic dial: widen it for cheaper caching, shrink it for a
+ * fresher answer.
+ */
+export const CACHE_CELL_DEG = 0.05
+
+export function cacheCell(n: number): string {
+  return (Math.round(n / CACHE_CELL_DEG) * CACHE_CELL_DEG).toFixed(2)
+}
+
 /** Compass bearing (0-360, 0=north, clockwise) from `a` to `b` — points the moving-
  * truck arrow at its actual direction of travel instead of a fixed "up". */
 export function bearing(a: LatLng, b: LatLng): number {

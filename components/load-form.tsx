@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 import { useState, useTransition } from 'react'
 import { MotionConfig } from 'motion/react'
 import { calcLoad } from '@/lib/profit'
@@ -193,13 +194,10 @@ export function LoadForm({
             </div>
           )}
 
-          <button
-            onClick={save}
-            disabled={pending || !!calcError}
-            className="mt-5 w-full rounded-xl bg-haul-500 py-3 text-[15px] font-semibold text-white transition-all hover:bg-haul-400 disabled:cursor-not-allowed disabled:bg-white/8 disabled:text-white/55"
-          >
+          <Button variant="primary" size="lg" block className="mt-5 disabled:cursor-not-allowed" onClick={save}
+            disabled={pending || !!calcError}>
             {pending ? tr(locale, 'loadForm.saving') : tr(locale, 'loadForm.saveLoad')}
-          </button>
+          </Button>
           {error && <p className="mt-2 text-[13px] text-bad-400">{error}</p>}
         </section>
 

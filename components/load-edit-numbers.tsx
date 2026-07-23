@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 // The load's "Детали" panel — read view by default, "Изменить" flips every field to
 // an input so the dispatcher can fix whatever the RC parse got wrong. All fields
 // feed the profit calc, so saving refreshes the page with new numbers.
@@ -124,13 +125,10 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
         <Field label={t(locale, 'loadEdit.delivery')} value={f.deliveryDate} onChange={set('deliveryDate')} type="date" />
       </div>
       <div className="flex gap-2">
-        <button
-          disabled={pending}
-          onClick={save}
-          className="rounded-lg bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
-        >
+        <Button variant="primary" disabled={pending}
+          onClick={save}>
           {pending ? t(locale, 'loadEdit.saving') : t(locale, 'loadEdit.save')}
-        </button>
+        </Button>
         <button
           onClick={() => setEditing(false)}
           className="rounded-lg px-4 py-2 text-[13px] text-white/70 transition-colors hover:text-white"

@@ -2,7 +2,7 @@
 // Pure presentation: lib/trip-history.ts does the actual clustering.
 
 import { Fragment } from 'react'
-import type { HistoryLeg } from '@/lib/trip-history'
+import { DAY_MS, daySpans, startOfDay, type HistoryLeg } from '@/lib/trip-history'
 import { driveTime } from '@/lib/fmt'
 import { t, type Locale } from '@/lib/i18n'
 
@@ -19,6 +19,56 @@ function rangeLabel(from: string, to: string, locale: Locale): string {
   const tf = timeOf(from, locale)
   const tt = timeOf(to, locale)
   return dateOf(from, locale) === dateOf(to, locale) ? `${tf}–${tt}` : `${tf}–${tt} (${dateShort(to, locale)})`
+}
+
+/**
+ * One day as a 24-hour ribbon: green where the truck rolled, grey where it sat, amber
+ * for a long rest. The list below already had every one of these facts in words, but
+ * a column of "09:14–11:02 · 2 ч" never shows the SHAPE of a day — and the shape is
+ * the useful part. A six-hour grey block wedged between two drives is detention, and
+ * detention is billable; in the text list it looks identical to an overnight.
+ *
+ * Legs are clipped to the day they're drawn on, so one that runs past midnight shows
+ * on both days rather than overflowing the bar.
+ */
+function DayRibbon({ dayMs, legs, locale }: { dayMs: number; legs: HistoryLeg[]; locale: Locale }) {
+  // Geometry lives in lib/trip-history.ts and is unit-tested there (midnight-crossing
+  // legs are the case that silently breaks) — this component only paints it.
+  const spans = daySpans(legs, dayMs)
+  const driveMin = spans
+    .filter((s) => s.leg.kind === 'drive')
+    .reduce((sum, s) => sum + (s.toMs - s.fromMs) / 60000, 0)
+
+  return (
+    <li className="px-1 pb-1">
+      <div className="relative h-2.5 overflow-hidden rounded-full bg-white/6">
+        {spans.map((s, i) => (
+          <span
+            key={i}
+            title={`${timeOf(new Date(s.fromMs).toISOString(), locale)}–${timeOf(new Date(s.toMs).toISOString(), locale)}`}
+            className={`absolute inset-y-0 ${
+              s.leg.kind === 'drive'
+                ? 'bg-good-400'
+                : s.leg.long
+                  ? 'bg-warn-400/80'
+                  : 'bg-white/25'
+            }`}
+            style={{ left: `${s.leftPct}%`, width: `${s.widthPct}%` }}
+          />
+        ))}
+      </div>
+      <div className="mt-1 flex justify-between text-[9px] tabular-nums text-white/25">
+        {['00', '06', '12', '18', '24'].map((h) => (
+          <span key={h}>{h}</span>
+        ))}
+      </div>
+      {driveMin > 0 && (
+        <div className="mt-0.5 text-[10px] text-white/40">
+          {t(locale, 'trucks.trip.wheelsTurning')} {driveTime(Math.round(driveMin), locale)}
+        </div>
+      )}
+    </li>
+  )
 }
 
 export function TripHistory({ legs, locale }: { legs: HistoryLeg[]; locale: Locale }) {
@@ -45,9 +95,22 @@ export function TripHistory({ legs, locale }: { legs: HistoryLeg[]; locale: Loca
                 window is just a wall of times with no way to tell where one day ends
                 and the next begins. */}
             {isNewDay && (
-              <li className="mt-1.5 px-1 text-[11px] font-semibold uppercase tracking-wider text-white/40 first:mt-0">
-                {day}
-              </li>
+              <>
+                <li className="mt-2.5 px-1 text-2xs font-semibold uppercase tracking-wider text-white/40 first:mt-0">
+                  {day}
+                </li>
+                {/* Every leg belonging to this calendar day, not just the ones after
+                    this divider — a leg that began yesterday evening still occupies
+                    this morning's hours and has to be drawn. */}
+                <DayRibbon
+                  dayMs={startOfDay(Date.parse(leg.from))}
+                  legs={legs.filter((l) => {
+                    const d0 = startOfDay(Date.parse(leg.from))
+                    return Date.parse(l.to) > d0 && Date.parse(l.from) < d0 + DAY_MS
+                  })}
+                  locale={locale}
+                />
+              </>
             )}
             <li
               className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-[12.5px] ${

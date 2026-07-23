@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 // The care tab of a truck: oil countdown + passport, the to-fix list, and the
 // maintenance log. All writes go through server actions; lists arrive from the
 // server page and refresh via revalidatePath.
@@ -242,15 +243,12 @@ export function TruckCare({
             <div />
 
             <div className="sm:col-span-3">
-              <button
-                disabled={pending}
+              <Button variant="primary" disabled={pending}
                 onClick={() =>
                   run(() => saveTruckMeta(truckId, m), t(locale, 'trucks.care.passportSaved'), () => setEditMeta(false))
-                }
-                className="rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-50"
-              >
+                }>
                 {t(locale, 'trucks.care.savePassport')}
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -318,13 +316,10 @@ export function TruckCare({
             <option value="normal">{t(locale, 'trucks.care.prioNormal')}</option>
             <option value="urgent">{t(locale, 'trucks.care.prioUrgentOption')}</option>
           </select>
-          <button
-            disabled={pending || !todoTitle.trim()}
-            onClick={() => run(() => addTodo(truckId, todoTitle, todoPrio), t(locale, 'trucks.care.addedTodo'), () => setTodoTitle(''))}
-            className="shrink-0 rounded-xl bg-haul-500 px-4 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
-          >
+          <Button variant="primary" className="shrink-0" disabled={pending || !todoTitle.trim()}
+            onClick={() => run(() => addTodo(truckId, todoTitle, todoPrio), t(locale, 'trucks.care.addedTodo'), () => setTodoTitle(''))}>
             +
-          </button>
+          </Button>
         </div>
 
         {todos.length === 0 ? (
@@ -370,12 +365,9 @@ export function TruckCare({
             {t(locale, 'trucks.care.logHeading')}
             <Info text={t(locale, 'trucks.care.logInfo')} />
           </h2>
-          <button
-            onClick={() => setShowMaint((v) => !v)}
-            className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400"
-          >
+          <Button variant="primary" size="sm" onClick={() => setShowMaint((v) => !v)}>
             {showMaint ? t(locale, 'trucks.care.hide') : t(locale, 'trucks.care.addRecord')}
-          </button>
+          </Button>
         </div>
 
         {/* Receipt/paperwork for a repair — lands in the truck's own Documents
@@ -431,18 +423,15 @@ export function TruckCare({
             </label>
             <TextField label={t(locale, 'trucks.care.notesLabel')} value={mt.notes} onChange={(v) => setMt({ ...mt, notes: v })} />
             <div className="sm:col-span-2">
-              <button
-                disabled={pending || !mt.title.trim()}
+              <Button variant="primary" disabled={pending || !mt.title.trim()}
                 onClick={() =>
                   run(() => addMaintenance(truckId, mt), t(locale, 'trucks.care.recordAdded'), () => {
                     setShowMaint(false)
                     setMt({ ...mt, title: '', notes: '', cost: null })
                   })
-                }
-                className="rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
-              >
+                }>
                 {t(locale, 'trucks.care.saveRecord')}
-              </button>
+              </Button>
               <span className="ml-3 text-[12px] text-white/45">
                 {t(locale, 'trucks.care.oilResetHint')}
               </span>

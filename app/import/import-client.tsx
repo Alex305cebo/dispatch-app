@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/button'
 import { useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import type { TruckRecord } from '@/lib/map'
@@ -309,17 +310,14 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
       {error && (
         <div className="mt-3 max-w-sm">
           <p className="text-[13px] text-bad-400">{error}</p>
-          <button
-            type="button"
+          <Button variant="primary" size="sm" className="mt-2" type="button"
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
               handle(lastFile)
-            }}
-            className="mt-2 rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-haul-400"
-          >
+            }}>
             {t(locale, 'import.retryScan')}
-          </button>
+          </Button>
         </div>
       )}
     </motion.label>

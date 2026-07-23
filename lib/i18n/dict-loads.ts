@@ -16,9 +16,10 @@ export const loadsDict = {
     en: '"By driver" groups loads by truck. "By status" is a color-coded board — one column per load status, so you can see everything at a glance instead of opening each driver in turn. "Calendar" is the full load history by week, paged back and forward. "Net" is what\'s left after all truck expenses; the number after the dot is revenue per mile (RPM).',
   },
   'loads.page.countSuffix': { ru: '{n} шт.', en: '{n} load(s)' },
-  'loads.page.new': { ru: '+ Новый', en: '+ New' },
+  'loads.page.new': { ru: 'Новый', en: 'New' },
   'loads.page.tabByDriver': { ru: 'По водителю', en: 'By driver' },
   'loads.page.tabByStatus': { ru: 'По статусу', en: 'By status' },
+  'loads.page.showMore': { ru: 'ещё {n}', en: '{n} more' },
   'loads.page.tabCalendar': { ru: 'Календарь', en: 'Calendar' },
   'loads.page.emptyTitle': { ru: 'Пока пусто', en: 'Nothing here yet' },
   'loads.page.emptyText': {
@@ -335,6 +336,10 @@ export const loadsDict = {
     en: 'Net profit divided by transit days — how much the load earns per day, so loads of different lengths can be compared.',
   },
   'analysis.gross': { ru: 'Гросс', en: 'Gross' },
+  // Short forms for the rate-split bar's legend, where the full labels
+  // ("Топливо · 960 mi @ 6.5 mpg") would wrap the whole row.
+  'analysis.fuelShort': { ru: 'Топливо', en: 'Fuel' },
+  'analysis.netShort': { ru: 'Чистыми', en: 'Net' },
   'analysis.fuelLabel': { ru: 'Топливо · {miles} mi @ {mpg} mpg', en: 'Fuel · {miles} mi @ {mpg} mpg' },
   'analysis.fuelHint': {
     ru: 'Топливо на этот груз: мили ÷ расход (MPG) × цена дизеля. MPG и цену дизеля меняешь ниже, в «Расходы трака».',
