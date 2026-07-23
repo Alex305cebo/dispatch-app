@@ -9,7 +9,7 @@
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale } from '@/lib/i18n'
 
-export function LocaleToggle() {
+export function LocaleToggle({ collapsed = false }: { collapsed?: boolean }) {
   const locale = useLocale()
   const target: Locale = locale === 'ru' ? 'en' : 'ru'
 
@@ -23,7 +23,7 @@ export function LocaleToggle() {
       onClick={choose}
       aria-label={t(locale, target === 'en' ? 'nav.switchToEnglish' : 'nav.switchToRussian')}
       title={target === 'en' ? 'English' : 'Русский'}
-      className="flex size-9 items-center justify-center rounded-full border border-white/10 bg-ink-800/80 text-[11px] font-bold uppercase transition-colors hover:border-white/25"
+      className={`nav-icon-btn flex size-9 items-center justify-center rounded-full border border-white/10 text-[11px] font-bold uppercase hover:border-white/25 ${collapsed ? 'is-collapsed' : ''}`}
     >
       {target}
     </button>

@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 
-export function ThemeToggle() {
+export function ThemeToggle({ collapsed = false }: { collapsed?: boolean }) {
   const locale = useLocale()
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
 
@@ -34,7 +34,7 @@ export function ThemeToggle() {
       aria-label={t(locale, theme === 'dark' ? 'theme.light' : 'theme.dark')}
       title={t(locale, theme === 'dark' ? 'theme.light' : 'theme.dark')}
       // Inline: lives in the nav next to the bell, not floating over the page.
-      className="flex size-9 items-center justify-center rounded-full border border-white/10 bg-ink-800/80 text-[15px] transition-colors hover:border-white/25"
+      className={`nav-icon-btn flex size-9 items-center justify-center rounded-full border border-white/10 text-[15px] hover:border-white/25 ${collapsed ? 'is-collapsed' : ''}`}
     >
       {theme === 'dark' ? '☀️' : '🌙'}
     </button>

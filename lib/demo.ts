@@ -344,6 +344,7 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       notes:
         '[SAFETY] PPE required on site — hard hat and vest.\n' +
         '[LOAD] Hard pallet, do not exceed 44,000 lbs, rear load.\n' +
+        '[PENALTY] Detention $65/hr after 2 hours free time, billed in 30-min increments.\n' +
         '[REF] PO# 88213-DAL, BOL# 55210\n' +
         '[CONTACT] Yard dispatcher: Maria, (555) 010-0142',
       unread: true,
@@ -368,6 +369,8 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       notes:
         '[SCHEDULE] Appointment strictly FCFS, window 08:00–10:00, do not be late.\n' +
         '[DOCS] Rate con and BOL required at delivery — load will not be accepted without them.\n' +
+        '[PENALTY] TONU $250 if load is cancelled after dispatch confirmation.\n' +
+        '[INSURANCE] Certificate of Insurance on file, limits $1,000,000 auto / $100,000 cargo.\n' +
         '[REF] Load# CHI-4471, Ref# 90042',
       unread: true,
     },
@@ -389,8 +392,10 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       pickupTime: rcTime(-1, '07:00', 'FCFS'),
       deliveryTime: rcTime(1, '16:00', 'Appt'),
       notes:
-        '[PENALTY] Detention $75/hr after 2 hours free time, driver pays lumper, reimbursed by receipt.\n' +
+        '[PENALTY] Detention $75/hr after 2 hours free time, driver pays lumper up to $125, reimbursed by receipt.\n' +
         '[WARNING] TWIC card required for port access.\n' +
+        '[SCHEDULE] Delivery appointment 14:00–16:00, call 1 hour ahead.\n' +
+        '[DOCS] POD required within 24 hours of delivery, no exceptions.\n' +
         '[REF] Order# ATL-2290',
       unread: true,
     },
@@ -414,6 +419,8 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       notes:
         '[INSURANCE] Certificate of Insurance required, limits $1,000,000, send to broker before pickup.\n' +
         '[DOCS] POD required within 24 hours of delivery.\n' +
+        '[PENALTY] Detention $60/hr after 2 hours free time at both stops.\n' +
+        '[LOAD] Do not exceed 43,500 lbs, no double-stacking.\n' +
         '[CONTACT] Broker after-hours: (555) 010-0199',
       unread: false,
     },
@@ -434,7 +441,12 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       delivery: dateAt(-11),
       pickupTime: rcTime(-13, '07:00', 'FCFS'),
       deliveryTime: rcTime(-11, '15:00', 'No live unload'),
-      notes: '[SCHEDULE] Pickup FCFS 07:00–15:00, no live unload.\n[REF] PO# DEN-1187',
+      notes:
+        '[SCHEDULE] Pickup FCFS 07:00–15:00, no live unload.\n' +
+        '[PENALTY] Detention $70/hr after 2 hours free time, TONU $300 if cancelled after dispatch.\n' +
+        '[DOCS] Signed rate con required before dispatch; POD due within 24 hours.\n' +
+        '[INSURANCE] Certificate of Insurance on file, limits $1,000,000.\n' +
+        '[REF] PO# DEN-1187, BOL# 41187',
       unread: false,
       paid: true,
     },
@@ -495,6 +507,51 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
   ] as const
   const WEEKS_BACK = [2, 4, 7] // how far back each of the 3 historical loads lands
 
+  // Same "all the broker figures" richness as the five showcase loads above, just
+  // generated instead of hand-written — real detention/TONU/lumper dollar amounts,
+  // appointment windows, weight caps and a named yard contact, rotating through a
+  // handful of profiles so the 24 historical loads don't all read identically.
+  const CONTACTS = ['Maria', 'James', 'Priya', 'Diego', 'Emma', 'Noah', 'Layla', 'Owen'] as const
+  function historicalNotes(refId: string, idx: number): string {
+    const detentionRate = 50 + (idx % 4) * 15 // $50–$95/hr
+    const freeHours = 2 + (idx % 3) // 2–4 hrs
+    const tonu = 150 + (idx % 5) * 50 // $150–$350
+    const lumper = 75 + (idx % 4) * 25 // $75–$150
+    const insuranceLimit = idx % 2 === 0 ? '1,000,000' : '2,000,000'
+    const apptWindow = idx % 3 === 0 ? '07:00–09:00' : idx % 3 === 1 ? '08:00–10:00' : '06:00–08:00'
+    const weightCap = (42_000 + (idx % 4) * 1_000).toLocaleString('en-US')
+    const contact = CONTACTS[idx % CONTACTS.length]
+    const contactPhone = `(555) 0${(idx % 9) + 10}-${1000 + idx * 7}`
+
+    const PROFILES = [
+      [
+        `[PENALTY] Detention $${detentionRate}/hr after ${freeHours} hours free time, TONU $${tonu} if load is cancelled after dispatch.`,
+        `[SCHEDULE] Appointment window ${apptWindow}, FCFS — no exceptions.`,
+        `[DOCS] Rate con and BOL required at delivery; POD due within 24 hours.`,
+        `[REF] PO# ${refId}, Load# ${refId}-L`,
+      ],
+      [
+        `[LOAD] Do not exceed ${weightCap} lbs, hard pallet, no double-stacking.`,
+        `[INSURANCE] Certificate of Insurance required, limits $${insuranceLimit}, on file before pickup.`,
+        `[CONTACT] Yard dispatcher: ${contact}, ${contactPhone}.`,
+        `[REF] PO# ${refId}`,
+      ],
+      [
+        `[PENALTY] Lumper fee up to $${lumper}, driver pays and submits receipt for reimbursement.`,
+        `[SAFETY] Hard hat and hi-vis vest required on site at all times.`,
+        `[WARNING] Scale ticket required at pickup — do not leave without it.`,
+        `[REF] Order# ${refId}`,
+      ],
+      [
+        `[SCHEDULE] Strict appointment ${apptWindow}, no live unload — drop and hook only.`,
+        `[PENALTY] Detention $${detentionRate}/hr after ${freeHours} hrs, billed in 30-min increments.`,
+        `[DOCS] Signed rate con required before dispatch; POD required within 24 hrs of delivery.`,
+        `[REF] PO# ${refId}, BOL# ${refId}-B`,
+      ],
+    ]
+    return PROFILES[idx % PROFILES.length]!.join('\n')
+  }
+
   for (const [i, truckId] of truckIds.entries()) {
     for (const [j, weeks] of WEEKS_BACK.entries()) {
       const route = ROUTE_POOL[(i * 3 + j) % ROUTE_POOL.length]!
@@ -506,6 +563,7 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       const pickupOffset = deliverOffset - 2
       const refId = `${origin.slice(0, 3).toUpperCase()}-${9000 + i * 10 + j}`
       const brokerEmail = `ops@${broker.name.toLowerCase().replace(/[^a-z]+/g, '')}-demo.com`
+      const notes = historicalNotes(refId, i * 3 + j)
 
       const rows = await sql`
         INSERT INTO loads (rate, spot_rpm, loaded_miles, deadhead_miles, transit_days, origin, destination,
@@ -513,7 +571,7 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
                            pickup_date, delivery_date, pickup_time, delivery_time,
                            source, truck_id, status, dispatcher_id, company_id, invoiced_at, paid_at)
         VALUES (${rate}, ${Math.round((rpm - 0.15) * 100) / 100}, ${milesL}, ${milesD}, 2, ${origin}, ${destination},
-                ${broker.mc}, ${brokerEmail}, ${broker.phone}, ${refId}, ${'[REF] PO# ' + refId}, ${isoAt(deliverOffset)},
+                ${broker.mc}, ${brokerEmail}, ${broker.phone}, ${refId}, ${notes}, ${isoAt(deliverOffset)},
                 ${dateAt(pickupOffset)}, ${dateAt(deliverOffset)}, ${rcTime(pickupOffset, '08:00', 'FCFS')},
                 ${rcTime(deliverOffset, '14:00', 'Appt')},
                 'manual', ${truckId}, 'paid', ${dispatcherId}, 'demo',

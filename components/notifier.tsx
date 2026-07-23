@@ -13,7 +13,7 @@ const TONE: Record<NoteKind, { dot: string; text: string }> = {
   msg: { dot: 'bg-haul-400', text: 'text-haul-400' },
 }
 
-export function Notifier() {
+export function Notifier({ collapsed = false }: { collapsed?: boolean }) {
   const notes = useNotes()
   const locale = useLocale()
   const [open, setOpen] = useState(false)
@@ -125,14 +125,17 @@ export function Notifier() {
           unread > 0 ? t(locale, 'notifier.ariaWithCount').replace('{n}', String(unread)) : t(locale, 'notifier.aria')
         }
         aria-expanded={open}
-        className={`relative flex size-9 items-center justify-center rounded-full border backdrop-blur-xl transition-colors ${
+        // Sits out of the auto-collapse — a new notification staying visible is the
+        // whole point of a bell, so it never tucks away while something's unread.
+        className={`nav-icon-btn relative flex size-9 items-center justify-center rounded-full border ${
+          collapsed && unread === 0 ? 'is-collapsed' : ''
+        } ${
           worst === 'error'
-            ? 'border-bad-500/40 bg-bad-500/15 text-bad-400'
+            ? 'tone-error border-bad-500/40 text-bad-400'
             : worst === 'warn'
-              ? 'border-amber-400/40 bg-amber-400/12 text-amber-300'
-              : 'border-white/10 bg-ink-800/80 text-white/72 hover:text-white/90'
+              ? 'tone-warn border-amber-400/40 text-amber-300'
+              : 'border-white/10 text-white/72 hover:text-white/90'
         }`}
-        style={{ boxShadow: '0 8px 30px -8px rgba(0,0,0,0.8)' }}
       >
         <svg
           viewBox="0 0 24 24"

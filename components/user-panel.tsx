@@ -23,7 +23,19 @@ function initialsOf(name: string): string {
   return (parts[0]![0]! + parts[1]![0]!).toUpperCase()
 }
 
-export function UserPanel({ user }: { user: CurrentUser }) {
+export function UserPanel({
+  user,
+  dockCollapsed = false,
+  onExpandDock,
+}: {
+  user: CurrentUser
+  /** Whether the sibling icons (locale/notifications/journal/theme) are currently
+   * tucked away (components/nav.tsx). When they are, the FIRST tap on the avatar
+   * just brings them back instead of opening the profile popover — a second tap,
+   * once they're out, opens it as before. */
+  dockCollapsed?: boolean
+  onExpandDock?: () => void
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const locale = useLocale()
@@ -50,6 +62,14 @@ export function UserPanel({ user }: { user: CurrentUser }) {
     }
   }, [open])
 
+  function onAvatarClick() {
+    if (dockCollapsed && onExpandDock) {
+      onExpandDock()
+      return
+    }
+    setOpen((v) => !v)
+  }
+
   function savePassword() {
     start(async () => {
       const res = await changeMyPassword(pw)
@@ -71,16 +91,20 @@ export function UserPanel({ user }: { user: CurrentUser }) {
   return (
     <div className="relative" ref={panelRef}>
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={onAvatarClick}
         title={user.name}
         aria-label={user.name}
-        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-haul-500/35 to-good-500/25 text-[12px] font-semibold text-white/85 ring-1 ring-white/10 transition-colors hover:ring-white/25"
+        className="nav-avatar-btn flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-haul-500 to-good-500 text-[12px] font-semibold text-white"
       >
         {initialsOf(user.name)}
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-0 z-20 mb-2 w-64 rounded-xl border border-white/10 bg-ink-900 p-3.5 pr-9 shadow-2xl">
+        // right-0, not left-0: the avatar now sits at the row's right/trailing
+        // edge (near the phone's screen edge), so anchoring the popover's LEFT
+        // edge there sent most of its 16rem width off-screen — extending
+        // leftward from the avatar's right edge keeps the whole thing on screen.
+        <div className="absolute bottom-full right-0 z-20 mb-2 w-64 rounded-xl border border-white/10 bg-ink-900 p-3.5 pr-9 shadow-2xl">
           <button
             type="button"
             aria-label={t(locale, 'userPanel.close')}

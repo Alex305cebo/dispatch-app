@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Notifier } from '@/components/notifier'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { LocaleToggle } from '@/components/locale-toggle'
@@ -94,6 +94,32 @@ export function Nav({
   const router = useRouter()
   const locale = useLocale()
   const brand = brandName(companyName)
+
+  // Phone only (see the md: reset in globals.css's .nav-icon-btn): the icon row
+  // starts open, same as before, then tucks itself behind the avatar after a few
+  // idle seconds so it stops competing with the page for thumb space. Tapping the
+  // avatar while collapsed brings it back (UserPanel intercepts that first tap);
+  // any tap inside the row — including that reveal — restarts the countdown.
+  const [dockExpanded, setDockExpanded] = useState(true)
+  const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function bumpDockTimer() {
+    if (collapseTimer.current) clearTimeout(collapseTimer.current)
+    collapseTimer.current = setTimeout(() => setDockExpanded(false), 5000)
+  }
+
+  useEffect(() => {
+    bumpDockTimer()
+    return () => {
+      if (collapseTimer.current) clearTimeout(collapseTimer.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function expandDock() {
+    setDockExpanded(true)
+    bumpDockTimer()
+  }
   const hidden = new Set<string>()
   if (!showTelegram) hidden.add('/telegram')
   if (!showFinances) hidden.add('/invoices')
@@ -117,10 +143,15 @@ export function Nav({
   return (
     <nav
       className={[
-        // Phone: bottom bar (utility strip + tabs). Desktop: left sidebar. Same element.
-        'fixed inset-x-0 bottom-0 z-50 flex flex-col border-t border-white/8',
-        'bg-ink-950/80 px-2 pt-1 backdrop-blur-xl',
-        'md:inset-y-0 md:right-auto md:w-52 md:justify-start md:border-r md:border-t-0 md:p-3',
+        // Phone: bottom bar (utility strip + tabs). Desktop: left sidebar. Same
+        // element — but only the sidebar carries a panel of its own now. On the
+        // phone, nothing here has a background at all: every tab and icon button
+        // floats directly over the page, relying on its own text/icon contrast
+        // (and, for the top icon row, its own shadow-only 3D look) to read —
+        // there's no bar underneath any of it to lean on.
+        'fixed inset-x-0 bottom-0 z-50 flex flex-col',
+        'px-2 pt-1',
+        'md:inset-y-0 md:right-auto md:w-52 md:justify-start md:border-r md:border-white/8 md:bg-ink-950/80 md:p-3 md:backdrop-blur-xl',
       ].join(' ')}
       // A fixed bar sits against the viewport, so body's safe-area padding does not
       // protect it — without this it lands under the iPhone home indicator.
@@ -151,7 +182,7 @@ export function Nav({
                 </span>
               )}
             </span>
-            <span className="max-w-full truncate text-[10px] font-medium md:text-[13px]">{t(locale, it.labelKey)}</span>
+            <span className="max-w-full truncate text-[11px] font-medium md:text-[13px]">{t(locale, it.labelKey)}</span>
             {it.soon && (
               <span className="ml-auto hidden rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-white/62 md:inline">
                 {t(locale, 'nav.soon')}
@@ -161,7 +192,7 @@ export function Nav({
         )
 
         const shape =
-          'flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-2 transition-colors md:flex-none md:flex-row md:gap-3 md:px-3 md:py-2.5'
+          'nav-tab-btn flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl border px-1 py-2 md:flex-none md:flex-row md:gap-3 md:px-3 md:py-2.5'
 
         if (it.soon) {
           return (
@@ -182,9 +213,7 @@ export function Nav({
             href={it.href}
             aria-current={active ? 'page' : undefined}
             className={`${shape} ${it.desktopOnly ? 'max-md:hidden' : ''} ${
-              active
-                ? 'bg-haul-500/12 text-haul-400 md:bg-white/6 md:text-white'
-                : 'text-white/70 hover:text-white/90 md:hover:bg-white/4'
+              active ? 'text-haul-400 md:text-white' : 'text-white/70 hover:text-white/90'
             }`}
           >
             {body}
@@ -198,28 +227,32 @@ export function Nav({
           meant the account menu, Журнал and even the logout button were completely
           unreachable below the md breakpoint (reported live: "the block disappeared,
           can't do anything"). Admin/logout now live inside UserPanel's own popover. */}
-      <div className="order-first mb-1.5 flex items-center justify-end gap-1.5 px-1 pb-1 md:order-none md:mt-auto md:justify-start md:px-0 md:pb-0">
+      <div
+        className="order-first mb-1.5 flex items-center justify-end px-1 pb-1 md:order-none md:mt-auto md:justify-start md:px-0 md:pb-0"
+        // Bubbles up from any button inside (locale/bell/journal/theme, and the
+        // avatar's own reveal tap) — any interaction in the row restarts the
+        // 5-second idle countdown, not just the tap that first opened it.
+        onClickCapture={bumpDockTimer}
+      >
+        <LocaleToggle collapsed={!dockExpanded} />
+        <Notifier collapsed={!dockExpanded} />
         {user && (
-          <>
-            <UserPanel user={user} />
-            <Link
-              href="/logins"
-              title={t(locale, 'nav.journal')}
-              aria-label={t(locale, 'nav.journal')}
-              aria-current={pathname.startsWith('/logins') ? 'page' : undefined}
-              className={`flex size-9 items-center justify-center rounded-full border transition-colors ${
-                pathname.startsWith('/logins')
-                  ? 'border-haul-500/50 text-haul-400'
-                  : 'border-white/10 bg-ink-800/80 text-white/72 hover:border-white/25 hover:text-white/90'
-              }`}
-            >
-              <Icon d={icons.history} />
-            </Link>
-          </>
+          <Link
+            href="/logins"
+            title={t(locale, 'nav.journal')}
+            aria-label={t(locale, 'nav.journal')}
+            aria-current={pathname.startsWith('/logins') ? 'page' : undefined}
+            className={`nav-icon-btn flex size-9 items-center justify-center rounded-full border ${!dockExpanded ? 'is-collapsed' : ''} ${
+              pathname.startsWith('/logins')
+                ? 'border-haul-500/50 text-haul-400'
+                : 'border-white/10 text-white/72 hover:border-white/25 hover:text-white/90'
+            }`}
+          >
+            <Icon d={icons.history} />
+          </Link>
         )}
-        <Notifier />
-        <LocaleToggle />
-        <ThemeToggle />
+        <ThemeToggle collapsed={!dockExpanded} />
+        {user && <UserPanel user={user} dockCollapsed={!dockExpanded} onExpandDock={expandDock} />}
       </div>
     </nav>
   )
