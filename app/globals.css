@@ -357,6 +357,9 @@
     opacity: 1;
     margin-right: 0.5rem;
     pointer-events: auto;
+    /* The phone dock's collapse also slides + scales the button (0.85) — reset it here
+       too, or desktop buttons render at 31px once the 5s idle timer fires. */
+    transform: none;
   }
 }
 
@@ -480,8 +483,25 @@
     padding-left: 0;
     padding-right: 0;
   }
-  .nav-collapsed .nav-account-row {
+  /* Account buttons on desktop: a real gap (the margin-based collapse animation is
+     phone-only, so it never runs here) and flex:none, so each button keeps its round
+     36px shape instead of squishing to an oval when the row is tight — it wraps to a
+     second line instead. */
+  .nav-account-row {
     flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-start;
+  }
+  .nav-account-row > * {
+    flex: none;
+  }
+  .nav-account-row .nav-icon-btn {
+    margin-right: 0;
+  }
+  /* Folded rail: one tidy centered column, evenly spaced. */
+  .nav-collapsed .nav-account-row {
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
   }
   /* Folded: logo over the (still-visible) chevron, so the unfold affordance stays. */
