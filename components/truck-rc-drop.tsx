@@ -15,6 +15,8 @@ import { rcWarnings, type RcWarning } from '@/lib/rc-warnings'
 import { createLoadFromRc, uploadDocument } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { BrokerCheckPanel } from '@/components/broker-check'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 type Result = {
   loadId: number
@@ -31,6 +33,7 @@ const WTONE = {
 }
 
 export function TruckRcDrop({ truckId }: { truckId: number }) {
+  const locale = useLocale()
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [stage, setStage] = useState('')
@@ -58,12 +61,12 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
     setLastFile(file)
     setError(null)
     setBusy(true)
-    setStage('Читаю файл…')
+    setStage(t(locale, 'rcDrop.stageReading'))
     setRes(null)
     try {
       const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
       const isImage = file.type.startsWith('image/')
-      if (!isPdf && !isImage) throw new Error('Нужен PDF или фото rate confirmation.')
+      if (!isPdf && !isImage) throw new Error(t(locale, 'newLoad.needPdfOrPhoto'))
 
       // 1) text (for warnings + cheap AI input) when it's a text PDF
       let text = ''
@@ -71,7 +74,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       const hasText = isPdf && !looksScanned(text)
 
       // 2) save the RC as a document on this truck
-      setStage('Сохраняю документ…')
+      setStage(t(locale, 'rcDrop.stageSaving'))
       const fd = new FormData()
       fd.append('file', file)
       fd.append('kind', 'ratecon')
@@ -82,40 +85,44 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       // 3) AI read (text for text-PDF, the file itself for scans/photos) — the only
       // recognizer that ever creates a load here; no regex fallback (a wrong guess
       // shouldn't get to auto-create a load, only a checked one should).
-      setStage(hasText ? 'Распознаю ИИ…' : 'Распознаю скан через ИИ — это до полутора минут…')
+      setStage(hasText ? t(locale, 'rcDrop.stageRecognizing') : t(locale, 'rcDrop.stageRecognizingScan'))
       const aiInput = hasText
         ? { text }
         : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf' }
       // One automatic retry before bothering the dispatcher — a slow scan is usually
       // just slow, not a real failure, and this clears most of them silently.
-      let ai = await aiParseRateCon(aiInput)
+      let ai = await aiParseRateCon(aiInput, locale)
       if (!ai.ok) {
-        setStage('Не получилось с первого раза — пробую ещё раз…')
+        setStage(t(locale, 'rcDrop.stageRetrying'))
         await new Promise((r) => setTimeout(r, 1500))
-        ai = await aiParseRateCon(aiInput)
+        ai = await aiParseRateCon(aiInput, locale)
       }
       if (!ai.ok) {
-        throw new Error(ai.reason === 'no_key' ? 'ИИ временно недоступен — обратись к администратору.' : `Не распознался: ${ai.detail ?? 'ИИ недоступен'}. Попробуй ещё раз.`)
+        throw new Error(
+          ai.reason === 'no_key'
+            ? t(locale, 'newLoad.aiUnavailable')
+            : t(locale, 'newLoad.notRecognized').replace('{detail}', ai.detail ?? t(locale, 'newLoad.aiUnavailableShort')),
+        )
       }
 
       // 4) create the load on THIS truck, attach the RC
-      setStage('Создаю груз…')
+      setStage(t(locale, 'rcDrop.stageCreating'))
       const made = await createLoadFromRc(truckId, toQrLoad(ai.fields), docId, formatDriverInfo(ai.fields))
       if ('error' in made) throw new Error(made.error)
 
       setRes({
         loadId: made.loadId,
         fields: ai.fields,
-        warnings: rcWarnings(ai.fields, text),
+        warnings: rcWarnings(ai.fields, text, locale),
         docId,
         fileName: file.name,
       })
-      notify('ok', 'Груз создан из rate con', file.name)
+      notify('ok', t(locale, 'rcDrop.createdToast'), file.name)
       router.refresh()
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       setError(msg)
-      notify('error', `Не прочитался: ${msg}`)
+      notify('error', t(locale, 'newLoad.notReadToast').replace('{msg}', msg))
     } finally {
       setBusy(false)
       setStage('')
@@ -129,20 +136,20 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-[13px] font-semibold text-good-400">
-            ✓ Груз создан · проверено ИИ
+            {t(locale, 'rcDrop.createdBadge')}
           </span>
           <div className="flex gap-2">
             <Link
               href={`/loads/${res.loadId}`}
               className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold hover:bg-haul-400"
             >
-              Открыть груз
+              {t(locale, 'rcDrop.openLoad')}
             </Link>
             <button
               onClick={() => setRes(null)}
               className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] text-white/75 hover:bg-white/5"
             >
-              ещё RC
+              {t(locale, 'rcDrop.anotherRc')}
             </button>
           </div>
         </div>
@@ -151,19 +158,19 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
             stored on the server with the load; this is a local copy. */}
         {res.docId && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[12px] text-white/55">Rate confirmation:</span>
+            <span className="text-[12px] text-white/55">{t(locale, 'import.rateConLabel')}</span>
             <a
               href={`/view/${res.docId}`}
               className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/85 hover:bg-white/5"
             >
-              Открыть
+              {t(locale, 'import.open')}
             </a>
             <a
               href={`/api/docs/${res.docId}?download=1`}
               download={res.fileName || 'rate-con.pdf'}
               className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/85 hover:bg-white/5"
             >
-              Сохранить на компьютер
+              {t(locale, 'docView.saveToComputer')}
             </a>
           </div>
         )}
@@ -171,7 +178,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
         {res.warnings.length > 0 && (
           <div>
             <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-              Проверь по грузу
+              {t(locale, 'rcDrop.checkOnLoad')}
             </p>
             <ul className="flex flex-col gap-1.5">
               {res.warnings.map((w, i) => (
@@ -196,15 +203,15 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
                 startCopy(async () => {
                   try {
                     await navigator.clipboard.writeText(driverInfo)
-                    notify('ok', 'Скопировано — можно слать водителю')
+                    notify('ok', t(locale, 'rcDrop.copiedToast'))
                   } catch {
-                    notify('warn', 'Браузер не дал буфер — выдели вручную')
+                    notify('warn', t(locale, 'rcDrop.clipboardDenied'))
                   }
                 })
               }
               className="rounded-lg bg-haul-500 px-3 py-1 text-[12px] font-semibold hover:bg-haul-400"
             >
-              Копировать
+              {t(locale, 'import.copy')}
             </button>
           </div>
           <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-ink-900/60 p-3 font-mono text-[12px] leading-relaxed text-white/85">
@@ -244,18 +251,14 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
           <span className="flex items-center gap-2 text-[14px] font-medium">
             <span className="inline-block size-3.5 animate-spin rounded-full border-2 border-white/25 border-t-haul-400" />
             {stage}
-            <span className="nums text-white/55">{elapsed}с</span>
+            <span className="nums text-white/55">{elapsed}{t(locale, 'rcDrop.secondsSuffix')}</span>
           </span>
-          <span className="mt-1 text-[12px] font-medium text-warn-400">
-            Не закрывай и не обновляй страницу — груз создастся в конце.
-          </span>
+          <span className="mt-1 text-[12px] font-medium text-warn-400">{t(locale, 'rcDrop.doNotClose')}</span>
         </>
       ) : (
         <>
-          <span className="text-[14px] font-medium">＋ Rate con → сразу груз на этот трак</span>
-          <span className="mt-0.5 text-[12px] text-white/55">
-            PDF или фото. ИИ распознает, создаст груз и покажет, что проверить.
-          </span>
+          <span className="text-[14px] font-medium">{t(locale, 'rcDrop.dropCta')}</span>
+          <span className="mt-0.5 text-[12px] text-white/55">{t(locale, 'rcDrop.dropSubtext')}</span>
         </>
       )}
       {error && (
@@ -270,7 +273,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
             }}
             className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-haul-400"
           >
-            ↻ Повторить сканирование
+            {t(locale, 'import.retryScan')}
           </button>
         </span>
       )}

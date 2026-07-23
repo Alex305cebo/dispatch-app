@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { clearNotes, markAllRead, useNotes, type NoteKind } from '@/lib/notify'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 const TONE: Record<NoteKind, { dot: string; text: string }> = {
   ok: { dot: 'bg-good-400', text: 'text-good-400' },
@@ -13,6 +15,7 @@ const TONE: Record<NoteKind, { dot: string; text: string }> = {
 
 export function Notifier() {
   const notes = useNotes()
+  const locale = useLocale()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -64,21 +67,21 @@ export function Notifier() {
           >
             <div className="flex items-center justify-between border-b border-white/8 px-3 py-2">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-white/65">
-                Уведомления
+                {t(locale, 'notifier.title')}
               </span>
               {notes.length > 0 && (
                 <button
                   onClick={clearNotes}
                   className="text-[11px] text-white/62 transition-colors hover:text-white/85"
                 >
-                  очистить
+                  {t(locale, 'notifier.clear')}
                 </button>
               )}
             </div>
 
             <div className="max-h-[calc(60vh-2.5rem)] overflow-y-auto">
               {notes.length === 0 ? (
-                <p className="px-3 py-6 text-center text-[13px] text-white/55">Пока тихо</p>
+                <p className="px-3 py-6 text-center text-[13px] text-white/55">{t(locale, 'notifier.quiet')}</p>
               ) : (
                 notes.map((n) => (
                   <motion.div
@@ -93,7 +96,7 @@ export function Notifier() {
                       <p className="text-[13px] leading-snug text-white/90">{n.text}</p>
                       <p className="mt-0.5 text-[10px] text-white/55">
                         {n.from ? `${n.from} · ` : ''}
-                        {new Date(n.at).toLocaleTimeString('ru-RU', {
+                        {new Date(n.at).toLocaleTimeString(locale === 'ru' ? 'ru-RU' : 'en-US', {
                           hour: '2-digit',
                           minute: '2-digit',
                         })}
@@ -118,7 +121,9 @@ export function Notifier() {
             ? { duration: 1.6, repeat: Infinity, ease: 'easeInOut' }
             : { type: 'spring', stiffness: 400, damping: 25 }
         }
-        aria-label={unread > 0 ? `Уведомления: ${unread} новых` : 'Уведомления'}
+        aria-label={
+          unread > 0 ? t(locale, 'notifier.ariaWithCount').replace('{n}', String(unread)) : t(locale, 'notifier.aria')
+        }
         aria-expanded={open}
         className={`relative flex size-9 items-center justify-center rounded-full border backdrop-blur-xl transition-colors ${
           worst === 'error'

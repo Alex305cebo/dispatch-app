@@ -5,16 +5,20 @@
 
 import type { RateConFields } from './ratecon'
 import { aiToFields, type AiFields } from './ratecon-ai-contract'
+import { t, type Locale } from './i18n.ts'
 
 export type AiResult =
   | { ok: true; fields: RateConFields; model: string }
   | { ok: false; reason: 'no_key' | 'failed'; detail?: string }
 
-export async function aiParseRateCon(input: {
-  text?: string
-  pdfBase64?: string
-  mime?: string
-}): Promise<AiResult> {
+export async function aiParseRateCon(
+  input: {
+    text?: string
+    pdfBase64?: string
+    mime?: string
+  },
+  locale: Locale = 'en',
+): Promise<AiResult> {
   try {
     const res = await fetch('/api/ratecon', {
       method: 'POST',
@@ -24,7 +28,7 @@ export async function aiParseRateCon(input: {
     const data = (await res.json()) as
       | { ok: true; fields: AiFields; model: string }
       | { error: string }
-    if ('ok' in data) return { ok: true, fields: aiToFields(data.fields, data.model), model: data.model }
+    if ('ok' in data) return { ok: true, fields: aiToFields(data.fields, data.model, locale), model: data.model }
     return { ok: false, reason: data.error === 'no_key' ? 'no_key' : 'failed', detail: data.error }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -34,7 +38,7 @@ export async function aiParseRateCon(input: {
     // nothing to a dispatcher; the document is already saved regardless (the
     // caller's orphan-RC panel picks it up from there), so say that instead.
     const detail = /Unexpected token|is not valid JSON/.test(msg)
-      ? 'Сервер долго отвечал (обычно так со сканами). Документ уже сохранён — собери груз кнопкой «Создать груз» ниже, либо попробуй ещё раз.'
+      ? t(locale, 'rateconAi.slowServer')
       : msg
     return { ok: false, reason: 'failed', detail }
   }

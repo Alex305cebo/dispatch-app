@@ -13,8 +13,8 @@ import { changeMyPassword } from '@/app/account/actions'
 import { signOut } from '@/app/login/actions'
 import { notify } from '@/lib/notify'
 import type { CurrentUser } from '@/lib/session'
-
-const ROLE_LABEL = { admin: 'Админ', dispatcher: 'Диспетчер' } as const
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -26,6 +26,7 @@ function initialsOf(name: string): string {
 export function UserPanel({ user }: { user: CurrentUser }) {
   const pathname = usePathname()
   const router = useRouter()
+  const locale = useLocale()
   const [open, setOpen] = useState(false)
   const [pw, setPw] = useState('')
   const [pending, start] = useTransition()
@@ -54,7 +55,7 @@ export function UserPanel({ user }: { user: CurrentUser }) {
       const res = await changeMyPassword(pw)
       if (res?.error) notify('error', res.error)
       else {
-        notify('ok', 'Пароль изменён')
+        notify('ok', t(locale, 'userPanel.passwordChanged'))
         setPw('')
       }
     })
@@ -82,24 +83,26 @@ export function UserPanel({ user }: { user: CurrentUser }) {
         <div className="absolute bottom-full left-0 z-20 mb-2 w-64 rounded-xl border border-white/10 bg-ink-900 p-3.5 pr-9 shadow-2xl">
           <button
             type="button"
-            aria-label="Закрыть"
+            aria-label={t(locale, 'userPanel.close')}
             onClick={() => setOpen(false)}
             className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full text-[15px] text-white/50 transition-colors hover:bg-white/10 hover:text-white/90"
           >
             ✕
           </button>
           <p className="truncate text-[13px] font-medium">{user.name}</p>
-          <p className="text-[11px] text-white/45">{ROLE_LABEL[user.role]}</p>
+          <p className="text-[11px] text-white/45">
+            {t(locale, user.role === 'admin' ? 'userPanel.roleAdmin' : 'userPanel.roleDispatcher')}
+          </p>
 
           <div className="mt-3 border-t border-white/8 pt-3">
             <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/50">
-              Сменить пароль
+              {t(locale, 'userPanel.changePassword')}
             </p>
             <input
               type="password"
               value={pw}
               onChange={(e) => setPw(e.target.value)}
-              placeholder="Новый пароль, минимум 8 символов"
+              placeholder={t(locale, 'userPanel.newPasswordPlaceholder')}
               className="w-full rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500"
             />
             <button
@@ -107,7 +110,7 @@ export function UserPanel({ user }: { user: CurrentUser }) {
               onClick={savePassword}
               className="mt-2 w-full rounded-lg bg-haul-500 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
             >
-              {pending ? 'Сохраняю…' : 'Сохранить'}
+              {pending ? t(locale, 'common.saving') : t(locale, 'common.save')}
             </button>
           </div>
 
@@ -120,7 +123,7 @@ export function UserPanel({ user }: { user: CurrentUser }) {
                   pathname.startsWith('/admin') ? 'text-haul-400' : 'text-white/70'
                 }`}
               >
-                🛡 Админ
+                {t(locale, 'userPanel.admin')}
               </Link>
             )}
             <button
@@ -128,7 +131,7 @@ export function UserPanel({ user }: { user: CurrentUser }) {
               disabled={pending}
               className="text-white/70 transition-colors hover:text-white/85 disabled:opacity-40"
             >
-              {pending ? '…' : '⏻ Выйти'}
+              {pending ? '…' : t(locale, 'userPanel.logout')}
             </button>
           </div>
         </div>

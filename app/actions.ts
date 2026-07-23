@@ -16,17 +16,19 @@ import { getSetting, setSetting } from '@/lib/settings'
 import { companyScope, getCurrentUser, verifyMyPassword } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
 import type { CapabilityKey } from '@/lib/capabilities'
+import { t } from '@/lib/i18n'
+import { getLocale } from '@/lib/i18n-server'
 
 export async function vetBroker(
   mc: string,
   ctx: RcContext,
 ): Promise<BrokerCheck | { error: string }> {
-  return checkBroker(mc, ctx)
+  return checkBroker(mc, ctx, await getLocale())
 }
 
 export async function fetchRouteMiles(origin: string, destination: string) {
   const { routeMiles } = await import('@/lib/geo-routing')
-  if (!origin?.trim() || !destination?.trim()) return { error: 'Нужны и откуда, и куда.' }
+  if (!origin?.trim() || !destination?.trim()) return { error: t(await getLocale(), 'actions.needOriginDest') }
   return routeMiles(origin, destination)
 }
 
@@ -98,7 +100,7 @@ export async function autoRefreshFleet(): Promise<boolean> {
  * a dispatcher could still POST an action directly, so the mutating ones re-check. */
 async function assertCan(key: CapabilityKey): Promise<{ error: string } | null> {
   const user = await getCurrentUser()
-  if (!(await can(user, key))) return { error: 'Нет доступа к этой функции.' }
+  if (!(await can(user, key))) return { error: t(await getLocale(), 'actions.noAccess') }
   return null
 }
 
@@ -108,7 +110,7 @@ export async function generateInvoice(
   const denied = await assertCan('finances')
   if (denied) return denied
   const load = await getLoad(await companyScope(), loadId)
-  if (!load) return { error: 'Груз не найден.' }
+  if (!load) return { error: t(await getLocale(), 'actions.loadNotFound') }
   const res = await buildInvoicePacket(load)
   if ('error' in res) return res
   revalidatePath(`/loads/${loadId}`)
@@ -134,8 +136,9 @@ export async function markPaid(loadId: number, paid: boolean): Promise<{ error: 
 export async function saveCompany(c: Company): Promise<{ error: string } | void> {
   const denied = await assertCan('finances')
   if (denied) return denied
-  if ((await companyScope()) === 'demo') return { error: 'В демо-режиме недоступно.' }
-  if (!c.name.trim() || !c.mcdot.trim()) return { error: 'Нужны минимум название и MC/DOT.' }
+  const locale = await getLocale()
+  if ((await companyScope()) === 'demo') return { error: t(locale, 'actions.demoDisabled') }
+  if (!c.name.trim() || !c.mcdot.trim()) return { error: t(locale, 'actions.needNameAndMcDot') }
   await Promise.all([
     setSetting('co_name', c.name.trim()),
     setSetting('co_owner', c.owner.trim()),
@@ -186,9 +189,10 @@ export async function createLoad(
   driverInfo?: string,
 ): Promise<{ error: string } | void> {
   let id: number
+  const locale = await getLocale()
   try {
     const companyId = await companyScope()
-    if (!(await truckBelongs(companyId, load.truckId))) return { error: 'Трак не найден.' }
+    if (!(await truckBelongs(companyId, load.truckId))) return { error: t(locale, 'actions.truckNotFound') }
     const deadheadMiles = await fillDeadhead(companyId, load.truckId, load.deadheadMiles, load.origin)
     // Auto-credited to whoever's actually signed in and clicking "create" — no
     // manual assignment step, feeds the weekly per-dispatcher report on Финансы.
@@ -213,7 +217,7 @@ export async function createLoad(
       await sql`UPDATE documents SET load_id = ${id} WHERE id = ${docId} AND load_id IS NULL`
     }
   } catch (e) {
-    return { error: humanError(e) }
+    return { error: humanError(e, locale) }
   }
 
   revalidatePath('/loads')
@@ -237,9 +241,10 @@ export async function createLoadFromRc(
    * in the browser session right after the RC was read. */
   driverInfo?: string,
 ): Promise<{ loadId: number } | { error: string }> {
+  const locale = await getLocale()
   try {
     const companyId = await companyScope()
-    if (!(await truckBelongs(companyId, truckId))) return { error: 'Трак не найден.' }
+    if (!(await truckBelongs(companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }
     // Plenty of real rate cons never print a mileage figure. loads.loaded_miles has
     // CHECK (> 0), so those used to die on a raw constraint violation — the load
     // silently never appeared. Fall back to actual road miles between the two cities
@@ -251,11 +256,7 @@ export async function createLoadFromRc(
       const r = await routeMiles(load.origin, load.destination)
       if ('miles' in r) loadedMiles = r.miles
     }
-    if (!(loadedMiles > 0))
-      return {
-        error:
-          'В рейтконе не указан пробег, и рассчитать его по городам не вышло. Создай груз вручную и впиши мили.',
-      }
+    if (!(loadedMiles > 0)) return { error: t(locale, 'actions.noMilesInRc') }
     const deadheadMiles = await fillDeadhead(companyId, truckId, load.deadheadMiles, load.origin)
     // Auto-credited to whoever's actually signed in and dropping the RC — no manual
     // assignment step, feeds the weekly per-dispatcher report on Финансы.
@@ -287,7 +288,7 @@ export async function createLoadFromRc(
     revalidatePath('/')
     return { loadId }
   } catch (e) {
-    return { error: humanError(e) }
+    return { error: humanError(e, locale) }
   }
 }
 
@@ -305,19 +306,25 @@ export async function createLoadFromExistingRc(
   truckId: number,
 ): Promise<{ loadId: number } | { error: string }> {
   const companyId = await companyScope()
+  const locale = await getLocale()
   // Postgres' encode() wraps base64 at PEM width; Gemini's inlineData rejects the
   // embedded newlines with a 400, hence the replace().
   const rows = await sql`
     SELECT replace(encode(data, 'base64'), E'\n', '') AS b64, mime, load_id
     FROM documents WHERE id = ${docId} AND kind = 'ratecon' AND company_id = ${companyId}`
   const doc = rows[0] as { b64: string; mime: string; load_id: number | null } | undefined
-  if (!doc) return { error: 'Рейткон не найден.' }
-  if (doc.load_id) return { error: 'Из этого рейткона груз уже создан.' }
+  if (!doc) return { error: t(locale, 'actions.rateconNotFound') }
+  if (doc.load_id) return { error: t(locale, 'actions.rateconAlreadyUsed') }
 
   const { geminiExtract } = await import('@/lib/ratecon-gemini')
   const res = await geminiExtract({ pdfBase64: doc.b64, mime: doc.mime })
   if ('error' in res)
-    return { error: res.error === 'no_key' ? 'ИИ временно недоступен — обратись к администратору.' : `ИИ не прочитал: ${res.error}` }
+    return {
+      error:
+        res.error === 'no_key'
+          ? t(locale, 'actions.aiUnavailable')
+          : `${t(locale, 'actions.aiFailedToRead')} ${res.error}`,
+    }
 
   const { aiToFields } = await import('@/lib/ratecon-ai-contract')
   const fields = aiToFields(res.fields, res.model)
@@ -371,7 +378,7 @@ export async function saveTruck(
         dispatch_percent = ${t.dispatchPercent}
       WHERE id = ${id} AND company_id = ${await companyScope()}`
   } catch (e) {
-    return { error: humanError(e) }
+    return { error: humanError(e, await getLocale()) }
   }
   // Blunt on purpose: a truck's settings feed calcLoad on every page that shows its
   // money. Enumerating them is more code, and one forgotten path means silently
@@ -387,7 +394,7 @@ export async function setTruckAvailability(
 ): Promise<{ error: string } | void> {
   const denied = await assertCan('edit_trucks')
   if (denied) return denied
-  if (!(await truckBelongs(await companyScope(), truckId))) return { error: 'Трак не найден.' }
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(await getLocale(), 'actions.truckNotFound') }
   await sql`UPDATE trucks SET unavailable = ${status === 'active' ? null : status} WHERE id = ${truckId}`
   revalidatePath('/', 'layout')
 }
@@ -403,9 +410,10 @@ const MAX_DOC_BYTES = 8 * 1024 * 1024
 export async function uploadDocument(
   fd: FormData,
 ): Promise<{ id: number } | { error: string }> {
+  const locale = await getLocale()
   const file = fd.get('file')
-  if (!(file instanceof File) || file.size === 0) return { error: 'Файл не выбран.' }
-  if (file.size > MAX_DOC_BYTES) return { error: 'Файл больше 8 МБ — сожми или пришли меньше.' }
+  if (!(file instanceof File) || file.size === 0) return { error: t(locale, 'actions.noFileSelected') }
+  if (file.size > MAX_DOC_BYTES) return { error: t(locale, 'actions.fileOver8mb') }
 
   const kind = String(fd.get('kind') || 'other')
   const title = String(fd.get('title') || '').trim() || file.name
@@ -413,8 +421,8 @@ export async function uploadDocument(
   const loadId = fd.get('loadId') ? Number(fd.get('loadId')) : null
   const maintenanceId = fd.get('maintenanceId') ? Number(fd.get('maintenanceId')) : null
   const companyId = await companyScope()
-  if (truckId && !(await truckBelongs(companyId, truckId))) return { error: 'Трак не найден.' }
-  if (loadId && !(await loadBelongs(companyId, loadId))) return { error: 'Груз не найден.' }
+  if (truckId && !(await truckBelongs(companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }
+  if (loadId && !(await loadBelongs(companyId, loadId))) return { error: t(locale, 'actions.loadNotFound') }
   // Hex round-trip: Neon's HTTP driver JSON-encodes params, raw bytes don't survive.
   const hex = Buffer.from(await file.arrayBuffer()).toString('hex')
 
@@ -432,7 +440,7 @@ export async function uploadDocument(
     if (loadId && kind === 'pod') await autoInvoiceIfReady(companyId, loadId)
     return { id: (rows[0] as { id: number }).id }
   } catch (e) {
-    return { error: humanError(e) }
+    return { error: humanError(e, locale) }
   }
 }
 
@@ -476,10 +484,11 @@ async function auditDelete(
  * own password, audited (who, what, the load route) — shown in the Журнал.
  */
 export async function deleteDocument(id: number, password: string): Promise<{ error: string } | void> {
-  const check = await verifyMyPassword(password)
+  const locale = await getLocale()
+  const check = await verifyMyPassword(password, locale)
   if ('error' in check) return { error: check.error }
-  const who = check.user.name || 'диспетчер'
-  if (!(await docBelongs(check.user.companyId, id))) return { error: 'Документ не найден.' }
+  const who = check.user.name || t(locale, 'actions.dispatcherFallback')
+  if (!(await docBelongs(check.user.companyId, id))) return { error: t(locale, 'actions.docNotFound') }
 
   try {
     const rows = (await sql`
@@ -492,12 +501,12 @@ export async function deleteDocument(id: number, password: string): Promise<{ er
       destination: string | null
     }[]
     const doc = rows[0]
-    if (!doc) return { error: 'Документ не найден.' }
+    if (!doc) return { error: t(locale, 'actions.docNotFound') }
 
     await sql`UPDATE documents SET deleted_at = now() WHERE id = ${id}`
     await auditDelete(check.user.companyId, who, 'delete_document', doc.title, doc.kind, doc.origin, doc.destination)
   } catch (e) {
-    return { error: humanError(e) }
+    return { error: humanError(e, locale) }
   }
   revalidatePath('/docs')
   revalidatePath('/logins')
@@ -518,10 +527,11 @@ export async function restoreDocument(id: number): Promise<void> {
 /** Erases a trashed document for real — same name + PIN guard as the soft delete,
  * since this direction can't be undone. */
 export async function purgeDocument(id: number, password: string): Promise<{ error: string } | void> {
-  const check = await verifyMyPassword(password)
+  const locale = await getLocale()
+  const check = await verifyMyPassword(password, locale)
   if ('error' in check) return { error: check.error }
-  const who = check.user.name || 'диспетчер'
-  if (!(await docBelongs(check.user.companyId, id))) return { error: 'Документ не найден в корзине.' }
+  const who = check.user.name || t(locale, 'actions.dispatcherFallback')
+  if (!(await docBelongs(check.user.companyId, id))) return { error: t(locale, 'actions.docNotInTrash') }
 
   try {
     const rows = (await sql`
@@ -534,12 +544,12 @@ export async function purgeDocument(id: number, password: string): Promise<{ err
       destination: string | null
     }[]
     const doc = rows[0]
-    if (!doc) return { error: 'Документ не найден в корзине.' }
+    if (!doc) return { error: t(locale, 'actions.docNotInTrash') }
 
     await sql`DELETE FROM documents WHERE id = ${id}`
     await auditDelete(check.user.companyId, who, 'purge_document', doc.title, doc.kind, doc.origin, doc.destination)
   } catch (e) {
-    return { error: humanError(e) }
+    return { error: humanError(e, locale) }
   }
   revalidatePath('/docs')
   revalidatePath('/logins')
@@ -568,11 +578,12 @@ export async function updateLoadDetails(
   loadId: number,
   p: LoadDetailsPatch,
 ): Promise<{ error: string } | void> {
-  if (!(p.rate >= 0)) return { error: 'Ставка не может быть отрицательной.' }
-  if (!(p.loadedMiles > 0)) return { error: 'Гружёные мили должны быть больше 0.' }
-  if (!(p.deadheadMiles >= 0)) return { error: 'Пустые мили не могут быть отрицательными.' }
-  if (!(p.transitDays > 0)) return { error: 'Дней в пути должно быть больше 0.' }
-  if (p.spotRpm != null && !(p.spotRpm >= 0)) return { error: 'Рыночная ставка не может быть отрицательной.' }
+  const locale = await getLocale()
+  if (!(p.rate >= 0)) return { error: t(locale, 'actions.rateNegative') }
+  if (!(p.loadedMiles > 0)) return { error: t(locale, 'actions.loadedMilesPositive') }
+  if (!(p.deadheadMiles >= 0)) return { error: t(locale, 'actions.deadheadNegative') }
+  if (!(p.transitDays > 0)) return { error: t(locale, 'actions.transitDaysPositive') }
+  if (p.spotRpm != null && !(p.spotRpm >= 0)) return { error: t(locale, 'actions.spotRateNegative') }
   try {
     await sql`UPDATE loads SET
       rate = ${p.rate}, loaded_miles = ${p.loadedMiles}, deadhead_miles = ${p.deadheadMiles},
@@ -582,7 +593,7 @@ export async function updateLoadDetails(
       delivery_date = ${p.deliveryDate || null}
       WHERE id = ${loadId} AND company_id = ${await companyScope()}`
   } catch (e) {
-    return { error: humanError(e) }
+    return { error: humanError(e, locale) }
   }
   revalidatePath(`/loads/${loadId}`)
   revalidatePath('/loads')
@@ -598,7 +609,7 @@ export async function setBrokerNotes(
     await sql`UPDATE loads SET broker_notes = ${notes.trim() || null}
       WHERE id = ${loadId} AND company_id = ${await companyScope()}`
   } catch (e) {
-    return { error: humanError(e) }
+    return { error: humanError(e, await getLocale()) }
   }
   revalidatePath(`/loads/${loadId}`)
 }
@@ -608,11 +619,15 @@ export async function translateBrokerNotes(
   text: string,
   targetLang: 'ru' | 'en',
 ): Promise<{ text: string } | { error: string }> {
-  if (!text.trim()) return { error: 'Пустой текст.' }
+  const locale = await getLocale()
+  if (!text.trim()) return { error: t(locale, 'actions.emptyText') }
   const { translatePlainText } = await import('@/lib/ratecon-gemini')
   const res = await translatePlainText(text, targetLang === 'ru' ? 'Russian' : 'English')
   if ('error' in res)
-    return { error: res.error === 'no_key' ? 'ИИ временно недоступен — обратись к администратору.' : `Не вышло перевести: ${res.error}` }
+    return {
+      error:
+        res.error === 'no_key' ? t(locale, 'actions.aiUnavailable') : `${t(locale, 'actions.translateFailed')} ${res.error}`,
+    }
   return res
 }
 
@@ -639,7 +654,8 @@ export async function parseRcForNotes(
   loadId: number,
 ): Promise<{ error: string } | { ok: true; found: boolean }> {
   const companyId = await companyScope()
-  if (!(await loadBelongs(companyId, loadId))) return { error: 'Груз не найден.' }
+  const locale = await getLocale()
+  if (!(await loadBelongs(companyId, loadId))) return { error: t(locale, 'actions.loadNotFound') }
   // Postgres base64 comes newline-wrapped (PEM style); Gemini's decoder rejects the
   // newlines, so strip them.
   const docs = (await sql`
@@ -647,13 +663,14 @@ export async function parseRcForNotes(
     FROM documents WHERE load_id = ${loadId} AND company_id = ${companyId} AND kind = 'ratecon'
     ORDER BY uploaded_at DESC LIMIT 1`) as { b64: string; mime: string }[]
   const doc = docs[0]
-  if (!doc) return { error: 'К этому грузу не прикреплён rate con.' }
+  if (!doc) return { error: t(locale, 'actions.noRcAttached') }
 
   const { geminiExtract } = await import('@/lib/ratecon-gemini')
   const res = await geminiExtract({ pdfBase64: doc.b64, mime: doc.mime })
   if ('error' in res)
     return {
-      error: res.error === 'no_key' ? 'ИИ временно недоступен — обратись к администратору.' : `Не вышло распознать: ${res.error}`,
+      error:
+        res.error === 'no_key' ? t(locale, 'actions.aiUnavailable') : `${t(locale, 'actions.recognizeFailed')} ${res.error}`,
     }
 
   const { aiToFields } = await import('@/lib/ratecon-ai-contract')
@@ -671,7 +688,7 @@ export async function parseRcForNotes(
       driver_info = ${driverInfo}
       WHERE id = ${loadId} AND company_id = ${companyId}`
   } catch (e) {
-    return { error: humanError(e) }
+    return { error: humanError(e, locale) }
   }
   revalidatePath(`/loads/${loadId}`)
   revalidatePath('/trucks', 'layout')
@@ -685,10 +702,11 @@ export async function parseRcForNotes(
  * library instead of blocking the delete on the foreign key.
  */
 export async function deleteLoad(id: number, password: string): Promise<{ error: string } | void> {
-  const check = await verifyMyPassword(password)
+  const locale = await getLocale()
+  const check = await verifyMyPassword(password, locale)
   if ('error' in check) return { error: check.error }
-  const who = check.user.name || 'диспетчер'
-  if (!(await loadBelongs(check.user.companyId, id))) return { error: 'Груз не найден.' }
+  const who = check.user.name || t(locale, 'actions.dispatcherFallback')
+  if (!(await loadBelongs(check.user.companyId, id))) return { error: t(locale, 'actions.loadNotFound') }
 
   try {
     const rows = (await sql`SELECT origin, destination FROM loads WHERE id = ${id}`) as {
@@ -696,7 +714,7 @@ export async function deleteLoad(id: number, password: string): Promise<{ error:
       destination: string | null
     }[]
     const load = rows[0]
-    if (!load) return { error: 'Груз не найден.' }
+    if (!load) return { error: t(locale, 'actions.loadNotFound') }
 
     await sql`UPDATE documents SET load_id = NULL WHERE load_id = ${id}`
     await sql`DELETE FROM loads WHERE id = ${id}`
@@ -704,7 +722,7 @@ export async function deleteLoad(id: number, password: string): Promise<{ error:
     const route = [load.origin, load.destination].filter(Boolean).join(' → ') || `#${id}`
     await auditDelete(check.user.companyId, who, 'delete_load', route, null, load.origin, load.destination)
   } catch (e) {
-    return { error: humanError(e) }
+    return { error: humanError(e, locale) }
   }
   revalidatePath('/loads')
   revalidatePath('/')
@@ -727,8 +745,9 @@ export async function addMaintenance(
   truckId: number,
   m: MaintenanceInput,
 ): Promise<{ error: string } | void> {
-  if (!m.title.trim()) return { error: 'Напиши, что делали.' }
-  if (!(await truckBelongs(await companyScope(), truckId))) return { error: 'Трак не найден.' }
+  const locale = await getLocale()
+  if (!m.title.trim()) return { error: t(locale, 'actions.sayWhatWasDone') }
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
   try {
     await sql`
       INSERT INTO truck_maintenance (truck_id, kind, title, notes, cost, odometer, done_at)
@@ -741,7 +760,7 @@ export async function addMaintenance(
         ON CONFLICT (truck_id) DO UPDATE SET oil_last_odometer = ${m.odometer}`
     }
   } catch (e) {
-    return { error: humanError(e) }
+    return { error: humanError(e, locale) }
   }
   revalidatePath(`/trucks/${truckId}`)
 }
@@ -751,14 +770,15 @@ export async function deleteMaintenance(
   truckId: number,
   password: string,
 ): Promise<{ error: string } | void> {
-  const check = await verifyMyPassword(password)
+  const locale = await getLocale()
+  const check = await verifyMyPassword(password, locale)
   if ('error' in check) return { error: check.error }
-  const who = check.user.name || 'диспетчер'
-  if (!(await truckBelongs(check.user.companyId, truckId))) return { error: 'Трак не найден.' }
+  const who = check.user.name || t(locale, 'actions.dispatcherFallback')
+  if (!(await truckBelongs(check.user.companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }
 
   const rows = (await sql`
     SELECT title FROM truck_maintenance WHERE id = ${id} AND truck_id = ${truckId}`) as { title: string }[]
-  if (!rows[0]) return { error: 'Запись не найдена.' }
+  if (!rows[0]) return { error: t(locale, 'actions.entryNotFound') }
 
   await sql`DELETE FROM truck_maintenance WHERE id = ${id}`
   await auditDelete(check.user.companyId, who, 'delete_maintenance', rows[0].title, null, null, null)
@@ -771,13 +791,14 @@ export async function addTodo(
   title: string,
   priority: 'low' | 'normal' | 'urgent',
 ): Promise<{ error: string } | void> {
-  if (!title.trim()) return { error: 'Напиши, что нужно починить.' }
-  if (!(await truckBelongs(await companyScope(), truckId))) return { error: 'Трак не найден.' }
+  const locale = await getLocale()
+  if (!title.trim()) return { error: t(locale, 'actions.sayWhatToFix') }
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
   try {
     await sql`INSERT INTO truck_todos (truck_id, title, priority)
               VALUES (${truckId}, ${title.trim()}, ${priority})`
   } catch (e) {
-    return { error: humanError(e) }
+    return { error: humanError(e, locale) }
   }
   revalidatePath(`/trucks/${truckId}`)
 }
@@ -795,13 +816,14 @@ export async function deleteTodo(
   truckId: number,
   password: string,
 ): Promise<{ error: string } | void> {
-  const check = await verifyMyPassword(password)
+  const locale = await getLocale()
+  const check = await verifyMyPassword(password, locale)
   if ('error' in check) return { error: check.error }
-  const who = check.user.name || 'диспетчер'
-  if (!(await truckBelongs(check.user.companyId, truckId))) return { error: 'Трак не найден.' }
+  const who = check.user.name || t(locale, 'actions.dispatcherFallback')
+  if (!(await truckBelongs(check.user.companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }
 
   const rows = (await sql`SELECT title FROM truck_todos WHERE id = ${id} AND truck_id = ${truckId}`) as { title: string }[]
-  if (!rows[0]) return { error: 'Запись не найдена.' }
+  if (!rows[0]) return { error: t(locale, 'actions.entryNotFound') }
 
   await sql`DELETE FROM truck_todos WHERE id = ${id}`
   await auditDelete(check.user.companyId, who, 'delete_todo', rows[0].title, null, null, null)
@@ -838,7 +860,8 @@ export async function saveDriverInfo(
   truckId: number,
   d: { name: string; phone: string; cdlExpiry: string; medcardExpiry: string },
 ): Promise<{ error: string } | void> {
-  if (!(await truckBelongs(await companyScope(), truckId))) return { error: 'Трак не найден.' }
+  const locale = await getLocale()
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
   try {
     await sql`UPDATE trucks SET driver_name = ${d.name.trim() || null} WHERE id = ${truckId}`
     await sql`
@@ -849,7 +872,7 @@ export async function saveDriverInfo(
         cdl_expiry     = EXCLUDED.cdl_expiry,
         medcard_expiry = EXCLUDED.medcard_expiry`
   } catch (e) {
-    return { error: humanError(e) }
+    return { error: humanError(e, locale) }
   }
   revalidatePath(`/trucks/${truckId}`)
   revalidatePath('/trucks')
@@ -863,11 +886,12 @@ export async function saveDriverPhoto(
   truckId: number,
   fd: FormData,
 ): Promise<{ error: string } | void> {
+  const locale = await getLocale()
   const file = fd.get('file')
-  if (!(file instanceof File) || file.size === 0) return { error: 'Файл не выбран.' }
-  if (file.size > MAX_PHOTO_BYTES) return { error: 'Фото больше 4 МБ — сожми или пришли меньше.' }
-  if (!file.type.startsWith('image/')) return { error: 'Нужно изображение (JPG/PNG).' }
-  if (!(await truckBelongs(await companyScope(), truckId))) return { error: 'Трак не найден.' }
+  if (!(file instanceof File) || file.size === 0) return { error: t(locale, 'actions.noFileSelected') }
+  if (file.size > MAX_PHOTO_BYTES) return { error: t(locale, 'actions.fileOver4mb') }
+  if (!file.type.startsWith('image/')) return { error: t(locale, 'actions.needImage') }
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
 
   const hex = Buffer.from(await file.arrayBuffer()).toString('hex')
   try {
@@ -878,7 +902,7 @@ export async function saveDriverPhoto(
         driver_photo      = EXCLUDED.driver_photo,
         driver_photo_mime = EXCLUDED.driver_photo_mime`
   } catch (e) {
-    return { error: humanError(e) }
+    return { error: humanError(e, locale) }
   }
   revalidatePath(`/trucks/${truckId}`)
   revalidatePath('/trucks')
@@ -889,7 +913,8 @@ export async function saveTruckMeta(
   truckId: number,
   m: TruckMetaInput,
 ): Promise<{ error: string } | void> {
-  if (!(await truckBelongs(await companyScope(), truckId))) return { error: 'Трак не найден.' }
+  const locale = await getLocale()
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
   try {
     await sql`
       INSERT INTO truck_meta (truck_id, vin, plate, trailer_number, year, make, model,
@@ -913,7 +938,7 @@ export async function saveTruckMeta(
         insurance_expiry = EXCLUDED.insurance_expiry,
         cdl_expiry = EXCLUDED.cdl_expiry, medcard_expiry = EXCLUDED.medcard_expiry`
   } catch (e) {
-    return { error: humanError(e) }
+    return { error: humanError(e, locale) }
   }
   revalidatePath(`/trucks/${truckId}`)
   revalidatePath('/')
@@ -936,7 +961,7 @@ export async function addTruck(t: TruckInput): Promise<{ error: string } | void>
       RETURNING id`
     id = (rows[0] as { id: number }).id
   } catch (e) {
-    return { error: humanError(e) }
+    return { error: humanError(e, await getLocale()) }
   }
   revalidatePath('/trucks')
   redirect(`/trucks/${id}`)

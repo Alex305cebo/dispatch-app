@@ -1,3 +1,5 @@
+'use client'
+
 // "Open the rate con" button, used everywhere a load is shown. Points at the in-app
 // viewer (/view/[id]), NOT at the raw file: a direct file link obeys the browser's
 // "download PDFs instead of opening them" setting, which saves the file and opens the
@@ -5,6 +7,13 @@
 //
 // NOTE: never nest this inside a <Link> row — two anchors inside each other is
 // invalid HTML; put it as a sibling of the row link.
+//
+// ponytail: 'use client' + useLocale() (context, not a prop) so every server-page
+// caller across the app keeps working unchanged — no locale prop to thread through
+// files outside this domain.
+
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 export function RateConButton({
   docId,
@@ -14,11 +23,12 @@ export function RateConButton({
   /** Icon-only pill for list rows; full label for the load page. */
   compact?: boolean
 }) {
+  const locale = useLocale()
   return (
     <a
       href={`/view/${docId}`}
-      title="Открыть rate confirmation"
-      aria-label="Открыть rate confirmation"
+      title={t(locale, 'rateconButton.openTitle')}
+      aria-label={t(locale, 'rateconButton.openTitle')}
       className={
         compact
           ? 'flex shrink-0 items-center gap-1 rounded-lg border border-white/10 px-2 py-1.5 text-[11px] font-semibold text-white/70 transition-colors hover:border-haul-500 hover:text-haul-400'
@@ -38,7 +48,7 @@ export function RateConButton({
         <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
         <path d="M14 3v5h5" />
       </svg>
-      {compact ? 'RC' : 'Открыть rate con'}
+      {compact ? 'RC' : t(locale, 'rateconButton.openLabel')}
     </a>
   )
 }

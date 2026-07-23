@@ -11,6 +11,7 @@ import {
   type TruckMeta,
   type TruckTodo,
 } from './maintenance-core'
+import type { Locale } from './i18n.ts'
 
 export * from './maintenance-core'
 
@@ -74,7 +75,7 @@ export async function truckTrailerNumbers(companyId: CompanyId): Promise<Map<num
 }
 
 /** Fleet-wide compliance: soonest-expiring doc per truck that's within 60 days. */
-export async function fleetExpiryAlerts(companyId: CompanyId): Promise<
+export async function fleetExpiryAlerts(companyId: CompanyId, locale: Locale = 'en'): Promise<
   { truckId: number; number: string; item: ExpiryItem }[]
 > {
   const rows = await sql`
@@ -86,7 +87,7 @@ export async function fleetExpiryAlerts(companyId: CompanyId): Promise<
     WHERE t.company_id = ${companyId}`
   const out: { truckId: number; number: string; item: ExpiryItem }[] = []
   for (const r of rows as any[]) {
-    const soonest = expiries(metaOf(r)).find((e) => e.tone !== 'good')
+    const soonest = expiries(metaOf(r), locale).find((e) => e.tone !== 'good')
     if (soonest) out.push({ truckId: r.truck_id, number: r.number, item: soonest })
   }
   return out.sort((a, b) => a.item.daysLeft - b.item.daysLeft)
@@ -106,7 +107,7 @@ export async function truckMetas(companyId: CompanyId): Promise<Map<number, Truc
   return new Map((rows as any[]).map((r) => [r.truck_id as number, metaOf(r)]))
 }
 
-/** Open (not-done) "нужно починить" count per truck, for the list's health chips. */
+/** Open (not-done) "needs fixing" count per truck, for the list's health chips. */
 export async function openTodoCounts(companyId: CompanyId): Promise<Map<number, number>> {
   const rows = await sql`
     SELECT d.truck_id, COUNT(*)::int AS n FROM truck_todos d

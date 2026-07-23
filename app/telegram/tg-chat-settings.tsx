@@ -8,6 +8,8 @@ import { useState, useTransition } from 'react'
 import { setMyChatTruck, setMyShownChats } from './actions'
 import { notify } from '@/lib/notify'
 import type { TgDialog } from '@/lib/telegram'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 export function TgChatSettings({
   dialogs,
@@ -20,6 +22,7 @@ export function TgChatSettings({
   chatTruck: Record<string, number>
   trucks: { id: number; number: string }[]
 }) {
+  const locale = useLocale()
   const [shownSet, setShownSet] = useState(new Set(shown))
   const [pending, start] = useTransition()
   const [truckPending, startTruck] = useTransition()
@@ -38,7 +41,7 @@ export function TgChatSettings({
     start(async () => {
       const res = await setMyShownChats([...shownSet])
       if (res?.error) notify('error', res.error)
-      else notify('ok', 'Список чатов обновлён')
+      else notify('ok', t(locale, 'telegram.settings.saved'))
     })
   }
 
@@ -52,19 +55,18 @@ export function TgChatSettings({
   return (
     <details className="panel mb-3 p-4">
       <summary className="cursor-pointer text-[13px] font-semibold text-white/85">
-        Настроить, какие чаты показывать
+        {t(locale, 'telegram.settings.summary')}
         <span className="ml-2 text-[12px] font-normal text-white/50">
-          отмечено {shownSet.size} из {dialogs.length}
+          {t(locale, 'telegram.settings.marked').replace('{a}', String(shownSet.size)).replace('{b}', String(dialogs.length))}
         </span>
       </summary>
 
       <p className="mt-2 text-[12px] text-white/55">
-        Отмеченные диалоги видны в списке слева. Всё остальное скрыто. Рядом можно привязать чат к траку —
-        так фото POD/BOL от водителя сами прикрепятся к его грузу.
+        {t(locale, 'telegram.settings.explain')}
       </p>
 
       {dialogs.length === 0 ? (
-        <p className="mt-3 text-[13px] text-white/55">Диалогов не видно на этом аккаунте.</p>
+        <p className="mt-3 text-[13px] text-white/55">{t(locale, 'telegram.settings.noneVisible')}</p>
       ) : (
         <div className="mt-3 flex flex-col gap-1.5">
           {dialogs.map((d) => (
@@ -81,7 +83,7 @@ export function TgChatSettings({
               <span className="min-w-0 flex-1 truncate text-[13px]">{d.name}</span>
               {!d.isUser && (
                 <span className="shrink-0 rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] text-white/55">
-                  группа
+                  {t(locale, 'telegram.settings.group')}
                 </span>
               )}
               <select
@@ -90,7 +92,7 @@ export function TgChatSettings({
                 onChange={(e) => assignTruck(d.id, e.target.value)}
                 className="shrink-0 rounded-md border border-white/10 bg-ink-800 px-1.5 py-1 text-[11px] disabled:opacity-40"
               >
-                <option value="">— трак —</option>
+                <option value="">{t(locale, 'telegram.settings.pickTruck')}</option>
                 {trucks.map((t) => (
                   <option key={t.id} value={t.id}>
                     #{t.number}
@@ -107,7 +109,7 @@ export function TgChatSettings({
         onClick={save}
         className="mt-3 rounded-lg bg-haul-500 px-4 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
       >
-        {pending ? 'Сохраняю…' : 'Сохранить список'}
+        {pending ? t(locale, 'telegram.settings.saving') : t(locale, 'telegram.settings.save')}
       </button>
     </details>
   )

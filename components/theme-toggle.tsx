@@ -6,8 +6,11 @@
 // the layout applies it before first paint so there's no flash.
 
 import { useEffect, useState } from 'react'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 export function ThemeToggle() {
+  const locale = useLocale()
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
 
   useEffect(() => {
@@ -28,8 +31,8 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      aria-label={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
-      title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+      aria-label={t(locale, theme === 'dark' ? 'theme.light' : 'theme.dark')}
+      title={t(locale, theme === 'dark' ? 'theme.light' : 'theme.dark')}
       // Inline: lives in the nav next to the bell, not floating over the page.
       className="flex size-9 items-center justify-center rounded-full border border-white/10 bg-ink-800/80 text-[15px] transition-colors hover:border-white/25"
     >

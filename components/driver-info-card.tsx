@@ -7,18 +7,19 @@
 
 import { useTransition } from 'react'
 import { notify } from '@/lib/notify'
+import { t, type Locale } from '@/lib/i18n'
 import { Info } from './info'
 
-export function DriverInfoCard({ text }: { text: string }) {
+export function DriverInfoCard({ text, locale = 'en' }: { text: string; locale?: Locale }) {
   const [, startCopy] = useTransition()
 
   function copy() {
     startCopy(async () => {
       try {
         await navigator.clipboard.writeText(text)
-        notify('ok', 'Скопировано — можно слать водителю')
+        notify('ok', t(locale, 'trucks.driverInfo.copied'))
       } catch {
-        notify('warn', 'Браузер не дал буфер — выдели вручную')
+        notify('warn', t(locale, 'trucks.driverInfo.copyFailed'))
       }
     })
   }
@@ -27,8 +28,8 @@ export function DriverInfoCard({ text }: { text: string }) {
     <details className="group panel mt-4 p-4">
       <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
         <span className="text-white/40 transition-transform group-open:rotate-90">▸</span>
-        Инфо для водителя — скопировать
-        <Info text="Готовый текст для водителя: адреса загрузки/выгрузки, время, номера, ставка, вес — собранный из rate con при распознавании. Разверни и нажми «Копировать», чтобы отправить снова." />
+        {t(locale, 'trucks.driverInfo.heading')}
+        <Info text={t(locale, 'trucks.driverInfo.info')} />
       </summary>
       <div className="mt-3">
         <div className="mb-2 flex justify-end">
@@ -37,7 +38,7 @@ export function DriverInfoCard({ text }: { text: string }) {
             onClick={copy}
             className="rounded-lg bg-haul-500 px-3 py-1 text-[12px] font-semibold text-white transition-colors hover:bg-haul-400"
           >
-            Копировать
+            {t(locale, 'trucks.driverInfo.copyButton')}
           </button>
         </div>
         <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-ink-900/60 p-3 font-mono text-[12px] leading-relaxed text-white/85">

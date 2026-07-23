@@ -6,6 +6,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { notify } from '@/lib/notify'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 export type TrackingRow = {
   id: number
@@ -34,6 +36,7 @@ const toneClass = {
 }
 
 export function FleetList({ rows }: { rows: TrackingRow[] }) {
+  const locale = useLocale()
   const [freeOnly, setFreeOnly] = useState(false)
   const isFree = (r: TrackingRow) => !r.hasLoad && !r.unavailable
   const freeCount = rows.filter(isFree).length
@@ -42,9 +45,9 @@ export function FleetList({ rows }: { rows: TrackingRow[] }) {
   async function copyLocation(city: string) {
     try {
       await navigator.clipboard.writeText(city)
-      notify('ok', `Адрес скопирован: ${city}`)
+      notify('ok', `${t(locale, 'tracking.addressCopiedPrefix')}${city}`)
     } catch {
-      notify('warn', 'Браузер не дал буфер — выдели адрес вручную')
+      notify('warn', t(locale, 'tracking.clipboardDenied'))
     }
   }
 
@@ -59,7 +62,8 @@ export function FleetList({ rows }: { rows: TrackingRow[] }) {
               : 'border-white/10 text-white/65 hover:border-white/25 hover:text-white'
           }`}
         >
-          {freeOnly ? '✓ ' : ''}Свободные траки · {freeCount}
+          {freeOnly ? '✓ ' : ''}
+          {t(locale, 'tracking.freeTrucks')} · {freeCount}
         </button>
       )}
 
@@ -72,16 +76,18 @@ export function FleetList({ rows }: { rows: TrackingRow[] }) {
                   <span className="truncate text-[15px] font-semibold">{r.label}</span>
                   {r.unavailable && (
                     <span className="shrink-0 rounded-full bg-warn-400/15 px-2 py-0.5 text-[10.5px] font-semibold text-warn-400">
-                      {r.unavailable === 'repair' ? '🔧 В ремонте' : '🌴 Отпуск'}
+                      {r.unavailable === 'repair'
+                      ? t(locale, 'tracking.repairLabel')
+                      : t(locale, 'tracking.vacationLabel')}
                     </span>
                   )}
                 </div>
                 <div className="mt-0.5 flex min-w-0 items-center gap-1 truncate text-[12px] text-white/60">
-                  <span className="truncate">{r.city ?? 'Нет данных с ELD'}</span>
+                  <span className="truncate">{r.city ?? t(locale, 'tracking.noEldData')}</span>
                   {r.city && (
                     <button
                       onClick={() => copyLocation(r.city!)}
-                      title="Скопировать адрес местоположения трака"
+                      title={t(locale, 'tracking.copyLocationTitle')}
                       className="shrink-0 text-white/40 transition-colors hover:text-white/80"
                     >
                       📋
@@ -104,7 +110,9 @@ export function FleetList({ rows }: { rows: TrackingRow[] }) {
                 )}
                 {r.idleHours !== null && (
                   <span className="rounded-md bg-warn-400/15 px-2 py-1 text-[11px] font-medium text-warn-400">
-                    ⏸ стоит на месте ~{r.idleHours}ч — груз в пути
+                    {t(locale, 'tracking.idlePrefix')}
+                    {r.idleHours}
+                    {t(locale, 'tracking.idleSuffix')}
                   </span>
                 )}
               </div>
@@ -113,14 +121,15 @@ export function FleetList({ rows }: { rows: TrackingRow[] }) {
             {r.delivery ? (
               <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2">
                 <span className="min-w-0 truncate text-[12px] text-white/60">
-                  До выгрузки · <span className="text-white/80">{r.delivery.to}</span>
+                  {t(locale, 'tracking.toDeliveryLabel')}
+                  <span className="text-white/80">{r.delivery.to}</span>
                 </span>
                 <span className="nums shrink-0 text-[12px] font-semibold text-white/85">
                   {r.delivery.miles} mi · ~{r.driveTimeText}
                 </span>
               </div>
             ) : (
-              <div className="mt-3 text-[12px] text-white/40">Нет активного груза</div>
+              <div className="mt-3 text-[12px] text-white/40">{t(locale, 'tracking.noActiveLoad')}</div>
             )}
 
             <div className="mt-3 flex items-center gap-2">
@@ -129,7 +138,7 @@ export function FleetList({ rows }: { rows: TrackingRow[] }) {
                   href={`tel:${r.phone}`}
                   className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-medium text-white/75 transition-colors hover:border-white/25 hover:text-white"
                 >
-                  📞 Позвонить
+                  {t(locale, 'tracking.call')}
                 </a>
               )}
               {r.loadId && (
@@ -137,20 +146,21 @@ export function FleetList({ rows }: { rows: TrackingRow[] }) {
                   href={`/loads/${r.loadId}`}
                   className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-medium text-white/75 transition-colors hover:border-white/25 hover:text-white"
                 >
-                  Открыть груз{r.loadRoute ? ` · ${r.loadRoute}` : ''}
+                  {t(locale, 'tracking.openLoad')}
+                  {r.loadRoute ? ` · ${r.loadRoute}` : ''}
                 </Link>
               )}
               <Link
                 href={`/trucks/${r.id}`}
                 className="ml-auto shrink-0 text-[12px] text-white/45 transition-colors hover:text-white/75"
               >
-                История пути →
+                {t(locale, 'tracking.tripHistory')}
               </Link>
             </div>
           </div>
         ))}
         {shown.length === 0 && (
-          <p className="panel p-4 text-center text-[13px] text-white/55">Все траки сейчас в работе.</p>
+          <p className="panel p-4 text-center text-[13px] text-white/55">{t(locale, 'tracking.allTrucksBusy')}</p>
         )}
       </div>
     </div>

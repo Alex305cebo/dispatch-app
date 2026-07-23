@@ -1,25 +1,28 @@
 'use client'
 
-// Three-state availability pill row on the truck page: Активен / В ремонте / Отпуск.
-// An unavailable truck is badged across the app and excluded from "свободно" counts.
+// Three-state availability pill row on the truck page: Active / In repair / On vacation.
+// An unavailable truck is badged across the app and excluded from "free" counts.
 
 import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { setTruckAvailability } from '@/app/actions'
 import { notify } from '@/lib/notify'
+import { t, type Locale } from '@/lib/i18n'
 
 const OPTIONS = [
-  { value: 'active', label: '✓ Активен' },
-  { value: 'repair', label: '🔧 В ремонте' },
-  { value: 'vacation', label: '🌴 Отпуск' },
+  { value: 'active', key: 'trucks.avail.active' },
+  { value: 'repair', key: 'trucks.avail.repair' },
+  { value: 'vacation', key: 'trucks.avail.vacation' },
 ] as const
 
 export function TruckAvailability({
   truckId,
   current,
+  locale = 'en',
 }: {
   truckId: number
   current: 'repair' | 'vacation' | null
+  locale?: Locale
 }) {
   const router = useRouter()
   const [pending, start] = useTransition()
@@ -31,7 +34,14 @@ export function TruckAvailability({
       const res = await setTruckAvailability(truckId, value)
       if (res?.error) notify('error', res.error)
       else {
-        notify('ok', value === 'active' ? 'Трак снова в строю' : value === 'repair' ? 'Помечен: в ремонте' : 'Помечен: отпуск')
+        notify(
+          'ok',
+          value === 'active'
+            ? t(locale, 'trucks.avail.backInService')
+            : value === 'repair'
+              ? t(locale, 'trucks.avail.markedRepair')
+              : t(locale, 'trucks.avail.markedVacation'),
+        )
         router.refresh()
       }
     })
@@ -53,7 +63,7 @@ export function TruckAvailability({
               : 'text-white/55 hover:bg-white/5 hover:text-white/85'
           }`}
         >
-          {o.label}
+          {t(locale, o.key)}
         </button>
       ))}
     </div>

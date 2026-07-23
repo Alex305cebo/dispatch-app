@@ -14,6 +14,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 export type MapMarker = {
   lat: number
@@ -53,7 +55,7 @@ const esc = (s: string) =>
 
 // Compact popup — tight type scale, no wasted margin. Leaflet's own chrome
 // (wrapper bg, tip, close button, maxWidth) is styled/sized in globals.css.
-function popupHtml(m: MapMarker): string {
+function popupHtml(m: MapMarker, openLabel: string): string {
   const lines = (m.sub ?? '')
     .split('\n')
     .filter(Boolean)
@@ -66,7 +68,7 @@ function popupHtml(m: MapMarker): string {
   // and the whole plaque navigates (see the marker loop), so this doubles as the hint
   // and the visible click target.
   const open = m.href
-    ? `<div style="display:flex;align-items:center;gap:4px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.12);color:${DEST};font-weight:700">Открыть <span style="font-size:13px">→</span></div>`
+    ? `<div style="display:flex;align-items:center;gap:4px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.12);color:${DEST};font-weight:700">${esc(openLabel)} <span style="font-size:13px">→</span></div>`
     : ''
   return `<div style="font:500 10.5px/1.4 system-ui,sans-serif">
     <div style="font-weight:700;font-size:11.5px;color:#fff;margin-bottom:2px">${esc(m.label)}</div>
@@ -161,6 +163,7 @@ export function FleetMap({
   routes?: MapRoute[]
   height?: number
 }) {
+  const locale = useLocale()
   const ref = useRef<HTMLDivElement>(null)
   const [satellite, setSatellite] = useState(false)
   // Read inside the map-build effect without making `satellite` one of its deps —
@@ -217,7 +220,11 @@ export function FleetMap({
         // routes the click through Leaflet's target system, which swallowed our own
         // handler. Instead the plaque gets pointer-events via CSS (globals.css) and a
         // plain DOM click listener below — simplest thing that actually fires.
-        marker.bindTooltip(popupHtml(m), { direction: 'top', offset: [0, -8], opacity: 1 })
+        marker.bindTooltip(popupHtml(m, t(locale, 'tracking.openArrow')), {
+          direction: 'top',
+          offset: [0, -8],
+          opacity: 1,
+        })
         if (m.href) {
           const href = m.href
           const go = () => routerRef.current.push(href)
@@ -285,7 +292,7 @@ export function FleetMap({
   if (markers.length === 0) {
     return (
       <div className="panel flex items-center justify-center p-8 text-[13px] text-white/55">
-        Координат пока нет — подключи отслеживание траков в разделе «Трекинг».
+        {t(locale, 'tracking.noCoordsPanel')}
       </div>
     )
   }
@@ -301,7 +308,7 @@ export function FleetMap({
         onClick={() => setSatellite((v) => !v)}
         className="absolute right-2.5 top-2.5 z-[1000] rounded-lg border border-white/15 bg-ink-950/85 px-2.5 py-1.5 text-[11px] font-semibold text-white/85 backdrop-blur transition-colors hover:bg-ink-900"
       >
-        {satellite ? '🗺 Карта' : '🛰 Спутник'}
+        {satellite ? t(locale, 'tracking.mapLabel') : t(locale, 'tracking.satelliteLabel')}
       </button>
       {/* Legend — markers carry no text label now, so the color/shape key lives here
           once instead of repeating on every pin (same as Motive's map legend). */}
@@ -311,7 +318,7 @@ export function FleetMap({
             className="inline-block size-0 border-x-[5px] border-b-[8px] border-x-transparent"
             style={{ borderBottomColor: STATE_COLOR.move }}
           />
-          едет
+          {t(locale, 'tracking.legendMoving')}
         </span>
         <span className="flex items-center gap-1">
           <span className="size-2.5 rounded-full" style={{ background: STATE_COLOR.on }} />
@@ -319,7 +326,7 @@ export function FleetMap({
         </span>
         <span className="flex items-center gap-1">
           <span className="size-2.5 rounded-full opacity-80" style={{ background: STATE_COLOR.rest }} />
-          стоит
+          {t(locale, 'tracking.legendStopped')}
         </span>
       </div>
     </div>

@@ -7,6 +7,8 @@ import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { tgSendMessage, verifyTgSendPassword } from './actions'
 import { notify } from '@/lib/notify'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 // A message to a real driver can't be unsent — the password is a deliberate speed
 // bump (the dispatcher's own login password), not per-message: once entered, sending
@@ -20,6 +22,7 @@ function readUnlock(): number {
 
 export function TgSendBox({ chatId }: { chatId: string }) {
   const router = useRouter()
+  const locale = useLocale()
   const [text, setText] = useState('')
   const [pending, start] = useTransition()
   const [confirming, setConfirming] = useState(false)
@@ -107,13 +110,13 @@ export function TgSendBox({ chatId }: { chatId: string }) {
               trySend()
             }
           }}
-          placeholder="Сообщение водителю…"
+          placeholder={t(locale, 'telegram.chat.placeholder')}
           className="w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[14px] text-white outline-none transition-all placeholder:text-white/45 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15"
         />
         <button
           disabled={pending || !text.trim()}
           onClick={trySend}
-          title={unlocked ? `Отправка разблокирована ещё ${remaining}с` : 'Отправить — сначала подтверди своим паролем'}
+          title={unlocked ? t(locale, 'telegram.chat.unlockedTitle').replace('{n}', String(remaining)) : t(locale, 'telegram.chat.lockedTitle')}
           className={`relative shrink-0 rounded-xl px-4 text-[15px] font-semibold transition-colors disabled:opacity-40 ${
             unlocked ? 'bg-haul-500 hover:bg-haul-400' : 'bg-white/10 text-white/70 hover:bg-white/16'
           }`}
@@ -121,7 +124,7 @@ export function TgSendBox({ chatId }: { chatId: string }) {
           {pending ? '…' : '➤'}
           {unlocked && (
             <span className="nums absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-ink-950 px-1 text-[9px] text-white/50">
-              {remaining}с
+              {remaining}{t(locale, 'telegram.chat.secondsSuffix')}
             </span>
           )}
         </button>
@@ -131,14 +134,14 @@ export function TgSendBox({ chatId }: { chatId: string }) {
         <div className="absolute inset-x-3 bottom-full z-10 mb-2 rounded-xl border border-white/10 bg-ink-900 p-3.5 pr-9 shadow-2xl">
           <button
             type="button"
-            aria-label="Закрыть"
+            aria-label={t(locale, 'telegram.chat.close')}
             onClick={() => setConfirming(false)}
             className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full text-[15px] text-white/50 transition-colors hover:bg-white/10 hover:text-white/90"
           >
             ✕
           </button>
           <p className="text-[12.5px] text-white/70">
-            Сообщение уйдёт водителю — отменить будет нельзя. Введи свой пароль (тот, которым входишь), чтобы разблокировать отправку на 2 минуты:
+            {t(locale, 'telegram.chat.confirmText')}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <input
@@ -147,7 +150,7 @@ export function TgSendBox({ chatId }: { chatId: string }) {
               value={pw}
               onChange={(e) => setPw(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && pw && confirmSend()}
-              placeholder="Твой пароль"
+              placeholder={t(locale, 'telegram.chat.passwordPlaceholder')}
               className="w-40 rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-[14px] text-white outline-none focus:border-haul-500"
             />
             <button
@@ -155,7 +158,7 @@ export function TgSendBox({ chatId }: { chatId: string }) {
               onClick={confirmSend}
               className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
             >
-              {pwPending ? '…' : 'Разблокировать'}
+              {pwPending ? '…' : t(locale, 'telegram.chat.unlock')}
             </button>
           </div>
           {pwError && <p className="mt-1.5 text-[12px] text-bad-400">{pwError}</p>}

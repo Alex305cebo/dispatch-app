@@ -11,6 +11,8 @@ import { notify } from '@/lib/notify'
 import { LoadForm } from '@/components/load-form'
 import { BrokerCheckPanel } from '@/components/broker-check'
 import { Info } from '@/components/info'
+import { useLocale } from '@/components/locale-provider'
+import { t, type Locale } from '@/lib/i18n'
 
 /** Where the fields on screen came from — shown as a badge over Driver Information.
  * Only the AI ever fills the screen now — no regex draft, not even as a fallback:
@@ -26,23 +28,27 @@ type FoundKey = Exclude<
   'pickupStop' | 'deliveryStop' | 'importantNotes' | 'pickupAddress' | 'deliveryAddress'
 >
 
-const LABELS: Record<FoundKey, string> = {
-  rate: 'Ставка',
-  loadedMiles: 'Мили',
-  origin: 'Откуда',
-  destination: 'Куда',
-  // Not "broker's MC": real rate cons carry the CARRIER's MC (yours) just as often.
-  mcNumber: 'MC в документе',
-  brokerPhone: 'Телефон',
-  brokerEmail: 'Email',
-  referenceId: 'Номер груза',
-  pickupDate: 'Дата загрузки',
-  deliveryDate: 'Дата выгрузки',
-  commodity: 'Груз',
-  weight: 'Вес',
+function labelsFor(locale: Locale): Record<FoundKey, string> {
+  return {
+    rate: t(locale, 'import.label.rate'),
+    loadedMiles: t(locale, 'import.label.loadedMiles'),
+    origin: t(locale, 'import.label.origin'),
+    destination: t(locale, 'import.label.destination'),
+    // Not "broker's MC": real rate cons carry the CARRIER's MC (yours) just as often.
+    mcNumber: t(locale, 'import.label.mcNumber'),
+    brokerPhone: t(locale, 'import.label.brokerPhone'),
+    brokerEmail: t(locale, 'import.label.brokerEmail'),
+    referenceId: t(locale, 'import.label.referenceId'),
+    pickupDate: t(locale, 'import.label.pickupDate'),
+    deliveryDate: t(locale, 'import.label.deliveryDate'),
+    commodity: t(locale, 'import.label.commodity'),
+    weight: t(locale, 'import.label.weight'),
+  }
 }
 
 export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
+  const locale = useLocale()
+  const LABELS = labelsFor(locale)
   const [fields, setFields] = useState<RateConFields | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -61,10 +67,10 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
    * usually just a slow scan, not a real failure, and a second attempt clears most
    * of them without anyone having to click anything. */
   async function parseWithRetry(input: Parameters<typeof aiParseRateCon>[0]) {
-    const first = await aiParseRateCon(input)
+    const first = await aiParseRateCon(input, locale)
     if (first.ok) return first
     await new Promise((r) => setTimeout(r, 1500))
-    return aiParseRateCon(input)
+    return aiParseRateCon(input, locale)
   }
 
   async function copyDriverInfo(text: string) {
@@ -72,10 +78,10 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
       await navigator.clipboard.writeText(text)
       setCopied(true)
       setTimeout(() => setCopied(false), 1800)
-      notify('ok', 'Driver Information скопирован — можно слать водителю')
+      notify('ok', t(locale, 'import.driverInfoCopied'))
     } catch {
       // Clipboard needs HTTPS or localhost; over plain http on the LAN it throws.
-      notify('warn', 'Браузер не дал доступ к буферу — выдели текст и скопируй вручную')
+      notify('warn', t(locale, 'import.clipboardDenied'))
     }
   }
 
@@ -90,7 +96,7 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
       const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
       const isImage = file.type.startsWith('image/')
       if (!isPdf && !isImage) {
-        throw new Error('Нужен PDF или фото rate confirmation.')
+        throw new Error(t(locale, 'newLoad.needPdfOrPhoto'))
       }
 
       // Text PDFs feed Gemini their extracted text (cheap); scans/photos send the
@@ -123,18 +129,19 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
       if (res.ok) {
         setFields(res.fields)
         setAi('done')
-        notify('ok', 'Rate con распознан ИИ — проверь глазами и отправляй', file.name)
+        notify('ok', t(locale, 'import.recognizedToast'), file.name)
       } else {
         throw new Error(
           res.reason === 'no_key'
-            ? 'ИИ временно недоступен — обратись к администратору.'
-            : `Не распознался: ${res.detail ?? 'ИИ недоступен'}. Попробуй ещё раз.`,
+            ? t(locale, 'newLoad.aiUnavailable')
+            : t(locale, 'newLoad.notRecognized')
+                .replace('{detail}', res.detail ?? t(locale, 'newLoad.aiUnavailableShort')),
         )
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       setError(msg)
-      notify('error', `Не прочитался: ${msg}`, file.name)
+      notify('error', t(locale, 'newLoad.notReadToast').replace('{msg}', msg), file.name)
     } finally {
       if (reqId.current === my) setBusy(false)
     }
@@ -148,19 +155,19 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
             It's already stored on the server; this is a local copy. */}
         {docId && (
           <div className="panel mb-4 flex flex-wrap items-center gap-2 p-3">
-            <span className="text-[12px] text-white/55">Rate confirmation:</span>
+            <span className="text-[12px] text-white/55">{t(locale, 'import.rateConLabel')}</span>
             <a
               href={`/view/${docId}`}
               className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/85 hover:bg-white/5"
             >
-              Открыть
+              {t(locale, 'import.open')}
             </a>
             <a
               href={`/api/docs/${docId}?download=1`}
               download
               className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/85 hover:bg-white/5"
             >
-              Сохранить на компьютер
+              {t(locale, 'docView.saveToComputer')}
             </a>
           </div>
         )}
@@ -171,16 +178,16 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
             <div className="flex items-center gap-2">
               <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
                 Driver Information
-                <Info text="Готовый текст для отправки водителю: адреса загрузки/выгрузки, время, номера, ставка, вес. Собирается автоматически из распознанного rate con. Кнопка «Копировать» — и сразу в чат водителю." />
+                <Info text={t(locale, 'import.driverInfoInfo')} />
               </h2>
               {ai === 'loading' && (
                 <span className="animate-pulse rounded-full bg-haul-500/15 px-2 py-0.5 text-[10px] font-medium text-haul-400">
-                  ИИ читает…
+                  {t(locale, 'newLoad.aiReading')}
                 </span>
               )}
               {ai === 'done' && (
                 <span className="rounded-full bg-good-500/15 px-2 py-0.5 text-[10px] font-medium text-good-400">
-                  ✓ Проверено ИИ
+                  {t(locale, 'import.aiChecked')}
                 </span>
               )}
             </div>
@@ -190,23 +197,20 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
                 copied ? 'bg-good-500/20 text-good-400' : 'bg-haul-500 text-white hover:bg-haul-400'
               }`}
             >
-              {copied ? '✓ Скопировано' : 'Копировать'}
+              {copied ? t(locale, 'import.copied') : t(locale, 'import.copy')}
             </button>
           </div>
           <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-ink-900/60 p-3 font-mono text-[12px] leading-relaxed text-white/85">
             {driverInfo}
           </pre>
-          <p className="mt-2 text-[12px] text-white/62">
-            Готово к отправке водителю. Проверь глазами — что не нашлось в документе, помечено
-            прочерком.
-          </p>
+          <p className="mt-2 text-[12px] text-white/62">{t(locale, 'import.readyToSend')}</p>
         </div>
 
         <div className="panel mb-4 p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-              Что прочитано в документе
-              <Info text="Поля, которые ИИ (или базовый разбор) вытащил из PDF: ставка, мили, адреса, номер груза, брокер, вес. Под каждым — строка-источник из документа, чтобы можно было сверить глазами. Что не нашлось — помечено янтарным." />
+              {t(locale, 'import.whatWasRead')}
+              <Info text={t(locale, 'import.whatWasReadInfo')} />
             </h2>
             <button
               onClick={() => {
@@ -216,7 +220,7 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
               }}
               className="text-[12px] text-white/62 transition-colors hover:text-white/85"
             >
-              другой файл
+              {t(locale, 'import.differentFile')}
             </button>
           </div>
           <div className="grid gap-1.5 sm:grid-cols-2">
@@ -232,7 +236,7 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="text-[11px] text-white/62">{LABELS[k]}</span>
                     <span className={`nums text-[13px] ${f ? 'text-white/85' : 'text-amber-300/70'}`}>
-                      {f ? String(f.value) : 'не найдено'}
+                      {f ? String(f.value) : t(locale, 'import.notFound')}
                     </span>
                   </div>
                   {/* The quoted source line — so a number is checkable, not just trusted. */}
@@ -245,10 +249,7 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
               )
             })}
           </div>
-          <p className="mt-3 text-[12px] leading-relaxed text-white/62">
-            Ничего не угадывалось: если метки в документе нет, поле остаётся пустым. Deadhead и
-            дни в пути rate con не содержит — они зависят от трака и плана.
-          </p>
+          <p className="mt-3 text-[12px] leading-relaxed text-white/62">{t(locale, 'import.nothingGuessed')}</p>
         </div>
 
         <LoadForm
@@ -301,15 +302,10 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
         <path d="M12 12v6M9 15l3-3 3 3" />
       </svg>
       <p className="flex items-center justify-center gap-1.5 text-[15px] font-medium">
-        {busy ? 'Читаю документ…' : 'Перетащи rate confirmation'}
-        {!busy && (
-          <Info text="Перетащи или выбери PDF/фото rate confirmation от брокера. Документ читает ИИ (Google Gemini) — работает с любым шаблоном брокера и со сканами-фото." />
-        )}
+        {busy ? t(locale, 'import.readingDocument') : t(locale, 'import.dropRateCon')}
+        {!busy && <Info text={t(locale, 'import.dropInfo')} />}
       </p>
-      <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-white/65">
-        PDF или фото от брокера. Сканы тоже читаются. Для распознавания документ
-        отправляется в Google Gemini (ИИ).
-      </p>
+      <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-white/65">{t(locale, 'import.dropSubtext')}</p>
       {error && (
         <div className="mt-3 max-w-sm">
           <p className="text-[13px] text-bad-400">{error}</p>
@@ -322,7 +318,7 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
             }}
             className="mt-2 rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-haul-400"
           >
-            ↻ Повторить сканирование
+            {t(locale, 'import.retryScan')}
           </button>
         </div>
       )}

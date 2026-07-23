@@ -5,8 +5,9 @@ import { addTruck, fetchDiesel, saveTruck, type TruckInput } from '@/app/actions
 import { notify } from '@/lib/notify'
 import { Field, TextField } from '@/components/ui'
 import { Info } from '@/components/info'
+import { t as tr, type Locale } from '@/lib/i18n'
 
-export function TruckForm({ id, initial }: { id: number | null; initial: TruckInput }) {
+export function TruckForm({ id, initial, locale = 'en' }: { id: number | null; initial: TruckInput; locale?: Locale }) {
   const [t, setT] = useState<TruckInput>(initial)
   const [pending, start] = useTransition()
   const [dieselBusy, startDiesel] = useTransition()
@@ -17,7 +18,7 @@ export function TruckForm({ id, initial }: { id: number | null; initial: TruckIn
   function save() {
     setError(null)
     if (!t.number.trim()) {
-      setError('Укажи номер трака.')
+      setError(tr(locale, 'trucks.form.numberRequired'))
       return
     }
     start(async () => {
@@ -25,25 +26,25 @@ export function TruckForm({ id, initial }: { id: number | null; initial: TruckIn
       const res = id === null ? await addTruck(t) : await saveTruck(id, t)
       if (res?.error) {
         setError(res.error)
-        notify('error', `Трак не сохранился: ${res.error}`)
+        notify('error', `${tr(locale, 'trucks.form.saveFailed')} ${res.error}`)
         return
       }
-      notify('ok', id === null ? 'Трак добавлен' : 'Трак сохранён — расчёты пересчитаны')
+      notify('ok', id === null ? tr(locale, 'trucks.form.added') : tr(locale, 'trucks.form.saved'))
     })
   }
 
   return (
     <section className="panel max-w-2xl p-5">
-      <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-white/50">Трак</h3>
+      <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-white/50">{tr(locale, 'trucks.form.truckHeading')}</h3>
       <div className="grid grid-cols-2 gap-3">
         <TextField
-          label="Номер трака"
+          label={tr(locale, 'trucks.form.numberLabel')}
           value={t.number}
           onChange={(number) => set({ number })}
           placeholder="425"
         />
         <TextField
-          label="Имя водителя"
+          label={tr(locale, 'trucks.form.driverNameLabel')}
           value={t.driverName}
           onChange={(driverName) => set({ driverName })}
           placeholder="Ravil"
@@ -51,13 +52,13 @@ export function TruckForm({ id, initial }: { id: number | null; initial: TruckIn
       </div>
 
       <h3 className="mb-3 mt-6 text-[11px] font-semibold uppercase tracking-wider text-white/50">
-        Экономика
+        {tr(locale, 'trucks.form.economicsHeading')}
       </h3>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="MPG · миль на галлон" value={t.mpg} onChange={(mpg) => set({ mpg })} step={0.1} />
+        <Field label={tr(locale, 'trucks.form.mpgLabel')} value={t.mpg} onChange={(mpg) => set({ mpg })} step={0.1} />
         <div>
           <Field
-            label="Дизель"
+            label={tr(locale, 'trucks.form.dieselLabel')}
             value={t.fuelPricePerGallon}
             onChange={(fuelPricePerGallon) => set({ fuelPricePerGallon })}
             step={0.05}
@@ -72,23 +73,23 @@ export function TruckForm({ id, initial }: { id: number | null; initial: TruckIn
                 const res = await fetchDiesel()
                 if ('price' in res) {
                   set({ fuelPricePerGallon: res.price })
-                  notify('ok', `Дизель по стране (EIA): $${res.price} на ${res.asOf}`)
+                  notify('ok', `${tr(locale, 'trucks.form.dieselFetchedPrefix')}${res.price}${tr(locale, 'trucks.form.dieselFetchedOn')}${res.asOf}`)
                 } else
-                  notify('warn', 'Не удалось получить цену дизеля — попробуй позже')
+                  notify('warn', tr(locale, 'trucks.form.dieselFailed'))
               })
             }
             className="mt-1 text-[11px] text-haul-400 hover:underline disabled:text-white/30"
           >
-            {dieselBusy ? 'тяну…' : 'текущий по стране (EIA)'}
+            {dieselBusy ? tr(locale, 'trucks.form.dieselFetching') : tr(locale, 'trucks.form.dieselCurrent')}
           </button>
           <span className="ml-1.5 inline-block align-middle">
-            <Info text="Подставит актуальную среднюю цену дизеля по США из официальных данных EIA (обновляется еженедельно) — чтобы себестоимость топлива в расчётах была реальной, а не устаревшей." />
+            <Info text={tr(locale, 'trucks.form.dieselInfo')} />
           </span>
         </div>
 
         <label className="block">
           <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-white/65">
-            Оплата водителя
+            {tr(locale, 'trucks.form.driverPayLabel')}
           </span>
           <select
             value={t.driverPay.mode}
@@ -102,14 +103,14 @@ export function TruckForm({ id, initial }: { id: number | null; initial: TruckIn
             }
             className="w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none transition-all duration-200 hover:border-white/15 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15"
           >
-            <option value="cpm">Центы за милю</option>
-            <option value="percent">% от гросса</option>
+            <option value="cpm">{tr(locale, 'trucks.form.cpmOption')}</option>
+            <option value="percent">{tr(locale, 'trucks.form.percentOption')}</option>
           </select>
         </label>
 
         {t.driverPay.mode === 'cpm' ? (
           <Field
-            label="Ставка водителя"
+            label={tr(locale, 'trucks.form.driverRateLabel')}
             value={t.driverPay.centsPerMile}
             onChange={(centsPerMile) => set({ driverPay: { mode: 'cpm', centsPerMile } })}
             step={1}
@@ -117,7 +118,7 @@ export function TruckForm({ id, initial }: { id: number | null; initial: TruckIn
           />
         ) : (
           <Field
-            label="Доля водителя"
+            label={tr(locale, 'trucks.form.driverShareLabel')}
             value={t.driverPay.percentOfGross}
             onChange={(percentOfGross) => set({ driverPay: { mode: 'percent', percentOfGross } })}
             step={1}
@@ -126,28 +127,28 @@ export function TruckForm({ id, initial }: { id: number | null; initial: TruckIn
         )}
 
         <Field
-          label="Платёж за трак/день"
+          label={tr(locale, 'trucks.form.truckPaymentLabel')}
           value={t.truckPaymentPerDay}
           onChange={(truckPaymentPerDay) => set({ truckPaymentPerDay })}
           step={5}
           prefix="$"
         />
         <Field
-          label="Страховка/день"
+          label={tr(locale, 'trucks.form.insuranceLabel')}
           value={t.insurancePerDay}
           onChange={(insurancePerDay) => set({ insurancePerDay })}
           step={5}
           prefix="$"
         />
         <Field
-          label="ELD, пермиты, плейты/день"
+          label={tr(locale, 'trucks.form.eldPermitsLabel')}
           value={t.eldPermitsPerDay}
           onChange={(eldPermitsPerDay) => set({ eldPermitsPerDay })}
           step={1}
           prefix="$"
         />
         <Field
-          label="Обслуживание"
+          label={tr(locale, 'trucks.form.maintenanceLabel')}
           value={t.maintenanceCostPerMile}
           onChange={(maintenanceCostPerMile) => set({ maintenanceCostPerMile })}
           step={0.01}
@@ -155,14 +156,14 @@ export function TruckForm({ id, initial }: { id: number | null; initial: TruckIn
           suffix="/mi"
         />
         <Field
-          label="Факторинг"
+          label={tr(locale, 'trucks.form.factoringLabel')}
           value={t.factoringPercent}
           onChange={(factoringPercent) => set({ factoringPercent })}
           step={0.5}
           suffix="%"
         />
         <Field
-          label="Диспетч"
+          label={tr(locale, 'trucks.form.dispatchLabel')}
           value={t.dispatchPercent}
           onChange={(dispatchPercent) => set({ dispatchPercent })}
           step={0.5}
@@ -175,7 +176,7 @@ export function TruckForm({ id, initial }: { id: number | null; initial: TruckIn
         disabled={pending}
         className="mt-5 w-full rounded-xl bg-haul-500 py-3 text-[15px] font-semibold transition-colors hover:bg-haul-400 disabled:bg-white/8 disabled:text-white/55"
       >
-        {pending ? 'Сохраняю…' : id === null ? 'Добавить трак' : 'Сохранить'}
+        {pending ? tr(locale, 'trucks.common.saving') : id === null ? tr(locale, 'trucks.form.addTruck') : tr(locale, 'trucks.common.save')}
       </button>
       {error && <p className="mt-2 text-[13px] text-bad-400">{error}</p>}
     </section>

@@ -4,6 +4,7 @@ import 'server-only'
 import { headers } from 'next/headers'
 import { sql } from './db.ts'
 import { verifyPassword } from './auth.ts'
+import { t, type Locale } from './i18n.ts'
 
 export type CurrentUser = {
   id: number
@@ -21,15 +22,16 @@ export type CurrentUser = {
  */
 export async function verifyMyPassword(
   password: string,
+  locale: Locale = 'ru',
 ): Promise<{ user: CurrentUser } | { error: string }> {
   const user = await getCurrentUser()
-  if (!user) return { error: 'Сессия истекла — войди заново.' }
-  if (!password) return { error: 'Введи пароль.' }
+  if (!user) return { error: t(locale, 'session.expired') }
+  if (!password) return { error: t(locale, 'session.enterPassword') }
   const rows = (await sql`SELECT password_hash FROM users WHERE id = ${user.id}`) as {
     password_hash: string
   }[]
   const hash = rows[0]?.password_hash
-  if (!hash || !(await verifyPassword(password, hash))) return { error: 'Неверный пароль.' }
+  if (!hash || !(await verifyPassword(password, hash))) return { error: t(locale, 'session.wrongPassword') }
   return { user }
 }
 

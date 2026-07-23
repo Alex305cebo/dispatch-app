@@ -4,6 +4,8 @@ import { useEffect, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { refreshFleetStatus } from '@/app/actions'
 import { notify } from '@/lib/notify'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 /** GPS older than this on page open = pull fresh automatically. */
 const STALE_MINUTES = 10
@@ -20,6 +22,7 @@ const POLL_MS = 30_000
  * a local/dev instance this button (plus the auto-catch-up and live poll below) is
  * the ONLY thing that ever refreshes position data. */
 export function RefreshFleetButton({ staleMinutes }: { staleMinutes: number | null }) {
+  const locale = useLocale()
   const router = useRouter()
   const [pending, start] = useTransition()
   // Effects run twice in dev StrictMode; without this the auto-refresh would fire
@@ -31,7 +34,12 @@ export function RefreshFleetButton({ staleMinutes }: { staleMinutes: number | nu
       const res = await refreshFleetStatus()
       if (res.errors.length && !silent) notify('warn', res.errors.join(' · '))
       else if (!silent)
-        notify('ok', res.updated > 0 ? `Обновлено траков: ${res.updated}` : 'Новых данных нет')
+        notify(
+          'ok',
+          res.updated > 0
+            ? `${t(locale, 'tracking.updatedTrucksPrefix')}${res.updated}`
+            : t(locale, 'tracking.noNewData'),
+        )
       router.refresh()
     })
   }
@@ -54,7 +62,7 @@ export function RefreshFleetButton({ staleMinutes }: { staleMinutes: number | nu
 
   return (
     <div className="flex shrink-0 items-center gap-2">
-      <span className="flex items-center gap-1 text-[10px] text-good-400" title="Обновляется само каждые 30с">
+      <span className="flex items-center gap-1 text-[10px] text-good-400" title={t(locale, 'tracking.autoRefreshTitle')}>
         <span className="relative flex size-1.5">
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-good-400 opacity-75" />
           <span className="relative inline-flex size-1.5 rounded-full bg-good-500" />
@@ -67,7 +75,7 @@ export function RefreshFleetButton({ staleMinutes }: { staleMinutes: number | nu
         className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1 text-[11px] font-medium text-white/70 transition-colors hover:border-white/25 hover:text-white disabled:opacity-50"
       >
         <span className={pending ? 'animate-spin' : ''}>↻</span>
-        {pending ? 'Обновляю…' : 'Обновить'}
+        {pending ? t(locale, 'tracking.updating') : t(locale, 'tracking.refresh')}
       </button>
     </div>
   )

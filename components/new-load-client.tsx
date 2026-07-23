@@ -16,6 +16,8 @@ import { uploadDocument } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { LoadForm } from '@/components/load-form'
 import { Info } from '@/components/info'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 export function NewLoadClient({
   trucks,
@@ -24,6 +26,7 @@ export function NewLoadClient({
   trucks: TruckRecord[]
   defaultTruckId?: number
 }) {
+  const locale = useLocale()
   const [fields, setFields] = useState<RateConFields | null>(null)
   const [docId, setDocId] = useState<number | undefined>(undefined)
   const [busy, setBusy] = useState(false)
@@ -45,7 +48,7 @@ export function NewLoadClient({
     try {
       const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
       const isImage = file.type.startsWith('image/')
-      if (!isPdf && !isImage) throw new Error('Нужен PDF или фото rate confirmation.')
+      if (!isPdf && !isImage) throw new Error(t(locale, 'newLoad.needPdfOrPhoto'))
 
       // Nothing shows until the AI answers — text PDFs still extract their text
       // first (cheaper to send than the raw file), scans/photos send the file itself.
@@ -71,10 +74,10 @@ export function NewLoadClient({
         : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf' }
       // One automatic retry before bothering the dispatcher — a slow scan is usually
       // just slow, not a real failure.
-      let res = await aiParseRateCon(input)
+      let res = await aiParseRateCon(input, locale)
       if (!res.ok) {
         await new Promise((r) => setTimeout(r, 1500))
-        res = await aiParseRateCon(input)
+        res = await aiParseRateCon(input, locale)
       }
       if (reqId.current !== my) return
 
@@ -82,18 +85,19 @@ export function NewLoadClient({
         setFields(res.fields)
         setScanKey((k) => k + 1)
         setAi('done')
-        notify('ok', 'Rate con распознан — проверь поля', file.name)
+        notify('ok', t(locale, 'newLoad.recognizedToast'), file.name)
       } else {
         throw new Error(
           res.reason === 'no_key'
-            ? 'ИИ временно недоступен — обратись к администратору.'
-            : `Не распознался: ${res.detail ?? 'ИИ недоступен'}. Попробуй ещё раз.`,
+            ? t(locale, 'newLoad.aiUnavailable')
+            : t(locale, 'newLoad.notRecognized')
+                .replace('{detail}', res.detail ?? t(locale, 'newLoad.aiUnavailableShort')),
         )
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       setError(msg)
-      notify('error', `Не прочитался: ${msg}`, file.name)
+      notify('error', t(locale, 'newLoad.notReadToast').replace('{msg}', msg), file.name)
     } finally {
       if (reqId.current === my) setBusy(false)
     }
@@ -111,11 +115,11 @@ export function NewLoadClient({
   const badge =
     ai === 'loading' ? (
       <span className="animate-pulse rounded-full bg-haul-500/15 px-2 py-0.5 text-[10px] font-medium text-haul-400">
-        ИИ читает…
+        {t(locale, 'newLoad.aiReading')}
       </span>
     ) : ai === 'done' ? (
       <span className="rounded-full bg-good-500/15 px-2 py-0.5 text-[10px] font-medium text-good-400">
-        ✓ Распознано ИИ
+        {t(locale, 'newLoad.aiRecognized')}
       </span>
     ) : null
 
@@ -147,15 +151,12 @@ export function NewLoadClient({
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-[14px] font-semibold text-haul-200">
-            {busy ? 'Читаю rate con…' : 'Сканировать rate con — заполнить автоматически'}
+            {busy ? t(locale, 'newLoad.readingRateCon') : t(locale, 'newLoad.scanCta')}
             {badge}
           </div>
-          <div className="text-[12px] text-white/60">
-            Перетащи или выбери PDF/фото от брокера — ИИ распознает и заполнит поля ниже. Сканы
-            тоже читаются.
-          </div>
+          <div className="text-[12px] text-white/60">{t(locale, 'newLoad.scanHint')}</div>
         </div>
-        <Info text="Тот же распознаватель, что на странице «Rate con»: Google Gemini читает документ и заполняет форму. Работает с любым шаблоном и со сканами. Документ отправляется в Gemini." />
+        <Info text={t(locale, 'newLoad.scanInfo')} />
       </label>
 
       {error && (
@@ -166,15 +167,15 @@ export function NewLoadClient({
             onClick={() => handle(lastFile)}
             className="shrink-0 rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-haul-400"
           >
-            ↻ Повторить
+            {t(locale, 'newLoad.retry')}
           </button>
         </div>
       )}
       {fields && (
         <div className="mb-3 flex items-center gap-3 text-[12px] text-white/60">
-          <span>Форма заполнена из rate con — проверь и сохрани.</span>
+          <span>{t(locale, 'newLoad.formFilled')}</span>
           <button onClick={reset} className="text-white/55 hover:text-white/85">
-            очистить / другой файл
+            {t(locale, 'newLoad.clearOtherFile')}
           </button>
         </div>
       )}

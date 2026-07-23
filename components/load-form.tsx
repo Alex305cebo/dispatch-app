@@ -11,6 +11,8 @@ import { notify } from '@/lib/notify'
 import { Analysis } from './analysis'
 import { Field, TextField } from './ui'
 import { Info } from './info'
+import { useLocale } from './locale-provider'
+import { t as tr } from '@/lib/i18n'
 
 export function LoadForm({
   trucks,
@@ -33,6 +35,7 @@ export function LoadForm({
    * omitted for manual entry, which has nothing to render. */
   driverInfo?: string
 }) {
+  const locale = useLocale()
   const [load, setLoad] = useState<QrLoad>(initial)
   const [truckId, setTruckId] = useState<number>(defaultTruckId ?? trucks[0]?.id ?? 0)
   const [pending, start] = useTransition()
@@ -47,7 +50,7 @@ export function LoadForm({
   let result: ReturnType<typeof calcLoad> | null = null
   let calcError: string | null = null
   try {
-    if (!truck) throw new Error('Нет ни одного трака — добавь трак в разделе «Траки».')
+    if (!truck) throw new Error(tr(locale, 'loadForm.noTrucks'))
     result = calcLoad(load, truck)
   } catch (e) {
     calcError = humanError(e)
@@ -56,7 +59,7 @@ export function LoadForm({
   function save() {
     setError(null)
     if (!truck) {
-      setError('Сначала добавь трак.')
+      setError(tr(locale, 'loadForm.addTruckFirst'))
       return
     }
     start(async () => {
@@ -64,7 +67,7 @@ export function LoadForm({
       // On success createLoad redirects and never returns.
       if (res?.error) {
         setError(res.error)
-        notify('error', `Груз не сохранился: ${res.error}`)
+        notify('error', tr(locale, 'loadForm.saveFailedToast').replace('{error}', res.error))
       }
     })
   }
@@ -74,12 +77,12 @@ export function LoadForm({
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <section className="panel p-5">
           <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            Груз
+            {tr(locale, 'loadForm.heading')}
           </h2>
 
           <label className="mb-4 block">
             <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-white/65">
-              Трак
+              {tr(locale, 'loadForm.truckLabel')}
             </span>
             <select
               value={truckId}
@@ -96,7 +99,7 @@ export function LoadForm({
 
           <div className="mb-4">
             <Field
-              label="Ставка брокера"
+              label={tr(locale, 'loadForm.brokerRateLabel')}
               value={load.rate}
               onChange={(rate) => set({ rate })}
               step={25}
@@ -109,7 +112,7 @@ export function LoadForm({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Field
-                label="Loaded miles · гружёные мили"
+                label={tr(locale, 'loadForm.loadedMilesLabel')}
                 value={load.loadedMiles}
                 onChange={(loadedMiles) => set({ loadedMiles })}
                 step={10}
@@ -123,26 +126,26 @@ export function LoadForm({
                     const res = await fetchRouteMiles(load.origin ?? '', load.destination ?? '')
                     if ('miles' in res) {
                       set({ loadedMiles: res.miles })
-                      notify('ok', `Мили по карте: ${res.miles}`)
+                      notify('ok', tr(locale, 'loadForm.milesByMapToast').replace('{miles}', String(res.miles)))
                     } else
                       notify(
                         'warn',
                         res.error === 'no_key'
-                          ? 'Маршрут отключён — нет ключа ORS'
-                          : `Не вышло: ${res.error}`,
+                          ? tr(locale, 'loadForm.routeDisabled')
+                          : tr(locale, 'loadForm.routeFailedToast').replace('{error}', res.error),
                       )
                   })
                 }
                 className="mt-1 text-[11px] text-haul-400 hover:underline disabled:text-white/30"
               >
-                {milesBusy ? 'считаю…' : 'мили по карте (трак-маршрут)'}
+                {milesBusy ? tr(locale, 'loadForm.calculating') : tr(locale, 'loadForm.milesByMapButton')}
               </button>
               <span className="ml-1.5 inline-block align-middle">
-                <Info text="Считает реальные мили ПО ДОРОГАМ между городами загрузки и выгрузки (OpenStreetMap), а не по прямой «по воздуху». Точные мили = точная прибыль на милю. Бесплатно, ключ не нужен." />
+                <Info text={tr(locale, 'loadForm.milesByMapInfo')} />
               </span>
             </div>
             <Field
-              label="Deadhead · порожний пробег"
+              label={tr(locale, 'loadForm.deadheadLabel')}
               value={load.deadheadMiles}
               onChange={(deadheadMiles) => set({ deadheadMiles })}
               step={10}
@@ -152,24 +155,24 @@ export function LoadForm({
 
           <div className="mt-3">
             <Field
-              label="Дней в пути (загрузка → пусто)"
+              label={tr(locale, 'loadForm.transitDaysLabel')}
               value={load.transitDays}
               onChange={(transitDays) => set({ transitDays })}
               step={0.5}
-              suffix="дн"
+              suffix={tr(locale, 'loadForm.daysSuffix')}
               missing={attn('transitDays')}
             />
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-3">
             <TextField
-              label="Откуда"
+              label={tr(locale, 'loadForm.originLabel')}
               value={load.origin ?? ''}
               onChange={(origin) => set({ origin: origin || null })}
               placeholder="Chicago, IL"
             />
             <TextField
-              label="Куда"
+              label={tr(locale, 'loadForm.destinationLabel')}
               value={load.destination ?? ''}
               onChange={(destination) => set({ destination: destination || null })}
               placeholder="Dallas, TX"
@@ -180,13 +183,13 @@ export function LoadForm({
             <div className="mt-4 flex flex-wrap gap-1.5 border-t border-white/8 pt-4">
               {load.brokerMc && <Chip label="MC" value={load.brokerMc} />}
               {load.brokerPhone && (
-                <Chip label="Тел" value={load.brokerPhone} href={`tel:${load.brokerPhone}`} />
+                <Chip label={tr(locale, 'loadForm.phoneChipLabel')} value={load.brokerPhone} href={`tel:${load.brokerPhone}`} />
               )}
               {load.brokerEmail && (
                 <Chip label="Email" value={load.brokerEmail} href={`mailto:${load.brokerEmail}`} />
               )}
               {load.referenceId && <Chip label="Ref" value={load.referenceId} />}
-              {load.truckLocation && <Chip label="Трак" value={load.truckLocation} />}
+              {load.truckLocation && <Chip label={tr(locale, 'loadForm.truckChipLabel')} value={load.truckLocation} />}
             </div>
           )}
 
@@ -195,14 +198,14 @@ export function LoadForm({
             disabled={pending || !!calcError}
             className="mt-5 w-full rounded-xl bg-haul-500 py-3 text-[15px] font-semibold text-white transition-all hover:bg-haul-400 disabled:cursor-not-allowed disabled:bg-white/8 disabled:text-white/55"
           >
-            {pending ? 'Сохраняю…' : 'Сохранить груз'}
+            {pending ? tr(locale, 'loadForm.saving') : tr(locale, 'loadForm.saveLoad')}
           </button>
           {error && <p className="mt-2 text-[13px] text-bad-400">{error}</p>}
         </section>
 
         <section className="panel p-5 lg:sticky lg:top-6">
           <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            Ставка за груз
+            {tr(locale, 'loadDetail.rateHeading')}
           </h2>
           {calcError && <p className="text-sm text-bad-400">{calcError}</p>}
           {result && truck && <Analysis r={result} mpg={truck.mpg} spotRpm={load.spotRpm} />}

@@ -14,6 +14,8 @@ import { Api, TelegramClient } from 'telegram'
 import { StringSession } from 'telegram/sessions/index.js'
 import { sql } from './db'
 import { deleteSetting, getSetting, setSetting } from './settings'
+import { getLocale } from './i18n-server'
+import { t } from './i18n.ts'
 
 export { getSetting, setSetting }
 
@@ -76,9 +78,10 @@ export async function tgAccountInfo(
   uid: number,
 ): Promise<{ name: string; phone: string | null; username: string | null } | null> {
   if (!(await tgConnected(uid))) return null
+  const locale = await getLocale()
   return withClient(uid, async (c) => {
     const me = await c.getMe()
-    const name = [me.firstName, me.lastName].filter(Boolean).join(' ') || me.username || 'Без имени'
+    const name = [me.firstName, me.lastName].filter(Boolean).join(' ') || me.username || t(locale, 'telegram.lib.noName')
     return { name, phone: me.phone ?? null, username: me.username ?? null }
   })
 }
@@ -172,7 +175,7 @@ async function cachedDialogs(uid: number, client: TelegramClient) {
 function connectClient(uid: number): Promise<TelegramClient> {
   return (async () => {
     const c = await creds(uid)
-    if (!c) throw new Error('Telegram не подключён')
+    if (!c) throw new Error(t(await getLocale(), 'telegram.lib.notConnected'))
     const tc = new TelegramClient(new StringSession(c.session), c.apiId, c.apiHash, {
       connectionRetries: 3,
     })
@@ -207,9 +210,10 @@ export async function startLogin(
   // GramJS's sendCode returns its OWN simplified shape — {phoneCodeHash, isCodeViaApp} —
   // NOT the raw auth.SentCode, so there is no `.type.className` to read here (verified
   // by dumping the live response). isCodeViaApp is the only channel signal available.
+  const locale = await getLocale()
   const deliveryHint = sent.isCodeViaApp
-    ? `Telegram отправил код СООБЩЕНИЕМ В САМ TELEGRAM — в чат «Telegram» аккаунта с номером ${phone}. Не SMS.`
-    : `Telegram отправил код SMS-кой на ${phone}.`
+    ? t(locale, 'telegram.lib.deliveryHintApp').replace('{phone}', phone)
+    : t(locale, 'telegram.lib.deliveryHintSms').replace('{phone}', phone)
   console.log('[tg] sendCode ok — isCodeViaApp:', sent.isCodeViaApp, 'phone:', phone)
   return { token, deliveryHint }
 }
@@ -220,7 +224,7 @@ export async function confirmLogin(
   password?: string,
 ): Promise<{ ok: true } | { need2fa: true }> {
   const p = pending.get(token)
-  if (!p) throw new Error('Сессия логина истекла — начни заново.')
+  if (!p) throw new Error(t(await getLocale(), 'telegram.lib.loginExpired'))
 
   try {
     await p.client.invoke(
@@ -334,7 +338,7 @@ export async function tgMessages(uid: number, chatId: string): Promise<TgMsg[]> 
   return withClient(uid, async (client) => {
     const dialogs = await cachedDialogs(uid, client)
     const d = dialogs.find((x) => String(x.id) === chatId)
-    if (!d?.entity) throw new Error('Чат не найден среди последних диалогов.')
+    if (!d?.entity) throw new Error(t(await getLocale(), 'telegram.lib.chatNotFound'))
     const msgs = await client.getMessages(d.entity, { limit: 40 })
     return msgs
       .map((m) => {
@@ -390,7 +394,7 @@ export async function tgSend(uid: number, chatId: string, text: string): Promise
   await withClient(uid, async (client) => {
     const dialogs = await cachedDialogs(uid, client)
     const d = dialogs.find((x) => String(x.id) === chatId)
-    if (!d?.entity) throw new Error('Чат не найден среди последних диалогов.')
+    if (!d?.entity) throw new Error(t(await getLocale(), 'telegram.lib.chatNotFound'))
     await client.sendMessage(d.entity, { message: text })
   })
 }

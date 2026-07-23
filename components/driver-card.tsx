@@ -10,6 +10,7 @@ import { saveDriverInfo, saveDriverPhoto } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { Info } from '@/components/info'
 import { DriverAvatar } from '@/components/driver-avatar'
+import { t, type Locale } from '@/lib/i18n'
 
 export function DriverCard({
   truckId,
@@ -19,6 +20,7 @@ export function DriverCard({
   medcardExpiry,
   hasPhoto,
   embedded,
+  locale = 'en',
 }: {
   truckId: number
   name: string | null
@@ -28,6 +30,7 @@ export function DriverCard({
   hasPhoto: boolean
   /** Nested inside another panel (the truck hero) — no own border/background, no header. */
   embedded?: boolean
+  locale?: Locale
 }) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
@@ -48,7 +51,7 @@ export function DriverCard({
       const res = await saveDriverInfo(truckId, f)
       if (res?.error) notify('error', res.error)
       else {
-        notify('ok', 'Данные водителя сохранены')
+        notify('ok', t(locale, 'trucks.driverCard.saved'))
         setEditing(false)
         router.refresh()
       }
@@ -63,7 +66,7 @@ export function DriverCard({
       const res = await saveDriverPhoto(truckId, fd)
       if (res?.error) notify('error', res.error)
       else {
-        notify('ok', 'Фото сохранено')
+        notify('ok', t(locale, 'trucks.driverCard.photoSaved'))
         router.refresh()
       }
       if (fileRef.current) fileRef.current.value = ''
@@ -76,17 +79,15 @@ export function DriverCard({
     <Wrap className={embedded ? '' : 'panel p-4'}>
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          Водитель
-          {!embedded && (
-            <Info text="Кто за рулём этого трака: имя, телефон для связи и сроки CDL/медкарты. Сроки подсвечиваются заранее в напоминаниях, чтобы трак не встал out-of-service." />
-          )}
+          {t(locale, 'trucks.driverCard.heading')}
+          {!embedded && <Info text={t(locale, 'trucks.driverCard.info')} />}
         </h2>
         {!editing && (
           <button
             onClick={() => setEditing(true)}
             className="rounded-lg border border-white/10 px-3 py-1 text-[12px] font-medium text-white/70 transition-colors hover:border-white/25 hover:text-white"
           >
-            {name || phone ? 'Изменить' : '+ Заполнить'}
+            {name || phone ? t(locale, 'trucks.driverCard.edit') : t(locale, 'trucks.driverCard.fill')}
           </button>
         )}
       </div>
@@ -95,9 +96,9 @@ export function DriverCard({
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <label className={`group relative block shrink-0 ${photoPending ? 'opacity-50' : 'cursor-pointer'}`}>
-              <DriverAvatar truckId={truckId} name={name} hasPhoto={hasPhoto} size={44} />
+              <DriverAvatar truckId={truckId} name={name} hasPhoto={hasPhoto} size={44} locale={locale} />
               <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-[9px] font-medium text-transparent transition-colors group-hover:bg-black/50 group-hover:text-white">
-                {photoPending ? '…' : 'фото'}
+                {photoPending ? '…' : t(locale, 'trucks.driverCard.photoOverlay')}
               </span>
               <input
                 ref={fileRef}
@@ -109,13 +110,13 @@ export function DriverCard({
               />
             </label>
             <div className="grid flex-1 grid-cols-2 gap-3">
-              <Field label="Имя водителя" value={f.name} onChange={set('name')} placeholder="Иван Петров" />
-              <Field label="Телефон" value={f.phone} onChange={set('phone')} placeholder="(555) 123-4567" />
+              <Field label={t(locale, 'trucks.driverCard.nameLabel')} value={f.name} onChange={set('name')} placeholder={t(locale, 'trucks.driverCard.namePlaceholder')} />
+              <Field label={t(locale, 'trucks.driverCard.phoneLabel')} value={f.phone} onChange={set('phone')} placeholder="(555) 123-4567" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="CDL до" value={f.cdlExpiry} onChange={set('cdlExpiry')} type="date" />
-            <Field label="Медкарта до" value={f.medcardExpiry} onChange={set('medcardExpiry')} type="date" />
+            <Field label={t(locale, 'trucks.driverCard.cdlLabel')} value={f.cdlExpiry} onChange={set('cdlExpiry')} type="date" />
+            <Field label={t(locale, 'trucks.driverCard.medcardLabel')} value={f.medcardExpiry} onChange={set('medcardExpiry')} type="date" />
           </div>
           <div className="flex gap-2">
             <button
@@ -123,7 +124,7 @@ export function DriverCard({
               onClick={save}
               className="rounded-lg bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
             >
-              {pending ? 'Сохраняю…' : 'Сохранить'}
+              {pending ? t(locale, 'trucks.common.saving') : t(locale, 'trucks.common.save')}
             </button>
             <button
               onClick={() => {
@@ -137,20 +138,20 @@ export function DriverCard({
               }}
               className="rounded-lg px-4 py-2 text-[13px] text-white/70 transition-colors hover:text-white"
             >
-              Отмена
+              {t(locale, 'trucks.common.cancel')}
             </button>
           </div>
         </div>
       ) : (
         // Avatar sits INLINE with the info, not stacked above it — one row, not two.
-        // The hover overlay on the avatar itself ("фото") is enough to teach the
+        // The hover overlay on the avatar itself ("photo") is enough to teach the
         // click-to-upload interaction; a second line of static hint text below it
         // was the actual source of the wasted vertical space.
         <div className="flex items-center gap-3">
           <label className={`group relative block shrink-0 ${photoPending ? 'opacity-50' : 'cursor-pointer'}`}>
-            <DriverAvatar truckId={truckId} name={name} hasPhoto={hasPhoto} size={44} />
+            <DriverAvatar truckId={truckId} name={name} hasPhoto={hasPhoto} size={44} locale={locale} />
             <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-[9px] font-medium text-transparent transition-colors group-hover:bg-black/50 group-hover:text-white">
-              {photoPending ? '…' : 'фото'}
+              {photoPending ? '…' : t(locale, 'trucks.driverCard.photoOverlay')}
             </span>
             <input
               ref={fileRef}
@@ -162,10 +163,10 @@ export function DriverCard({
             />
           </label>
           <dl className="grid flex-1 grid-cols-2 gap-x-4 gap-y-1.5 text-[13px] sm:grid-cols-4">
-            <Row label="Имя" value={name || '—'} />
-            <Row label="Телефон" value={phone || '—'} href={phone ? `tel:${phone}` : undefined} />
-            <Row label="CDL до" value={cdlExpiry || '—'} />
-            <Row label="Медкарта до" value={medcardExpiry || '—'} />
+            <Row label={t(locale, 'trucks.driverCard.nameRowLabel')} value={name || '—'} />
+            <Row label={t(locale, 'trucks.driverCard.phoneRowLabel')} value={phone || '—'} href={phone ? `tel:${phone}` : undefined} />
+            <Row label={t(locale, 'trucks.driverCard.cdlLabel')} value={cdlExpiry || '—'} />
+            <Row label={t(locale, 'trucks.driverCard.medcardLabel')} value={medcardExpiry || '—'} />
           </dl>
         </div>
       )}

@@ -4,6 +4,7 @@
 // must be testable without a database (see map.test.ts).
 
 import type { Load, TruckSettings } from './profit.ts'
+import { t, type Locale } from './i18n.ts'
 
 export type LoadStatus = 'quoted' | 'booked' | 'in_transit' | 'delivered' | 'paid' | 'cancelled'
 
@@ -82,13 +83,17 @@ export function truckLabel(t: TruckRecord): string {
 export function eldStatus(
   s: string | null,
   idleHours: number | null = null,
+  locale: Locale = 'ru',
 ): { text: string; tone: 'move' | 'on' | 'rest' } {
   if (idleHours !== null && idleHours >= 3) {
-    return { text: `Стоит ~${idleHours}ч (нет движения по GPS)`, tone: 'rest' }
+    return {
+      text: `${t(locale, 'tracking.idleNoGpsPrefix')}${idleHours}${t(locale, 'tracking.idleNoGpsSuffix')}`,
+      tone: 'rest',
+    }
   }
   if (!s) return { text: '—', tone: 'rest' }
-  if (/mi\/h/.test(s)) return { text: `В движении · ${s}`, tone: 'move' }
-  if (s === 'D') return { text: 'В движении', tone: 'move' }
+  if (/mi\/h/.test(s)) return { text: `${t(locale, 'tracking.movingPrefix')}${s}`, tone: 'move' }
+  if (s === 'D') return { text: t(locale, 'tracking.movingText'), tone: 'move' }
   if (s === 'ON') return { text: 'On Duty', tone: 'on' }
   if (s === 'SB') return { text: 'Sleeper', tone: 'rest' }
   if (s === 'OFF') return { text: 'Off Duty', tone: 'rest' }

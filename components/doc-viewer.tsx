@@ -14,11 +14,14 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 const MIN = 0.5
 const MAX = 4
 
 export function DocViewer({ id, mime }: { id: number; mime: string }) {
+  const locale = useLocale()
   const holder = useRef<HTMLDivElement>(null)
   const area = useRef<HTMLDivElement>(null)
   /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -185,8 +188,8 @@ export function DocViewer({ id, mime }: { id: number; mime: string }) {
       {/* Floating, see-through zoom. Fixed, so the document scrolls under it. */}
       <div className="fixed bottom-32 right-4 z-40 flex flex-col gap-2 md:bottom-8 md:right-6">
         {[
-          { label: '+', f: 1.25, title: 'Увеличить' },
-          { label: '−', f: 1 / 1.25, title: 'Уменьшить' },
+          { label: '+', f: 1.25, title: t(locale, 'docs.viewer.zoomIn') },
+          { label: '−', f: 1 / 1.25, title: t(locale, 'docs.viewer.zoomOut') },
         ].map((b) => (
           <button
             key={b.label}
@@ -212,16 +215,17 @@ export function DocViewer({ id, mime }: { id: number; mime: string }) {
       </div>
 
       {state === 'loading' && isPdf && (
-        <p className="py-10 text-center text-[13px] text-white/55">Открываю документ…</p>
+        <p className="py-10 text-center text-[13px] text-white/55">{t(locale, 'docs.viewer.opening')}</p>
       )}
       {state === 'error' && (
         <p className="py-10 text-center text-[13px] text-bad-400">
-          Не удалось показать документ{error ? `: ${error}` : ''}.{' '}
+          {t(locale, 'docs.viewer.failed')}
+          {error ? `: ${error}` : ''}.{' '}
           {/* Only reached here, when the in-app viewer actually failed — a direct file
               link obeys the browser's "download PDFs instead of opening" setting, which
               is exactly the confusing "a folder opened" behaviour this viewer avoids. */}
           <a href={`/api/docs/${id}?download=1`} download className="text-haul-400 underline hover:text-haul-300">
-            Скачать файл
+            {t(locale, 'docs.viewer.download')}
           </a>
         </p>
       )}
@@ -246,7 +250,7 @@ export function DocViewer({ id, mime }: { id: number; mime: string }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={`/api/docs/${id}`}
-            alt="Документ"
+            alt={t(locale, 'docs.viewer.alt')}
             style={{ width: `${zoom * 100}%` }}
             className="mx-auto rounded-xl border border-white/10"
           />

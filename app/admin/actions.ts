@@ -8,13 +8,15 @@ import { getCurrentUser } from '@/lib/session'
 import { getSetting, setSetting } from '@/lib/settings'
 import { CAPABILITIES, type CapabilityKey } from '@/lib/capabilities'
 import { capabilitiesFor, setUserCapability } from '@/lib/capabilities-server'
+import { getLocale } from '@/lib/i18n-server'
+import { t } from '@/lib/i18n'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CAP_KEYS = new Set(CAPABILITIES.map((c) => c.key))
 
 async function assertAdmin() {
   const user = await getCurrentUser()
-  if (!user || user.role !== 'admin') throw new Error('Только для администратора.')
+  if (!user || user.role !== 'admin') throw new Error(t(await getLocale(), 'admin.err.adminOnly'))
 }
 
 export type AdminUser = {
@@ -64,7 +66,7 @@ export async function setDispatcherCapability(
   allowed: boolean,
 ): Promise<{ error: string } | void> {
   await assertAdmin()
-  if (!CAP_KEYS.has(key as CapabilityKey)) return { error: 'Неизвестное право.' }
+  if (!CAP_KEYS.has(key as CapabilityKey)) return { error: t(await getLocale(), 'admin.err.unknownCapability') }
   await setUserCapability(userId, key as CapabilityKey, allowed)
   revalidatePath('/admin')
   revalidatePath('/', 'layout')
@@ -77,16 +79,17 @@ export async function createUser(
   role: 'admin' | 'dispatcher',
 ): Promise<{ error: string } | void> {
   await assertAdmin()
-  if (!name.trim()) return { error: 'Впиши имя.' }
-  if (!EMAIL_RE.test(email.trim())) return { error: 'Некорректный email.' }
-  if (password.length < 8) return { error: 'Пароль — минимум 8 символов.' }
+  const locale = await getLocale()
+  if (!name.trim()) return { error: t(locale, 'admin.err.enterName') }
+  if (!EMAIL_RE.test(email.trim())) return { error: t(locale, 'admin.err.invalidEmail') }
+  if (password.length < 8) return { error: t(locale, 'admin.err.passwordMin8') }
 
   try {
     await sql`
       INSERT INTO users (name, email, password_hash, role)
       VALUES (${name.trim()}, ${email.trim().toLowerCase()}, ${await hashPassword(password)}, ${role})`
   } catch (e) {
-    return { error: /unique/i.test(String(e)) ? 'Этот email уже занят.' : humanError(e) }
+    return { error: /unique/i.test(String(e)) ? t(locale, 'admin.err.emailTaken') : humanError(e) }
   }
   revalidatePath('/admin')
 }
@@ -108,7 +111,7 @@ export async function setUserDisabled(userId: number, disabled: boolean): Promis
 
 export async function resetUserPassword(userId: number, newPassword: string): Promise<{ error: string } | void> {
   await assertAdmin()
-  if (newPassword.length < 8) return { error: 'Пароль — минимум 8 символов.' }
+  if (newPassword.length < 8) return { error: t(await getLocale(), 'admin.err.passwordMin8') }
   await sql`UPDATE users SET password_hash = ${await hashPassword(newPassword)} WHERE id = ${userId}`
   // A reset password should force a real re-login, not leave old sessions valid.
   await sql`DELETE FROM sessions WHERE user_id = ${userId}`

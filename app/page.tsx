@@ -13,6 +13,8 @@ import { sql } from '@/lib/db'
 import { deliveryInfo } from '@/lib/geo-routing'
 import { fleetExpiryAlerts, truckPhotoFlags, truckTrailerNumbers } from '@/lib/maintenance'
 import { companyScope, getCurrentUser } from '@/lib/session'
+import { getLocale } from '@/lib/i18n-server'
+import { t as tr, type Locale } from '@/lib/i18n'
 import { can } from '@/lib/capabilities-server'
 import { usd, usd2, driveTime, weekStart } from '@/lib/fmt'
 import { StatusBadge } from '@/components/status'
@@ -33,11 +35,11 @@ function driveDot(s: string | null): string {
   return 'bg-white/30'
 }
 
-function driveDotTitle(s: string | null): string {
-  if (!s) return 'Нет данных с ELD'
-  if (/mi\/h|^d$/i.test(s)) return 'В движении'
-  if (/^on$/i.test(s)) return 'На месте (on duty)'
-  return 'Стоит'
+function driveDotTitle(s: string | null, locale: Locale): string {
+  if (!s) return tr(locale, 'overview.driveDot.noEld')
+  if (/mi\/h|^d$/i.test(s)) return tr(locale, 'overview.driveDot.moving')
+  if (/^on$/i.test(s)) return tr(locale, 'overview.driveDot.onDuty')
+  return tr(locale, 'overview.driveDot.stopped')
 }
 
 // ELD gives "12.0mi N from Ashland, VA" — the card just wants "Ashland, VA".
@@ -49,6 +51,7 @@ function cityOf(location: string | null): string | null {
 
 export default async function Page() {
   const companyId = await companyScope()
+  const locale = await getLocale()
   const user = await getCurrentUser()
   const showFinances = await can(user, 'finances')
   const [loads, trucks, fleetRaw, alerts, rateCons, photoIds, trailers, receivables, uninvoiced] =
@@ -126,9 +129,9 @@ export default async function Page() {
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <header className="mb-6 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-[17px] font-semibold">Обзор</h1>
+          <h1 className="text-[17px] font-semibold">{tr(locale, 'overview.title')}</h1>
           <p className="text-[13px] text-white/65">
-            {trucks.length} трак(ов) — что парк заработал и что везёт сейчас.
+            {tr(locale, 'overview.truckCount').replace('{n}', String(trucks.length))}
           </p>
         </div>
         <span className="flex shrink-0 items-center gap-1.5">
@@ -136,17 +139,17 @@ export default async function Page() {
             href="/loads/new"
             className="rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400"
           >
-            + Груз
+            {tr(locale, 'overview.addLoad')}
           </Link>
-          <Info side="bottom" text="Добавить груз вручную. Выберешь трак, введёшь ставку и мили — приложение сразу посчитает, что груз оставит на траке чистыми." />
+          <Info side="bottom" text={tr(locale, 'overview.addLoadInfo')} />
         </span>
       </header>
 
       {alerts.length > 0 && (
         <div className="mb-5 rounded-xl border border-warn-400/25 bg-warn-400/[0.06] px-4 py-3">
           <p className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-warn-400">
-            Сроки документов
-            <Info text="Регистрация, инспекция, страховка трака и CDL/медкарта водителя. Даты вносятся в паспорте трака (вкладка Обслуживание). Подсвечиваем за 60 дней (жёлтый) и 30 дней (красный), чтобы трак не встал out-of-service." />
+            {tr(locale, 'overview.docDeadlines')}
+            <Info text={tr(locale, 'overview.docDeadlinesInfo')} />
           </p>
           <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
             {alerts.slice(0, 6).map((a) => (
@@ -157,7 +160,7 @@ export default async function Page() {
               >
                 <span className="text-white/50">#{a.number}</span> {a.item.label} —{' '}
                 <span className={a.item.tone === 'bad' ? 'text-bad-400' : 'text-warn-400'}>
-                  {a.item.daysLeft < 0 ? 'просрочено' : `${a.item.daysLeft} дн.`}
+                  {a.item.daysLeft < 0 ? tr(locale, 'overview.overdue') : tr(locale, 'overview.daysLeft').replace('{n}', String(a.item.daysLeft))}
                 </span>
               </Link>
             ))}
@@ -168,8 +171,8 @@ export default async function Page() {
       {unreadNotes.length > 0 && (
         <div className="mb-5 rounded-xl border border-warn-400/25 bg-warn-400/[0.06] px-4 py-3">
           <p className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-warn-400">
-            ⚠ Важное от брокера — не прочитано
-            <Info text="Особые инструкции брокера (detention, аппойнтмент, требования к POD и т.д.), распознанные из rate con, которые ещё никто не отметил прочитанными на странице груза." />
+            {tr(locale, 'overview.brokerUnread')}
+            <Info text={tr(locale, 'overview.brokerUnreadInfo')} />
           </p>
           <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
             {unreadNotes.slice(0, 6).map((l) => (
@@ -192,8 +195,8 @@ export default async function Page() {
               overdueTotal > 0 ? 'text-bad-400' : 'text-white/62'
             }`}
           >
-            Ждём оплаты
-            <Info text="Выставленные, но ещё не оплаченные счета, плюс доставленные грузы без выставленного счёта — то же, что «Не оплачено» на странице Финансы, одной цифрой." />
+            {tr(locale, 'overview.awaitingPayment')}
+            <Info text={tr(locale, 'overview.awaitingPaymentInfo')} />
           </p>
           <p className="mt-1 text-[13px] text-white/80">
             <Link href="/invoices" className="nums font-semibold hover:underline">
@@ -202,7 +205,7 @@ export default async function Page() {
             {overdueTotal > 0 && (
               <span className="text-bad-400">
                 {' '}
-                — из них просрочено{' '}
+                — {tr(locale, 'overview.ofWhichOverdue')}{' '}
                 <Link href="/invoices" className="nums font-semibold hover:underline">
                   {usd.format(overdueTotal)}
                 </Link>{' '}
@@ -215,28 +218,35 @@ export default async function Page() {
 
       {loads.length > 0 && (
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat href="/loads" label="Рейт всего" value={usd.format(totalGross)} sub={`чистыми ${usd.format(totalNet)}`} subTone={totalNet >= 0 ? 'good' : 'bad'} info="Полная ставка за все активные грузы (гросс) — самое важное: сколько всего работы взято. Снизу «чистыми» — что останется после всех расходов (топливо, водитель, фикс, обслуживание, факторинг), это доп. информация." />
-          <Stat href="/trucks" label="RPM · доход на милю" value={`${usd2.format(avgRpm)}/mi`} info="RPM (rate per mile) — средний доход на милю по всему парку: общая выручка ÷ общие мили (гружёные + порожние). Главный ориентир, брать груз или нет." />
           <Stat
             href="/loads"
-            label="В работе"
-            value={String(active)}
-            sub={trucks.length > 0 ? `${freeTrucks} свободно` : undefined}
-            subTone={freeTrucks > 0 ? 'good' : undefined}
-            info="Сколько грузов сейчас в статусе «забронирован» или «в пути». Снизу — сколько траков сейчас без активного груза и готовы взять новый."
+            label={tr(locale, 'overview.rateTotal')}
+            value={usd.format(totalGross)}
+            sub={tr(locale, 'overview.rateTotalSub').replace('{v}', usd.format(totalNet))}
+            subTone={totalNet >= 0 ? 'good' : 'bad'}
+            info={tr(locale, 'overview.rateTotalInfo')}
           />
-          <Stat href="/tracking" label="Всего миль" value={Math.round(totalMiles).toLocaleString('en-US')} info="Суммарные мили всех активных грузов — гружёные плюс порожние (deadhead)." />
+          <Stat href="/trucks" label={tr(locale, 'overview.rpm')} value={`${usd2.format(avgRpm)}/mi`} info={tr(locale, 'overview.rpmInfo')} />
+          <Stat
+            href="/loads"
+            label={tr(locale, 'overview.inWork')}
+            value={String(active)}
+            sub={trucks.length > 0 ? tr(locale, 'overview.inWorkSub').replace('{n}', String(freeTrucks)) : undefined}
+            subTone={freeTrucks > 0 ? 'good' : undefined}
+            info={tr(locale, 'overview.inWorkInfo')}
+          />
+          <Stat href="/tracking" label={tr(locale, 'overview.totalMiles')} value={Math.round(totalMiles).toLocaleString('en-US')} info={tr(locale, 'overview.totalMilesInfo')} />
         </div>
       )}
 
       {/* Fleet at a glance — driver + last-known ELD status, straight from the trucks. */}
       <div className="mb-2 mt-2 flex items-center justify-between">
         <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          Парк
-          <Info text="Все траки с живыми данными: где сейчас трак и сколько он заработал за неделю. Кружок слева — статус движения по GPS: зелёный едет, синий on-duty, серый стоит. Нажми на трак — вся его карточка." />
+          {tr(locale, 'overview.fleetHeading')}
+          <Info text={tr(locale, 'overview.fleetInfo')} />
         </h2>
         <Link href="/tracking" className="text-[12px] text-haul-400 hover:underline">
-          Трекинг →
+          {tr(locale, 'overview.trackingLink')}
         </Link>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
@@ -257,7 +267,7 @@ export default async function Page() {
                 <div className="relative shrink-0">
                   <DriverAvatar truckId={t.id} name={t.driverName} hasPhoto={photoIds.has(t.id)} size={40} />
                   <span
-                    title={driveDotTitle(fs?.drive_status ?? null)}
+                    title={driveDotTitle(fs?.drive_status ?? null, locale)}
                     className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-ink-900 ${driveDot(fs?.drive_status ?? null)}`}
                   />
                 </div>
@@ -266,13 +276,13 @@ export default async function Page() {
                     <span className="truncate text-[14px] font-medium">{truckLabel(t)}</span>
                     {t.unavailable && (
                       <span className="shrink-0 rounded-full bg-warn-400/15 px-1.5 py-0.5 text-[9.5px] font-semibold text-warn-400">
-                        {t.unavailable === 'repair' ? '🔧 ремонт' : '🌴 отпуск'}
+                        {t.unavailable === 'repair' ? tr(locale, 'overview.repair') : tr(locale, 'overview.onVacation')}
                       </span>
                     )}
                   </div>
                   <div className="truncate text-[12px] text-white/60">
-                    {trailers.has(t.id) && <>Трейлер {trailers.get(t.id)} · </>}
-                    {cityOf(fs?.location ?? null) ?? 'Нет данных с ELD'}
+                    {trailers.has(t.id) && <>{tr(locale, 'overview.trailer').replace('{n}', String(trailers.get(t.id)))}</>}
+                    {cityOf(fs?.location ?? null) ?? tr(locale, 'overview.noEldData')}
                   </div>
                 </div>
                 <div className="min-w-0 text-right">
@@ -282,18 +292,18 @@ export default async function Page() {
                     {usd.format(week)}
                   </div>
                   <div className="flex items-center justify-end gap-1 text-[9px] uppercase tracking-wider text-white/40">
-                    за неделю
-                    <Info text="Ставки (гросс) активных грузов этого трака за текущую календарную неделю — с понедельника." />
+                    {tr(locale, 'overview.perWeek')}
+                    <Info text={tr(locale, 'overview.perWeekInfo')} />
                   </div>
                 </div>
               </div>
               {del && (
                 <div className="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-1.5">
                   <span className="min-w-0 truncate text-[11px] text-white/55">
-                    До выгрузки · <span className="text-white/75">{del.to}</span>
+                    {tr(locale, 'overview.toDelivery')}<span className="text-white/75">{del.to}</span>
                   </span>
                   <span className="nums shrink-0 text-[11px] font-semibold text-white/80">
-                    {del.miles} mi · ~{driveTime(del.etaMin)}
+                    {del.miles} mi · ~{driveTime(del.etaMin, locale)}
                   </span>
                 </div>
               )}
@@ -305,7 +315,7 @@ export default async function Page() {
       {rows.length > 0 ? (
         <>
           <h2 className="mb-2 mt-6 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            Последние грузы
+            {tr(locale, 'overview.recentLoads')}
           </h2>
           <div className="flex flex-col gap-2">
             {rows.slice(0, 5).map(({ load, truck, r }) => {
@@ -321,10 +331,10 @@ export default async function Page() {
                         <span className="truncate text-[14px] font-medium">
                           {load.origin ?? '—'} → {load.destination ?? '—'}
                         </span>
-                        <StatusBadge status={load.status} />
+                        <StatusBadge status={load.status} locale={locale} />
                       </div>
                       <div className="nums mt-1 text-[12px] text-white/65">
-                        <span className="text-white/45">{truckLabel(truck)}</span> · чистыми{' '}
+                        <span className="text-white/45">{truckLabel(truck)}</span> · {tr(locale, 'overview.net')}{' '}
                         <span className={r.net >= 0 ? 'text-good-400/90' : 'text-bad-400/90'}>
                           {usd.format(r.net)}
                         </span>{' '}
@@ -348,23 +358,22 @@ export default async function Page() {
         </>
       ) : (
         <div className="panel mt-6 p-6 text-center">
-          <p className="text-[14px] font-medium">Грузов пока нет</p>
+          <p className="text-[14px] font-medium">{tr(locale, 'overview.noLoadsYet')}</p>
           <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-white/65">
-            Добавь груз вручную, загрузи Rate con или сними QR-код с DAT камерой айфона —
-            аналитика посчитается сама.
+            {tr(locale, 'overview.noLoadsBody')}
           </p>
           <div className="mt-4 flex justify-center gap-2">
             <Link
               href="/loads/new"
               className="rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400"
             >
-              + Груз
+              {tr(locale, 'overview.addLoad')}
             </Link>
             <Link
               href="/import"
               className="rounded-xl border border-white/10 px-4 py-2 text-[13px] font-semibold text-white/80 transition-colors hover:bg-white/5"
             >
-              Rate con
+              {tr(locale, 'overview.rateCon')}
             </Link>
           </div>
         </div>

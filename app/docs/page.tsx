@@ -3,33 +3,34 @@ import { listDocsForLibrary, listTrashedDocs, listTrucks } from '@/lib/loads'
 import { DocLibrary, DocTrash, DocUpload } from '@/components/docs'
 import { Info } from '@/components/info'
 import { companyScope } from '@/lib/session'
+import { getLocale } from '@/lib/i18n-server'
+import { t } from '@/lib/i18n'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const tab = (await searchParams).tab === 'trash' ? 'trash' : 'library'
   const companyId = await companyScope()
+  const locale = await getLocale()
   const [rows, trash, trucks] = await Promise.all([
     listDocsForLibrary(companyId),
     listTrashedDocs(companyId),
     listTrucks(companyId),
   ])
-  const groups = trucks.map((t) => ({
-    id: t.id,
-    label: t.number ?? t.name,
-    driver: t.driverName ?? '',
+  const groups = trucks.map((tr) => ({
+    id: tr.id,
+    label: tr.number ?? tr.name,
+    driver: tr.driverName ?? '',
   }))
 
   return (
     <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <header className="mb-5">
         <h1 className="flex items-center gap-2 text-[17px] font-semibold">
-          Документы
-          <Info side="bottom" text="Единая библиотека всех бумаг: rate con, BOL, POD, страховки, регистрации, инвойсы. Сгруппированы по тракам и водителям, свежие сверху, с фильтром по типу. Rate con можно распознать и сразу создать груз кнопкой сверху. Удаление под именем и PIN перемещает в корзину — насовсем только оттуда, запись остаётся в Журнале." />
+          {t(locale, 'docs.title')}
+          <Info side="bottom" text={t(locale, 'docs.info')} />
         </h1>
-        <p className="text-[13px] text-white/65">
-          Все бумаги в одном месте — по водителям и датам, как в библиотеке.
-        </p>
+        <p className="text-[13px] text-white/65">{t(locale, 'docs.subtitle')}</p>
       </header>
 
       {/* Rate con recognizer — the fast path, folded into the library. */}
@@ -41,12 +42,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           ⚡
         </span>
         <span className="min-w-0">
-          <span className="block text-[14px] font-semibold text-haul-300">
-            Распознать rate con
-          </span>
-          <span className="block text-[12px] text-white/60">
-            Перетащи PDF или фото — ИИ прочитает и сразу создаст груз
-          </span>
+          <span className="block text-[14px] font-semibold text-haul-300">{t(locale, 'docs.recognize.title')}</span>
+          <span className="block text-[12px] text-white/60">{t(locale, 'docs.recognize.sub')}</span>
         </span>
         <span className="ml-auto shrink-0 text-white/45">→</span>
       </Link>
@@ -62,7 +59,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
             tab === 'library' ? 'border-haul-500 text-white' : 'border-transparent text-white/55 hover:text-white/85'
           }`}
         >
-          Библиотека
+          {t(locale, 'docs.tab.library')}
         </Link>
         <Link
           href="/docs?tab=trash"
@@ -70,7 +67,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
             tab === 'trash' ? 'border-haul-500 text-white' : 'border-transparent text-white/55 hover:text-white/85'
           }`}
         >
-          Корзина{trash.length > 0 ? ` · ${trash.length}` : ''}
+          {t(locale, 'docs.tab.trash')}
+          {trash.length > 0 ? ` · ${trash.length}` : ''}
         </Link>
       </div>
 

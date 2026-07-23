@@ -2,6 +2,8 @@
 // language as the app logo circle in the sidebar. Server-safe: no hooks, works both
 // in server-rendered lists and inside client components like DriverCard.
 
+import { t, type Locale } from '@/lib/i18n'
+
 function initialsOf(name: string | null): string {
   const parts = (name ?? '').trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return '?'
@@ -14,18 +16,20 @@ export function DriverAvatar({
   name,
   hasPhoto,
   size = 40,
+  locale = 'en',
 }: {
   truckId: number
   name: string | null
   hasPhoto: boolean
   size?: number
+  locale?: Locale
 }) {
   if (hasPhoto) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={`/api/driver-photo/${truckId}`}
-        alt={name ?? 'Водитель'}
+        alt={name ?? t(locale, 'trucks.driverAvatar.fallbackAlt')}
         className="shrink-0 rounded-full object-cover ring-1 ring-white/10"
         style={{ width: size, height: size }}
       />

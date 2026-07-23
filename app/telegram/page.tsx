@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { getCurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
+import { getLocale } from '@/lib/i18n-server'
+import { t, type Locale } from '@/lib/i18n'
 import {
   tgAccountInfo,
   tgChatTruckMap,
@@ -26,19 +28,20 @@ export const dynamic = 'force-dynamic'
 // Two round-trips to Telegram (dialogs + messages) don't fit the default 10s.
 export const maxDuration = 60
 
-function humanSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} Б`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} КБ`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`
+function humanSize(bytes: number, locale: Locale): string {
+  if (bytes < 1024) return `${bytes} ${t(locale, 'telegram.page.bytesUnit')}`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} ${t(locale, 'telegram.page.kbUnit')}`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} ${t(locale, 'telegram.page.mbUnit')}`
 }
 
-function when(iso: string | null): string {
+function when(iso: string | null, locale: Locale): string {
   if (!iso) return ''
   const d = new Date(iso)
   const today = new Date().toDateString() === d.toDateString()
+  const dl = locale === 'ru' ? 'ru-RU' : 'en-US'
   return today
-    ? d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-    : d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })
+    ? d.toLocaleTimeString(dl, { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString(dl, { day: '2-digit', month: '2-digit' })
 }
 
 export default async function Page({
@@ -47,6 +50,7 @@ export default async function Page({
   searchParams: Promise<{ chat?: string }>
 }) {
   const user = await getCurrentUser()
+  const locale = await getLocale()
 
   // Under "open access" there's no signed-in user, so a personal Telegram account
   // can't be attached to anyone. Ask them to log in properly.
@@ -55,7 +59,7 @@ export default async function Page({
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
         <h1 className="mb-5 text-[17px] font-semibold">Telegram</h1>
         <p className="panel p-4 text-[13px] text-white/65">
-          Войди под своим аккаунтом, чтобы подключить личный Telegram.
+          {t(locale, 'telegram.page.needLogin')}
         </p>
       </main>
     )
@@ -67,7 +71,7 @@ export default async function Page({
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
         <h1 className="mb-5 text-[17px] font-semibold">Telegram</h1>
         <p className="panel p-4 text-[13px] text-white/65">
-          Доступ к этому разделу пока даёт только администратор.
+          {t(locale, 'telegram.page.noAccess')}
         </p>
       </main>
     )
@@ -123,10 +127,10 @@ export default async function Page({
         <div>
           <h1 className="flex items-center gap-2 text-[17px] font-semibold">
             Telegram
-            <Info side="bottom" text="Переписка с водителями прямо в приложении через ТВОЙ Telegram-аккаунт (не бот) — водителям ничего ставить и нажимать не нужно. У каждого диспетчера свой аккаунт со своими диалогами. Отметь в настройках, какие чаты показывать, и привяжи их к тракам — фото POD/BOL от водителя ИИ сам прикрепит к грузу." />
+            <Info side="bottom" text={t(locale, 'telegram.page.tooltip')} />
           </h1>
           <p className="text-[13px] text-white/65">
-            Твой аккаунт{account?.phone ? ` · +${account.phone}` : ''}
+            {t(locale, 'telegram.page.yourAccount')}{account?.phone ? ` · +${account.phone}` : ''}
             {account?.name ? ` · ${account.name}` : ''}
           </p>
         </div>
@@ -145,7 +149,7 @@ export default async function Page({
         <div className={`panel overflow-hidden ${open ? 'max-md:hidden' : ''}`}>
           {dialogs.length === 0 && !error ? (
             <p className="p-4 text-[13px] text-white/55">
-              Пока ни один чат не отмечен для показа — открой «Настроить, какие чаты показывать» выше.
+              {t(locale, 'telegram.page.noneShownYet')}
             </p>
           ) : (
             <ul className="max-h-[70vh] overflow-y-auto">
@@ -173,7 +177,7 @@ export default async function Page({
                             {d.unread}
                           </span>
                         )}
-                        <span className="shrink-0 text-[11px] text-white/40">{when(d.lastAt)}</span>
+                        <span className="shrink-0 text-[11px] text-white/40">{when(d.lastAt, locale)}</span>
                       </span>
                       <span className="truncate text-[12px] text-white/55">{d.last}</span>
                     </Link>
@@ -187,7 +191,7 @@ export default async function Page({
         {/* Conversation */}
         <div className="panel flex min-h-[50vh] flex-col overflow-hidden">
           {!open ? (
-            <p className="m-auto p-8 text-[13px] text-white/50">Выбери диалог слева.</p>
+            <p className="m-auto p-8 text-[13px] text-white/50">{t(locale, 'telegram.page.pickDialog')}</p>
           ) : (
             <>
               <div className="flex items-center gap-3 border-b border-white/8 px-4 py-3">
@@ -225,7 +229,7 @@ export default async function Page({
                             // Page-1 preview Telegram made for the file — "видно, что внутри".
                             <img
                               src={`/api/tg-media/${open.id}/${m.id}?thumb=1`}
-                              alt="Превью PDF"
+                              alt={t(locale, 'telegram.page.pdfPreviewAlt')}
                               className="max-h-44 w-full object-cover object-top"
                             />
                           )}
@@ -233,10 +237,10 @@ export default async function Page({
                             <span className="text-[17px]">📄</span>
                             <span className="min-w-0 flex-1">
                               <span className="block truncate text-[12.5px] font-medium text-white/90">
-                                {m.fileName || 'Документ.pdf'}
+                                {m.fileName || t(locale, 'telegram.page.defaultDocName')}
                               </span>
                               <span className="block text-[11px] text-white/45">
-                                {m.fileSize ? `${humanSize(m.fileSize)} · ` : ''}Открыть PDF
+                                {m.fileSize ? `${humanSize(m.fileSize, locale)} · ` : ''}{t(locale, 'telegram.page.openPdf')}
                               </span>
                             </span>
                           </span>
@@ -244,10 +248,10 @@ export default async function Page({
                         <TgAttachButton chatId={open.id} msgId={m.id} phone={open.phone} />
                       </>
                     )}
-                    {m.media === 'other' && !m.text && <span className="text-white/45">[вложение]</span>}
+                    {m.media === 'other' && !m.text && <span className="text-white/45">{t(locale, 'telegram.page.attachment')}</span>}
                     {m.text}
                     <span className="mt-0.5 block text-right text-[10px] text-white/40">
-                      {when(m.at)}
+                      {when(m.at, locale)}
                     </span>
                   </div>
                 ))}

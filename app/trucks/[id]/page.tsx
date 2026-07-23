@@ -28,15 +28,17 @@ import { SmallRefreshButton } from '@/components/small-refresh-button'
 import { TruckAvailability } from '@/components/truck-availability'
 import { Info } from '@/components/info'
 import { companyScope } from '@/lib/session'
+import { getLocale } from '@/lib/i18n-server'
+import { t } from '@/lib/i18n'
 
 export const dynamic = 'force-dynamic'
 
 // truck_position_log is pruned to 7 days on every write (lib/eld.ts) — that's the
 // real ceiling on how far back "full history" can ever reach, not a UI choice.
 const HISTORY_WINDOWS = [
-  { hours: 24, label: '24 часа' },
-  { hours: 72, label: '3 дня' },
-  { hours: 168, label: '7 дней' },
+  { hours: 24, key: 'trucks.history.24h' },
+  { hours: 72, key: 'trucks.history.3d' },
+  { hours: 168, key: 'trucks.history.7d' },
 ] as const
 
 export default async function Page({
@@ -48,6 +50,7 @@ export default async function Page({
 }) {
   const { id } = await params
   const companyId = await companyScope()
+  const locale = await getLocale()
   const truck = await getTruck(companyId, Number(id))
   if (!truck) notFound()
 
@@ -91,7 +94,7 @@ export default async function Page({
 
   // Map: the truck where it sits (ELD GPS) plus a delivery pin at its active load's
   // destination city, with rough miles + drive time to it.
-  const { markers: mapMarkers, routes: mapRoutes } = await loadMapData(activeLoad, truck, fs)
+  const { markers: mapMarkers, routes: mapRoutes } = await loadMapData(activeLoad, truck, fs, locale)
 
   const toneClass = {
     move: 'text-good-400',
@@ -101,7 +104,7 @@ export default async function Page({
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-10">
-      <BackButton href="/trucks" label="Все траки" />
+      <BackButton href="/trucks" label={t(locale, 'trucks.detail.backAll')} />
 
       {/* ===== HERO: the truck in the centre, key info around it ===== */}
       <section className="relative mt-3 overflow-hidden rounded-3xl border border-white/8 bg-gradient-to-b from-ink-800/80 to-ink-950 px-4 pt-5 pb-4 sm:px-8">
@@ -114,11 +117,11 @@ export default async function Page({
           <div className="mt-2 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1.5 text-[13px]">
             {meta?.trailerNumber && (
               <>
-                <span className="text-white/55">Трейлер {meta.trailerNumber}</span>
+                <span className="text-white/55">{t(locale, 'trucks.detail.trailer')} {meta.trailerNumber}</span>
                 <span aria-hidden className="text-white/25">·</span>
               </>
             )}
-            <span className="font-medium text-white/85">{truck.driverName || 'Без водителя'}</span>
+            <span className="font-medium text-white/85">{truck.driverName || t(locale, 'trucks.detail.noDriver')}</span>
             <span aria-hidden className="text-white/25">·</span>
             {/* Driver contact — the number a dispatcher actually needs at hand. */}
             {meta?.driverPhone ? (
@@ -129,7 +132,7 @@ export default async function Page({
                 📞 {meta.driverPhone}
               </a>
             ) : (
-              <span className="text-white/40">☎ не указан</span>
+              <span className="text-white/40">{t(locale, 'trucks.detail.noPhone')}</span>
             )}
             {fs?.location && (
               <>
@@ -144,56 +147,56 @@ export default async function Page({
 
           {(meta?.vin || meta?.plate) && (
             <p className="mt-1.5 text-[11px] text-white/45">
-              {[meta.plate && `Номер ${meta.plate}`, meta.vin && `VIN ${meta.vin}`]
+              {[meta.plate && `${t(locale, 'trucks.detail.plateLabel')} ${meta.plate}`, meta.vin && `VIN ${meta.vin}`]
                 .filter(Boolean)
                 .join(' · ')}
             </p>
           )}
           {/* Manual availability — dims the truck across the app and pulls it out of
-              the "свободно" counters until it's flipped back. */}
+              the "free" counters until it's flipped back. */}
           <div className="mt-2.5">
-            <TruckAvailability truckId={truck.id} current={truck.unavailable} />
+            <TruckAvailability truckId={truck.id} current={truck.unavailable} locale={locale} />
           </div>
         </div>
 
         <img
           src="/truck.png"
-          alt={`Трак ${truck.number ?? ''}`}
+          alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
           className="mx-auto my-1 w-full max-w-3xl drop-shadow-2xl"
         />
 
         {/* Info ring — the truck's numbers at a glance. */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Chip
-            label="Рейт за неделю"
+            label={t(locale, 'trucks.chip.weekRate')}
             value={usd.format(weekGross)}
             tone={weekGross > 0 ? 'good' : undefined}
-            info="Сумма ставок (гросс) всех активных грузов трака, забронированных на этой календарной неделе — с понедельника, а не 7 дней от текущего момента."
+            info={t(locale, 'trucks.chip.weekRateInfo')}
           />
           <Chip
-            label="Чистыми"
+            label={t(locale, 'trucks.chip.net')}
             value={usd.format(totalNet)}
             tone={totalNet >= 0 ? 'good' : 'bad'}
-            info="Что останется после всех расходов (топливо, водитель, платёж за трак, страховка, обслуживание, факторинг, диспетч) — по тем же грузам этой недели, что и «Рейт за неделю»."
+            info={t(locale, 'trucks.chip.netInfo')}
           />
           <Chip
-            label="Ставка/миля"
+            label={t(locale, 'trucks.chip.rpm')}
             value={`${usd2.format(avgRpm)}`}
-            info="Средний доход на милю (RPM) по грузам этой недели: выручка ÷ мили (гружёные + порожние)."
+            info={t(locale, 'trucks.chip.rpmInfo')}
           />
           <Chip
-            label="Масло через"
+            label={t(locale, 'trucks.chip.oilIn')}
             value={oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—'}
             tone={oil?.tone}
-            info="Сколько миль осталось до следующей замены масла. Зелёный → жёлтый → красный по мере приближения к интервалу замены."
+            info={t(locale, 'trucks.chip.oilInInfo')}
           />
         </div>
 
         {/* ===== Current assignment: route, pickup/delivery dates, at a glance ===== */}
         <div className="mt-4 border-t border-white/8 pt-4">
           <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            Текущее задание
-            <Info text="Куда едет этот трак прямо сейчас: маршрут активного груза, когда пикап и когда delivery. Полная информация о ставке, брокере и особых условиях — по клику, на странице груза." />
+            {t(locale, 'trucks.detail.currentAssignment')}
+            <Info text={t(locale, 'trucks.detail.currentAssignmentInfo')} />
           </h2>
           {activeLoad ? (
             <>
@@ -204,11 +207,11 @@ export default async function Page({
                 >
                   {activeLoad.origin ?? '—'} → {activeLoad.destination ?? '—'}
                 </Link>
-                <StatusBadge status={activeLoad.status} />
+                <StatusBadge status={activeLoad.status} locale={locale} />
               </div>
               <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] sm:grid-cols-3">
                 <div>
-                  <dt className="text-[10px] uppercase tracking-wider text-white/45">Пикап</dt>
+                  <dt className="text-[10px] uppercase tracking-wider text-white/45">{t(locale, 'trucks.detail.pickup')}</dt>
                   <dd className="font-medium text-white/85">
                     {activeLoad.pickupTime || activeLoad.pickupDate?.slice(0, 10) || '—'}
                   </dd>
@@ -220,16 +223,16 @@ export default async function Page({
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-wider text-white/45">Ставка</dt>
+                  <dt className="text-[10px] uppercase tracking-wider text-white/45">{t(locale, 'trucks.detail.rate')}</dt>
                   <dd className="font-medium text-white/85">{usd.format(activeLoad.rate)}</dd>
                 </div>
               </dl>
             </>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-white/55">
-              Груза сейчас нет — трак свободен.
+              {t(locale, 'trucks.detail.noActiveLoad')}
               <Link href={`/loads/new?truck=${truck.id}`} className="text-haul-400 hover:underline">
-                + груз
+                {t(locale, 'trucks.detail.addLoad')}
               </Link>
             </div>
           )}
@@ -245,6 +248,7 @@ export default async function Page({
             medcardExpiry={meta?.medcardExpiry ?? null}
             hasPhoto={meta?.hasPhoto ?? false}
             embedded
+            locale={locale}
           />
         </div>
       </section>
@@ -254,8 +258,8 @@ export default async function Page({
         <section className="panel mt-4 p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-              На карте
-              <Info text="Где сейчас трак (по GPS из ELD) и куда идёт доставка — точка delivery из активного груза этого трака. Линия и подпись показывают примерное расстояние и время в пути до места выгрузки." />
+              {t(locale, 'trucks.detail.onMap')}
+              <Info text={t(locale, 'trucks.detail.onMapInfo')} />
             </h2>
             <SmallRefreshButton />
           </div>
@@ -266,8 +270,8 @@ export default async function Page({
       {/* ===== Trip history: drive legs + stops, long rests called out ===== */}
       <details className="panel mt-4 p-4" open={history.length > 0}>
         <summary className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          История пути · {historyWindow.label}
-          <Info text="Путь трака по GPS-точкам из ELD, разбитый на движение и стоянки. Остановки короче 30 минут (светофоры, пробки) не показываются — только заметные: погрузка/выгрузка, заправка, отдых. Стоянки от 6 часов подряд помечены как долгий отдых. GPS-история хранится 7 дней." />
+          {t(locale, 'trucks.detail.tripHistory')} · {t(locale, historyWindow.key)}
+          <Info text={t(locale, 'trucks.detail.tripHistoryInfo')} />
           <SmallRefreshButton />
           <span className="ml-auto flex gap-1 normal-case">
             {HISTORY_WINDOWS.map((w) => (
@@ -280,13 +284,13 @@ export default async function Page({
                     : 'text-white/45 hover:text-white/75'
                 }`}
               >
-                {w.label}
+                {t(locale, w.key)}
               </Link>
             ))}
           </span>
         </summary>
         <div className="mt-3">
-          <TripHistory legs={history} />
+          <TripHistory legs={history} locale={locale} />
         </div>
       </details>
 
@@ -294,14 +298,14 @@ export default async function Page({
       <section className="panel mt-4 p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            Новый груз из rate con
-            <Info text="Перетащи сюда PDF или фото rate confirmation — ИИ распознает его, сразу создаст груз на этот трак, прикрепит документ и покажет, что проверить (detention, lumper, team, низкая ставка, брокер и т.д.). Без ручного заполнения форм." />
+            {t(locale, 'trucks.detail.newLoadFromRc')}
+            <Info text={t(locale, 'trucks.detail.newLoadFromRcInfo')} />
           </h2>
           <Link
             href={`/loads/new?truck=${truck.id}`}
             className="text-[12px] text-white/55 hover:text-white/85"
           >
-            или вручную →
+            {t(locale, 'trucks.detail.orManually')}
           </Link>
         </div>
         <TruckRcDrop truckId={truck.id} />
@@ -318,14 +322,14 @@ export default async function Page({
         <section className="panel p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white/62">
-              Грузы{active > 0 && ` · ${active} в работе`}
+              {t(locale, 'trucks.detail.loadsHeading')}{active > 0 && ` · ${active} ${t(locale, 'trucks.detail.inProgress')}`}
             </h2>
             <Link href={`/loads/new?truck=${truck.id}`} className="text-[12px] text-haul-400 hover:underline">
-              + груз
+              {t(locale, 'trucks.detail.addLoad')}
             </Link>
           </div>
           {rows.length === 0 ? (
-            <p className="text-[13px] text-white/55">Пока нет грузов. Загрузи rate con выше — груз создастся сам.</p>
+            <p className="text-[13px] text-white/55">{t(locale, 'trucks.detail.noLoadsYet')}</p>
           ) : (
             <div className="flex flex-col gap-2">
               {rows.map(({ load, r }) => {
@@ -341,10 +345,10 @@ export default async function Page({
                           <span className="truncate text-[14px] font-medium">
                             {load.origin ?? '—'} → {load.destination ?? '—'}
                           </span>
-                          <StatusBadge status={load.status} />
+                          <StatusBadge status={load.status} locale={locale} />
                         </div>
                         <div className="nums mt-0.5 text-[12px] text-white/60">
-                          чистыми{' '}
+                          {t(locale, 'trucks.detail.netLower')}{' '}
                           <span className={r.net >= 0 ? 'text-good-400/90' : 'text-bad-400/90'}>
                             {usd.format(r.net)}
                           </span>{' '}
@@ -368,8 +372,8 @@ export default async function Page({
         <section className="panel p-4">
           <div className="mb-2">
             <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-              Документы
-              <Info text="Бумаги трака: страховка, регистрация, инспекция и т.д. Плюс сюда попадают rate con и POD по его грузам. Загружай PDF или фото." />
+              {t(locale, 'trucks.detail.documents')}
+              <Info text={t(locale, 'trucks.detail.documentsInfo')} />
             </h2>
           </div>
           <DocUpload truckId={truck.id} />
@@ -387,19 +391,20 @@ export default async function Page({
           currentOdometer={fs?.odometer ?? null}
           oil={oil}
           docs={docs}
+          locale={locale}
         />
       </div>
       {openTodos > 0 && (
         <p className="mt-2 text-center text-[12px] text-bad-400">
-          Нужно починить: {openTodos} — см. раздел выше.
+          {t(locale, 'trucks.detail.needsFixPrefix')} {openTodos} {t(locale, 'trucks.detail.needsFixSuffix')}
         </p>
       )}
 
       {/* ===== Economics — collapsed by default (rarely changed) ===== */}
       <details className="panel mt-4 p-4">
         <summary className="flex cursor-pointer items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          Экономика трака (для расчёта прибыли)
-          <Info text="Настройки, по которым считается прибыль каждого груза: MPG, цена дизеля, оплата водителя, фиксированные расходы, обслуживание, факторинг, диспетч. Заполняется один раз и меняется редко — поэтому спрятано." />
+          {t(locale, 'trucks.detail.economics')}
+          <Info text={t(locale, 'trucks.detail.economicsInfo')} />
         </summary>
         <div className="mt-4">
           <TruckForm
@@ -417,6 +422,7 @@ export default async function Page({
               factoringPercent: truck.factoringPercent,
               dispatchPercent: truck.dispatchPercent,
             }}
+            locale={locale}
           />
         </div>
       </details>

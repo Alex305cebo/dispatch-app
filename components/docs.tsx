@@ -8,9 +8,11 @@ import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { deleteDocument, purgeDocument, restoreDocument, uploadDocument } from '@/app/actions'
 import { DeleteButton } from '@/components/delete-button'
-import { DOC_KINDS, fmtSize, type DocKind, type DocLibRow, type DocMeta } from '@/lib/docs'
+import { DOC_KINDS, docKindLabel, fmtSize, type DocKind, type DocLibRow, type DocMeta } from '@/lib/docs'
 import { notify } from '@/lib/notify'
 import { Info } from '@/components/info'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 export function DocUpload({
   truckId,
@@ -27,6 +29,7 @@ export function DocUpload({
   defaultKind?: DocKind
 }) {
   const router = useRouter()
+  const locale = useLocale()
   const [pending, start] = useTransition()
   const [kind, setKind] = useState<DocKind>(defaultKind)
   const [pickTruck, setPickTruck] = useState<string>('')
@@ -44,7 +47,7 @@ export function DocUpload({
       const res = await uploadDocument(fd)
       if ('error' in res) notify('error', res.error)
       else {
-        notify('ok', 'Документ сохранён', file.name)
+        notify('ok', t(locale, 'docs.upload.saved'), file.name)
         if (fileRef.current) fileRef.current.value = ''
         router.refresh()
       }
@@ -57,18 +60,18 @@ export function DocUpload({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <select value={kind} onChange={(e) => setKind(e.target.value as DocKind)} className={select}>
-        {Object.entries(DOC_KINDS).map(([k, label]) => (
+        {(Object.keys(DOC_KINDS) as DocKind[]).map((k) => (
           <option key={k} value={k}>
-            {label}
+            {docKindLabel(k, locale)}
           </option>
         ))}
       </select>
       {trucks && !truckId && (
         <select value={pickTruck} onChange={(e) => setPickTruck(e.target.value)} className={select}>
-          <option value="">Без трака</option>
-          {trucks.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
+          <option value="">{t(locale, 'docs.upload.noTruck')}</option>
+          {trucks.map((tr) => (
+            <option key={tr.id} value={tr.id}>
+              {tr.label}
             </option>
           ))}
         </select>
@@ -78,7 +81,7 @@ export function DocUpload({
           pending ? 'opacity-50' : ''
         }`}
       >
-        {pending ? 'Загружаю…' : '+ Файл'}
+        {pending ? t(locale, 'docs.upload.uploading') : t(locale, 'docs.upload.file')}
         <input
           ref={fileRef}
           type="file"
@@ -88,8 +91,8 @@ export function DocUpload({
           onChange={(e) => send(e.target.files?.[0])}
         />
       </label>
-      <span className="text-[11px] text-white/45">PDF или фото, до 8 МБ</span>
-      <Info text="Выбери тип документа (Rate con / BOL / POD / инвойс / страховка / регистрация), при загрузке в общий раздел — трак, и добавь файл. Хранится в базе, привязан к грузу или траку, скачивается по клику." />
+      <span className="text-[11px] text-white/45">{t(locale, 'docs.upload.hint')}</span>
+      <Info text={t(locale, 'docs.upload.info')} />
     </div>
   )
 }
@@ -108,6 +111,7 @@ const KIND_TONE: Record<DocKind, string> = {
 /** Confirm a deletion with the signed-in user's own password. One dialog per list. */
 function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
   const router = useRouter()
+  const locale = useLocale()
   const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
   const [pending, start] = useTransition()
@@ -118,7 +122,7 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
       const res = await deleteDocument(doc.id, password)
       if (res?.error) setErr(res.error)
       else {
-        notify('ok', 'Документ удалён', doc.title)
+        notify('ok', t(locale, 'docs.delete.done'), doc.title)
         onClose()
         router.refresh()
       }
@@ -137,10 +141,9 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
         className="w-full max-w-sm rounded-2xl border border-white/10 bg-ink-900 p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-[15px] font-semibold">Удалить документ</h3>
+        <h3 className="text-[15px] font-semibold">{t(locale, 'docs.delete.title')}</h3>
         <p className="mt-1 text-[12.5px] leading-relaxed text-white/60">
-          «{doc.title}» переместится в корзину — насовсем удаляется только оттуда.
-          Введи свой пароль — запись, кто удалил, останется в Журнале.
+          {t(locale, 'docs.delete.body').replace('{t}', doc.title)}
         </p>
         <div className="mt-4 flex flex-col gap-2">
           <input
@@ -149,7 +152,7 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && password && submit()}
-            placeholder="Твой пароль"
+            placeholder={t(locale, 'docs.delete.passwordPlaceholder')}
             className={field}
           />
         </div>
@@ -159,14 +162,14 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
             onClick={onClose}
             className="rounded-xl px-4 py-2 text-[13px] text-white/70 transition-colors hover:text-white"
           >
-            Отмена
+            {t(locale, 'docs.delete.cancel')}
           </button>
           <button
             disabled={pending || !password}
             onClick={submit}
             className="rounded-xl bg-bad-500 px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-bad-400 disabled:opacity-40"
           >
-            {pending ? 'Удаляю…' : 'Удалить'}
+            {pending ? t(locale, 'docs.delete.deleting') : t(locale, 'docs.delete.confirm')}
           </button>
         </div>
       </div>
@@ -188,12 +191,13 @@ function DocRow({
   to?: string | null
   onDelete: (d: DocMeta) => void
 }) {
+  const locale = useLocale()
   return (
     <li className="flex items-center gap-3 rounded-lg border border-white/6 px-3 py-2">
       <span
         className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${KIND_TONE[doc.kind]}`}
       >
-        {DOC_KINDS[doc.kind]}
+        {docKindLabel(doc.kind, locale)}
       </span>
       <div className="min-w-0 flex-1">
         {/* Viewer, not the raw file — see components/ratecon-button.tsx. */}
@@ -217,7 +221,7 @@ function DocRow({
           href={`/trucks/${doc.truckId}`}
           className="shrink-0 text-[11px] text-white/55 hover:text-white/85"
         >
-          трак
+          {t(locale, 'docs.row.truck')}
         </a>
       )}
       {showLinks && doc.loadId && (
@@ -225,11 +229,11 @@ function DocRow({
           href={`/loads/${doc.loadId}`}
           className="shrink-0 text-[11px] text-white/55 hover:text-white/85"
         >
-          груз
+          {t(locale, 'docs.row.load')}
         </a>
       )}
       <button
-        title="Удалить"
+        title={t(locale, 'docs.delete.rowTitle')}
         onClick={() => onDelete(doc)}
         className="shrink-0 text-[13px] text-white/35 transition-colors hover:text-bad-400"
       >
@@ -241,9 +245,10 @@ function DocRow({
 
 /** Flat list — per-truck and per-load pages. */
 export function DocList({ docs, showLinks }: { docs: DocMeta[]; showLinks?: boolean }) {
+  const locale = useLocale()
   const [del, setDel] = useState<DocMeta | null>(null)
   if (docs.length === 0)
-    return <p className="mt-3 text-[13px] text-white/55">Документов пока нет.</p>
+    return <p className="mt-3 text-[13px] text-white/55">{t(locale, 'docs.list.empty')}</p>
   return (
     <>
       <ul className="mt-3 flex flex-col gap-1.5">
@@ -266,20 +271,21 @@ export function DocLibrary({
   rows: DocLibRow[]
   trucks: { id: number; label: string; driver: string }[]
 }) {
+  const locale = useLocale()
   const [del, setDel] = useState<DocMeta | null>(null)
   const [kind, setKind] = useState<DocKind | 'all'>('all')
   const [closed, setClosed] = useState<Set<string>>(new Set())
 
   const shown = kind === 'all' ? rows : rows.filter((r) => r.kind === kind)
 
-  // Build groups in fleet order, then a "Без трака" bucket. Empty groups drop out.
+  // Build groups in fleet order, then a "no truck" bucket. Empty groups drop out.
   const groups: Group[] = []
-  for (const t of trucks) {
-    const rs = shown.filter((r) => r.groupTruckId === t.id)
-    if (rs.length) groups.push({ id: t.id, label: t.label, sub: t.driver, rows: rs })
+  for (const truck of trucks) {
+    const rs = shown.filter((r) => r.groupTruckId === truck.id)
+    if (rs.length) groups.push({ id: truck.id, label: truck.label, sub: truck.driver, rows: rs })
   }
   const orphan = shown.filter((r) => r.groupTruckId == null)
-  if (orphan.length) groups.push({ id: null, label: 'Без трака', sub: '', rows: orphan })
+  if (orphan.length) groups.push({ id: null, label: t(locale, 'docs.upload.noTruck'), sub: '', rows: orphan })
 
   const kinds: (DocKind | 'all')[] = [
     'all',
@@ -300,13 +306,13 @@ export function DocLibrary({
                 : 'bg-white/6 text-white/60 hover:bg-white/10 hover:text-white/85'
             }`}
           >
-            {k === 'all' ? 'Все' : DOC_KINDS[k]}
+            {k === 'all' ? t(locale, 'docs.library.all') : docKindLabel(k, locale)}
           </button>
         ))}
       </div>
 
       {groups.length === 0 ? (
-        <p className="text-[13px] text-white/55">Ничего не найдено.</p>
+        <p className="text-[13px] text-white/55">{t(locale, 'docs.library.empty')}</p>
       ) : (
         <div className="flex flex-col gap-2">
           {groups.map((g) => {
@@ -359,29 +365,31 @@ export function DocLibrary({
  * PIN (the safe direction), purging for real needs the same guard as any delete. */
 export function DocTrash({ rows }: { rows: DocLibRow[] }) {
   const router = useRouter()
+  const locale = useLocale()
   const [pending, start] = useTransition()
 
   function restore(id: number, title: string) {
     start(async () => {
       await restoreDocument(id)
-      notify('ok', 'Восстановлено', title)
+      notify('ok', t(locale, 'docs.trash.restored'), title)
       router.refresh()
     })
   }
 
-  if (rows.length === 0) return <p className="text-[13px] text-white/55">Корзина пуста.</p>
+  if (rows.length === 0) return <p className="text-[13px] text-white/55">{t(locale, 'docs.trash.empty')}</p>
 
   return (
     <ul className="flex flex-col gap-1.5">
       {rows.map((d) => (
         <li key={d.id} className="flex items-center gap-3 rounded-lg border border-white/6 px-3 py-2">
           <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${KIND_TONE[d.kind]}`}>
-            {DOC_KINDS[d.kind]}
+            {docKindLabel(d.kind, locale)}
           </span>
           <div className="min-w-0 flex-1">
             <span className="block truncate text-[14px] text-white/70">{d.title}</span>
             <span className="text-[11px] text-white/45">
-              удалено {d.deletedAt?.slice(0, 10)} · {fmtSize(d.sizeBytes)}
+              {t(locale, 'docs.trash.deletedOn').replace('{d}', d.deletedAt?.slice(0, 10) ?? '')} ·{' '}
+              {fmtSize(d.sizeBytes)}
             </span>
           </div>
           <button
@@ -389,13 +397,13 @@ export function DocTrash({ rows }: { rows: DocLibRow[] }) {
             onClick={() => restore(d.id, d.title)}
             className="shrink-0 rounded-lg bg-white/8 px-2.5 py-1 text-[12px] font-medium text-white/80 transition-colors hover:bg-white/16 disabled:opacity-40"
           >
-            Восстановить
+            {t(locale, 'docs.trash.restore')}
           </button>
           <DeleteButton
             action={purgeDocument}
             id={d.id}
             title={d.title}
-            note="удалится навсегда — без возможности восстановить."
+            note={t(locale, 'docs.trash.purgeNote')}
           />
         </li>
       ))}

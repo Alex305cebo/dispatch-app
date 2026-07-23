@@ -7,12 +7,12 @@
 // Model: admins always have everything. A dispatcher gets each capability's default,
 // overridden per-user by rows in `user_capabilities`. Absence of a row = the default.
 
+import { t, type Locale } from './i18n.ts'
+
 export type CapabilityKey = 'dispatcher_report' | 'telegram' | 'finances' | 'edit_trucks'
 
 export type Capability = {
   key: CapabilityKey
-  label: string
-  description: string
   /** What a brand-new dispatcher gets before the admin touches anything. */
   defaultOn: boolean
 }
@@ -20,32 +20,34 @@ export type Capability = {
 // Order here = order in the admin panel. To add a future capability: add an entry,
 // give it a stable key, then gate the relevant page/action with can(user, key).
 export const CAPABILITIES: Capability[] = [
-  {
-    key: 'dispatcher_report',
-    label: 'Отчёт «По диспетчерам»',
-    description: 'Видеть вкладку «Финансы → По диспетчерам» — заработок ВСЕХ диспетчеров по неделям.',
-    defaultOn: true,
-  },
-  {
-    key: 'telegram',
-    label: 'Telegram',
-    description: 'Подключить свой Telegram и переписываться с водителями прямо в приложении.',
-    defaultOn: false,
-  },
-  {
-    key: 'finances',
-    label: 'Финансы (оплаты, инвойсы)',
-    description: 'Открывать раздел «Финансы», собирать инвойсы и отмечать грузы оплаченными.',
-    defaultOn: true,
-  },
-  {
-    key: 'edit_trucks',
-    label: 'Редактирование траков и расходов',
-    description: 'Менять экономику трака (MPG, ставка водителя, фиксы) — влияет на все расчёты.',
-    defaultOn: true,
-  },
+  { key: 'dispatcher_report', defaultOn: true },
+  { key: 'telegram', defaultOn: false },
+  { key: 'finances', defaultOn: true },
+  { key: 'edit_trucks', defaultOn: true },
 ]
 
 export const CAPABILITY_DEFAULTS = Object.fromEntries(
   CAPABILITIES.map((c) => [c.key, c.defaultOn]),
 ) as Record<CapabilityKey, boolean>
+
+/** Localized label/description for the admin panel's capability toggles. */
+export function capabilityMeta(locale: Locale): Record<CapabilityKey, { label: string; description: string }> {
+  return {
+    dispatcher_report: {
+      label: t(locale, 'admin.cap.dispatcherReport.label'),
+      description: t(locale, 'admin.cap.dispatcherReport.desc'),
+    },
+    telegram: {
+      label: t(locale, 'admin.cap.telegram.label'),
+      description: t(locale, 'admin.cap.telegram.desc'),
+    },
+    finances: {
+      label: t(locale, 'admin.cap.finances.label'),
+      description: t(locale, 'admin.cap.finances.desc'),
+    },
+    edit_trucks: {
+      label: t(locale, 'admin.cap.editTrucks.label'),
+      description: t(locale, 'admin.cap.editTrucks.desc'),
+    },
+  }
+}

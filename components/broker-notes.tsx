@@ -8,23 +8,30 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { markNotesRead, parseRcForNotes, setBrokerNotes, translateBrokerNotes } from '@/app/actions'
 import { notify } from '@/lib/notify'
+import { useLocale } from '@/components/locale-provider'
+import { t, type Locale } from '@/lib/i18n'
 
 // The AI prompt (lib/ratecon-ai-contract.ts) tags each fact line with one of these —
 // lets the wall of prose from the RC render as a scannable list instead of one blob.
 // Untagged lines (older notes, or anything typed by hand) just render as plain text.
-const TAGS: Record<string, { label: string; icon: string; warn?: boolean }> = {
-  SAFETY: { label: 'Безопасность', icon: '🦺' },
-  LOAD: { label: 'Погрузка', icon: '📦' },
-  SCHEDULE: { label: 'График', icon: '🕐' },
-  CONTACT: { label: 'Контакт', icon: '📞' },
-  REF: { label: 'Номера', icon: '🔖' },
-  DOCS: { label: 'Документы', icon: '📄' },
-  INSURANCE: { label: 'Страховка', icon: '🛡' },
-  PENALTY: { label: 'Штрафы', icon: '💸', warn: true },
-  WARNING: { label: 'Важно', icon: '❗', warn: true },
+function tagsFor(locale: Locale): Record<string, { label: string; icon: string; warn?: boolean }> {
+  return {
+    SAFETY: { label: t(locale, 'brokerNotes.tagSafety'), icon: '🦺' },
+    LOAD: { label: t(locale, 'brokerNotes.tagLoad'), icon: '📦' },
+    SCHEDULE: { label: t(locale, 'brokerNotes.tagSchedule'), icon: '🕐' },
+    CONTACT: { label: t(locale, 'brokerNotes.tagContact'), icon: '📞' },
+    REF: { label: t(locale, 'brokerNotes.tagRef'), icon: '🔖' },
+    DOCS: { label: t(locale, 'brokerNotes.tagDocs'), icon: '📄' },
+    INSURANCE: { label: t(locale, 'brokerNotes.tagInsurance'), icon: '🛡' },
+    PENALTY: { label: t(locale, 'brokerNotes.tagPenalty'), icon: '💸', warn: true },
+    WARNING: { label: t(locale, 'brokerNotes.tagWarning'), icon: '❗', warn: true },
+  }
 }
 
 type NoteLine = { tag: string | null; text: string }
+
+// Locale-independent — only used to check whether a tag is one we recognize.
+const KNOWN_TAGS = new Set(['SAFETY', 'LOAD', 'SCHEDULE', 'CONTACT', 'REF', 'DOCS', 'INSURANCE', 'PENALTY', 'WARNING'])
 
 function parseNotes(text: string): NoteLine[] {
   // The AI sometimes returns every tagged fact on ONE run-on line ("...stop.[LOAD]
@@ -39,7 +46,7 @@ function parseNotes(text: string): NoteLine[] {
     .filter(Boolean)
     .map((line) => {
       const m = line.match(/^\[(\w+)\]\s*(.*)$/)
-      return m && TAGS[m[1]!] ? { tag: m[1]!, text: m[2]!.trim() } : { tag: null, text: line }
+      return m && KNOWN_TAGS.has(m[1]!) ? { tag: m[1]!, text: m[2]!.trim() } : { tag: null, text: line }
     })
 }
 
@@ -55,6 +62,8 @@ export function BrokerNotes({
   /** Is a rate con attached? Enables the "разобрать рейткон" AI button. */
   hasRc: boolean
 }) {
+  const locale = useLocale()
+  const TAGS = tagsFor(locale)
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(notes ?? '')
@@ -104,7 +113,7 @@ export function BrokerNotes({
       else {
         notify(
           res.found ? 'ok' : 'warn',
-          res.found ? 'Рейткон разобран — проверь важное' : 'В рейтконе не нашлось особых заметок',
+          res.found ? t(locale, 'brokerNotes.parsedFound') : t(locale, 'brokerNotes.parsedNotFound'),
         )
         setRu(null)
         setShowRu(false)
@@ -118,7 +127,7 @@ export function BrokerNotes({
       const res = await setBrokerNotes(loadId, text)
       if (res?.error) notify('error', res.error)
       else {
-        notify('ok', 'Заметка сохранена')
+        notify('ok', t(locale, 'brokerNotes.savedToast'))
         setEditing(false)
         setRu(null)
         setShowRu(false)
@@ -141,14 +150,14 @@ export function BrokerNotes({
     return (
       <section className="panel p-4">
         <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          Заметка от брокера
+          {t(locale, 'brokerNotes.editHeading')}
         </h2>
         <textarea
           autoFocus
           rows={4}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Особые условия брокера: детеншн, аппойнтмент, требования к POD, лампер и т.д."
+          placeholder={t(locale, 'brokerNotes.placeholder')}
           className={textarea}
         />
         <div className="mt-2 flex gap-2">
@@ -157,7 +166,7 @@ export function BrokerNotes({
             onClick={saveText}
             className="rounded-lg bg-haul-500 px-4 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
           >
-            {pending ? 'Сохраняю…' : 'Сохранить'}
+            {pending ? t(locale, 'loadEdit.saving') : t(locale, 'loadEdit.save')}
           </button>
           <button
             onClick={() => {
@@ -166,7 +175,7 @@ export function BrokerNotes({
             }}
             className="rounded-lg px-4 py-1.5 text-[12px] text-white/70 transition-colors hover:text-white"
           >
-            Отмена
+            {t(locale, 'loadEdit.cancel')}
           </button>
         </div>
       </section>
@@ -183,14 +192,14 @@ export function BrokerNotes({
             onClick={parse}
             className="rounded-lg bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
           >
-            {pending ? 'Читаю рейткон…' : '✨ Разобрать рейткон (ИИ)'}
+            {pending ? t(locale, 'brokerNotes.parsing') : t(locale, 'brokerNotes.parseRc')}
           </button>
         )}
         <button
           onClick={() => setEditing(true)}
           className="text-[13px] text-white/55 transition-colors hover:text-white/85"
         >
-          {hasRc ? 'или вписать вручную' : '＋ Добавить важную заметку от брокера'}
+          {hasRc ? t(locale, 'brokerNotes.orTypeManually') : t(locale, 'brokerNotes.addNote')}
         </button>
       </div>
     )
@@ -233,21 +242,21 @@ export function BrokerNotes({
             unread ? 'text-warn-300' : 'text-white/62'
           }`}
         >
-          Важное от брокера
+          {t(locale, 'brokerNotes.heading')}
         </span>
         <span className="min-w-0 flex-1 truncate text-[12px] text-white/45 group-open:hidden">
           {preview}
         </span>
         <span className="shrink-0 text-[11px] text-white/45">
-          {unread ? 'новое' : `прочитано ${readAt!.slice(0, 10)}`}
+          {unread ? t(locale, 'brokerNotes.new') : t(locale, 'brokerNotes.readOn').replace('{date}', readAt!.slice(0, 10))}
         </span>
         {/* Explicit fold/unfold hint — this being a <details> (click to toggle) isn't
             obvious on its own, especially now that unread notes open by default. */}
         <span className="hidden shrink-0 items-center gap-1 text-[11px] text-white/45 group-open:flex">
-          Свернуть <span className="text-white/40 transition-transform rotate-90">▸</span>
+          {t(locale, 'brokerNotes.collapse')} <span className="text-white/40 transition-transform rotate-90">▸</span>
         </span>
         <span className="flex shrink-0 items-center gap-1 text-[11px] text-white/45 group-open:hidden">
-          Развернуть <span className="text-white/40 transition-transform">▸</span>
+          {t(locale, 'brokerNotes.expand')} <span className="text-white/40 transition-transform">▸</span>
         </span>
       </summary>
 
@@ -297,14 +306,14 @@ export function BrokerNotes({
             onClick={acknowledge}
             className="rounded-lg bg-warn-400 px-4 py-1.5 text-[12px] font-semibold text-ink-950 transition-colors hover:bg-warn-300 disabled:opacity-40"
           >
-            {pending ? '…' : 'Прочитано'}
+            {pending ? '…' : t(locale, 'brokerNotes.acknowledge')}
           </button>
         )}
         <button
           onClick={() => setEditing(true)}
           className="text-[12px] text-white/55 transition-colors hover:text-white/85"
         >
-          Изменить
+          {t(locale, 'loadEdit.edit')}
         </button>
         {hasRc && (
           <button
@@ -312,7 +321,7 @@ export function BrokerNotes({
             onClick={parse}
             className="text-[12px] text-white/45 transition-colors hover:text-white/75 disabled:opacity-40"
           >
-            {pending ? '…' : 'обновить из рейткона'}
+            {pending ? '…' : t(locale, 'brokerNotes.updateFromRc')}
           </button>
         )}
         </div>

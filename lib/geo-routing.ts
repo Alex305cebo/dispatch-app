@@ -5,6 +5,7 @@
 
 import { getSetting, setSetting } from './settings.ts'
 import { haversineMiles } from './geo.ts'
+import { t, type Locale } from './i18n.ts'
 
 type LatLng = { lat: number; lng: number }
 
@@ -187,9 +188,10 @@ export async function deliveryInfoBest(
 export async function routeMiles(
   origin: string,
   destination: string,
+  locale: Locale = 'ru',
 ): Promise<{ miles: number } | { error: string }> {
   const [a, b] = await Promise.all([geocode(origin), geocode(destination)])
-  if (!a || !b) return { error: 'Не удалось определить координаты города.' }
+  if (!a || !b) return { error: t(locale, 'tracking.geoNoCoords') }
 
   // Truck-legal routing when a key exists; fall through to free OSRM on any failure.
   const key = process.env.ORS_API_KEY
@@ -213,7 +215,7 @@ export async function routeMiles(
   // Free path — OSRM demo, real driving miles, no key.
   const road = await roadRoute(a, b)
   if (road) return { miles: road.miles }
-  return { error: 'Не удалось построить маршрут по дорогам.' }
+  return { error: t(locale, 'tracking.geoNoRoute') }
 }
 
 /**
@@ -256,7 +258,9 @@ export async function ipCity(ip: string | null): Promise<string | null> {
 }
 
 /** Latest US retail diesel $/gal (EIA weekly), cached 24h. null without key. */
-export async function dieselPrice(): Promise<{ price: number; asOf: string } | { error: string }> {
+export async function dieselPrice(
+  locale: Locale = 'ru',
+): Promise<{ price: number; asOf: string } | { error: string }> {
   const key = process.env.EIA_API_KEY
   if (!key) return { error: 'no_key' }
 
@@ -274,7 +278,7 @@ export async function dieselPrice(): Promise<{ price: number; asOf: string } | {
     if (!res.ok) return { error: `EIA HTTP ${res.status}` }
     const data = (await res.json()) as { response?: { data?: { period: string; value: number }[] } }
     const row = data.response?.data?.[0]
-    if (!row) return { error: 'EIA не вернул цену.' }
+    if (!row) return { error: t(locale, 'tracking.eiaNoPrice') }
     await setSetting('diesel_cache', JSON.stringify({ price: row.value, asOf: row.period, at: Date.now() }))
     return { price: row.value, asOf: row.period }
   } catch (e) {

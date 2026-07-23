@@ -4,6 +4,8 @@ import { eldStatus } from '@/lib/map'
 import { agoText } from '@/lib/fmt'
 import { idleSince } from '@/lib/eld'
 import { FleetMap, type MapMarker } from '@/components/fleet-map'
+import { t } from '@/lib/i18n'
+import { getLocale } from '@/lib/i18n-server'
 
 // Public, no login — a link a dispatcher can hand to a broker/customer so they can
 // watch one truck without touching the real app. Only what's needed for that: the
@@ -16,6 +18,7 @@ type Row = { number: string | null; drive_status: string | null; location: strin
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  const locale = await getLocale()
   const rows = (await sql`
     SELECT t.number, fs.drive_status, fs.location, fs.lat, fs.lng, fs.updated_at
     FROM trucks t LEFT JOIN fleet_status fs ON fs.unit = t.number
@@ -37,17 +40,19 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     // the company sidebar, and this link goes to people outside the company.
     <main className="fixed inset-0 z-[100] overflow-y-auto bg-ink-950 px-4 pb-20 pt-8 sm:px-6">
       <div className="mx-auto max-w-2xl">
-        <h1 className="text-[18px] font-semibold">Трак {row.number ?? '—'}</h1>
+        <h1 className="text-[18px] font-semibold">{t(locale, 'tracking.truckHash')}{row.number ?? '—'}</h1>
         <p className="mt-1 text-[13px] text-white/65">
-          {row.location ?? 'Нет данных'} · {st.text}
-          {row.updated_at && <span className="text-white/40"> · обновлено {agoText(row.updated_at)}</span>}
+          {row.location ?? t(locale, 'tracking.noData')} · {st.text}
+          {row.updated_at && (
+            <span className="text-white/40"> · {t(locale, 'tracking.updatedPrefix')}{agoText(row.updated_at, locale)}</span>
+          )}
         </p>
 
         <div className="mt-4">
           {hasFix ? (
             <FleetMap markers={markers} routes={[]} />
           ) : (
-            <p className="panel p-6 text-center text-[13px] text-white/55">Координаты пока не пришли.</p>
+            <p className="panel p-6 text-center text-[13px] text-white/55">{t(locale, 'tracking.noCoordsYet')}</p>
           )}
         </div>
       </div>

@@ -17,6 +17,8 @@ import { autoInvoiceIfReady } from '@/lib/invoice'
 import { sql } from '@/lib/db'
 import { getCurrentUser, verifyMyPassword, type CurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
+import { getLocale } from '@/lib/i18n-server'
+import { t } from '@/lib/i18n'
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -25,8 +27,9 @@ const msg = (e: unknown) => (e instanceof Error ? e.message : String(e))
  * acting user, or throws. */
 async function requireTgUser(): Promise<CurrentUser> {
   const user = await getCurrentUser()
-  if (!user) throw new Error('Нужно войти.')
-  if (!(await can(user, 'telegram'))) throw new Error('Доступ к Telegram пока не открыт администратором.')
+  const locale = await getLocale()
+  if (!user) throw new Error(t(locale, 'telegram.actions.needLogin'))
+  if (!(await can(user, 'telegram'))) throw new Error(t(locale, 'telegram.actions.noAccess'))
   return user
 }
 
@@ -42,12 +45,13 @@ export async function tgStartLogin(
     return { error: msg(e) }
   }
   const id = Number(apiId.trim())
+  const locale = await getLocale()
   if (!id || !apiHash.trim() || !phone.trim())
-    return { error: 'Нужны api_id, api_hash и телефон.' }
+    return { error: t(locale, 'telegram.actions.needCreds') }
   try {
     return await startLogin(user.id, id, apiHash.trim(), phone.trim())
   } catch (e) {
-    return { error: `Не отправился код: ${msg(e)}` }
+    return { error: `${t(locale, 'telegram.actions.codeSendFailed')}: ${msg(e)}` }
   }
 }
 
@@ -68,7 +72,8 @@ export async function tgConfirmLogin(
     if ('ok' in res) revalidatePath('/telegram')
     return res
   } catch (e) {
-    return { error: `Вход не удался: ${msg(e)}` }
+    const locale = await getLocale()
+    return { error: `${t(locale, 'telegram.actions.loginFailed')}: ${msg(e)}` }
   }
 }
 
@@ -137,16 +142,17 @@ export async function tgAttachToLoad(
   } catch (e) {
     return { error: msg(e) }
   }
+  const locale = await getLocale()
   const truck = await resolveTruckForChat(user.id, chatId, driverPhone)
   if (!truck)
-    return { error: 'Этот чат не привязан ни к одному траку — укажи телефон в паспорте трака или привяжи чат к траку.' }
+    return { error: t(locale, 'telegram.actions.noTruckLinked') }
   // Telegram is real-accounts-only (never the public demo sandbox) — see the REAL
   // constant + comment in lib/tg-intake.ts.
   const load = await activeLoadForTruck('default', truck.truckId)
-  if (!load) return { error: 'У этого трака сейчас нет активного груза.' }
+  if (!load) return { error: t(locale, 'telegram.actions.noActiveLoad') }
 
   const media = await tgMedia(user.id, chatId, msgId).catch(() => null)
-  if (!media) return { error: 'Не удалось скачать файл из Telegram.' }
+  if (!media) return { error: t(locale, 'telegram.actions.downloadFailed') }
 
   const kind =
     media.mime.startsWith('image/') || media.mime === 'application/pdf'
@@ -174,7 +180,8 @@ export async function verifyTgSendPassword(password: string): Promise<{ ok: true
 }
 
 export async function tgSendMessage(chatId: string, text: string): Promise<{ error: string } | void> {
-  if (!text.trim()) return { error: 'Пустое сообщение.' }
+  const locale = await getLocale()
+  if (!text.trim()) return { error: t(locale, 'telegram.actions.emptyMessage') }
   let user: CurrentUser
   try {
     user = await requireTgUser()
@@ -185,6 +192,6 @@ export async function tgSendMessage(chatId: string, text: string): Promise<{ err
     await tgSend(user.id, chatId, text.trim())
     revalidatePath('/telegram')
   } catch (e) {
-    return { error: `Не отправилось: ${msg(e)}` }
+    return { error: `${t(locale, 'telegram.actions.sendFailed')}: ${msg(e)}` }
   }
 }

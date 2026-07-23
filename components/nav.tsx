@@ -5,9 +5,12 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { Notifier } from '@/components/notifier'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { LocaleToggle } from '@/components/locale-toggle'
 import { autoRefreshFleet } from '@/app/actions'
 import { UserPanel } from '@/components/user-panel'
 import type { CurrentUser } from '@/lib/session'
+import { useLocale } from '@/components/locale-provider'
+import { t, type MsgKey } from '@/lib/i18n'
 
 // Hand-rolled 20px stroke icons — an icon library for seven glyphs is a dependency
 // to render seven paths.
@@ -57,17 +60,17 @@ function brandName(raw: string): string {
     .join(' ')
 }
 
-type Item = { href: string; label: string; icon: string; soon?: boolean; desktopOnly?: boolean }
+type Item = { href: string; labelKey: MsgKey; icon: string; soon?: boolean; desktopOnly?: boolean }
 
 const ITEMS: Item[] = [
-  { href: '/', label: 'Обзор', icon: 'dash' },
-  { href: '/loads', label: 'Грузы', icon: 'loads' },
-  { href: '/trucks', label: 'Траки', icon: 'settings' },
-  { href: '/tracking', label: 'Трекинг', icon: 'track' },
-  { href: '/docs', label: 'Документы', icon: 'docs' },
-  { href: '/telegram', label: 'Telegram', icon: 'chat' },
+  { href: '/', labelKey: 'nav.overview', icon: 'dash' },
+  { href: '/loads', labelKey: 'nav.loads', icon: 'loads' },
+  { href: '/trucks', labelKey: 'nav.trucks', icon: 'settings' },
+  { href: '/tracking', labelKey: 'nav.tracking', icon: 'track' },
+  { href: '/docs', labelKey: 'nav.docs', icon: 'docs' },
+  { href: '/telegram', labelKey: 'nav.telegram', icon: 'chat' },
   // The phone tab bar fits 6 — this stays reachable from dashboard/load pages there.
-  { href: '/invoices', label: 'Финансы', icon: 'money', desktopOnly: true },
+  { href: '/invoices', labelKey: 'nav.finances', icon: 'money', desktopOnly: true },
 ]
 
 export function Nav({
@@ -89,6 +92,7 @@ export function Nav({
 }) {
   const pathname = usePathname()
   const router = useRouter()
+  const locale = useLocale()
   const brand = brandName(companyName)
   const hidden = new Set<string>()
   if (!showTelegram) hidden.add('/telegram')
@@ -141,16 +145,16 @@ export function Nav({
               {it.href === '/trucks' && urgentDocs > 0 && (
                 <span
                   className="nums absolute -right-1.5 -top-1.5 flex size-3.5 items-center justify-center rounded-full bg-bad-500 text-[8px] font-bold text-white"
-                  title={`Просрочено/истекает документов: ${urgentDocs}`}
+                  title={`${t(locale, 'nav.urgentDocs')}: ${urgentDocs}`}
                 >
                   {urgentDocs > 9 ? '9+' : urgentDocs}
                 </span>
               )}
             </span>
-            <span className="max-w-full truncate text-[10px] font-medium md:text-[13px]">{it.label}</span>
+            <span className="max-w-full truncate text-[10px] font-medium md:text-[13px]">{t(locale, it.labelKey)}</span>
             {it.soon && (
               <span className="ml-auto hidden rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-white/62 md:inline">
-                скоро
+                {t(locale, 'nav.soon')}
               </span>
             )}
           </>
@@ -162,9 +166,9 @@ export function Nav({
         if (it.soon) {
           return (
             <div
-              key={it.label}
+              key={it.href}
               aria-disabled
-              title="Ещё не сделано"
+              title={t(locale, 'nav.notDoneYet')}
               className={`${shape} cursor-not-allowed text-white/45 max-md:hidden`}
             >
               {body}
@@ -200,8 +204,8 @@ export function Nav({
             <UserPanel user={user} />
             <Link
               href="/logins"
-              title="Журнал"
-              aria-label="Журнал"
+              title={t(locale, 'nav.journal')}
+              aria-label={t(locale, 'nav.journal')}
               aria-current={pathname.startsWith('/logins') ? 'page' : undefined}
               className={`flex size-9 items-center justify-center rounded-full border transition-colors ${
                 pathname.startsWith('/logins')
@@ -214,6 +218,7 @@ export function Nav({
           </>
         )}
         <Notifier />
+        <LocaleToggle />
         <ThemeToggle />
       </div>
     </nav>

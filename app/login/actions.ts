@@ -10,6 +10,8 @@ import {
   SESSION_COOKIE,
   SESSION_DAYS,
 } from '@/lib/auth'
+import { t } from '@/lib/i18n'
+import { getLocale } from '@/lib/i18n-server'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -54,12 +56,13 @@ export async function bootstrapAdmin(
   email: string,
   password: string,
 ): Promise<{ error: string } | void> {
-  if (!name.trim()) return { error: 'Впиши имя.' }
-  if (!EMAIL_RE.test(email.trim())) return { error: 'Некорректный email.' }
-  if (password.length < 8) return { error: 'Пароль — минимум 8 символов.' }
+  const locale = await getLocale()
+  if (!name.trim()) return { error: t(locale, 'login.error.enterName') }
+  if (!EMAIL_RE.test(email.trim())) return { error: t(locale, 'login.error.badEmail') }
+  if (password.length < 8) return { error: t(locale, 'login.error.passwordMin') }
 
   const existing = await sql`SELECT 1 FROM users WHERE is_demo = FALSE LIMIT 1`
-  if (existing.length > 0) return { error: 'Аккаунт уже создан — используй форму входа.' }
+  if (existing.length > 0) return { error: t(locale, 'login.error.accountExists') }
 
   let userId: number
   try {
@@ -69,7 +72,9 @@ export async function bootstrapAdmin(
       RETURNING id`
     userId = (rows[0] as { id: number }).id
   } catch (e) {
-    return { error: /unique/i.test(String(e)) ? 'Этот email уже занят.' : 'Не вышло создать аккаунт.' }
+    return {
+      error: /unique/i.test(String(e)) ? t(locale, 'login.error.emailTaken') : t(locale, 'login.error.createFailed'),
+    }
   }
   await startSession(userId, true)
   await logAudit(name.trim())
@@ -91,7 +96,7 @@ export async function signIn(
   // Same generic error either way — confirming "no such email" to a stranger is a
   // free account-enumeration oracle, so a bad email and a bad password look identical.
   if (!user || !(await verifyPassword(password, user.password_hash))) {
-    return { error: 'Неверный email или пароль.' }
+    return { error: t(await getLocale(), 'login.error.badCredentials') }
   }
   await startSession(user.id, remember)
   await logAudit(user.name)

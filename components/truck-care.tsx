@@ -24,6 +24,7 @@ import { DeleteButton } from '@/components/delete-button'
 import { Info } from '@/components/info'
 import { notify } from '@/lib/notify'
 import { usd } from '@/lib/fmt'
+import { t, type Locale } from '@/lib/i18n'
 
 const input =
   'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none transition-all placeholder:text-white/45 hover:border-white/15 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
@@ -52,8 +53,16 @@ function DateInput({
   )
 }
 
-const KIND_LABEL = { repair: 'Ремонт', service: 'Обслуживание', inspection: 'Инспекция' } as const
-const PRIO_LABEL = { low: 'не срочно', normal: 'обычный', urgent: 'СРОЧНО' } as const
+const kindLabel = (locale: Locale) => ({
+  repair: t(locale, 'trucks.care.kindRepair'),
+  service: t(locale, 'trucks.care.kindService'),
+  inspection: t(locale, 'trucks.care.kindInspection'),
+})
+const prioLabel = (locale: Locale) => ({
+  low: t(locale, 'trucks.care.prioLow'),
+  normal: t(locale, 'trucks.care.prioNormal'),
+  urgent: t(locale, 'trucks.care.prioUrgent'),
+})
 
 export function TruckCare({
   truckId,
@@ -63,6 +72,7 @@ export function TruckCare({
   currentOdometer,
   oil,
   docs,
+  locale = 'en',
 }: {
   truckId: number
   meta: TruckMeta | null
@@ -70,9 +80,10 @@ export function TruckCare({
   todos: TruckTodo[]
   currentOdometer: number | null
   oil: { milesLeft: number; tone: 'good' | 'warn' | 'bad' } | null
-  /** This truck's documents (already fetched for the Документы section) — reused
+  /** This truck's documents (already fetched for the Documents section) — reused
    * here to find each repair's own attached receipt, keyed by maintenance_id. */
   docs: { id: number; maintenanceId: number | null }[]
+  locale?: Locale
 }) {
   const router = useRouter()
   const [pending, start] = useTransition()
@@ -96,7 +107,9 @@ export function TruckCare({
     cdlExpiry: meta?.cdlExpiry ?? null,
     medcardExpiry: meta?.medcardExpiry ?? null,
   })
-  const exp = expiries(meta)
+  const exp = expiries(meta, locale)
+  const KIND_LABEL = kindLabel(locale)
+  const PRIO_LABEL = prioLabel(locale)
 
   /* ---- quick todo ---- */
   const [todoTitle, setTodoTitle] = useState('')
@@ -134,12 +147,12 @@ export function TruckCare({
     fd.append('kind', 'repair')
     fd.append('truckId', String(truckId))
     fd.append('maintenanceId', String(maintenanceId))
-    fd.append('title', `${recordTitle} — чек`)
+    fd.append('title', `${recordTitle}${t(locale, 'trucks.care.receiptSuffix')}`)
     start(async () => {
       const res = await uploadDocument(fd)
       if ('error' in res) notify('error', res.error)
       else {
-        notify('ok', 'Документ добавлен')
+        notify('ok', t(locale, 'trucks.care.docAdded'))
         router.refresh()
       }
     })
@@ -153,35 +166,34 @@ export function TruckCare({
       <section className="panel p-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            Замена масла
-            <Info text="Счётчик пробега до следующей замены масла: интервал (по умолчанию 25 000 миль) плюс одометр последней замены, минус текущий одометр из ELD. Зелёный → жёлтый → красный по мере приближения. Запись «масло» в журнале с одометром сама сбрасывает счётчик." />
+            {t(locale, 'trucks.care.oilHeading')}
+            <Info text={t(locale, 'trucks.care.oilInfo')} />
           </h2>
           <button
             onClick={() => setEditMeta((v) => !v)}
             className="text-[12px] text-haul-400 hover:underline"
           >
-            {editMeta ? 'скрыть' : 'паспорт трака'}
+            {editMeta ? t(locale, 'trucks.care.hide') : t(locale, 'trucks.care.passport')}
           </button>
         </div>
 
         <div className="mt-2 text-[13px] leading-relaxed text-white/72">
           {oil ? (
             <>
-              До замены —{' '}
+              {t(locale, 'trucks.care.untilChange')}{' '}
               <span className={`nums text-[16px] font-bold ${oilTone[oil.tone]}`}>
                 {oil.milesLeft.toLocaleString('en-US')} mi
               </span>
-              {oil.tone === 'bad' && ' — пора менять!'}
+              {oil.tone === 'bad' && t(locale, 'trucks.care.timeToChange')}
             </>
           ) : meta?.oilLastOdometer ? (
-            'Последняя замена записана. Остаток посчитается, когда придёт одометр с ELD.'
+            t(locale, 'trucks.care.lastChangeRecorded')
           ) : (
-            'Укажи одометр последней замены в паспорте — и счётчик заработает.'
+            t(locale, 'trucks.care.needOdometer')
           )}
           {currentOdometer !== null && (
             <span className="text-white/45">
-              {' '}
-              · одометр сейчас: {Math.round(currentOdometer).toLocaleString('en-US')} mi
+              {t(locale, 'trucks.care.odometerNow')}{Math.round(currentOdometer).toLocaleString('en-US')} mi
             </span>
           )}
         </div>
@@ -189,55 +201,55 @@ export function TruckCare({
         {editMeta && (
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <TextField label="VIN" value={m.vin} onChange={(v) => setM({ ...m, vin: v })} />
-            <TextField label="Номер (plate)" value={m.plate} onChange={(v) => setM({ ...m, plate: v })} />
+            <TextField label={t(locale, 'trucks.care.plateLabel')} value={m.plate} onChange={(v) => setM({ ...m, plate: v })} />
             <TextField
-              label="Номер трейлера"
+              label={t(locale, 'trucks.care.trailerNumberLabel')}
               value={m.trailerNumber}
               onChange={(v) => setM({ ...m, trailerNumber: v })}
             />
             <Field
-              label="Год"
+              label={t(locale, 'trucks.care.yearLabel')}
               value={m.year ?? NaN}
               onChange={(n) => setM({ ...m, year: Number.isNaN(n) ? null : n })}
             />
-            <TextField label="Марка" value={m.make} onChange={(v) => setM({ ...m, make: v })} placeholder="Freightliner" />
-            <TextField label="Модель" value={m.model} onChange={(v) => setM({ ...m, model: v })} placeholder="Cascadia" />
+            <TextField label={t(locale, 'trucks.care.makeLabel')} value={m.make} onChange={(v) => setM({ ...m, make: v })} placeholder="Freightliner" />
+            <TextField label={t(locale, 'trucks.care.modelLabel')} value={m.model} onChange={(v) => setM({ ...m, model: v })} placeholder="Cascadia" />
             <TextField
-              label="Телефон водителя"
+              label={t(locale, 'trucks.care.driverPhoneLabel')}
               value={m.driverPhone}
               onChange={(v) => setM({ ...m, driverPhone: v })}
               placeholder="+1 ..."
             />
             <Field
-              label="Интервал масла"
+              label={t(locale, 'trucks.care.oilIntervalLabel')}
               value={m.oilIntervalMi}
               onChange={(n) => setM({ ...m, oilIntervalMi: n })}
               suffix="mi"
             />
             <Field
-              label="Одометр последней замены"
+              label={t(locale, 'trucks.care.oilLastOdometerLabel')}
               value={m.oilLastOdometer ?? NaN}
               onChange={(n) => setM({ ...m, oilLastOdometer: Number.isNaN(n) ? null : n })}
               suffix="mi"
             />
-            <TextField label="Заметки" value={m.notes} onChange={(v) => setM({ ...m, notes: v })} />
+            <TextField label={t(locale, 'trucks.care.notesLabel')} value={m.notes} onChange={(v) => setM({ ...m, notes: v })} />
 
-            <DateInput label="Регистрация до" value={m.registrationExpiry} onChange={(v) => setM({ ...m, registrationExpiry: v })} />
-            <DateInput label="Инспекция до" value={m.inspectionExpiry} onChange={(v) => setM({ ...m, inspectionExpiry: v })} />
-            <DateInput label="Страховка до" value={m.insuranceExpiry} onChange={(v) => setM({ ...m, insuranceExpiry: v })} />
-            <DateInput label="CDL водителя до" value={m.cdlExpiry} onChange={(v) => setM({ ...m, cdlExpiry: v })} />
-            <DateInput label="Медкарта до" value={m.medcardExpiry} onChange={(v) => setM({ ...m, medcardExpiry: v })} />
+            <DateInput label={t(locale, 'trucks.care.registrationLabel')} value={m.registrationExpiry} onChange={(v) => setM({ ...m, registrationExpiry: v })} />
+            <DateInput label={t(locale, 'trucks.care.inspectionLabel')} value={m.inspectionExpiry} onChange={(v) => setM({ ...m, inspectionExpiry: v })} />
+            <DateInput label={t(locale, 'trucks.care.insuranceLabel')} value={m.insuranceExpiry} onChange={(v) => setM({ ...m, insuranceExpiry: v })} />
+            <DateInput label={t(locale, 'trucks.care.cdlLabel')} value={m.cdlExpiry} onChange={(v) => setM({ ...m, cdlExpiry: v })} />
+            <DateInput label={t(locale, 'trucks.care.medcardLabel')} value={m.medcardExpiry} onChange={(v) => setM({ ...m, medcardExpiry: v })} />
             <div />
 
             <div className="sm:col-span-3">
               <button
                 disabled={pending}
                 onClick={() =>
-                  run(() => saveTruckMeta(truckId, m), 'Паспорт трака сохранён', () => setEditMeta(false))
+                  run(() => saveTruckMeta(truckId, m), t(locale, 'trucks.care.passportSaved'), () => setEditMeta(false))
                 }
                 className="rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-50"
               >
-                Сохранить паспорт
+                {t(locale, 'trucks.care.savePassport')}
               </button>
             </div>
           </div>
@@ -248,8 +260,8 @@ export function TruckCare({
       {exp.length > 0 && (
         <section className="panel p-4">
           <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            Сроки документов
-            <Info text="Даты окончания регистрации, инспекции, страховки трака и CDL/медкарты водителя (вносятся в «паспорт трака»). Подсветка: красный ≤30 дней или просрочено, жёлтый ≤60. Самые срочные по всему парку дублируются на Обзоре." />
+            {t(locale, 'trucks.care.expiryHeading')}
+            <Info text={t(locale, 'trucks.care.expiryInfo')} />
           </h2>
           <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">
             {exp.map((e) => (
@@ -269,7 +281,7 @@ export function TruckCare({
                           : 'bg-good-500/15 text-good-400'
                     }`}
                   >
-                    {e.daysLeft < 0 ? 'просрочено' : `${e.daysLeft} дн.`}
+                    {e.daysLeft < 0 ? t(locale, 'trucks.common.overdue') : `${e.daysLeft} ${t(locale, 'trucks.common.daysSuffix')}`}
                   </span>
                 </span>
               </li>
@@ -282,8 +294,8 @@ export function TruckCare({
           already been fixed, are the same ongoing story for this truck. */}
       <section className="panel p-4">
         <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          Нужно починить
-          <Info text="Список того, что на траке надо починить или заменить. Впиши, выбери срочность (срочное — красным) и жми +. Отмечай галочкой сделанное, ✕ — удалить. Количество открытых задач показано в шапке трака." />
+          {t(locale, 'trucks.care.todoHeading')}
+          <Info text={t(locale, 'trucks.care.todoInfo')} />
         </h2>
 
         <div className="mt-3 flex gap-2">
@@ -292,9 +304,9 @@ export function TruckCare({
             onChange={(e) => setTodoTitle(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && todoTitle.trim())
-                run(() => addTodo(truckId, todoTitle, todoPrio), 'Добавлено', () => setTodoTitle(''))
+                run(() => addTodo(truckId, todoTitle, todoPrio), t(locale, 'trucks.care.addedTodo'), () => setTodoTitle(''))
             }}
-            placeholder="Что сломалось / что заменить…"
+            placeholder={t(locale, 'trucks.care.todoPlaceholder')}
             className={input}
           />
           <select
@@ -302,13 +314,13 @@ export function TruckCare({
             onChange={(e) => setTodoPrio(e.target.value as typeof todoPrio)}
             className="shrink-0 rounded-xl border border-white/8 bg-ink-900/80 px-2 text-[13px] text-white outline-none"
           >
-            <option value="low">не срочно</option>
-            <option value="normal">обычный</option>
-            <option value="urgent">срочно</option>
+            <option value="low">{t(locale, 'trucks.care.prioLow')}</option>
+            <option value="normal">{t(locale, 'trucks.care.prioNormal')}</option>
+            <option value="urgent">{t(locale, 'trucks.care.prioUrgentOption')}</option>
           </select>
           <button
             disabled={pending || !todoTitle.trim()}
-            onClick={() => run(() => addTodo(truckId, todoTitle, todoPrio), 'Добавлено', () => setTodoTitle(''))}
+            onClick={() => run(() => addTodo(truckId, todoTitle, todoPrio), t(locale, 'trucks.care.addedTodo'), () => setTodoTitle(''))}
             className="shrink-0 rounded-xl bg-haul-500 px-4 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
           >
             +
@@ -316,7 +328,7 @@ export function TruckCare({
         </div>
 
         {todos.length === 0 ? (
-          <p className="mt-3 text-[13px] text-white/55">Список пуст — всё на ходу.</p>
+          <p className="mt-3 text-[13px] text-white/55">{t(locale, 'trucks.care.todoEmpty')}</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-1.5">
             {todos.map((t) => (
@@ -351,23 +363,23 @@ export function TruckCare({
           </ul>
         )}
 
-        {/* Maintenance log — same card as "Нужно починить": one ongoing story of
+        {/* Maintenance log — same card as "Needs fixing": one ongoing story of
             what's broken and what's already been fixed on this truck. */}
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/8 pt-4">
           <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            Журнал ремонтов и обслуживания
-            <Info text="История: что чинилось и обслуживалось, когда, за сколько и при каком пробеге. Тип «Обслуживание» + слово «масло» + одометр автоматически обновляет счётчик замены масла выше." />
+            {t(locale, 'trucks.care.logHeading')}
+            <Info text={t(locale, 'trucks.care.logInfo')} />
           </h2>
           <button
             onClick={() => setShowMaint((v) => !v)}
             className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400"
           >
-            {showMaint ? 'скрыть' : '+ Запись'}
+            {showMaint ? t(locale, 'trucks.care.hide') : t(locale, 'trucks.care.addRecord')}
           </button>
         </div>
 
-        {/* Receipt/paperwork for a repair — lands in the truck's own Документы
-            section AND the общий /docs library, same as any other document. */}
+        {/* Receipt/paperwork for a repair — lands in the truck's own Documents
+            section AND the shared /docs library, same as any other document. */}
         <div className="mt-3">
           <DocUpload truckId={truckId} defaultKind="repair" />
         </div>
@@ -376,39 +388,39 @@ export function TruckCare({
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-white/65">
-                Тип
+                {t(locale, 'trucks.care.typeLabel')}
               </span>
               <select
                 value={mt.kind}
                 onChange={(e) => setMt({ ...mt, kind: e.target.value as MaintenanceInput['kind'] })}
                 className={input}
               >
-                <option value="repair">Ремонт</option>
-                <option value="service">Обслуживание (масло, фильтры…)</option>
-                <option value="inspection">Инспекция</option>
+                <option value="repair">{t(locale, 'trucks.care.kindRepair')}</option>
+                <option value="service">{t(locale, 'trucks.care.kindServiceOption')}</option>
+                <option value="inspection">{t(locale, 'trucks.care.kindInspection')}</option>
               </select>
             </label>
             <TextField
-              label="Что делали"
+              label={t(locale, 'trucks.care.whatDoneLabel')}
               value={mt.title}
               onChange={(v) => setMt({ ...mt, title: v })}
-              placeholder="Замена масла / тормозные колодки…"
+              placeholder={t(locale, 'trucks.care.whatDonePlaceholder')}
             />
             <Field
-              label="Стоимость"
+              label={t(locale, 'trucks.care.costLabel')}
               value={mt.cost ?? NaN}
               onChange={(n) => setMt({ ...mt, cost: Number.isNaN(n) ? null : n })}
               prefix="$"
             />
             <Field
-              label="Одометр"
+              label={t(locale, 'trucks.care.odometerLabel')}
               value={mt.odometer ?? NaN}
               onChange={(n) => setMt({ ...mt, odometer: Number.isNaN(n) ? null : n })}
               suffix="mi"
             />
             <label className="block">
               <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-white/65">
-                Дата
+                {t(locale, 'trucks.care.dateLabel')}
               </span>
               <input
                 type="date"
@@ -417,29 +429,29 @@ export function TruckCare({
                 className={input}
               />
             </label>
-            <TextField label="Заметки" value={mt.notes} onChange={(v) => setMt({ ...mt, notes: v })} />
+            <TextField label={t(locale, 'trucks.care.notesLabel')} value={mt.notes} onChange={(v) => setMt({ ...mt, notes: v })} />
             <div className="sm:col-span-2">
               <button
                 disabled={pending || !mt.title.trim()}
                 onClick={() =>
-                  run(() => addMaintenance(truckId, mt), 'Запись добавлена', () => {
+                  run(() => addMaintenance(truckId, mt), t(locale, 'trucks.care.recordAdded'), () => {
                     setShowMaint(false)
                     setMt({ ...mt, title: '', notes: '', cost: null })
                   })
                 }
                 className="rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
               >
-                Сохранить запись
+                {t(locale, 'trucks.care.saveRecord')}
               </button>
               <span className="ml-3 text-[12px] text-white/45">
-                Запись «масло» с одометром сама сбросит счётчик замены.
+                {t(locale, 'trucks.care.oilResetHint')}
               </span>
             </div>
           </div>
         )}
 
         {records.length === 0 ? (
-          <p className="mt-3 text-[13px] text-white/55">Записей пока нет.</p>
+          <p className="mt-3 text-[13px] text-white/55">{t(locale, 'trucks.care.recordsEmpty')}</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-1.5">
             {records.map((r) => {
@@ -454,7 +466,7 @@ export function TruckCare({
                         href={`/view/${receipt.id}`}
                         target="_blank"
                         rel="noreferrer"
-                        title="Открыть чек"
+                        title={t(locale, 'trucks.care.openReceipt')}
                         className="text-[14px] text-white/85 hover:text-haul-400 hover:underline"
                       >
                         {r.title}
@@ -467,7 +479,7 @@ export function TruckCare({
                         {r.cost !== null ? usd.format(r.cost) : ''}
                       </span>
                       <label
-                        title="Прикрепить документ"
+                        title={t(locale, 'trucks.care.attachDoc')}
                         className={`flex size-6 cursor-pointer items-center justify-center rounded-md bg-white/8 text-[13px] text-white/70 transition-colors hover:bg-white/16 hover:text-haul-400 ${pending ? 'opacity-40' : ''}`}
                       >
                         📎
@@ -497,7 +509,7 @@ export function TruckCare({
                       <>
                         {' · '}
                         <a href={`/view/${receipt.id}`} target="_blank" rel="noreferrer" className="text-haul-400 hover:underline">
-                          📄 чек
+                          📄 {t(locale, 'trucks.care.receiptLink')}
                         </a>
                       </>
                     )}

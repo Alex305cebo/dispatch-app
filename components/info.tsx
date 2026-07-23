@@ -8,10 +8,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 type Box = { top: number; left: number; width: number; placement: 'above' | 'below' }
 
 export function Info({ text }: { text: string; side?: 'top' | 'bottom' }) {
+  const locale = useLocale()
   const btnRef = useRef<HTMLButtonElement>(null)
   const [hovered, setHovered] = useState(false)
   const [pinned, setPinned] = useState(false)
@@ -62,7 +65,7 @@ export function Info({ text }: { text: string; side?: 'top' | 'bottom' }) {
       <button
         ref={btnRef}
         type="button"
-        aria-label="Что это и как работает"
+        aria-label={t(locale, 'info.ariaLabel')}
         aria-expanded={open}
         onClick={(e) => {
           e.preventDefault()

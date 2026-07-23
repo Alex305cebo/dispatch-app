@@ -138,7 +138,7 @@ export function LoginForm({ bootstrap }: { bootstrap: boolean }) {
           <button
             type="button"
             onClick={() => setShowPw((v) => !v)}
-            aria-label={showPw ? 'Скрыть пароль' : 'Показать пароль'}
+            aria-label={showPw ? t(locale, 'login.hidePassword') : t(locale, 'login.showPassword')}
             tabIndex={-1}
             className="absolute right-1 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-lg text-white/45 transition-colors hover:text-white/85"
           >

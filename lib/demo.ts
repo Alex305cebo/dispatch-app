@@ -20,7 +20,7 @@ async function demoUserId(): Promise<number> {
   // been migrated yet shouldn't leave the demo link dead.
   const created = await sql`
     INSERT INTO users (name, email, password_hash, role, is_demo)
-    VALUES ('Демо', ${DEMO_EMAIL}, '', 'dispatcher', TRUE)
+    VALUES ('Demo', ${DEMO_EMAIL}, '', 'dispatcher', TRUE)
     ON CONFLICT (email) DO UPDATE SET is_demo = TRUE
     RETURNING id`
   return (created[0] as { id: number }).id

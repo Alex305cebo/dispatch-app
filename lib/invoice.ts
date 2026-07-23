@@ -8,6 +8,7 @@ import { sql } from './db.ts'
 import { getSetting } from './settings.ts'
 import { getLoad } from './loads.ts'
 import type { LoadRecord } from './map.ts'
+import { t, type Locale } from './i18n.ts'
 
 export type Company = {
   name: string
@@ -135,20 +136,18 @@ async function appendDoc(packet: PDFDocument, mime: string, bytes: Uint8Array) {
  */
 export async function buildInvoicePacket(
   load: LoadRecord,
+  locale: Locale = 'en',
 ): Promise<{ docId: number; invoiceNumber: string } | { error: string }> {
   const co = await getCompany()
   if (!co.name || !co.mcdot)
-    return {
-      error:
-        'Сначала заполни данные своей компании: раздел «Оплаты» → блок «Данные компании для инвойса».',
-    }
+    return { error: t(locale, 'finances.err.noCompany') }
 
   // POD gate.
   const docs = (await sql`
     SELECT kind, mime, encode(data,'base64') AS b64 FROM documents
     WHERE load_id = ${load.id} AND company_id = ${load.companyId} ORDER BY kind`) as { kind: string; mime: string; b64: string }[]
   if (!docs.some((d) => d.kind === 'pod'))
-    return { error: 'Нет POD у этого груза — брокер не заплатит без него. Загрузи POD и повтори.' }
+    return { error: t(locale, 'finances.err.noPod') }
 
   const invoiceNumber = load.referenceId ? `INV-${load.referenceId}` : `INV-${load.id}`
   const packet = await PDFDocument.create()

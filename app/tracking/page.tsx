@@ -10,8 +10,10 @@ import { headingOf, idleSince } from '@/lib/eld'
 import { activeAlert, type WeatherAlert } from '@/lib/weather'
 import { getSetting } from '@/lib/settings'
 import { agoText, driveTime } from '@/lib/fmt'
+import { t as tr } from '@/lib/i18n'
 import { Info } from '@/components/info'
 import { companyScope } from '@/lib/session'
+import { getLocale } from '@/lib/i18n-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,6 +30,7 @@ type FS = {
 
 export default async function Page() {
   const companyId = await companyScope()
+  const locale = await getLocale()
   const trucks = await listTrucks(companyId)
   const shareRaw = await getSetting('eld_share_tokens')
   const shareCount = shareRaw ? (JSON.parse(shareRaw) as string[]).length : 0
@@ -104,7 +107,7 @@ export default async function Page() {
   for (const { t, fs, load, pickup, legToPickup, legToDelivery, weather, idleAt, heading } of perTruck) {
     // Unconditional on load — a parked empty truck shouldn't say "moving" either.
     const idleHoursAny = idleAt ? Math.floor((Date.now() - idleAt.getTime()) / 3_600_000) : null
-    const st = eldStatus(fs?.drive_status ?? null, idleHoursAny)
+    const st = eldStatus(fs?.drive_status ?? null, idleHoursAny, locale)
     if (st.tone === 'move') moving++
     else if (st.tone === 'on') onDuty++
     else resting++
@@ -128,7 +131,7 @@ export default async function Page() {
       markers.push({
         lat: pickup.lat,
         lng: pickup.lng,
-        label: `Пикап · ${load.origin}`,
+        label: `${tr(locale, 'tracking.pickupPrefix')}${load.origin}`,
         sub: [load.pickupTime || (load.pickupDate ? load.pickupDate.slice(0, 10) : null)]
           .filter(Boolean)
           .join('\n'),
@@ -159,7 +162,7 @@ export default async function Page() {
         lat: legToDelivery.lat,
         lng: legToDelivery.lng,
         label: `Delivery · ${load.destination}`,
-        sub: load.origin ? `Из ${load.origin}` : undefined,
+        sub: load.origin ? `${tr(locale, 'tracking.fromPrefix')}${load.origin}` : undefined,
         kind: 'dest',
         href: `/loads/${load.id}`,
       })
@@ -173,7 +176,7 @@ export default async function Page() {
         tone: st.tone,
         kind: 'truck',
         heading: heading ?? undefined,
-        eta: legToDelivery ? `${totalMiles} mi · ~${driveTime(totalEtaMin)} до delivery` : undefined,
+        eta: legToDelivery ? `${totalMiles} mi · ~${driveTime(totalEtaMin, locale)}${tr(locale, 'tracking.toDelivery')}` : undefined,
         href: `/trucks/${t.id}`,
       })
     }
@@ -190,7 +193,7 @@ export default async function Page() {
       loadRoute: load ? `${load.origin ?? '—'} → ${load.destination ?? '—'}` : null,
       phone: phoneById.get(t.id) ?? null,
       delivery,
-      driveTimeText: legToDelivery ? driveTime(totalEtaMin) : null,
+      driveTimeText: legToDelivery ? driveTime(totalEtaMin, locale) : null,
       weather: weather ? { event: weather.event, headline: weather.headline } : null,
       idleHours: idleHoursRaw !== null && idleHoursRaw >= 3 ? idleHoursRaw : null,
       unavailable: t.unavailable,
@@ -201,11 +204,11 @@ export default async function Page() {
     <main className="mx-auto max-w-3xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <header className="mb-5">
         <h1 className="flex items-center gap-2 text-[17px] font-semibold">
-          Трекинг
-          <Info side="bottom" text="Живая карта парка. На карте — где сейчас каждый трак и линия по дорогам до места выгрузки. В списке — статус (в движении/off/on), последняя локация, скорость и сколько осталось ехать до выгрузки. Координаты обновляются автоматически." />
+          {tr(locale, 'tracking.title')}
+          <Info side="bottom" text={tr(locale, 'tracking.infoText')} />
         </h1>
         <p className="text-[13px] text-white/65">
-          Где траки, куда едут и сколько осталось до выгрузки — вживую.
+          {tr(locale, 'tracking.subtitle')}
         </p>
       </header>
 
@@ -217,27 +220,27 @@ export default async function Page() {
 
       <div className="panel mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 text-[12px]">
         <span className="flex items-center gap-1.5 text-white/80">
-          <span className="size-2 rounded-full bg-good-500" /> {moving} в движении
+          <span className="size-2 rounded-full bg-good-500" /> {moving} {tr(locale, 'tracking.moving')}
         </span>
         <span className="flex items-center gap-1.5 text-white/80">
           <span className="size-2 rounded-full bg-haul-500" /> {onDuty} on duty
         </span>
         <span className="flex items-center gap-1.5 text-white/80">
-          <span className="size-2 rounded-full bg-white/30" /> {resting} стоят
+          <span className="size-2 rounded-full bg-white/30" /> {resting} {tr(locale, 'tracking.resting')}
         </span>
         {noGps > 0 && (
           <span className="flex items-center gap-1.5 text-warn-400">
-            <span className="size-2 rounded-full bg-warn-400" /> {noGps} без GPS
+            <span className="size-2 rounded-full bg-warn-400" /> {noGps} {tr(locale, 'tracking.noGpsBadge')}
           </span>
         )}
         {totalDeliveryMiles > 0 && (
           <span className="text-white/60">
-            <span className="nums text-white/85">{totalDeliveryMiles.toLocaleString('en-US')} mi</span> суммарно до
-            выгрузки по парку
+            <span className="nums text-white/85">{totalDeliveryMiles.toLocaleString('en-US')} mi</span>{' '}
+            {tr(locale, 'tracking.fleetTotalSuffix')}
           </span>
         )}
         <span className="ml-auto flex shrink-0 items-center gap-2 text-white/40">
-          {snapshot ? `обновлено ${agoText(snapshot)}` : 'снимков ещё не было'}
+          {snapshot ? `${tr(locale, 'tracking.updatedPrefix')}${agoText(snapshot, locale)}` : tr(locale, 'tracking.noSnapshotYet')}
           <RefreshFleetButton staleMinutes={staleMinutes} />
         </span>
       </div>

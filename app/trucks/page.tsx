@@ -12,6 +12,8 @@ import {
 import { sql } from '@/lib/db'
 import { usd, weekStart } from '@/lib/fmt'
 import { companyScope } from '@/lib/session'
+import { getLocale } from '@/lib/i18n-server'
+import { t, type Locale } from '@/lib/i18n'
 import { DriverAvatar } from '@/components/driver-avatar'
 import { StatusBadge } from '@/components/status'
 import { Info } from '@/components/info'
@@ -34,10 +36,12 @@ function cityOf(location: string | null): string | null {
   return m ? m[1] : location
 }
 
-const UNAVAILABLE_LABEL = { repair: '🔧 В ремонте', vacation: '🌴 Отпуск' } as const
+const unavailableLabel = (locale: Locale, status: 'repair' | 'vacation') =>
+  t(locale, status === 'repair' ? 'trucks.avail.repair' : 'trucks.avail.vacation')
 
 export default async function Page() {
   const companyId = await companyScope()
+  const locale = await getLocale()
   const [trucks, company, photoIds, metas, todoCounts, fleetRaw] = await Promise.all([
     listTrucks(companyId),
     getCompany(),
@@ -75,12 +79,12 @@ export default async function Page() {
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-[17px] font-semibold">Траки</h1>
+          <h1 className="text-[17px] font-semibold">{t(locale, 'trucks.page.title')}</h1>
           <p className="text-[13px] text-white/65">
-            {trucks.length} в парке
+            {trucks.length} {t(locale, 'trucks.page.inFleet')}
             {company.owner && (
               <>
-                {' · владелец '}
+                {t(locale, 'trucks.page.ownerPrefix')}
                 <span className="font-medium text-white/80">{company.owner}</span>
               </>
             )}
@@ -90,29 +94,29 @@ export default async function Page() {
           href="/trucks/new"
           className="rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400"
         >
-          + Трак
+          {t(locale, 'trucks.page.addTruck')}
         </Link>
       </div>
 
       {/* Fleet at a glance — the same counters a dispatcher juggles in their head. */}
       <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-white/8 bg-white/[0.02] px-4 py-3 text-[12.5px]">
         <span className="flex items-center gap-1.5 text-white/80">
-          <span className="size-2 rounded-full bg-haul-500" /> {busy} с грузом
+          <span className="size-2 rounded-full bg-haul-500" /> {busy} {t(locale, 'trucks.page.withLoad')}
         </span>
         <span className="flex items-center gap-1.5 text-white/80">
-          <span className="size-2 rounded-full bg-good-500" /> {free} свободно
+          <span className="size-2 rounded-full bg-good-500" /> {free} {t(locale, 'trucks.page.free')}
         </span>
         {unavailable > 0 && (
           <span className="flex items-center gap-1.5 text-warn-400">
-            <span className="size-2 rounded-full bg-warn-400" /> {unavailable} недоступно
+            <span className="size-2 rounded-full bg-warn-400" /> {unavailable} {t(locale, 'trucks.page.unavailable')}
           </span>
         )}
         <span className="ml-auto flex items-center gap-1 text-white/45">
-          нед. гросс{' '}
+          {t(locale, 'trucks.page.weekGross')}{' '}
           <span className="nums font-semibold text-white/85">
             {usd.format(perTruck.reduce((s, x) => s + x.weekGross, 0))}
           </span>
-          <Info text="Сумма ставок (гросс) активных грузов всего парка за текущую календарную неделю — с понедельника." />
+          <Info text={t(locale, 'trucks.page.weekGrossInfo')} />
         </span>
       </div>
 
@@ -123,7 +127,7 @@ export default async function Page() {
           const oil = oilStatus(meta, fs?.odometer ?? null)
           // The one date closest to biting — same ranking the truck page's expiry
           // panel uses; green ones stay off the card (healthy is the quiet default).
-          const worstDoc = expiries(meta).find((e) => e.tone !== 'good')
+          const worstDoc = expiries(meta, locale).find((e) => e.tone !== 'good')
           const todos = todoCounts.get(truck.id) ?? 0
           const off = truck.unavailable
 
@@ -138,7 +142,7 @@ export default async function Page() {
               {/* Identity + money */}
               <div className="flex items-center gap-3">
                 <div className="relative shrink-0">
-                  <DriverAvatar truckId={truck.id} name={truck.driverName} hasPhoto={photoIds.has(truck.id)} size={44} />
+                  <DriverAvatar truckId={truck.id} name={truck.driverName} hasPhoto={photoIds.has(truck.id)} size={44} locale={locale} />
                   <span
                     className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-ink-900 ${driveDot(fs?.drive_status ?? null)}`}
                   />
@@ -151,24 +155,24 @@ export default async function Page() {
                     <span className="shrink-0 text-[15px] font-semibold">{truck.number ?? truck.name}</span>
                     {off ? (
                       <span className="shrink-0 rounded-full bg-warn-400/15 px-2 py-0.5 text-[10.5px] font-semibold text-warn-400">
-                        {UNAVAILABLE_LABEL[off]}
+                        {unavailableLabel(locale, off)}
                       </span>
                     ) : !current ? (
                       <span className="shrink-0 rounded-full bg-good-500/15 px-2 py-0.5 text-[10.5px] font-semibold text-good-400">
-                        Свободен
+                        {t(locale, 'trucks.card.available')}
                       </span>
                     ) : null}
                   </div>
                   <div className="mt-0.5 truncate text-[12px] text-white/60">
                     {truck.driverName ? `${truck.driverName} · ` : ''}
-                    📍 {cityOf(fs?.location ?? null) ?? 'нет данных'}
+                    📍 {cityOf(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')}
                   </div>
                 </div>
                 <div className="shrink-0 text-right">
                   <div className={`nums whitespace-nowrap text-[16px] font-bold ${weekGross > 0 ? 'text-good-400' : 'text-white/40'}`}>
                     {usd.format(weekGross)}
                   </div>
-                  <div className="text-[9px] uppercase tracking-wider text-white/40">за неделю</div>
+                  <div className="text-[9px] uppercase tracking-wider text-white/40">{t(locale, 'trucks.card.perWeek')}</div>
                 </div>
               </div>
 
@@ -179,7 +183,7 @@ export default async function Page() {
                     {current.origin ?? '—'} → {current.destination ?? '—'}
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
-                    <StatusBadge status={current.status} />
+                    <StatusBadge status={current.status} locale={locale} />
                     <span className="nums text-[12px] font-semibold text-white/80">{usd.format(current.rate)}</span>
                   </span>
                 </div>
@@ -198,7 +202,7 @@ export default async function Page() {
                             : 'bg-white/6 text-white/55'
                       }`}
                     >
-                      🛢 масло {Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi
+                      🛢 {t(locale, 'trucks.card.oilPrefix')} {Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi
                     </span>
                   )}
                   {worstDoc && (
@@ -207,15 +211,15 @@ export default async function Page() {
                         worstDoc.tone === 'bad' ? 'bg-bad-500/15 text-bad-400' : 'bg-warn-400/15 text-warn-400'
                       }`}
                     >
-                      📄 {worstDoc.label} · {worstDoc.daysLeft < 0 ? 'просрочено' : `${worstDoc.daysLeft} дн.`}
+                      📄 {worstDoc.label} · {worstDoc.daysLeft < 0 ? t(locale, 'trucks.common.overdue') : `${worstDoc.daysLeft} ${t(locale, 'trucks.common.daysSuffix')}`}
                     </span>
                   )}
                   {todos > 0 && (
                     <span className="rounded-full bg-warn-400/15 px-2 py-0.5 font-medium text-warn-400">
-                      🔧 починить: {todos}
+                      🔧 {t(locale, 'trucks.card.toFix')}: {todos}
                     </span>
                   )}
-                  <span className="ml-auto text-white/40">{count} груз(ов)</span>
+                  <span className="ml-auto text-white/40">{count} {t(locale, 'trucks.card.loadsCount')}</span>
                 </div>
               )}
             </Link>

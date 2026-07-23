@@ -8,6 +8,7 @@ import type { FleetStatus } from './maintenance-core'
 import { cityCoordsBest, deliveryInfoBest } from './geo-routing'
 import { headingOf } from './eld'
 import { driveTime } from './fmt'
+import { t, type Locale } from './i18n.ts'
 import type { MapMarker, MapRoute } from '@/components/fleet-map'
 
 // ELD duty codes → colour bucket for the live badge.
@@ -24,6 +25,7 @@ export async function loadMapData(
   load: LoadRecord | null,
   truck: TruckRecord,
   fs: FleetStatus | undefined,
+  locale: Locale,
 ): Promise<LoadMapData> {
   const markers: MapMarker[] = []
   const routes: MapRoute[] = []
@@ -68,7 +70,7 @@ export async function loadMapData(
     markers.push({
       lat: pickup.lat,
       lng: pickup.lng,
-      label: `Пикап · ${load.origin}`,
+      label: `${t(locale, 'tracking.pickupPrefix')}${load.origin}`,
       sub: [load.pickupTime || (load.pickupDate ? load.pickupDate.slice(0, 10) : null)]
         .filter(Boolean)
         .join('\n'),
@@ -80,7 +82,7 @@ export async function loadMapData(
   if (legToDelivery && load) {
     const routeMiles = (legToPickup?.miles ?? 0) + legToDelivery.miles
     const routeEtaMin = (legToPickup?.etaMin ?? 0) + legToDelivery.etaMin
-    etaText = `${routeMiles} mi · ~${driveTime(routeEtaMin)} до delivery`
+    etaText = `${routeMiles} mi · ~${driveTime(routeEtaMin, locale)}${t(locale, 'tracking.toDelivery')}`
     truckM.eta = etaText
     if (legToPickup && pickup) {
       routes.push({ from: [lat, lng], to: [pickup.lat, pickup.lng], coords: legToPickup.coords })
@@ -96,7 +98,7 @@ export async function loadMapData(
       lat: legToDelivery.lat,
       lng: legToDelivery.lng,
       label: `Delivery · ${load.destination}`,
-      sub: load.origin ? `Из ${load.origin}` : undefined,
+      sub: load.origin ? `${t(locale, 'tracking.fromPrefix')}${load.origin}` : undefined,
       kind: 'dest',
       href: `/loads/${load.id}`,
     })

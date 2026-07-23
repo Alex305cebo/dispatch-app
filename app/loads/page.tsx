@@ -4,8 +4,10 @@ import { truckLabel, STATUSES, type TruckRecord, type LoadRecord } from '@/lib/m
 import { calcLoad, type Breakdown } from '@/lib/profit'
 import { truckPhotoFlags } from '@/lib/maintenance'
 import { companyScope } from '@/lib/session'
+import { getLocale } from '@/lib/i18n-server'
+import { t, type Locale } from '@/lib/i18n'
 import { usd, usd2, mondayOf, weekLabel, weekStart } from '@/lib/fmt'
-import { StatusBadge, STATUS_LABEL } from '@/components/status'
+import { StatusBadge, statusLabel } from '@/components/status'
 import { RateConButton } from '@/components/ratecon-button'
 import { DeleteButton } from '@/components/delete-button'
 import { DriverAvatar } from '@/components/driver-avatar'
@@ -38,6 +40,7 @@ export default async function Page({
   const weekMonday = Number.isNaN(parsedWeek) ? weekStart() : mondayOf(parsedWeek)
   const selectedDay = sp.day ?? null
   const companyId = await companyScope()
+  const locale = await getLocale()
   const [loads, trucks, rateCons, photoIds] = await Promise.all([
     listLoads(companyId),
     listTrucks(companyId),
@@ -67,43 +70,42 @@ export default async function Page({
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-1.5 text-[17px] font-semibold">
-            Грузы
-            <Info side="bottom" text="«По водителю» — грузы сгруппированы по траку. «По статусу» — цветная доска: одна колонка на каждый статус груза, чтобы видеть всё сразу, а не открывать каждого водителя по очереди. «Календарь» — вся история грузов по неделям, листается назад и вперёд. «Чистыми» — что остаётся после всех расходов трака; число после точки — доход на милю (RPM)." />
+            {t(locale, 'loads.page.title')}
+            <Info side="bottom" text={t(locale, 'loads.page.tooltip')} />
           </h1>
-          <p className="text-[13px] text-white/65">{loads.length} шт.</p>
+          <p className="text-[13px] text-white/65">{t(locale, 'loads.page.countSuffix').replace('{n}', String(loads.length))}</p>
         </div>
         <Link
           href="/loads/new"
           className="rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400"
         >
-          + Новый
+          {t(locale, 'loads.page.new')}
         </Link>
       </div>
 
       {loads.length > 0 && (
         <div className="mb-5 flex gap-1.5 border-b border-white/8">
           <ViewTab href="/loads" active={view === 'driver'}>
-            По водителю
+            {t(locale, 'loads.page.tabByDriver')}
           </ViewTab>
           <ViewTab href="/loads?view=board" active={view === 'board'}>
-            По статусу
+            {t(locale, 'loads.page.tabByStatus')}
           </ViewTab>
           <ViewTab href="/loads?view=calendar" active={view === 'calendar'}>
-            Календарь
+            {t(locale, 'loads.page.tabCalendar')}
           </ViewTab>
         </div>
       )}
 
       {loads.length === 0 ? (
         <div className="panel p-8 text-center">
-          <p className="text-[15px] font-medium">Пока пусто</p>
+          <p className="text-[15px] font-medium">{t(locale, 'loads.page.emptyTitle')}</p>
           <p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-white/70">
-            Добавь груз вручную или сними QR-код с DAT камерой айфона — груз приедет сюда
-            вместе с аналитикой.
+            {t(locale, 'loads.page.emptyText')}
           </p>
         </div>
       ) : view === 'board' ? (
-        <StatusBoard loads={loads} byId={byId} fallback={fallback} rateCons={rateCons} />
+        <StatusBoard loads={loads} byId={byId} fallback={fallback} rateCons={rateCons} locale={locale} />
       ) : view === 'calendar' ? (
         <Calendar
           loads={loads}
@@ -112,6 +114,7 @@ export default async function Page({
           byId={byId}
           fallback={fallback}
           rateCons={rateCons}
+          locale={locale}
         />
       ) : (
         <div className="flex flex-col gap-3">
@@ -122,6 +125,7 @@ export default async function Page({
               loads={loads}
               rateCons={rateCons}
               hasPhoto={photoIds.has(truck.id)}
+              locale={locale}
             />
           ))}
         </div>
@@ -151,11 +155,13 @@ function StatusBoard({
   byId,
   fallback,
   rateCons,
+  locale,
 }: {
   loads: LoadRecord[]
   byId: Map<number, TruckRecord>
   fallback: TruckRecord | undefined
   rateCons: Map<number, number>
+  locale: Locale
 }) {
   const columns = STATUSES.map((status) => ({
     status,
@@ -170,7 +176,7 @@ function StatusBoard({
           className={`panel border-t-2 p-3 ${COLUMN_ACCENT[status]}`}
         >
           <h2 className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            {STATUS_LABEL[status]}
+            {statusLabel(locale, status)}
             <span className="nums font-normal text-white/40">{loads.length}</span>
           </h2>
           <div className="flex flex-col gap-1.5">
@@ -185,7 +191,7 @@ function StatusBoard({
                     </div>
                     <div className="mt-0.5 truncate text-[11px] text-white/55">
                       {truck ? truckLabel(truck) : '—'}
-                      {r && ` · чистыми ${usd.format(r.net)}`}
+                      {r && ` · ${t(locale, 'loads.page.net')} ${usd.format(r.net)}`}
                     </div>
                   </Link>
                   <span className="shrink-0 text-right">
@@ -208,7 +214,15 @@ function StatusBoard({
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
-const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+const WEEKDAY_KEYS = [
+  'loads.page.weekdayMon',
+  'loads.page.weekdayTue',
+  'loads.page.weekdayWed',
+  'loads.page.weekdayThu',
+  'loads.page.weekdayFri',
+  'loads.page.weekdaySat',
+  'loads.page.weekdaySun',
+] as const
 
 /** ISO date (YYYY-MM-DD, local) — the calendar buckets by calendar day, not by
  * timestamp, so this must never go through toISOString() (UTC) or a load booked
@@ -234,6 +248,7 @@ function Calendar({
   byId,
   fallback,
   rateCons,
+  locale,
 }: {
   loads: LoadRecord[]
   weekMonday: number
@@ -241,6 +256,7 @@ function Calendar({
   byId: Map<number, TruckRecord>
   fallback: TruckRecord | undefined
   rateCons: Map<number, number>
+  locale: Locale
 }) {
   const days = Array.from({ length: 7 }, (_, i) => new Date(weekMonday + i * DAY_MS))
   const weekIsos = days.map(isoDate)
@@ -266,7 +282,11 @@ function Calendar({
   const dayLoads = byDay.get(activeIso) ?? []
   const dayGross = dayLoads.reduce((s, l) => s + l.rate, 0)
   const activeDate = new Date(`${activeIso}T00:00:00`)
-  const dayTitle = activeDate.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
+  const dayTitle = activeDate.toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'en-US', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
 
   const prevWeek = isoDate(new Date(weekMonday - 7 * DAY_MS))
   const nextWeek = isoDate(new Date(weekMonday + 7 * DAY_MS))
@@ -279,16 +299,16 @@ function Calendar({
           href={`/loads?view=calendar&week=${prevWeek}`}
           className="rounded-xl border border-white/10 px-3.5 py-2 text-[12px] font-semibold text-white/75 transition-colors hover:border-white/25 hover:bg-white/5"
         >
-          ← Раньше
+          {t(locale, 'loads.page.prevWeek')}
         </Link>
         <span className="flex items-center gap-2 text-[13.5px] font-semibold capitalize text-white/90">
-          {weekLabel(weekMonday)}
+          {weekLabel(weekMonday, locale)}
           {!isCurrentWeek && (
             <Link
               href="/loads?view=calendar"
               className="rounded-full bg-haul-500/15 px-2 py-0.5 text-[11px] font-semibold normal-case text-haul-400 transition-colors hover:bg-haul-500/25"
             >
-              Сегодня
+              {t(locale, 'loads.page.today')}
             </Link>
           )}
         </span>
@@ -296,7 +316,7 @@ function Calendar({
           href={`/loads?view=calendar&week=${nextWeek}`}
           className="rounded-xl border border-white/10 px-3.5 py-2 text-[12px] font-semibold text-white/75 transition-colors hover:border-white/25 hover:bg-white/5"
         >
-          Позже →
+          {t(locale, 'loads.page.nextWeek')}
         </Link>
       </div>
 
@@ -323,7 +343,7 @@ function Calendar({
                   isActive ? 'text-haul-300' : isToday ? 'text-haul-400' : 'text-white/45'
                 }`}
               >
-                {WEEKDAYS[i]}
+                {t(locale, WEEKDAY_KEYS[i]!)}
               </span>
               <span
                 className={`nums text-[17px] font-bold leading-none sm:text-[20px] ${
@@ -356,7 +376,8 @@ function Calendar({
         <h2 className="text-[15px] font-semibold capitalize">{dayTitle}</h2>
         {dayLoads.length > 0 && (
           <span className="nums text-[13px] text-white/60">
-            {dayLoads.length} груз(ов) · <span className="font-semibold text-white/85">{usd.format(dayGross)}</span>
+            {t(locale, 'loads.page.countLoads').replace('{n}', String(dayLoads.length))} ·{' '}
+            <span className="font-semibold text-white/85">{usd.format(dayGross)}</span>
           </span>
         )}
       </div>
@@ -366,8 +387,8 @@ function Calendar({
           <span className="text-[22px]" aria-hidden>
             🗓
           </span>
-          <p className="text-[14px] font-medium text-white/80">В этот день грузов не было</p>
-          <p className="text-[12.5px] text-white/50">Выбери другой день или листай недели стрелками выше.</p>
+          <p className="text-[14px] font-medium text-white/80">{t(locale, 'loads.page.emptyDayTitle')}</p>
+          <p className="text-[12.5px] text-white/50">{t(locale, 'loads.page.emptyDayText')}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">
@@ -391,14 +412,14 @@ function Calendar({
                       <span className="truncate text-[15.5px] font-semibold sm:text-[17px]">
                         {l.origin ?? '—'} → {l.destination ?? '—'}
                       </span>
-                      <StatusBadge status={l.status} />
+                      <StatusBadge status={l.status} locale={locale} />
                     </div>
                     <div className="nums mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px] text-white/60">
                       {truck && <span className="text-white/45">{truckLabel(truck)}</span>}
                       {r && (
                         <>
                           <span>
-                            чистыми{' '}
+                            {t(locale, 'loads.page.net')}{' '}
                             <span className={`font-semibold ${r.net >= 0 ? 'text-good-400' : 'text-bad-400'}`}>
                               {usd.format(r.net)}
                             </span>
@@ -429,11 +450,13 @@ function DriverGroup({
   loads,
   rateCons,
   hasPhoto,
+  locale,
 }: {
   truck: TruckRecord
   loads: LoadRecord[]
   rateCons: Map<number, number>
   hasPhoto: boolean
+  locale: Locale
 }) {
   // The load that matters right now: in transit beats booked beats everything else;
   // with none active, the newest load (loads is already newest-first) stands in for
@@ -450,20 +473,22 @@ function DriverGroup({
       >
         <DriverAvatar truckId={truck.id} name={truck.driverName} hasPhoto={hasPhoto} size={36} />
         <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{truckLabel(truck)}</span>
-        <span className="shrink-0 text-[11px] font-normal text-white/45">{loads.length} груз(ов)</span>
+        <span className="shrink-0 text-[11px] font-normal text-white/45">
+          {t(locale, 'loads.page.countLoads').replace('{n}', String(loads.length))}
+        </span>
       </Link>
 
-      <LoadRow load={featured} truck={truck} rcId={rateCons.get(featured.id)} />
+      <LoadRow load={featured} truck={truck} rcId={rateCons.get(featured.id)} locale={locale} />
 
       {rest.length > 0 && (
         <details className="group mt-2">
           <summary className="flex cursor-pointer list-none items-center gap-1.5 py-1.5 text-[12px] font-medium text-white/55 transition-colors hover:text-white">
             <span className="text-white/40 transition-transform group-open:rotate-90">▸</span>
-            Ещё {rest.length} груз(ов)
+            {t(locale, 'loads.page.moreLoads').replace('{n}', String(rest.length))}
           </summary>
           <div className="mt-2 flex flex-col gap-2">
             {rest.map((l) => (
-              <LoadRow key={l.id} load={l} truck={truck} rcId={rateCons.get(l.id)} />
+              <LoadRow key={l.id} load={l} truck={truck} rcId={rateCons.get(l.id)} locale={locale} />
             ))}
           </div>
         </details>
@@ -476,10 +501,12 @@ function LoadRow({
   load,
   truck,
   rcId,
+  locale,
 }: {
   load: LoadRecord
   truck: TruckRecord
   rcId: number | undefined
+  locale: Locale
 }) {
   // Each load costs against its OWN truck. Money lives in calcLoad, not SQL.
   const r: Breakdown = calcLoad(load, truck)
@@ -493,10 +520,10 @@ function LoadRow({
             <span className="truncate text-[14px] font-medium">
               {load.origin ?? '—'} → {load.destination ?? '—'}
             </span>
-            <StatusBadge status={load.status} />
+            <StatusBadge status={load.status} locale={locale} />
           </div>
           <div className="nums mt-1 text-[12px] text-white/65">
-            чистыми{' '}
+            {t(locale, 'loads.page.net')}{' '}
             <span className={r.net >= 0 ? 'text-good-400/90' : 'text-bad-400/90'}>
               {usd.format(r.net)}
             </span>{' '}
@@ -517,7 +544,7 @@ function LoadRow({
         action={deleteLoad}
         id={load.id}
         title={`${load.origin ?? '—'} → ${load.destination ?? '—'}`}
-        note="и его расчёты удалятся насовсем."
+        note={t(locale, 'loads.page.deleteNote')}
       />
     </div>
   )

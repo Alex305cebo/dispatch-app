@@ -8,8 +8,11 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { saveEldShareLinks } from '@/app/actions'
 import { notify } from '@/lib/notify'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 export function EldLinks({ count }: { count: number }) {
+  const locale = useLocale()
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const [pending, start] = useTransition()
@@ -22,8 +25,8 @@ export function EldLinks({ count }: { count: number }) {
       else {
         notify(
           res.updated > 0 ? 'ok' : 'warn',
-          `Ссылок сохранено: ${res.saved}, обновлено траков: ${res.updated}` +
-            (res.errors.length ? ` · ошибки: ${res.errors.length}` : ''),
+          `${t(locale, 'tracking.linksSavedPrefix')}${res.saved}${t(locale, 'tracking.updatedTrucksMid')}${res.updated}` +
+            (res.errors.length ? `${t(locale, 'tracking.errorsSuffix')}${res.errors.length}` : ''),
         )
         router.refresh()
       }
@@ -36,21 +39,22 @@ export function EldLinks({ count }: { count: number }) {
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between text-left text-[12px] font-semibold text-white/70"
       >
-        <span>Отслеживание траков {count > 0 && `· подключено ${count}`}</span>
+        <span>
+          {t(locale, 'tracking.trackingHeader')} {count > 0 && `${t(locale, 'tracking.connectedSuffix')}${count}`}
+        </span>
         <span className="text-white/45">{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
         <div className="mt-3">
           <p className="mb-2 text-[11px] leading-relaxed text-white/55">
-            Вставь ссылки отслеживания траков — по одной на строку. Координаты и скорость
-            обновляются сами.
+            {t(locale, 'tracking.eldLinksInfo')}
           </p>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={4}
-            placeholder="Ссылка на трак 1&#10;Ссылка на трак 2"
+            placeholder={t(locale, 'tracking.eldLinksPlaceholder')}
             className="w-full rounded-lg border border-white/8 bg-ink-900/80 px-3 py-2 text-[12px] text-white outline-none focus:border-haul-500"
           />
           <button
@@ -58,7 +62,7 @@ export function EldLinks({ count }: { count: number }) {
             onClick={save}
             className="mt-2 rounded-lg bg-haul-500 px-4 py-2 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
           >
-            {pending ? 'Сохраняю и обновляю…' : 'Сохранить и обновить'}
+            {pending ? t(locale, 'tracking.savingUpdating') : t(locale, 'tracking.saveAndUpdate')}
           </button>
         </div>
       )}

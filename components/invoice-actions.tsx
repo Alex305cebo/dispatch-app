@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { generateInvoice, markPaid, saveCompany } from '@/app/actions'
 import type { Company } from '@/lib/invoice'
 import { notify } from '@/lib/notify'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 const input =
   'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[14px] text-white outline-none transition-all placeholder:text-white/45 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
@@ -26,6 +28,7 @@ export function InvoiceBox({
   companyReady?: boolean
 }) {
   const router = useRouter()
+  const locale = useLocale()
   const [pending, start] = useTransition()
 
   const gen = () =>
@@ -33,7 +36,7 @@ export function InvoiceBox({
       const res = await generateInvoice(loadId)
       if ('error' in res) notify('error', res.error)
       else {
-        notify('ok', `Инвойс ${res.invoiceNumber} собран`)
+        notify('ok', t(locale, 'finances.invoiceBox.built').replace('{n}', res.invoiceNumber))
         window.open(`/api/docs/${res.docId}`, '_blank')
         router.refresh()
       }
@@ -42,7 +45,7 @@ export function InvoiceBox({
   const toggle = (v: boolean) =>
     start(async () => {
       await markPaid(loadId, v)
-      notify('ok', v ? 'Отмечено оплаченным' : 'Снята отметка оплаты')
+      notify('ok', v ? t(locale, 'finances.invoiceBox.marked') : t(locale, 'finances.invoiceBox.unmarked'))
       router.refresh()
     })
 
@@ -51,19 +54,19 @@ export function InvoiceBox({
   if (!invoiceNumber && !companyReady)
     return (
       <div className="rounded-xl border border-warn-400/30 bg-warn-400/[0.07] p-3.5">
-        <p className="text-[13px] font-medium text-warn-200">
-          Сначала заполни данные своей компании
-        </p>
+        <p className="text-[13px] font-medium text-warn-200">{t(locale, 'finances.gate.title')}</p>
         <p className="mt-1 text-[12.5px] leading-relaxed text-white/70">
-          Они печатаются в счёте, который уходит брокеру: <b>название компании</b> и{' '}
-          <b>MC/DOT</b> — это номер твоей перевозочной авторизации (из бумаг FMCSA, тот же,
-          что в договоре с брокером). Без них брокеру некуда и некому платить.
+          {t(locale, 'finances.gate.body1')}
+          <b>{t(locale, 'finances.gate.companyName')}</b>
+          {t(locale, 'finances.gate.and')}
+          <b>{t(locale, 'finances.gate.mcdot')}</b>
+          {t(locale, 'finances.gate.body2')}
         </p>
         <Link
           href="/invoices"
           className="mt-2.5 inline-block rounded-lg bg-warn-400 px-3.5 py-1.5 text-[12px] font-semibold text-ink-950 transition-colors hover:bg-warn-300"
         >
-          Заполнить данные компании →
+          {t(locale, 'finances.gate.cta')}
         </Link>
       </div>
     )
@@ -75,7 +78,7 @@ export function InvoiceBox({
         onClick={gen}
         className="rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-50"
       >
-        {pending ? 'Собираю пакет…' : 'Сгенерировать инвойс + пакет'}
+        {pending ? t(locale, 'finances.invoiceBox.building') : t(locale, 'finances.invoiceBox.generate')}
       </button>
     )
 
@@ -87,7 +90,7 @@ export function InvoiceBox({
           href={`/view/${invoiceDocId}`}
           className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/85 hover:bg-white/5"
         >
-          Открыть пакет
+          {t(locale, 'finances.invoiceBox.open')}
         </a>
       )}
       <button
@@ -97,10 +100,10 @@ export function InvoiceBox({
           paid ? 'bg-good-500/20 text-good-400' : 'bg-haul-500 text-white hover:bg-haul-400'
         }`}
       >
-        {paid ? '✓ Оплачено' : 'Отметить оплаченным'}
+        {paid ? t(locale, 'finances.invoiceBox.paidBadge') : t(locale, 'finances.invoiceBox.markPaid')}
       </button>
       <button onClick={gen} disabled={pending} className="text-[12px] text-white/45 hover:text-white/75">
-        пересобрать
+        {t(locale, 'finances.invoiceBox.rebuild')}
       </button>
     </div>
   )
@@ -110,6 +113,7 @@ export function InvoiceBox({
  * undo (paid=true flips it back to unpaid instead). */
 export function PaidToggle({ loadId, paid = false }: { loadId: number; paid?: boolean }) {
   const router = useRouter()
+  const locale = useLocale()
   const [pending, start] = useTransition()
   return (
     <button
@@ -117,7 +121,7 @@ export function PaidToggle({ loadId, paid = false }: { loadId: number; paid?: bo
       onClick={() =>
         start(async () => {
           await markPaid(loadId, !paid)
-          notify('ok', paid ? 'Отметка снята' : 'Оплачено')
+          notify('ok', paid ? t(locale, 'finances.paidToggle.unmarked') : t(locale, 'finances.paidToggle.marked'))
           router.refresh()
         })
       }
@@ -127,13 +131,14 @@ export function PaidToggle({ loadId, paid = false }: { loadId: number; paid?: bo
           : 'bg-haul-500 hover:bg-haul-400'
       }`}
     >
-      {paid ? 'Снять отметку' : 'Оплачено'}
+      {paid ? t(locale, 'finances.paidToggle.remove') : t(locale, 'finances.paidToggle.marked')}
     </button>
   )
 }
 
 export function CompanyForm({ initial }: { initial: Company }) {
   const router = useRouter()
+  const locale = useLocale()
   const [c, setC] = useState<Company>(initial)
   const [pending, start] = useTransition()
   const f = (k: keyof Company) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -141,15 +146,20 @@ export function CompanyForm({ initial }: { initial: Company }) {
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <input value={c.name} onChange={f('name')} placeholder="Название компании" className={input} />
-      <input value={c.owner} onChange={f('owner')} placeholder="Владелец (босс)" className={input} />
-      <input value={c.mcdot} onChange={f('mcdot')} placeholder="MC / DOT #" className={input} />
-      <input value={c.address} onChange={f('address')} placeholder="Адрес" className={input} />
-      <input value={c.phone} onChange={f('phone')} placeholder="Телефон" className={input} />
-      <input value={c.email} onChange={f('email')} placeholder="Email" className={input} />
+      <input value={c.name} onChange={f('name')} placeholder={t(locale, 'finances.form.name')} className={input} />
+      <input value={c.owner} onChange={f('owner')} placeholder={t(locale, 'finances.form.owner')} className={input} />
+      <input value={c.mcdot} onChange={f('mcdot')} placeholder={t(locale, 'finances.form.mcdot')} className={input} />
+      <input
+        value={c.address}
+        onChange={f('address')}
+        placeholder={t(locale, 'finances.form.address')}
+        className={input}
+      />
+      <input value={c.phone} onChange={f('phone')} placeholder={t(locale, 'finances.form.phone')} className={input} />
+      <input value={c.email} onChange={f('email')} placeholder={t(locale, 'finances.form.email')} className={input} />
       <label className="sm:col-span-2">
         <span className="mb-1 block text-[11px] uppercase tracking-wider text-white/55">
-          Remit-to (если возит факторинг — их адрес; пусто = платят напрямую)
+          {t(locale, 'finances.form.remitTo')}
         </span>
         <textarea value={c.remitTo} onChange={f('remitTo')} rows={2} className={input} />
       </label>
@@ -161,14 +171,14 @@ export function CompanyForm({ initial }: { initial: Company }) {
               const res = await saveCompany(c)
               if (res?.error) notify('error', res.error)
               else {
-                notify('ok', 'Данные компании сохранены')
+                notify('ok', t(locale, 'finances.form.saved'))
                 router.refresh()
               }
             })
           }
           className="rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-50"
         >
-          Сохранить компанию
+          {t(locale, 'finances.form.save')}
         </button>
       </div>
     </div>

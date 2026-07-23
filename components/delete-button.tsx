@@ -2,12 +2,14 @@
 
 // Guarded delete: a ✕ that opens a password confirm and calls a server action
 // (id, password). Used for documents and loads — anything whose removal must land
-// in the Журнал. The action verifies the SIGNED-IN user's own login password and
-// stamps the audit row with their name, so there's no "кто удалил" field to type.
+// in the Log. The action verifies the SIGNED-IN user's own login password and
+// stamps the audit row with their name, so there's no "who deleted it" field to type.
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { notify } from '@/lib/notify'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 export function DeleteButton({
   action,
@@ -18,9 +20,10 @@ export function DeleteButton({
   action: (id: number, password: string) => Promise<{ error?: string } | void>
   id: number
   title: string
-  note?: string // e.g. "и его расчёты удалятся насовсем."
+  note?: string // e.g. "and its calculations will be gone for good."
 }) {
   const router = useRouter()
+  const locale = useLocale()
   const [open, setOpen] = useState(false)
   const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
@@ -32,7 +35,7 @@ export function DeleteButton({
       const res = await action(id, password)
       if (res?.error) setErr(res.error)
       else {
-        notify('ok', 'Удалено', title)
+        notify('ok', t(locale, 'deleteButton.deleted'), title)
         setOpen(false)
         setPassword('')
         router.refresh()
@@ -46,7 +49,7 @@ export function DeleteButton({
   return (
     <>
       <button
-        title="Удалить"
+        title={t(locale, 'deleteButton.title')}
         onClick={() => setOpen(true)}
         className="shrink-0 text-[13px] text-white/35 transition-colors hover:text-bad-400"
       >
@@ -61,10 +64,9 @@ export function DeleteButton({
             className="w-full max-w-sm rounded-2xl border border-white/10 bg-ink-900 p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-[15px] font-semibold">Удалить</h3>
+            <h3 className="text-[15px] font-semibold">{t(locale, 'deleteButton.heading')}</h3>
             <p className="mt-1 text-[12.5px] leading-relaxed text-white/60">
-              «{title}» {note ?? 'удалится насовсем.'} Введи свой пароль — тот, которым входишь.
-              Запись, кто удалил, останется в Журнале.
+              «{title}» {note ?? t(locale, 'deleteButton.defaultNote')} {t(locale, 'deleteButton.body')}
             </p>
             <div className="mt-4 flex flex-col gap-2">
               <input
@@ -73,7 +75,7 @@ export function DeleteButton({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && password && submit()}
-                placeholder="Твой пароль"
+                placeholder={t(locale, 'deleteButton.passwordPlaceholder')}
                 className={field}
               />
             </div>
@@ -83,14 +85,14 @@ export function DeleteButton({
                 onClick={() => setOpen(false)}
                 className="rounded-xl px-4 py-2 text-[13px] text-white/70 transition-colors hover:text-white"
               >
-                Отмена
+                {t(locale, 'common.cancel')}
               </button>
               <button
                 disabled={pending || !password}
                 onClick={submit}
                 className="rounded-xl bg-bad-500 px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-bad-400 disabled:opacity-40"
               >
-                {pending ? 'Удаляю…' : 'Удалить'}
+                {pending ? t(locale, 'common.deleting') : t(locale, 'common.delete')}
               </button>
             </div>
           </div>

@@ -4,8 +4,11 @@ import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { setOpenAccess } from './actions'
 import { notify } from '@/lib/notify'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 export function OpenAccessToggle({ enabled }: { enabled: boolean }) {
+  const locale = useLocale()
   const router = useRouter()
   const [pending, start] = useTransition()
 
@@ -14,7 +17,7 @@ export function OpenAccessToggle({ enabled }: { enabled: boolean }) {
       const res = await setOpenAccess(!enabled)
       if (res?.error) notify('error', res.error)
       else {
-        notify('ok', enabled ? 'Вход снова обязателен' : 'Открытый доступ включён')
+        notify('ok', enabled ? t(locale, 'admin.openAccess.turnedOff') : t(locale, 'admin.openAccess.turnedOn'))
         router.refresh()
       }
     })
@@ -23,9 +26,7 @@ export function OpenAccessToggle({ enabled }: { enabled: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <p className="text-[12.5px] leading-relaxed text-white/65">
-        {enabled
-          ? 'Сейчас приложение открыто для всех, без входа — кроме этой панели.'
-          : 'Сейчас нужен вход. Включи, чтобы приложение открылось всем без пароля.'}
+        {enabled ? t(locale, 'admin.openAccess.currentlyOn') : t(locale, 'admin.openAccess.currentlyOff')}
       </p>
       <button
         disabled={pending}
@@ -36,7 +37,7 @@ export function OpenAccessToggle({ enabled }: { enabled: boolean }) {
             : 'border-good-500/25 text-good-400 hover:border-good-500/50'
         }`}
       >
-        {enabled ? 'Выключить' : 'Включить'}
+        {enabled ? t(locale, 'admin.openAccess.turnOff') : t(locale, 'admin.openAccess.turnOn')}
       </button>
     </div>
   )

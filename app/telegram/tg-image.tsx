@@ -8,8 +8,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { notify } from '@/lib/notify'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 export function TgImage({ src }: { src: string }) {
+  const locale = useLocale()
   const [open, setOpen] = useState(false)
   const [zoom, setZoom] = useState(1)
   const [pos, setPos] = useState({ x: 0, y: 0 })
@@ -43,7 +46,7 @@ export function TgImage({ src }: { src: string }) {
   return (
     <>
       <button type="button" onClick={show} className="mb-1 block">
-        <img src={src} alt="Вложение" className="max-h-64 rounded-lg" />
+        <img src={src} alt={t(locale, 'telegram.image.alt')} className="max-h-64 rounded-lg" />
       </button>
 
       {open && (
@@ -57,17 +60,17 @@ export function TgImage({ src }: { src: string }) {
             <a
               href={src}
               download
-              title="Скачать"
+              title={t(locale, 'telegram.image.download')}
               className="flex size-9 items-center justify-center rounded-full bg-white/10 text-[15px] text-white/85 transition-colors hover:bg-white/20"
             >
               ⭳
             </a>
             <button
               type="button"
-              title="Скопировать ссылку"
+              title={t(locale, 'telegram.image.copyLink')}
               onClick={() => {
                 navigator.clipboard.writeText(location.origin + src)
-                notify('ok', 'Ссылка скопирована')
+                notify('ok', t(locale, 'telegram.image.linkCopied'))
               }}
               className="flex size-9 items-center justify-center rounded-full bg-white/10 text-[15px] text-white/85 transition-colors hover:bg-white/20"
             >
@@ -75,7 +78,7 @@ export function TgImage({ src }: { src: string }) {
             </button>
             <button
               type="button"
-              title="Закрыть"
+              title={t(locale, 'telegram.image.close')}
               onClick={() => setOpen(false)}
               className="flex size-9 items-center justify-center rounded-full bg-white/10 text-[15px] text-white/85 transition-colors hover:bg-white/20"
             >
@@ -85,7 +88,7 @@ export function TgImage({ src }: { src: string }) {
 
           <img
             src={src}
-            alt="Вложение"
+            alt={t(locale, 'telegram.image.alt')}
             draggable={false}
             onClick={(e) => {
               e.stopPropagation()
@@ -116,8 +119,8 @@ export function TgImage({ src }: { src: string }) {
           />
 
           <p className="text-[11px] text-white/55" onClick={(e) => e.stopPropagation()}>
-            {zoom > 1 ? 'Тяните, чтобы двигать · нажмите, чтобы отдалить' : 'Нажмите на фото, чтобы приблизить'} · Escape
-            или тап по фону — закрыть
+            {zoom > 1 ? t(locale, 'telegram.image.hintZoomed') : t(locale, 'telegram.image.hintFit')} ·{' '}
+            {t(locale, 'telegram.image.hintCloseSuffix')}
           </p>
         </div>
       )}

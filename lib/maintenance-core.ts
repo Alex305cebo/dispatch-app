@@ -2,6 +2,8 @@
 // use this, so nothing here may pull lib/db (which throws in the browser). Queries
 // live in lib/maintenance.ts (server only).
 
+import { t, type Locale } from './i18n.ts'
+
 export type TruckMeta = {
   truckId: number
   vin: string | null
@@ -59,16 +61,16 @@ export type FleetStatus = {
 /** The five compliance dates as label + ISO date, for the expiry panel. */
 export type ExpiryItem = { label: string; date: string; daysLeft: number; tone: 'good' | 'warn' | 'bad' }
 
-export function expiries(meta: TruckMeta | null): ExpiryItem[] {
+export function expiries(meta: TruckMeta | null, locale: Locale = 'en'): ExpiryItem[] {
   if (!meta) return []
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const src: [string, string | null][] = [
-    ['Регистрация', meta.registrationExpiry],
-    ['Инспекция', meta.inspectionExpiry],
-    ['Страховка', meta.insuranceExpiry],
-    ['CDL водителя', meta.cdlExpiry],
-    ['Медкарта', meta.medcardExpiry],
+    [t(locale, 'trucks.expiry.registration'), meta.registrationExpiry],
+    [t(locale, 'trucks.expiry.inspection'), meta.inspectionExpiry],
+    [t(locale, 'trucks.expiry.insurance'), meta.insuranceExpiry],
+    [t(locale, 'trucks.expiry.cdl'), meta.cdlExpiry],
+    [t(locale, 'trucks.expiry.medcard'), meta.medcardExpiry],
   ]
   return src
     .filter((x): x is [string, string] => !!x[1])

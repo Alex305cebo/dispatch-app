@@ -25,6 +25,7 @@ import { sql } from './db.ts'
 import { getSetting } from './settings.ts'
 import { haversineMiles, bearing } from './geo.ts'
 import { segmentTrail, type HistoryLeg } from './trip-history.ts'
+import { t, type Locale } from './i18n.ts'
 
 // Breadcrumb for idle detection + trip history — fleet_status only holds the latest
 // point, this keeps a short trail. Pruned to 7 days on every write so it never needs
@@ -127,7 +128,9 @@ function hosPercent(driveTime: string | undefined): number | null {
   return Math.round(Math.min(100, (left / 660) * 100) * 10) / 10
 }
 
-export async function fleetSnapshot(): Promise<{ updated: number } | { error: string }> {
+export async function fleetSnapshot(
+  locale: Locale = 'ru',
+): Promise<{ updated: number } | { error: string }> {
   if (!process.env.ELD_API_KEY) return { error: 'no_key' }
   const base = (process.env.ELD_API_URL ?? 'https://api.zigzageld.com/eld').replace(/\/$/, '')
 
@@ -142,7 +145,7 @@ export async function fleetSnapshot(): Promise<{ updated: number } | { error: st
     // 401 is the everyday failure here — the dashboard token is short-lived — so
     // name it plainly instead of leaving a bare status code in the logs.
     if (vRes.status === 401 || vRes.status === 403) {
-      return { error: 'ELD недоступен — обратись к администратору' }
+      return { error: t(locale, 'tracking.eldUnavailable') }
     }
     if (!vRes.ok) return { error: `vehicleStatuses HTTP ${vRes.status}` }
     vehicles = (await vRes.json()) as VehicleStatus[]

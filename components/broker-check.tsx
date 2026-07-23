@@ -8,8 +8,11 @@ import { vetBroker } from '@/app/actions'
 import type { BrokerCheck } from '@/lib/fmcsa'
 import type { RateConFields } from '@/lib/ratecon'
 import { Info } from '@/components/info'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 export function BrokerCheckPanel({ fields }: { fields: RateConFields }) {
+  const locale = useLocale()
   const mc = fields.mcNumber?.value
   const [state, setState] = useState<'idle' | 'loading' | 'done' | 'nokey' | 'error'>('idle')
   const [data, setData] = useState<BrokerCheck | null>(null)
@@ -47,18 +50,18 @@ export function BrokerCheckPanel({ fields }: { fields: RateConFields }) {
     <div className="panel mb-4 p-4">
       <div className="flex items-center gap-2">
         <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          Проверка брокера · MC {mc}
-          <Info text="По номеру MC проверяем брокера в базе FMCSA: активны ли его полномочия, есть ли страховой бонд, сколько лет MC. Плюс автоматические красные флаги мошенничества (нет бонда, молодой MC, публичный email, несовпадение телефона). Красный ⛔ — не бери груз." />
+          {t(locale, 'brokerCheck.heading').replace('{mc}', mc)}
+          <Info text={t(locale, 'brokerCheck.info')} />
         </h2>
         {state === 'loading' && (
-          <span className="animate-pulse text-[11px] text-haul-400">проверяю в FMCSA…</span>
+          <span className="animate-pulse text-[11px] text-haul-400">{t(locale, 'brokerCheck.checking')}</span>
         )}
       </div>
 
       {state === 'nokey' && (
         <p className="mt-2 text-[12px] leading-relaxed text-white/55">
-          Проверка отключена — нет ключа FMCSA. Заведи бесплатный WebKey на
-          mobile.fmcsa.dot.gov/QCDevsite и добавь <code className="text-white/75">FMCSA_WEBKEY</code>.
+          {t(locale, 'brokerCheck.noKey')}
+          <code className="text-white/75">FMCSA_WEBKEY</code>.
         </p>
       )}
       {state === 'error' && <p className="mt-2 text-[13px] text-bad-400">{err}</p>}
@@ -76,10 +79,13 @@ export function BrokerCheckPanel({ fields }: { fields: RateConFields }) {
               }
             />
             {data.bondOnFile !== null && (
-              <Badge ok={data.bondOnFile} text={data.bondOnFile ? 'Бонд: есть' : 'Бонд: НЕТ'} />
+              <Badge
+                ok={data.bondOnFile}
+                text={data.bondOnFile ? t(locale, 'brokerCheck.bondYes') : t(locale, 'brokerCheck.bondNo')}
+              />
             )}
             {data.authorityGranted && (
-              <span className="text-white/55">выдана {data.authorityGranted}</span>
+              <span className="text-white/55">{t(locale, 'brokerCheck.grantedOn').replace('{date}', data.authorityGranted)}</span>
             )}
           </div>
           {data.address && <p className="mt-1 text-[12px] text-white/50">{data.address}</p>}
@@ -102,7 +108,7 @@ export function BrokerCheckPanel({ fields }: { fields: RateConFields }) {
             </ul>
           )}
           {data.flags.length === 0 && (
-            <p className="mt-2 text-[12px] text-good-400">✓ Красных флагов нет.</p>
+            <p className="mt-2 text-[12px] text-good-400">{t(locale, 'brokerCheck.noRedFlags')}</p>
           )}
         </div>
       )}

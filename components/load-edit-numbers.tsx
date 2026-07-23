@@ -9,6 +9,8 @@ import { useRouter } from 'next/navigation'
 import { updateLoadDetails } from '@/app/actions'
 import { usd, usd2 } from '@/lib/fmt'
 import { notify } from '@/lib/notify'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 export type LoadDetails = {
   id: number
@@ -26,6 +28,7 @@ export type LoadDetails = {
 }
 
 export function LoadEditNumbers({ load }: { load: LoadDetails }) {
+  const locale = useLocale()
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [pending, start] = useTransition()
@@ -62,7 +65,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
       })
       if (res?.error) notify('error', res.error)
       else {
-        notify('ok', 'Детали обновлены')
+        notify('ok', t(locale, 'loadEdit.updatedToast'))
         setEditing(false)
         router.refresh()
       }
@@ -73,30 +76,30 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
     return (
       <>
         <dl className="flex flex-col gap-2.5 text-[13px]">
-          <Row label="Ставка" value={usd.format(load.rate)} />
-          <Row label="Loaded miles · гружёные" value={String(load.loadedMiles)} />
-          <Row label="Пустые мили (deadhead)" value={`${load.deadheadMiles} mi`} />
-          <Row label="Дней в пути" value={String(load.transitDays)} />
+          <Row label={t(locale, 'loadEdit.rate')} value={usd.format(load.rate)} />
+          <Row label={t(locale, 'loadEdit.loadedMiles')} value={String(load.loadedMiles)} />
+          <Row label={t(locale, 'loadEdit.deadheadMiles')} value={`${load.deadheadMiles} mi`} />
+          <Row label={t(locale, 'loadEdit.transitDays')} value={String(load.transitDays)} />
           <Row
-            label="Spot rate (рынок)"
+            label={t(locale, 'loadEdit.spotRate')}
             value={load.spotRpm ? `${usd2.format(load.spotRpm)}/mi` : '—'}
           />
-          {load.truckLocation && <Row label="Трак был в" value={load.truckLocation} />}
-          {load.brokerMc && <Row label="Брокер MC" value={load.brokerMc} />}
+          {load.truckLocation && <Row label={t(locale, 'loadEdit.truckWasAt')} value={load.truckLocation} />}
+          {load.brokerMc && <Row label={t(locale, 'loadEdit.brokerMc')} value={load.brokerMc} />}
           {load.brokerPhone && (
-            <Row label="Телефон" value={load.brokerPhone} href={`tel:${load.brokerPhone}`} />
+            <Row label={t(locale, 'loadEdit.phone')} value={load.brokerPhone} href={`tel:${load.brokerPhone}`} />
           )}
           {load.brokerEmail && (
             <Row label="Email" value={load.brokerEmail} href={`mailto:${load.brokerEmail}`} />
           )}
-          {load.pickupDate && <Row label="Пикап" value={load.pickupDate} />}
-          {load.deliveryDate && <Row label="Выгрузка" value={load.deliveryDate} />}
+          {load.pickupDate && <Row label={t(locale, 'loadEdit.pickup')} value={load.pickupDate} />}
+          {load.deliveryDate && <Row label={t(locale, 'loadEdit.delivery')} value={load.deliveryDate} />}
         </dl>
         <button
           onClick={() => setEditing(true)}
           className="mt-3 rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-medium text-white/70 transition-colors hover:border-white/25 hover:text-white"
         >
-          Изменить
+          {t(locale, 'loadEdit.edit')}
         </button>
       </>
     )
@@ -105,20 +108,20 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Ставка $" value={f.rate} onChange={set('rate')} />
+        <Field label={t(locale, 'loadEdit.rateDollar')} value={f.rate} onChange={set('rate')} />
         <Field label="Loaded miles" value={f.loadedMiles} onChange={set('loadedMiles')} />
-        <Field label="Пустые мили (deadhead)" value={f.deadheadMiles} onChange={set('deadheadMiles')} />
-        <Field label="Дней в пути" value={f.transitDays} onChange={set('transitDays')} />
+        <Field label={t(locale, 'loadEdit.deadheadMiles')} value={f.deadheadMiles} onChange={set('deadheadMiles')} />
+        <Field label={t(locale, 'loadEdit.transitDays')} value={f.transitDays} onChange={set('transitDays')} />
         <Field label="Spot rate $/mi" value={f.spotRpm} onChange={set('spotRpm')} placeholder="—" />
-        <Field label="Брокер MC" value={f.brokerMc} onChange={set('brokerMc')} text />
+        <Field label={t(locale, 'loadEdit.brokerMc')} value={f.brokerMc} onChange={set('brokerMc')} text />
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Телефон" value={f.brokerPhone} onChange={set('brokerPhone')} text />
+        <Field label={t(locale, 'loadEdit.phone')} value={f.brokerPhone} onChange={set('brokerPhone')} text />
         <Field label="Email" value={f.brokerEmail} onChange={set('brokerEmail')} text />
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Пикап" value={f.pickupDate} onChange={set('pickupDate')} type="date" />
-        <Field label="Выгрузка" value={f.deliveryDate} onChange={set('deliveryDate')} type="date" />
+        <Field label={t(locale, 'loadEdit.pickup')} value={f.pickupDate} onChange={set('pickupDate')} type="date" />
+        <Field label={t(locale, 'loadEdit.delivery')} value={f.deliveryDate} onChange={set('deliveryDate')} type="date" />
       </div>
       <div className="flex gap-2">
         <button
@@ -126,13 +129,13 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
           onClick={save}
           className="rounded-lg bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
         >
-          {pending ? 'Сохраняю…' : 'Сохранить'}
+          {pending ? t(locale, 'loadEdit.saving') : t(locale, 'loadEdit.save')}
         </button>
         <button
           onClick={() => setEditing(false)}
           className="rounded-lg px-4 py-2 text-[13px] text-white/70 transition-colors hover:text-white"
         >
-          Отмена
+          {t(locale, 'loadEdit.cancel')}
         </button>
       </div>
     </div>

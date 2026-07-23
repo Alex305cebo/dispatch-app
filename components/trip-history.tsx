@@ -4,27 +4,28 @@
 import { Fragment } from 'react'
 import type { HistoryLeg } from '@/lib/trip-history'
 import { driveTime } from '@/lib/fmt'
+import { t, type Locale } from '@/lib/i18n'
 
-const timeOf = (iso: string) =>
-  new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+const timeOf = (iso: string, locale: Locale) =>
+  new Date(iso).toLocaleTimeString(locale === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' })
 // Full day/month/year for the date dividers between rows.
-const dateOf = (iso: string) => new Date(iso).toLocaleDateString('ru-RU')
+const dateOf = (iso: string, locale: Locale) => new Date(iso).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'en-US')
 // Short day.month for a leg that crosses midnight — the divider above only shows
 // the day the leg STARTED, so the end time alone ("15:34–15:00") read like nonsense.
-const dateShort = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })
+const dateShort = (iso: string, locale: Locale) =>
+  new Date(iso).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'en-US', { day: '2-digit', month: '2-digit' })
 
-function rangeLabel(from: string, to: string): string {
-  const tf = timeOf(from)
-  const tt = timeOf(to)
-  return dateOf(from) === dateOf(to) ? `${tf}–${tt}` : `${tf}–${tt} (${dateShort(to)})`
+function rangeLabel(from: string, to: string, locale: Locale): string {
+  const tf = timeOf(from, locale)
+  const tt = timeOf(to, locale)
+  return dateOf(from, locale) === dateOf(to, locale) ? `${tf}–${tt}` : `${tf}–${tt} (${dateShort(to, locale)})`
 }
 
-export function TripHistory({ legs }: { legs: HistoryLeg[] }) {
+export function TripHistory({ legs, locale }: { legs: HistoryLeg[]; locale: Locale }) {
   if (legs.length === 0) {
     return (
       <p className="text-[13px] leading-relaxed text-white/55">
-        Пока мало данных — история копится с каждым опросом ELD (раз в ~5 минут), за день-два
-        здесь появится полная картина.
+        {t(locale, 'trucks.trip.empty')}
       </p>
     )
   }
@@ -34,7 +35,7 @@ export function TripHistory({ legs }: { legs: HistoryLeg[] }) {
   return (
     <ol className="flex flex-col gap-1.5">
       {legs.map((leg, i) => {
-        const day = dateOf(leg.from)
+        const day = dateOf(leg.from, locale)
         const isNewDay = day !== lastDate
         lastDate = day
 
@@ -66,10 +67,10 @@ export function TripHistory({ legs }: { legs: HistoryLeg[] }) {
                         {leg.fromLocation ?? '—'} → {leg.toLocation ?? '—'}
                       </span>
                     ) : null}
-                    <span className="block text-[11px] text-white/45">{rangeLabel(leg.from, leg.to)}</span>
+                    <span className="block text-[11px] text-white/45">{rangeLabel(leg.from, leg.to, locale)}</span>
                   </span>
                   <span className="nums ml-auto shrink-0 font-medium text-white/85">
-                    {leg.miles} mi · {driveTime(leg.minutes)}
+                    {leg.miles} mi · {driveTime(leg.minutes, locale)}
                   </span>
                 </>
               ) : (
@@ -78,13 +79,13 @@ export function TripHistory({ legs }: { legs: HistoryLeg[] }) {
                     {leg.long ? '🛏' : '⏸'}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-white/75">
-                    {leg.long ? 'Долгий отдых' : 'Остановка'}
+                    {leg.long ? t(locale, 'trucks.trip.longRest') : t(locale, 'trucks.trip.stop')}
                     {leg.location ? ` · ${leg.location}` : ''}
                   </span>
                   <span
                     className={`nums ml-auto shrink-0 font-medium ${leg.long ? 'text-warn-400' : 'text-white/70'}`}
                   >
-                    {rangeLabel(leg.from, leg.to)} · {driveTime(leg.minutes)}
+                    {rangeLabel(leg.from, leg.to, locale)} · {driveTime(leg.minutes, locale)}
                   </span>
                 </>
               )}

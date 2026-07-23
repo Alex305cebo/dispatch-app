@@ -5,6 +5,7 @@
 // Without a key the check degrades to "not configured" — nothing breaks.
 
 import { sql } from './db'
+import { t, type Locale } from './i18n.ts'
 
 export type BrokerFlag = { level: 'block' | 'warn'; text: string }
 
@@ -46,37 +47,44 @@ async function fmcsaGet(path: string, key: string): Promise<any | null> {
 }
 
 /** Derive the red flags from FMCSA data + what the rate con claimed. */
-function computeFlags(c: BrokerCheck, ctx: RcContext): BrokerFlag[] {
+function computeFlags(c: BrokerCheck, ctx: RcContext, locale: Locale): BrokerFlag[] {
   const flags: BrokerFlag[] = []
   if (c.authorityStatus === 'inactive' || c.authorityStatus === 'none')
-    flags.push({ level: 'block', text: 'Полномочия брокера НЕ активны (FMCSA)' })
+    flags.push({ level: 'block', text: t(locale, 'fmcsa.authorityInactive') })
   if (c.bondOnFile === false)
-    flags.push({ level: 'block', text: 'Нет бонда BMC-84 на файле — брокер не имеет права работать' })
+    flags.push({ level: 'block', text: t(locale, 'fmcsa.noBond') })
 
   const months = monthsSince(c.authorityGranted)
   if (months !== null && months < 3)
-    flags.push({ level: 'warn', text: `MC моложе 3 месяцев (${Math.round(months)} мес.) — частый признак мошенника` })
+    flags.push({ level: 'warn', text: t(locale, 'fmcsa.mcYoungerThan3').replace('{months}', String(Math.round(months))) })
   else if (months !== null && months < 6)
-    flags.push({ level: 'warn', text: `MC моложе 6 месяцев (${Math.round(months)} мес.)` })
+    flags.push({ level: 'warn', text: t(locale, 'fmcsa.mcYoungerThan6').replace('{months}', String(Math.round(months))) })
 
   const fmcsaNames = [c.legalName, c.dbaName].map(norm).filter(Boolean)
   if (ctx.name && fmcsaNames.length && !fmcsaNames.some((n) => n.includes(norm(ctx.name)) || norm(ctx.name).includes(n)))
-    flags.push({ level: 'warn', text: `Имя в rate con («${ctx.name}») не совпадает с FMCSA («${c.legalName}»)` })
+    flags.push({
+      level: 'warn',
+      text: t(locale, 'fmcsa.nameMismatch').replace('{rcName}', ctx.name).replace('{fmcsaName}', c.legalName ?? ''),
+    })
 
   if (ctx.phone && c.phone && digits(ctx.phone).slice(-10) !== digits(c.phone).slice(-10))
-    flags.push({ level: 'warn', text: 'Телефон в rate con не совпадает с телефоном в FMCSA' })
+    flags.push({ level: 'warn', text: t(locale, 'fmcsa.phoneMismatch') })
 
   if (ctx.email) {
     const domain = ctx.email.split('@')[1]?.toLowerCase() ?? ''
     if (/^(gmail|yahoo|outlook|hotmail|aol|mail)\./.test(domain))
-      flags.push({ level: 'warn', text: `Публичный email-домен (${domain}) у «компании»` })
+      flags.push({ level: 'warn', text: t(locale, 'fmcsa.publicEmailDomain').replace('{domain}', domain) })
   }
   return flags
 }
 
-export async function checkBroker(mcRaw: string, ctx: RcContext = {}): Promise<BrokerCheck | { error: string }> {
+export async function checkBroker(
+  mcRaw: string,
+  ctx: RcContext = {},
+  locale: Locale = 'en',
+): Promise<BrokerCheck | { error: string }> {
   const mc = digits(mcRaw)
-  if (!mc) return { error: 'Нет номера MC для проверки.' }
+  if (!mc) return { error: t(locale, 'fmcsa.noMcToCheck') }
   const key = process.env.FMCSA_WEBKEY
   if (!key) return { error: 'no_key' }
 
@@ -104,7 +112,7 @@ export async function checkBroker(mcRaw: string, ctx: RcContext = {}): Promise<B
   } else {
     const data = await fmcsaGet(`carriers/docket-number/${mc}`, key)
     const rec = data?.content?.[0]?.carrier ?? data?.content?.carrier ?? data?.carrier
-    if (!rec) return { error: `FMCSA не нашла MC ${mc}.` }
+    if (!rec) return { error: t(locale, 'fmcsa.mcNotFound').replace('{mc}', mc) }
 
     const status: BrokerCheck['authorityStatus'] =
       rec.brokerAuthorityStatus === 'A' || rec.allowedToOperate === 'Y'
@@ -150,6 +158,6 @@ export async function checkBroker(mcRaw: string, ctx: RcContext = {}): Promise<B
         address = EXCLUDED.address, phone = EXCLUDED.phone, raw = EXCLUDED.raw, checked_at = now()`
   }
 
-  base.flags = computeFlags(base, ctx)
+  base.flags = computeFlags(base, ctx, locale)
   return base
 }

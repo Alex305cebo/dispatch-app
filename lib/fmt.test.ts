@@ -32,7 +32,13 @@ test('the week before and the week after are both 7 days away', () => {
 })
 
 test('weekLabel returns a non-empty label with a year', () => {
-  const label = weekLabel(mondayOf(Date.now()))
+  const label = weekLabel(mondayOf(Date.now()), 'en')
   assert.ok(label.length > 0)
   assert.match(label, /\d{4}/)
+})
+
+test('weekLabel works in both locales', () => {
+  const monday = mondayOf(Date.now())
+  assert.ok(weekLabel(monday, 'ru').length > 0)
+  assert.ok(weekLabel(monday, 'en').length > 0)
 })

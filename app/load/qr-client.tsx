@@ -4,8 +4,11 @@ import { useEffect, useState } from 'react'
 import type { TruckRecord } from '@/lib/map'
 import { parseLoadHash, type QrLoad } from '@/lib/qr-load'
 import { LoadForm } from '@/components/load-form'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 export function QrClient({ trucks }: { trucks: TruckRecord[] }) {
+  const locale = useLocale()
   // The hash never reaches the server — by design, and also by HTTP. So the load
   // only exists after hydration.
   const [load, setLoad] = useState<QrLoad | null>(null)
@@ -22,11 +25,8 @@ export function QrClient({ trucks }: { trucks: TruckRecord[] }) {
   if (empty) {
     return (
       <div className="panel p-5">
-        <h2 className="text-[15px] font-semibold">В ссылке нет груза</h2>
-        <p className="mt-2 text-[13px] leading-relaxed text-white/70">
-          Эта страница открывается по QR-коду с DAT. Наведи камеру айфона на код в панели
-          расширения — груз и аналитика появятся здесь.
-        </p>
+        <h2 className="text-[15px] font-semibold">{t(locale, 'loadQr.emptyTitle')}</h2>
+        <p className="mt-2 text-[13px] leading-relaxed text-white/70">{t(locale, 'loadQr.emptyText')}</p>
       </div>
     )
   }
@@ -43,7 +43,7 @@ export function QrClient({ trucks }: { trucks: TruckRecord[] }) {
   return (
     <>
       <p className="mb-4 rounded-xl border border-haul-500/25 bg-haul-500/8 px-4 py-2.5 text-[13px] text-haul-400">
-        Груз с DAT. Проверь поля в янтарной рамке — их load board не знает.
+        {t(locale, 'loadQr.bannerText')}
       </p>
       <LoadForm trucks={trucks} initial={load} source="qr" needsAttention={needsAttention} />
     </>

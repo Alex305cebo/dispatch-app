@@ -1,12 +1,17 @@
 import type { LoadStatus } from '@/lib/map'
+import { t, type Locale, type MsgKey } from '@/lib/i18n'
 
-export const STATUS_LABEL: Record<LoadStatus, string> = {
-  quoted: 'Букинг',
-  booked: 'Загрузка',
-  in_transit: 'В пути',
-  delivered: 'Доставлен',
-  paid: 'Оплачен',
-  cancelled: 'Отменён',
+const LABEL_KEY: Record<LoadStatus, MsgKey> = {
+  quoted: 'status.quoted',
+  booked: 'status.booked',
+  in_transit: 'status.in_transit',
+  delivered: 'status.delivered',
+  paid: 'status.paid',
+  cancelled: 'status.cancelled',
+}
+
+export function statusLabel(locale: Locale, status: LoadStatus): string {
+  return t(locale, LABEL_KEY[status])
 }
 
 // Exported so other views (the status board) can tint by the same status colors
@@ -20,12 +25,12 @@ export const STATUS_STYLE: Record<LoadStatus, string> = {
   cancelled: 'bg-bad-500/10 text-bad-400/70',
 }
 
-export function StatusBadge({ status }: { status: LoadStatus }) {
+export function StatusBadge({ status, locale }: { status: LoadStatus; locale: Locale }) {
   return (
     <span
       className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_STYLE[status]}`}
     >
-      {STATUS_LABEL[status]}
+      {statusLabel(locale, status)}
     </span>
   )
 }

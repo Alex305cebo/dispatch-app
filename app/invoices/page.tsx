@@ -17,6 +17,8 @@ import { usd, mondayOf, weekLabel, weekStart } from '@/lib/fmt'
 import { truckLabel, type TruckRecord } from '@/lib/map'
 import { redirect } from 'next/navigation'
 import { companyScope, getCurrentUser } from '@/lib/session'
+import { getLocale } from '@/lib/i18n-server'
+import { t, type Locale } from '@/lib/i18n'
 import { getSetting } from '@/lib/settings'
 import { can } from '@/lib/capabilities-server'
 import { CompanyForm, PaidToggle } from '@/components/invoice-actions'
@@ -25,11 +27,13 @@ import { Info } from '@/components/info'
 
 export const dynamic = 'force-dynamic'
 
-const TAB_DESCRIPTION: Record<string, string> = {
-  unpaid: 'Кто ещё не заплатил. Инвойс собирается на странице груза после загрузки POD.',
-  paid: 'Уже оплаченные грузы и что каждый из них принёс.',
-  dispatchers: 'Кто из диспетчеров сколько заработал по неделям, в разбивке по своим водителям.',
-  drivers: 'Зарплата водителей по неделям: грузы, мили и ставка по каждому — итог к выплате.',
+function tabDescription(locale: Locale): Record<string, string> {
+  return {
+    unpaid: t(locale, 'finances.tabDesc.unpaid'),
+    paid: t(locale, 'finances.tabDesc.paid'),
+    dispatchers: t(locale, 'finances.tabDesc.dispatchers'),
+    drivers: t(locale, 'finances.tabDesc.drivers'),
+  }
 }
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
@@ -49,60 +53,59 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           ? 'dispatchers'
           : 'unpaid'
   const companyId = await companyScope()
+  const locale = await getLocale()
   const [company, rateCons] = await Promise.all([getCompany(), rateConByLoad(companyId)])
 
   return (
     <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <header className="mb-5">
         <h1 className="flex items-center gap-2 text-[17px] font-semibold">
-          Финансы
+          {t(locale, 'finances.title')}
           <Info
             side="bottom"
             text={
-              'Не оплачено — выставленные, но ещё не оплаченные счета, по возрасту долга. Оплачено — уже пришедшие деньги, с разбивкой прибыли по каждому грузу.' +
-              (canReport
-                ? ' По диспетчерам — кто из диспетчеров сколько заработал по неделям вместе со своими водителями.'
-                : '') +
-              ' Водители — недельная ведомость зарплаты по каждому водителю (мили и ставка из экономики трака).' +
-              ' Инвойс собирается на странице груза после загрузки POD.'
+              t(locale, 'finances.info.main') +
+              (canReport ? t(locale, 'finances.info.dispatchers') : '') +
+              t(locale, 'finances.info.tail')
             }
           />
         </h1>
-        <p className="text-[13px] text-white/65">{TAB_DESCRIPTION[tab]}</p>
+        <p className="text-[13px] text-white/65">{tabDescription(locale)[tab]}</p>
       </header>
 
       <div className="mb-5 flex gap-1.5 border-b border-white/8">
         {canReport && (
           <Tab href="/invoices?tab=dispatchers" active={tab === 'dispatchers'}>
-            По диспетчерам
+            {t(locale, 'finances.tab.dispatchers')}
           </Tab>
         )}
         <Tab href="/invoices" active={tab === 'unpaid'}>
-          Не оплачено
+          {t(locale, 'finances.tab.unpaid')}
         </Tab>
         <Tab href="/invoices?tab=paid" active={tab === 'paid'}>
-          Оплачено
+          {t(locale, 'finances.tab.paid')}
         </Tab>
         <Tab href="/invoices?tab=drivers" active={tab === 'drivers'}>
-          Водители
+          {t(locale, 'finances.tab.drivers')}
         </Tab>
       </div>
 
       {tab === 'unpaid' ? (
-        <Unpaid companyId={companyId} rateCons={rateCons} />
+        <Unpaid companyId={companyId} rateCons={rateCons} locale={locale} />
       ) : tab === 'paid' ? (
-        <Paid companyId={companyId} rateCons={rateCons} />
+        <Paid companyId={companyId} rateCons={rateCons} locale={locale} />
       ) : tab === 'drivers' ? (
-        <ByDriver companyId={companyId} />
+        <ByDriver companyId={companyId} locale={locale} />
       ) : (
-        <ByDispatcher companyId={companyId} />
+        <ByDispatcher companyId={companyId} locale={locale} />
       )}
 
       <details className="panel mt-6 p-4" open={!company.name}>
         <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          Данные компании для инвойса {company.name ? `· ${company.name}` : '· не заполнено'}
+          {t(locale, 'finances.company.heading')}{' '}
+          {company.name ? `· ${company.name}` : `· ${t(locale, 'finances.company.notFilled')}`}
           <span className="ml-1.5 inline-block align-middle">
-            <Info text="Реквизиты твоей компании, которые печатаются в счёте брокеру. MC/DOT — номер твоей перевозочной авторизации из бумаг FMCSA (тот же, что в договоре с брокером); по нему брокер понимает, кому платит. Remit-to — если работаешь с факторингом, туда пишется их адрес получения платежа (Notice of Assignment). Заполняется один раз." />
+            <Info text={t(locale, 'finances.company.info')} />
           </span>
         </summary>
         <div className="mt-4">
@@ -115,15 +118,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           expectation without ever showing a fake number. */}
       <div className="mt-4 rounded-xl border border-dashed border-white/12 bg-white/[0.02] p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[13px] font-semibold text-white/80">⛽ IFTA — топливный налог по штатам</span>
+          <span className="text-[13px] font-semibold text-white/80">{t(locale, 'finances.ifta.title')}</span>
           <span className="rounded-full bg-haul-500/15 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-haul-400">
-            Скоро
+            {t(locale, 'finances.ifta.soon')}
           </span>
         </div>
         <p className="mt-1.5 max-w-2xl text-[12.5px] leading-relaxed text-white/55">
-          Автоматический расчёт квартального топливного налога: мили по каждому штату из
-          GPS-истории траков × ставка штата, минус уплаченное на заправках — готовый отчёт
-          для подачи. В разработке — нужна полная история пробега по штатам. Появится здесь.
+          {t(locale, 'finances.ifta.body')}
         </p>
       </div>
     </main>
@@ -143,7 +144,15 @@ function Tab({ href, active, children }: { href: string; active: boolean; childr
   )
 }
 
-async function Unpaid({ companyId, rateCons }: { companyId: 'default' | 'demo'; rateCons: Map<number, number> }) {
+async function Unpaid({
+  companyId,
+  rateCons,
+  locale,
+}: {
+  companyId: 'default' | 'demo'
+  rateCons: Map<number, number>
+  locale: Locale
+}) {
   const [rec, uninvoiced] = await Promise.all([listReceivables(companyId), listUninvoicedDelivered(companyId)])
   const total = rec.reduce((s, r) => s + r.load.rate, 0)
   const uninvoicedTotal = uninvoiced.reduce((s, l) => s + l.rate, 0)
@@ -158,18 +167,25 @@ async function Unpaid({ companyId, rateCons }: { companyId: 'default' | 'demo'; 
     <>
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat
-          label="Ждём всего"
+          label={t(locale, 'finances.stat.waitingTotal')}
           value={usd.format(total + uninvoicedTotal)}
-          info={uninvoicedTotal > 0 ? `Включая ${usd.format(uninvoicedTotal)} без выставленного счёта` : undefined}
+          info={
+            uninvoicedTotal > 0
+              ? t(locale, 'finances.stat.waitingInfo').replace('{amt}', usd.format(uninvoicedTotal))
+              : undefined
+          }
         />
-        <Stat label="0–30 дн." value={usd.format(buckets['0-30'].reduce((s, r) => s + r.load.rate, 0))} />
         <Stat
-          label="31–45 дн."
+          label={t(locale, 'finances.stat.bucket030')}
+          value={usd.format(buckets['0-30'].reduce((s, r) => s + r.load.rate, 0))}
+        />
+        <Stat
+          label={t(locale, 'finances.stat.bucket3145')}
           value={usd.format(buckets['31-45'].reduce((s, r) => s + r.load.rate, 0))}
           tone={buckets['31-45'].length ? 'warn' : undefined}
         />
         <Stat
-          label="45+ / просрочка"
+          label={t(locale, 'finances.stat.bucket45plus')}
           value={usd.format(buckets['45+'].reduce((s, r) => s + r.load.rate, 0))}
           tone={buckets['45+'].length || overdue.length ? 'bad' : undefined}
         />
@@ -180,8 +196,8 @@ async function Unpaid({ companyId, rateCons }: { companyId: 'default' | 'demo'; 
       {uninvoiced.length > 0 && (
         <div className="mb-5">
           <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            Доставлено, счёт не выставлен · {usd.format(uninvoicedTotal)}
-            <Info text="Груз довезли, но инвойс ещё не собран (это делается на странице груза) — эти деньги не попадают в возрастные корзины выше, пока инвойс не выставлен." />
+            {t(locale, 'finances.uninvoiced.heading')} · {usd.format(uninvoicedTotal)}
+            <Info text={t(locale, 'finances.uninvoiced.info')} />
           </h2>
           <div className="flex flex-col gap-2">
             {uninvoiced.map((load) => (
@@ -191,7 +207,8 @@ async function Unpaid({ companyId, rateCons }: { companyId: 'default' | 'demo'; 
                     {load.origin ?? '—'} → {load.destination ?? '—'}
                   </div>
                   <div className="mt-0.5 text-[12px] text-white/60">
-                    {load.brokerMc ? `MC ${load.brokerMc} · ` : ''}собери инвойс на странице груза
+                    {load.brokerMc ? `MC ${load.brokerMc} · ` : ''}
+                    {t(locale, 'finances.uninvoiced.cta')}
                   </div>
                 </Link>
                 <span className="nums shrink-0 text-[15px] font-bold">{usd.format(load.rate)}</span>
@@ -204,9 +221,7 @@ async function Unpaid({ companyId, rateCons }: { companyId: 'default' | 'demo'; 
 
       {rec.length === 0 ? (
         uninvoiced.length === 0 && (
-          <p className="panel p-6 text-[13px] text-white/60">
-            Нет неоплаченных инвойсов. Собери инвойс на странице доставленного груза.
-          </p>
+          <p className="panel p-6 text-[13px] text-white/60">{t(locale, 'finances.unpaid.empty')}</p>
         )
       ) : (
         <div className="flex flex-col gap-2">
@@ -222,8 +237,10 @@ async function Unpaid({ companyId, rateCons }: { companyId: 'default' | 'demo'; 
                 <div className="mt-0.5 text-[12px] text-white/60">
                   {r.load.brokerMc ? `MC ${r.load.brokerMc} · ` : ''}
                   <span className={r.overdue ? 'text-bad-400' : 'text-white/60'}>
-                    {r.daysOut} дн. (Net {r.load.paymentTermsDays})
-                    {r.overdue ? ' — просрочка' : ''}
+                    {t(locale, 'finances.unpaid.daysOut')
+                      .replace('{d}', String(r.daysOut))
+                      .replace('{n}', String(r.load.paymentTermsDays))}
+                    {r.overdue ? t(locale, 'finances.unpaid.overdue') : ''}
                   </span>
                 </div>
               </Link>
@@ -238,7 +255,15 @@ async function Unpaid({ companyId, rateCons }: { companyId: 'default' | 'demo'; 
   )
 }
 
-async function Paid({ companyId, rateCons }: { companyId: 'default' | 'demo'; rateCons: Map<number, number> }) {
+async function Paid({
+  companyId,
+  rateCons,
+  locale,
+}: {
+  companyId: 'default' | 'demo'
+  rateCons: Map<number, number>
+  locale: Locale
+}) {
   const loads = await listPaidLoads(companyId)
   const trucks = await Promise.all(loads.map((l) => truckForLoad(companyId, l)))
   // Old/incomplete loads can be missing miles or transit days — calcLoad throws on
@@ -262,14 +287,14 @@ async function Paid({ companyId, rateCons }: { companyId: 'default' | 'demo'; ra
   return (
     <>
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Оплачено всего" value={usd.format(totalGross)} />
-        <Stat label="Чистыми" value={usd.format(totalNet)} />
-        <Stat label="Грузов" value={String(rows.length)} />
-        <Stat label="Средний RPM" value={totalMiles > 0 ? `$${avgRpm.toFixed(2)}/mi` : '—'} />
+        <Stat label={t(locale, 'finances.stat.paidTotal')} value={usd.format(totalGross)} />
+        <Stat label={t(locale, 'finances.stat.net')} value={usd.format(totalNet)} />
+        <Stat label={t(locale, 'finances.stat.loadsCount')} value={String(rows.length)} />
+        <Stat label={t(locale, 'finances.stat.avgRpm')} value={totalMiles > 0 ? `$${avgRpm.toFixed(2)}/mi` : '—'} />
       </div>
 
       {rows.length === 0 ? (
-        <p className="panel p-6 text-[13px] text-white/60">Пока ни один груз не отмечен оплаченным.</p>
+        <p className="panel p-6 text-[13px] text-white/60">{t(locale, 'finances.paid.empty')}</p>
       ) : (
         <div className="flex flex-col gap-2">
           {rows.map(({ load, r }) => (
@@ -279,11 +304,14 @@ async function Paid({ companyId, rateCons }: { companyId: 'default' | 'demo'; ra
                   {load.invoiceNumber} · {load.origin ?? '—'} → {load.destination ?? '—'}
                 </div>
                 <div className="mt-0.5 text-[12px] text-white/60">
-                  {load.paidAt ? new Date(load.paidAt).toLocaleDateString('ru-RU') : '—'}
+                  {load.paidAt
+                    ? new Date(load.paidAt).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'en-US')
+                    : '—'}
                   {r ? (
                     <>
                       {' '}
-                      · чистыми {usd.format(r.net)} · {r.allInRpm.toFixed(2)} $/mi · {r.totalMiles} mi
+                      · {t(locale, 'finances.netInline')} {usd.format(r.net)} · {r.allInRpm.toFixed(2)} $/mi ·{' '}
+                      {r.totalMiles} mi
                     </>
                   ) : null}
                 </div>
@@ -315,7 +343,7 @@ type WeekBucket = { weekStartMs: number; dispatchers: Map<string, DispatcherBuck
  * "who earned what, with which driver, which week" in one place. Dispatcher is
  * whoever was actually signed in when the load was created (auto, not assigned by
  * hand) — loads from before this was tracked land under "Без диспетчера". */
-async function ByDispatcher({ companyId }: { companyId: 'default' | 'demo' }) {
+async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'demo'; locale: Locale }) {
   const [loads, trucks, openAccess] = await Promise.all([
     listLoadsByDispatcher(companyId),
     listTrucks(companyId),
@@ -351,7 +379,13 @@ async function ByDispatcher({ companyId }: { companyId: 'default' | 'demo' }) {
     const dKey = load.dispatcherId != null ? String(load.dispatcherId) : 'none'
     let disp = week.dispatchers.get(dKey)
     if (!disp) {
-      disp = { key: dKey, name: load.dispatcherName ?? 'Без диспетчера', drivers: new Map(), gross: 0, net: 0 }
+      disp = {
+        key: dKey,
+        name: load.dispatcherName ?? t(locale, 'finances.dispatcher.none'),
+        drivers: new Map(),
+        gross: 0,
+        net: 0,
+      }
       week.dispatchers.set(dKey, disp)
     }
     let drv = disp.drivers.get(truck.id)
@@ -379,8 +413,7 @@ async function ByDispatcher({ companyId }: { companyId: 'default' | 'demo' }) {
   // silently go quiet with no clue why.
   const openAccessWarning = openAccess === '1' && (
     <p className="mb-3 rounded-lg border border-warn-400/25 bg-warn-400/[0.06] px-3 py-2 text-[12px] leading-relaxed text-warn-300">
-      Сейчас включён «Открытый доступ» (Админка) — пока он включён, новые грузы создаются без привязки к
-      диспетчеру и попадут в «Без диспетчера». Выключи его в админке, чтобы отчёт снова считал верно.
+      {t(locale, 'finances.openAccessWarning')}
     </p>
   )
 
@@ -388,7 +421,7 @@ async function ByDispatcher({ companyId }: { companyId: 'default' | 'demo' }) {
     return (
       <>
         {openAccessWarning}
-        <p className="panel p-6 text-[13px] text-white/60">Пока нет грузов.</p>
+        <p className="panel p-6 text-[13px] text-white/60">{t(locale, 'finances.noLoads')}</p>
       </>
     )
   }
@@ -399,9 +432,9 @@ async function ByDispatcher({ companyId }: { companyId: 'default' | 'demo' }) {
       {sortedWeeks.map((week) => (
         <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[13px] font-semibold">
-            <span className="capitalize">{weekLabel(week.weekStartMs)}</span>
+            <span className="capitalize">{weekLabel(week.weekStartMs, locale)}</span>
             <span className="nums shrink-0 text-[12.5px] font-normal text-white/60">
-              {usd.format(week.gross)} · чистыми {usd.format(week.net)}
+              {usd.format(week.gross)} · {t(locale, 'finances.netInline')} {usd.format(week.net)}
             </span>
           </summary>
 
@@ -413,7 +446,7 @@ async function ByDispatcher({ companyId }: { companyId: 'default' | 'demo' }) {
                   <div className="flex items-center justify-between gap-3 text-[13px] font-semibold text-haul-300">
                     <span>{disp.name}</span>
                     <span className="nums shrink-0 text-[12px] font-normal text-white/60">
-                      {usd.format(disp.gross)} · чистыми {usd.format(disp.net)}
+                      {usd.format(disp.gross)} · {t(locale, 'finances.netInline')} {usd.format(disp.net)}
                     </span>
                   </div>
 
@@ -425,8 +458,9 @@ async function ByDispatcher({ companyId }: { companyId: 'default' | 'demo' }) {
                           <div className="flex flex-wrap items-center justify-between gap-2 text-[12.5px] font-medium">
                             <span>{drv.label}</span>
                             <span className="nums shrink-0 text-[11.5px] font-normal text-white/60">
-                              {drv.loads.length} груз(ов) · {usd.format(drv.gross)} · чистыми{' '}
-                              {usd.format(drv.net)} · {Math.round(drv.miles)} mi
+                              {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(drv.loads.length))} ·{' '}
+                              {usd.format(drv.gross)} · {t(locale, 'finances.netInline')} {usd.format(drv.net)} ·{' '}
+                              {Math.round(drv.miles)} mi
                             </span>
                           </div>
                           <ul className="mt-1.5 flex flex-col gap-1">
@@ -470,7 +504,7 @@ type DriverWeek = {
  * grouped by week → driver/truck, with THAT load's driver pay from calcLoad (the
  * same cpm/percent settings the truck's economics already hold). No new pay math:
  * the settlement shows exactly the driver line every profit breakdown charges. */
-async function ByDriver({ companyId }: { companyId: 'default' | 'demo' }) {
+async function ByDriver({ companyId, locale }: { companyId: 'default' | 'demo'; locale: Locale }) {
   const [loads, trucks] = await Promise.all([listLoads(companyId), listTrucks(companyId)])
   const byTruckId = new Map<number, TruckRecord>(trucks.map((t) => [t.id, t]))
   const fallback = trucks[0]
@@ -510,7 +544,7 @@ async function ByDriver({ companyId }: { companyId: 'default' | 'demo' }) {
   const thisWeek = weekStart()
 
   if (sortedWeeks.length === 0) {
-    return <p className="panel p-6 text-[13px] text-white/60">Пока нет подтверждённых грузов — нечего выплачивать.</p>
+    return <p className="panel p-6 text-[13px] text-white/60">{t(locale, 'finances.driver.noCommitted')}</p>
   }
 
   return (
@@ -518,9 +552,9 @@ async function ByDriver({ companyId }: { companyId: 'default' | 'demo' }) {
       {sortedWeeks.map((week) => (
         <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[13px] font-semibold">
-            <span className="capitalize">{weekLabel(week.weekStartMs)}</span>
+            <span className="capitalize">{weekLabel(week.weekStartMs, locale)}</span>
             <span className="nums shrink-0 text-[12.5px] font-normal text-white/60">
-              к выплате <span className="font-semibold text-good-400">{usd.format(week.pay)}</span>
+              {t(locale, 'finances.payDue')} <span className="font-semibold text-good-400">{usd.format(week.pay)}</span>
             </span>
           </summary>
 
@@ -532,7 +566,8 @@ async function ByDriver({ companyId }: { companyId: 'default' | 'demo' }) {
                   <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] font-semibold">
                     <span className="text-haul-300">{drv.label}</span>
                     <span className="nums text-[12.5px] font-normal text-white/60">
-                      {drv.loads.length} груз(ов) · {Math.round(drv.miles)} mi · к выплате{' '}
+                      {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(drv.loads.length))} ·{' '}
+                      {Math.round(drv.miles)} mi · {t(locale, 'finances.payDue')}{' '}
                       <span className="font-semibold text-good-400">{usd.format(drv.pay)}</span>
                     </span>
                   </div>

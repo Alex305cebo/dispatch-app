@@ -1,6 +1,11 @@
 // Document types + labels. NO db import — the client upload/list component uses
 // this file, and lib/db throws outside the server. Queries live in lib/loads.ts.
 
+import { t, type Locale } from './i18n.ts'
+
+// Values are unused for display now (every caller went through docKindLabel()
+// below) — this stays around only for its keys (Object.keys(DOC_KINDS) in
+// components/docs.tsx enumerates the kind list).
 export const DOC_KINDS = {
   ratecon: 'Rate con',
   bol: 'BOL',
@@ -12,6 +17,19 @@ export const DOC_KINDS = {
   other: 'Другое',
 } as const
 export type DocKind = keyof typeof DOC_KINDS
+
+export function docKindLabel(kind: DocKind, locale: Locale): string {
+  switch (kind) {
+    case 'ratecon': return t(locale, 'docs.kind.ratecon')
+    case 'bol': return t(locale, 'docs.kind.bol')
+    case 'pod': return t(locale, 'docs.kind.pod')
+    case 'invoice': return t(locale, 'docs.kind.invoice')
+    case 'insurance': return t(locale, 'docs.kind.insurance')
+    case 'registration': return t(locale, 'docs.kind.registration')
+    case 'repair': return t(locale, 'docs.kind.repair')
+    case 'other': return t(locale, 'docs.kind.other')
+  }
+}
 
 export type DocMeta = {
   id: number

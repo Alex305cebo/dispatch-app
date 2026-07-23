@@ -10,15 +10,18 @@ import {
   setUserRole,
   type AdminUser,
 } from './actions'
-import { CAPABILITIES } from '@/lib/capabilities'
+import { CAPABILITIES, capabilityMeta } from '@/lib/capabilities'
 import { notify } from '@/lib/notify'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 const input =
   'w-full rounded-lg border border-white/10 bg-ink-950/70 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500'
 
-const ROLE_LABEL = { admin: 'Админ', dispatcher: 'Диспетчер' } as const
-
 export function UserList({ users, currentUserId }: { users: AdminUser[]; currentUserId: number }) {
+  const locale = useLocale()
+  const ROLE_LABEL = { admin: t(locale, 'userPanel.roleAdmin'), dispatcher: t(locale, 'userPanel.roleDispatcher') }
+  const capMeta = capabilityMeta(locale)
   const router = useRouter()
   const [pending, start] = useTransition()
   const [adding, setAdding] = useState(false)
@@ -36,7 +39,7 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
         notify('error', res.error)
         return
       }
-      notify('ok', 'Пользователь добавлен')
+      notify('ok', t(locale, 'admin.users.addedOk'))
       setName('')
       setEmail('')
       setPassword('')
@@ -51,7 +54,7 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
       const res = await setUserDisabled(u.id, !u.disabledAt)
       if (res?.error) notify('error', res.error)
       else {
-        notify('ok', u.disabledAt ? 'Доступ включён' : 'Доступ отключён')
+        notify('ok', u.disabledAt ? t(locale, 'admin.users.accessEnabled') : t(locale, 'admin.users.accessDisabled'))
         router.refresh()
       }
     })
@@ -72,7 +75,7 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
         notify('error', res.error)
         return
       }
-      notify('ok', 'Пароль сброшен — прежние сессии этого пользователя завершены')
+      notify('ok', t(locale, 'admin.users.passwordReset'))
       setResetFor(null)
       setResetPw('')
     })
@@ -83,7 +86,7 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
       const res = await setDispatcherCapability(userId, key, allowed)
       if (res?.error) notify('error', res.error)
       else {
-        notify('ok', 'Права обновлены')
+        notify('ok', t(locale, 'admin.users.permsUpdated'))
         router.refresh()
       }
     })
@@ -98,11 +101,11 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
               <div className="flex items-center gap-2">
                 <span className="truncate text-[14px] font-medium">{u.name}</span>
                 {u.id === currentUserId && (
-                  <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] text-white/55">это ты</span>
+                  <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] text-white/55">{t(locale, 'admin.users.you')}</span>
                 )}
                 {u.disabledAt && (
                   <span className="rounded-full bg-bad-500/15 px-1.5 py-0.5 text-[10px] font-medium text-bad-400">
-                    отключён
+                    {t(locale, 'admin.users.disabledBadge')}
                   </span>
                 )}
               </div>
@@ -124,7 +127,7 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
               onClick={() => setResetFor(resetFor === u.id ? null : u.id)}
               className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[12px] text-white/70 transition-colors hover:border-white/25 hover:text-white disabled:opacity-40"
             >
-              Пароль
+              {t(locale, 'admin.users.password')}
             </button>
 
             <button
@@ -136,7 +139,7 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
                   : 'border-bad-500/25 text-bad-400 hover:border-bad-500/50'
               }`}
             >
-              {u.disabledAt ? 'Включить' : 'Отключить'}
+              {u.disabledAt ? t(locale, 'admin.users.enable') : t(locale, 'admin.users.disable')}
             </button>
           </div>
 
@@ -146,7 +149,7 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
                 type="password"
                 value={resetPw}
                 onChange={(e) => setResetPw(e.target.value)}
-                placeholder="Новый пароль, минимум 8 символов"
+                placeholder={t(locale, 'userPanel.newPasswordPlaceholder')}
                 className={`${input} max-w-xs`}
               />
               <button
@@ -154,7 +157,7 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
                 onClick={() => submitReset(u.id)}
                 className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
               >
-                Сохранить
+                {t(locale, 'admin.users.save')}
               </button>
             </div>
           )}
@@ -164,11 +167,12 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
           {u.capabilities && (
             <details className="mt-2.5 border-t border-white/6 pt-2.5">
               <summary className="cursor-pointer text-[12px] font-medium text-white/70">
-                Права диспетчера
+                {t(locale, 'admin.users.dispatcherPerms')}
               </summary>
               <div className="mt-2 flex flex-col gap-2">
                 {CAPABILITIES.map((c) => {
                   const on = u.capabilities![c.key]
+                  const meta = capMeta[c.key]
                   return (
                     <label
                       key={c.key}
@@ -182,8 +186,8 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
                         className="mt-0.5 size-4 shrink-0 accent-good-500"
                       />
                       <span className="min-w-0">
-                        <span className="block text-[13px] font-medium">{c.label}</span>
-                        <span className="block text-[11.5px] leading-snug text-white/55">{c.description}</span>
+                        <span className="block text-[13px] font-medium">{meta.label}</span>
+                        <span className="block text-[11.5px] leading-snug text-white/55">{meta.description}</span>
                       </span>
                     </label>
                   )
@@ -200,21 +204,21 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Имя"
+              placeholder={t(locale, 'admin.users.namePlaceholder')}
               className={input}
             />
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
+              placeholder={t(locale, 'admin.users.emailPlaceholder')}
               className={input}
             />
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Пароль, минимум 8 символов"
+              placeholder={t(locale, 'admin.users.passwordPlaceholder')}
               className={input}
             />
             <select
@@ -232,13 +236,13 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
               onClick={submitNew}
               className="rounded-lg bg-haul-500 px-4 py-1.5 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
             >
-              Добавить
+              {t(locale, 'admin.users.add')}
             </button>
             <button
               onClick={() => setAdding(false)}
               className="rounded-lg px-4 py-1.5 text-[12px] text-white/70 transition-colors hover:text-white"
             >
-              Отмена
+              {t(locale, 'admin.users.cancel')}
             </button>
           </div>
         </div>
@@ -247,7 +251,7 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
           onClick={() => setAdding(true)}
           className="mt-1 rounded-xl border border-dashed border-white/15 px-4 py-2.5 text-[13px] text-white/60 transition-colors hover:border-white/30 hover:text-white/85"
         >
-          + Добавить пользователя
+          {t(locale, 'admin.users.addUser')}
         </button>
       )}
     </div>

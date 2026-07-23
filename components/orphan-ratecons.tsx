@@ -10,10 +10,13 @@ import Link from 'next/link'
 import { createLoadFromExistingRc, deleteDocument } from '@/app/actions'
 import { DeleteButton } from '@/components/delete-button'
 import { notify } from '@/lib/notify'
+import { useLocale } from '@/components/locale-provider'
+import { t } from '@/lib/i18n'
 
 export type OrphanRc = { id: number; title: string; uploadedAt: string }
 
 export function OrphanRateCons({ truckId, docs }: { truckId: number; docs: OrphanRc[] }) {
+  const locale = useLocale()
   const router = useRouter()
   const [pending, start] = useTransition()
   const [working, setWorking] = useState<number | null>(null)
@@ -27,7 +30,7 @@ export function OrphanRateCons({ truckId, docs }: { truckId: number; docs: Orpha
       setWorking(null)
       if ('error' in res) notify('error', res.error)
       else {
-        notify('ok', 'Груз создан из рейткона')
+        notify('ok', t(locale, 'orphanRc.createdToast'))
         router.refresh()
       }
     })
@@ -35,13 +38,8 @@ export function OrphanRateCons({ truckId, docs }: { truckId: number; docs: Orpha
 
   return (
     <div className="mt-3 rounded-xl border border-warn-400/25 bg-warn-400/[0.06] p-3">
-      <p className="text-[12px] font-semibold text-warn-300">
-        Рейткон загружен, но груз из него не создан
-      </p>
-      <p className="mt-0.5 text-[11.5px] leading-relaxed text-white/60">
-        Разбор идёт на сервере (скан — до полутора минут). Страницу можно не держать
-        открытой.
-      </p>
+      <p className="text-[12px] font-semibold text-warn-300">{t(locale, 'orphanRc.title')}</p>
+      <p className="mt-0.5 text-[11.5px] leading-relaxed text-white/60">{t(locale, 'orphanRc.subtitle')}</p>
       <ul className="mt-2.5 flex flex-col gap-1.5">
         {docs.map((d) => (
           <li
@@ -62,13 +60,13 @@ export function OrphanRateCons({ truckId, docs }: { truckId: number; docs: Orpha
               onClick={() => make(d.id)}
               className="shrink-0 rounded-lg bg-haul-500 px-3 py-1 text-[12px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-40"
             >
-              {working === d.id ? 'Читаю ИИ…' : 'Создать груз'}
+              {working === d.id ? t(locale, 'orphanRc.aiReading') : t(locale, 'orphanRc.createLoad')}
             </button>
             <DeleteButton
               action={deleteDocument}
               id={d.id}
               title={d.title}
-              note="лишний рейткон — переместится в корзину, груз из него уже не создать."
+              note={t(locale, 'orphanRc.deleteNote')}
             />
           </li>
         ))}

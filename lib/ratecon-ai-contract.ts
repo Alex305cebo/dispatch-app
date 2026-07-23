@@ -4,6 +4,7 @@
 // harness proves exactly what the app runs.
 
 import type { Found, RateConFields, Stop } from './ratecon.ts'
+import { t, type Locale } from './i18n.ts'
 
 /** Try in order; 404 (renamed model) and 429 (quota) fall through to the next.
  * Ends on gemini-3.1-flash-lite on purpose — its free-tier daily cap (500/day) is far
@@ -128,8 +129,8 @@ function toIso(d: string | null | undefined): string | null {
 }
 
 /** Map the model's JSON to the exact shape the whole import UI already speaks. */
-export function aiToFields(ai: AiFields, model: string): RateConFields {
-  const ev = `Распознано ИИ (${model})`
+export function aiToFields(ai: AiFields, model: string, locale: Locale = 'en'): RateConFields {
+  const ev = t(locale, 'rateconAiContract.recognizedByAi').replace('{model}', model)
   const pickups = ai.stops.filter((s) => s.role === 'pickup')
   const deliveries = ai.stops.filter((s) => s.role === 'delivery')
   // RateConFields carries one pickup and one delivery: first pickup, LAST delivery —
