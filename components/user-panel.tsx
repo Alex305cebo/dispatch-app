@@ -101,11 +101,18 @@ export function UserPanel({
       </button>
 
       {open && (
-        // right-0, not left-0: the avatar now sits at the row's right/trailing
-        // edge (near the phone's screen edge), so anchoring the popover's LEFT
-        // edge there sent most of its 16rem width off-screen — extending
-        // leftward from the avatar's right edge keeps the whole thing on screen.
-        <div className="absolute bottom-full right-0 z-20 mb-2 w-64 rounded-xl border border-white/10 bg-ink-900 p-3.5 pr-9 shadow-2xl">
+        // Positioned against the VIEWPORT, not the avatar.
+        //
+        // Anchoring to the trigger cannot work at any width: the avatar sits in the
+        // middle of the nav's icon row, so a 16rem panel hangs off the LEFT edge when
+        // anchored right (measured: left edge at -61px, which cut "CHANGE PASSWORD"
+        // down to "E PASSWORD") and off the RIGHT edge when anchored left. Because
+        // `html` sets overflow-x:hidden, the excess was silently clipped rather than
+        // becoming scrollable — so it looked like broken text, not a layout overflow.
+        //
+        // Fixed with a gutter on both sides can't overflow at any width: it spans the
+        // screen on a phone and settles to its natural 16rem beside the sidebar.
+        <div className="fixed inset-x-3 bottom-24 z-[55] mx-auto max-w-sm rounded-xl border border-white/10 bg-ink-900 p-3.5 pr-9 shadow-2xl md:bottom-16 md:left-3 md:right-auto md:mx-0 md:w-64 md:max-w-none">
           <button
             type="button"
             aria-label={t(locale, 'userPanel.close')}

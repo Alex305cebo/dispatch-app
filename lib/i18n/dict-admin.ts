@@ -113,6 +113,10 @@ export const adminDict = {
   'admin.err.unknownCapability': { ru: 'Неизвестное право.', en: 'Unknown permission.' },
   'admin.err.enterName': { ru: 'Впиши имя.', en: 'Enter a name.' },
   'admin.err.invalidEmail': { ru: 'Некорректный email.', en: 'Invalid email.' },
+  'admin.err.demoReadOnly': {
+    ru: 'Демо-аккаунт общий для всех — пароль в нём менять нельзя.',
+    en: 'The demo account is shared by everyone — its password cannot be changed.',
+  },
   'admin.err.passwordMin8': { ru: 'Пароль — минимум 8 символов.', en: 'Password — minimum 8 characters.' },
   'admin.err.emailTaken': { ru: 'Этот email уже занят.', en: 'This email is already taken.' },
   'admin.err.notAuthorized': { ru: 'Не авторизован.', en: 'Not signed in.' },

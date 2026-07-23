@@ -11,6 +11,11 @@ export async function changeMyPassword(newPassword: string): Promise<{ error: st
   const user = await getCurrentUser()
   const locale = await getLocale()
   if (!user) return { error: t(locale, 'admin.err.notAuthorized') }
+  // The demo account is SHARED by every visitor, and resetDemoData() rebuilds loads,
+  // trucks and documents but deliberately never touches `users` — so a password set
+  // here was the one demo change that survived forever, on a row everybody uses. The
+  // banner promises nothing persists; this is the only action that broke that promise.
+  if (user.isDemo) return { error: t(locale, 'admin.err.demoReadOnly') }
   if (newPassword.length < 8) return { error: t(locale, 'admin.err.passwordMin8') }
   await sql`UPDATE users SET password_hash = ${await hashPassword(newPassword)} WHERE id = ${user.id}`
 }
