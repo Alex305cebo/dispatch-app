@@ -246,6 +246,70 @@ async function eldToken(): Promise<string | null> {
   return token
 }
 
+/** One trip's worth of breadcrumbs. Each point carries fuel and odometer, which the
+ * fleet-wide VehicleStatuses call does not. */
+type TripPoint = {
+  timeStamp?: number
+  speed?: number
+  fuel?: number
+  odometer?: number
+  latitude?: number
+  longitude?: number
+  locationDescription?: string
+}
+type LastTrip = { tripId?: string; vehicleId?: string; points?: TripPoint[] }
+
+/** How often to go looking for fuel. VehicleStatuses is ONE call for the whole fleet,
+ * but fuel needs one call PER TRUCK — at a 5-minute poll that would be ~2,000 vendor
+ * requests a day for a number that moves slowly. Twenty minutes keeps it useful and
+ * keeps us a polite client. */
+const FUEL_EVERY_MS = 20 * 60 * 1000
+
+/**
+ * Latest fuel + odometer per unit, read from each vehicle's last trip.
+ *
+ * Returns an empty map (never throws) when the endpoint is role-gated or the interval
+ * has not elapsed — fuel is a bonus reading and must never cost us the GPS update that
+ * the rest of the poll exists for.
+ */
+async function fuelByUnit(
+  token: string,
+  vehicles: VehicleStatus[],
+): Promise<Map<string, { fuel: number | null; odometer: number | null }>> {
+  const out = new Map<string, { fuel: number | null; odometer: number | null }>()
+  const last = Number((await getSetting('eld:fuel_at')) ?? 0)
+  if (Date.now() - last < FUEL_EVERY_MS) return out
+
+  for (const v of vehicles) {
+    const unit = v.vehicleUnit != null ? String(v.vehicleUnit) : null
+    if (!unit || !v.vehicleId) continue
+    try {
+      const res = await fetch(`${ELD_BASE}/eld/v2/External/Trips/Last/${v.vehicleId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      // 403 = the credentials' role does not include trips. Stop asking for the rest
+      // of the fleet rather than collecting the same refusal seven times.
+      if (res.status === 403 || res.status === 401) break
+      if (!res.ok) continue
+      const body = (await res.json()) as LastTrip | LastTrip[]
+      const trip = Array.isArray(body) ? body[0] : body
+      const pts = trip?.points
+      if (!pts?.length) continue
+      // Newest point wins: the array is chronological, and a mid-trip reading is
+      // staler than the one taken when the truck last reported.
+      const p = pts[pts.length - 1]!
+      out.set(unit, {
+        fuel: typeof p.fuel === 'number' ? p.fuel : null,
+        odometer: typeof p.odometer === 'number' && p.odometer > 0 ? p.odometer : null,
+      })
+    } catch {
+      // A single truck's trip call failing is not worth losing the others over.
+    }
+  }
+  if (out.size > 0) await setSetting('eld:fuel_at', String(Date.now()))
+  return out
+}
+
 export async function fleetSnapshot(
   locale: Locale = 'ru',
 ): Promise<{ updated: number } | { error: string }> {
@@ -274,10 +338,15 @@ export async function fleetSnapshot(
     return { error: e instanceof Error ? e.message : String(e) }
   }
 
+  // Best-effort extras. Empty map when the role forbids trips or the interval has
+  // not elapsed, in which case COALESCE below keeps whatever we already had.
+  const extras = await fuelByUnit(token, vehicles)
+
   let updated = 0
   for (const v of vehicles) {
     const unit = v.vehicleUnit !== undefined && v.vehicleUnit !== null ? String(v.vehicleUnit) : null
     if (!unit) continue
+    const extra = extras.get(unit)
     // engineStatus is a BOOLEAN in this API (engine on/off), not a duty code. Speed
     // wins when the truck is actually rolling, same reading the Live Share path uses,
     // so both sources write the same vocabulary into drive_status.
@@ -294,17 +363,27 @@ export async function fleetSnapshot(
       typeof v.updateDate === 'number'
         ? new Date(v.updateDate > 1e12 ? v.updateDate : v.updateDate * 1000).toISOString()
         : (v.updateDate ?? null)
+    // Trip odometer is per-point and finer than the fleet-wide figure, so it wins
+    // when present. COALESCE on the way in AND on conflict: fuel is refreshed on a
+    // slower cadence than position, and a poll without it must not blank the last
+    // known reading.
+    const odo = extra?.odometer ?? v.odometer ?? null
     await sql`
       INSERT INTO fleet_status
-        (unit, driver_name, drive_status, location, lat, lng, odometer, eld_seen, updated_at)
+        (unit, driver_name, drive_status, location, lat, lng, odometer, fuel, bearing,
+         eld_seen, updated_at)
       VALUES (${unit}, ${v.driverName ?? null},
               ${status}, ${v.location?.description ?? null},
               ${v.location?.latitude ?? null}, ${v.location?.longitude ?? null},
-              ${v.odometer ?? null}, ${seen}, now())
+              ${odo}, ${extra?.fuel ?? null}, ${v.location?.bearing ?? null},
+              ${seen}, now())
       ON CONFLICT (unit) DO UPDATE SET
         driver_name = COALESCE(EXCLUDED.driver_name, fleet_status.driver_name),
         drive_status = EXCLUDED.drive_status, location = EXCLUDED.location,
-        lat = EXCLUDED.lat, lng = EXCLUDED.lng, odometer = EXCLUDED.odometer,
+        lat = EXCLUDED.lat, lng = EXCLUDED.lng,
+        odometer = COALESCE(EXCLUDED.odometer, fleet_status.odometer),
+        fuel = COALESCE(EXCLUDED.fuel, fleet_status.fuel),
+        bearing = COALESCE(EXCLUDED.bearing, fleet_status.bearing),
         eld_seen = EXCLUDED.eld_seen, updated_at = now()`
     await logPosition(
       unit,

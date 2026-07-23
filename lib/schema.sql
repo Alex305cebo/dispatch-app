@@ -150,6 +150,15 @@ CREATE TABLE IF NOT EXISTS fleet_status (
 );
 ALTER TABLE fleet_status ADD COLUMN IF NOT EXISTS odometer DOUBLE PRECISION;
 
+-- Fuel level, from the vendor's Trips/Last point stream (VehicleStatuses does not
+-- carry it). The app has only ever ESTIMATED fuel burn from a fixed mpg in the truck's
+-- settings, so this is the first real reading and makes actual-vs-expected possible.
+ALTER TABLE fleet_status ADD COLUMN IF NOT EXISTS fuel DOUBLE PRECISION;
+-- Heading straight from the device. lib/eld.ts can infer one from two breadcrumbs, but
+-- that needs the truck to have moved far enough between polls and is blind while it
+-- creeps around a yard. The device knows regardless. Inferred value stays as fallback.
+ALTER TABLE fleet_status ADD COLUMN IF NOT EXISTS bearing DOUBLE PRECISION;
+
 -- Append-only GPS breadcrumb, written on every poll — fleet_status only keeps the
 -- latest point, this is what lets us tell "parked" from "hasn't moved in 4 hours".
 -- ponytail: 7-day retention pruned on write (see lib/eld.ts) — plenty for idle
