@@ -409,6 +409,24 @@ export async function fleetSnapshot(
       status,
       v.location?.description ?? null,
     )
+
+    // Auto-fill the VIN from the ELD when the passport hasn't got one. The device
+    // knows every truck's VIN; typing it by hand into truck_meta is exactly the kind
+    // of chore this integration exists to remove. Only ever fills a BLANK — a VIN a
+    // person entered is never overwritten by the feed, even if the two disagree
+    // (a mismatch is worth a human noticing, not silently papering over). Matched by
+    // unit number = trucks.number, the same key fleet_status uses.
+    if (v.vin && v.vin.trim()) {
+      // INSERT..SELECT so a truck with no passport row yet (three of the real fleet
+      // have none) still gets its VIN; ON CONFLICT fills a blank without overwriting a
+      // hand-entered value. NULLIF turns the empty subquery result into no-op rather
+      // than an error when the unit isn't one of ours.
+      await sql`
+        INSERT INTO truck_meta (truck_id, vin)
+        SELECT id, ${v.vin.trim()} FROM trucks WHERE number = ${unit} AND company_id = 'default'
+        ON CONFLICT (truck_id) DO UPDATE SET vin = EXCLUDED.vin
+        WHERE truck_meta.vin IS NULL OR truck_meta.vin = ''`
+    }
     updated++
   }
   // bearing rides along in VehicleStatuses, so if it is empty the devices simply are
