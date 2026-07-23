@@ -29,8 +29,8 @@ export const trucksDict = {
   'trucks.heatmap.transit': { ru: 'в пути', en: 'in transit' },
   'trucks.heatmap.delivery': { ru: 'выгрузка', en: 'delivery' },
   'trucks.heatmap.axisNote': {
-    ru: 'Один груз — одна поездка: ● погрузка, стрелки — дни в пути, ◆ выгрузка. Пустая клетка — трак простаивал. Справа: «загрузка» — доля дней из 14, что трак был в рейсе; сумма — заработок (гросс) по его грузам за это окно (каждый груз считается один раз, а не за каждый день).',
-    en: 'One load is one trip: ● pickup, arrows for the days in transit, ◆ delivery. An empty cell means the truck sat idle. On the right: “utilisation” is the share of the 14 days it was on a load; the sum is what its loads earned (gross) across the window (each load counted once, not per day).',
+    ru: 'Каждый груз — это поездка от погрузки до выгрузки. Справа: сколько дней из 14 трак работал и сколько за них заработал.',
+    en: 'Each load is a trip from pickup to delivery. On the right: how many of the 14 days the truck worked, and what it earned.',
   },
   'trucks.heatmap.idleDay': { ru: 'В этот день трак простаивал', en: 'The truck was idle this day' },
   'trucks.heatmap.earlier': { ru: 'Предыдущие 14 дней', en: 'Previous 14 days' },
