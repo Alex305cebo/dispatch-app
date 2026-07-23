@@ -121,7 +121,16 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
         </div>
       </div>
 
-      <div className="min-w-max">
+      {/* Plain-words caption for the two right-hand numbers — the Info tooltip repeats it,
+          but this stays visible so "42% / $5,140" never reads as a mystery. */}
+      <p className="mb-2.5 max-w-2xl text-2xs leading-relaxed text-white/40">
+        {t(locale, 'trucks.heatmap.axisNote')}
+      </p>
+
+      {/* min-w-max below sm so the day grid keeps its size and the panel scrolls on a
+          phone; w-full from sm up so the utilisation bar can stretch into the space that
+          used to sit empty on the right. */}
+      <div className="min-w-max sm:w-full sm:min-w-0">
         {rows.map((r) => {
           const workedDays = colKeys.filter((k) => r.working.has(k)).length
           const pct = Math.round((workedDays / days) * 100)
@@ -164,6 +173,17 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                   )
                 })}
               </div>
+              {/* Utilisation as a bar — fills the right-hand space that used to sit empty
+                  and makes the % legible at a glance (long green = busy truck). Hidden on
+                  a phone, where the row scrolls and there's no room to spare. */}
+              <div className="ml-2 hidden h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.05] sm:block">
+                <div
+                  className={`h-full rounded-full ${
+                    pct >= 70 ? 'bg-good-400' : pct >= 35 ? 'bg-white/30' : 'bg-warn-400/80'
+                  }`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
               {/* The right side that used to be blank: utilisation AND what the truck
                   earned across the window — the two numbers that make a row worth a
                   glance. */}
@@ -191,6 +211,7 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
               </span>
             ))}
           </div>
+          <span className="ml-2 hidden h-1.5 flex-1 sm:block" />
           <span className="ml-2 w-10 shrink-0" />
           <span className="w-16 shrink-0" />
         </div>
