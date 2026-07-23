@@ -54,6 +54,8 @@ export type FleetStatus = {
   lat: number | null
   lng: number | null
   odometer: number | null
+  /** Tank level in percent from the ELD. Null when the device doesn't report one. */
+  fuel: number | null
   eldSeen: string | null
   updatedAt: string
 }

@@ -66,6 +66,11 @@ export const trucksDict = {
     ru: 'Средний доход на милю (RPM) по грузам этой недели: выручка ÷ мили (гружёные + порожние).',
     en: 'Average revenue per mile (RPM) for this week’s loads: revenue ÷ miles (loaded + empty).',
   },
+  'trucks.chip.fuel': { ru: 'Топливо', en: 'Fuel' },
+  'trucks.chip.fuelInfo': {
+    ru: 'Уровень в баке по датчику трака, приходит из ELD вместе с координатами. Обновляется реже координат — раз в 20 минут.',
+    en: 'Tank level from the truck sensor, delivered by the ELD alongside its position. Refreshed less often than position — every 20 minutes.',
+  },
   'trucks.chip.oilIn': { ru: 'Масло через', en: 'Oil change in' },
   'trucks.chip.oilInInfo': {
     ru: 'Сколько миль осталось до следующей замены масла. Зелёный → жёлтый → красный по мере приближения к интервалу замены.',

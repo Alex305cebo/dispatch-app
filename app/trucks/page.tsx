@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react'
+import { Fuel, Plus } from 'lucide-react'
 import { Button } from '@/components/button'
 import Link from 'next/link'
 import { listLoads, listTrucks } from '@/lib/loads'
@@ -23,7 +23,13 @@ import { Info } from '@/components/info'
 
 export const dynamic = 'force-dynamic'
 
-type FS = { unit: string; drive_status: string | null; location: string | null; odometer: number | null }
+type FS = {
+  unit: string
+  drive_status: string | null
+  location: string | null
+  odometer: number | null
+  fuel: number | null
+}
 
 // Same live-status reading as the Обзор fleet cards — one visual language everywhere.
 function driveDot(s: string | null): string {
@@ -51,7 +57,7 @@ export default async function Page() {
     truckPhotoFlags(companyId),
     truckMetas(companyId),
     openTodoCounts(companyId),
-    sql`SELECT unit, drive_status, location, odometer FROM fleet_status`,
+    sql`SELECT unit, drive_status, location, odometer, fuel FROM fleet_status`,
   ])
   const byUnit = new Map((fleetRaw as FS[]).map((f) => [f.unit, f]))
 
@@ -210,9 +216,27 @@ export default async function Page() {
                 </div>
               )}
 
-              {/* Health chips — only what needs attention; a healthy truck stays clean. */}
-              {(oil || worstDoc || todos > 0 || count > 0) && (
+              {/* Health chips — only what needs attention; a healthy truck stays clean.
+                  Fuel is the exception and shows at ANY level: "how full is it" is a
+                  dispatch question before it is a problem, and a chip that only appears
+                  when the tank is nearly empty trains you not to look for it. */}
+              {(oil || worstDoc || todos > 0 || count > 0 || fs?.fuel != null) && (
                 <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                  {fs?.fuel != null && (
+                    <span
+                      title={t(locale, 'trucks.chip.fuelInfo')}
+                      className={`flex items-center gap-1 rounded-md px-2 py-1 font-medium ${
+                        fs.fuel <= 15
+                          ? 'bg-bad-500/15 text-bad-400'
+                          : fs.fuel <= 30
+                            ? 'bg-warn-400/15 text-warn-400'
+                            : 'bg-white/8 text-white/70'
+                      }`}
+                    >
+                      <Fuel size={11} strokeWidth={2.5} />
+                      <span className="nums">{Math.round(fs.fuel)}%</span>
+                    </span>
+                  )}
                   {oil && (
                     <span
                       className={`nums rounded-full px-2 py-0.5 font-medium ${

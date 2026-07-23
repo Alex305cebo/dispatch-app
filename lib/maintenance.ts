@@ -179,6 +179,7 @@ export async function fleetStatusByUnit(): Promise<Map<string, FleetStatus>> {
         lat: r.lat,
         lng: r.lng,
         odometer: r.odometer,
+        fuel: r.fuel,
         eldSeen: r.eld_seen,
         updatedAt: String(r.updated_at),
       },

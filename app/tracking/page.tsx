@@ -218,7 +218,16 @@ async function FleetBoard({ locale }: { locale: Locale }) {
         lat: fs.lat!,
         lng: fs.lng!,
         label: truckLabel(t),
-        sub: [st.text, weather ? `⚠ ${weather.event}` : null, fs.location].filter(Boolean).join('\n'),
+        // Fuel belongs in the hover card too — a dispatcher choosing which truck takes
+        // the next load is looking at the MAP, not at the list underneath it.
+        sub: [
+          st.text,
+          fs.fuel != null ? `⛽ ${Math.round(fs.fuel)}%` : null,
+          weather ? `⚠ ${weather.event}` : null,
+          fs.location,
+        ]
+          .filter(Boolean)
+          .join('\n'),
         tone: st.tone,
         kind: 'truck',
         heading: heading ?? undefined,

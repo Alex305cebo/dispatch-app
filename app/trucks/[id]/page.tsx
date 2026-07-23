@@ -166,7 +166,9 @@ export default async function Page({
         />
 
         {/* Info ring — the truck's numbers at a glance. */}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {/* Five across once there's a fuel reading, four without — a truck whose ELD
+            never reports fuel should not get an empty tile holding the space. */}
+        <div className={`grid grid-cols-2 gap-2 ${fs?.fuel != null ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}>
           <Chip
             label={t(locale, 'trucks.chip.weekRate')}
             value={usd.format(weekGross)}
@@ -190,6 +192,14 @@ export default async function Page({
             tone={oil?.tone}
             info={t(locale, 'trucks.chip.oilInInfo')}
           />
+          {fs?.fuel != null && (
+            <Chip
+              label={t(locale, 'trucks.chip.fuel')}
+              value={`${Math.round(fs.fuel)}%`}
+              tone={fs.fuel <= 15 ? 'bad' : fs.fuel <= 30 ? 'warn' : undefined}
+              info={t(locale, 'trucks.chip.fuelInfo')}
+            />
+          )}
         </div>
 
         {/* ===== Current assignment: route, pickup/delivery dates, at a glance ===== */}

@@ -1,6 +1,7 @@
 import {
   CalendarClock,
   DollarSign,
+  Fuel,
   MessageSquareWarning,
   Package,
   Palmtree,
@@ -37,7 +38,14 @@ import { Info } from '@/components/info'
 
 export const dynamic = 'force-dynamic'
 
-type FS = { unit: string; drive_status: string | null; location: string | null; lat: number | null; lng: number | null }
+type FS = {
+  unit: string
+  drive_status: string | null
+  location: string | null
+  lat: number | null
+  lng: number | null
+  fuel: number | null
+}
 
 // HOS isn't connected (Live Share gives GPS only), so the dot shows the LIVE drive
 // status instead of stale hours: rolling = green, on-duty = blue, else muted.
@@ -71,7 +79,7 @@ export default async function Page() {
     await Promise.all([
       listLoads(companyId),
       listTrucks(companyId),
-      sql`SELECT unit, drive_status, location, lat, lng FROM fleet_status`,
+      sql`SELECT unit, drive_status, location, lat, lng, fuel FROM fleet_status`,
       fleetExpiryAlerts(companyId),
       rateConByLoad(companyId),
       truckPhotoFlags(companyId),
@@ -349,9 +357,28 @@ export default async function Page() {
                       </span>
                     )}
                   </div>
-                  <div className="truncate text-[12px] text-white/60">
-                    {trailers.has(t.id) && <>{tr(locale, 'overview.trailer').replace('{n}', String(trailers.get(t.id)))}</>}
-                    {cityOf(fs?.location ?? null) ?? tr(locale, 'overview.noEldData')}
+                  <div className="flex items-center gap-1.5 truncate text-[12px] text-white/60">
+                    <span className="min-w-0 truncate">
+                      {trailers.has(t.id) && <>{tr(locale, 'overview.trailer').replace('{n}', String(trailers.get(t.id)))}</>}
+                      {cityOf(fs?.location ?? null) ?? tr(locale, 'overview.noEldData')}
+                    </span>
+                    {/* Tank level rides with the location line — same glance, and it
+                        never has to compete with the week's money on the right. */}
+                    {fs?.fuel != null && (
+                      <span
+                        title={tr(locale, 'trucks.chip.fuelInfo')}
+                        className={`nums flex shrink-0 items-center gap-0.5 text-2xs font-medium ${
+                          fs.fuel <= 15
+                            ? 'text-bad-400'
+                            : fs.fuel <= 30
+                              ? 'text-warn-400'
+                              : 'text-white/45'
+                        }`}
+                      >
+                        <Fuel size={10} strokeWidth={2.5} />
+                        {Math.round(fs.fuel)}%
+                      </span>
+                    )}
                   </div>
                 </div>
                 {/* The week's money. It briefly had a tinted plate with its own ring
