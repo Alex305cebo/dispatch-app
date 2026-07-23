@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { startDemoSession } from '@/lib/demo'
 import { SESSION_COOKIE } from '@/lib/auth'
+import { getLocale } from '@/lib/i18n-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,7 +9,8 @@ export const dynamic = 'force-dynamic'
 // one-click link — signs the browser in as the shared public demo account (fresh
 // sandbox data if the last visitor's has gone stale) and drops straight into the app.
 export async function GET() {
-  const token = await startDemoSession()
+  const locale = await getLocale()
+  const token = await startDemoSession(locale)
   // Relative Location on purpose: behind Hostinger's reverse proxy the request's own
   // URL is the internal http://0.0.0.0:3000 bind address, so an absolute redirect
   // (new URL('/', req.url)) sent the browser to 0.0.0.0 (ERR_ADDRESS_INVALID). A

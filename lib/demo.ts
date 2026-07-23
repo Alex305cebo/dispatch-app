@@ -8,6 +8,8 @@ import { sql } from './db.ts'
 import { getSetting, setSetting } from './settings.ts'
 import { createSession } from './auth.ts'
 import { DEMO_AVATARS_JPEG_BASE64 } from './demo-avatars.ts'
+import { DEMO_DOC_PDF_BASE64 } from './demo-docs.ts'
+import type { Locale } from './i18n.ts'
 
 const DEMO_EMAIL = 'demo@dispatch4you.pro'
 const RESET_KEY = 'demo_last_reset'
@@ -26,11 +28,29 @@ async function demoUserId(): Promise<number> {
   return (created[0] as { id: number }).id
 }
 
+/** One small, realistic-looking PDF per document kind (lib/demo-docs.ts) — attached
+ * to a truck, a load, or a maintenance entry, same shape as a real upload. */
+async function attachDoc(
+  kind: keyof typeof DEMO_DOC_PDF_BASE64,
+  title: string,
+  opts: { truckId?: number | null; loadId?: number | null; maintenanceId?: number | null; uploadedAt?: string },
+): Promise<void> {
+  const bytes = Buffer.from(DEMO_DOC_PDF_BASE64[kind], 'base64')
+  const hex = bytes.toString('hex')
+  await sql`
+    INSERT INTO documents (truck_id, load_id, maintenance_id, kind, title, mime, size_bytes, data, company_id, uploaded_at)
+    VALUES (${opts.truckId ?? null}, ${opts.loadId ?? null}, ${opts.maintenanceId ?? null}, ${kind}, ${title},
+            'application/pdf', ${bytes.length}, decode(${hex}, 'hex'), 'demo', ${opts.uploadedAt ?? new Date().toISOString()})`
+}
+
 /** Wipe every company_id='demo' row (FK-safe order) and reseed a fresh, varied
- * little fleet — same shape as the real app, entirely made up. */
-async function resetDemoData(dispatcherId: number): Promise<void> {
+ * little fleet — same shape as the real app, entirely made up. Driver names come in
+ * matched EN/RU pairs (both are Western names — the RU side is just how a Russian-
+ * speaking dispatcher would write them) so the seeded roster reads naturally in
+ * whichever language triggered this reset. */
+async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void> {
   // Children first — trucks/loads have no ON DELETE CASCADE, so deleting a truck
-  // while its maintenance/todos/meta still reference it would just fail the delete.
+  // while its maintenance/todos/meta/documents still reference it would just fail.
   await sql`DELETE FROM documents WHERE company_id = 'demo'`
   await sql`DELETE FROM truck_maintenance WHERE truck_id IN (SELECT id FROM trucks WHERE company_id = 'demo')`
   await sql`DELETE FROM truck_todos WHERE truck_id IN (SELECT id FROM trucks WHERE company_id = 'demo')`
@@ -44,6 +64,7 @@ async function resetDemoData(dispatcherId: number): Promise<void> {
 
   const DAY = 86_400_000
   const dateAt = (offsetDays: number) => new Date(Date.now() + offsetDays * DAY).toISOString().slice(0, 10)
+  const isoAt = (offsetDays: number) => new Date(Date.now() + offsetDays * DAY).toISOString()
   // "As printed on the RC" — raw text, not a DB date, same field the AI parser fills.
   const rcTime = (offsetDays: number, hhmm: string, note: string) => {
     const [y, m, d] = dateAt(offsetDays).split('-')
@@ -56,11 +77,13 @@ async function resetDemoData(dispatcherId: number): Promise<void> {
   // fix per truck — this is meant to show off every screen, not just the money math:
   // oil countdown (needs BOTH oilLastOdometer and a current odometer from fleet_status),
   // the compliance-expiry panel (all five dates, spread across expired/soon/fine so
-  // every tone shows up), and the map/tracking pin.
+  // every tone shows up), and the map/tracking pin. Eight trucks, not four — a small
+  // real fleet, with a couple flagged repair/vacation so those states show up too.
   const trucks = [
     {
       number: 'DEMO-101',
-      driver: 'Алекс Морган',
+      driverEn: 'Alex Morgan',
+      driverRu: 'Алекс Морган',
       phone: '+1 555-010-1101',
       vin: '1FUJGHDV8CLBP1101',
       plate: 'TX-DEMO1',
@@ -72,7 +95,7 @@ async function resetDemoData(dispatcherId: number): Promise<void> {
       registrationExpiry: dateAt(200),
       inspectionExpiry: dateAt(45), // warn
       insuranceExpiry: dateAt(300),
-      cdlExpiry: dateAt(-5), // already expired · demonstrates "просрочено"
+      cdlExpiry: dateAt(-5), // already expired · demonstrates "overdue"
       medcardExpiry: dateAt(400),
       driveStatus: 'ON',
       location: '2 mi N from Dallas, TX',
@@ -81,7 +104,8 @@ async function resetDemoData(dispatcherId: number): Promise<void> {
     },
     {
       number: 'DEMO-204',
-      driver: 'Сэм Ривера',
+      driverEn: 'Sam Rivera',
+      driverRu: 'Сэм Ривера',
       phone: '+1 555-020-2204',
       vin: '3AKJHHDR5LSLU2204',
       plate: 'IL-DEMO2',
@@ -102,7 +126,8 @@ async function resetDemoData(dispatcherId: number): Promise<void> {
     },
     {
       number: 'DEMO-317',
-      driver: 'Джордан Ли',
+      driverEn: 'Jordan Lee',
+      driverRu: 'Джордан Ли',
       phone: '+1 555-030-3317',
       vin: '1XKYDP9X5MJ317317',
       plate: 'GA-DEMO3',
@@ -123,7 +148,8 @@ async function resetDemoData(dispatcherId: number): Promise<void> {
     },
     {
       number: 'DEMO-428',
-      driver: 'Кейси Брукс',
+      driverEn: 'Casey Brooks',
+      driverRu: 'Кейси Брукс',
       phone: '+1 555-040-4428',
       vin: '4V4NC9EJXEN428428',
       plate: 'AZ-DEMO4',
@@ -143,15 +169,106 @@ async function resetDemoData(dispatcherId: number): Promise<void> {
       lng: -118.24,
       unavailable: 'repair',
     },
+    {
+      number: 'DEMO-512',
+      driverEn: 'Morgan Taylor',
+      driverRu: 'Морган Тейлор',
+      phone: '+1 555-050-5512',
+      vin: '3AKJHHDR8PSN90512',
+      plate: 'TX-DEMO5',
+      year: 2023,
+      make: 'Freightliner',
+      model: 'Cascadia',
+      oilLastOdometer: 8_000,
+      odometer: 14_200, // → 18,800 mi left · good
+      registrationExpiry: dateAt(250),
+      inspectionExpiry: dateAt(180),
+      insuranceExpiry: dateAt(150),
+      cdlExpiry: dateAt(280),
+      medcardExpiry: dateAt(320), // fully healthy truck — not every card needs a flag
+      driveStatus: 'D',
+      location: '10 mi S from Houston, TX',
+      lat: 29.76,
+      lng: -95.37,
+    },
+    {
+      number: 'DEMO-633',
+      driverEn: 'Riley Bennett',
+      driverRu: 'Райли Беннетт',
+      phone: '+1 555-060-6633',
+      vin: '1XPBD49X9JD633633',
+      plate: 'TN-DEMO6',
+      year: 2018,
+      make: 'Peterbilt',
+      model: '389',
+      oilLastOdometer: 61_000,
+      odometer: 87_500, // → oil overdue · bad
+      registrationExpiry: dateAt(60),
+      inspectionExpiry: dateAt(300),
+      insuranceExpiry: dateAt(180),
+      cdlExpiry: dateAt(20), // warn
+      medcardExpiry: dateAt(250),
+      driveStatus: 'OFF',
+      location: '3 mi N from Nashville, TN',
+      lat: 36.16,
+      lng: -86.78,
+    },
+    {
+      number: 'DEMO-745',
+      driverEn: 'Drew Sullivan',
+      driverRu: 'Дрю Салливан',
+      phone: '+1 555-070-7745',
+      vin: '3HSDJAPR8NN745745',
+      plate: 'NC-DEMO7',
+      year: 2022,
+      make: 'International',
+      model: 'LT',
+      oilLastOdometer: 30_000,
+      odometer: 41_000, // → 14,000 mi left · good
+      registrationExpiry: dateAt(5), // bad · urgent
+      inspectionExpiry: dateAt(90),
+      insuranceExpiry: dateAt(365),
+      cdlExpiry: dateAt(200),
+      medcardExpiry: dateAt(60), // warn
+      driveStatus: '52 mi/h',
+      location: '20 mi E from Charlotte, NC',
+      lat: 35.23,
+      lng: -80.84,
+    },
+    {
+      number: 'DEMO-860',
+      driverEn: 'Quinn Parker',
+      driverRu: 'Куинн Паркер',
+      phone: '+1 555-080-8860',
+      vin: '1M1AW07Y9LM860860',
+      plate: 'FL-DEMO8',
+      year: 2020,
+      make: 'Mack',
+      model: 'Anthem',
+      oilLastOdometer: 45_000,
+      odometer: 68_000, // → 2,000 mi left · warn
+      registrationExpiry: dateAt(400),
+      inspectionExpiry: dateAt(400),
+      insuranceExpiry: dateAt(400),
+      cdlExpiry: dateAt(400),
+      medcardExpiry: dateAt(15), // bad · urgent
+      driveStatus: 'ON',
+      location: '8 mi W from Miami, FL',
+      lat: 25.76,
+      lng: -80.19,
+      unavailable: 'vacation',
+    },
   ] as const
+
   const truckIds: number[] = []
   for (const [i, t] of trucks.entries()) {
+    const driver = locale === 'ru' ? t.driverRu : t.driverEn
     const rows = await sql`
       INSERT INTO trucks (name, number, driver_name, mpg, fuel_price_per_gallon,
                           driver_pay_mode, driver_cents_per_mile,
                           truck_payment_per_day, insurance_per_day, eld_permits_per_day,
                           maintenance_cost_per_mile, factoring_percent, dispatch_percent, company_id, unavailable)
-      VALUES (${t.number}, ${t.number}, ${t.driver}, 6.5, 3.85, 'cpm', 60, 60, 40, 8, 0.18, 2, 0, 'demo',
+      VALUES (${t.number}, ${t.number}, ${driver}, 6.5, 3.85, 'cpm', 60, 60, 40, 8, 0.18, 2, 0, 'demo',
               ${'unavailable' in t ? t.unavailable : null})
       RETURNING id`
     const id = (rows[0] as { id: number }).id
@@ -173,15 +290,39 @@ async function resetDemoData(dispatcherId: number): Promise<void> {
     // needs a CURRENT odometer, not just the last-change one) show up at all.
     await sql`
       INSERT INTO fleet_status (unit, driver_name, drive_status, location, lat, lng, odometer, updated_at)
-      VALUES (${t.number}, ${t.driver}, ${t.driveStatus}, ${t.location}, ${t.lat}, ${t.lng}, ${t.odometer}, now())`
+      VALUES (${t.number}, ${driver}, ${t.driveStatus}, ${t.location}, ${t.lat}, ${t.lng}, ${t.odometer}, now())`
+    // Passport documents every real truck carries — insurance certificate and
+    // registration copy, filed under the truck itself (not tied to any one load).
+    await attachDoc('insurance', 'Certificate of Insurance.pdf', { truckId: id, uploadedAt: isoAt(-60) })
+    await attachDoc('registration', 'Vehicle Registration.pdf', { truckId: id, uploadedAt: isoAt(-90) })
   }
-  const [t1, t2, t3, t4] = truckIds as [number, number, number, number]
+  const [t1, t2, t3, t4, t5] = truckIds as [number, number, number, number, number, ...number[]]
+
+  // The one truck flagged "repair" also gets a maintenance-log entry with its own
+  // linked receipt — same as a real repair logged from the Truck Care tab.
+  const repairTruckIdx = trucks.findIndex((t) => 'unavailable' in t && t.unavailable === 'repair')
+  if (repairTruckIdx >= 0) {
+    const repairTruckId = truckIds[repairTruckIdx]!
+    const maintRows = await sql`
+      INSERT INTO truck_maintenance (truck_id, kind, title, notes, cost, odometer, done_at)
+      VALUES (${repairTruckId}, 'repair', 'Brake system repair',
+              'Replaced worn brake pads and resurfaced rotors, front axle.', 1130,
+              ${trucks[repairTruckIdx]!.odometer}, ${dateAt(-2)})
+      RETURNING id`
+    const maintId = (maintRows[0] as { id: number }).id
+    await attachDoc('repair', 'Brake Repair Receipt.pdf', {
+      truckId: repairTruckId,
+      maintenanceId: maintId,
+      uploadedAt: isoAt(-2),
+    })
+  }
 
   // One load per stage of the pipeline — quoted → booked → in_transit → delivered
-  // (unpaid, so "Собрать инвойс" has something real to do) → paid. Each one carries
+  // (unpaid, so "Build invoice" has something real to do) → paid. Each one carries
   // full broker paperwork (MC/contact, ref numbers, market rate, pickup/delivery
-  // windows, and a tagged "Важное от брокера" block) — this is a showcase, not just
-  // a stats screen, so it needs to look like a real rate con came in.
+  // windows, and a tagged "Important from broker" block) — this is a showcase, not
+  // just a stats screen, so it needs to look like a real rate con came in. Spread
+  // across five different trucks, not just one repeated.
   const loads = [
     {
       truckId: t1,
@@ -201,10 +342,10 @@ async function resetDemoData(dispatcherId: number): Promise<void> {
       pickupTime: rcTime(3, '08:00', 'FCFS'),
       deliveryTime: rcTime(5, '14:00', 'Appt'),
       notes:
-        '[SAFETY] Средства защиты обязательны на площадке — каска и жилет.\n' +
-        '[LOAD] Твёрдая палета, не превышать 44,000 lbs, задняя загрузка.\n' +
+        '[SAFETY] PPE required on site — hard hat and vest.\n' +
+        '[LOAD] Hard pallet, do not exceed 44,000 lbs, rear load.\n' +
         '[REF] PO# 88213-DAL, BOL# 55210\n' +
-        '[CONTACT] Диспетчер площадки: Мария, (555) 010-0142',
+        '[CONTACT] Yard dispatcher: Maria, (555) 010-0142',
       unread: true,
     },
     {
@@ -225,8 +366,8 @@ async function resetDemoData(dispatcherId: number): Promise<void> {
       pickupTime: rcTime(1, '06:30', 'FCFS'),
       deliveryTime: rcTime(3, '10:00', 'Appt'),
       notes:
-        '[SCHEDULE] Appointment строго FCFS, окно 08:00–10:00, не опаздывать.\n' +
-        '[DOCS] Rate con и BOL обязательны при выгрузке — без них груз не принимают.\n' +
+        '[SCHEDULE] Appointment strictly FCFS, window 08:00–10:00, do not be late.\n' +
+        '[DOCS] Rate con and BOL required at delivery — load will not be accepted without them.\n' +
         '[REF] Load# CHI-4471, Ref# 90042',
       unread: true,
     },
@@ -248,8 +389,8 @@ async function resetDemoData(dispatcherId: number): Promise<void> {
       pickupTime: rcTime(-1, '07:00', 'FCFS'),
       deliveryTime: rcTime(1, '16:00', 'Appt'),
       notes:
-        '[PENALTY] Детеншн $75/час после 2 часов простоя, лампер оплачивает водитель, компенсация по чеку.\n' +
-        '[WARNING] TWIC-карта обязательна для входа на территорию порта.\n' +
+        '[PENALTY] Detention $75/hr after 2 hours free time, driver pays lumper, reimbursed by receipt.\n' +
+        '[WARNING] TWIC card required for port access.\n' +
         '[REF] Order# ATL-2290',
       unread: true,
     },
@@ -271,13 +412,13 @@ async function resetDemoData(dispatcherId: number): Promise<void> {
       pickupTime: rcTime(-3, '09:00', 'FCFS'),
       deliveryTime: rcTime(-1, '13:00', 'Appt'),
       notes:
-        '[INSURANCE] Требуется Certificate of Insurance с limits $1,000,000, отправить брокеру до пикапа.\n' +
-        '[DOCS] POD обязателен в течение 24 часов после выгрузки.\n' +
+        '[INSURANCE] Certificate of Insurance required, limits $1,000,000, send to broker before pickup.\n' +
+        '[DOCS] POD required within 24 hours of delivery.\n' +
         '[CONTACT] Broker after-hours: (555) 010-0199',
       unread: false,
     },
     {
-      truckId: t1,
+      truckId: t5,
       status: 'paid',
       rate: 2600,
       spotRpm: 3.3,
@@ -301,11 +442,11 @@ async function resetDemoData(dispatcherId: number): Promise<void> {
 
   for (const l of loads) {
     const paid = 'paid' in l && l.paid
-    const invoicedAt = paid ? new Date(Date.now() - 10 * DAY).toISOString() : null
-    const paidAt = paid ? new Date(Date.now() - 3 * DAY).toISOString() : null
+    const invoicedAt = paid ? isoAt(-10) : null
+    const paidAt = paid ? isoAt(-3) : null
     const brokerEmail = `ops@${l.broker.toLowerCase().replace(/[^a-z]+/g, '')}-demo.com`
-    const notesReadAt = l.unread ? null : new Date(Date.now() - 2 * DAY).toISOString()
-    await sql`
+    const notesReadAt = l.unread ? null : isoAt(-2)
+    const rows = await sql`
       INSERT INTO loads (rate, spot_rpm, loaded_miles, deadhead_miles, transit_days, origin, destination,
                          broker_mc, broker_email, broker_phone, reference_id, broker_notes, notes_read_at,
                          pickup_date, delivery_date, pickup_time, delivery_time,
@@ -313,7 +454,74 @@ async function resetDemoData(dispatcherId: number): Promise<void> {
       VALUES (${l.rate}, ${l.spotRpm}, ${l.milesL}, ${l.milesD}, 2, ${l.origin}, ${l.destination},
               ${l.mc}, ${brokerEmail}, ${l.phone}, ${l.refId}, ${l.notes}, ${notesReadAt},
               ${l.pickup}, ${l.delivery}, ${l.pickupTime}, ${l.deliveryTime},
-              'manual', ${l.truckId}, ${l.status}, ${dispatcherId}, 'demo', ${invoicedAt}, ${paidAt})`
+              'manual', ${l.truckId}, ${l.status}, ${dispatcherId}, 'demo', ${invoicedAt}, ${paidAt})
+      RETURNING id`
+    const loadId = (rows[0] as { id: number }).id
+    await attachDoc('ratecon', `Rate Confirmation — ${l.refId}.pdf`, { loadId, uploadedAt: isoAt(-14) })
+    if (l.status === 'delivered' || l.status === 'paid') {
+      await attachDoc('pod', `POD — ${l.refId}.pdf`, { loadId, uploadedAt: isoAt(-1) })
+    }
+    if (paid) {
+      await attachDoc('invoice', `Invoice — ${l.refId}.pdf`, { loadId, uploadedAt: isoAt(-9) })
+    }
+  }
+
+  // Load HISTORY — three older, already-paid loads per truck, spread across the
+  // past two to ten weeks, so the weekly settlement reports (Финансы → По
+  // диспетчерам/Водители), the loads calendar, and the Обзор "recent loads" list
+  // all have real depth instead of a five-load snapshot.
+  const ROUTE_POOL: readonly (readonly [string, string, number, number])[] = [
+    ['Dallas, TX', 'Denver, CO', 780, 40],
+    ['Chicago, IL', 'Dallas, TX', 960, 0],
+    ['Atlanta, GA', 'Phoenix, AZ', 610, 25],
+    ['Phoenix, AZ', 'Los Angeles, CA', 540, 10],
+    ['Houston, TX', 'Memphis, TN', 570, 15],
+    ['Nashville, TN', 'Charlotte, NC', 330, 20],
+    ['Charlotte, NC', 'Miami, FL', 650, 30],
+    ['Miami, FL', 'Atlanta, GA', 660, 5],
+    ['Denver, CO', 'Kansas City, MO', 600, 15],
+    ['Kansas City, MO', 'Chicago, IL', 510, 10],
+    ['Los Angeles, CA', 'Phoenix, AZ', 370, 20],
+    ['Memphis, TN', 'Nashville, TN', 210, 10],
+  ]
+  const BROKER_POOL = [
+    { mc: '112233', name: 'Prairie Route Logistics', phone: '(555) 040-1187' },
+    { mc: '223344', name: 'Summit Logistics Group', phone: '(555) 020-4471' },
+    { mc: '334455', name: 'TransWest Brokerage', phone: '(555) 030-2290' },
+    { mc: '445566', name: 'BlueLine Freight', phone: '(555) 010-0199' },
+    { mc: '556677', name: 'Apex Freight Brokers', phone: '(555) 010-0142' },
+    { mc: '667788', name: 'Cardinal Transport Solutions', phone: '(555) 050-3321' },
+    { mc: '778899', name: 'Lonestar Freight Partners', phone: '(555) 060-4432' },
+  ] as const
+  const WEEKS_BACK = [2, 4, 7] // how far back each of the 3 historical loads lands
+
+  for (const [i, truckId] of truckIds.entries()) {
+    for (const [j, weeks] of WEEKS_BACK.entries()) {
+      const route = ROUTE_POOL[(i * 3 + j) % ROUTE_POOL.length]!
+      const broker = BROKER_POOL[(i + j) % BROKER_POOL.length]!
+      const [origin, destination, milesL, milesD] = route
+      const rpm = 2.6 + ((i + j) % 5) * 0.22
+      const rate = Math.round(milesL * rpm)
+      const deliverOffset = -(weeks * 7) - (i % 3) // stagger within the week per truck
+      const pickupOffset = deliverOffset - 2
+      const refId = `${origin.slice(0, 3).toUpperCase()}-${9000 + i * 10 + j}`
+      const brokerEmail = `ops@${broker.name.toLowerCase().replace(/[^a-z]+/g, '')}-demo.com`
+
+      const rows = await sql`
+        INSERT INTO loads (rate, spot_rpm, loaded_miles, deadhead_miles, transit_days, origin, destination,
+                           broker_mc, broker_email, broker_phone, reference_id, broker_notes, notes_read_at,
+                           pickup_date, delivery_date, pickup_time, delivery_time,
+                           source, truck_id, status, dispatcher_id, company_id, invoiced_at, paid_at)
+        VALUES (${rate}, ${Math.round((rpm - 0.15) * 100) / 100}, ${milesL}, ${milesD}, 2, ${origin}, ${destination},
+                ${broker.mc}, ${brokerEmail}, ${broker.phone}, ${refId}, ${'[REF] PO# ' + refId}, ${isoAt(deliverOffset)},
+                ${dateAt(pickupOffset)}, ${dateAt(deliverOffset)}, ${rcTime(pickupOffset, '08:00', 'FCFS')},
+                ${rcTime(deliverOffset, '14:00', 'Appt')},
+                'manual', ${truckId}, 'paid', ${dispatcherId}, 'demo',
+                ${isoAt(deliverOffset + 1)}, ${isoAt(deliverOffset + 8)})
+        RETURNING id`
+      const loadId = (rows[0] as { id: number }).id
+      await attachDoc('invoice', `Invoice — ${refId}.pdf`, { loadId, uploadedAt: isoAt(deliverOffset + 1) })
+    }
   }
 
   await setSetting(RESET_KEY, new Date().toISOString())
@@ -330,10 +538,13 @@ async function demoDataIsStale(): Promise<boolean> {
  * spirit, without needing an external cron), then returns a session token for the
  * shared demo account. The route sets it as a cookie ON the redirect response — not
  * via next/headers here — so it reliably attaches behind the reverse proxy. Every
- * dispatcher who clicks the link sees the same fleet.
+ * dispatcher who clicks the link sees the same fleet. `locale` only matters on an
+ * actual reset — it picks which language the seeded driver names come in; between
+ * resets everyone sees whatever the last reset produced, same as every other piece
+ * of demo content (it's one shared sandbox, not a per-visitor one).
  */
-export async function startDemoSession(): Promise<string> {
+export async function startDemoSession(locale: Locale): Promise<string> {
   const userId = await demoUserId()
-  if (await demoDataIsStale()) await resetDemoData(userId)
+  if (await demoDataIsStale()) await resetDemoData(userId, locale)
   return createSession(userId)
 }
