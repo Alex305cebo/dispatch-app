@@ -295,21 +295,37 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
               <p className="text-xs text-white/45">{t(locale, 'trucks.heatmap.idleDay')}</p>
             ) : (
               <div className="flex flex-col gap-1.5">
-                {hover.loads.map((l) => (
-                  <Link
-                    key={l.id}
-                    href={`/loads/${l.id}`}
-                    className="group flex items-center justify-between gap-2 rounded-md bg-white/[0.04] px-2 py-1.5 transition-colors hover:bg-haul-500/15"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-xs font-medium text-white/85 group-hover:text-white">
-                        {l.route}
+                {hover.loads.map((l) => {
+                  // What this hovered day is for this load: its pickup, its delivery, or
+                  // a day driven in between — the label the user asked for.
+                  const role: TripRole = l.isPickup ? 'pickup' : l.isDelivery ? 'delivery' : 'transit'
+                  const roleKey =
+                    role === 'pickup'
+                      ? 'trucks.heatmap.pickup'
+                      : role === 'delivery'
+                        ? 'trucks.heatmap.delivery'
+                        : 'trucks.heatmap.transit'
+                  return (
+                    <Link
+                      key={l.id}
+                      href={`/loads/${l.id}`}
+                      className="group flex items-center justify-between gap-2 rounded-md bg-white/[0.04] px-2 py-1.5 transition-colors hover:bg-haul-500/15"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-xs font-medium text-white/85 group-hover:text-white">
+                          {l.route}
+                        </span>
+                        <span className="flex items-center gap-1 text-2xs text-white/45">
+                          <TripMark role={role} />
+                          <span className="font-semibold text-good-300">{t(locale, roleKey)}</span>
+                          <span className="text-white/25">·</span>
+                          {statusLabel(locale, l.status)}
+                        </span>
                       </span>
-                      <span className="text-2xs text-white/45">{statusLabel(locale, l.status)}</span>
-                    </span>
-                    <span className="nums shrink-0 text-xs font-semibold text-white/80">{usd.format(l.rate)}</span>
-                  </Link>
-                ))}
+                      <span className="nums shrink-0 text-xs font-semibold text-white/80">{usd.format(l.rate)}</span>
+                    </Link>
+                  )
+                })}
               </div>
             )}
                 </div>
