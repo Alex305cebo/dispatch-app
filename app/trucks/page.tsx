@@ -3,7 +3,8 @@ import { Button } from '@/components/button'
 import Link from 'next/link'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { currentLoadsByTruck, truckLabel } from '@/lib/map'
-import { FleetHeatmap, dayKey } from '@/components/fleet-heatmap'
+import { FleetHeatmap } from '@/components/fleet-heatmap'
+import { daysBetween, type HeatDayLoad } from '@/lib/heatmap'
 import { getCompany } from '@/lib/invoice'
 import {
   expiries,
@@ -76,17 +77,31 @@ export default async function Page() {
       const weekGross = live
         .filter((l) => new Date(l.createdAt).getTime() >= weekBegin)
         .reduce((s, l) => s + l.rate, 0)
-      // Per-day money for the utilisation grid. Anchored on the PICKUP date — the day
-      // the truck actually worked — falling back to when the load was entered for rows
-      // whose rate con never printed one.
-      const byDay = new Map<string, number>()
+      // Working days for the utilisation grid: every day from a load's pickup to its
+      // delivery, so a multi-day haul fills every day it ran, not just the booking day.
+      // No delivery date? Fall back to pickup + transit_days, then to a single day —
+      // never leave a real load invisible. Each day carries the load(s) that covered it
+      // (route + id + rate), which the cell's hover card shows with a link through.
+      const working = new Map<string, HeatDayLoad[]>()
       for (const l of live) {
-        const when = l.pickupDate ? Date.parse(`${l.pickupDate}T12:00:00`) : Date.parse(l.createdAt)
-        if (Number.isNaN(when)) continue
-        const k = dayKey(when)
-        byDay.set(k, (byDay.get(k) ?? 0) + l.rate)
+        const startMs = l.pickupDate ? Date.parse(`${l.pickupDate}T12:00:00`) : Date.parse(l.createdAt)
+        if (Number.isNaN(startMs)) continue
+        const endMs = l.deliveryDate
+          ? Date.parse(`${l.deliveryDate}T12:00:00`)
+          : startMs + Math.max(0, (l.transitDays ?? 1) - 1) * 24 * 60 * 60 * 1000
+        const entry: HeatDayLoad = {
+          id: l.id,
+          route: `${l.origin ?? '—'} → ${l.destination ?? '—'}`,
+          rate: l.rate,
+          status: l.status,
+        }
+        for (const k of daysBetween(startMs, Number.isNaN(endMs) ? startMs : endMs)) {
+          const arr = working.get(k)
+          if (arr) arr.push(entry)
+          else working.set(k, [entry])
+        }
       }
-      return { truck: t, count: live.length, current, weekGross, byDay }
+      return { truck: t, count: live.length, current, weekGross, working }
     }),
   )
 
@@ -138,11 +153,10 @@ export default async function Page() {
 
       <div className="mb-4">
         <FleetHeatmap
-          locale={locale}
-          rows={perTruck.map(({ truck, byDay }) => ({
+          rows={perTruck.map(({ truck, working }) => ({
             id: truck.id,
             label: truck.number?.trim() || truck.name,
-            byDay,
+            working,
           }))}
         />
       </div>

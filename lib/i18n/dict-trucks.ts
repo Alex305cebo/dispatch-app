@@ -19,9 +19,13 @@ export const trucksDict = {
 
   // ---- app/trucks/page.tsx ----
   'trucks.heatmap.title': { ru: 'Загрузка парка · 14 дней', en: 'Fleet utilisation · 14 days' },
-  'trucks.heatmap.less': { ru: 'меньше', en: 'less' },
-  'trucks.heatmap.more': { ru: 'больше', en: 'more' },
+  'trucks.heatmap.info': {
+    ru: 'Календарь занятости: строка — трак, клетка — день за последние 14 дней. Зелёная клетка — трак был в рейсе (весь путь от погрузки до выгрузки), тёмная — простаивал. Число справа — доля дней, что трак работал. Помогает увидеть, кто простаивает и когда у парка провалы.',
+    en: 'Occupancy calendar: one row per truck, one cell per day over the last 14 days. Green means the truck was on a load that day (the whole pickup-to-delivery span), dark means it sat idle. The number on the right is the share of days it worked. Shows at a glance who is idle and when the fleet has gaps.',
+  },
+  'trucks.heatmap.working': { ru: 'в рейсе', en: 'on a load' },
   'trucks.heatmap.idle': { ru: 'простой', en: 'idle' },
+  'trucks.heatmap.idleDay': { ru: 'В этот день трак простаивал', en: 'The truck was idle this day' },
   'trucks.page.title': { ru: 'Траки', en: 'Trucks' },
   'trucks.page.inFleet': { ru: 'в парке', en: 'in fleet' },
   'trucks.page.ownerPrefix': { ru: ' · владелец ', en: ' · owner ' },

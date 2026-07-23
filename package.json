@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "db:init": "node --env-file=.env.local scripts/db-init.mjs",
-    "test": "node --test lib/profit.test.ts lib/qr-load.test.ts lib/map.test.ts lib/ratecon.test.ts lib/geo.test.ts lib/trip-history.test.ts lib/fmt.test.ts lib/caption-kind.test.ts"
+    "test": "node --test lib/profit.test.ts lib/qr-load.test.ts lib/map.test.ts lib/ratecon.test.ts lib/geo.test.ts lib/trip-history.test.ts lib/fmt.test.ts lib/caption-kind.test.ts lib/heatmap.test.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

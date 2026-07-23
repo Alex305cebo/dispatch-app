@@ -600,6 +600,48 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
     }
   }
 
+  // Recent activity for the utilisation heatmap. The showcase loads sit near today and
+  // the historical ones are 2+ weeks back, leaving the last-14-days window — exactly
+  // what the heatmap covers — nearly empty. This fills it with a DELIBERATELY VARIED
+  // spread so the section shows what it's for: some trucks run hard, some have gaps,
+  // one sits idle. Per truck: a list of [daysAgoStart, spanDays] short hauls, fully in
+  // the past (delivery never in the future) so they read as completed work.
+  const UTIL_PATTERN: readonly (readonly [number, number][])[] = [
+    [[13, 3], [8, 3], [3, 2]], // busy
+    [[12, 2], [6, 4]], // medium
+    [[11, 4], [4, 3]], // busy
+    [[13, 2], [7, 2], [2, 2]], // medium
+    [[10, 3]], // light
+    [[13, 5], [5, 4]], // busy
+    [], // idle — the whole point: a truck nobody is loading
+    [[3, 2]], // mostly idle
+  ]
+  let utilRef = 0
+  for (let ti = 0; ti < truckIds.length; ti++) {
+    const truckId = truckIds[ti]!
+    for (const [daysAgo, span] of UTIL_PATTERN[ti] ?? []) {
+      const [origin, destination, milesL, milesD] = ROUTE_POOL[utilRef % ROUTE_POOL.length]!
+      const broker = BROKER_POOL[utilRef % BROKER_POOL.length]!
+      const pickupOffset = -daysAgo
+      const deliverOffset = -daysAgo + (span - 1)
+      const rate = 1800 + (utilRef % 6) * 220
+      const refId = `${origin.slice(0, 3).toUpperCase()}-${7000 + utilRef * 3}`
+      const brokerEmail = `ops@${broker.name.toLowerCase().replace(/[^a-z]+/g, '')}-demo.com`
+      await sql`
+        INSERT INTO loads (rate, spot_rpm, loaded_miles, deadhead_miles, transit_days, origin, destination,
+                           broker_mc, broker_email, broker_phone, reference_id,
+                           pickup_date, delivery_date, pickup_time, delivery_time,
+                           source, truck_id, status, dispatcher_id, company_id, invoiced_at, paid_at)
+        VALUES (${rate}, 2.2, ${milesL}, ${milesD}, ${span}, ${origin}, ${destination},
+                ${broker.mc}, ${brokerEmail}, ${broker.phone}, ${refId},
+                ${dateAt(pickupOffset)}, ${dateAt(deliverOffset)},
+                ${rcTime(pickupOffset, '08:00', 'FCFS')}, ${rcTime(deliverOffset, '14:00', 'Appt')},
+                'manual', ${truckId}, 'paid', ${dispatcherId}, 'demo',
+                ${isoAt(deliverOffset + 1)}, ${isoAt(deliverOffset + 3)})`
+      utilRef++
+    }
+  }
+
   await setSetting(RESET_KEY, new Date().toISOString())
 }
 
