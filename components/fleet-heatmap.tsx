@@ -55,6 +55,8 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
   const anchor = today.getTime() - offset * days * DAY_MS
   const cols = Array.from({ length: days }, (_, i) => new Date(anchor - (days - 1 - i) * DAY_MS))
   const colKeys = cols.map(dayKey)
+  // Sat/Sun get a faint different tint so the eye can find week boundaries in the grid.
+  const weekend = cols.map((c) => c.getDay() === 0 || c.getDay() === 6)
 
   const loc = locale === 'ru' ? 'ru-RU' : 'en-US'
   const monthShort = (d: Date) => d.toLocaleDateString(loc, { month: 'short' }).replace('.', '')
@@ -167,7 +169,13 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                       }}
                       onMouseLeave={scheduleClose}
                       className={`size-3.5 rounded-[3px] transition-transform hover:scale-125 ${
-                        loads ? 'bg-good-400' : 'bg-white/[0.06]'
+                        loads
+                          ? weekend[i]
+                            ? 'bg-good-400/80'
+                            : 'bg-good-400'
+                          : weekend[i]
+                            ? 'bg-white/[0.03]'
+                            : 'bg-white/[0.06]'
                       }`}
                     />
                   )
@@ -206,7 +214,12 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
           <span className="w-20 shrink-0 truncate text-2xs font-medium capitalize text-white/45">{monthLabel}</span>
           <div className="flex gap-1">
             {cols.map((c, i) => (
-              <span key={i} className="nums w-3.5 text-center text-[8.5px] leading-none text-white/30">
+              <span
+                key={i}
+                className={`nums w-3.5 text-center text-[8.5px] leading-none ${
+                  weekend[i] ? 'text-haul-300/50' : 'text-white/30'
+                }`}
+              >
                 {c.getDate()}
               </span>
             ))}
