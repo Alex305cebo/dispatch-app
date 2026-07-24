@@ -44,6 +44,43 @@ function extractZip(address: string): string | null {
 }
 
 /**
+ * Mapbox geocoder — the most accurate option available on a free tier (100k requests a
+ * month; ~95% rooftop matching in US metros). Server-only token, so it never reaches the
+ * browser and can stay unrestricted. Tried FIRST: Nominatim missed 7 of 14 real rate-con
+ * addresses and Census only recovered 4 of those, so this is what closes the gap.
+ * Skipped entirely when MAPBOX_TOKEN isn't set — the Census/Nominatim/ZIP chain still runs.
+ */
+async function geocodeMapbox(address: string): Promise<LatLng | null> {
+  const token = process.env.MAPBOX_TOKEN
+  if (!token) return null
+  const key = `geo:mapbox:${address.toLowerCase().trim()}`
+  const hit = await getSetting(key)
+  if (hit === '-') return null
+  if (hit) {
+    const [lat, lng] = hit.split(',').map(Number)
+    return lat && lng ? { lat, lng } : null
+  }
+  try {
+    const url =
+      `https://api.mapbox.com/search/geocode/v6/forward?q=${encodeURIComponent(address)}` +
+      `&country=us&limit=1&access_token=${token}`
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const j = (await res.json()) as { features?: { geometry?: { coordinates?: [number, number] } }[] }
+    const c = j?.features?.[0]?.geometry?.coordinates
+    if (!c || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) {
+      await setSetting(key, '-')
+      return null
+    }
+    const pt = { lat: Number(c[1]), lng: Number(c[0]) } // GeoJSON is [lng, lat]
+    await setSetting(key, `${pt.lat},${pt.lng}`)
+    return pt
+  } catch {
+    return null
+  }
+}
+
+/**
  * US Census geocoder — free, no API key, and it knows a great many warehouse/industrial
  * street addresses Nominatim has no entry for at all. Measured against real rate-con
  * addresses: of 7 that Nominatim missed entirely (freeform AND structured), Census
@@ -134,6 +171,9 @@ export async function cityCoordsBest(
     !!p && (!cityPt || haversineMiles(p, cityPt) <= MAX_ADDR_DRIFT_MI)
 
   if (address) {
+    // Best first: Mapbox (rooftop-accurate, free tier) when a token is configured.
+    const mb = await geocodeMapbox(address)
+    if (trust(mb)) return mb
     const exact = await geocode(address)
     if (trust(exact)) return exact
     // Nominatim has no entry for most warehouse/industrial addresses; Census usually does.

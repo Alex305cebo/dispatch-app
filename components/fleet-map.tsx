@@ -55,29 +55,47 @@ const INK = '#0d0f15'
 // larger labels than raw OSM tiles — used when a key is configured. Without a key we fall
 // back to plain OSM so the map still works (e.g. before the env var lands on the host).
 // NEXT_PUBLIC_ so it's inlined into the client bundle at build time.
+// Provider ladder, best first: Mapbox → MapTiler → plain OSM. Mapbox has the cleanest
+// street typography and label density of the free tiers, so it wins when its token is set;
+// MapTiler stays as the working fallback, and bare OSM keeps local dev alive with no keys
+// at all. Both NEXT_PUBLIC_ — inlined into the client bundle at build time.
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
 const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY
-// @2x (retina) tiles — combined with tileSize 512 + zoomOffset -1 in tileOpts() below,
-// this is MapTiler's recommended setup: labels and highway shields render at a larger,
-// readable size (the plain 256 tiles drew everything tiny) and major roads stay legible
-// when zoomed out. Without a key we fall back to plain OSM so the map still works.
-const STREET_TILES = MAPTILER_KEY
-  ? `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}@2x.png?key=${MAPTILER_KEY}`
-  : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-// Attribution is required by MapTiler's (and OSM's) terms — kept to a compact credit.
-const STREET_ATTRIB = MAPTILER_KEY ? '© MapTiler © OpenStreetMap' : '© OpenStreetMap'
-// MapTiler "hybrid" draws roads + labels OVER the satellite imagery (what the user wants
-// in satellite mode); the Esri fallback is bare imagery with no roads when there's no key.
-const SATELLITE_TILES = MAPTILER_KEY
-  ? `https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}@2x.jpg?key=${MAPTILER_KEY}`
-  : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-const SATELLITE_ATTRIB = MAPTILER_KEY ? '© MapTiler © OpenStreetMap' : '© Esri'
+// 512px @2x tiles + tileSize 512/zoomOffset -1 (see tileOpts) is what both vendors want for
+// retina: each fetched tile covers a zoom lower and is drawn at double size, so labels and
+// highway shields come out large and crisp instead of the tiny 256-grid rendering.
+const mapboxTiles = (style: string) =>
+  `https://api.mapbox.com/styles/v1/mapbox/${style}/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`
 
-// Per-layer tile options. With a MapTiler key BOTH layers use the @2x/512/zoomOffset-1
-// retina grid — each fetched tile covers a level lower and is drawn at double size, which
-// is what makes labels/shields big and crisp. Without a key they stay on the plain 256 grid.
+const STREET_TILES = MAPBOX_TOKEN
+  ? mapboxTiles('streets-v12')
+  : MAPTILER_KEY
+    ? `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}@2x.png?key=${MAPTILER_KEY}`
+    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+// Attribution is required by every one of these vendors' terms — kept to a compact credit.
+const STREET_ATTRIB = MAPBOX_TOKEN
+  ? '© Mapbox © OpenStreetMap'
+  : MAPTILER_KEY
+    ? '© MapTiler © OpenStreetMap'
+    : '© OpenStreetMap'
+// Hybrid: roads and labels drawn OVER the imagery. Esri (no key) is bare imagery, no roads.
+const SATELLITE_TILES = MAPBOX_TOKEN
+  ? mapboxTiles('satellite-streets-v12')
+  : MAPTILER_KEY
+    ? `https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}@2x.jpg?key=${MAPTILER_KEY}`
+    : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+const SATELLITE_ATTRIB = MAPBOX_TOKEN
+  ? '© Mapbox © OpenStreetMap'
+  : MAPTILER_KEY
+    ? '© MapTiler © OpenStreetMap'
+    : '© Esri'
+
+// Per-layer tile options. Mapbox and MapTiler both serve the @2x/512 retina grid; bare OSM
+// and the Esri satellite stay on the plain 256 grid.
+const RETINA = Boolean(MAPBOX_TOKEN || MAPTILER_KEY)
 function tileOpts(sat: boolean) {
   const attribution = sat ? SATELLITE_ATTRIB : STREET_ATTRIB
-  return MAPTILER_KEY ? { tileSize: 512, zoomOffset: -1, maxZoom: 20, attribution } : { maxZoom: 18, attribution }
+  return RETINA ? { tileSize: 512, zoomOffset: -1, maxZoom: 20, attribution } : { maxZoom: 18, attribution }
 }
 
 const esc = (s: string) =>
