@@ -13,7 +13,8 @@ import { extractPdf, looksScanned } from '@/lib/pdf-text'
 import { formatDriverInfo, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
 import { rcWarnings, type RcWarning } from '@/lib/rc-warnings'
-import { createLoadFromRc, uploadDocument } from '@/app/actions'
+import { classifyDoc, createLoadFromRc, uploadDocument } from '@/app/actions'
+import { docKindLabel } from '@/lib/docs'
 import { notify } from '@/lib/notify'
 import { BrokerCheckPanel } from '@/components/broker-check'
 import { useLocale } from '@/components/locale-provider'
@@ -69,6 +70,25 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       const isImage = file.type.startsWith('image/')
       if (!isPdf && !isImage) throw new Error(t(locale, 'newLoad.needPdfOrPhoto'))
 
+      const mime = isImage ? file.type : 'application/pdf'
+      const base64 = await fileToBase64(file)
+
+      // 0) What IS this? Only a real rate con creates a load; a BOL/POD/invoice is just filed
+      // on the truck with its correct kind, not force-labelled "ratecon".
+      const cls = await classifyDoc(base64, mime)
+      if (cls !== 'ratecon') {
+        setStage(t(locale, 'rcDrop.stageSaving'))
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('kind', cls)
+        fd.append('truckId', String(truckId))
+        const up = await uploadDocument(fd)
+        if ('error' in up) throw new Error(up.error)
+        notify('ok', t(locale, 'rcDrop.savedAsKind').replace('{kind}', docKindLabel(cls, locale)), file.name)
+        router.refresh()
+        return
+      }
+
       // 1) text (for warnings + cheap AI input) when it's a text PDF
       let text = ''
       if (isPdf) text = (await extractPdf(file)).text
@@ -87,9 +107,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       // recognizer that ever creates a load here; no regex fallback (a wrong guess
       // shouldn't get to auto-create a load, only a checked one should).
       setStage(hasText ? t(locale, 'rcDrop.stageRecognizing') : t(locale, 'rcDrop.stageRecognizingScan'))
-      const aiInput = hasText
-        ? { text }
-        : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf' }
+      const aiInput = hasText ? { text } : { pdfBase64: base64, mime }
       // One automatic retry before bothering the dispatcher — a slow scan is usually
       // just slow, not a real failure, and this clears most of them silently.
       let ai = await aiParseRateCon(aiInput, locale)

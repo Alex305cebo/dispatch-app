@@ -13,6 +13,7 @@ import { formatDriverInfo, toQrLoad } from '@/lib/ratecon'
 import { cityCoordsBest } from '@/lib/geo-routing'
 import { haversineMiles } from '@/lib/geo'
 import { nextLoadStatus, GEOFENCE_MI } from '@/lib/load-status'
+import type { DocClass } from '@/lib/ai-doc'
 import { docBelongs, getLoad, loadBelongs, truckBelongs } from '@/lib/loads'
 import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
 import { getSetting, setSetting } from '@/lib/settings'
@@ -475,6 +476,14 @@ export async function setTruckAvailability(
 /* ---------- Documents ---------- */
 
 const MAX_DOC_BYTES = 8 * 1024 * 1024
+
+/** Vision-classify an uploaded document (base64) into a doc kind before deciding what to do
+ * with it — so a BOL dropped on the truck card is filed as a BOL, not force-labelled a rate
+ * con. Degrades to 'other' with no AI key; never throws. */
+export async function classifyDoc(base64: string, mime: string): Promise<DocClass> {
+  const { classifyDocument } = await import('@/lib/ai-doc')
+  return classifyDocument(base64, mime)
+}
 
 /**
  * FormData: file, kind, title?, truckId?, loadId?, maintenanceId?. Returns the new

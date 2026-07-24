@@ -267,6 +267,7 @@ export const loadsDict = {
   'rcDrop.stageRetrying': { ru: 'Не получилось с первого раза — пробую ещё раз…', en: "Didn't work the first time — trying again…" },
   'rcDrop.stageCreating': { ru: 'Создаю груз…', en: 'Creating load…' },
   'rcDrop.createdToast': { ru: 'Груз создан из rate con', en: 'Load created from the rate con' },
+  'rcDrop.savedAsKind': { ru: 'Распознано как {kind} — сохранено в трак', en: 'Recognized as {kind} — saved to the truck' },
   'rcDrop.createdBadge': { ru: '✓ Груз создан · проверено ИИ', en: '✓ Load created · AI checked' },
   'rcDrop.openLoad': { ru: 'Открыть груз', en: 'Open load' },
   'rcDrop.anotherRc': { ru: 'ещё RC', en: 'another RC' },
