@@ -285,6 +285,56 @@ function icon(L: typeof import('leaflet'), m: MapMarker) {
   })
 }
 
+// tone → live dot colour + status word. Shared by the single-truck pill and the fleet tally.
+const TONE_KEY = {
+  move: 'tracking.legendMoving',
+  on: 'tracking.legendOnDuty',
+  rest: 'tracking.legendStopped',
+} as const
+
+function StatusDot({ color, live }: { color: string; live: boolean }) {
+  return (
+    <span className="relative flex size-2.5 items-center justify-center">
+      {/* animate-ping ring only while the truck is actually rolling — a small "it's live" cue. */}
+      {live && (
+        <span className="absolute inline-flex size-2.5 animate-ping rounded-full opacity-75" style={{ background: color }} />
+      )}
+      <span className="relative inline-flex size-2.5 rounded-full" style={{ background: color }} />
+    </span>
+  )
+}
+
+function LiveStatus({ trucks, locale }: { trucks: MapMarker[]; locale: ReturnType<typeof useLocale> }) {
+  if (trucks.length === 0) return null
+  const box =
+    'absolute bottom-2.5 left-2.5 z-[1000] flex items-center rounded-full border border-white/15 bg-ink-950/85 backdrop-blur'
+
+  if (trucks.length === 1) {
+    const tone = trucks[0]!.tone ?? 'rest'
+    return (
+      <div className={`${box} gap-2 px-3 py-1.5`}>
+        <StatusDot color={STATE_COLOR[tone]} live={tone === 'move'} />
+        <span className="text-[12px] font-semibold text-white/85">{t(locale, TONE_KEY[tone])}</span>
+      </div>
+    )
+  }
+
+  const counts = { move: 0, on: 0, rest: 0 }
+  for (const tk of trucks) counts[tk.tone ?? 'rest']++
+  const shown = (['move', 'on', 'rest'] as const).filter((tone) => counts[tone] > 0)
+  return (
+    <div className={`${box} gap-3 px-3 py-1.5`}>
+      {shown.map((tone) => (
+        <span key={tone} className="flex items-center gap-1.5">
+          <StatusDot color={STATE_COLOR[tone]} live={tone === 'move'} />
+          <span className="nums text-[12px] font-semibold text-white/85">{counts[tone]}</span>
+          <span className="text-[11px] text-white/50">{t(locale, TONE_KEY[tone])}</span>
+        </span>
+      ))}
+    </div>
+  )
+}
+
 export function FleetMap({
   markers,
   routes = [],
@@ -470,30 +520,10 @@ export function FleetMap({
       >
         {satellite ? t(locale, 'tracking.mapLabel') : t(locale, 'tracking.satelliteLabel')}
       </button>
-      {/* Legend — markers carry no text label now, so the color/shape key lives here
-          once instead of repeating on every pin (same as Motive's map legend). Only
-          rendered when a truck is actually on this map: a finished load draws just its
-          pickup → delivery route, and a duty-status key with no truck to key explains
-          nothing. */}
-      {markers.some((m) => m.kind === 'truck') && (
-        <div className="absolute bottom-2.5 left-2.5 z-[1000] flex items-center gap-2.5 rounded-lg border border-white/15 bg-ink-950/85 px-2.5 py-1.5 text-[10px] font-medium text-white/75 backdrop-blur">
-          <span className="flex items-center gap-1">
-            <span
-              className="inline-block size-0 border-x-[5px] border-b-[8px] border-x-transparent"
-              style={{ borderBottomColor: STATE_COLOR.move }}
-            />
-            {t(locale, 'tracking.legendMoving')}
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="size-2.5 rounded-full" style={{ background: STATE_COLOR.on }} />
-            {t(locale, 'tracking.legendOnDuty')}
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="size-2.5 rounded-full opacity-80" style={{ background: STATE_COLOR.rest }} />
-            {t(locale, 'tracking.legendStopped')}
-          </span>
-        </div>
-      )}
+      {/* Live status, not a passive colour key: one truck shows its own state as a
+          pulsing pill (the dot pings while it's rolling); several show a live tally of how
+          many are moving / on duty / stopped. Nothing when no truck is on the map. */}
+      <LiveStatus trucks={markers.filter((m) => m.kind === 'truck')} locale={locale} />
     </div>
   )
 }
