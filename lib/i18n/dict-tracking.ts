@@ -7,6 +7,8 @@ export const trackingDict = {
   'tracking.pickupPrefix': { ru: 'Пикап · ', en: 'Pickup · ' },
   'tracking.fromPrefix': { ru: 'Из ', en: 'From ' },
   'tracking.toDelivery': { ru: ' до delivery', en: ' to delivery' },
+  'tracking.gpsAgo': { ru: 'GPS: {age} назад', en: 'GPS: {age} ago' },
+  'tracking.gpsStale': { ru: '⚠ GPS устарел — {age} назад', en: '⚠ GPS stale — {age} ago' },
   'tracking.updatedPrefix': { ru: 'обновлено ', en: 'updated ' },
   'tracking.noSnapshotYet': { ru: 'снимков ещё не было', en: 'no snapshot yet' },
 
