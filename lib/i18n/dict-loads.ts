@@ -80,6 +80,9 @@ export const loadsDict = {
   'loadDetail.sourceQr': { ru: 'Пришёл с DAT по QR', en: 'Came in from DAT via QR' },
   'loadDetail.sourceManual': { ru: 'Добавлен вручную', en: 'Added manually' },
   'loadDetail.noRateCon': { ru: 'Rate con не прикреплён — загрузи его ниже, в документах груза.', en: "No rate con attached — upload it below, in the load's documents." },
+  'loadDetail.openDoc': { ru: 'Открыть {label}', en: 'Open {label}' },
+  'loadDetail.uploadDoc': { ru: 'Загрузить {label}', en: 'Upload {label}' },
+  'loadDetail.docUploaded': { ru: '{label} загружен', en: '{label} uploaded' },
   'loadDetail.rateHeading': { ru: 'Ставка за груз', en: 'Load rate' },
   'loadDetail.rateInfo': {
     ru: 'Сверху — общая ставка за груз. Ниже строкой — что остаётся чистыми и минимальная ставка. Все расходы (топливо по MPG и цене дизеля, водитель, платёж за трак, страховка, ELD/пермиты, обслуживание, факторинг, диспетч) спрятаны под «Нажмите, чтобы увидеть все расходы».',

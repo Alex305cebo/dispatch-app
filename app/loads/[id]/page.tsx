@@ -17,6 +17,7 @@ import { TruckForm } from '@/components/truck-form'
 import { DocList, DocUpload } from '@/components/docs'
 import { InvoiceBox } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
+import { DocButton } from '@/components/doc-button'
 import { BackButton } from '@/components/back-button'
 import { DriverInfoCard } from '@/components/driver-info-card'
 import { Info } from '@/components/info'
@@ -86,6 +87,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           ) : (
             <span className="text-xs text-white/45">{t(locale, 'loadDetail.noRateCon')}</span>
           )}
+          <DocButton label="BOL" kind="bol" docId={bolDoc?.id ?? null} loadId={load.id} />
+          <DocButton label="POD" kind="pod" docId={podDoc?.id ?? null} loadId={load.id} />
         </div>
 
         <div className="mt-5 border-t border-white/8 pt-5">
