@@ -275,7 +275,11 @@ export function FleetMap({
         }
         bounds.extend([m.lat, m.lng])
       }
-      map.fitBounds(bounds.pad(0.2), { maxZoom: 8 })
+      // maxZoom 13 (was 8): a single truck — the tracking view — now opens close enough
+      // that OSM labels the interstates, highways and towns around it (street names come
+      // in as you zoom further). A fleet spread across states still fits its own bounds at
+      // a lower zoom, so this only tightens the single/clustered case.
+      map.fitBounds(bounds.pad(0.2), { maxZoom: 13 })
     })()
 
     return () => {
