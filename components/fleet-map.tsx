@@ -56,14 +56,28 @@ const INK = '#0d0f15'
 // back to plain OSM so the map still works (e.g. before the env var lands on the host).
 // NEXT_PUBLIC_ so it's inlined into the client bundle at build time.
 const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY
+// @2x (retina) tiles — combined with tileSize 512 + zoomOffset -1 in tileOpts() below,
+// this is MapTiler's recommended setup: labels and highway shields render at a larger,
+// readable size (the plain 256 tiles drew everything tiny) and major roads stay legible
+// when zoomed out. Without a key we fall back to plain OSM so the map still works.
 const STREET_TILES = MAPTILER_KEY
-  ? `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`
+  ? `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}@2x.png?key=${MAPTILER_KEY}`
   : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 // Attribution is required by MapTiler's (and OSM's) terms — kept to a compact credit.
 const STREET_ATTRIB = MAPTILER_KEY ? '© MapTiler © OpenStreetMap' : '© OpenStreetMap'
 const SATELLITE_TILES =
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 const SATELLITE_ATTRIB = '© Esri'
+
+// Per-layer tile options. MapTiler @2x wants a 512 grid shifted by -1 so each fetched
+// tile covers a level lower and is drawn at double size — that's what makes the labels
+// big and crisp. OSM and the Esri satellite stay on the plain 256 grid.
+function tileOpts(sat: boolean) {
+  if (sat) return { maxZoom: 18, attribution: SATELLITE_ATTRIB }
+  return MAPTILER_KEY
+    ? { tileSize: 512, zoomOffset: -1, maxZoom: 20, attribution: STREET_ATTRIB }
+    : { maxZoom: 18, attribution: STREET_ATTRIB }
+}
 
 const esc = (s: string) =>
   s.replace(/[&<>]/g, (c) => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'))
@@ -211,10 +225,10 @@ export function FleetMap({
       map = L.map(ref.current, { zoomControl: true, attributionControl: true })
       map.attributionControl.setPrefix(false)
       mapRef.current = map
-      tileRef.current = L.tileLayer(satelliteRef.current ? SATELLITE_TILES : STREET_TILES, {
-        maxZoom: 18,
-        attribution: satelliteRef.current ? SATELLITE_ATTRIB : STREET_ATTRIB,
-      }).addTo(map)
+      tileRef.current = L.tileLayer(
+        satelliteRef.current ? SATELLITE_TILES : STREET_TILES,
+        tileOpts(satelliteRef.current),
+      ).addTo(map)
 
       const bounds = L.latLngBounds([])
       // Draw route lines first so markers sit on top. A real road route (coords)
@@ -309,10 +323,7 @@ export function FleetMap({
     void (async () => {
       const L = (await import('leaflet')).default
       if (tileRef.current) map.removeLayer(tileRef.current)
-      tileRef.current = L.tileLayer(satellite ? SATELLITE_TILES : STREET_TILES, {
-        maxZoom: 18,
-        attribution: satellite ? SATELLITE_ATTRIB : STREET_ATTRIB,
-      }).addTo(map)
+      tileRef.current = L.tileLayer(satellite ? SATELLITE_TILES : STREET_TILES, tileOpts(satellite)).addTo(map)
     })()
   }, [satellite])
 
