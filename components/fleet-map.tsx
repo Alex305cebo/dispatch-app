@@ -51,9 +51,19 @@ const DEST = '#9b8eff'
 const PICKUP = '#22d3ee'
 const INK = '#0d0f15'
 
-const STREET_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+// MapTiler "Streets v2" renders proper US highway shields (I-90, US-41…) and cleaner,
+// larger labels than raw OSM tiles — used when a key is configured. Without a key we fall
+// back to plain OSM so the map still works (e.g. before the env var lands on the host).
+// NEXT_PUBLIC_ so it's inlined into the client bundle at build time.
+const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY
+const STREET_TILES = MAPTILER_KEY
+  ? `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`
+  : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+// Attribution is required by MapTiler's (and OSM's) terms — kept to a compact credit.
+const STREET_ATTRIB = MAPTILER_KEY ? '© MapTiler © OpenStreetMap' : '© OpenStreetMap'
 const SATELLITE_TILES =
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+const SATELLITE_ATTRIB = '© Esri'
 
 const esc = (s: string) =>
   s.replace(/[&<>]/g, (c) => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'))
@@ -196,13 +206,14 @@ export function FleetMap({
       await import('leaflet/dist/leaflet.css' as string).catch(() => {})
       if (disposed || !ref.current) return
 
-      // attributionControl off: no "Leaflet | © OpenStreetMap" watermark (owner's
-      // request, internal tool). OSM's tile policy asks for a credit — restore a
-      // small attribution or self-host tiles before this goes public.
-      map = L.map(ref.current, { zoomControl: true, attributionControl: false })
+      // Compact attribution: MapTiler and OSM both require a source credit. setPrefix(false)
+      // drops the "Leaflet" link so only the tile credit remains — small text, bottom-right.
+      map = L.map(ref.current, { zoomControl: true, attributionControl: true })
+      map.attributionControl.setPrefix(false)
       mapRef.current = map
       tileRef.current = L.tileLayer(satelliteRef.current ? SATELLITE_TILES : STREET_TILES, {
         maxZoom: 18,
+        attribution: satelliteRef.current ? SATELLITE_ATTRIB : STREET_ATTRIB,
       }).addTo(map)
 
       const bounds = L.latLngBounds([])
@@ -300,6 +311,7 @@ export function FleetMap({
       if (tileRef.current) map.removeLayer(tileRef.current)
       tileRef.current = L.tileLayer(satellite ? SATELLITE_TILES : STREET_TILES, {
         maxZoom: 18,
+        attribution: satellite ? SATELLITE_ATTRIB : STREET_ATTRIB,
       }).addTo(map)
     })()
   }, [satellite])
