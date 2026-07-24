@@ -200,8 +200,9 @@ export function Nav({
         </svg>
       </button>
 
-      {/* Tabs: a row on the phone, a column in the sidebar. */}
-      <div className="flex items-stretch justify-around gap-0.5 md:flex-col md:gap-0.5">
+      {/* Tabs: a floating glass dock on the phone (see .nav-dock), a plain column in the
+          sidebar. */}
+      <div className="nav-dock flex items-stretch justify-around gap-0.5 md:flex-col md:gap-0.5">
         {items.map((it) => {
         const active = !it.soon && (it.href === '/' ? pathname === '/' : pathname.startsWith(it.href))
 

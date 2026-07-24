@@ -411,63 +411,86 @@
    tint is defined right here (not as a separate Tailwind bg-* class in nav.tsx) —
    an unlayered rule always wins over a Tailwind utility regardless of which one is
    more specific, so a competing bg-haul-500/12 class would simply never paint. */
+/* Floating dock for the phone tab bar: one glass bar so the tabs read as a single
+   grounded control instead of separate flat squares. Transparent on desktop, where the
+   tabs live in the sidebar instead. */
+.nav-dock {
+  padding: 0.25rem;
+  border-radius: 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(18, 20, 28, 0.72);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow:
+    0 10px 30px -8px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.07);
+}
+:root[data-theme='light'] .nav-dock {
+  border-color: rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow:
+    0 10px 30px -8px rgba(15, 23, 42, 0.2),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
 .nav-tab-btn {
   position: relative;
-  border-color: rgba(255, 255, 255, 0.1);
-  background-color: rgb(28, 31, 40);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  /* On the phone the tabs sit inside .nav-dock, so each tab is transparent and only the
+     ACTIVE one wears an accent pill — clean, not six competing glass squares. */
+  border-color: transparent;
+  background-color: transparent;
   transition:
-    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.2s ease,
-    background-color 0.2s ease,
-    border-color 0.2s ease,
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 0.25s ease,
     color 0.2s ease;
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.28),
-    0 2px 5px -1px rgba(0, 0, 0, 0.4);
 }
 .nav-tab-btn:active {
-  transform: scale(0.93);
+  transform: scale(0.9);
 }
-/* The active route's tab — its own blue-tinted glass, brighter border, more lift,
-   so switching tabs reads as a clear little "pop" (spring easing above) rather
-   than a flat colour swap. */
+/* The active route — an accent pill behind the icon+label. Its text/icon colour comes
+   from the component (text-haul-400), which reads on the tint in both themes. The icon
+   lifts a touch so switching tabs has a small "pop". */
 .nav-tab-btn[aria-current='page'] {
-  border-color: rgba(155, 142, 255, 0.5);
-  background-color: rgb(62, 50, 122);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.2),
-    0 4px 12px -2px rgba(109, 90, 232, 0.4);
+  background-color: rgba(109, 90, 232, 0.18);
+}
+:root[data-theme='light'] .nav-tab-btn[aria-current='page'] {
+  background-color: rgba(109, 90, 232, 0.13);
+}
+.nav-tab-btn svg {
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.nav-tab-btn[aria-current='page'] svg {
+  transform: translateY(-1px) scale(1.08);
 }
 @media (min-width: 768px) {
-  .nav-tab-btn {
-    transform: none;
-    box-shadow: none;
-    background-color: transparent;
-    border-color: transparent;
+  .nav-dock {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+    box-shadow: none;
+  }
+  .nav-tab-btn {
+    transform: none;
   }
   .nav-tab-btn:hover {
     background-color: rgba(255, 255, 255, 0.04);
   }
   .nav-tab-btn[aria-current='page'] {
     background-color: rgba(255, 255, 255, 0.06);
-    border-color: transparent;
-    box-shadow: none;
+  }
+  .nav-tab-btn[aria-current='page'] svg {
+    transform: none;
   }
 }
 
-/* Light theme, phone bars only (md+ tabs go transparent on the light sidebar and read
-   fine). The dark glass fills below are hardcoded for the DARK page; on the light page
-   the text and icons flip to dark via the design tokens, so unless the fills flip too
-   they land dark-on-dark and disappear — the reported "black buttons, no text". Flip the
-   fills to light cards; the flipped-dark text then reads on them. */
+/* Light theme, phone account icons (they float individually, not inside the tab dock).
+   Their dark glass fill is built for the dark page; on the light page the icon flips to
+   dark via the design tokens, so without flipping the fill too it lands dark-on-dark and
+   vanishes — the reported "black buttons, no text". Flip the fill to a light card. */
 @media (max-width: 767.98px) {
-  :root[data-theme='light'] .nav-tab-btn,
   :root[data-theme='light'] .nav-icon-btn {
     background: #ffffff;
     border-color: rgba(15, 23, 42, 0.09);
@@ -475,13 +498,6 @@
       inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
       0 2px 6px -1px rgba(15, 23, 42, 0.14),
       0 1px 2px 0 rgba(15, 23, 42, 0.08);
-  }
-  /* Active tab: solid accent fill with white text, so it clearly pops on the light bar. */
-  :root[data-theme='light'] .nav-tab-btn[aria-current='page'] {
-    background: rgb(109, 90, 232);
-    border-color: rgb(109, 90, 232);
-    color: #ffffff;
-    box-shadow: 0 4px 12px -2px rgba(109, 90, 232, 0.4);
   }
   /* Notifier alert states keep a readable tint on the light bar. */
   :root[data-theme='light'] .nav-icon-btn.tone-warn {
