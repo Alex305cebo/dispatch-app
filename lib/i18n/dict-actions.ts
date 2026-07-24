@@ -6,6 +6,10 @@
 export const actionsDict = {
   'actions.needOriginDest': { ru: 'Нужны и откуда, и куда.', en: 'Need both an origin and a destination.' },
   'actions.noAccess': { ru: 'Нет доступа к этой функции.', en: 'No access to this feature.' },
+  'actions.deliveredNeedsDocs': {
+    ru: 'Нельзя отметить «Доставлен»: не загружены {missing}.',
+    en: 'Can’t mark Delivered: {missing} not uploaded.',
+  },
   'actions.loadNotFound': { ru: 'Груз не найден.', en: 'Load not found.' },
   'actions.demoDisabled': { ru: 'В демо-режиме недоступно.', en: 'Not available in demo mode.' },
   'actions.needNameAndMcDot': { ru: 'Нужны минимум название и MC/DOT.', en: 'Need at least a name and MC/DOT.' },

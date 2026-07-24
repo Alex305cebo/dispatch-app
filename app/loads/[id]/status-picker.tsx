@@ -33,7 +33,37 @@ const STEP_TONE: Record<LoadStatus, { dot: string; text: string; line: string }>
  * the question anyone opening a load asks first. A rail answers both: steps behind the
  * current one are filled and ticked, the current one is lit, the rest are hollow.
  */
-export function StatusPicker({ id, current }: { id: number; current: LoadStatus }) {
+// BOL rides at the loading step, POD at delivery — the paperwork each stage produces,
+// filed right where it belongs on the rail. Present → a clickable chip to view it; missing
+// → a muted placeholder, which is also the visual reason "Delivered" is gated below.
+function DocChip({ label, docId }: { label: string; docId: number | null }) {
+  if (docId)
+    return (
+      <a
+        href={`/view/${docId}`}
+        className="mt-1 rounded bg-good-400/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-good-400 ring-1 ring-good-400/30 transition-colors hover:bg-good-400/25"
+      >
+        {label}
+      </a>
+    )
+  return (
+    <span className="mt-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white/25">
+      {label}
+    </span>
+  )
+}
+
+export function StatusPicker({
+  id,
+  current,
+  bolId = null,
+  podId = null,
+}: {
+  id: number
+  current: LoadStatus
+  bolId?: number | null
+  podId?: number | null
+}) {
   const [pending, start] = useTransition()
   const locale = useLocale()
   // The rail redraws the instant a step is clicked, then the server action confirms it.
@@ -48,9 +78,10 @@ export function StatusPicker({ id, current }: { id: number; current: LoadStatus 
 
   const go = (s: LoadStatus) =>
     start(async () => {
-      setShown(s)
-      await setStatus(id, s)
-      notify('ok', `${t(locale, 'loads.loadHash')}${id}: ${statusLabel(locale, s)}`)
+      setShown(s) // optimistic; reverts to `current` after the action if the server rejects
+      const res = await setStatus(id, s)
+      if (res?.error) notify('error', res.error)
+      else notify('ok', `${t(locale, 'loads.loadHash')}${id}: ${statusLabel(locale, s)}`)
     })
 
   return (
@@ -99,6 +130,8 @@ export function StatusPicker({ id, current }: { id: number; current: LoadStatus 
                 >
                   {statusLabel(locale, s)}
                 </span>
+                {s === 'booked' && <DocChip label="BOL" docId={bolId} />}
+                {s === 'delivered' && <DocChip label="POD" docId={podId} />}
               </div>
             </li>
           )

@@ -40,6 +40,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const docs = await listDocs(companyId, { loadId: load.id })
   const invoiceDoc = docs.find((d) => d.kind === 'invoice')
   const rateConDoc = docs.find((d) => d.kind === 'ratecon')
+  const bolDoc = docs.find((d) => d.kind === 'bol')
+  const podDoc = docs.find((d) => d.kind === 'pod')
   // Needed to tell the dispatcher up front if an invoice can even be built.
   const company = await getCompany()
 
@@ -71,7 +73,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             row with the rate-con control squeezed it to ~160px and clipped every label
             to "Оплач…". Rate con moves onto its own line underneath. */}
         <div className="mt-5">
-          <StatusPicker id={load.id} current={load.status} />
+          <StatusPicker
+            id={load.id}
+            current={load.status}
+            bolId={bolDoc?.id ?? null}
+            podId={podDoc?.id ?? null}
+          />
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           {rateConDoc ? (

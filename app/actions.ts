@@ -157,8 +157,17 @@ async function autoAdvanceLoadStatuses(): Promise<void> {
       pickupArrived,
       deliveryArrived,
     })
-    // Guard on the status we read, so a manual change in between wins over the auto-move.
-    if (next) await sql`UPDATE loads SET status = ${next} WHERE id = ${r.id} AND status = ${r.status}`
+    if (next) {
+      // Same paperwork gate as the manual button: the truck physically leaving delivery
+      // doesn't close the load out until its BOL + POD are in. It stays in_transit and
+      // flips to delivered on a later poll, once the docs are uploaded.
+      if (next === 'delivered') {
+        const d = await deliveryDocs(r.id)
+        if (!d.bol || !d.pod) continue
+      }
+      // Guard on the status we read, so a manual change in between wins over the auto-move.
+      await sql`UPDATE loads SET status = ${next} WHERE id = ${r.id} AND status = ${r.status}`
+    }
   }
 }
 
@@ -409,7 +418,27 @@ export async function createLoadFromExistingRc(
  * button) — 'paid' and 'delivered' must still keep paid_at in sync either way, or a
  * load can end up "paid" by status but invisible on the AR page's Оплачено tab
  * (which goes by paid_at), exactly the split state that happened before this. */
-export async function setStatus(id: number, status: LoadStatus): Promise<void> {
+/** Which of the two delivery documents a load already has. */
+async function deliveryDocs(loadId: number): Promise<{ bol: boolean; pod: boolean }> {
+  const rows = (await sql`
+    SELECT DISTINCT kind FROM documents WHERE load_id = ${loadId} AND kind IN ('bol', 'pod')`) as {
+    kind: string
+  }[]
+  const kinds = new Set(rows.map((r) => r.kind))
+  return { bol: kinds.has('bol'), pod: kinds.has('pod') }
+}
+
+export async function setStatus(id: number, status: LoadStatus): Promise<{ error: string } | void> {
+  // "Delivered" (and paid, which implies it) is the point where the paperwork must exist —
+  // a load can't be closed out without its BOL and POD. Gate both the manual click here and
+  // the GPS auto-advance (autoAdvanceLoadStatuses) on the same check.
+  if (status === 'delivered' || status === 'paid') {
+    const d = await deliveryDocs(id)
+    if (!d.bol || !d.pod) {
+      const missing = [!d.bol ? 'BOL' : null, !d.pod ? 'POD' : null].filter(Boolean).join(' + ')
+      return { error: t(await getLocale(), 'actions.deliveredNeedsDocs').replace('{missing}', missing) }
+    }
+  }
   await sql`
     UPDATE loads SET status = ${status},
       paid_at = CASE WHEN ${status} = 'paid' THEN COALESCE(paid_at, now())
