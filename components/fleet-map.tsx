@@ -65,18 +65,19 @@ const STREET_TILES = MAPTILER_KEY
   : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 // Attribution is required by MapTiler's (and OSM's) terms — kept to a compact credit.
 const STREET_ATTRIB = MAPTILER_KEY ? '© MapTiler © OpenStreetMap' : '© OpenStreetMap'
-const SATELLITE_TILES =
-  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-const SATELLITE_ATTRIB = '© Esri'
+// MapTiler "hybrid" draws roads + labels OVER the satellite imagery (what the user wants
+// in satellite mode); the Esri fallback is bare imagery with no roads when there's no key.
+const SATELLITE_TILES = MAPTILER_KEY
+  ? `https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}@2x.jpg?key=${MAPTILER_KEY}`
+  : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+const SATELLITE_ATTRIB = MAPTILER_KEY ? '© MapTiler © OpenStreetMap' : '© Esri'
 
-// Per-layer tile options. MapTiler @2x wants a 512 grid shifted by -1 so each fetched
-// tile covers a level lower and is drawn at double size — that's what makes the labels
-// big and crisp. OSM and the Esri satellite stay on the plain 256 grid.
+// Per-layer tile options. With a MapTiler key BOTH layers use the @2x/512/zoomOffset-1
+// retina grid — each fetched tile covers a level lower and is drawn at double size, which
+// is what makes labels/shields big and crisp. Without a key they stay on the plain 256 grid.
 function tileOpts(sat: boolean) {
-  if (sat) return { maxZoom: 18, attribution: SATELLITE_ATTRIB }
-  return MAPTILER_KEY
-    ? { tileSize: 512, zoomOffset: -1, maxZoom: 20, attribution: STREET_ATTRIB }
-    : { maxZoom: 18, attribution: STREET_ATTRIB }
+  const attribution = sat ? SATELLITE_ATTRIB : STREET_ATTRIB
+  return MAPTILER_KEY ? { tileSize: 512, zoomOffset: -1, maxZoom: 20, attribution } : { maxZoom: 18, attribution }
 }
 
 const esc = (s: string) =>

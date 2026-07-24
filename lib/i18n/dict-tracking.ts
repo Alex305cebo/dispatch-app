@@ -37,7 +37,7 @@ export const trackingDict = {
     en: 'No coordinates yet — connect truck tracking in the Tracking section.',
   },
   'tracking.mapLabel': { ru: '🗺 Карта', en: '🗺 Map' },
-  'tracking.satelliteLabel': { ru: '🛰 Спутник', en: '🛰 Satellite' },
+  'tracking.satelliteLabel': { ru: '🛰 Гибрид', en: '🛰 Hybrid' },
   'tracking.legendMoving': { ru: 'едет', en: 'moving' },
   'tracking.legendStopped': { ru: 'стоит', en: 'stopped' },
 
