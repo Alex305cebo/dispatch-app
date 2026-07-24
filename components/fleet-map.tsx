@@ -323,8 +323,19 @@ export function FleetMap({
     if (!map) return // first mount: the build effect above already picks the right tiles
     void (async () => {
       const L = (await import('leaflet')).default
-      if (tileRef.current) map.removeLayer(tileRef.current)
-      tileRef.current = L.tileLayer(satellite ? SATELLITE_TILES : STREET_TILES, tileOpts(satellite)).addTo(map)
+      const old = tileRef.current
+      // Add the new layer FIRST and drop the old one only once the new tiles have painted.
+      // remove-then-add blanked the map while the new tiles downloaded — that empty gap is
+      // what read as a slow, flickery toggle. Tile panes sit below markers, so stacking two
+      // briefly never hides the pins. Fallback timer in case some tiles never fire 'load'.
+      const next = L.tileLayer(satellite ? SATELLITE_TILES : STREET_TILES, tileOpts(satellite))
+      const dropOld = () => {
+        if (old && map.hasLayer(old)) map.removeLayer(old)
+      }
+      next.once('load', dropOld)
+      setTimeout(dropOld, 2500)
+      next.addTo(map)
+      tileRef.current = next
     })()
   }, [satellite])
 
