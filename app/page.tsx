@@ -441,18 +441,20 @@ export default async function Page() {
                 >
                   <Link href={`/loads/${load.id}`} className="flex min-w-0 flex-1 items-center gap-4">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate text-[14px] font-medium">
-                          {load.origin ?? '—'} → {load.destination ?? '—'}
-                        </span>
-                        <StatusBadge status={load.status} locale={locale} />
+                      {/* Route gets the whole line and wraps in full instead of truncating —
+                          the badge moved down to the details row so nothing steals its width. */}
+                      <div className="text-[14px] font-medium leading-snug">
+                        {load.origin ?? '—'} → {load.destination ?? '—'}
                       </div>
-                      <div className="nums mt-1 text-[12px] text-white/65">
-                        <span className="text-white/45">{truckLabel(truck)}</span> · {tr(locale, 'overview.net')}{' '}
-                        <span className={r.net >= 0 ? 'text-good-400/90' : 'text-bad-400/90'}>
-                          {usd.format(r.net)}
-                        </span>{' '}
-                        · {usd2.format(r.allInRpm)}/mi
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <StatusBadge status={load.status} locale={locale} />
+                        <span className="nums min-w-0 text-[12px] text-white/65">
+                          <span className="text-white/45">{truckLabel(truck)}</span> · {tr(locale, 'overview.net')}{' '}
+                          <span className={r.net >= 0 ? 'text-good-400/90' : 'text-bad-400/90'}>
+                            {usd.format(r.net)}
+                          </span>{' '}
+                          · {usd2.format(r.allInRpm)}/mi
+                        </span>
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
