@@ -1,0 +1,44 @@
+name: DB backup
+
+# The app's real data — loads, trucks, brokers, AND every document (BOL/POD/rate
+# cons live as bytea) — sits in Neon, which Hostinger's file backups don't touch.
+# This is the off-site copy: a daily pg_dump pulled out of Neon and kept as a
+# GitHub artifact, independent of both Neon and Hostinger.
+
+on:
+  schedule:
+    # 07:00 UTC daily. Cron runs on the default branch only.
+    - cron: '0 7 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      # Neon runs Postgres 17; the runner's bundled client is older and pg_dump
+      # refuses a newer server. Pull pg_dump 17 from the official PGDG repo.
+      - name: Install pg_dump 17
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Dump database
+        env:
+          # Use the DIRECT connection string (host without "-pooler"): pg_dump over
+          # PgBouncer's transaction pooler breaks. Add as a repo secret.
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          test -n "$DATABASE_URL" || { echo "NEON_DATABASE_URL secret is not set"; exit 1; }
+          stamp=$(date -u +%Y-%m-%d)
+          # -Fc = compressed custom format, the one pg_restore wants.
+          pg_dump "$DATABASE_URL" -Fc -f "dispatch-$stamp.dump"
+          ls -lh "dispatch-$stamp.dump"
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup
+          path: dispatch-*.dump
+          retention-days: 30
