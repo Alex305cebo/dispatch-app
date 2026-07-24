@@ -2,6 +2,7 @@ import { sql } from '@/lib/db'
 import { docKindLabel, type DocKind } from '@/lib/docs'
 import { getGeminiUsage } from '@/lib/gemini-usage'
 import { Info } from '@/components/info'
+import { Name } from '@/components/name'
 import { getLocale } from '@/lib/i18n-server'
 import { t, type Locale } from '@/lib/i18n'
 
@@ -27,7 +28,7 @@ type AuditRow = {
 
 type Event = {
   at: string
-  who: string
+  who: string | null // raw name; null → the "no name" placeholder (rendered, never abbreviated)
   what: string // main action
   detail: string // muted second line: device (login) or load route (delete)
   where: string // actor city/country from the IP
@@ -87,7 +88,7 @@ export default async function Page() {
     ...logins.map(
       (r): Event => ({
         at: r.at,
-        who: r.who ?? t(locale, 'admin.logins.noName'),
+        who: r.who,
         what: t(locale, 'admin.logins.loggedIn'),
         detail: device(r.user_agent, locale),
         where: r.city ?? t(locale, 'admin.logins.local'),
@@ -112,7 +113,7 @@ export default async function Page() {
       const detail = r.action === 'delete_load' || r.action === 'delete_todo' || r.action === 'delete_maintenance' ? '' : route
       return {
         at: r.at,
-        who: r.who ?? t(locale, 'admin.logins.noName'),
+        who: r.who,
         what,
         detail,
         where: r.city ?? t(locale, 'admin.logins.local'),
@@ -170,7 +171,9 @@ export default async function Page() {
                   <span
                     className={`size-1.5 shrink-0 rounded-full ${e.tone === 'delete' ? 'bg-bad-400' : 'bg-good-500'}`}
                   />
-                  <span className="font-medium text-white/90">{e.who}</span>
+                  <span className="font-medium text-white/90">
+                    {e.who ? <Name full={e.who} /> : t(locale, 'admin.logins.noName')}
+                  </span>
                 </span>
                 <span className="pl-3.5 text-white/80">{e.what}</span>
                 {e.detail && <span className="pl-3.5 text-[11px] text-white/45">{e.detail}</span>}
