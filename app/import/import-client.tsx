@@ -37,6 +37,7 @@ function labelsFor(locale: Locale): Record<FoundKey, string> {
     destination: t(locale, 'import.label.destination'),
     // Not "broker's MC": real rate cons carry the CARRIER's MC (yours) just as often.
     mcNumber: t(locale, 'import.label.mcNumber'),
+    brokerName: t(locale, 'import.label.brokerName'),
     brokerPhone: t(locale, 'import.label.brokerPhone'),
     brokerEmail: t(locale, 'import.label.brokerEmail'),
     referenceId: t(locale, 'import.label.referenceId'),

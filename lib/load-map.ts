@@ -19,7 +19,13 @@ export function statusTone(s: string | null): 'move' | 'on' | 'rest' {
   return 'rest'
 }
 
-export type LoadMapData = { markers: MapMarker[]; routes: MapRoute[]; etaText: string | null }
+export type LoadMapData = {
+  markers: MapMarker[]
+  routes: MapRoute[]
+  etaText: string | null
+  /** Total road miles of the drawn route — shown big over the map. */
+  miles: number | null
+}
 
 /** How old an ELD fix may be before we stop presenting it as "where the truck is now".
  * A rolling truck covers ~15 miles in 15 minutes, so an older pin actively lies. Note
@@ -45,6 +51,7 @@ export async function loadMapData(
   const markers: MapMarker[] = []
   const routes: MapRoute[] = []
   let etaText: string | null = null
+  let miles: number | null = null
 
   // Prefer the RC's exact street address over the bare city — pins the real dock,
   // not just the city center. Falls back to ZIP then city if OSM can't resolve that
@@ -89,10 +96,11 @@ export async function loadMapData(
     if (pickup && dest) {
       const leg = await deliveryInfoBest(pickup, load.deliveryAddress, load.destination)
       routes.push({ from: [pickup.lat, pickup.lng], to: [dest.lat, dest.lng], coords: leg?.coords })
+      miles = leg?.miles ?? (load.loadedMiles > 0 ? load.loadedMiles : null)
     }
-    return { markers, routes, etaText }
+    return { markers, routes, etaText, miles }
   }
-  if (noGps) return { markers, routes, etaText }
+  if (noGps) return { markers, routes, etaText, miles }
 
   // Age of the fix itself, not of our last poll — a stale pin is greyed out and says so
   // instead of pretending the truck is standing there right now.
@@ -153,6 +161,7 @@ export async function loadMapData(
 
   if (legToDelivery && load) {
     const routeMiles = (legToPickup?.miles ?? 0) + legToDelivery.miles
+    miles = routeMiles
     const routeEtaMin = (legToPickup?.etaMin ?? 0) + legToDelivery.etaMin
     etaText = `${routeMiles} mi · ~${driveTime(routeEtaMin, locale)}${t(locale, 'tracking.toDelivery')}`
     truckM.eta = etaText
@@ -177,5 +186,5 @@ export async function loadMapData(
   }
 
   markers.push(truckM)
-  return { markers, routes, etaText }
+  return { markers, routes, etaText, miles }
 }

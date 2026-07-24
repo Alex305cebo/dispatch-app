@@ -47,7 +47,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   // not just whatever the truck page happens to call its "current" assignment.
   const fleet = await fleetStatusByUnit()
   const fs = truck.number ? fleet.get(truck.number) : undefined
-  const { markers: mapMarkers, routes: mapRoutes, etaText } = await loadMapData(load, truck, fs, locale)
+  const { markers: mapMarkers, routes: mapRoutes, etaText, miles: routeMiles } = await loadMapData(load, truck, fs, locale)
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -97,9 +97,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
             {t(locale, 'loadDetail.mapHeading')}
             <Info text={t(locale, 'loadDetail.mapInfo')} />
-            {etaText && <span className="ml-auto text-[11px] font-normal normal-case text-white/55">{etaText}</span>}
+            {etaText && <span className="ml-auto text-[13px] font-semibold normal-case text-white/80">{etaText}</span>}
           </h2>
-          <FleetMap markers={mapMarkers} routes={mapRoutes} height={280} />
+          <FleetMap markers={mapMarkers} routes={mapRoutes} height={280} distanceMi={routeMiles} />
         </section>
       )}
 
@@ -126,6 +126,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             deadheadMiles: load.deadheadMiles,
             transitDays: load.transitDays,
             spotRpm: load.spotRpm,
+            brokerName: load.brokerName,
             brokerMc: load.brokerMc,
             brokerPhone: load.brokerPhone,
             brokerEmail: load.brokerEmail,

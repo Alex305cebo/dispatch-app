@@ -28,6 +28,7 @@ export type LoadRecord = Load & {
   destination: string | null
   truckLocation: string | null
   spotRpm: number | null
+  brokerName: string | null
   brokerMc: string | null
   brokerEmail: string | null
   brokerPhone: string | null
@@ -136,6 +137,7 @@ export type LoadRow = {
   destination: string | null
   truck_location: string | null
   spot_rpm: number | null
+  broker_name: string | null
   broker_mc: string | null
   broker_email: string | null
   broker_phone: string | null
@@ -195,6 +197,7 @@ export function rowToLoad(r: LoadRow): LoadRecord {
     destination: r.destination,
     truckLocation: r.truck_location,
     spotRpm: r.spot_rpm,
+    brokerName: r.broker_name,
     brokerMc: r.broker_mc,
     brokerEmail: r.broker_email,
     brokerPhone: r.broker_phone,

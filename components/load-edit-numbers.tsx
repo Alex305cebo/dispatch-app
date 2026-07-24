@@ -20,6 +20,7 @@ export type LoadDetails = {
   deadheadMiles: number
   transitDays: number
   spotRpm: number | null
+  brokerName: string | null
   brokerMc: string | null
   brokerPhone: string | null
   brokerEmail: string | null
@@ -41,6 +42,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
     deadheadMiles: String(load.deadheadMiles),
     transitDays: String(load.transitDays),
     spotRpm: load.spotRpm != null ? String(load.spotRpm) : '',
+    brokerName: load.brokerName ?? '',
     brokerMc: load.brokerMc ?? '',
     brokerPhone: load.brokerPhone ?? '',
     brokerEmail: load.brokerEmail ?? '',
@@ -58,6 +60,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
         deadheadMiles: Number(f.deadheadMiles) || 0,
         transitDays: Number(f.transitDays) || 0,
         spotRpm: f.spotRpm.trim() === '' ? null : Number(f.spotRpm),
+        brokerName: f.brokerName.trim() || null,
         brokerMc: f.brokerMc.trim() || null,
         brokerPhone: f.brokerPhone.trim() || null,
         brokerEmail: f.brokerEmail.trim() || null,
@@ -86,6 +89,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
             value={load.spotRpm ? `${usd2.format(load.spotRpm)}/mi` : '—'}
           />
           {load.truckLocation && <Row label={t(locale, 'loadEdit.truckWasAt')} value={load.truckLocation} />}
+          {load.brokerName && <Row label={t(locale, 'loadEdit.brokerName')} value={load.brokerName} />}
           {load.brokerMc && <Row label={t(locale, 'loadEdit.brokerMc')} value={load.brokerMc} />}
           {load.brokerPhone && (
             <Row label={t(locale, 'loadEdit.phone')} value={load.brokerPhone} href={`tel:${load.brokerPhone}`} />
@@ -114,6 +118,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
         <Field label={t(locale, 'loadEdit.deadheadMiles')} value={f.deadheadMiles} onChange={set('deadheadMiles')} />
         <Field label={t(locale, 'loadEdit.transitDays')} value={f.transitDays} onChange={set('transitDays')} />
         <Field label="Spot rate $/mi" value={f.spotRpm} onChange={set('spotRpm')} placeholder="—" />
+        <Field label={t(locale, 'loadEdit.brokerName')} value={f.brokerName} onChange={set('brokerName')} text />
         <Field label={t(locale, 'loadEdit.brokerMc')} value={f.brokerMc} onChange={set('brokerMc')} text />
       </div>
       <div className="grid grid-cols-2 gap-3">

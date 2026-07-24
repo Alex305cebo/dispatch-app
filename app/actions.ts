@@ -199,13 +199,13 @@ export async function createLoad(
     const dispatcherId = (await getCurrentUser())?.id ?? null
     const rows = await sql`
       INSERT INTO loads (rate, loaded_miles, deadhead_miles, transit_days, origin,
-                         destination, truck_location, spot_rpm, broker_mc, broker_email,
+                         destination, truck_location, spot_rpm, broker_name, broker_mc, broker_email,
                          broker_phone, reference_id, source, truck_id, pickup_date,
                          delivery_date, broker_notes, pickup_time, delivery_time,
                          pickup_address, delivery_address, dispatcher_id, company_id, driver_info)
       VALUES (${load.rate}, ${load.loadedMiles}, ${deadheadMiles}, ${load.transitDays},
               ${load.origin}, ${load.destination}, ${load.truckLocation}, ${load.spotRpm},
-              ${load.brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
+              ${load.brokerName}, ${load.brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
               ${load.source}, ${load.truckId}, ${load.pickupDate ?? null},
               ${load.deliveryDate ?? null}, ${load.brokerNotes ?? null},
               ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
@@ -268,13 +268,13 @@ export async function createLoadFromRc(
     // the map and "Текущее задание" looked stuck even though the load was real.
     const rows = await sql`
       INSERT INTO loads (rate, loaded_miles, deadhead_miles, transit_days, origin,
-                         destination, truck_location, spot_rpm, broker_mc, broker_email,
+                         destination, truck_location, spot_rpm, broker_name, broker_mc, broker_email,
                          broker_phone, reference_id, source, truck_id, pickup_date,
                          delivery_date, broker_notes, pickup_time, delivery_time,
                          pickup_address, delivery_address, status, dispatcher_id, company_id, driver_info)
       VALUES (${load.rate}, ${loadedMiles}, ${deadheadMiles}, ${load.transitDays},
               ${load.origin}, ${load.destination}, ${load.truckLocation}, ${load.spotRpm},
-              ${load.brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
+              ${load.brokerName}, ${load.brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
               'qr', ${truckId}, ${load.pickupDate ?? null}, ${load.deliveryDate ?? null},
               ${load.brokerNotes ?? null}, ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
               ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, 'booked', ${dispatcherId}, ${companyId},
@@ -573,6 +573,7 @@ export type LoadDetailsPatch = {
   deadheadMiles: number
   transitDays: number
   spotRpm: number | null
+  brokerName: string | null
   brokerMc: string | null
   brokerPhone: string | null
   brokerEmail: string | null
@@ -594,6 +595,7 @@ export async function updateLoadDetails(
     await sql`UPDATE loads SET
       rate = ${p.rate}, loaded_miles = ${p.loadedMiles}, deadhead_miles = ${p.deadheadMiles},
       transit_days = ${p.transitDays}, spot_rpm = ${p.spotRpm},
+      broker_name = ${p.brokerName || null},
       broker_mc = ${p.brokerMc || null}, broker_phone = ${p.brokerPhone || null},
       broker_email = ${p.brokerEmail || null}, pickup_date = ${p.pickupDate || null},
       delivery_date = ${p.deliveryDate || null}

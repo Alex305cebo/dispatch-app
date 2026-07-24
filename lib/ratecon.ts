@@ -36,6 +36,9 @@ export type RateConFields = {
   origin: Found<string> | null
   destination: Found<string> | null
   mcNumber: Found<string> | null
+  /** Broker/logistics company name from the letterhead. AI-only — regex can't tell it
+   * apart from the shipper/carrier names printed alongside it. */
+  brokerName: Found<string> | null
   brokerPhone: Found<string> | null
   brokerEmail: Found<string> | null
   referenceId: Found<string> | null
@@ -584,6 +587,7 @@ export function parseRateCon(raw: string, items?: PositionedText[]): RateConFiel
     // Deliberately NOT called brokerMc: real docs carry the CARRIER's MC (yours),
     // and telling them apart reliably isn't possible from text alone.
     mcNumber: search(text, [/\bMC\s*#?\s*[:\-]?\s*(\d{5,8})\b/i], (m) => m[1]!),
+    brokerName: null, // AI-only — merged in by aiToFields
     brokerPhone: search(text, [/\(?\d{3}\)?[\s\-.]\d{3}[\s\-.]\d{4}/], (m) => m[0]!.trim()),
     brokerEmail: search(text, [/[\w.+-]+@[\w-]+\.[a-z]{2,}/i], (m) => m[0]!),
     referenceId: search(
@@ -678,6 +682,7 @@ export function toQrLoad(f: RateConFields): QrLoad {
     transitDays: transitDays ?? EMPTY.transitDays,
     origin: f.origin?.value ?? null,
     destination: f.destination?.value ?? null,
+    brokerName: f.brokerName?.value ?? null,
     brokerMc: f.mcNumber?.value ?? null,
     brokerPhone: f.brokerPhone?.value ?? null,
     brokerEmail: f.brokerEmail?.value ?? null,

@@ -153,6 +153,7 @@ export function aiToFields(ai: AiFields, model: string, locale: Locale = 'en'): 
     origin: found(cityOf(pu), ev),
     destination: found(cityOf(del), ev),
     mcNumber: found(ai.mcNumber, ev),
+    brokerName: found(ai.brokerName, ev),
     brokerPhone: found(ai.brokerPhone, ev),
     brokerEmail: found(ai.brokerEmail, ev),
     referenceId: found(ai.referenceId, ev),
@@ -178,6 +179,7 @@ export function mergeAi(base: RateConFields, ai: RateConFields): RateConFields {
   return {
     rate: ai.rate ?? base.rate,
     loadedMiles: ai.loadedMiles ?? base.loadedMiles,
+    brokerName: ai.brokerName ?? base.brokerName,
     origin: ai.origin ?? base.origin,
     destination: ai.destination ?? base.destination,
     mcNumber: ai.mcNumber ?? base.mcNumber,

@@ -18,6 +18,7 @@ export type QrLoad = {
   truckLocation: string | null
   /** DAT's own market spot rate per mile. The answer to "is this below market?" */
   spotRpm: number | null
+  brokerName: string | null
   brokerMc: string | null
   brokerEmail: string | null
   brokerPhone: string | null
@@ -35,7 +36,7 @@ export type QrLoad = {
 }
 
 const NUMS = ['rate', 'miles', 'dh', 'days', 'spot'] as const
-const STRS = ['origin', 'dest', 'truck', 'mc', 'email', 'phone', 'ref'] as const
+const STRS = ['origin', 'dest', 'truck', 'bn', 'mc', 'email', 'phone', 'ref'] as const
 
 export const EMPTY: QrLoad = {
   rate: 0,
@@ -48,6 +49,7 @@ export const EMPTY: QrLoad = {
   destination: null,
   truckLocation: null,
   spotRpm: null,
+  brokerName: null,
   brokerMc: null,
   brokerEmail: null,
   brokerPhone: null,
@@ -68,6 +70,7 @@ export function buildLoadHash(load: Partial<QrLoad>): string {
   put('origin', load.origin)
   put('dest', load.destination)
   put('truck', load.truckLocation)
+  put('bn', load.brokerName)
   put('mc', load.brokerMc)
   put('email', load.brokerEmail)
   put('phone', load.brokerPhone)
@@ -100,6 +103,7 @@ export function parseLoadHash(hash: string): QrLoad {
     origin: str('origin'),
     destination: str('dest'),
     truckLocation: str('truck'),
+    brokerName: str('bn'),
     brokerMc: str('mc'),
     brokerEmail: str('email'),
     brokerPhone: str('phone'),

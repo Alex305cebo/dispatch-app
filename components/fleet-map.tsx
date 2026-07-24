@@ -109,7 +109,6 @@ function tileOpts(sat: boolean) {
  * admin boundaries.
  */
 const VECTOR_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
-const VECTOR_ATTRIB = '© OpenFreeMap © OpenStreetMap'
 /** Clutter to switch off: the shop/amenity pin layers, which in this style are exactly
  * poi_r1 / poi_r7 / poi_r20 / poi_transit. Anchored to the START of the id on purpose — a
  * bare /poi/ also matches "water_name_POINT_label" and would silently delete the lake and
@@ -128,7 +127,9 @@ async function buildBaseLayer(L: any, sat: boolean): Promise<any> {
     // The Leaflet bridge reads maplibre-gl off the global, it doesn't import it itself.
     ;(window as any).maplibregl = maplibregl
     await import('@maplibre/maplibre-gl-leaflet')
-    const layer = L.maplibreGL({ style: VECTOR_STYLE, attribution: VECTOR_ATTRIB })
+    // attributionControl:false — MapLibre otherwise paints its own credit inside the WebGL
+    // canvas, which Leaflet's attributionControl:false can't reach.
+    const layer = L.maplibreGL({ style: VECTOR_STYLE, attributionControl: false })
     const tune = () => {
       const gl = layer.getMaplibreMap?.()
       const style = gl?.getStyle?.()
@@ -288,10 +289,13 @@ export function FleetMap({
   markers,
   routes = [],
   height = 340,
+  distanceMi = null,
 }: {
   markers: MapMarker[]
   routes?: MapRoute[]
   height?: number
+  /** Total road miles of the drawn route — shown big, over the map, when provided. */
+  distanceMi?: number | null
 }) {
   const locale = useLocale()
   const ref = useRef<HTMLDivElement>(null)
@@ -321,10 +325,10 @@ export function FleetMap({
       await import('leaflet/dist/leaflet.css' as string).catch(() => {})
       if (disposed || !ref.current) return
 
-      // Compact attribution: MapTiler and OSM both require a source credit. setPrefix(false)
-      // drops the "Leaflet" link so only the tile credit remains — small text, bottom-right.
-      map = L.map(ref.current, { zoomControl: true, attributionControl: true })
-      map.attributionControl.setPrefix(false)
+      // Attribution control off at the owner's request (no on-map watermark). NOTE: the
+      // tile sources (OpenFreeMap/OpenMapTiles/OSM data, MapTiler, Esri) technically require
+      // a visible credit under their terms — this drops it deliberately.
+      map = L.map(ref.current, { zoomControl: true, attributionControl: false })
       mapRef.current = map
       tileRef.current = (await buildBaseLayer(L, satelliteRef.current)).addTo(map)
 
@@ -450,6 +454,15 @@ export function FleetMap({
           under .fleet-map — Tailwind's arbitrary `[&_...]` variants don't reach this
           dynamically mounted tree in this build, see the comment there. */}
       <div ref={ref} className="h-full w-full" />
+      {/* Total route distance, big and unmissable, over the map itself. */}
+      {distanceMi != null && distanceMi > 0 && (
+        <div className="pointer-events-none absolute left-1/2 top-2.5 z-[1000] -translate-x-1/2 rounded-full border border-white/15 bg-ink-950/85 px-3.5 py-1.5 backdrop-blur">
+          <span className="nums text-[17px] font-bold leading-none text-white">
+            {Math.round(distanceMi).toLocaleString('en-US')}
+          </span>
+          <span className="ml-1 text-[12px] font-medium text-white/60">mi</span>
+        </div>
+      )}
       <button
         type="button"
         onClick={() => setSatellite((v) => !v)}

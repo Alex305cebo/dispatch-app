@@ -11,6 +11,7 @@ const full: QrLoad = {
   destination: 'Dallas, TX',
   truckLocation: 'Joliet, IL',
   spotRpm: 2.15,
+  brokerName: 'Acme Logistics',
   brokerMc: '123456',
   brokerEmail: 'ops@broker.com',
   brokerPhone: '(555) 123-4567',
@@ -38,8 +39,9 @@ test('parses the exact hash the extension builds', () => {
     '#rate=2400&miles=1075&dh=75&spot=2.15&origin=Chicago%2C+IL&dest=Dallas%2C+TX' +
     '&truck=Joliet%2C+IL&mc=123456&email=ops%40broker.com&phone=%28555%29+123-4567&ref=9911'
   // Note the absent `days`: a load board cannot know transit days, so the extension
-  // never sends them and the default stands until the dispatcher says otherwise.
-  assert.deepEqual(parseLoadHash(fromExtension), { ...full, transitDays: 1 })
+  // never sends them and the default stands until the dispatcher says otherwise. The
+  // broker NAME is a rate-con field, not a DAT one — the extension never sends `bn` either.
+  assert.deepEqual(parseLoadHash(fromExtension), { ...full, transitDays: 1, brokerName: null })
 })
 
 test('absent fields fall back to defaults, not garbage', () => {

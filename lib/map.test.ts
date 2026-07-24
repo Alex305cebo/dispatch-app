@@ -32,6 +32,7 @@ const loadRow: LoadRow = {
   id: 7,
   truck_id: 1,
   status: 'booked',
+  broker_name: null,
   rate: 2400,
   loaded_miles: 1000,
   deadhead_miles: 100,

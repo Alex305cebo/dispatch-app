@@ -262,6 +262,10 @@ ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS trailer_number       TEXT;
 -- load. notes_read_at NULL = not yet acknowledged (shown highlighted).
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS broker_notes  TEXT;
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS notes_read_at TIMESTAMPTZ;
+-- Broker/logistics company name from the rate-con letterhead. The AI already extracts it
+-- (ratecon-ai-contract brokerName); this is where it's kept so the load can show WHO the
+-- broker is, not just their MC/phone/email.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS broker_name   TEXT;
 -- Delivery date, alongside the existing pickup_date — both printed on the rate con,
 -- both worth tracking on their own (not just as a day-count derived from the pair).
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_date DATE;

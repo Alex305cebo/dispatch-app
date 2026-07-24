@@ -99,7 +99,7 @@ export default async function Page({
 
   // Map: the truck where it sits (ELD GPS) plus a delivery pin at its active load's
   // destination city, with rough miles + drive time to it.
-  const { markers: mapMarkers, routes: mapRoutes } = await loadMapData(activeLoad, truck, fs, locale)
+  const { markers: mapMarkers, routes: mapRoutes, miles: routeMiles } = await loadMapData(activeLoad, truck, fs, locale)
 
   const toneClass = {
     move: 'text-good-400',
@@ -278,7 +278,7 @@ export default async function Page({
             </h2>
             <SmallRefreshButton />
           </div>
-          <FleetMap markers={mapMarkers} routes={mapRoutes} height={300} />
+          <FleetMap markers={mapMarkers} routes={mapRoutes} height={300} distanceMi={routeMiles} />
         </section>
       )}
 
