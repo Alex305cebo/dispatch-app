@@ -18,7 +18,7 @@ export const trucksDict = {
   'trucks.common.cancel': { ru: 'Отмена', en: 'Cancel' },
 
   // ---- app/trucks/page.tsx ----
-  'trucks.heatmap.title': { ru: 'Загрузка парка · 14 дней', en: 'Fleet utilisation · 14 days' },
+  'trucks.heatmap.title': { ru: 'Загрузка парка · {n} дней', en: 'Fleet utilisation · {n} days' },
   'trucks.heatmap.info': {
     ru: 'Календарь занятости: строка — трак, клетка — день за последние 14 дней. Зелёная клетка — трак был в рейсе (весь путь от погрузки до выгрузки), тёмная — простаивал. Число справа — доля дней, что трак работал. Помогает увидеть, кто простаивает и когда у парка провалы.',
     en: 'Occupancy calendar: one row per truck, one cell per day over the last 14 days. Green means the truck was on a load that day (the whole pickup-to-delivery span), dark means it sat idle. The number on the right is the share of days it worked. Shows at a glance who is idle and when the fleet has gaps.',
@@ -29,8 +29,8 @@ export const trucksDict = {
   'trucks.heatmap.transit': { ru: 'в пути', en: 'in transit' },
   'trucks.heatmap.delivery': { ru: 'выгрузка', en: 'delivery' },
   'trucks.heatmap.axisNote': {
-    ru: 'Каждый груз — это поездка от погрузки до выгрузки. Справа: сколько дней из 14 трак работал и сколько за них заработал.',
-    en: 'Each load is a trip from pickup to delivery. On the right: how many of the 14 days the truck worked, and what it earned.',
+    ru: 'Каждый груз — это поездка от погрузки до выгрузки. Справа: сколько дней трак работал и сколько за них заработал.',
+    en: 'Each load is a trip from pickup to delivery. On the right: how many days the truck worked and what it earned.',
   },
   'trucks.heatmap.idleDay': { ru: 'В этот день трак простаивал', en: 'The truck was idle this day' },
   'trucks.heatmap.earlier': { ru: 'Предыдущие 14 дней', en: 'Previous 14 days' },

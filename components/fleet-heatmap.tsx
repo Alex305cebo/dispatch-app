@@ -15,7 +15,7 @@
 // single card positioned from the hovered cell's rect escapes that, and — being real
 // React — its route can be a Link straight to the load.
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
@@ -76,10 +76,22 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
   // arrows step it by `days`, so each click pages a full 14 days back/forward; you can
   // never page past today (offset floored at 0).
   const [offset, setOffset] = useState(0)
+  // Phones show a 7-day window instead of 14 — half the columns fit comfortably without
+  // shrinking to specks or forcing a horizontal scroll. matchMedia (not a CSS breakpoint)
+  // because the column COUNT changes, which is a data decision, not just styling.
+  const [mobile, setMobile] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)')
+    const sync = () => setMobile(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+  const winDays = mobile ? 7 : days
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const anchor = today.getTime() - offset * days * DAY_MS
-  const cols = Array.from({ length: days }, (_, i) => new Date(anchor - (days - 1 - i) * DAY_MS))
+  const anchor = today.getTime() - offset * winDays * DAY_MS
+  const cols = Array.from({ length: winDays }, (_, i) => new Date(anchor - (winDays - 1 - i) * DAY_MS))
   const colKeys = cols.map(dayKey)
   // Sat/Sun get a faint different tint so the eye can find week boundaries in the grid.
   const weekend = cols.map((c) => c.getDay() === 0 || c.getDay() === 6)
@@ -107,10 +119,10 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
     })
 
   return (
-    <div className="panel relative overflow-x-auto p-3">
+    <div className="panel relative p-3">
       <div className="mb-2.5 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider text-white/55">
-          {t(locale, 'trucks.heatmap.title')}
+          {t(locale, 'trucks.heatmap.title').replace('{n}', String(winDays))}
           <Info text={t(locale, 'trucks.heatmap.info')} />
         </h2>
         <div className="flex items-center gap-3">
@@ -159,13 +171,13 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
         {t(locale, 'trucks.heatmap.axisNote')}
       </p>
 
-      {/* min-w-max below sm so the day grid keeps its size and the panel scrolls on a
-          phone; w-full from sm up so the utilisation bar can stretch into the space that
-          used to sit empty on the right. */}
-      <div className="min-w-max sm:w-full sm:min-w-0">
+      {/* Always full width, never scrolls. On a phone the day cells flex to share the
+          space (rubber columns), so all 14 fit without horizontal scroll; from sm up the
+          cells snap to a fixed 14px and the utilisation bar fills the rest. */}
+      <div className="w-full">
         {rows.map((r) => {
           const workedDays = colKeys.filter((k) => r.working.has(k)).length
-          const pct = Math.round((workedDays / days) * 100)
+          const pct = Math.round((workedDays / winDays) * 100)
           // Window revenue: each load counted once even though it spans several cells.
           const seen = new Set<number>()
           let earned = 0
@@ -177,8 +189,8 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
               }
           return (
             <div key={r.id} className="flex items-center gap-1.5 py-px">
-              <span className="w-20 shrink-0 truncate text-2xs text-white/50">{r.label}</span>
-              <div className="flex gap-1">
+              <span className="w-16 shrink-0 truncate text-2xs text-white/50 sm:w-20">{r.label}</span>
+              <div className="flex flex-1 gap-1 sm:flex-none">
                 {cols.map((c, i) => {
                   const key = colKeys[i]!
                   const loads = r.working.get(key)
@@ -201,7 +213,7 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                         })
                       }}
                       onMouseLeave={scheduleClose}
-                      className={`flex size-3.5 items-center justify-center rounded-[3px] transition-colors hover:bg-white/10 ${
+                      className={`flex h-3.5 min-w-0 flex-1 items-center justify-center rounded-[3px] transition-colors hover:bg-white/10 sm:size-3.5 sm:flex-none ${
                         weekend[i] ? 'bg-haul-500/[0.13]' : ''
                       }`}
                     >
@@ -225,13 +237,13 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                   earned across the window — the two numbers that make a row worth a
                   glance. */}
               <span
-                className={`nums ml-2 w-10 shrink-0 text-right text-2xs font-semibold ${
+                className={`nums ml-1.5 w-8 shrink-0 text-right text-2xs font-semibold sm:ml-2 sm:w-10 ${
                   pct >= 70 ? 'text-good-400' : pct >= 35 ? 'text-white/60' : 'text-warn-400'
                 }`}
               >
                 {pct}%
               </span>
-              <span className="nums w-16 shrink-0 text-right text-2xs text-white/45">
+              <span className="nums w-12 shrink-0 text-right text-[10px] text-white/45 sm:w-16 sm:text-2xs">
                 {earned > 0 ? usd.format(earned) : '—'}
               </span>
             </div>
@@ -240,12 +252,14 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
         {/* Date axis: the month sits in the left gutter (under the truck names); each
             cube gets its own day-of-month number so a cell reads as a real date. */}
         <div className="mt-1 flex items-center gap-1.5">
-          <span className="w-20 shrink-0 truncate text-2xs font-medium capitalize text-white/45">{monthLabel}</span>
-          <div className="flex gap-1">
+          <span className="w-16 shrink-0 truncate text-2xs font-medium capitalize text-white/45 sm:w-20">
+            {monthLabel}
+          </span>
+          <div className="flex flex-1 gap-1 sm:flex-none">
             {cols.map((c, i) => (
               <span
                 key={i}
-                className={`nums w-3.5 text-center text-[8.5px] font-semibold leading-none ${
+                className={`nums min-w-0 flex-1 text-center text-[8.5px] font-semibold leading-none sm:w-3.5 sm:flex-none ${
                   weekend[i] ? 'text-haul-300/80' : 'font-normal text-white/30'
                 }`}
               >
@@ -254,8 +268,8 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
             ))}
           </div>
           <span className="ml-2 hidden h-1.5 flex-1 sm:block" />
-          <span className="ml-2 w-10 shrink-0" />
-          <span className="w-16 shrink-0" />
+          <span className="ml-1.5 w-8 shrink-0 sm:ml-2 sm:w-10" />
+          <span className="w-12 shrink-0 sm:w-16" />
         </div>
       </div>
 
