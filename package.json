@@ -11,10 +11,12 @@
     "test": "node --test lib/profit.test.ts lib/qr-load.test.ts lib/map.test.ts lib/ratecon.test.ts lib/geo.test.ts lib/trip-history.test.ts lib/fmt.test.ts lib/caption-kind.test.ts lib/heatmap.test.ts"
   },
   "dependencies": {
+    "@maplibre/maplibre-gl-leaflet": "^0.1.3",
     "@neondatabase/serverless": "^1.1.0",
     "@tailwindcss/postcss": "^4.3.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.25.0",
+    "maplibre-gl": "^5.24.0",
     "motion": "^12.42.2",
     "next": "^15.5.4",
     "nodemailer": "^9.0.3",

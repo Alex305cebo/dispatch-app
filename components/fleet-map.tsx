@@ -98,6 +98,88 @@ function tileOpts(sat: boolean) {
   return RETINA ? { tileSize: 512, zoomOffset: -1, maxZoom: 20, attribution } : { maxZoom: 18, attribution }
 }
 
+/**
+ * Street basemap is VECTOR: OpenFreeMap tiles (no API key, no signup, no request limits,
+ * MIT, commercial use fine) rendered by MapLibre GL — the open-source fork of Mapbox GL.
+ *
+ * Vector is the whole point, not a fashion choice: in a raster tile every label and icon is
+ * baked into the image, so the shop pins and exit numbers the owner wanted gone cannot be
+ * removed at all. In a vector style each of those is its own layer we can simply switch off,
+ * while keeping street names, house numbers, highway shields, place/water/park names and
+ * admin boundaries.
+ */
+const VECTOR_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
+const VECTOR_ATTRIB = '© OpenFreeMap © OpenStreetMap'
+/** Clutter to switch off: the shop/amenity pin layers, which in this style are exactly
+ * poi_r1 / poi_r7 / poi_r20 / poi_transit. Anchored to the START of the id on purpose — a
+ * bare /poi/ also matches "water_name_POINT_label" and would silently delete the lake and
+ * river names the owner asked to keep. The little red exit numbers aren't a layer here at
+ * all; they came from the old raster OSM tiles and are simply gone with the vector style. */
+const HIDE_LAYER = /^poi/i
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/** Builds the base layer for the requested mode: vector street map, or the raster
+ * satellite/hybrid. Falls back to raster street tiles if MapLibre can't load for any
+ * reason, so the map never comes up blank. */
+async function buildBaseLayer(L: any, sat: boolean): Promise<any> {
+  if (sat) return L.tileLayer(SATELLITE_TILES, tileOpts(true))
+  try {
+    const maplibregl = (await import('maplibre-gl')).default
+    // The Leaflet bridge reads maplibre-gl off the global, it doesn't import it itself.
+    ;(window as any).maplibregl = maplibregl
+    await import('@maplibre/maplibre-gl-leaflet')
+    const layer = L.maplibreGL({ style: VECTOR_STYLE, attribution: VECTOR_ATTRIB })
+    const tune = () => {
+      const gl = layer.getMaplibreMap?.()
+      const style = gl?.getStyle?.()
+      if (!gl || !style?.layers) return
+
+      for (const lyr of style.layers) {
+        if (!HIDE_LAYER.test(lyr.id)) continue
+        try {
+          gl.setLayoutProperty(lyr.id, 'visibility', 'none')
+        } catch {
+          /* layer vanished between read and write — nothing to hide */
+        }
+      }
+
+      // House numbers: the tiles carry them (OpenMapTiles "housenumber" source-layer) but
+      // no OpenFreeMap style draws them, so add the layer ourselves — this is exactly what
+      // vector buys us. Reuse a non-italic font the style already loads, otherwise the
+      // glyph request 404s and the labels silently never appear.
+      if (!gl.getLayer('housenumber-labels')) {
+        const fonts = style.layers
+          .map((l: any) => l.layout?.['text-font'])
+          .filter((f: any): f is string[] => Array.isArray(f) && f.length > 0)
+        const font = fonts.find((f: string[]) => !/italic/i.test(f[0]!)) ?? fonts[0] ?? ['Noto Sans Regular']
+        try {
+          gl.addLayer({
+            id: 'housenumber-labels',
+            type: 'symbol',
+            source: 'openmaptiles',
+            'source-layer': 'housenumber',
+            minzoom: 17,
+            layout: { 'text-field': ['get', 'housenumber'], 'text-font': font, 'text-size': 10 },
+            paint: { 'text-color': '#5b6472', 'text-halo-color': '#ffffff', 'text-halo-width': 1 },
+          })
+        } catch {
+          /* schema changed upstream — the map is still fine without door numbers */
+        }
+      }
+    }
+    layer.once('add', () => {
+      const gl = layer.getMaplibreMap?.()
+      if (!gl) return
+      if (gl.isStyleLoaded?.()) tune()
+      else gl.once('styledata', tune)
+    })
+    return layer
+  } catch {
+    return L.tileLayer(STREET_TILES, tileOpts(false))
+  }
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
 const esc = (s: string) =>
   s.replace(/[&<>]/g, (c) => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'))
 
@@ -244,10 +326,7 @@ export function FleetMap({
       map = L.map(ref.current, { zoomControl: true, attributionControl: true })
       map.attributionControl.setPrefix(false)
       mapRef.current = map
-      tileRef.current = L.tileLayer(
-        satelliteRef.current ? SATELLITE_TILES : STREET_TILES,
-        tileOpts(satelliteRef.current),
-      ).addTo(map)
+      tileRef.current = (await buildBaseLayer(L, satelliteRef.current)).addTo(map)
 
       const bounds = L.latLngBounds([])
       // Draw route lines first so markers sit on top. A real road route (coords)
@@ -346,7 +425,7 @@ export function FleetMap({
       // remove-then-add blanked the map while the new tiles downloaded — that empty gap is
       // what read as a slow, flickery toggle. Tile panes sit below markers, so stacking two
       // briefly never hides the pins. Fallback timer in case some tiles never fire 'load'.
-      const next = L.tileLayer(satellite ? SATELLITE_TILES : STREET_TILES, tileOpts(satellite))
+      const next = await buildBaseLayer(L, satellite)
       const dropOld = () => {
         if (old && map.hasLayer(old)) map.removeLayer(old)
       }
