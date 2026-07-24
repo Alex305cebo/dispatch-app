@@ -361,24 +361,29 @@ export function FleetMap({
         {satellite ? t(locale, 'tracking.mapLabel') : t(locale, 'tracking.satelliteLabel')}
       </button>
       {/* Legend — markers carry no text label now, so the color/shape key lives here
-          once instead of repeating on every pin (same as Motive's map legend). */}
-      <div className="absolute bottom-2.5 left-2.5 z-[1000] flex items-center gap-2.5 rounded-lg border border-white/15 bg-ink-950/85 px-2.5 py-1.5 text-[10px] font-medium text-white/75 backdrop-blur">
-        <span className="flex items-center gap-1">
-          <span
-            className="inline-block size-0 border-x-[5px] border-b-[8px] border-x-transparent"
-            style={{ borderBottomColor: STATE_COLOR.move }}
-          />
-          {t(locale, 'tracking.legendMoving')}
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="size-2.5 rounded-full" style={{ background: STATE_COLOR.on }} />
-          on duty
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="size-2.5 rounded-full opacity-80" style={{ background: STATE_COLOR.rest }} />
-          {t(locale, 'tracking.legendStopped')}
-        </span>
-      </div>
+          once instead of repeating on every pin (same as Motive's map legend). Only
+          rendered when a truck is actually on this map: a finished load draws just its
+          pickup → delivery route, and a duty-status key with no truck to key explains
+          nothing. */}
+      {markers.some((m) => m.kind === 'truck') && (
+        <div className="absolute bottom-2.5 left-2.5 z-[1000] flex items-center gap-2.5 rounded-lg border border-white/15 bg-ink-950/85 px-2.5 py-1.5 text-[10px] font-medium text-white/75 backdrop-blur">
+          <span className="flex items-center gap-1">
+            <span
+              className="inline-block size-0 border-x-[5px] border-b-[8px] border-x-transparent"
+              style={{ borderBottomColor: STATE_COLOR.move }}
+            />
+            {t(locale, 'tracking.legendMoving')}
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="size-2.5 rounded-full" style={{ background: STATE_COLOR.on }} />
+            on duty
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="size-2.5 rounded-full opacity-80" style={{ background: STATE_COLOR.rest }} />
+            {t(locale, 'tracking.legendStopped')}
+          </span>
+        </div>
+      )}
     </div>
   )
 }
