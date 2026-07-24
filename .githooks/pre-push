@@ -1,0 +1,18 @@
+#!/bin/sh
+# pre-push gate. Blocks the push — and therefore the Hostinger auto-deploy it triggers —
+# when the code doesn't typecheck or the tests fail, so a broken build never reaches the
+# server (a failed remote deploy is what leaves the app in a bad state). Fast checks only
+# (no full `next build`) to keep pushes quick; run `npm run build` yourself before a big
+# release if you want the full guarantee.
+#
+# Enabled via: git config core.hooksPath .githooks  (run once per clone).
+# Skip in an emergency with: git push --no-verify
+set -e
+
+echo "▶ pre-push: typecheck"
+npm run typecheck --silent
+
+echo "▶ pre-push: tests"
+npm test --silent
+
+echo "✓ pre-push checks passed — pushing"
