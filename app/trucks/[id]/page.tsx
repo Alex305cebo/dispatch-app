@@ -429,8 +429,11 @@ export default async function Page({
       )}
 
       {/* ===== Economics — collapsed by default (rarely changed) ===== */}
-      <details className="panel mt-4 p-4">
-        <summary className="flex cursor-pointer items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+      <details className="group panel mt-4 p-4">
+        <summary className="-m-1 flex cursor-pointer list-none items-center gap-1.5 rounded-lg p-1 text-[11px] font-semibold uppercase tracking-wider text-white/62 transition-colors hover:bg-white/[0.03] hover:text-white/90">
+          <span className="text-[13px] leading-none text-white/40 transition-transform duration-200 group-open:rotate-90">
+            ▸
+          </span>
           {t(locale, 'trucks.detail.economics')}
           <Info text={t(locale, 'trucks.detail.economicsInfo')} />
         </summary>

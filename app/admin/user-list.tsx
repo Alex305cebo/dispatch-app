@@ -163,8 +163,11 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
           {/* Per-dispatcher feature access. Admins have everything, so no toggles for
               them. New capabilities added to the registry show up here automatically. */}
           {u.capabilities && (
-            <details className="mt-2.5 border-t border-white/6 pt-2.5">
-              <summary className="cursor-pointer text-[12px] font-medium text-white/70">
+            <details className="group mt-2.5 border-t border-white/6 pt-2.5">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium text-white/70 transition-colors hover:text-white/95">
+                <span className="text-[12px] leading-none text-white/40 transition-transform duration-200 group-open:rotate-90">
+                  ▸
+                </span>
                 {t(locale, 'admin.users.dispatcherPerms')}
               </summary>
               <div className="mt-2 flex flex-col gap-2">

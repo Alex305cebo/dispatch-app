@@ -104,8 +104,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         <ByDispatcher companyId={companyId} locale={locale} />
       )}
 
-      <details className="panel mt-6 p-4" open={!company.name}>
-        <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-wider text-white/62">
+      <details className="group panel mt-6 p-4" open={!company.name}>
+        <summary className="-m-1 flex cursor-pointer list-none items-center gap-1.5 rounded-lg p-1 text-[11px] font-semibold uppercase tracking-wider text-white/62 transition-colors hover:bg-white/[0.03] hover:text-white/90">
+          <span className="text-[13px] leading-none text-white/40 transition-transform duration-200 group-open:rotate-90">
+            ▸
+          </span>
           {t(locale, 'finances.company.heading')}{' '}
           {company.name ? `· ${company.name}` : `· ${t(locale, 'finances.company.notFilled')}`}
           <span className="ml-1.5 inline-block align-middle">
