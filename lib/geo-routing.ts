@@ -43,6 +43,46 @@ function extractZip(address: string): string | null {
   return matches?.[matches.length - 1] ?? null
 }
 
+/**
+ * US Census geocoder — free, no API key, and it knows a great many warehouse/industrial
+ * street addresses Nominatim has no entry for at all. Measured against real rate-con
+ * addresses: of 7 that Nominatim missed entirely (freeform AND structured), Census
+ * resolved 4 to the exact door, including one with a suite number ("2471 Palumbo Dr STE
+ * 150"). US-only, which is all this app hauls.
+ *
+ * Misses are cached as '-' too: three of those addresses resolve nowhere, and without a
+ * negative cache every render of that load would re-hit two geocoders and block on them.
+ */
+async function geocodeCensus(address: string): Promise<LatLng | null> {
+  const key = `geo:census:${address.toLowerCase().trim()}`
+  const hit = await getSetting(key)
+  if (hit === '-') return null
+  if (hit) {
+    const [lat, lng] = hit.split(',').map(Number)
+    return lat && lng ? { lat, lng } : null
+  }
+  try {
+    const url =
+      `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress` +
+      `?address=${encodeURIComponent(address)}&benchmark=Public_AR_Current&format=json`
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const j = (await res.json()) as {
+      result?: { addressMatches?: { coordinates?: { x: number; y: number } }[] }
+    }
+    const c = j?.result?.addressMatches?.[0]?.coordinates
+    if (!c || !Number.isFinite(c.y) || !Number.isFinite(c.x)) {
+      await setSetting(key, '-')
+      return null
+    }
+    const pt = { lat: Number(c.y), lng: Number(c.x) }
+    await setSetting(key, `${pt.lat},${pt.lng}`)
+    return pt
+  } catch {
+    return null
+  }
+}
+
 /** ZIP → coords via Nominatim's structured postalcode query — a tighter area (a few
  * square miles) than a whole city, and resolves for plenty of addresses Nominatim's
  * freeform search can't match at all (see cityCoordsBest). Cached like geocode(). */
@@ -77,20 +117,35 @@ async function geocodeZip(zip: string): Promise<LatLng | null> {
  * than falling straight to the city. City stays the last-resort net so the pin never
  * silently disappears.
  */
+/** A real street address sits within commuting distance of the city named next to it on
+ * the rate con. Anything further is the geocoder having matched a same-named street in
+ * another state — seen live: "12907 Comfort Wy, ALBUQUERQUE, NM" resolved to Yuma,
+ * Arizona, ~600 mi away, and the delivery pin landed there. Generous enough for sprawling
+ * metros, tight enough to catch a cross-country mismatch. */
+const MAX_ADDR_DRIFT_MI = 75
+
 export async function cityCoordsBest(
   address: string | null | undefined,
   city: string | null | undefined,
 ): Promise<LatLng | null> {
+  // The city is the sanity reference for every address hit below (and the last resort).
+  const cityPt = city ? await geocode(city) : null
+  const trust = (p: LatLng | null): p is LatLng =>
+    !!p && (!cityPt || haversineMiles(p, cityPt) <= MAX_ADDR_DRIFT_MI)
+
   if (address) {
     const exact = await geocode(address)
-    if (exact) return exact
+    if (trust(exact)) return exact
+    // Nominatim has no entry for most warehouse/industrial addresses; Census usually does.
+    const census = await geocodeCensus(address)
+    if (trust(census)) return census
     const zip = extractZip(address)
     if (zip) {
       const byZip = await geocodeZip(zip)
-      if (byZip) return byZip
+      if (trust(byZip)) return byZip
     }
   }
-  return city ? geocode(city) : null
+  return cityPt
 }
 
 type RoadPath = { miles: number; minutes: number; coords?: [number, number][] }
