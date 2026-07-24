@@ -1,5 +1,6 @@
 import { Fuel, Plus } from 'lucide-react'
 import { Button } from '@/components/button'
+import { Name } from '@/components/name'
 import Link from 'next/link'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { currentLoadsByTruck, truckLabel } from '@/lib/map'
@@ -188,7 +189,13 @@ export default async function Page() {
                     ) : null}
                   </div>
                   <div className="mt-0.5 truncate text-[12px] text-white/60">
-                    {truck.driverName ? `${truck.driverName} · ` : ''}
+                    {truck.driverName ? (
+                      <>
+                        <Name full={truck.driverName} /> ·{' '}
+                      </>
+                    ) : (
+                      ''
+                    )}
                     📍 {cityOf(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')}
                   </div>
                   {/* VIN, once the ELD has reported it (auto-filled — see lib/eld.ts).

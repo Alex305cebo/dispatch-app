@@ -15,6 +15,16 @@ export const usd2 = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
 })
 
+/** "Alex Morgan" → "Alex M." — first name + last-name initial, for keeping a person's
+ * name on one line on a phone. One-word names (or blanks) pass through unchanged. */
+export function shortName(full: string | null | undefined): string {
+  const s = (full ?? '').trim().replace(/\s+/g, ' ')
+  if (!s) return ''
+  const parts = s.split(' ')
+  if (parts.length < 2) return s
+  return `${parts[0]} ${parts[parts.length - 1]!.charAt(0).toUpperCase()}.`
+}
+
 /** Minutes → "2ч 40м" / "40м" (ru) or "2h 40m" / "40m" (en). Rough drive-time estimates. */
 export function driveTime(min: number, locale: Locale): string {
   const h = Math.floor(min / 60)

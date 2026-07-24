@@ -1,11 +1,20 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mondayOf, weekLabel, normalizeApptTime } from './fmt.ts'
+import { mondayOf, weekLabel, normalizeApptTime, shortName } from './fmt.ts'
 
 // Relative to Date.now() rather than hardcoded ISO strings — a fixed UTC timestamp
 // can land on a different local calendar day depending on the machine's timezone,
 // which would make this brittle across dev/CI without actually testing the logic.
 const DAY = 24 * 60 * 60 * 1000
+
+test('shortName keeps the first name and initials the surname', () => {
+  assert.equal(shortName('Alex Morgan'), 'Alex M.')
+  assert.equal(shortName('Mary Jane Watson'), 'Mary W.') // middle dropped, last initialled
+  assert.equal(shortName('Eduard'), 'Eduard') // one word passes through
+  assert.equal(shortName('  Sam   Rivera '), 'Sam R.') // extra whitespace collapsed
+  assert.equal(shortName(''), '')
+  assert.equal(shortName(null), '')
+})
 
 test('mondayOf always lands on a Monday', () => {
   for (let offset = 0; offset < 14; offset++) {
