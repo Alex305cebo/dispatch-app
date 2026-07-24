@@ -41,6 +41,7 @@ export const trackingDict = {
   'tracking.mapLabel': { ru: '🗺 Карта', en: '🗺 Map' },
   'tracking.satelliteLabel': { ru: '🛰 Гибрид', en: '🛰 Hybrid' },
   'tracking.legendMoving': { ru: 'едет', en: 'moving' },
+  'tracking.legendOnDuty': { ru: 'на смене', en: 'on duty' },
   'tracking.legendStopped': { ru: 'стоит', en: 'stopped' },
 
   // components/fleet-list.tsx

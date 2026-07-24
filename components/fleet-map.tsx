@@ -486,7 +486,7 @@ export function FleetMap({
           </span>
           <span className="flex items-center gap-1">
             <span className="size-2.5 rounded-full" style={{ background: STATE_COLOR.on }} />
-            on duty
+            {t(locale, 'tracking.legendOnDuty')}
           </span>
           <span className="flex items-center gap-1">
             <span className="size-2.5 rounded-full opacity-80" style={{ background: STATE_COLOR.rest }} />
