@@ -266,6 +266,12 @@ ALTER TABLE loads ADD COLUMN IF NOT EXISTS notes_read_at TIMESTAMPTZ;
 -- (ratecon-ai-contract brokerName); this is where it's kept so the load can show WHO the
 -- broker is, not just their MC/phone/email.
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS broker_name   TEXT;
+-- Geofence arrival stamps for auto-advancing status from GPS (lib/load-status.ts): set
+-- the first time the truck is seen at the pickup / delivery, so "was there, now gone" can
+-- flip booked→in_transit and in_transit→delivered without a false trigger from a truck
+-- that is merely driving toward the stop.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS pickup_arrived_at   TIMESTAMPTZ;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_arrived_at TIMESTAMPTZ;
 -- Delivery date, alongside the existing pickup_date — both printed on the rate con,
 -- both worth tracking on their own (not just as a day-count derived from the pair).
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_date DATE;

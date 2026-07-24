@@ -10,6 +10,9 @@ import type { QrLoad } from '@/lib/qr-load'
 import type { TruckSettings } from '@/lib/profit'
 import { checkBroker, type BrokerCheck, type RcContext } from '@/lib/fmcsa'
 import { formatDriverInfo, toQrLoad } from '@/lib/ratecon'
+import { cityCoordsBest } from '@/lib/geo-routing'
+import { haversineMiles } from '@/lib/geo'
+import { nextLoadStatus, GEOFENCE_MI } from '@/lib/load-status'
 import { docBelongs, getLoad, loadBelongs, truckBelongs } from '@/lib/loads'
 import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
 import { getSetting, setSetting } from '@/lib/settings'
@@ -88,10 +91,74 @@ export async function autoRefreshFleet(): Promise<boolean> {
 
   const { fleetSnapshot, liveShareSnapshot } = await import('@/lib/eld')
   await Promise.all([liveShareSnapshot().catch(() => {}), fleetSnapshot().catch(() => {})])
+  // Positions just refreshed — now move any load whose truck has left its pickup/delivery.
+  await autoAdvanceLoadStatuses().catch(() => {})
   revalidatePath('/tracking')
   revalidatePath('/trucks', 'layout')
+  revalidatePath('/loads')
   revalidatePath('/', 'layout')
   return true
+}
+
+/** Advance load status from live GPS: booked → in_transit once the truck has left the
+ * pickup, in_transit → delivered once it has left the delivery. Forward-only, geofenced,
+ * and gated on a fresh fix so a stale position can't move a load. Decision logic (and its
+ * tests) live in lib/load-status.ts; this is the DB read/write + geocoding around it. */
+async function autoAdvanceLoadStatuses(): Promise<void> {
+  const STALE_MS = 60 * 60 * 1000
+  const rows = (await sql`
+    SELECT l.id, l.status, l.origin, l.destination, l.pickup_address, l.delivery_address,
+           l.pickup_arrived_at, l.delivery_arrived_at, f.lat, f.lng, f.eld_seen
+    FROM loads l
+    JOIN trucks t ON t.id = l.truck_id
+    JOIN fleet_status f ON f.unit = t.number
+    WHERE l.status IN ('booked', 'in_transit') AND f.lat IS NOT NULL AND f.lng IS NOT NULL`) as {
+    id: number
+    status: 'booked' | 'in_transit'
+    origin: string | null
+    destination: string | null
+    pickup_address: string | null
+    delivery_address: string | null
+    pickup_arrived_at: string | null
+    delivery_arrived_at: string | null
+    lat: number
+    lng: number
+    eld_seen: string | null
+  }[]
+
+  for (const r of rows) {
+    const seen = r.eld_seen ? Date.parse(r.eld_seen) : NaN
+    if (!Number.isNaN(seen) && Date.now() - seen > STALE_MS) continue // stale fix — skip
+    const truck = { lat: r.lat, lng: r.lng }
+    const pickup = await cityCoordsBest(r.pickup_address, r.origin)
+    const dest = await cityCoordsBest(r.delivery_address, r.destination)
+    const dP = pickup ? haversineMiles(truck, pickup) : null
+    const dD = dest ? haversineMiles(truck, dest) : null
+
+    let pickupArrived = r.pickup_arrived_at != null
+    let deliveryArrived = r.delivery_arrived_at != null
+    // Stamp first arrival at each stop. Delivery only counts once the load is in_transit, so
+    // a short haul whose pickup sits inside the delivery geofence can't mark "arrived at
+    // delivery" before it's even been loaded.
+    if (dP != null && dP <= GEOFENCE_MI && !pickupArrived) {
+      await sql`UPDATE loads SET pickup_arrived_at = now() WHERE id = ${r.id} AND pickup_arrived_at IS NULL`
+      pickupArrived = true
+    }
+    if (r.status === 'in_transit' && dD != null && dD <= GEOFENCE_MI && !deliveryArrived) {
+      await sql`UPDATE loads SET delivery_arrived_at = now() WHERE id = ${r.id} AND delivery_arrived_at IS NULL`
+      deliveryArrived = true
+    }
+
+    const next = nextLoadStatus({
+      status: r.status,
+      distToPickupMi: dP,
+      distToDeliveryMi: dD,
+      pickupArrived,
+      deliveryArrived,
+    })
+    // Guard on the status we read, so a manual change in between wins over the auto-move.
+    if (next) await sql`UPDATE loads SET status = ${next} WHERE id = ${r.id} AND status = ${r.status}`
+  }
 }
 
 /* ---------- Invoicing / AR ---------- */
