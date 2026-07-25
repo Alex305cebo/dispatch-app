@@ -9,6 +9,7 @@ export const navDict = {
   'nav.trucks': { ru: 'Траки', en: 'Trucks' },
   'nav.tracking': { ru: 'Трекинг', en: 'Track' },
   'nav.docs': { ru: 'Файлы', en: 'Docs' },
+  'nav.brokers': { ru: 'Брокеры', en: 'Brokers' },
   'nav.telegram': { ru: 'Telegram', en: 'Telegram' },
   'nav.finances': { ru: 'Финансы', en: 'Finances' },
   'nav.journal': { ru: 'Журнал', en: 'Log' },

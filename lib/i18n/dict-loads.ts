@@ -439,6 +439,7 @@ export const loadsDict = {
   'fmcsa.publicEmailDomain': { ru: 'Публичный email-домен ({domain}) у «компании»', en: 'Public email domain ({domain}) for a "company"' },
   'fmcsa.noMcToCheck': { ru: 'Нет номера MC для проверки.', en: 'No MC number to check.' },
   'fmcsa.mcNotFound': { ru: 'FMCSA не нашла MC {mc}.', en: "FMCSA couldn't find MC {mc}." },
+  'fmcsa.dotNotFound': { ru: 'FMCSA не нашла DOT {dot}.', en: "FMCSA couldn't find DOT {dot}." },
 
   // lib/ratecon-ai.ts
   'rateconAi.slowServer': {

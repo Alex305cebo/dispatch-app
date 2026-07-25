@@ -10,7 +10,7 @@ import { t, type Locale } from './i18n.ts'
 export type BrokerFlag = { level: 'block' | 'warn'; text: string }
 
 export type BrokerCheck = {
-  mc: string
+  mc: string | null
   legalName: string | null
   dbaName: string | null
   dotNumber: string | null
@@ -46,6 +46,21 @@ async function fmcsaGet(path: string, key: string): Promise<any | null> {
   return res.json().catch(() => null)
 }
 
+/** Both endpoints wrap the carrier the same two or three ways — unwrap defensively. */
+function unwrapCarrier(data: any): any | null {
+  return data?.content?.[0]?.carrier ?? data?.content?.carrier ?? data?.carrier ?? null
+}
+
+function statusFromRec(rec: any): BrokerCheck['authorityStatus'] {
+  return rec.brokerAuthorityStatus === 'A' || rec.allowedToOperate === 'Y'
+    ? 'active'
+    : rec.brokerAuthorityStatus === 'I'
+      ? 'inactive'
+      : rec.brokerAuthorityStatus === 'N'
+        ? 'none'
+        : 'unknown'
+}
+
 /** Derive the red flags from FMCSA data + what the rate con claimed. */
 function computeFlags(c: BrokerCheck, ctx: RcContext, locale: Locale): BrokerFlag[] {
   const flags: BrokerFlag[] = []
@@ -78,6 +93,53 @@ function computeFlags(c: BrokerCheck, ctx: RcContext, locale: Locale): BrokerFla
   return flags
 }
 
+/** Turn a fetched FMCSA carrier record into a BrokerCheck, making the extra
+ * authority-date call and caching by MC when we have one. `mc` may be null for a
+ * DOT lookup whose docket we couldn't resolve — then we skip the cache write. */
+async function buildFromRecord(
+  mc: string | null,
+  rec: any,
+  key: string,
+): Promise<BrokerCheck> {
+  let granted: string | null = null
+  if (rec.dotNumber) {
+    const auth = await fmcsaGet(`carriers/${rec.dotNumber}/authority`, key)
+    const a = Array.isArray(auth?.content) ? auth.content[0] : auth?.content
+    granted = a?.authGrantDate ?? a?.applicantDate ?? a?.originalActionDate ?? null
+  }
+
+  const base: BrokerCheck = {
+    mc,
+    legalName: rec.legalName ?? null,
+    dbaName: rec.dbaName ?? null,
+    dotNumber: rec.dotNumber ? String(rec.dotNumber) : null,
+    authorityStatus: statusFromRec(rec),
+    bondOnFile: rec.bondInsuranceOnFile === 'Y' ? true : rec.bondInsuranceOnFile === 'N' ? false : null,
+    authorityGranted: granted ? String(granted).slice(0, 10) : null,
+    address: [rec.phyStreet, rec.phyCity, rec.phyState, rec.phyZipcode].filter(Boolean).join(', ') || null,
+    phone: rec.telephone ?? null,
+    flags: [],
+    cached: false,
+  }
+
+  if (mc) {
+    await sql`
+      INSERT INTO brokers (mc, legal_name, dba_name, dot_number, authority_status,
+                           bond_on_file, authority_granted, address, phone, raw, checked_at)
+      VALUES (${mc}, ${base.legalName}, ${base.dbaName}, ${base.dotNumber}, ${base.authorityStatus},
+              ${base.bondOnFile}, ${base.authorityGranted}, ${base.address}, ${base.phone},
+              ${JSON.stringify(rec)}, now())
+      ON CONFLICT (mc) DO UPDATE SET
+        legal_name = EXCLUDED.legal_name, dba_name = EXCLUDED.dba_name,
+        dot_number = EXCLUDED.dot_number, authority_status = EXCLUDED.authority_status,
+        bond_on_file = EXCLUDED.bond_on_file, authority_granted = EXCLUDED.authority_granted,
+        address = EXCLUDED.address, phone = EXCLUDED.phone, raw = EXCLUDED.raw, checked_at = now()`
+  }
+  return base
+}
+
+/** Check a broker by MC (docket) number. Cache-first: re-hits FMCSA at most once a
+ * day; flags are recomputed every call since the RC context can change. */
 export async function checkBroker(
   mcRaw: string,
   ctx: RcContext = {},
@@ -88,8 +150,6 @@ export async function checkBroker(
   const key = process.env.FMCSA_WEBKEY
   if (!key) return { error: 'no_key' }
 
-  // Cache: авто-проверка — как «фид ревокаций» для нас, поэтому пере-проверяем не
-  // чаще раза в сутки, а флаги считаем каждый раз (контекст RC меняется).
   const cachedRow = (await sql`SELECT * FROM brokers WHERE mc = ${mc}`)[0] as any
   const fresh =
     cachedRow && Date.now() - new Date(cachedRow.checked_at).getTime() < 24 * 60 * 60 * 1000
@@ -111,53 +171,40 @@ export async function checkBroker(
     }
   } else {
     const data = await fmcsaGet(`carriers/docket-number/${mc}`, key)
-    const rec = data?.content?.[0]?.carrier ?? data?.content?.carrier ?? data?.carrier
+    const rec = unwrapCarrier(data)
     if (!rec) return { error: t(locale, 'fmcsa.mcNotFound').replace('{mc}', mc) }
-
-    const status: BrokerCheck['authorityStatus'] =
-      rec.brokerAuthorityStatus === 'A' || rec.allowedToOperate === 'Y'
-        ? 'active'
-        : rec.brokerAuthorityStatus === 'I'
-          ? 'inactive'
-          : rec.brokerAuthorityStatus === 'N'
-            ? 'none'
-            : 'unknown'
-
-    // Second call for the authority grant date (MC age). Tolerate failure.
-    let granted: string | null = null
-    if (rec.dotNumber) {
-      const auth = await fmcsaGet(`carriers/${rec.dotNumber}/authority`, key)
-      const a = Array.isArray(auth?.content) ? auth.content[0] : auth?.content
-      granted = a?.authGrantDate ?? a?.applicantDate ?? a?.originalActionDate ?? null
-    }
-
-    base = {
-      mc,
-      legalName: rec.legalName ?? null,
-      dbaName: rec.dbaName ?? null,
-      dotNumber: rec.dotNumber ? String(rec.dotNumber) : null,
-      authorityStatus: status,
-      bondOnFile: rec.bondInsuranceOnFile === 'Y' ? true : rec.bondInsuranceOnFile === 'N' ? false : null,
-      authorityGranted: granted ? String(granted).slice(0, 10) : null,
-      address: [rec.phyStreet, rec.phyCity, rec.phyState, rec.phyZipcode].filter(Boolean).join(', ') || null,
-      phone: rec.telephone ?? null,
-      flags: [],
-      cached: false,
-    }
-
-    await sql`
-      INSERT INTO brokers (mc, legal_name, dba_name, dot_number, authority_status,
-                           bond_on_file, authority_granted, address, phone, raw, checked_at)
-      VALUES (${mc}, ${base.legalName}, ${base.dbaName}, ${base.dotNumber}, ${base.authorityStatus},
-              ${base.bondOnFile}, ${base.authorityGranted}, ${base.address}, ${base.phone},
-              ${JSON.stringify(rec)}, now())
-      ON CONFLICT (mc) DO UPDATE SET
-        legal_name = EXCLUDED.legal_name, dba_name = EXCLUDED.dba_name,
-        dot_number = EXCLUDED.dot_number, authority_status = EXCLUDED.authority_status,
-        bond_on_file = EXCLUDED.bond_on_file, authority_granted = EXCLUDED.authority_granted,
-        address = EXCLUDED.address, phone = EXCLUDED.phone, raw = EXCLUDED.raw, checked_at = now()`
+    base = await buildFromRecord(mc, rec, key)
   }
 
+  base.flags = computeFlags(base, ctx, locale)
+  return base
+}
+
+/** Check a broker by USDOT number. FMCSA keys the census by DOT; we resolve the MC
+ * from its docket-numbers so the result still caches and lines up with MC lookups. */
+export async function checkBrokerByDot(
+  dotRaw: string,
+  ctx: RcContext = {},
+  locale: Locale = 'en',
+): Promise<BrokerCheck | { error: string }> {
+  const dot = digits(dotRaw)
+  if (!dot) return { error: t(locale, 'fmcsa.noMcToCheck') }
+  const key = process.env.FMCSA_WEBKEY
+  if (!key) return { error: 'no_key' }
+
+  const data = await fmcsaGet(`carriers/${dot}`, key)
+  const rec = unwrapCarrier(data)
+  if (!rec) return { error: t(locale, 'fmcsa.dotNotFound').replace('{dot}', dot) }
+
+  // Resolve the MC docket so the row caches under the same key as an MC lookup.
+  let mc: string | null = null
+  const dk = await fmcsaGet(`carriers/${rec.dotNumber ?? dot}/docket-numbers`, key)
+  const docket = (Array.isArray(dk?.content) ? dk.content : dk?.content ? [dk.content] : [])
+    .map((d: any) => digits(d?.docketNumber ?? d?.docket))
+    .find((d: string) => d)
+  if (docket) mc = docket
+
+  const base = await buildFromRecord(mc, rec, key)
   base.flags = computeFlags(base, ctx, locale)
   return base
 }

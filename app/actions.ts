@@ -8,7 +8,7 @@ import { humanError } from '@/lib/msg'
 import type { LoadStatus } from '@/lib/map'
 import type { QrLoad } from '@/lib/qr-load'
 import type { TruckSettings } from '@/lib/profit'
-import { checkBroker, type BrokerCheck, type RcContext } from '@/lib/fmcsa'
+import { checkBroker, checkBrokerByDot, type BrokerCheck, type RcContext } from '@/lib/fmcsa'
 import { formatDriverInfo, toQrLoad } from '@/lib/ratecon'
 import { cityCoordsBest } from '@/lib/geo-routing'
 import { haversineMiles } from '@/lib/geo'
@@ -28,6 +28,15 @@ export async function vetBroker(
   ctx: RcContext,
 ): Promise<BrokerCheck | { error: string }> {
   return checkBroker(mc, ctx, await getLocale())
+}
+
+/** Manual broker lookup from the Brokers page — by MC or DOT number. */
+export async function runBrokerCheck(
+  by: 'mc' | 'dot',
+  value: string,
+): Promise<BrokerCheck | { error: string }> {
+  const locale = await getLocale()
+  return by === 'dot' ? checkBrokerByDot(value, {}, locale) : checkBroker(value, {}, locale)
 }
 
 export async function fetchRouteMiles(origin: string, destination: string) {
