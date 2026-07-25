@@ -84,6 +84,56 @@ export const brokersDict = {
   'brokers.vsNational': { ru: 'нац. среднее {n}%', en: "nat'l avg {n}%" },
   'brokers.na': { ru: '—', en: '—' },
 
+  // ── Section explanations (i) ────────────────────────────────
+  'brokers.secAuthorityInfo': {
+    ru: 'Есть ли у брокера законное право работать (лицензия FMCSA). Если полномочия не активны или брокер out of service — с ним работать нельзя.',
+    en: 'Whether the broker is legally authorized to operate (FMCSA license). If authority is inactive or the broker is out of service, do not work with them.',
+  },
+  'brokers.secInsuranceInfo': {
+    ru: 'Финансовая защита. Бонд BMC-84 ($75,000) — гарантия: если брокер не заплатит перевозчику, деньги требуют с бонда. Без бонда работать рискованно.',
+    en: 'Financial protection. The BMC-84 bond ($75,000) guarantees payment: if the broker fails to pay the carrier, the claim goes against the bond. No bond means high risk.',
+  },
+  'brokers.secIdentityInfo': {
+    ru: 'Официальные идентификаторы компании в FMCSA — по ним проверяют, что брокер реальный и это именно та компания, что в Rate Con.',
+    en: "The company's official FMCSA identifiers — used to confirm the broker is real and matches the company on the Rate Con.",
+  },
+  'brokers.secSafetyInfo': {
+    ru: 'Показатели безопасности парка. У чистого брокера траков нет, поэтому здесь обычно нули — это нормально. Важно для перевозчиков.',
+    en: 'Fleet safety metrics. A pure broker has no trucks, so these are usually zero — that is normal. Relevant for carriers.',
+  },
+
+  // ── Field explanations (i) ──────────────────────────────────
+  'brokers.rowDotInfo': { ru: 'Уникальный номер компании в US DOT — главный идентификатор в системе FMCSA.', en: 'The company USDOT number — its primary identifier in the FMCSA system.' },
+  'brokers.rowEinInfo': { ru: 'Федеральный налоговый номер компании (аналог ИНН). Есть у реальной зарегистрированной фирмы.', en: 'The federal tax ID of the company. A real registered business has one.' },
+  'brokers.rowOperationInfo': { ru: 'Interstate — перевозки между штатами, Intrastate — внутри одного штата.', en: 'Interstate — hauls across state lines; Intrastate — within a single state.' },
+  'brokers.rowSafetyRatingInfo': {
+    ru: 'Оценка FMCSA после выездной проверки: Satisfactory (хорошо), Conditional (условно), Unsatisfactory (плохо). «Не оценён» — проверки не было, для брокера без траков это норма.',
+    en: 'FMCSA rating after an audit: Satisfactory, Conditional, or Unsatisfactory. "Not rated" means no audit — normal for a broker with no trucks.',
+  },
+  'brokers.rowVehicleOosInfo': {
+    ru: 'Как часто траки снимали с рейса на дорожных проверках из-за неисправностей. Чем ниже нац. среднего — тем лучше.',
+    en: 'How often trucks were pulled out of service at roadside inspections for defects. Lower than the national average is better.',
+  },
+  'brokers.rowDriverOosInfo': {
+    ru: 'Как часто водителей отстраняли на проверках (часы, документы, состояние). Чем ниже нац. среднего — тем лучше.',
+    en: 'How often drivers were placed out of service at inspections (hours, paperwork, condition). Lower than the national average is better.',
+  },
+  'brokers.rowBondInfo': { ru: 'Бонд BMC-84 на $75,000 — обязательная страховка брокера. Если её нет, работать нельзя.', en: 'The BMC-84 bond of $75,000 — a broker’s mandatory surety. Without it, do not work with them.' },
+  'brokers.rowBrokerAuthInfo': { ru: 'Право работать брокером. Должно быть «активна».', en: 'The right to operate as a broker. Must be "active".' },
+  'brokers.rowCarrierAuthInfo': { ru: 'Право быть перевозчиком (не брокером). У чистого брокера обычно «не активна» — это нормально.', en: 'Authority to operate as a carrier (not a broker). Usually "inactive" for a pure broker — that is normal.' },
+  'brokers.rowOosInfo': { ru: 'Прямой запрет FMCSA на работу. Должно быть «нет».', en: 'An outright FMCSA ban on operating. Must be "No".' },
+  'brokers.rowMcs150Info': { ru: 'Компании обязаны обновлять данные в FMCSA каждые 2 года. «Да» — регистрация актуальна, фирма живая.', en: 'Companies must refresh their FMCSA filing every 2 years. "Yes" means the registration is current and the firm is active.' },
+
+  // ── Safety meter ────────────────────────────────────────────
+  'brokers.safetyHeading': { ru: 'Насколько безопасно', en: 'How safe' },
+  'brokers.safetyInfo': {
+    ru: 'Общая оценка надёжности брокера по данным FMCSA: полномочия, бонд, out-of-service, актуальность регистрации и показатели безопасности. 100 — идеально, ниже 45 — рискованно.',
+    en: 'Overall broker reliability from FMCSA data: authority, bond, out-of-service, registration currency and safety metrics. 100 is perfect; below 45 is risky.',
+  },
+  'brokers.safe': { ru: 'Надёжно', en: 'Safe' },
+  'brokers.caution': { ru: 'Осторожно', en: 'Caution' },
+  'brokers.risky': { ru: 'Рискованно', en: 'Risky' },
+
   // ── Our broker database ─────────────────────────────────────
   'brokers.dbHeading': { ru: 'Наши брокеры', en: 'Our brokers' },
   'brokers.dbInfo': {
