@@ -182,6 +182,20 @@ export function BrokerChecklist({ check }: { check: BrokerCheck }) {
 
   return (
     <div className="mt-3">
+      {/* The broker being checked, big and centered — the headline of the result. */}
+      <div className="mb-3 text-center">
+        <h3 className="text-[20px] font-semibold leading-tight sm:text-[23px]">
+          {check.legalName ?? check.dbaName ?? '—'}
+        </h3>
+        {(check.mc || check.dotNumber) && (
+          <p className="mt-1 text-[12px] tracking-wide text-white/45">
+            {check.mc && `MC ${check.mc}`}
+            {check.mc && check.dotNumber && ' · '}
+            {check.dotNumber && `DOT ${check.dotNumber}`}
+          </p>
+        )}
+      </div>
+
       <SafetyMeter score={score} />
 
       <div className="mt-3 flex flex-col gap-1">

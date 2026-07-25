@@ -69,26 +69,46 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
     }
   }
 
-  // Enrich with any cached FMCSA data for the MCs we have.
-  const mcs = [...byKey.values()].map((b) => b.mc).filter((m): m is string => !!m)
-  if (mcs.length) {
-    const cached = (await sql`
-      SELECT mc, authority_status, checked_at FROM brokers WHERE mc = ANY(${mcs})`) as {
-      mc: string
-      authority_status: string | null
-      checked_at: string
-    }[]
-    const cacheByMc = new Map(cached.map((c) => [c.mc, c]))
-    for (const b of byKey.values()) {
-      if (b.mc && cacheByMc.has(b.mc)) {
-        const c = cacheByMc.get(b.mc)!
-        b.authorityStatus = c.authority_status
-        b.checkedAt = c.checked_at ? String(c.checked_at).slice(0, 10) : null
-      }
+  // Merge in every broker we've CHECKED (the FMCSA cache), even those never on a
+  // load — so a manual MC/DOT lookup lands in the database too. Existing rows get
+  // enriched; unseen ones are added with a zero load count.
+  // ponytail: the FMCSA cache is shared across companies (public data); a truly
+  // multi-tenant "who did WE check" needs a per-company checks table later.
+  const cached = (await sql`
+    SELECT mc, legal_name, dba_name, authority_status, phone, checked_at FROM brokers`) as {
+    mc: string
+    legal_name: string | null
+    dba_name: string | null
+    authority_status: string | null
+    phone: string | null
+    checked_at: string
+  }[]
+  for (const c of cached) {
+    const checkedAt = c.checked_at ? String(c.checked_at).slice(0, 10) : null
+    const existing = byKey.get(c.mc)
+    if (existing) {
+      existing.authorityStatus = c.authority_status
+      existing.checkedAt = checkedAt
+      existing.name ??= c.legal_name ?? c.dba_name
+      existing.phone ??= c.phone
+    } else {
+      byKey.set(c.mc, {
+        mc: c.mc,
+        name: c.legal_name ?? c.dba_name,
+        phone: c.phone,
+        email: null,
+        loadCount: 0,
+        lastLoad: null,
+        authorityStatus: c.authority_status,
+        checkedAt,
+      })
     }
   }
 
   for (const b of byKey.values()) if (!b.name && b.email) b.name = nameFromEmail(b.email)
 
-  return [...byKey.values()].sort((a, b) => b.loadCount - a.loadCount)
+  // Brokers with loads first (by count), then checked-only brokers newest first.
+  return [...byKey.values()].sort(
+    (a, b) => b.loadCount - a.loadCount || (b.checkedAt ?? '').localeCompare(a.checkedAt ?? ''),
+  )
 }

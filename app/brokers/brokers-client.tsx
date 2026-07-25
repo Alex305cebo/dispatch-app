@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { runBrokerCheck } from '@/app/actions'
 import type { BrokerCheck } from '@/lib/fmcsa'
 import type { OurBroker } from '@/lib/brokers'
@@ -23,6 +23,15 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
   const [, start] = useTransition()
 
   const [query, setQuery] = useState('')
+  const [history, setHistory] = useState<TopBroker | null>(null)
+
+  // Escape closes the history bubble (plus the always-visible ✕ and click-outside).
+  useEffect(() => {
+    if (!history) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setHistory(null)
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [history])
 
   function check(kind: 'mc' | 'dot', v: string) {
     const val = v.trim()
@@ -191,16 +200,43 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
         </h2>
         <div className="flex flex-wrap gap-1.5">
           {topBrokers.map((b) => (
-            <span
+            <button
               key={b.name}
-              className="rounded-full border border-white/8 bg-white/[0.02] px-2.5 py-1 text-[12px] text-white/70"
+              type="button"
+              onClick={() => setHistory(b)}
+              className="rounded-full border border-white/8 bg-white/[0.02] px-2.5 py-1 text-[12px] text-white/70 transition-colors hover:border-haul-500/50 hover:text-white"
             >
               {b.name}
               <span className="ml-1.5 text-white/35">{b.hq}</span>
-            </span>
+            </button>
           ))}
         </div>
       </section>
+
+      {/* History bubble — click a broker chip to read who they are. */}
+      {history && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => setHistory(null)}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-ink-900 p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setHistory(null)}
+              aria-label={t(locale, 'brokers.close')}
+              className="absolute right-3 top-3 flex size-7 items-center justify-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              ✕
+            </button>
+            <h3 className="pr-8 text-[17px] font-semibold">{history.name}</h3>
+            <p className="mt-0.5 text-[12px] uppercase tracking-wider text-white/40">{history.hq}</p>
+            <p className="mt-3 text-[13.5px] leading-relaxed text-white/75">{history.history}</p>
+          </div>
+        </div>
+      )}
     </>
   )
 }

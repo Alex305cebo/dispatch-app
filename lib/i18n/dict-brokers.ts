@@ -152,6 +152,7 @@ export const brokersDict = {
   'brokers.recheck': { ru: 'Проверить', en: 'Check' },
 
   // ── Largest brokers starter list ────────────────────────────
+  'brokers.close': { ru: 'Закрыть', en: 'Close' },
   'brokers.topHeading': { ru: 'Крупнейшие брокеры США', en: 'Largest US brokers' },
   'brokers.topInfo': {
     ru: 'Справочный список для ориентира. Когда такой брокер попадётся в Rate Con, он проверится по своему MC и добавится в «Наши брокеры».',
