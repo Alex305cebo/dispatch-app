@@ -47,6 +47,43 @@ export const brokersDict = {
   'brokers.verdictClean': { ru: '✓ Красных флагов нет — можно работать', en: '✓ No red flags — clear to work' },
   'brokers.verdictFlags': { ru: 'Есть на что обратить внимание:', en: 'Points to watch:' },
 
+  // ── Full checklist: section headers ─────────────────────────
+  'brokers.secAuthority': { ru: 'Полномочия и статус', en: 'Authority & status' },
+  'brokers.secInsurance': { ru: 'Страховка и бонд', en: 'Insurance & bond' },
+  'brokers.secIdentity': { ru: 'Идентификация', en: 'Identity' },
+  'brokers.secSafety': { ru: 'Безопасность и парк', en: 'Safety & fleet' },
+
+  // ── Full checklist: rows ────────────────────────────────────
+  'brokers.rowOperating': { ru: 'Статус работы', en: 'Operating status' },
+  'brokers.rowBrokerAuth': { ru: 'Полномочия брокера', en: 'Broker authority' },
+  'brokers.rowCommonAuth': { ru: 'Common carrier authority', en: 'Common carrier authority' },
+  'brokers.rowContractAuth': { ru: 'Contract authority', en: 'Contract authority' },
+  'brokers.rowOos': { ru: 'Out of service', en: 'Out of service' },
+  'brokers.rowBond': { ru: 'Бонд BMC-84', en: 'BMC-84 bond' },
+  'brokers.rowCargo': { ru: 'Груз. страховка', en: 'Cargo insurance' },
+  'brokers.rowBipd': { ru: 'Страховка BIPD', en: 'BIPD insurance' },
+  'brokers.rowDot': { ru: 'DOT номер', en: 'DOT number' },
+  'brokers.rowEin': { ru: 'EIN (налоговый ID)', en: 'EIN (Tax ID)' },
+  'brokers.rowDba': { ru: 'Работает как (DBA)', en: 'Doing business as' },
+  'brokers.rowOperation': { ru: 'Тип операций', en: 'Operation' },
+  'brokers.rowMcs150': { ru: 'MCS-150 актуальна', en: 'MCS-150 current' },
+  'brokers.rowSafetyRating': { ru: 'Safety rating', en: 'Safety rating' },
+  'brokers.rowPowerUnits': { ru: 'Траков (power units)', en: 'Power units' },
+  'brokers.rowDrivers': { ru: 'Водителей', en: 'Drivers' },
+  'brokers.rowCrashes': { ru: 'Аварии (всего)', en: 'Crashes (total)' },
+  'brokers.rowVehicleOos': { ru: 'OOS траков', en: 'Vehicle OOS rate' },
+  'brokers.rowDriverOos': { ru: 'OOS водителей', en: 'Driver OOS rate' },
+
+  // ── Full checklist: values ──────────────────────────────────
+  'brokers.valYes': { ru: 'да', en: 'Yes' },
+  'brokers.valNo': { ru: 'нет', en: 'No' },
+  'brokers.onFile': { ru: 'на файле', en: 'on file' },
+  'brokers.bondMissing': { ru: 'требуется, но НЕТ', en: 'required, NONE' },
+  'brokers.notRequired': { ru: 'не требуется', en: 'not required' },
+  'brokers.notRated': { ru: 'не оценён', en: 'not rated' },
+  'brokers.vsNational': { ru: 'нац. среднее {n}%', en: "nat'l avg {n}%" },
+  'brokers.na': { ru: '—', en: '—' },
+
   // ── Our broker database ─────────────────────────────────────
   'brokers.dbHeading': { ru: 'Наши брокеры', en: 'Our brokers' },
   'brokers.dbInfo': {

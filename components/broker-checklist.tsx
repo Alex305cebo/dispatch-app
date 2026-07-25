@@ -1,23 +1,16 @@
 'use client'
 
 // The step-by-step vetting checklist. The FMCSA result arrives all at once, but the
-// panel reveals each check in sequence — "checking…" → ✓/⚠/⛔ — so it reads as a
-// live run-through rather than a wall of fields.
+// panel reveals each check in sequence — grouped into Authority / Insurance /
+// Identity / Safety — so it reads as a live run-through of everything the API gives.
 
-import { useEffect, useState } from 'react'
-import type { BrokerCheck } from '@/lib/fmcsa'
+import { useEffect, useMemo, useState } from 'react'
+import type { BrokerCheck, Authority } from '@/lib/fmcsa'
 import { useLocale } from '@/components/locale-provider'
-import { t } from '@/lib/i18n'
+import { t, type Locale, type MsgKey } from '@/lib/i18n'
 
 type Status = 'ok' | 'warn' | 'bad' | 'info'
-type Step = { label: string; value: string; status: Status }
-
-function monthsSince(date: string | null): number | null {
-  if (!date) return null
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return null
-  return (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
-}
+type Entry = { kind: 'header'; label: string } | { kind: 'row'; label: string; value: string; status: Status }
 
 const MARK: Record<Status, string> = { ok: '✓', warn: '⚠', bad: '⛔', info: '·' }
 const TONE: Record<Status, string> = {
@@ -27,47 +20,105 @@ const TONE: Record<Status, string> = {
   info: 'text-white/45',
 }
 
+function monthsSince(date: string | null): number | null {
+  if (!date) return null
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return null
+  return (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
+}
+
+function authText(a: Authority, locale: Locale): string {
+  return a === 'active'
+    ? t(locale, 'brokers.statusActive')
+    : a === 'inactive'
+      ? t(locale, 'brokers.statusInactive')
+      : a === 'none'
+        ? t(locale, 'brokers.statusNone')
+        : t(locale, 'brokers.statusUnknown')
+}
+const authTone = (a: Authority): Status => (a === 'active' ? 'ok' : a === 'unknown' ? 'info' : 'bad')
+const usd = (thousands: number) => `$${(thousands * 1000).toLocaleString('en-US')}`
+
+function buildEntries(c: BrokerCheck, locale: Locale): Entry[] {
+  const e: Entry[] = []
+  const row = (label: string, value: string, status: Status) => e.push({ kind: 'row', label, value, status })
+  const header = (label: string) => e.push({ kind: 'header', label })
+  const T = (k: MsgKey) => t(locale, k)
+
+  // ── Authority & status ──
+  header(T('brokers.secAuthority'))
+  row(T('brokers.stepFound'), c.legalName ?? c.dbaName ?? '—', 'ok')
+  row(T('brokers.rowOperating'), authText(c.operatingStatus, locale), authTone(c.operatingStatus))
+  row(T('brokers.rowBrokerAuth'), authText(c.authorityStatus, locale), authTone(c.authorityStatus))
+  row(T('brokers.rowCommonAuth'), authText(c.commonAuthority, locale), 'info')
+  row(T('brokers.rowContractAuth'), authText(c.contractAuthority, locale), 'info')
+  row(T('brokers.rowOos'), c.outOfService ? (c.oosDate ?? T('brokers.valYes')) : T('brokers.valNo'), c.outOfService ? 'bad' : 'ok')
+
+  // ── Insurance & bond ──
+  header(T('brokers.secInsurance'))
+  const bondVal =
+    c.bondOnFile === true && c.bondAmount != null
+      ? `${usd(c.bondAmount)} ${T('brokers.onFile')}`
+      : c.bondOnFile === false
+        ? T('brokers.bondMissing')
+        : c.bondRequired === false
+          ? T('brokers.notRequired')
+          : T('brokers.statusUnknown')
+  row(T('brokers.rowBond'), bondVal, c.bondOnFile === true ? 'ok' : c.bondOnFile === false ? 'bad' : 'info')
+  if (c.cargoOnFile != null)
+    row(T('brokers.rowCargo'), c.cargoOnFile > 0 ? usd(c.cargoOnFile) : T('brokers.na'), 'info')
+  if (c.bipdOnFile != null)
+    row(T('brokers.rowBipd'), c.bipdOnFile > 0 ? usd(c.bipdOnFile) : T('brokers.na'), 'info')
+
+  // ── Identity ──
+  header(T('brokers.secIdentity'))
+  if (c.dotNumber) row(T('brokers.rowDot'), c.dotNumber, 'info')
+  if (c.ein) row(T('brokers.rowEin'), c.ein, 'info')
+  if (c.dbaName && c.dbaName !== c.legalName) row(T('brokers.rowDba'), c.dbaName, 'info')
+  if (c.operation) row(T('brokers.rowOperation'), c.operation, 'info')
+  if (c.mcs150Current != null)
+    row(T('brokers.rowMcs150'), c.mcs150Current ? T('brokers.valYes') : T('brokers.valNo'), c.mcs150Current ? 'ok' : 'warn')
+
+  // ── Safety & fleet ──
+  header(T('brokers.secSafety'))
+  row(T('brokers.rowSafetyRating'), c.safetyRating ?? T('brokers.notRated'), c.safetyRating ? 'ok' : 'info')
+  if (c.powerUnits != null) row(T('brokers.rowPowerUnits'), String(c.powerUnits), 'info')
+  if (c.drivers != null) row(T('brokers.rowDrivers'), String(c.drivers), 'info')
+  if (c.crashTotal != null) row(T('brokers.rowCrashes'), String(c.crashTotal), c.crashTotal > 0 ? 'warn' : 'ok')
+  if (c.vehicleOosRate != null)
+    row(
+      T('brokers.rowVehicleOos'),
+      `${c.vehicleOosRate}%${c.vehicleOosNational != null ? ` · ${T('brokers.vsNational').replace('{n}', String(c.vehicleOosNational))}` : ''}`,
+      'info',
+    )
+  if (c.driverOosRate != null)
+    row(
+      T('brokers.rowDriverOos'),
+      `${c.driverOosRate}%${c.driverOosNational != null ? ` · ${T('brokers.vsNational').replace('{n}', String(c.driverOosNational))}` : ''}`,
+      'info',
+    )
+
+  // MC age rides in Authority if we resolved a grant date.
+  const months = monthsSince(c.authorityGranted)
+  if (months !== null) {
+    e.splice(6, 0, {
+      kind: 'row',
+      label: t(locale, 'brokers.stepAge'),
+      value: t(locale, 'brokers.ageMonths').replace('{months}', String(Math.round(months))),
+      status: months < 3 ? 'bad' : months < 6 ? 'warn' : 'ok',
+    })
+  }
+
+  return e
+}
+
 export function BrokerChecklist({ check }: { check: BrokerCheck }) {
   const locale = useLocale()
+  const entries = useMemo(() => buildEntries(check, locale), [check, locale])
+  const hasBlock = check.flags.some((f) => f.level === 'block')
 
-  const statusText =
-    check.authorityStatus === 'active'
-      ? t(locale, 'brokers.statusActive')
-      : check.authorityStatus === 'inactive'
-        ? t(locale, 'brokers.statusInactive')
-        : check.authorityStatus === 'none'
-          ? t(locale, 'brokers.statusNone')
-          : t(locale, 'brokers.statusUnknown')
-
-  const months = monthsSince(check.authorityGranted)
-  const ageText =
-    months === null
-      ? t(locale, 'brokers.ageUnknown')
-      : t(locale, 'brokers.ageMonths').replace('{months}', String(Math.round(months)))
-
-  const steps: Step[] = [
-    { label: t(locale, 'brokers.stepFound'), value: check.legalName ?? check.dbaName ?? '—', status: 'ok' },
-    {
-      label: t(locale, 'brokers.stepAuthority'),
-      value: statusText,
-      status: check.authorityStatus === 'active' ? 'ok' : check.authorityStatus === 'unknown' ? 'warn' : 'bad',
-    },
-    {
-      label: t(locale, 'brokers.stepBond'),
-      value: check.bondOnFile === true ? t(locale, 'brokers.bondYes') : check.bondOnFile === false ? t(locale, 'brokers.bondNo') : t(locale, 'brokers.bondUnknown'),
-      status: check.bondOnFile === true ? 'ok' : check.bondOnFile === false ? 'bad' : 'warn',
-    },
-    {
-      label: t(locale, 'brokers.stepAge'),
-      value: ageText,
-      status: months === null ? 'info' : months < 3 ? 'bad' : months < 6 ? 'warn' : 'ok',
-    },
-  ]
-  if (check.dotNumber) steps.push({ label: 'DOT', value: check.dotNumber, status: 'info' })
-  if (check.phone) steps.push({ label: t(locale, 'brokers.stepPhone'), value: check.phone, status: 'info' })
-
-  // Reveal one step at a time. From cache there's nothing to "run", so show it all.
-  const [revealed, setRevealed] = useState(check.cached ? steps.length : 0)
+  // Reveal one entry at a time. From cache there's nothing to "run", so show it all.
+  const [revealed, setRevealed] = useState(check.cached ? entries.length : 0)
   useEffect(() => {
     if (check.cached) return
     setRevealed(0)
@@ -75,39 +126,42 @@ export function BrokerChecklist({ check }: { check: BrokerCheck }) {
     const id = setInterval(() => {
       i += 1
       setRevealed(i)
-      if (i >= steps.length) clearInterval(id)
-    }, 420)
+      if (i >= entries.length) clearInterval(id)
+    }, 160)
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [check])
 
-  const hasBlock = check.flags.some((f) => f.level === 'block')
-
   return (
     <div className="mt-3">
-      <ul className="flex flex-col gap-1">
-        {steps.map((s, i) => {
-          const done = i < revealed
-          const checking = i === revealed
+      <div className="flex flex-col gap-1">
+        {entries.map((en, i) => {
           if (i > revealed) return null
+          if (en.kind === 'header')
+            return (
+              <p key={i} className="mt-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-white/40 first:mt-0">
+                {en.label}
+              </p>
+            )
+          const done = i < revealed
           return (
-            <li
-              key={s.label}
-              className="flex items-center gap-2.5 rounded-lg border border-white/6 bg-white/[0.015] px-3 py-2 text-[13px]"
+            <div
+              key={i}
+              className="flex items-center gap-2.5 rounded-lg border border-white/6 bg-white/[0.015] px-3 py-1.5 text-[13px]"
             >
-              <span className={`w-4 shrink-0 text-center font-semibold ${done ? TONE[s.status] : 'text-haul-400'}`}>
-                {done ? MARK[s.status] : '…'}
+              <span className={`w-4 shrink-0 text-center font-semibold ${done ? TONE[en.status] : 'text-haul-400'}`}>
+                {done ? MARK[en.status] : '…'}
               </span>
-              <span className="text-white/60">{s.label}</span>
+              <span className="text-white/60">{en.label}</span>
               <span className={`ml-auto text-right font-medium ${done ? 'text-white/90' : 'animate-pulse text-haul-400'}`}>
-                {done ? s.value : t(locale, 'brokers.checking')}
+                {done ? en.value : t(locale, 'brokers.checking')}
               </span>
-            </li>
+            </div>
           )
         })}
-      </ul>
+      </div>
 
-      {revealed >= steps.length && (
+      {revealed >= entries.length && (
         <>
           {check.address && <p className="mt-2 px-1 text-[12px] text-white/45">{check.address}</p>}
           {check.flags.length > 0 ? (

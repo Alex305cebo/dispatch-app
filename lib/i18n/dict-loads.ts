@@ -440,6 +440,8 @@ export const loadsDict = {
   'fmcsa.noMcToCheck': { ru: 'Нет номера MC для проверки.', en: 'No MC number to check.' },
   'fmcsa.mcNotFound': { ru: 'FMCSA не нашла MC {mc}.', en: "FMCSA couldn't find MC {mc}." },
   'fmcsa.dotNotFound': { ru: 'FMCSA не нашла DOT {dot}.', en: "FMCSA couldn't find DOT {dot}." },
+  'fmcsa.outOfService': { ru: 'Брокер помечен OUT OF SERVICE в FMCSA', en: 'Broker is flagged OUT OF SERVICE in FMCSA' },
+  'fmcsa.mcs150Outdated': { ru: 'Регистрация MCS-150 просрочена — компания давно не обновляла данные', en: 'MCS-150 registration is outdated — the company has not updated its filing' },
 
   // lib/ratecon-ai.ts
   'rateconAi.slowServer': {
