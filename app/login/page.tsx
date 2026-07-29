@@ -1,4 +1,6 @@
+import { cookies } from 'next/headers'
 import { sql } from '@/lib/db'
+import { LOCALE_COOKIE, resolveLocale } from '@/lib/i18n'
 import { LoginForm } from './login-form'
 
 export const dynamic = 'force-dynamic'
@@ -9,5 +11,19 @@ export default async function LoginPage() {
   // is_demo excluded — the seeded public-demo account (lib/demo.ts) always exists,
   // and must never make a fresh install think an admin has already been created.
   const rows = await sql`SELECT 1 FROM users WHERE is_demo = FALSE LIMIT 1`
-  return <LoginForm bootstrap={rows.length === 0} />
+
+  // Whether to ask for a language is decided here, server-side, because
+  // resolveLocale() answers "en" for anyone who has never chosen — a silent default
+  // that a Russian speaker never gets asked about. Reading the cookie here instead of
+  // in a client effect also keeps the first paint honest: no flash of the wrong
+  // language, and nothing for hydration to disagree about.
+  const cookie = (await cookies()).get(LOCALE_COOKIE)?.value
+
+  return (
+    <LoginForm
+      bootstrap={rows.length === 0}
+      askLocale={!cookie}
+      initialLocale={resolveLocale(cookie)}
+    />
+  )
 }

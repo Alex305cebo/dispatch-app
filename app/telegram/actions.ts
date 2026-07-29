@@ -15,7 +15,7 @@ import { activeLoadForTruck } from '@/lib/loads'
 import { classifyDocument } from '@/lib/ai-doc'
 import { autoInvoiceIfReady } from '@/lib/invoice'
 import { sql } from '@/lib/db'
-import { getCurrentUser, verifyMyPassword, type CurrentUser } from '@/lib/session'
+import { demoReadOnly, getCurrentUser, verifyMyPassword, type CurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
@@ -136,6 +136,8 @@ export async function tgAttachToLoad(
   msgId: number,
   driverPhone: string | null,
 ): Promise<{ ok: true; loadId: number; loadRoute: string } | { error: string }> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   let user: CurrentUser
   try {
     user = await requireTgUser()

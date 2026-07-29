@@ -94,9 +94,14 @@
 
   body {
     overflow-x: hidden;
-    /* Full white, not white/90: on #08090d every step down costs contrast, and the
-       muted scale below already carries the hierarchy. */
-    @apply bg-ink-950 font-sans text-white antialiased;
+    /* Surface + foreground come from vars, NOT `@apply bg-ink-950 text-white`: in
+       Tailwind v4 an `@apply` of a theme colour inside a static layer bakes the
+       LITERAL value at build time, so the [data-theme] override never reaches it —
+       which is why the light theme kept a black page. Referencing the var directly
+       lets both themes flip the body. */
+    background-color: var(--color-ink-950);
+    color: var(--color-white);
+    @apply font-sans antialiased;
     background-image: radial-gradient(
       120% 90% at 50% -20%,
       rgba(109, 90, 232, 0.18),
@@ -165,6 +170,50 @@
 .panel-interactive:active {
   transform: translateY(0);
   transition-duration: 0.08s;
+}
+/* Keyboard parity with Button. A card you can Tab to has to show where you are, and
+   the hover lift alone never fires for a keyboard user. :focus-visible, not :focus —
+   otherwise every mouse click on a card would leave a ring sitting there afterwards. */
+/* `:has()` covers the composite shape: a card whose <Link> is nested inside so that
+   action buttons can stay its siblings (see the load rows). That container can never
+   take focus itself, so without this a keyboard user tabbing into the row gets no
+   card-level feedback at all. */
+.panel-interactive:focus-visible,
+.panel-interactive:has(:focus-visible) {
+  outline: none;
+  border-color: rgba(155, 142, 255, 0.55);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
+    0 14px 34px -10px rgba(0, 0, 0, 0.7),
+    0 0 0 2px rgba(155, 142, 255, 0.75);
+}
+:root[data-theme='light'] .panel-interactive:focus-visible,
+:root[data-theme='light'] .panel-interactive:has(:focus-visible) {
+  border-color: rgba(91, 70, 214, 0.55);
+  box-shadow:
+    0 14px 30px -10px rgba(15, 20, 30, 0.22),
+    0 0 0 2px rgba(91, 70, 214, 0.65);
+}
+
+/* Elevation tier 2 — a card that should sit visibly ABOVE its neighbours: the hero
+   KPI tile, a focused/pinned row. Same surface as .panel, a deeper drop shadow so the
+   eye reads a real height difference instead of one flat plane of cards. Depth on this
+   app comes from a hierarchy of heights, not from more effects on every card. */
+/* Compound `.panel.panel-raised` (not an @utility): the light `.panel` shadow rule
+   below has the same specificity and comes later in the file, so a bare `.panel-raised`
+   selector loses to it and the raise never showed. Qualifying with both classes wins
+   on specificity in either theme, order-independent. */
+.panel.panel-raised {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.4),
+    0 18px 44px -14px rgba(0, 0, 0, 0.7);
+}
+:root[data-theme='light'] .panel.panel-raised {
+  box-shadow:
+    0 1px 3px rgba(16, 24, 40, 0.06),
+    0 14px 32px -12px rgba(16, 24, 40, 0.24);
 }
 
 /* Light theme: white cards on a light page, soft shadow, gentler top glow. */

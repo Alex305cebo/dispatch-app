@@ -12,6 +12,12 @@ export const actionsDict = {
   },
   'actions.loadNotFound': { ru: 'Груз не найден.', en: 'Load not found.' },
   'actions.demoDisabled': { ru: 'В демо-режиме недоступно.', en: 'Not available in demo mode.' },
+  // Every visitor shares one demo company, so a save here would show up for all of
+  // them — and a rate con opened from the Telegram bot link would stop being private.
+  'actions.demoReadOnly': {
+    ru: 'Демо — только для просмотра. Войдите в свой аккаунт, чтобы сохранять.',
+    en: 'Demo is read-only. Sign in to your account to save.',
+  },
   'actions.needNameAndMcDot': { ru: 'Нужны минимум название и MC/DOT.', en: 'Need at least a name and MC/DOT.' },
   'actions.truckNotFound': { ru: 'Трак не найден.', en: 'Truck not found.' },
   'actions.rateconNotFound': { ru: 'Рейткон не найден.', en: 'Rate con not found.' },

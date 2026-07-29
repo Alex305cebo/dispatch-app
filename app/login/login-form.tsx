@@ -1,9 +1,9 @@
 'use client'
 
 import { Button } from '@/components/button'
-import { useEffect, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { bootstrapAdmin, signIn } from './actions'
-import { LOCALE_COOKIE, LOCALES, resolveLocale, t, type Locale } from '@/lib/i18n'
+import { LOCALE_COOKIE, LOCALES, t, type Locale } from '@/lib/i18n'
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -24,25 +24,44 @@ const input =
 
 /** Same form for both first-run (create the admin) and every login after — the
  * chrome (logo, language picker, password field, submit) is identical either way. */
-export function LoginForm({ bootstrap }: { bootstrap: boolean }) {
+export function LoginForm({
+  bootstrap,
+  askLocale,
+  initialLocale,
+}: {
+  bootstrap: boolean
+  /** No locale cookie yet — greet with the language choice before anything else. */
+  askLocale: boolean
+  initialLocale: Locale
+}) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(true)
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [locale, setLocale] = useState<Locale>('en')
+  const [locale, setLocale] = useState<Locale>(initialLocale)
+  const [asking, setAsking] = useState(askLocale)
   const [pending, start] = useTransition()
 
-  // Pick up any language chosen earlier (cookie).
-  useEffect(() => {
-    const m = document.cookie.match(/(?:^|; )locale=([^;]+)/)
-    if (m) setLocale(resolveLocale(decodeURIComponent(m[1]!)))
-  }, [])
+  function writeLocaleCookie(l: Locale) {
+    document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`
+  }
 
   function chooseLocale(l: Locale) {
     setLocale(l)
-    document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`
+    writeLocaleCookie(l)
+  }
+
+  /** First-run choice reloads instead of swapping state, for two reasons. Swapping
+   * replaces the card's contents under a cursor that is still mid-click, and the
+   * browser then delivers that click to whatever button now sits at those
+   * coordinates — in testing, picking a language went straight into the demo.
+   * A reload also lets page.tsx re-decide askLocale server-side, same pattern as
+   * components/locale-toggle.tsx. */
+  function chooseFirstLocale(l: Locale) {
+    writeLocaleCookie(l)
+    window.location.reload()
   }
 
   function submit(e: React.FormEvent) {
@@ -65,6 +84,40 @@ export function LoginForm({ bootstrap }: { bootstrap: boolean }) {
       // as "An unexpected response was received from the server").
       window.location.reload()
     })
+  }
+
+  // First visit ever: ask the language before showing anything else. Labels are
+  // deliberately bilingual and untranslated — asking "which language?" in a language
+  // the visitor may not read is the one question that cannot be localised.
+  if (asking) {
+    return (
+      <main className="fixed inset-0 z-[100] flex items-center justify-center bg-ink-950 px-4">
+        <div className="panel w-full max-w-sm p-6">
+          <div className="mb-5 flex items-center gap-2.5">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-haul-500 to-good-500 text-[17px] font-bold">
+              D
+            </div>
+            <div>
+              <h1 className="text-[15px] font-semibold leading-tight">Dispatch</h1>
+              <p className="text-[12px] text-white/65">Choose your language · Выберите язык</p>
+            </div>
+          </div>
+
+          <div className="grid gap-2.5">
+            <Button variant="primary" size="lg" block onClick={() => chooseFirstLocale('en')}>
+              English
+            </Button>
+            <Button variant="secondary" size="lg" block onClick={() => chooseFirstLocale('ru')}>
+              Русский
+            </Button>
+          </div>
+
+          <p className="mt-3 text-center text-[11px] text-white/45">
+            You can change it any time · Можно сменить в любой момент
+          </p>
+        </div>
+      </main>
+    )
   }
 
   return (

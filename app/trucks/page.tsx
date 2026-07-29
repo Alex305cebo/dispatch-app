@@ -1,6 +1,7 @@
 import { Fuel, Plus } from 'lucide-react'
 import { Button } from '@/components/button'
 import { Name } from '@/components/name'
+import { LinkPending } from '@/components/link-pending'
 import Link from 'next/link'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { currentLoadsByTruck, truckLabel } from '@/lib/map'
@@ -160,7 +161,7 @@ export default async function Page() {
             <Link
               key={truck.id}
               href={`/trucks/${truck.id}`}
-              className={`panel flex min-w-0 flex-col gap-2.5 p-4 transition-colors hover:border-white/20 hover:bg-white/[0.03] ${
+              className={`panel panel-interactive flex min-w-0 flex-col gap-2.5 p-4 ${
                 off ? 'border-warn-400/25' : ''
               }`}
             >
@@ -177,7 +178,12 @@ export default async function Page() {
                       the badge drop to its own line on a tight card instead of spilling
                       over the week-gross column to its right. */}
                   <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                    <span className="shrink-0 text-[15px] font-semibold">{truck.number ?? truck.name}</span>
+                    {/* Tractor · trailer — the equipment's identity. The driver's name
+                        is the line directly below, so it has no business up here. */}
+                    <span className="shrink-0 text-[15px] font-semibold">
+                      {truckLabel(truck, meta?.trailerNumber)}
+                    </span>
+                    <LinkPending className="text-haul-400" />
                     {off ? (
                       <span className="shrink-0 rounded-full bg-warn-400/15 px-2 py-0.5 text-[10.5px] font-semibold text-warn-400">
                         {unavailableLabel(locale, off)}

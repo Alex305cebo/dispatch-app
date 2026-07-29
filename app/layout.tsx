@@ -13,7 +13,9 @@ import { t } from '@/lib/i18n'
 import './globals.css'
 
 // Apply the saved theme before first paint — no flash of the wrong colours.
-const THEME_INIT = `try{var t=localStorage.getItem('theme');if(t==='light')document.documentElement.dataset.theme='light'}catch(e){}`
+// Light is now the default surface (airy SaaS); dark is opt-in and only applied when
+// the user explicitly chose it. Absence of a stored choice = light.
+const THEME_INIT = `try{var t=localStorage.getItem('theme');document.documentElement.dataset.theme=(t==='dark'?'dark':'light')}catch(e){document.documentElement.dataset.theme='light'}`
 
 // Self-hosted by next/font at build time: no request to Google at runtime, no layout
 // shift while a webfont loads, and nothing for an ad blocker to break. Until now the
@@ -45,7 +47,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#08090d',
+  themeColor: '#eef1f6',
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',

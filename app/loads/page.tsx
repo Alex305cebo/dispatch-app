@@ -442,7 +442,7 @@ function Calendar({
             return (
               <div
                 key={l.id}
-                className="panel flex items-center gap-3 p-4 transition-colors hover:border-white/20 hover:bg-white/[0.03] sm:p-5"
+                className="panel panel-interactive flex items-center gap-3 p-4 sm:p-5"
               >
                 <Link href={`/loads/${l.id}`} className="flex min-w-0 flex-1 items-center gap-4">
                   <div className="min-w-0 flex-1">

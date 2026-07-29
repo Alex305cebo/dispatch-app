@@ -257,6 +257,7 @@ export default async function Page() {
         <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           <Stat
             href="/loads"
+            hero
             icon={<DollarSign size={15} strokeWidth={2.5} />}
             accent="haul"
             label={tr(locale, 'overview.rateTotal')}
@@ -558,6 +559,7 @@ function Stat({
   icon,
   accent = 'haul',
   meter,
+  hero,
 }: {
   label: string
   value: string
@@ -572,10 +574,20 @@ function Stat({
   accent?: keyof typeof ACCENTS
   /** 0..1 — draws a thin fill bar along the bottom of the tile. */
   meter?: number
+  /** The one figure an owner watches first (rate/profit). Lifts the tile to elevation
+   * tier 2 and caps it with an accent strip, so four equal numbers gain a focal point
+   * instead of reading as an undifferentiated row. */
+  hero?: boolean
 }) {
   const a = ACCENTS[accent]
   const body = (
     <>
+      {hero && (
+        <span
+          aria-hidden
+          className={`absolute inset-x-0 top-0 h-[3px] rounded-t-2xl ${a.bar}`}
+        />
+      )}
       {/* Label first, figure second. The old tile led with the number and buried the
           label underneath in 10px grey, so four tiles in a row read as four loose
           numbers with no way to tell at a glance which was which. */}
@@ -594,7 +606,7 @@ function Stat({
       </div>
 
       <div
-        className={`nums mt-1.5 text-xl font-bold leading-none tracking-tight ${
+        className={`nums mt-1.5 font-bold leading-none tracking-tight ${hero ? 'text-2xl' : 'text-xl'} ${
           tone === 'good' ? 'text-good-400' : tone === 'bad' ? 'text-bad-400' : ''
         }`}
       >
@@ -624,7 +636,12 @@ function Stat({
 
   if (href)
     return (
-      <Link href={href} className="panel panel-interactive block px-3.5 py-2.5">
+      <Link
+        href={href}
+        className={`panel block px-3.5 py-2.5 ${
+          hero ? 'panel-raised relative overflow-hidden' : 'panel-interactive'
+        }`}
+      >
         {body}
       </Link>
     )

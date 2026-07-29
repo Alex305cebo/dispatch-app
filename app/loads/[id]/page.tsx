@@ -87,6 +87,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           ) : (
             <span className="text-xs text-white/45">{t(locale, 'loadDetail.noRateCon')}</span>
           )}
+        </div>
+
+        {/* BOL and POD are one pair — the two halves of a load's paperwork. Sharing the
+            row above, the rate-con sentence ate the full width on a phone and pushed
+            each button onto a line of its own, so they read as unrelated and wasted two
+            rows. Their own 2-up grid keeps them together and equal-width on a phone,
+            and they fall back to sitting inline once there is room. */}
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
           <DocButton label="BOL" kind="bol" docId={bolDoc?.id ?? null} loadId={load.id} />
           <DocButton label="POD" kind="pod" docId={podDoc?.id ?? null} loadId={load.id} />
         </div>

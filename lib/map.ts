@@ -90,11 +90,18 @@ export function currentLoadsByTruck(loads: LoadRecord[]): Map<number, LoadRecord
   return out
 }
 
-/** "425 · Ravil" for the fleet UI — number first, driver second. */
-export function truckLabel(t: TruckRecord): string {
+/** "425 · TR-5301" for the fleet UI — the equipment's own identity, tractor then
+ * trailer. The driver's name used to be the second half and no longer is: every
+ * surface that prints this label already shows the driver on its own line directly
+ * underneath, so half the label's width was spent repeating what was already there.
+ *
+ * `trailer` is optional because the number alone is still a complete truck label —
+ * callers without truck_meta loaded (see truckTrailerNumbers) degrade to it instead
+ * of being forced into an extra query. */
+export function truckLabel(t: TruckRecord, trailer?: string | null): string {
   const num = t.number?.trim() || t.name
-  const drv = t.driverName?.trim()
-  return drv ? `${num} · ${drv}` : num
+  const trl = trailer?.trim()
+  return trl ? `${num} · ${trl}` : num
 }
 
 /** ZigZag duty codes → a plain label + a colour bucket. Shared between /tracking

@@ -142,7 +142,7 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
             {filtered.length === 0 ? (
               <p className="text-[13px] text-white/45">{t(locale, 'brokers.noMatch')}</p>
             ) : (
-              <ul className="flex flex-col gap-1.5">
+              <ul className="flex max-h-[22rem] flex-col gap-1.5 overflow-y-auto pr-1">
                 {filtered.map((b) => (
                   <li
                     key={(b.mc ?? b.name ?? '') + b.loadCount}
@@ -233,7 +233,9 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
             </button>
             <h3 className="pr-8 text-[17px] font-semibold">{history.name}</h3>
             <p className="mt-0.5 text-[12px] uppercase tracking-wider text-white/40">{history.hq}</p>
-            <p className="mt-3 text-[13.5px] leading-relaxed text-white/75">{history.history}</p>
+            <p className="mt-3 text-[13.5px] leading-relaxed text-white/75">
+              {locale === 'en' ? history.historyEn : history.history}
+            </p>
           </div>
         </div>
       )}

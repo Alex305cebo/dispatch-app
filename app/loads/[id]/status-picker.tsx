@@ -114,7 +114,12 @@ export function StatusPicker({
                   }`}
                 />
               )}
-              <div className="flex w-[72px] shrink-0 flex-col items-center gap-1">
+              {/* 72px × 5 steps + 4 connectors is 392px of hard minimum — wider than
+                  the ~326px a phone actually leaves inside the panel, so the last step
+                  used to be clipped off the right edge (html has overflow-x:hidden, so
+                  it vanished rather than scrolled). Narrower columns below `sm` fit all
+                  five; the labels were already truncating. */}
+              <div className="flex w-[54px] shrink-0 flex-col items-center gap-1 sm:w-[72px]">
                 <button
                   type="button"
                   disabled={s === shown}

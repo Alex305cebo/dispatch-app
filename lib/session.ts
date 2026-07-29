@@ -63,6 +63,25 @@ export async function companyScope(): Promise<'default' | 'demo'> {
   return (await getCurrentUser())?.companyId ?? 'default'
 }
 
+/**
+ * The one-line gate every write action starts with. Demo is a shared showroom, not a
+ * sandbox per visitor: everyone who clicks "try the demo" lands in the SAME company,
+ * so one person saving a load puts it in front of every other visitor until the
+ * nightly reset. That matters most for the Telegram bot link (/demo?next=/load#…),
+ * whose rate con is private to whoever opened it precisely because it lives in the URL
+ * hash and is never stored — saving it would be the one act that leaks it.
+ *
+ * Resolves its own locale so the guard reads identically in all 32 write actions and
+ * can't be got subtly wrong in one of them:
+ *   const ro = await demoReadOnly(); if (ro) return ro
+ */
+export async function demoReadOnly(): Promise<{ error: string } | null> {
+  const user = await getCurrentUser()
+  if (!user?.isDemo) return null
+  const { getLocale } = await import('./i18n-server.ts')
+  return { error: t(await getLocale(), 'actions.demoReadOnly') }
+}
+
 /** Throws instead of returning null — for admin-only pages, right after the page's
  * own gate has already confirmed role === 'admin'. Never trust this alone. */
 export async function requireAdmin(): Promise<CurrentUser> {

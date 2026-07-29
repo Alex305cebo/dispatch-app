@@ -17,7 +17,7 @@ import type { DocClass } from '@/lib/ai-doc'
 import { docBelongs, getLoad, loadBelongs, truckBelongs } from '@/lib/loads'
 import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
 import { getSetting, setSetting } from '@/lib/settings'
-import { companyScope, getCurrentUser, verifyMyPassword } from '@/lib/session'
+import { companyScope, demoReadOnly, getCurrentUser, verifyMyPassword } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
 import type { CapabilityKey } from '@/lib/capabilities'
 import { t } from '@/lib/i18n'
@@ -94,6 +94,8 @@ export async function refreshFleetStatus(): Promise<{ updated: number; errors: s
  * the page already on screen never re-renders to show it, so the caller only forces a
  * re-render when there's actually fresh data behind it. */
 export async function autoRefreshFleet(): Promise<boolean> {
+  const ro = await demoReadOnly()
+  if (ro) return false
   const THROTTLE_MS = 3 * 60 * 1000
   const last = await getSetting('fleet_auto_refresh_at')
   if (last && Date.now() - new Date(last).getTime() < THROTTLE_MS) return false
@@ -223,7 +225,7 @@ export async function saveCompany(c: Company): Promise<{ error: string } | void>
   const denied = await assertCan('finances')
   if (denied) return denied
   const locale = await getLocale()
-  if ((await companyScope()) === 'demo') return { error: t(locale, 'actions.demoDisabled') }
+  if ((await companyScope()) === 'demo') return { error: t(locale, 'actions.demoReadOnly') }
   if (!c.name.trim() || !c.mcdot.trim()) return { error: t(locale, 'actions.needNameAndMcDot') }
   await Promise.all([
     setSetting('co_name', c.name.trim()),
@@ -274,6 +276,8 @@ export async function createLoad(
    * /import path) — null for a manual/QR entry, which has nothing to render. */
   driverInfo?: string,
 ): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   let id: number
   const locale = await getLocale()
   try {
@@ -327,6 +331,8 @@ export async function createLoadFromRc(
    * in the browser session right after the RC was read. */
   driverInfo?: string,
 ): Promise<{ loadId: number } | { error: string }> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const locale = await getLocale()
   try {
     const companyId = await companyScope()
@@ -438,6 +444,8 @@ async function deliveryDocs(loadId: number): Promise<{ bol: boolean; pod: boolea
 }
 
 export async function setStatus(id: number, status: LoadStatus): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   // "Delivered" (and paid, which implies it) is the point where the paperwork must exist —
   // a load can't be closed out without its BOL and POD. Gate both the manual click here and
   // the GPS auto-advance (autoAdvanceLoadStatuses) on the same check.
@@ -468,6 +476,8 @@ export async function saveTruck(
   id: number,
   t: TruckInput,
 ): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const denied = await assertCan('edit_trucks')
   if (denied) return denied
   const cpm = t.driverPay.mode === 'cpm' ? t.driverPay.centsPerMile : null
@@ -504,6 +514,8 @@ export async function setTruckAvailability(
   truckId: number,
   status: 'active' | 'repair' | 'vacation',
 ): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const denied = await assertCan('edit_trucks')
   if (denied) return denied
   if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(await getLocale(), 'actions.truckNotFound') }
@@ -530,6 +542,8 @@ export async function classifyDoc(base64: string, mime: string): Promise<DocClas
 export async function uploadDocument(
   fd: FormData,
 ): Promise<{ id: number } | { error: string }> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const locale = await getLocale()
   const file = fd.get('file')
   if (!(file instanceof File) || file.size === 0) return { error: t(locale, 'actions.noFileSelected') }
@@ -565,6 +579,8 @@ export async function uploadDocument(
 }
 
 export async function attachDocumentToLoad(docId: number, loadId: number): Promise<void> {
+  const ro = await demoReadOnly()
+  if (ro) return
   const companyId = await companyScope()
   if (!(await docBelongs(companyId, docId)) || !(await loadBelongs(companyId, loadId))) return
   const rows = await sql`
@@ -604,6 +620,8 @@ async function auditDelete(
  * own password, audited (who, what, the load route) — shown in the Журнал.
  */
 export async function deleteDocument(id: number, password: string): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const locale = await getLocale()
   const check = await verifyMyPassword(password, locale)
   if ('error' in check) return { error: check.error }
@@ -636,6 +654,8 @@ export async function deleteDocument(id: number, password: string): Promise<{ er
 
 /** Pull a document back out of the trash — the safe direction, no PIN needed. */
 export async function restoreDocument(id: number): Promise<void> {
+  const ro = await demoReadOnly()
+  if (ro) return
   const companyId = await companyScope()
   if (!(await docBelongs(companyId, id))) return
   await sql`UPDATE documents SET deleted_at = NULL WHERE id = ${id}`
@@ -647,6 +667,8 @@ export async function restoreDocument(id: number): Promise<void> {
 /** Erases a trashed document for real — same name + PIN guard as the soft delete,
  * since this direction can't be undone. */
 export async function purgeDocument(id: number, password: string): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const locale = await getLocale()
   const check = await verifyMyPassword(password, locale)
   if ('error' in check) return { error: check.error }
@@ -699,6 +721,8 @@ export async function updateLoadDetails(
   loadId: number,
   p: LoadDetailsPatch,
 ): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const locale = await getLocale()
   if (!(p.rate >= 0)) return { error: t(locale, 'actions.rateNegative') }
   if (!(p.loadedMiles > 0)) return { error: t(locale, 'actions.loadedMilesPositive') }
@@ -727,6 +751,8 @@ export async function setBrokerNotes(
   loadId: number,
   notes: string,
 ): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   try {
     await sql`UPDATE loads SET broker_notes = ${notes.trim() || null}
       WHERE id = ${loadId} AND company_id = ${await companyScope()}`
@@ -755,6 +781,8 @@ export async function translateBrokerNotes(
 
 /** Dispatcher acknowledged the broker notes — stops highlighting them. */
 export async function markNotesRead(loadId: number): Promise<void> {
+  const ro = await demoReadOnly()
+  if (ro) return
   await sql`UPDATE loads SET notes_read_at = now()
     WHERE id = ${loadId} AND company_id = ${await companyScope()} AND notes_read_at IS NULL`
   revalidatePath(`/loads/${loadId}`)
@@ -775,6 +803,8 @@ export async function markNotesRead(loadId: number): Promise<void> {
 export async function parseRcForNotes(
   loadId: number,
 ): Promise<{ error: string } | { ok: true; found: boolean }> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const companyId = await companyScope()
   const locale = await getLocale()
   if (!(await loadBelongs(companyId, loadId))) return { error: t(locale, 'actions.loadNotFound') }
@@ -824,6 +854,8 @@ export async function parseRcForNotes(
  * library instead of blocking the delete on the foreign key.
  */
 export async function deleteLoad(id: number, password: string): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const locale = await getLocale()
   const check = await verifyMyPassword(password, locale)
   if ('error' in check) return { error: check.error }
@@ -867,6 +899,8 @@ export async function addMaintenance(
   truckId: number,
   m: MaintenanceInput,
 ): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const locale = await getLocale()
   if (!m.title.trim()) return { error: t(locale, 'actions.sayWhatWasDone') }
   if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
@@ -892,6 +926,8 @@ export async function deleteMaintenance(
   truckId: number,
   password: string,
 ): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const locale = await getLocale()
   const check = await verifyMyPassword(password, locale)
   if ('error' in check) return { error: check.error }
@@ -913,6 +949,8 @@ export async function addTodo(
   title: string,
   priority: 'low' | 'normal' | 'urgent',
 ): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const locale = await getLocale()
   if (!title.trim()) return { error: t(locale, 'actions.sayWhatToFix') }
   if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
@@ -926,6 +964,8 @@ export async function addTodo(
 }
 
 export async function toggleTodo(id: number, truckId: number): Promise<void> {
+  const ro = await demoReadOnly()
+  if (ro) return
   if (!(await truckBelongs(await companyScope(), truckId))) return
   await sql`UPDATE truck_todos
             SET done_at = CASE WHEN done_at IS NULL THEN now() ELSE NULL END
@@ -938,6 +978,8 @@ export async function deleteTodo(
   truckId: number,
   password: string,
 ): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const locale = await getLocale()
   const check = await verifyMyPassword(password, locale)
   if ('error' in check) return { error: check.error }
@@ -982,6 +1024,8 @@ export async function saveDriverInfo(
   truckId: number,
   d: { name: string; phone: string; cdlExpiry: string; medcardExpiry: string },
 ): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const locale = await getLocale()
   if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
   try {
@@ -1008,6 +1052,8 @@ export async function saveDriverPhoto(
   truckId: number,
   fd: FormData,
 ): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const locale = await getLocale()
   const file = fd.get('file')
   if (!(file instanceof File) || file.size === 0) return { error: t(locale, 'actions.noFileSelected') }
@@ -1035,6 +1081,8 @@ export async function saveTruckMeta(
   truckId: number,
   m: TruckMetaInput,
 ): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const locale = await getLocale()
   if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
   try {
@@ -1067,6 +1115,8 @@ export async function saveTruckMeta(
 }
 
 export async function addTruck(t: TruckInput): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const cpm = t.driverPay.mode === 'cpm' ? t.driverPay.centsPerMile : null
   const pct = t.driverPay.mode === 'percent' ? t.driverPay.percentOfGross : null
   let id: number

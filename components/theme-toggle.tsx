@@ -11,10 +11,10 @@ import { t } from '@/lib/i18n'
 
 export function ThemeToggle({ collapsed = false }: { collapsed?: boolean }) {
   const locale = useLocale()
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const [theme, setTheme] = useState<'dark' | 'light'>('light')
 
   useEffect(() => {
-    setTheme((document.documentElement.dataset.theme as 'dark' | 'light') || 'dark')
+    setTheme((document.documentElement.dataset.theme as 'dark' | 'light') || 'light')
   }, [])
 
   function toggle() {

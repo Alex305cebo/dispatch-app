@@ -79,10 +79,24 @@ export function DocButton({
         type="button"
         disabled={pending}
         onClick={() => inputRef.current?.click()}
-        className="inline-flex items-center gap-2 rounded-xl border border-dashed border-warn-400/50 px-3 py-2 text-[13px] font-semibold text-warn-400 transition-colors hover:border-warn-400 hover:bg-warn-400/10 disabled:opacity-60"
+        aria-busy={pending || undefined}
+        /* w-full so the pair fills its 2-up grid on a phone and the two read as equals,
+           back to auto width once they sit inline. Press and focus ring mirror
+           components/button.tsx: this control had neither, so a tap gave no answer and
+           a keyboard user got no ring at all. */
+        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-warn-400/50 px-3 py-2 text-[13px] font-semibold text-warn-400 outline-none transition-[transform,background-color,border-color] duration-[120ms] ease-out hover:border-warn-400 hover:bg-warn-400/10 focus-visible:ring-2 focus-visible:ring-warn-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950 active:translate-y-px active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 sm:w-auto"
       >
-        <Plus size={16} strokeWidth={2.5} />
-        {pending ? '…' : t(locale, 'loadDetail.uploadDoc').replace('{label}', label)}
+        {/* A spinner, not "…": the ellipsis was indistinguishable from a truncated
+            label, which is the one thing a busy state must not look like. */}
+        {pending ? (
+          <span
+            aria-hidden
+            className="size-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent opacity-80"
+          />
+        ) : (
+          <Plus size={16} strokeWidth={2.5} />
+        )}
+        {t(locale, 'loadDetail.uploadDoc').replace('{label}', label)}
       </button>
     </>
   )
