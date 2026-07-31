@@ -75,7 +75,9 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
 
       // 0) What IS this? Only a real rate con creates a load; a BOL/POD/invoice is just filed
       // on the truck with its correct kind, not force-labelled "ratecon".
-      const cls = await classifyDoc(base64, mime)
+      // The name goes along: "RateConf_2002711744.pdf" answers the question outright,
+      // and a broker's own filename beats guessing from the page.
+      const cls = await classifyDoc(base64, mime, file.name)
       if (cls !== 'ratecon') {
         setStage(t(locale, 'rcDrop.stageSaving'))
         const fd = new FormData()

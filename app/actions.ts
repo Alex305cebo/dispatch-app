@@ -530,9 +530,9 @@ const MAX_DOC_BYTES = 8 * 1024 * 1024
 /** Vision-classify an uploaded document (base64) into a doc kind before deciding what to do
  * with it — so a BOL dropped on the truck card is filed as a BOL, not force-labelled a rate
  * con. Degrades to 'other' with no AI key; never throws. */
-export async function classifyDoc(base64: string, mime: string): Promise<DocClass> {
+export async function classifyDoc(base64: string, mime: string, filename?: string): Promise<DocClass> {
   const { classifyDocument } = await import('@/lib/ai-doc')
-  return classifyDocument(base64, mime)
+  return classifyDocument(base64, mime, filename)
 }
 
 /**

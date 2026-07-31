@@ -2,6 +2,10 @@
 // tell a POD from a BOL from a random photo a driver sends. Degrades to 'other'
 // when there's no key — never throws.
 
+// caption-kind imports DocClass back from here, but only as `import type`, which is
+// erased at compile time — no runtime import cycle.
+import { captionKind } from './caption-kind.ts'
+
 const KINDS = ['pod', 'bol', 'ratecon', 'invoice', 'other'] as const
 export type DocClass = (typeof KINDS)[number]
 
@@ -13,7 +17,19 @@ invoice — an invoice
 other — anything else (fuel receipt, lumper receipt, random photo)
 Answer with just the single word.`
 
-export async function classifyDocument(base64: string, mime: string): Promise<DocClass> {
+export async function classifyDocument(
+  base64: string,
+  mime: string,
+  /** The uploaded file's own name. Optional only so old call sites keep compiling. */
+  filename?: string,
+): Promise<DocClass> {
+  // The filename first: brokers send "RateConf_2002711744.pdf", which says what the
+  // document is more reliably than reading the page — and says it for free, offline,
+  // with no API key and no way to time out. Same matcher the Telegram captions use,
+  // so both paths agree on what counts as a rate con.
+  const byName = filename ? captionKind(filename) : null
+  if (byName) return byName
+
   const key = process.env.GEMINI_API_KEY
   if (!key) return 'other'
   try {
@@ -24,7 +40,16 @@ export async function classifyDocument(base64: string, mime: string): Promise<Do
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: PROMPT }, { inlineData: { mimeType: mime, data: base64 } }] }],
-          generationConfig: { temperature: 0, maxOutputTokens: 5 },
+          generationConfig: {
+            temperature: 0,
+            // gemini-2.5-flash reasons before it answers, and those thinking tokens
+            // are billed against maxOutputTokens. The old cap of 5 was spent on
+            // thinking before a single visible token, so the reply came back empty
+            // and EVERY document fell through to 'other'. Thinking off, and enough
+            // room that a one-word answer can never be the thing that gets truncated.
+            thinkingConfig: { thinkingBudget: 0 },
+            maxOutputTokens: 32,
+          },
         }),
       },
     )

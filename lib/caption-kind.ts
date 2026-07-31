@@ -9,7 +9,10 @@ import type { DocClass } from './ai-doc.ts'
 const CAPTION_KINDS: { kind: DocClass; re: RegExp }[] = [
   // \b before the English "rate" so "modeRATE CONcern" doesn't mis-file; left off the
   // Cyrillic side where JS \b (ASCII-only) treats every letter as a non-word char.
-  { kind: 'ratecon', re: /\brate\s*-?\s*con(f|firmation)?|рейт[\s-]*кон|рейткон/i },
+  // The separator class covers filenames, not just typed captions: brokers send
+  // "rate_confirmation_88213.pdf" and "Rate-Con 4471.pdf", and an underscore used to
+  // break the match outright — which is how a rate con got filed as "other".
+  { kind: 'ratecon', re: /\brate[\s._-]*con(f|firmation)?|рейт[\s._-]*кон|рейткон/i },
 ]
 
 export function captionKind(text: string): DocClass | null {
