@@ -68,7 +68,7 @@ function emailDraft(l: QrLoad): { subject: string; body: string } {
       ? `Posted rate is $${l.rate.toLocaleString('en-US')}. Please confirm the all-in rate you can do.`
       : 'Please advise the all-in rate you can offer.',
   )
-  b.push('', 'Please send the rate confirmation once we agree.', '', 'Thank you,')
+  b.push('', 'Thank you,')
   return { subject, body: b.join('\n') }
 }
 
