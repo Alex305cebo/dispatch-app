@@ -34,7 +34,9 @@ function driverText(l: QrLoad): string {
     refs: string | null | undefined,
   ) => {
     out.push(`${heading}:`, '')
-    if (name) out.push(name)
+    // Пустая строка после названия склада — иначе оно визуально слипается
+    // с адресом на следующей строке. Тот же формат, что в Telegram-боте.
+    if (name) out.push(name, '')
     if (addr) out.push(addr)
     if (city) out.push(city)
     out.push('')
@@ -55,20 +57,20 @@ function driverText(l: QrLoad): string {
 
 function emailDraft(l: QrLoad): { subject: string; body: string } {
   const route = [l.origin, l.destination].filter(Boolean).join(' to ')
-  const subject = `Load inquiry${route ? ` - ${route}` : ''}${l.referenceId ? ` (Ref ${l.referenceId})` : ''}`
-  const b: string[] = ['Hello,', '', `We are interested in your load${route ? ` ${route}` : ''}.`, '']
-  if (l.pickupTime || l.pickupDate) b.push(`Pickup: ${l.pickupTime ?? l.pickupDate}`)
-  if (l.deliveryTime || l.deliveryDate) b.push(`Delivery: ${l.deliveryTime ?? l.deliveryDate}`)
-  if (l.equipment) b.push(`Equipment: ${l.equipment}`)
-  if (l.weight) b.push(`Weight: ${l.weight}`)
-  if (l.referenceId) b.push(`Reference: ${l.referenceId}`)
+  const subject = `Checking your load${route ? ` - ${route}` : ''}`
+  // Маршрут — отдельной строкой, а не приклеен к предыдущей фразе.
+  const b: string[] = ['Hello,', '', `We are interested in your load${route ? '' : '.'}`]
+  if (route) b.push(route)
+  const details: string[] = []
+  if (l.pickupTime || l.pickupDate) details.push(`Pickup: ${l.pickupTime ?? l.pickupDate}`)
+  if (l.deliveryTime || l.deliveryDate) details.push(`Delivery: ${l.deliveryTime ?? l.deliveryDate}`)
+  if (l.equipment) details.push(`Equipment: ${l.equipment}`)
+  if (l.weight) details.push(`Weight: ${l.weight}`)
+  if (l.referenceId) details.push(`Reference: ${l.referenceId}`)
+  if (details.length) b.push('', ...details)
   b.push('', 'Our truck is available and can cover it on time.')
-  b.push(
-    l.rate
-      ? `Posted rate is $${l.rate.toLocaleString('en-US')}. Please confirm the all-in rate you can do.`
-      : 'Please advise the all-in rate you can offer.',
-  )
-  b.push('', 'Thank you,')
+  b.push('Please confirm BEST rate for this load.')
+  b.push('', 'Thank you')
   return { subject, body: b.join('\n') }
 }
 
