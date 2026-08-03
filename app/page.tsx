@@ -186,8 +186,19 @@ export default async function Page() {
         </div>
       )}
 
+      {/* The two SHORT alerts share a row on a wide screen. The deadline strip above
+          keeps the full width on purpose — it carries up to six items, and a third of
+          a row shreds them into unreadable stubs. These two split into columns only
+          when BOTH are present: a single banner sitting at half width reads like the
+          other half failed to load. */}
+      {(unreadNotes.length > 0 || (showFinances && unpaidTotal > 0)) && (
+        <div
+          className={`mb-3 grid gap-2.5 ${
+            unreadNotes.length > 0 && showFinances && unpaidTotal > 0 ? 'lg:grid-cols-2' : ''
+          }`}
+        >
       {unreadNotes.length > 0 && (
-        <div className="mb-3 flex gap-2.5 rounded-xl border border-haul-400/25 bg-haul-500/[0.09] px-3.5 py-2.5">
+        <div className="flex gap-2.5 rounded-xl border border-haul-400/25 bg-haul-500/[0.09] px-3.5 py-2.5">
           <span className="mt-px flex size-6 shrink-0 items-center justify-center rounded-md bg-haul-500/20 text-haul-300 ring-1 ring-haul-400/25">
             <MessageSquareWarning size={15} strokeWidth={2.5} />
           </span>
@@ -209,7 +220,7 @@ export default async function Page() {
 
       {showFinances && unpaidTotal > 0 && (
         <div
-          className={`mb-3 flex gap-2.5 rounded-xl border px-3.5 py-2.5 ${
+          className={`flex gap-2.5 rounded-xl border px-3.5 py-2.5 ${
             overdueTotal > 0 ? 'border-bad-500/25 bg-bad-500/[0.07]' : 'border-white/10 bg-white/[0.03]'
           }`}
         >
@@ -252,9 +263,11 @@ export default async function Page() {
           </div>
         </div>
       )}
+        </div>
+      )}
 
       {loads.length > 0 && (
-        <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <div className="panel mb-4 grid grid-cols-2 gap-2.5 p-2.5 sm:grid-cols-4">
           <Stat
             href="/loads"
             hero
@@ -606,7 +619,7 @@ function Stat({
       </div>
 
       <div
-        className={`nums mt-1.5 font-bold leading-none tracking-tight ${hero ? 'text-2xl' : 'text-xl'} ${
+        className={`nums mt-2 font-bold leading-none tracking-tight ${hero ? 'text-3xl' : 'text-2xl'} ${
           tone === 'good' ? 'text-good-400' : tone === 'bad' ? 'text-bad-400' : ''
         }`}
       >
@@ -634,16 +647,20 @@ function Stat({
     </>
   )
 
+  // Tier 2, not a card of its own: these four sit INSIDE one panel now, the way the
+  // reference nests a stats tile inside a stats card. No lift on hover either — an
+  // inner tile that rises off its parent breaks the illusion that they're one object;
+  // it brightens instead.
   if (href)
     return (
       <Link
         href={href}
-        className={`panel block px-3.5 py-2.5 ${
-          hero ? 'panel-raised relative overflow-hidden' : 'panel-interactive'
+        className={`panel-inset block px-4 py-4 transition-colors duration-150 hover:bg-white/[0.06] ${
+          hero ? 'relative overflow-hidden' : ''
         }`}
       >
         {body}
       </Link>
     )
-  return <div className="panel px-3.5 py-2.5">{body}</div>
+  return <div className="panel-inset px-3.5 py-3">{body}</div>
 }

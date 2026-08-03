@@ -102,11 +102,19 @@
     background-color: var(--color-ink-950);
     color: var(--color-white);
     @apply font-sans antialiased;
-    background-image: radial-gradient(
-      120% 90% at 50% -20%,
-      rgba(109, 90, 232, 0.18),
-      transparent 60%
-    );
+    /* Glass has to refract something. One flat violet wash gave every card's blur the
+       same grey to chew on, which is why the panels read as plastic. Three ambient
+       blobs sit far apart in the brand hues, so a card near the top-left picks up a
+       different colour behind it than one at the bottom — that difference across the
+       page is what the eye reads as glass. Fixed, so it doesn't swim while scrolling. */
+    /* Each blob is deliberately WIDER than the viewport. At 50-60% the falloff ring
+       lands on screen and you see the arc — a visible smudge with an edge, which is
+       exactly what it looked like. Oversized, only the smooth middle is ever in view
+       and the colour reads as ambient light rather than as three blobs. */
+    background-image:
+      radial-gradient(120% 90% at 15% -20%, rgba(109, 90, 232, 0.42), transparent 70%),
+      radial-gradient(110% 80% at 95% 10%, rgba(45, 212, 191, 0.20), transparent 70%),
+      radial-gradient(130% 85% at 50% 120%, rgba(168, 85, 247, 0.24), transparent 72%);
     background-attachment: fixed;
     transition:
       background-color 0.2s,
@@ -134,19 +142,62 @@
    Now it is a real surface — a top-lit gradient so the card has a light source, a
    border bright enough to actually draw an edge, and layered shadow for depth. */
 @utility panel {
-  @apply rounded-2xl border border-white/10 backdrop-blur-xl;
+  /* 24px, not 16. In the liquid-glass reference the corner radius is the single
+     loudest signal that a surface is a slab of glass and not a bordered box — at
+     16px the card still reads as a form field. */
+  @apply rounded-[24px] border border-white/[0.14];
+  /* saturate() is the half of the recipe everyone leaves out. Blur on its own greys
+     the backdrop into mush; it's the boosted saturation that lets the colour behind
+     bleed through the way frosted glass actually behaves. The -webkit- prefix stays —
+     this is the one property Safari and iOS still want it on, and iPhone is where
+     this look gets judged. */
+  -webkit-backdrop-filter: blur(26px) saturate(190%);
+  backdrop-filter: blur(26px) saturate(190%);
+  /* Thin enough to actually be see-through. The old fill was near-opaque, so the
+     backdrop-filter underneath had no visible effect — the card was frosted glass
+     painted over with grey. */
   background-image: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.055) 0%,
-    rgba(255, 255, 255, 0.022) 42%,
-    rgba(255, 255, 255, 0.012) 100%
+    150deg,
+    rgba(255, 255, 255, 0.13) 0%,
+    rgba(255, 255, 255, 0.05) 55%,
+    rgba(255, 255, 255, 0.02) 100%
   );
   box-shadow:
-    /* the lit top edge — what makes it read as a raised plane, not a painted box */
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.10),
-    inset 0 -1px 0 0 rgba(0, 0, 0, 0.28),
+    /* The lit top edge is what makes this read as a raised plane rather than a painted
+       box, and it was too faint to survive against a coloured backdrop — a glass slab
+       catches the light along its top edge, brightly. */
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.3),
     0 1px 2px rgba(0, 0, 0, 0.4),
-    0 8px 24px -8px rgba(0, 0, 0, 0.6);
+    0 12px 32px -10px rgba(0, 0, 0, 0.65);
+}
+
+/* Tier 2: a card INSIDE a card. This is the piece that was missing — in the liquid
+   glass reference, depth comes from nesting (a stats tile sitting inside the stats
+   panel), not from cards overlapping each other. Deliberately borderless: an inner
+   hairline next to the outer one reads as a double frame. It separates by fill and by
+   its own lit top edge alone, and carries no backdrop-filter — blurring a backdrop
+   that is itself already blurred just muddies it. */
+@utility panel-inset {
+  @apply rounded-[18px];
+  background-image: linear-gradient(
+    150deg,
+    rgba(255, 255, 255, 0.055) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+:root[data-theme='light'] .panel-inset {
+  background-image: linear-gradient(
+    150deg,
+    rgba(15, 20, 30, 0.045) 0%,
+    rgba(15, 20, 30, 0.02) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.6),
+    inset 0 0 0 1px rgba(15, 20, 30, 0.03);
 }
 
 /* Cards that go somewhere. The lift is small on purpose — 2px and a brighter edge is
@@ -216,14 +267,23 @@
     0 14px 32px -12px rgba(16, 24, 40, 0.24);
 }
 
-/* Light theme: white cards on a light page, soft shadow, gentler top glow. */
-/* Light theme needs the opposite treatment: on white, a dark shadow does the lifting
-   and an inner highlight does nothing, so the gradient is dropped (the `background`
-   shorthand resets background-image) and the shadow carries the whole effect. */
+/* Light glass. The card used to be solid #ffffff, which painted straight over the
+   backdrop-filter and left the light theme flat while the dark one turned to glass.
+   The recipe inverts rather than repeats: on a light page, MORE white and LESS blur —
+   push the blur here and text sitting on the card starts to swim. The shadow still
+   does the lifting, because an inner highlight is invisible against white. */
 :root[data-theme='light'] .panel {
-  background: #ffffff;
-  border-color: rgba(15, 20, 30, 0.09);
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.86) 0%,
+    rgba(255, 255, 255, 0.72) 100%
+  );
+  background-color: transparent;
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  backdrop-filter: blur(18px) saturate(170%);
+  border-color: rgba(15, 20, 30, 0.08);
   box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.75),
     0 1px 2px rgba(15, 20, 30, 0.05),
     0 6px 18px -8px rgba(15, 20, 30, 0.14);
 }
@@ -235,7 +295,13 @@
     0 0 0 1px rgba(91, 70, 214, 0.14);
 }
 :root[data-theme='light'] body {
-  background-image: radial-gradient(120% 90% at 50% -20%, rgba(109, 90, 232, 0.12), transparent 60%);
+  /* Same three-blob backdrop as dark, at a fraction of the strength: on a light page
+     these only need to tint the white, not glow through it. Without them the light
+     cards blur a flat surface and the glass reads as plain frosting. */
+  background-image:
+    radial-gradient(58% 42% at 28% -6%, rgba(109, 90, 232, 0.16), transparent 66%),
+    radial-gradient(48% 38% at 82% 18%, rgba(20, 184, 166, 0.10), transparent 64%),
+    radial-gradient(52% 40% at 48% 92%, rgba(168, 85, 247, 0.10), transparent 66%);
 }
 
 /* On a filled accent (buttons, badges) text must stay light in BOTH themes — the
