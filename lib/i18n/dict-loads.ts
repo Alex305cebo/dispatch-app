@@ -480,4 +480,11 @@ export const loadsDict = {
   'loadCard.copy': { ru: 'Скопировать', en: 'Copy' },
   'loadCard.copied': { ru: 'Скопировано', en: 'Copied' },
   'loadCard.copyFailed': { ru: 'Не удалось скопировать', en: 'Copy failed' },
+  'loadCard.baselineFor': { ru: 'Ориентир по {equip}', en: 'Baseline for {equip}' },
+  'loadCard.brokerCheck': { ru: '🔎 Проверка брокера', en: '🔎 Broker check' },
+  'loadCard.brokerCheckDisclaimer': {
+    ru: 'Это проверка юридического статуса по FMCSA — она НЕ проверяет платёжеспособность и НЕ заменяет факторинг. Проверьте этот MC/DOT ещё и в личном кабинете вашей факторинговой компании.',
+    en: "This is an FMCSA legal-status check — it does NOT verify creditworthiness and does NOT replace factoring. Also check this MC/DOT in your factoring company's own portal.",
+  },
+  'loadCard.noMc': { ru: 'MC брокера не указан — проверить не получится.', en: "Broker MC not provided — can't check it." },
 } as const

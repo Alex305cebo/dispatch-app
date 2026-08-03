@@ -8,11 +8,25 @@ import { Button } from '@/components/button'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
+import { vetBroker } from '@/app/actions'
+import type { BrokerCheck } from '@/lib/fmcsa'
+import { BrokerChecklist } from '@/components/broker-checklist'
 
 // Diesel and mpg are assumptions, not facts about this truck — labelled as such in
 // the UI so a dispatcher never mistakes the fuel line for a quote.
 const MPG = 6.5
 const DIESEL = 4.0
+
+// Same baseline the Telegram bot uses (api/lib/load-photo.php RPM_BASELINE) —
+// kept in sync by hand since the two live in separate repos.
+const RPM_BASELINE: Record<string, number> = { VAN: 2.15, REEFER: 2.45, FLATBED: 2.4, 'POWER ONLY': 1.6 }
+
+function rpmBaseline(equipment: string | null): { key: string; value: number } | null {
+  if (!equipment) return null
+  const up = equipment.toUpperCase()
+  const hit = Object.entries(RPM_BASELINE).find(([k]) => up.includes(k))
+  return hit ? { key: hit[0], value: hit[1] } : null
+}
 
 function num(s: string | null | undefined): number | null {
   if (!s) return null
@@ -136,6 +150,35 @@ export function CardClient() {
     return { miles, rpm: load.rate / miles, fuel, after: load.rate - fuel }
   }, [load, geo])
 
+  // How this rate compares to a typical rate for the trailer type — same
+  // baseline the bot uses, so the two tools never disagree with each other.
+  const marketCompare = useMemo(() => {
+    if (!money || !load?.equipment) return null
+    const base = rpmBaseline(load.equipment)
+    if (!base) return null
+    return { base, diff: ((money.rpm - base.value) / base.value) * 100 }
+  }, [money, load?.equipment])
+
+  // Broker vetting — same FMCSA data + safety score the Brokers page uses.
+  // Runs once an MC is on the load; contacts from the rate con feed computeFlags'
+  // name/phone/email mismatch check the same way BrokerCheckPanel does.
+  const [brokerCheck, setBrokerCheck] = useState<
+    { state: 'loading' } | { state: 'done'; data: BrokerCheck } | { state: 'nokey' } | { state: 'error'; message: string } | null
+  >(null)
+  useEffect(() => {
+    if (!load?.brokerMc) return
+    let alive = true
+    setBrokerCheck({ state: 'loading' })
+    vetBroker(load.brokerMc, { name: load.brokerName, phone: load.brokerPhone, email: load.brokerEmail }).then((res) => {
+      if (!alive) return
+      if ('error' in res) setBrokerCheck(res.error === 'no_key' ? { state: 'nokey' } : { state: 'error', message: res.error })
+      else setBrokerCheck({ state: 'done', data: res })
+    })
+    return () => {
+      alive = false
+    }
+  }, [load?.brokerMc, load?.brokerName, load?.brokerPhone, load?.brokerEmail])
+
   if (!load) return <div className="panel h-64 animate-pulse p-5" />
 
   if (!load.origin && !load.rate && !load.referenceId) {
@@ -200,6 +243,18 @@ export function CardClient() {
               {t(locale, 'loadCard.fuelNote')} ${Math.round(money.fuel).toLocaleString('en-US')} ({MPG} mpg, ${DIESEL.toFixed(2)}/gal).{' '}
               {t(locale, 'loadCard.deadheadNote')}
             </p>
+            {marketCompare && (
+              <p
+                className={`mt-2 text-[13px] font-medium ${
+                  marketCompare.diff <= -15 ? 'text-bad-400' : marketCompare.diff >= 15 ? 'text-good-400' : 'text-warn-400'
+                }`}
+              >
+                {marketCompare.diff <= -15 ? '🔴' : marketCompare.diff >= 15 ? '🟢' : '🟡'}{' '}
+                {t(locale, 'loadCard.baselineFor').replace('{equip}', marketCompare.base.key)}: $
+                {marketCompare.base.value.toFixed(2)}/mi ({marketCompare.diff >= 0 ? '+' : ''}
+                {marketCompare.diff.toFixed(0)}%)
+              </p>
+            )}
             <Link href={`/load${window.location.hash}`} className="mt-3 inline-block text-[13px] text-haul-400 hover:underline">
               {t(locale, 'loadCard.openCalculator')} →
             </Link>
@@ -207,6 +262,26 @@ export function CardClient() {
         ) : (
           <p className="text-[13px] text-white/70">{t(locale, 'loadCard.noNumbers')}</p>
         )}
+      </section>
+
+      {/* Broker legitimacy — same FMCSA data + safety score as the Brokers page */}
+      <section className="panel p-5">
+        <h2 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          {t(locale, 'loadCard.brokerCheck')}
+        </h2>
+        <p className="mb-3 text-[12px] leading-relaxed text-white/50">{t(locale, 'loadCard.brokerCheckDisclaimer')}</p>
+        {!load.brokerMc && <p className="text-[13px] text-white/70">{t(locale, 'loadCard.noMc')}</p>}
+        {brokerCheck?.state === 'loading' && (
+          <p className="animate-pulse text-[13px] text-haul-400">{t(locale, 'brokers.checking')}</p>
+        )}
+        {brokerCheck?.state === 'nokey' && (
+          <p className="text-[12px] leading-relaxed text-white/55">
+            {t(locale, 'brokerCheck.noKey')}
+            <code className="text-white/75">FMCSA_WEBKEY</code>.
+          </p>
+        )}
+        {brokerCheck?.state === 'error' && <p className="text-[13px] text-bad-400">{brokerCheck.message}</p>}
+        {brokerCheck?.state === 'done' && <BrokerChecklist check={brokerCheck.data} />}
       </section>
 
       {/* Route map */}
