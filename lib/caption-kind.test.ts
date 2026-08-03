@@ -1,6 +1,32 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { captionKind } from './caption-kind.ts'
+import { captionKind, docKindFromText } from './caption-kind.ts'
+
+// A text PDF names itself in its own heading, so this saves the vision call entirely —
+// which is what actually matters on a free tier metered in requests per day.
+const pad = (s: string) => s + '\n' + 'x'.repeat(60)
+
+test('a document is classified from its own heading, no AI needed', () => {
+  assert.equal(docKindFromText(pad('RATE CONFIRMATION\nBroker: ABC Logistics')), 'ratecon')
+  assert.equal(docKindFromText(pad('LOAD CONFIRMATION\nLoad #998877')), 'ratecon')
+  assert.equal(docKindFromText(pad('BILL OF LADING\nShipper: Acme')), 'bol')
+  assert.equal(docKindFromText(pad('PROOF OF DELIVERY\nReceived by:')), 'pod')
+  assert.equal(docKindFromText(pad('INVOICE #4471\nRemit to:')), 'invoice')
+})
+
+test('a rate con is not mistaken for an invoice or a BOL it merely mentions', () => {
+  // Real rate cons name both in their terms; the self-declaring heading must win.
+  const rc = pad('RATE CONFIRMATION\nSubmit your invoice with the signed bill of lading.')
+  assert.equal(docKindFromText(rc), 'ratecon')
+})
+
+test('unrecognisable or too-short text falls through to the model', () => {
+  assert.equal(docKindFromText(''), null)
+  assert.equal(docKindFromText('RATE CONFIRMATION'), null) // too short to be a document
+  assert.equal(docKindFromText(pad('Fuel receipt\nPilot Travel Center')), null)
+  // Lowercase "pod"/"bol" hide inside ordinary words — must not trigger.
+  assert.equal(docKindFromText(pad('the pods were bolted to the trailer floor')), null)
+})
 
 test('rate-con captions file as ratecon, EN + RU + spacing variants', () => {
   for (const s of [

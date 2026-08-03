@@ -14,6 +14,7 @@ import { formatDriverInfo, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
 import { rcWarnings, type RcWarning } from '@/lib/rc-warnings'
 import { classifyDoc, createLoadFromRc, uploadDocument } from '@/app/actions'
+import { docKindFromText } from '@/lib/caption-kind'
 import { docKindLabel } from '@/lib/docs'
 import { notify } from '@/lib/notify'
 import { BrokerCheckPanel } from '@/components/broker-check'
@@ -73,11 +74,22 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       const mime = isImage ? file.type : 'application/pdf'
       const base64 = await fileToBase64(file)
 
-      // 0) What IS this? Only a real rate con creates a load; a BOL/POD/invoice is just filed
-      // on the truck with its correct kind, not force-labelled "ratecon".
-      // The name goes along: "RateConf_2002711744.pdf" answers the question outright,
-      // and a broker's own filename beats guessing from the page.
-      const cls = await classifyDoc(base64, mime, file.name)
+      // Pull the text FIRST. A rate con needs it a step later anyway, and having it up
+      // here lets the document name itself: these papers print "RATE CONFIRMATION" or
+      // "Bill of Lading" across the top, so for a text PDF the answer is already on
+      // hand and the vision call is a wasted request. On the free Gemini tier the
+      // daily allowance is counted in REQUESTS, not tokens — 20/day on flash — so the
+      // call we don't make is worth more than the one we make cheaply.
+      let text = ''
+      if (isPdf) text = (await extractPdf(file)).text
+      const hasText = isPdf && !looksScanned(text)
+
+      // 0) What IS this? Only a real rate con creates a load; a BOL/POD/invoice is just
+      // filed on the truck with its correct kind, not force-labelled "ratecon".
+      // Text first (free), then classifyDoc — which tries the filename before it spends
+      // a request on the model. Scans and photos have no text, so they still go to AI.
+      const cls =
+        (hasText ? docKindFromText(text) : null) ?? (await classifyDoc(base64, mime, file.name))
       if (cls !== 'ratecon') {
         setStage(t(locale, 'rcDrop.stageSaving'))
         const fd = new FormData()
@@ -91,10 +103,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
         return
       }
 
-      // 1) text (for warnings + cheap AI input) when it's a text PDF
-      let text = ''
-      if (isPdf) text = (await extractPdf(file)).text
-      const hasText = isPdf && !looksScanned(text)
+      // 1) text was already extracted above, before the type was decided
 
       // 2) save the RC as a document on this truck
       setStage(t(locale, 'rcDrop.stageSaving'))

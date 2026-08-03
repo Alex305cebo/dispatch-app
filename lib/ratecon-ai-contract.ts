@@ -19,9 +19,15 @@ import { t, type Locale } from './i18n.ts'
 //                                  on every single parse.
 // The per-model timeout in the route is the safety net; this ordering is the cure —
 // the common case now answers in ~1s instead of waiting out a slow preview model.
+// Order is now driven by the FREE-TIER DAILY CAP, not by latency. Peak usage on the
+// dashboard, per day: gemini-2.5-flash 20, gemini-3-flash 20, gemini-2.5-flash-lite 20
+// — but gemini-3.1-flash-lite 500. With flash first, a dispatcher uploading a dozen
+// rate cons ran the account out of requests before lunch and every later parse failed
+// outright. A slightly weaker read on some documents beats no read at all after the
+// twentieth, and 2.5-flash stays as the fallback for whatever lite fumbles.
 export const AI_MODELS = [
-  'gemini-2.5-flash',
   'gemini-3.1-flash-lite',
+  'gemini-2.5-flash',
   'gemini-3-flash-preview',
 ]
 

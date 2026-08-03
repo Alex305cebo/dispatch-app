@@ -34,7 +34,12 @@ export async function classifyDocument(
   if (!key) return 'other'
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+      // flash-lite, not flash: on the free tier gemini-2.5-flash allows 20 requests
+      // PER DAY, and this classifier plus the rate-con parse spend two of them on
+      // every upload — ten documents and the whole feature is dead until midnight.
+      // gemini-3.1-flash-lite allows 500/day for the same money (none). Naming one
+      // word out of five is not the task that needs the stronger model.
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${key}`,
       {
         method: 'POST',
         headers: { 'content-type': 'application/json' },

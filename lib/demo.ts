@@ -5,7 +5,7 @@
 
 import 'server-only'
 import { sql } from './db.ts'
-import { getSetting, setSetting } from './settings.ts'
+import { deleteSetting, setSetting } from './settings.ts'
 import { createSession } from './auth.ts'
 import { DEMO_AVATARS_JPEG_BASE64 } from './demo-avatars.ts'
 import { DEMO_DOC_PDF_BASE64 } from './demo-docs.ts'
@@ -645,9 +645,32 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
   await setSetting(RESET_KEY, new Date().toISOString())
 }
 
-async function demoDataIsStale(): Promise<boolean> {
-  const last = await getSetting(RESET_KEY)
-  return !last || Date.now() - new Date(last).getTime() > RESET_AFTER_MS
+/**
+ * Claim the right to reseed BEFORE doing it, not after.
+ *
+ * The timestamp used to be written on the last line of resetDemoData, so for the ten
+ * or so seconds a reseed takes, every other visitor still read the sandbox as stale
+ * and kicked off their own. Two runs racing is not harmless: each one opens by
+ * DELETEing truck_meta and fleet_status, so the second run wipes the rows the first
+ * has already inserted. That is exactly how the demo fleet ended up with eight trucks
+ * of which only the last two had a photo and a GPS fix — everything created before
+ * the other run's DELETE swept past was gone, and the trucks themselves survived only
+ * because they are re-inserted first.
+ *
+ * The conditional UPDATE is the lock. Only the caller whose WHERE still sees a stale
+ * timestamp gets a row back; everyone else falls through to the session with the data
+ * that's already there. Postgres serialises the two writers on the same row, so there
+ * is no window where both win.
+ */
+async function claimDemoReset(): Promise<boolean> {
+  const now = new Date().toISOString()
+  const cutoff = new Date(Date.now() - RESET_AFTER_MS).toISOString()
+  const rows = await sql`
+    INSERT INTO settings (key, value) VALUES (${RESET_KEY}, ${now})
+    ON CONFLICT (key) DO UPDATE SET value = ${now}
+      WHERE settings.value < ${cutoff}
+    RETURNING key`
+  return rows.length > 0
 }
 
 /**
@@ -663,6 +686,16 @@ async function demoDataIsStale(): Promise<boolean> {
  */
 export async function startDemoSession(locale: Locale): Promise<string> {
   const userId = await demoUserId()
-  if (await demoDataIsStale()) await resetDemoData(userId, locale)
+  if (await claimDemoReset()) {
+    try {
+      await resetDemoData(userId, locale)
+    } catch (e) {
+      // Hand the claim back. Holding it after a failed reseed would leave every
+      // visitor for the next 24 hours looking at a half-built fleet, with nothing in
+      // the app able to tell that it is half-built.
+      await deleteSetting(RESET_KEY)
+      throw e
+    }
+  }
   return createSession(userId)
 }
