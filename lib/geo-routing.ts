@@ -366,6 +366,24 @@ export async function routeMiles(
 }
 
 /**
+ * Same as routeMiles, but WITH the road polyline — for a map that draws the actual
+ * route, not a straight line between the two pins. ORS driving-hgv would need its
+ * own polyline decoder (it returns an encoded string, not GeoJSON) — skipped since
+ * no ORS_API_KEY is configured yet; OSRM's geojson is already plain [lat,lng] pairs.
+ */
+export async function routePath(
+  origin: string,
+  destination: string,
+  locale: Locale = 'ru',
+): Promise<{ miles: number; coords?: [number, number][] } | { error: string }> {
+  const [a, b] = await Promise.all([geocode(origin), geocode(destination)])
+  if (!a || !b) return { error: t(locale, 'tracking.geoNoCoords') }
+  const road = await roadRoute(a, b, true)
+  if (road) return { miles: road.miles, coords: road.coords }
+  return { error: t(locale, 'tracking.geoNoRoute') }
+}
+
+/**
  * IP → "City, Region, Country" for the login audit. Free, no key (ipwho.is),
  * cached forever in settings. Localhost / private ranges return null (nothing to
  * geolocate) — real cities only show once the app is deployed behind a public IP.

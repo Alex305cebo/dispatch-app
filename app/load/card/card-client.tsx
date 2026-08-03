@@ -104,7 +104,12 @@ function CopyBlock({ text, label }: { text: string; label: string }) {
 export function CardClient() {
   const locale = useLocale()
   const [load, setLoad] = useState<QrLoad | null>(null)
-  const [geo, setGeo] = useState<{ from: LatLngish; to: LatLngish; miles: number | null } | null>(null)
+  const [geo, setGeo] = useState<{
+    from: LatLngish
+    to: LatLngish
+    miles: number | null
+    coords: [number, number][] | null
+  } | null>(null)
 
   useEffect(() => {
     setLoad(parseLoadHash(window.location.hash))
@@ -147,7 +152,13 @@ export function CardClient() {
       { lat: geo.from.lat, lng: geo.from.lng, label: load.origin ?? '', sub: load.pickupName ?? undefined, kind: 'pickup' },
       { lat: geo.to.lat, lng: geo.to.lng, label: load.destination ?? '', sub: load.deliveryName ?? undefined, kind: 'dest' },
     )
-    routes.push({ from: [geo.from.lat, geo.from.lng], to: [geo.to.lat, geo.to.lng] })
+    // coords — фактическая линия дороги от OSRM; без неё FleetMap рисует прямую
+    // черту между точками, а не реальный маршрут.
+    routes.push({
+      from: [geo.from.lat, geo.from.lng],
+      to: [geo.to.lat, geo.to.lng],
+      coords: geo.coords ?? undefined,
+    })
   }
 
   const mail = emailDraft(load)

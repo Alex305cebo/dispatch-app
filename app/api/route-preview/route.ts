@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { cityCoords, routeMiles } from '@/lib/geo-routing'
+import { cityCoords, routePath } from '@/lib/geo-routing'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,11 +15,12 @@ export async function GET(req: NextRequest) {
   if (!from || !to) return NextResponse.json({ error: 'from and to required' }, { status: 400 })
 
   const [a, b] = await Promise.all([cityCoords(from), cityCoords(to)])
-  if (!a || !b) return NextResponse.json({ from: a, to: b, miles: null })
+  if (!a || !b) return NextResponse.json({ from: a, to: b, miles: null, coords: null })
 
-  // Road miles, not straight-line: a dispatcher compares this against the rate con's
-  // own mileage, and the gap between the two is exactly what they need to see.
-  const r = await routeMiles(from, to).catch(() => null)
+  // Road miles AND the polyline — without coords the map drew a straight dashed
+  // line between the two pins instead of the actual highway route.
+  const r = await routePath(from, to).catch(() => null)
   const miles = r && 'miles' in r ? r.miles : null
-  return NextResponse.json({ from: a, to: b, miles })
+  const coords = r && 'coords' in r ? (r.coords ?? null) : null
+  return NextResponse.json({ from: a, to: b, miles, coords })
 }
