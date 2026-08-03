@@ -278,6 +278,20 @@ test('driver info reproduces the stop verbatim, refs and all', () => {
   assert.match(out, /^Weight: 16,228 lbs$/m)
 })
 
+test('driver info puts a blank line between the facility name and its address', () => {
+  const out = formatDriverInfo(parseRateCon(ADDRESS_STYLE))
+  // The driver matches the name against the sign and types the address into the GPS —
+  // run together they read as one paragraph on a phone at the gate.
+  assert.match(out, /^BSH Home Appliances Corporation\n\nExecutive Parkway #300$/m)
+})
+
+test('a stop that starts with a street number is left alone', () => {
+  // No facility name printed: splitting after line 1 would strand "1200" from
+  // "Industrial Blvd" and read as two separate places.
+  const out = formatDriverInfo(parseRateCon(TYPICAL))
+  assert.doesNotMatch(out, /^\d+\n\n/m)
+})
+
 test('driver info keeps a multi-line Ref whole', () => {
   const out = formatDriverInfo(parseRateCon(ADDRESS_STYLE))
   // Without the no-'m'-flag fix the capture stopped at the first newline and only

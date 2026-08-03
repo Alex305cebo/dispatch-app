@@ -643,6 +643,18 @@ const RULE = '__________________________'
  * Shape matches what the dispatcher already sends by hand today, so it lands in a
  * chat looking exactly like it always has.
  */
+/** "Nan Ya Plastics / 140 E Beulah Rd / Lake City, SC 29560" → the facility name, a
+ * blank line, then the address. The driver reads this at the gate on a phone: the
+ * name is what they match against the sign, the address is what they punch into the
+ * GPS, and run together as one block the two blur into each other. */
+function nameOffAddress(block: string): string {
+  const lines = block.split('\n')
+  // Only when the first line really is a name. A street line leads with its number
+  // ("140 E Beulah Rd"), and splitting there would strand the number by itself.
+  if (lines.length < 2 || /^\s*\d/.test(lines[0]!)) return block
+  return [lines[0], '', ...lines.slice(1)].join('\n')
+}
+
 export function formatDriverInfo(f: RateConFields): string {
   const out: string[] = []
   const money = f.rate ? `$${f.rate.value.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : null
@@ -656,7 +668,7 @@ export function formatDriverInfo(f: RateConFields): string {
     out.push(title, '')
     // Fall back to the city when the layout has no quotable block (some brokers
     // scatter the stop across a table) — a city beats an empty line.
-    out.push(stop.block ?? fallback ?? '—', '')
+    out.push(nameOffAddress(stop.block ?? fallback ?? '—'), '')
     out.push(RULE)
     if (stop.time) out.push(`Time: ${stop.time}`, RULE)
     if (stop.ref) out.push(`Ref: ${stop.ref}`, RULE)

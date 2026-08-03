@@ -322,6 +322,20 @@ export async function createLoad(
  * Create a load from a parsed rate con WITHOUT redirecting — the truck page stays
  * put and shows the result inline. Attaches the already-uploaded RC document.
  */
+const onlyDigits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '')
+
+/** Drop a broker MC that is actually OUR OWN. Every rate con names two carriers-ish
+ * parties, and our MC is the one we can identify with certainty — it's on the company
+ * card (settings co_mcdot, free text like "MC 626911 · DOT 1708530"). Returning null
+ * costs a broker lookup; returning our own number costs the dispatcher their trust in
+ * the check, since it reports "no broker authority" for a company that never had any. */
+async function withoutOwnMc(load: QrLoad): Promise<QrLoad> {
+  if (!load.brokerMc) return load
+  const { getCompany } = await import('@/lib/invoice')
+  const mine = onlyDigits(/\bMC\s*#?\s*[:\-]?\s*(\d{5,8})\b/i.exec((await getCompany()).mcdot)?.[1])
+  return mine && onlyDigits(load.brokerMc) === mine ? { ...load, brokerMc: null } : load
+}
+
 export async function createLoadFromRc(
   truckId: number,
   load: QrLoad,
@@ -337,6 +351,14 @@ export async function createLoadFromRc(
   try {
     const companyId = await companyScope()
     if (!(await truckBelongs(companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }
+    // A rate con prints TWO MC numbers — the broker's and ours, as the carrier being
+    // hired — and whichever the reader grabbed first used to land in broker_mc. That
+    // pointed the FMCSA check at our own company and reported "broker authority NONE",
+    // which is true of every carrier alive and says nothing about the broker.
+    // The AI is now told which one to take (lib/ratecon-ai-contract.ts), but the regex
+    // fallback still can't tell them apart, so refuse the one number we can always
+    // recognise: our own. Better an empty broker MC than a confident wrong one.
+    load = await withoutOwnMc(load)
     // Plenty of real rate cons never print a mileage figure. loads.loaded_miles has
     // CHECK (> 0), so those used to die on a raw constraint violation — the load
     // silently never appeared. Fall back to actual road miles between the two cities
