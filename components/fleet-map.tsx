@@ -29,6 +29,9 @@ export type MapMarker = {
   /** Where the plaque's "→ Открыть" arrow (and a click on the marker) leads — the
    * truck's card for a truck pin, the load's card for a pickup/delivery pin. */
   href?: string
+  /** Set on truck pins only. Clicking one reports it through `onSelect` so the panel
+   * under the map can switch from fleet totals to this truck's own numbers. */
+  truckId?: number
 }
 
 export type MapRoute = {
@@ -340,12 +343,16 @@ export function FleetMap({
   routes = [],
   height = 340,
   distanceMi = null,
+  onSelect,
 }: {
   markers: MapMarker[]
   routes?: MapRoute[]
   height?: number
   /** Total road miles of the drawn route — shown big, over the map, when provided. */
   distanceMi?: number | null
+  /** Fires with a truck's id when its pin is clicked, and with null when the click
+   * lands on empty map (Leaflet doesn't propagate marker clicks to the map). */
+  onSelect?: (truckId: number | null) => void
 }) {
   const locale = useLocale()
   const ref = useRef<HTMLDivElement>(null)
@@ -359,6 +366,10 @@ export function FleetMap({
   const router = useRouter()
   const routerRef = useRef(router)
   routerRef.current = router
+  // Same ref trick: the parent re-renders on every selection, so passing onSelect
+  // straight into the effect's deps would tear down and rebuild the map on each click.
+  const selectRef = useRef(onSelect)
+  selectRef.current = onSelect
   const mapRef = useRef<import('leaflet').Map | null>(null)
   const tileRef = useRef<import('leaflet').TileLayer | null>(null)
 
@@ -395,8 +406,17 @@ export function FleetMap({
         }).addTo(map!)
         if (road) for (const c of r.coords!) bounds.extend(c)
       }
+      // Empty map = "show me the whole fleet again". Leaflet doesn't bubble a marker
+      // click up to the map, so this only ever fires for clicks that missed a pin.
+      map.on('click', () => selectRef.current?.(null))
       for (const m of markers) {
         const marker = L.marker([m.lat, m.lng], { icon: icon(L, m) }).addTo(map!)
+        // Its own listener, not folded into the handlers below: Leaflet keeps a list
+        // per event, and this has to fire for a truck pin whether or not it has an href.
+        if (m.truckId != null) {
+          const id = m.truckId
+          marker.on('click', () => selectRef.current?.(id))
+        }
         // Tooltip, not Popup: shows on hover, hides the moment the cursor leaves — no
         // click, no lingering close button. NOT Leaflet-`interactive` on purpose: that
         // routes the click through Leaflet's target system, which swallowed our own

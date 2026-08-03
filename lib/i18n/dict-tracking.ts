@@ -36,6 +36,20 @@ export const trackingDict = {
   'tracking.tileToDelivery': { ru: 'до выгрузки', en: 'to delivery' },
   'tracking.tileUnderLoad': { ru: 'под грузом', en: 'under load' },
   'tracking.tileStuck': { ru: 'стоят 3 ч+', en: 'idle 3h+' },
+  // Same strip, switched to one truck's own numbers after its pin is clicked.
+  'tracking.tileEnRoute': { ru: 'в пути', en: 'en route' },
+  'tracking.tileFuel': { ru: 'топливо', en: 'fuel' },
+  'tracking.tileIdleH': { ru: 'простой, ч', en: 'idle, h' },
+  'tracking.wholeFleet': { ru: 'Весь парк', en: 'Whole fleet' },
+  'tracking.pickOnMap': { ru: 'Нажми трак на карте — покажу его цифры', en: 'Tap a truck on the map for its numbers' },
+  'tracking.nextDeliveries': { ru: 'Ближайшие выгрузки', en: 'Next deliveries' },
+  // Button labels carry an icon now, so the emoji/arrow baked into the old strings
+  // would double up. Short forms also stop "Открыть груз · Chicago, IL → Dallas, TX"
+  // from wrapping to three lines and tearing the card open.
+  'tracking.needAttention': { ru: 'Требуют внимания', en: 'Need attention' },
+  'tracking.callShort': { ru: 'Позвонить', en: 'Call' },
+  'tracking.loadShort': { ru: 'Груз', en: 'Load' },
+  'tracking.historyShort': { ru: 'История', en: 'History' },
 
   // components/fleet-map.tsx
   'tracking.openArrow': { ru: 'Открыть', en: 'Open' },

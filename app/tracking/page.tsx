@@ -2,10 +2,10 @@ import { Suspense } from 'react'
 import { sql } from '@/lib/db'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { currentLoadsByTruck, truckLabel, eldStatus } from '@/lib/map'
-import { FleetMap, type MapMarker, type MapRoute } from '@/components/fleet-map'
+import { type MapMarker, type MapRoute } from '@/components/fleet-map'
 import { EldLinks } from '@/components/eld-links'
-import { RefreshFleetButton } from '@/components/refresh-fleet-button'
-import { FleetList, type TrackingRow } from '@/components/fleet-list'
+import { FleetPanel } from '@/components/fleet-panel'
+import { type TrackingRow } from '@/components/fleet-list'
 import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
 import { positionSignals } from '@/lib/eld'
 import { activeAlert, type WeatherAlert } from '@/lib/weather'
@@ -235,6 +235,7 @@ async function FleetBoard({ locale }: { locale: Locale }) {
         heading: heading ?? undefined,
         eta: legToDelivery ? `${totalMiles} mi · ~${driveTime(totalEtaMin, locale)}${tr(locale, 'tracking.toDelivery')}` : undefined,
         href: `/trucks/${t.id}`,
+        truckId: t.id,
       })
     }
 
@@ -269,60 +270,28 @@ async function FleetBoard({ locale }: { locale: Locale }) {
     (r.fuel !== null && r.fuel <= 15 ? 1 : 0)
   trackingRows.sort((a, b) => attention(b) - attention(a))
 
+  // Map, tile strip and list all hinge on which truck is picked, so they render inside
+  // one client component. Everything they show is computed here and passed down — the
+  // selection is the only thing that lives in the browser.
   return (
-    <>
-      <div className="mb-4">
-        <FleetMap markers={markers} routes={routes} />
-      </div>
-
-      {/* Deliberately NOT the map's legend again. Moving / on duty / stopped is already
-          drawn over the map in colour, and repeating it in words underneath was the
-          same fact stated twice. These four answer what the map cannot: a truck with no
-          GPS has no pin to look at, a truck standing under a load looks exactly like one
-          parked between jobs, and miles-to-delivery is nowhere on a map at all.
-          Four fixed tiles, never a variable count — a row that changes width with the
-          data is what made this strip look ragged. Zero is a real answer here, and a
-          quiet "0 idle" is worth more than a tile that vanishes. */}
-      <div className="panel mb-4 p-2.5">
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-          <FleetTile
-            value={totalDeliveryMiles > 0 ? `${totalDeliveryMiles.toLocaleString('en-US')} mi` : '—'}
-            label={tr(locale, 'tracking.tileToDelivery')}
-          />
-          <FleetTile value={`${underLoad}/${perTruck.length}`} label={tr(locale, 'tracking.tileUnderLoad')} />
-          <FleetTile value={String(stuck)} label={tr(locale, 'tracking.tileStuck')} tone={stuck > 0 ? 'warn' : undefined} />
-          <FleetTile value={String(noGps)} label={tr(locale, 'tracking.noGpsBadge')} tone={noGps > 0 ? 'warn' : undefined} />
-        </div>
-
-        {/* Its own line, not crammed onto the end of the row: at narrow widths the old
-            `ml-auto` pushed "updated · live · Refresh" into a ragged second line that
-            never lined up with anything. */}
-        <div className="mt-2.5 flex items-center justify-end gap-2 px-1.5 text-[11px] text-white/40">
-          <span>
-            {snapshot
-              ? `${tr(locale, 'tracking.updatedPrefix')}${agoText(snapshot, locale)}`
-              : tr(locale, 'tracking.noSnapshotYet')}
-          </span>
-          <RefreshFleetButton staleMinutes={staleMinutes} />
-        </div>
-      </div>
-
-      <FleetList rows={trackingRows} />
-    </>
-  )
-}
-
-/** One tile in the strip under the map. Fixed height and a single `nums` line so the
- * four sit on an even baseline whatever the values are — uneven tiles are exactly what
- * made the old row look untidy. */
-function FleetTile({ value, label, tone }: { value: string; label: string; tone?: 'warn' }) {
-  return (
-    <div className="panel-inset flex flex-col justify-center px-3 py-2.5">
-      <div className={`nums text-[18px] leading-tight ${tone === 'warn' ? 'text-warn-400' : 'text-white/90'}`}>
-        {value}
-      </div>
-      <div className="mt-0.5 truncate text-[11px] text-white/45">{label}</div>
-    </div>
+    <FleetPanel
+      markers={markers}
+      routes={routes}
+      rows={trackingRows}
+      totals={{
+        deliveryMiles: totalDeliveryMiles,
+        underLoad,
+        trucks: perTruck.length,
+        stuck,
+        noGps,
+      }}
+      updatedText={
+        snapshot
+          ? `${tr(locale, 'tracking.updatedPrefix')}${agoText(snapshot, locale)}`
+          : tr(locale, 'tracking.noSnapshotYet')
+      }
+      staleMinutes={staleMinutes}
+    />
   )
 }
 
