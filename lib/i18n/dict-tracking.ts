@@ -31,6 +31,11 @@ export const trackingDict = {
   'tracking.resting': { ru: 'стоят', en: 'stopped' },
   'tracking.noGpsBadge': { ru: 'без GPS', en: 'no GPS' },
   'tracking.fleetTotalSuffix': { ru: 'суммарно до выгрузки по парку', en: 'total fleet miles to delivery' },
+  // Tile captions sit under a big number, so they are short on purpose —
+  // fleetTotalSuffix reads as a sentence and wraps to three lines in a tile.
+  'tracking.tileToDelivery': { ru: 'до выгрузки', en: 'to delivery' },
+  'tracking.tileUnderLoad': { ru: 'под грузом', en: 'under load' },
+  'tracking.tileStuck': { ru: 'стоят 3 ч+', en: 'idle 3h+' },
 
   // components/fleet-map.tsx
   'tracking.openArrow': { ru: 'Открыть', en: 'Open' },

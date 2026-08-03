@@ -71,9 +71,16 @@ export function FleetList({ rows }: { rows: TrackingRow[] }) {
         </button>
       )}
 
-      <div className="flex flex-col gap-2">
+      {/* Two columns from `sm` up. Each card is three short lines, so one full-width
+          row per truck left most of the screen empty and made the stack read as ragged
+          — the gaps between cards were wider than the cards' own content. Grid rows
+          stretch, so every card in a row ends at the same height. */}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 2xl:grid-cols-3">
         {shown.map((r) => (
-          <div key={r.id} className="panel p-4">
+          // flex-col + the mt-auto action row below: the badge strip and the delivery
+          // block are both optional, so without this the buttons floated at a different
+          // height in every card. Now they line up along the bottom edge.
+          <div key={r.id} className="panel flex h-full flex-col p-3.5">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
@@ -138,7 +145,7 @@ export function FleetList({ rows }: { rows: TrackingRow[] }) {
             )}
 
             {r.delivery ? (
-              <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2">
+              <div className="panel-inset mt-2.5 flex items-center justify-between gap-3 px-3 py-2">
                 <span className="min-w-0 truncate text-[12px] text-white/60">
                   {t(locale, 'tracking.toDeliveryLabel')}
                   <span className="text-white/80">{r.delivery.to}</span>
@@ -148,10 +155,10 @@ export function FleetList({ rows }: { rows: TrackingRow[] }) {
                 </span>
               </div>
             ) : (
-              <div className="mt-3 text-[12px] text-white/40">{t(locale, 'tracking.noActiveLoad')}</div>
+              <div className="mt-2.5 text-[12px] text-white/40">{t(locale, 'tracking.noActiveLoad')}</div>
             )}
 
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-auto flex items-center gap-2 pt-3">
               {r.phone && (
                 <a
                   href={`tel:${r.phone}`}
@@ -179,7 +186,9 @@ export function FleetList({ rows }: { rows: TrackingRow[] }) {
           </div>
         ))}
         {shown.length === 0 && (
-          <p className="panel p-4 text-center text-[13px] text-white/55">{t(locale, 'tracking.allTrucksBusy')}</p>
+          <p className="panel p-4 text-center text-[13px] text-white/55 sm:col-span-2 2xl:col-span-3">
+            {t(locale, 'tracking.allTrucksBusy')}
+          </p>
         )}
       </div>
     </div>

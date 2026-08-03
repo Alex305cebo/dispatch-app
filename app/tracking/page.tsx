@@ -144,25 +144,27 @@ async function FleetBoard({ locale }: { locale: Locale }) {
   const markers: MapMarker[] = []
   const routes: MapRoute[] = []
   const trackingRows: TrackingRow[] = []
-  let moving = 0
-  let onDuty = 0
-  let resting = 0
+  // Only facts the map itself cannot show — that's the whole point of the strip under
+  // it. A truck with no GPS has no pin at all; a truck standing still under a load looks
+  // identical on the map to one parked between jobs. Moving/on-duty/stopped is NOT
+  // counted here any more: the map already draws it, in colour.
   let noGps = 0
   let totalDeliveryMiles = 0
+  let underLoad = 0
+  let stuck = 0
 
   for (const { t, fs, load, pickup, legToPickup, legToDelivery, weather, idleAt, heading } of perTruck) {
     // Unconditional on load — a parked empty truck shouldn't say "moving" either.
     const idleHoursAny = idleAt ? Math.floor((Date.now() - idleAt.getTime()) / 3_600_000) : null
     const st = eldStatus(fs?.drive_status ?? null, idleHoursAny, locale)
-    if (st.tone === 'move') moving++
-    else if (st.tone === 'on') onDuty++
-    else resting++
     const hasGps = !!fs && fs.lat !== null && fs.lng !== null
     if (!hasGps) noGps++
 
     // A truck with an active load that hasn't moved in hours is worth a flag
     // (detention, breakdown). An idle EMPTY truck is just parked — unremarkable.
     const idleHoursRaw = load && idleAt ? idleHoursAny : null
+    if (load) underLoad++
+    if (idleHoursRaw !== null && idleHoursRaw >= 3) stuck++
 
     // Real total to delivery: deadhead (truck→pickup) + loaded miles (pickup→delivery)
     // when the load hasn't been picked up yet, or just the direct leg once it has.
@@ -256,41 +258,71 @@ async function FleetBoard({ locale }: { locale: Locale }) {
     })
   }
 
+  // Trucks that need a dispatcher first. Insertion order is just the truck table's
+  // order, which means the one stuck in detention for six hours can sit below five
+  // that are driving along fine — the whole list has to be read to find it. Costs
+  // nothing: every flag below is already on the row.
+  const attention = (r: TrackingRow) =>
+    (r.city === null ? 8 : 0) + // no GPS at all — not even on the map
+    (r.idleHours !== null ? 4 : 0) + // standing under a load: detention or breakdown
+    (r.weather ? 2 : 0) +
+    (r.fuel !== null && r.fuel <= 15 ? 1 : 0)
+  trackingRows.sort((a, b) => attention(b) - attention(a))
+
   return (
     <>
       <div className="mb-4">
         <FleetMap markers={markers} routes={routes} />
       </div>
 
-      <div className="panel mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 text-[12px]">
-        <span className="flex items-center gap-1.5 text-white/80">
-          <span className="size-2 rounded-full bg-good-500" /> {moving} {tr(locale, 'tracking.moving')}
-        </span>
-        <span className="flex items-center gap-1.5 text-white/80">
-          <span className="size-2 rounded-full bg-haul-500" /> {onDuty} on duty
-        </span>
-        <span className="flex items-center gap-1.5 text-white/80">
-          <span className="size-2 rounded-full bg-white/30" /> {resting} {tr(locale, 'tracking.resting')}
-        </span>
-        {noGps > 0 && (
-          <span className="flex items-center gap-1.5 text-warn-400">
-            <span className="size-2 rounded-full bg-warn-400" /> {noGps} {tr(locale, 'tracking.noGpsBadge')}
+      {/* Deliberately NOT the map's legend again. Moving / on duty / stopped is already
+          drawn over the map in colour, and repeating it in words underneath was the
+          same fact stated twice. These four answer what the map cannot: a truck with no
+          GPS has no pin to look at, a truck standing under a load looks exactly like one
+          parked between jobs, and miles-to-delivery is nowhere on a map at all.
+          Four fixed tiles, never a variable count — a row that changes width with the
+          data is what made this strip look ragged. Zero is a real answer here, and a
+          quiet "0 idle" is worth more than a tile that vanishes. */}
+      <div className="panel mb-4 p-2.5">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          <FleetTile
+            value={totalDeliveryMiles > 0 ? `${totalDeliveryMiles.toLocaleString('en-US')} mi` : '—'}
+            label={tr(locale, 'tracking.tileToDelivery')}
+          />
+          <FleetTile value={`${underLoad}/${perTruck.length}`} label={tr(locale, 'tracking.tileUnderLoad')} />
+          <FleetTile value={String(stuck)} label={tr(locale, 'tracking.tileStuck')} tone={stuck > 0 ? 'warn' : undefined} />
+          <FleetTile value={String(noGps)} label={tr(locale, 'tracking.noGpsBadge')} tone={noGps > 0 ? 'warn' : undefined} />
+        </div>
+
+        {/* Its own line, not crammed onto the end of the row: at narrow widths the old
+            `ml-auto` pushed "updated · live · Refresh" into a ragged second line that
+            never lined up with anything. */}
+        <div className="mt-2.5 flex items-center justify-end gap-2 px-1.5 text-[11px] text-white/40">
+          <span>
+            {snapshot
+              ? `${tr(locale, 'tracking.updatedPrefix')}${agoText(snapshot, locale)}`
+              : tr(locale, 'tracking.noSnapshotYet')}
           </span>
-        )}
-        {totalDeliveryMiles > 0 && (
-          <span className="text-white/60">
-            <span className="nums text-white/85">{totalDeliveryMiles.toLocaleString('en-US')} mi</span>{' '}
-            {tr(locale, 'tracking.fleetTotalSuffix')}
-          </span>
-        )}
-        <span className="ml-auto flex shrink-0 items-center gap-2 text-white/40">
-          {snapshot ? `${tr(locale, 'tracking.updatedPrefix')}${agoText(snapshot, locale)}` : tr(locale, 'tracking.noSnapshotYet')}
           <RefreshFleetButton staleMinutes={staleMinutes} />
-        </span>
+        </div>
       </div>
 
       <FleetList rows={trackingRows} />
     </>
+  )
+}
+
+/** One tile in the strip under the map. Fixed height and a single `nums` line so the
+ * four sit on an even baseline whatever the values are — uneven tiles are exactly what
+ * made the old row look untidy. */
+function FleetTile({ value, label, tone }: { value: string; label: string; tone?: 'warn' }) {
+  return (
+    <div className="panel-inset flex flex-col justify-center px-3 py-2.5">
+      <div className={`nums text-[18px] leading-tight ${tone === 'warn' ? 'text-warn-400' : 'text-white/90'}`}>
+        {value}
+      </div>
+      <div className="mt-0.5 truncate text-[11px] text-white/45">{label}</div>
+    </div>
   )
 }
 
@@ -300,7 +332,7 @@ function BoardSkeleton() {
   return (
     <div className="animate-pulse">
       <div className="mb-4 h-[320px] rounded-2xl border border-white/8 bg-white/[0.03]" />
-      <div className="panel mb-4 h-11" />
+      <div className="panel mb-4 h-[100px]" />
       <div className="space-y-2">
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="panel h-16" />
