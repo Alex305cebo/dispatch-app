@@ -21,47 +21,33 @@ export function captionKind(text: string): DocClass | null {
   return CAPTION_KINDS.find(({ re }) => re.test(t))?.kind ?? null
 }
 
-// What the document calls ITSELF. Every one of these papers prints its own type at the
-// top in big letters, so for a text PDF the answer is already in our hands — we extract
-// the text anyway — and a vision call to name it is a wasted request. That matters on
-// the free Gemini tier, where the daily allowance is counted in requests, not tokens.
+// What the document calls ITSELF. A rate con prints its type across the top, and for a
+// text PDF that text is already in our hands — we extract it anyway — so a vision call
+// to name it is a wasted request. That matters on the free Gemini tier, where the daily
+// allowance is counted in requests, not tokens.
 //
-// Order is not alphabetical and must not be: a rate con routinely says "invoice" in its
-// payment terms and "bill of lading" in its instructions, so the most specific,
-// self-declaring headings are tested first and the generic "invoice" last.
-// Two regexes per kind, and the split is the point: the spelled-out heading is matched
-// WITHOUT regard to case, because documents print it as "BILL OF LADING", "Bill of
-// Lading" or "bill of lading" indifferently. The three-letter abbreviation is matched
-// case-SENSITIVELY, because lowercase "pod" and "bol" live inside ordinary words —
-// "pods", "bolted" — and a confidently mislabelled document is worse than an
-// unlabelled one that falls through to the model.
-const TEXT_KINDS: { kind: DocClass; phrase: RegExp; abbr?: RegExp }[] = [
-  {
-    kind: 'ratecon',
-    phrase: /\brate[\s._-]*con(?:f|firmation)?\b|\b(?:load|carrier)[\s._-]*confirmation\b/i,
-  },
-  {
-    kind: 'pod',
-    phrase: /\bproof[\s._-]*of[\s._-]*delivery\b|\bdelivery[\s._-]*receipt\b/i,
-    abbr: /\bPOD\b/,
-  },
-  {
-    kind: 'bol',
-    phrase: /\bbill[\s._-]*of[\s._-]*lading\b|\bstraight[\s._-]*bill\b/i,
-    abbr: /\bBOL\b/,
-  },
-  { kind: 'invoice', phrase: /\binvoice\b/i },
-]
+// ONLY rate cons are recognised from text, and that asymmetry is deliberate.
+//
+// A rate con names the other document types inside its own terms — "submit your
+// invoice to…", "return the signed bill of lading", "POD with signature required" —
+// so matching those words would relabel rate cons as invoices and BOLs whenever the
+// heading is non-standard ("Load Tender", "Rate Agreement"). The load would silently
+// never be created and nobody would know why.
+//
+// Getting it wrong here is far more expensive than not knowing: an unrecognised
+// document falls through to the vision model and still gets classified correctly,
+// costing one request. So this list answers only the question it can answer safely,
+// for the case that carries the volume.
+const RATECON_TEXT = /\brate[\s._-]*con(?:f|firmation)?\b|\b(?:load|carrier)[\s._-]*confirmation\b/i
 
 /**
- * Classify a document from the text we already pulled out of it. Returns null when the
- * text says nothing recognisable — that's the only case that still needs the vision
- * model. Deliberately NOT case-insensitive on the POD/BOL abbreviations: lowercase
- * "pod" appears inside ordinary words and "bol" inside "bolt", and a mislabelled
- * document is worse than an unlabelled one.
+ * 'ratecon' when the document says so about itself, null otherwise — and null means
+ * "ask the model", never "not a rate con". Every uncertain document still gets its
+ * proper answer from vision; this only skips the request when the paper has already
+ * answered in its own heading.
  */
 export function docKindFromText(text: string): DocClass | null {
   const t = (text ?? '').trim()
   if (t.length < 40) return null // too little to be a document's own text
-  return TEXT_KINDS.find(({ phrase, abbr }) => phrase.test(t) || (abbr?.test(t) ?? false))?.kind ?? null
+  return RATECON_TEXT.test(t) ? 'ratecon' : null
 }

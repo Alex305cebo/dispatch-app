@@ -6,26 +6,36 @@ import { captionKind, docKindFromText } from './caption-kind.ts'
 // which is what actually matters on a free tier metered in requests per day.
 const pad = (s: string) => s + '\n' + 'x'.repeat(60)
 
-test('a document is classified from its own heading, no AI needed', () => {
-  assert.equal(docKindFromText(pad('RATE CONFIRMATION\nBroker: ABC Logistics')), 'ratecon')
-  assert.equal(docKindFromText(pad('LOAD CONFIRMATION\nLoad #998877')), 'ratecon')
-  assert.equal(docKindFromText(pad('BILL OF LADING\nShipper: Acme')), 'bol')
-  assert.equal(docKindFromText(pad('PROOF OF DELIVERY\nReceived by:')), 'pod')
-  assert.equal(docKindFromText(pad('INVOICE #4471\nRemit to:')), 'invoice')
+test('a rate con is recognised from its own heading, no AI needed', () => {
+  for (const s of [
+    'RATE CONFIRMATION\nBroker: ABC Logistics',
+    'Rate Confirmation Sheet\nLoad #998877',
+    'LOAD CONFIRMATION\nLoad #998877',
+    'CARRIER CONFIRMATION\nCarrier: Maya Logistics',
+    'RATE CON\nAgreed rate $1,700',
+  ]) {
+    assert.equal(docKindFromText(pad(s)), 'ratecon', s)
+  }
 })
 
-test('a rate con is not mistaken for an invoice or a BOL it merely mentions', () => {
-  // Real rate cons name both in their terms; the self-declaring heading must win.
-  const rc = pad('RATE CONFIRMATION\nSubmit your invoice with the signed bill of lading.')
-  assert.equal(docKindFromText(rc), 'ratecon')
+// The whole reason only rate cons are matched from text: a rate con names the other
+// document types inside its own terms. Matching those words would relabel it, the load
+// would never be created, and nothing would say why.
+test('words a rate con merely mentions never decide the type', () => {
+  for (const s of [
+    'LOAD TENDER\nSubmit your invoice to accounting after delivery.',
+    'RATE AGREEMENT\nReturn the signed bill of lading with your POD.',
+    'CONFIRMATION SHEET\nInvoice and BOL required for payment.',
+  ]) {
+    // null means "ask the model", never "not a rate con" — nothing is lost here.
+    assert.equal(docKindFromText(pad(s)), null, s)
+  }
 })
 
 test('unrecognisable or too-short text falls through to the model', () => {
   assert.equal(docKindFromText(''), null)
   assert.equal(docKindFromText('RATE CONFIRMATION'), null) // too short to be a document
   assert.equal(docKindFromText(pad('Fuel receipt\nPilot Travel Center')), null)
-  // Lowercase "pod"/"bol" hide inside ordinary words — must not trigger.
-  assert.equal(docKindFromText(pad('the pods were bolted to the trailer floor')), null)
 })
 
 test('rate-con captions file as ratecon, EN + RU + spacing variants', () => {
