@@ -2,6 +2,30 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { buildLoadHash, parseLoadHash, missingForAnalysis, EMPTY, type QrLoad } from './qr-load.ts'
 
+// Stop detail exists only on a rate con — the Telegram bot fills it in, the DAT
+// extension has no such fields to send. Kept apart from `full` so the extension
+// test can assert they arrive as nulls.
+const RATECON_DETAIL = {
+  pickupName: 'Nan Ya Plastics',
+  pickupAddress: '140 E Beulah Rd',
+  pickupTime: '7/29/2026 08:00 - 15:00',
+  pickupDate: '7/29/2026',
+  pickupRefs: 'PU S67A187|PO POS2068426',
+  deliveryName: 'Standard Fiber LLC',
+  deliveryAddress: '12010 Bermuda Rd',
+  deliveryTime: '8/3/2026 06:00',
+  deliveryDate: '8/3/2026',
+  deliveryRefs: 'PO POS2068426',
+  weight: '44,500 lb',
+  commodity: 'Polyester Fiber',
+  equipment: 'VAN',
+  brokerNotes: 'No tarps',
+} satisfies Partial<QrLoad>
+
+const RATECON_ABSENT = Object.fromEntries(
+  Object.keys(RATECON_DETAIL).map((k) => [k, null]),
+) as { [K in keyof typeof RATECON_DETAIL]: null }
+
 const full: QrLoad = {
   rate: 2400,
   loadedMiles: 1075,
@@ -16,6 +40,7 @@ const full: QrLoad = {
   brokerEmail: 'ops@broker.com',
   brokerPhone: '(555) 123-4567',
   referenceId: '9911',
+  ...RATECON_DETAIL,
 }
 
 // The invariant that keeps the extension and the app in sync: whatever one
@@ -41,7 +66,13 @@ test('parses the exact hash the extension builds', () => {
   // Note the absent `days`: a load board cannot know transit days, so the extension
   // never sends them and the default stands until the dispatcher says otherwise. The
   // broker NAME is a rate-con field, not a DAT one — the extension never sends `bn` either.
-  assert.deepEqual(parseLoadHash(fromExtension), { ...full, transitDays: 1, brokerName: null })
+  // Stop detail, weight and commodity come off a rate con, never off a listing.
+  assert.deepEqual(parseLoadHash(fromExtension), {
+    ...full,
+    transitDays: 1,
+    brokerName: null,
+    ...RATECON_ABSENT,
+  })
 })
 
 test('absent fields fall back to defaults, not garbage', () => {

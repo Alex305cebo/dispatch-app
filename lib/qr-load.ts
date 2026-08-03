@@ -33,10 +33,23 @@ export type QrLoad = {
   pickupAddress?: string | null
   deliveryAddress?: string | null
   brokerNotes?: string | null
+  /** Facility names and reference numbers — what the driver actually needs on site.
+   * Only a rate con carries these; the DAT extension never sees them. */
+  pickupName?: string | null
+  deliveryName?: string | null
+  pickupRefs?: string | null
+  deliveryRefs?: string | null
+  weight?: string | null
+  commodity?: string | null
+  equipment?: string | null
 }
 
 const NUMS = ['rate', 'miles', 'dh', 'days', 'spot'] as const
-const STRS = ['origin', 'dest', 'truck', 'bn', 'mc', 'email', 'phone', 'ref'] as const
+const STRS = [
+  'origin', 'dest', 'truck', 'bn', 'mc', 'email', 'phone', 'ref',
+  // Rate-con-only detail: the Telegram bot fills these in, the DAT extension can't.
+  'pn', 'pa', 'pt', 'pd', 'pr', 'dn', 'da', 'dt', 'dd', 'dr', 'wt', 'cm', 'eq', 'notes',
+] as const
 
 export const EMPTY: QrLoad = {
   rate: 0,
@@ -54,6 +67,23 @@ export const EMPTY: QrLoad = {
   brokerEmail: null,
   brokerPhone: null,
   referenceId: null,
+  // Rate-con detail: absent from a DAT listing, present when the Telegram bot
+  // built the link. Listed explicitly so EMPTY stays the exact shape parseLoadHash
+  // returns — qr-load.test.ts compares them key for key.
+  pickupName: null,
+  pickupAddress: null,
+  pickupTime: null,
+  pickupDate: null,
+  pickupRefs: null,
+  deliveryName: null,
+  deliveryAddress: null,
+  deliveryTime: null,
+  deliveryDate: null,
+  deliveryRefs: null,
+  weight: null,
+  commodity: null,
+  equipment: null,
+  brokerNotes: null,
 }
 
 export function buildLoadHash(load: Partial<QrLoad>): string {
@@ -75,6 +105,20 @@ export function buildLoadHash(load: Partial<QrLoad>): string {
   put('email', load.brokerEmail)
   put('phone', load.brokerPhone)
   put('ref', load.referenceId)
+  put('pn', load.pickupName)
+  put('pa', load.pickupAddress)
+  put('pt', load.pickupTime)
+  put('pd', load.pickupDate)
+  put('pr', load.pickupRefs)
+  put('dn', load.deliveryName)
+  put('da', load.deliveryAddress)
+  put('dt', load.deliveryTime)
+  put('dd', load.deliveryDate)
+  put('dr', load.deliveryRefs)
+  put('wt', load.weight)
+  put('cm', load.commodity)
+  put('eq', load.equipment)
+  put('notes', load.brokerNotes)
   return p.toString()
 }
 
@@ -108,6 +152,20 @@ export function parseLoadHash(hash: string): QrLoad {
     brokerEmail: str('email'),
     brokerPhone: str('phone'),
     referenceId: str('ref'),
+    pickupName: str('pn'),
+    pickupAddress: str('pa'),
+    pickupTime: str('pt'),
+    pickupDate: str('pd'),
+    pickupRefs: str('pr'),
+    deliveryName: str('dn'),
+    deliveryAddress: str('da'),
+    deliveryTime: str('dt'),
+    deliveryDate: str('dd'),
+    deliveryRefs: str('dr'),
+    weight: str('wt'),
+    commodity: str('cm'),
+    equipment: str('eq'),
+    brokerNotes: str('notes'),
   }
 }
 

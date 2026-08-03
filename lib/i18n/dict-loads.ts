@@ -451,4 +451,33 @@ export const loadsDict = {
 
   // lib/ratecon-ai-contract.ts
   'rateconAiContract.recognizedByAi': { ru: 'Распознано ИИ ({model})', en: 'Recognized by AI ({model})' },
+
+  // app/load/card — разбор из Telegram-бота: всё по грузу на одном экране
+  'loadCard.title': { ru: 'Разбор груза', en: 'Load breakdown' },
+  'loadCard.subtitle': {
+    ru: 'Всё по этому грузу: расчёт, маршрут, текст водителю и письмо брокеру. Данные пришли из ссылки и на сервер не попадают.',
+    en: 'Everything about this load: the numbers, the route, the driver text and the broker email. The data comes from the link and never reaches a server.',
+  },
+  'loadCard.analysis': { ru: 'Расчёт', en: 'Analysis' },
+  'loadCard.rate': { ru: 'Ставка', en: 'Rate' },
+  'loadCard.miles': { ru: 'Мили', en: 'Miles' },
+  'loadCard.rpm': { ru: 'За милю', en: 'Per mile' },
+  'loadCard.afterFuel': { ru: 'После топлива', en: 'After fuel' },
+  'loadCard.fuelNote': { ru: 'Топливо оценочно:', en: 'Fuel estimate:' },
+  'loadCard.deadheadNote': {
+    ru: 'Порожний пробег и ваши расходы не учтены — их знает только диспетчер.',
+    en: 'Deadhead and your own costs are not included — only the dispatcher knows those.',
+  },
+  'loadCard.openCalculator': { ru: 'Посчитать точнее в калькуляторе', en: 'Refine in the calculator' },
+  'loadCard.noNumbers': {
+    ru: 'Ставки или миль в ссылке нет — расчёт не построить.',
+    en: 'The link carries no rate or mileage, so there is nothing to calculate.',
+  },
+  'loadCard.map': { ru: 'Маршрут', en: 'Route' },
+  'loadCard.driverInfo': { ru: 'Текст водителю', en: 'Driver information' },
+  'loadCard.brokerEmail': { ru: 'Письмо брокеру', en: 'Broker email' },
+  'loadCard.openInMail': { ru: 'Открыть в почте', en: 'Open in mail' },
+  'loadCard.copy': { ru: 'Скопировать', en: 'Copy' },
+  'loadCard.copied': { ru: 'Скопировано', en: 'Copied' },
+  'loadCard.copyFailed': { ru: 'Не удалось скопировать', en: 'Copy failed' },
 } as const
