@@ -45,6 +45,7 @@ export const brokersDict = {
   'brokers.ageUnknown': { ru: 'дата неизвестна', en: 'date unknown' },
 
   'brokers.verdictClean': { ru: '✓ Красных флагов нет — можно работать', en: '✓ No red flags — clear to work' },
+  'brokers.detailsToggle': { ru: 'Все проверки ({n})', en: 'All checks ({n})' },
   'brokers.verdictFlags': { ru: 'Есть на что обратить внимание:', en: 'Points to watch:' },
 
   // ── Full checklist: section headers ─────────────────────────

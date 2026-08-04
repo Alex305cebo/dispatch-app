@@ -159,7 +159,13 @@ function buildEntries(c: BrokerCheck, locale: Locale): Entry[] {
   return e
 }
 
-export function BrokerChecklist({ check }: { check: BrokerCheck }) {
+/**
+ * `collapsible` прячет построчный список проверок под раскрывашку, оставляя на
+ * виду название брокера и шкалу надёжности. Нужно на карточке груза: там полный
+ * список занимал пол-экрана и отодвигал карту маршрута далеко вниз.
+ * На странице «Брокеры» проверка — главное содержимое, там список открыт.
+ */
+export function BrokerChecklist({ check, collapsible = false }: { check: BrokerCheck; collapsible?: boolean }) {
   const locale = useLocale()
   const entries = useMemo(() => buildEntries(check, locale), [check, locale])
   const score = useMemo(() => safetyScore(check), [check])
@@ -180,6 +186,54 @@ export function BrokerChecklist({ check }: { check: BrokerCheck }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [check])
 
+  const list = (
+    <div className="mt-3 flex flex-col gap-1">
+      {entries.map((en, i) => {
+        if (i > revealed) return null
+        if (en.kind === 'header')
+          return (
+            <p key={i} className="mt-2 flex items-center gap-1.5 px-1 text-[10px] font-semibold uppercase tracking-wider text-white/40 first:mt-0">
+              {en.label}
+              <Info text={t(locale, en.info)} />
+            </p>
+          )
+        const done = i < revealed
+        return (
+          <div
+            key={i}
+            className="flex items-center gap-2.5 rounded-lg border border-white/6 bg-white/[0.015] px-3 py-1.5 text-[13px]"
+          >
+            <span className={`w-4 shrink-0 text-center font-semibold ${done ? TONE[en.status] : 'text-haul-400'}`}>
+              {done ? MARK[en.status] : '…'}
+            </span>
+            <span className="flex items-center gap-1 text-white/60">
+              {en.label}
+              {en.info && <Info text={t(locale, en.info)} />}
+            </span>
+            <span className={`ml-auto text-right font-medium ${done ? 'text-white/90' : 'animate-pulse text-haul-400'}`}>
+              {done ? en.value : t(locale, 'brokers.checking')}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+
+  // Свёрнутый вид: наружу — только имя, шкала и красные флаги (их прятать нельзя,
+  // это как раз то, ради чего проверку и запускают), а построчный список под
+  // раскрывашкой.
+  const rows = collapsible ? (
+    <details className="group mt-3">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2 text-[12px] font-medium text-white/70 hover:border-white/15">
+        <span className="text-white/40 transition-transform group-open:rotate-90">▸</span>
+        {t(locale, 'brokers.detailsToggle').replace('{n}', String(entries.filter((e) => e.kind === 'row').length))}
+      </summary>
+      {list}
+    </details>
+  ) : (
+    list
+  )
+
   return (
     <div className="mt-3">
       {/* The broker being checked, big and centered — the headline of the result. */}
@@ -198,36 +252,7 @@ export function BrokerChecklist({ check }: { check: BrokerCheck }) {
 
       <SafetyMeter score={score} />
 
-      <div className="mt-3 flex flex-col gap-1">
-        {entries.map((en, i) => {
-          if (i > revealed) return null
-          if (en.kind === 'header')
-            return (
-              <p key={i} className="mt-2 flex items-center gap-1.5 px-1 text-[10px] font-semibold uppercase tracking-wider text-white/40 first:mt-0">
-                {en.label}
-                <Info text={t(locale, en.info)} />
-              </p>
-            )
-          const done = i < revealed
-          return (
-            <div
-              key={i}
-              className="flex items-center gap-2.5 rounded-lg border border-white/6 bg-white/[0.015] px-3 py-1.5 text-[13px]"
-            >
-              <span className={`w-4 shrink-0 text-center font-semibold ${done ? TONE[en.status] : 'text-haul-400'}`}>
-                {done ? MARK[en.status] : '…'}
-              </span>
-              <span className="flex items-center gap-1 text-white/60">
-                {en.label}
-                {en.info && <Info text={t(locale, en.info)} />}
-              </span>
-              <span className={`ml-auto text-right font-medium ${done ? 'text-white/90' : 'animate-pulse text-haul-400'}`}>
-                {done ? en.value : t(locale, 'brokers.checking')}
-              </span>
-            </div>
-          )
-        })}
-      </div>
+      {rows}
 
       {revealed >= entries.length && (
         <>

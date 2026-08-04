@@ -281,7 +281,7 @@ export function CardClient() {
           </p>
         )}
         {brokerCheck?.state === 'error' && <p className="text-[13px] text-bad-400">{brokerCheck.message}</p>}
-        {brokerCheck?.state === 'done' && <BrokerChecklist check={brokerCheck.data} />}
+        {brokerCheck?.state === 'done' && <BrokerChecklist check={brokerCheck.data} collapsible />}
       </section>
 
       {/* Route map */}
