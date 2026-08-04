@@ -49,7 +49,6 @@ export const trackingDict = {
   'tracking.needAttention': { ru: 'Требуют внимания', en: 'Need attention' },
   'tracking.callShort': { ru: 'Позвонить', en: 'Call' },
   'tracking.loadShort': { ru: 'Груз', en: 'Load' },
-  'tracking.historyShort': { ru: 'История', en: 'History' },
 
   // components/fleet-map.tsx
   'tracking.openArrow': { ru: 'Открыть', en: 'Open' },

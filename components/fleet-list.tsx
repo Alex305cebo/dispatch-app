@@ -4,7 +4,8 @@
 // actions (call, open load) — plus a client-side filter for "who's free right now".
 
 import { useState } from 'react'
-import { Fuel, Phone, Copy, Package, History, AlertTriangle } from 'lucide-react'
+import { Fuel, Phone, Copy, Package, AlertTriangle } from 'lucide-react'
+import Link from 'next/link'
 import { notify } from '@/lib/notify'
 import { Button } from '@/components/button'
 import { useLocale } from '@/components/locale-provider'
@@ -48,9 +49,7 @@ export function FleetList({
   selectedId = null,
 }: {
   rows: TrackingRow[]
-  /** Truck picked on the map — its card gets a ring so the two views stay tied. The
-   * card itself is NOT a click target: a <div onClick> full of links has no keyboard
-   * path and swallows nothing useful. The map is the selection surface. */
+  /** Truck picked on the map — its card gets a ring so the two views stay tied. */
   selectedId?: number | null
 }) {
   const locale = useLocale()
@@ -108,10 +107,22 @@ export function FleetList({
           // height in every card. Now they line up along the bottom edge.
           <div
             key={r.id}
-            className={`panel flex h-full flex-col p-3 transition-shadow ${
+            className={`panel panel-interactive relative flex h-full flex-col p-3 ${
               selectedId === r.id ? 'ring-2 ring-haul-400/70' : ''
             }`}
           >
+            {/* The whole card opens the truck. An overlay link rather than a <Link>
+                wrapped around the content, because the card already contains a button
+                and two links — nesting those inside an anchor is invalid HTML and eats
+                their clicks. Everything interactive below sits on z-10 and stays
+                clickable; this covers the inert space between them. panel-interactive's
+                :has(:focus-visible) gives the card its lift for keyboard users. */}
+            <Link
+              href={`/trucks/${r.id}`}
+              aria-label={r.label}
+              className="absolute inset-0 rounded-[inherit]"
+            />
+
             {/* Line 1 — who. Name and status only; anything else pushed the status
                 pill onto its own line at card width. */}
             <div className="flex items-start justify-between gap-2">
@@ -142,7 +153,7 @@ export function FleetList({
                   <button
                     onClick={() => void copyLocation(r.city!)}
                     title={t(locale, 'tracking.copyLocationTitle')}
-                    className="shrink-0 rounded p-0.5 text-white/30 transition-colors hover:bg-white/10 hover:text-white/80"
+                    className="relative z-10 shrink-0 rounded p-0.5 text-white/30 transition-colors hover:bg-white/10 hover:text-white/80"
                   >
                     <Copy size={11} />
                   </button>
@@ -198,7 +209,7 @@ export function FleetList({
                 Button, which is whitespace-nowrap — the old hand-rolled links wrapped
                 "Открыть груз · Chicago, IL → Dallas, TX" onto three lines and tore
                 the card's height apart. The route lives in the title instead. */}
-            <div className="mt-auto flex items-center gap-1.5 pt-2.5">
+            <div className="relative z-10 mt-auto flex items-center gap-1.5 pt-2.5">
               {r.phone && (
                 <Button
                   size="sm"
@@ -219,15 +230,7 @@ export function FleetList({
                   {t(locale, 'tracking.loadShort')}
                 </Button>
               )}
-              <Button
-                size="sm"
-                variant="ghost"
-                href={`/trucks/${r.id}`}
-                icon={<History size={12} />}
-                className="ml-auto"
-              >
-                {t(locale, 'tracking.historyShort')}
-              </Button>
+              {/* No "История пути" link any more — the card itself goes there. */}
             </div>
           </div>
         ))}

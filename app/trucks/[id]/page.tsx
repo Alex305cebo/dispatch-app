@@ -333,8 +333,13 @@ export default async function Page({
       </section>
 
       {/* ===== Around the truck: loads + documents ===== */}
-      <div className="mt-4 grid gap-4 lg:grid-cols-2 lg:items-start">
-        <section className="panel p-4">
+      {/* No `items-start` here on purpose. With it each column was only as tall as its
+          own content, so a truck with seven loads and three documents left a column of
+          bare page background beside the documents panel. Stretched, both panels end on
+          the same line, and the lists inside them are capped and scroll — so whichever
+          side has more rows, the block stays the same compact height. */}
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <section className="panel flex flex-col p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white/62">
               {t(locale, 'trucks.detail.loadsHeading')}{active > 0 && ` · ${active} ${t(locale, 'trucks.detail.inProgress')}`}
@@ -346,7 +351,7 @@ export default async function Page({
           {rows.length === 0 ? (
             <p className="text-[13px] text-white/55">{t(locale, 'trucks.detail.noLoadsYet')}</p>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex max-h-[28rem] flex-col gap-2 overflow-y-auto pr-1">
               {rows.map(({ load, r }) => {
                 const rcId = rateCons.get(load.id)
                 return (
@@ -357,17 +362,27 @@ export default async function Page({
                      drops to line two, where it has the width to itself. */
                   <div
                     key={load.id}
-                    className="rounded-xl border border-white/6 p-3 transition-colors hover:border-white/15"
+                    className="panel-interactive relative rounded-xl border border-white/6 p-3"
                   >
+                    {/* The WHOLE row opens the load now, not just the route text — a
+                        2cm-wide link inside a card-sized target is a miss waiting to
+                        happen. Overlay link, so the RC button next to it keeps working
+                        (an anchor inside an anchor is invalid HTML and eats clicks). */}
+                    <Link
+                      href={`/loads/${load.id}`}
+                      aria-label={`${load.origin ?? '—'} → ${load.destination ?? '—'}`}
+                      className="absolute inset-0 rounded-[inherit]"
+                    />
                     <div className="flex items-center gap-2">
-                      <Link
-                        href={`/loads/${load.id}`}
-                        className="min-w-0 flex-1 truncate text-md font-medium hover:text-haul-400"
-                      >
+                      <span className="min-w-0 flex-1 truncate text-md font-medium">
                         {load.origin ?? '—'} → {load.destination ?? '—'}
-                      </Link>
+                      </span>
                       <StatusBadge status={load.status} locale={locale} />
-                      {rcId && <RateConButton docId={rcId} compact />}
+                      {rcId && (
+                        <span className="relative z-10">
+                          <RateConButton docId={rcId} compact />
+                        </span>
+                      )}
                     </div>
                     <div className="mt-1 flex items-baseline justify-between gap-2">
                       <span className="nums min-w-0 truncate text-sm text-white/60">
@@ -388,7 +403,7 @@ export default async function Page({
           )}
         </section>
 
-        <section className="panel p-4">
+        <section className="panel flex flex-col p-4">
           <div className="mb-2">
             <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
               {t(locale, 'trucks.detail.documents')}
@@ -398,14 +413,19 @@ export default async function Page({
           <DocUpload truckId={truck.id} />
           {/* attachTargets = this truck's live loads, so a file that came in via
               Telegram and landed under the truck can be recognised into a load or
-              linked to an existing one straight from the list. */}
-          <DocList
-            docs={docs}
-            attachTargets={live.map((l) => ({
-              id: l.id,
-              label: `${l.origin ?? '—'} → ${l.destination ?? '—'}`,
-            }))}
-          />
+              linked to an existing one straight from the list.
+              Capped like the loads list opposite: a truck with a dozen files would
+              otherwise stretch this column past the loads beside it — the same
+              imbalance, just mirrored. */}
+          <div className="max-h-[28rem] overflow-y-auto pr-1">
+            <DocList
+              docs={docs}
+              attachTargets={live.map((l) => ({
+                id: l.id,
+                label: `${l.origin ?? '—'} → ${l.destination ?? '—'}`,
+              }))}
+            />
+          </div>
         </section>
       </div>
 
