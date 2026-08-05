@@ -474,6 +474,17 @@ export const loadsDict = {
     en: 'The link carries no rate or mileage, so there is nothing to calculate.',
   },
   'loadCard.map': { ru: 'Маршрут', en: 'Route' },
+  'loadCard.mapNoPoints': {
+    ru: 'Карту строить не по чему: в ссылке нет {what}. Обычно это значит, что в рейт-коне адрес напечатан не так, как ожидает разбор.',
+    en: 'Nothing to draw the route from: the link has no {what}. Usually that means the rate confirmation prints the address in a way the parser did not expect.',
+  },
+  'loadCard.mapPickup': { ru: 'адреса погрузки', en: 'pickup address' },
+  'loadCard.mapDelivery': { ru: 'адреса доставки', en: 'delivery address' },
+  'loadCard.mapBoth': { ru: 'ни одного адреса', en: 'either address' },
+  'loadCard.mapFailed': {
+    ru: 'Не удалось построить маршрут по этим адресам — геокодер их не узнал.',
+    en: 'Could not build a route for these addresses — the geocoder did not recognise them.',
+  },
   'loadCard.driverInfo': { ru: 'Текст водителю', en: 'Driver information' },
   'loadCard.brokerEmail': { ru: 'Письмо брокеру', en: 'Broker email' },
   'loadCard.openInMail': { ru: 'Открыть в почте', en: 'Open in mail' },

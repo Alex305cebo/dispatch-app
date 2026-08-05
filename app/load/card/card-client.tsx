@@ -126,6 +126,7 @@ export function CardClient() {
     miles: number | null
     coords: [number, number][] | null
   } | null>(null)
+  const [geoFailed, setGeoFailed] = useState(false)
 
   useEffect(() => {
     setLoad(parseLoadHash(window.location.hash))
@@ -138,8 +139,8 @@ export function CardClient() {
     const q = new URLSearchParams({ from: load.origin, to: load.destination })
     fetch(`/api/route-preview?${q}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d?.from && d?.to && setGeo(d))
-      .catch(() => {})
+      .then((d) => (d?.from && d?.to ? setGeo(d) : setGeoFailed(true)))
+      .catch(() => setGeoFailed(true))
   }, [load?.origin, load?.destination])
 
   const money = useMemo(() => {
@@ -205,6 +206,20 @@ export function CardClient() {
       coords: geo.coords ?? undefined,
     })
   }
+
+  // Почему карты нет. Пусто = данные ещё едут, и тогда показываем «скелет».
+  const missingPoint = !load.origin && !load.destination
+    ? t(locale, 'loadCard.mapBoth')
+    : !load.origin
+      ? t(locale, 'loadCard.mapPickup')
+      : !load.destination
+        ? t(locale, 'loadCard.mapDelivery')
+        : null
+  const mapProblem = missingPoint
+    ? t(locale, 'loadCard.mapNoPoints').replace('{what}', missingPoint)
+    : geoFailed
+      ? t(locale, 'loadCard.mapFailed')
+      : null
 
   const mail = emailDraft(load)
   const mailto = `mailto:${load.brokerEmail ?? ''}?subject=${encodeURIComponent(mail.subject)}&body=${encodeURIComponent(mail.body)}`
@@ -291,6 +306,11 @@ export function CardClient() {
         </h2>
         {markers.length ? (
           <FleetMap markers={markers} routes={routes} height={320} distanceMi={geo?.miles ?? null} />
+        ) : mapProblem ? (
+          // Без этого страница крутила «скелет» вечно: рейт-кон без адреса
+          // погрузки выглядел как вечная загрузка, и понять, чего не хватает,
+          // было нельзя.
+          <p className="rounded-xl bg-white/5 p-4 text-sm text-white/62">{mapProblem}</p>
         ) : (
           <div className="h-40 animate-pulse rounded-xl bg-white/5" />
         )}
