@@ -575,13 +575,35 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       const route = ROUTE_POOL[(i * 3 + j) % ROUTE_POOL.length]!
       const broker = BROKER_POOL[(i + j) % BROKER_POOL.length]!
       const [origin, destination, milesL, milesD] = route
-      const rpm = 2.6 + ((i + j) % 5) * 0.22
-      const rate = Math.round(milesL * rpm)
+      const idx = i * 3 + j
       const deliverOffset = -(weeks * 7) - (i % 3) // stagger within the week per truck
       const pickupOffset = deliverOffset - 2
       const refId = `${origin.slice(0, 3).toUpperCase()}-${9000 + i * 10 + j}`
       const brokerEmail = `ops@${broker.name.toLowerCase().replace(/[^a-z]+/g, '')}-demo.com`
-      const notes = historicalNotes(refId, i * 3 + j)
+      const notes = historicalNotes(refId, idx)
+
+      // Every historical load used to be identical in the ways that matter to the
+      // dashboards: paid, invoiced, no rate con. The "needs attention" panel therefore
+      // listed thirty-nine loads and printed the SAME chip on every one of them — a
+      // section that demonstrates one state repeated is worse than no demo at all.
+      //
+      // So the sandbox now spreads across the four states it can actually be in. One
+      // load in eight of each problem kind, the rest clean, which is also roughly what
+      // a real fleet looks like: mostly fine, a few things to chase.
+      const flaw = idx % 8
+      const lateNoInvoice = flaw === 0 // delivered, invoice never raised
+      const overdue = flaw === 1 // invoiced weeks ago, still unpaid
+      const underwater = flaw === 2 // hauled below cost — the one nobody can fix later
+      const noRateCon = flaw === 3 // paperwork missing on an otherwise fine load
+      // 1.05/mi is under this fleet's own cost per mile (lib/profit.ts), so calcLoad
+      // returns a negative net — the flag is earned by the arithmetic, not hardcoded.
+      const rpm = underwater ? 1.05 : 2.6 + ((i + j) % 5) * 0.22
+      const rate = Math.round(milesL * rpm)
+      const status = lateNoInvoice || overdue ? 'delivered' : 'paid'
+      // Delivered weeks ago against 30-day terms, so it reads as genuinely overdue
+      // rather than merely unpaid.
+      const invoicedAt = lateNoInvoice ? null : isoAt(deliverOffset + 1)
+      const paidAt = lateNoInvoice || overdue ? null : isoAt(deliverOffset + 8)
 
       const rows = await sql`
         INSERT INTO loads (rate, spot_rpm, loaded_miles, deadhead_miles, transit_days, origin, destination,
@@ -592,11 +614,19 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
                 ${broker.mc}, ${brokerEmail}, ${broker.phone}, ${refId}, ${notes}, ${isoAt(deliverOffset)},
                 ${dateAt(pickupOffset)}, ${dateAt(deliverOffset)}, ${rcTime(pickupOffset, '08:00', 'FCFS')},
                 ${rcTime(deliverOffset, '14:00', 'Appt')},
-                'manual', ${truckId}, 'paid', ${dispatcherId}, 'demo',
-                ${isoAt(deliverOffset + 1)}, ${isoAt(deliverOffset + 8)})
+                'manual', ${truckId}, ${status}, ${dispatcherId}, 'demo',
+                ${invoicedAt}, ${paidAt})
         RETURNING id`
       const loadId = (rows[0] as { id: number }).id
-      await attachDoc('invoice', `Invoice — ${refId}.pdf`, { loadId, uploadedAt: isoAt(deliverOffset + 1) })
+      // A real paid load has its rate con on file — attaching it is what makes the
+      // missing one mean something when it shows up.
+      if (!noRateCon) {
+        await attachDoc('ratecon', `Rate Confirmation — ${refId}.pdf`, { loadId, uploadedAt: isoAt(pickupOffset - 1) })
+      }
+      await attachDoc('pod', `POD — ${refId}.pdf`, { loadId, uploadedAt: isoAt(deliverOffset + 1) })
+      if (invoicedAt) {
+        await attachDoc('invoice', `Invoice — ${refId}.pdf`, { loadId, uploadedAt: invoicedAt })
+      }
     }
   }
 
@@ -627,7 +657,7 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       const rate = 1800 + (utilRef % 6) * 220
       const refId = `${origin.slice(0, 3).toUpperCase()}-${7000 + utilRef * 3}`
       const brokerEmail = `ops@${broker.name.toLowerCase().replace(/[^a-z]+/g, '')}-demo.com`
-      await sql`
+      const rows = await sql`
         INSERT INTO loads (rate, spot_rpm, loaded_miles, deadhead_miles, transit_days, origin, destination,
                            broker_mc, broker_email, broker_phone, reference_id,
                            pickup_date, delivery_date, pickup_time, delivery_time,
@@ -637,7 +667,15 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
                 ${dateAt(pickupOffset)}, ${dateAt(deliverOffset)},
                 ${rcTime(pickupOffset, '08:00', 'FCFS')}, ${rcTime(deliverOffset, '14:00', 'Appt')},
                 'manual', ${truckId}, 'paid', ${dispatcherId}, 'demo',
-                ${isoAt(deliverOffset + 1)}, ${isoAt(deliverOffset + 3)})`
+                ${isoAt(deliverOffset + 1)}, ${isoAt(deliverOffset + 3)})
+        RETURNING id`
+      // Paperwork on these too. Without it every filler load reported a missing rate
+      // con, and the fifteen of them alone were enough to drown the panel in one
+      // repeated chip — the exact thing this pass exists to stop.
+      await attachDoc('ratecon', `Rate Confirmation — ${refId}.pdf`, {
+        loadId: (rows[0] as { id: number }).id,
+        uploadedAt: isoAt(pickupOffset - 1),
+      })
       utilRef++
     }
   }
