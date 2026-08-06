@@ -1,4 +1,4 @@
-import { CalendarDays, PackageOpen, Plus } from 'lucide-react'
+import { AlertTriangle, CalendarDays, PackageOpen, Plus } from 'lucide-react'
 import { Button } from '@/components/button'
 import { ShowMore } from '@/components/collapse'
 import { Empty } from '@/components/empty'
@@ -9,8 +9,8 @@ import { calcLoad, type Breakdown } from '@/lib/profit'
 import { truckPhotoFlags } from '@/lib/maintenance'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
-import { t, type Locale } from '@/lib/i18n'
-import { usd, usd2, mondayOf, weekLabel, weekStart } from '@/lib/fmt'
+import { t, type Locale, type MsgKey } from '@/lib/i18n'
+import { usd, usd2, mondayOf, weekLabel, weekStart, loadWeekAnchorMs } from '@/lib/fmt'
 import { StatusBadge, statusLabel } from '@/components/status'
 import { RateConButton } from '@/components/ratecon-button'
 import { DeleteButton } from '@/components/delete-button'
@@ -69,6 +69,61 @@ export default async function Page({
     .map((truck) => ({ truck, loads: byTruck.get(truck.id) ?? [] }))
     .filter((g) => g.loads.length > 0)
 
+  // ── Two summaries above the board ────────────────────────────────────────────
+  // Both are computed from the loads ALREADY fetched above — no extra query, no new
+  // table. Which is also why these particular numbers: revenue per truck, all-in
+  // rate per mile and deadhead share are what the trade press calls a dispatcher's
+  // daily minimum, and all three were already derivable here and going unused.
+  const priced = loads.map((l) => {
+    const truck = (l.truckId !== null ? byId.get(l.truckId) : undefined) ?? fallback
+    return { load: l, truck, r: truck ? calcLoad(l, truck) : null }
+  })
+
+  // The CURRENT week, always — not `weekMonday`, which follows the calendar tab's
+  // ?week param. A summary that silently retitled itself when someone paged back
+  // through the calendar would be worse than no summary at all.
+  const wkFrom = weekStart()
+  const wkTo = wkFrom + 7 * 24 * 60 * 60 * 1000
+  const weekRows = priced.filter(({ load }) => {
+    if (load.status === 'cancelled') return false
+    const ms = loadWeekAnchorMs(load.pickupDate, load.createdAt)
+    return ms >= wkFrom && ms < wkTo
+  })
+  const weekGross = weekRows.reduce((s, x) => s + x.load.rate, 0)
+  const weekMiles = weekRows.reduce((s, x) => s + (x.r?.totalMiles ?? 0), 0)
+  const weekDeadhead = weekRows.reduce((s, x) => s + x.load.deadheadMiles, 0)
+  // Per truck that actually RAN, not per truck owned — a unit parked all week would
+  // otherwise drag the number down and read as a rate problem when it's a coverage one.
+  const trucksRun = new Set(weekRows.map((x) => x.truck?.id).filter((id) => id != null)).size
+  const week = {
+    gross: weekGross,
+    net: weekRows.reduce((s, x) => s + (x.r?.net ?? 0), 0),
+    rpm: weekMiles > 0 ? weekGross / weekMiles : 0,
+    deadheadPct: weekMiles > 0 ? (weekDeadhead / weekMiles) * 100 : 0,
+    perTruck: trucksRun > 0 ? weekGross / trucksRun : 0,
+    count: weekRows.length,
+  }
+
+  // Loads with money or paperwork stuck to them. A quoted load is a draft — nothing
+  // is owed and no paperwork is late yet — so it is never flagged.
+  const now = Date.now()
+  const flagged: { load: LoadRecord; reasons: Reason[] }[] = []
+  for (const { load, r } of priced) {
+    if (load.status === 'cancelled' || load.status === 'quoted') continue
+    const reasons: Reason[] = []
+    if (r && r.net < 0) reasons.push({ key: 'loads.attention.losing', bad: true })
+    if (load.invoicedAt && !load.paidAt) {
+      const dueMs = Date.parse(load.invoicedAt) + load.paymentTermsDays * 24 * 60 * 60 * 1000
+      if (now > dueMs) reasons.push({ key: 'loads.attention.overdue', bad: true })
+    } else if (load.status === 'delivered' && !load.invoicedAt) {
+      reasons.push({ key: 'loads.attention.uninvoiced', bad: false })
+    }
+    if (!rateCons.has(load.id)) reasons.push({ key: 'loads.attention.noRc', bad: false })
+    if (reasons.length) flagged.push({ load, reasons })
+  }
+  // Money-losing and overdue first: those are the ones that cost something today.
+  flagged.sort((a, b) => Number(b.reasons.some((x) => x.bad)) - Number(a.reasons.some((x) => x.bad)))
+
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <div className="mb-4 flex items-end justify-between gap-4">
@@ -83,6 +138,9 @@ export default async function Page({
           {t(locale, 'loads.page.new')}
         </Button>
       </div>
+
+      {loads.length > 0 && <WeekSummary week={week} locale={locale} />}
+      {flagged.length > 0 && <NeedsAttention items={flagged} locale={locale} />}
 
       {loads.length > 0 && (
         <div className="mb-5 flex gap-1.5 border-b border-white/8">
@@ -149,6 +207,112 @@ function ViewTab({ href, active, children }: { href: string; active: boolean; ch
     >
       {children}
     </Link>
+  )
+}
+
+type Reason = { key: MsgKey; bad: boolean }
+
+/** One figure in the week strip. Same nested-glass shape as the tracking page's
+ * counters, so the app's two summaries read as one family rather than two designs. */
+function Tile({ value, label, tone }: { value: string; label: string; tone?: 'good' | 'bad' | 'warn' }) {
+  const color =
+    tone === 'good' ? 'text-good-400' : tone === 'bad' ? 'text-bad-400' : tone === 'warn' ? 'text-warn-400' : 'text-white/90'
+  return (
+    <div className="panel-inset flex flex-col justify-center px-3 py-2.5">
+      <div className={`nums truncate text-[17px] leading-tight ${color}`}>{value}</div>
+      <div className="mt-0.5 truncate text-[11px] text-white/45">{label}</div>
+    </div>
+  )
+}
+
+/** The week in five numbers. The page used to open straight onto driver cards: it
+ * showed WHAT is being hauled and never once said how the week is going, which is
+ * the first thing anyone opening a dispatch board actually wants to know. */
+function WeekSummary({
+  week,
+  locale,
+}: {
+  week: { gross: number; net: number; rpm: number; deadheadPct: number; perTruck: number; count: number }
+  locale: Locale
+}) {
+  if (week.count === 0) {
+    return <p className="panel mb-4 px-4 py-3 text-[13px] text-white/45">{t(locale, 'loads.week.empty')}</p>
+  }
+  return (
+    <section className="panel mb-3 p-2.5">
+      <h2 className="mb-2 px-1.5 text-2xs font-semibold uppercase tracking-wider text-white/62">
+        {t(locale, 'loads.week.title')}
+      </h2>
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
+        <Tile value={usd.format(week.gross)} label={t(locale, 'loads.week.gross')} />
+        <Tile
+          value={usd.format(week.net)}
+          label={t(locale, 'loads.week.net')}
+          tone={week.net >= 0 ? 'good' : 'bad'}
+        />
+        <Tile value={`${usd2.format(week.rpm)}/mi`} label={t(locale, 'loads.week.rpm')} />
+        {/* Amber past 20%: the industry runs 15–20% empty, so above that this stopped
+            being background cost and became something to route around. */}
+        <Tile
+          value={`${week.deadheadPct.toFixed(0)}%`}
+          label={t(locale, 'loads.week.deadhead')}
+          tone={week.deadheadPct > 20 ? 'warn' : undefined}
+        />
+        <Tile value={usd.format(week.perTruck)} label={t(locale, 'loads.week.perTruck')} />
+      </div>
+    </section>
+  )
+}
+
+/** Loads with money or paperwork stuck to them, newest problems first. Every row is
+ * a link to the load itself — a list that names a problem without offering the way
+ * to fix it just moves the search work somewhere else. */
+function NeedsAttention({
+  items,
+  locale,
+}: {
+  items: { load: LoadRecord; reasons: Reason[] }[]
+  locale: Locale
+}) {
+  const shown = items.slice(0, 5)
+  const rest = items.length - shown.length
+  return (
+    <section className="panel mb-5 p-3">
+      <h2 className="mb-2 flex items-center gap-1.5 px-0.5 text-2xs font-semibold uppercase tracking-wider text-white/62">
+        <AlertTriangle size={12} className="text-warn-400" />
+        {t(locale, 'loads.attention.title')} · <span className="nums">{items.length}</span>
+      </h2>
+      <div className="flex flex-col gap-1.5">
+        {shown.map(({ load, reasons }) => (
+          <Link
+            key={load.id}
+            href={`/loads/${load.id}`}
+            className="panel-inset panel-interactive flex items-center gap-2 px-3 py-2"
+          >
+            <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
+              {load.origin ?? '—'} → {load.destination ?? '—'}
+            </span>
+            <span className="flex shrink-0 flex-wrap justify-end gap-1">
+              {reasons.map((r) => (
+                <span
+                  key={r.key}
+                  className={`rounded px-1.5 py-0.5 text-[10.5px] font-medium ${
+                    r.bad ? 'bg-bad-500/15 text-bad-400' : 'bg-warn-400/15 text-warn-400'
+                  }`}
+                >
+                  {t(locale, r.key)}
+                </span>
+              ))}
+            </span>
+          </Link>
+        ))}
+      </div>
+      {rest > 0 && (
+        <p className="mt-1.5 px-1 text-[11px] text-white/40">
+          {t(locale, 'loads.attention.more').replace('{n}', String(rest))}
+        </p>
+      )}
+    </section>
   )
 }
 

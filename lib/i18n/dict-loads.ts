@@ -498,4 +498,21 @@ export const loadsDict = {
     en: "This is an FMCSA legal-status check — it does NOT verify creditworthiness and does NOT replace factoring. Also check this MC/DOT in your factoring company's own portal.",
   },
   'loadCard.noMc': { ru: 'MC брокера не указан — проверить не получится.', en: "Broker MC not provided — can't check it." },
+
+  // app/loads/page.tsx — недельная сводка и «требуют внимания». Показатели выбраны
+  // не на глаз: выручка на трак, ставка-миля и доля порожних миль — то, что
+  // отраслевые руководства называют ежедневным минимумом диспетчера.
+  'loads.week.title': { ru: 'Эта неделя', en: 'This week' },
+  'loads.week.gross': { ru: 'выручка', en: 'revenue' },
+  'loads.week.net': { ru: 'чистыми', en: 'net' },
+  'loads.week.rpm': { ru: 'ставка-миля', en: 'per mile' },
+  'loads.week.deadhead': { ru: 'порожние', en: 'deadhead' },
+  'loads.week.perTruck': { ru: 'на трак', en: 'per truck' },
+  'loads.week.empty': { ru: 'На этой неделе грузов пока нет', en: 'No loads this week yet' },
+  'loads.attention.title': { ru: 'Требуют внимания', en: 'Needs attention' },
+  'loads.attention.uninvoiced': { ru: 'счёт не выставлен', en: 'not invoiced' },
+  'loads.attention.overdue': { ru: 'оплата просрочена', en: 'payment overdue' },
+  'loads.attention.noRc': { ru: 'нет рейт-кона', en: 'no rate con' },
+  'loads.attention.losing': { ru: 'в минус', en: 'losing money' },
+  'loads.attention.more': { ru: 'ещё {n}', en: '{n} more' },
 } as const
