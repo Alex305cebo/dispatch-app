@@ -106,18 +106,29 @@ function tileOpts(sat: boolean) {
  * MIT, commercial use fine) rendered by MapLibre GL — the open-source fork of Mapbox GL.
  *
  * Vector is the whole point, not a fashion choice: in a raster tile every label and icon is
- * baked into the image, so the shop pins and exit numbers the owner wanted gone cannot be
- * removed at all. In a vector style each of those is its own layer we can simply switch off,
- * while keeping street names, house numbers, highway shields, place/water/park names and
- * admin boundaries.
+ * baked into the image, so the shop pins the owner wanted gone could not be removed, and
+ * the door numbers he wants could not be added. In a vector style every one of those is its
+ * own layer — we hide an icon, keep its name, add a layer the style never drew, and pick the
+ * zoom each appears at (see POI_LAYER and the housenumber layer below).
  */
 const VECTOR_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
-/** Clutter to switch off: the shop/amenity pin layers, which in this style are exactly
- * poi_r1 / poi_r7 / poi_r20 / poi_transit. Anchored to the START of the id on purpose — a
- * bare /poi/ also matches "water_name_POINT_label" and would silently delete the lake and
- * river names the owner asked to keep. The little red exit numbers aren't a layer here at
- * all; they came from the old raster OSM tiles and are simply gone with the vector style. */
-const HIDE_LAYER = /^poi/i
+/** The shop/amenity layers, which in this style are exactly poi_r1 / poi_r7 / poi_r20 /
+ * poi_transit. Anchored to the START of the id on purpose — a bare /poi/ also matches
+ * "water_name_POINT_label" and would silently delete the lake and river names the owner
+ * asked to keep. The little red exit numbers aren't a layer here at all; they came from
+ * the old raster OSM tiles and are simply gone with the vector style.
+ *
+ * These used to be switched OFF outright, which threw away the baby with the water: the
+ * complaint was about shop PINS littering the fleet view, but the same layers carry the
+ * NAMES of warehouses, plants and distribution centres. With them off, a truck parked at
+ * a delivery sat on a blank grey footprint — "стоит на delivery, но не видно, у какого
+ * здания". Now the icon is made invisible and only the name survives, and the whole layer
+ * is held back to POI_MIN_ZOOM so the country-wide fleet view stays as clean as before. */
+const POI_LAYER = /^poi/i
+/** Names appear only once the map is close enough that they describe THIS place rather
+ * than blanket the region. 15 ≈ a few blocks — the zoom you land on after clicking a
+ * truck (markers fly to at least 14, address pins to 14+). */
+const POI_MIN_ZOOM = 15
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /** Builds the base layer for the requested mode: vector street map, or the raster
@@ -139,11 +150,15 @@ async function buildBaseLayer(L: any, sat: boolean): Promise<any> {
       if (!gl || !style?.layers) return
 
       for (const lyr of style.layers) {
-        if (!HIDE_LAYER.test(lyr.id)) continue
+        if (!POI_LAYER.test(lyr.id)) continue
         try {
-          gl.setLayoutProperty(lyr.id, 'visibility', 'none')
+          // Icon out, name kept. setLayerZoomRange is the API for minzoom — it is a
+          // LAYER property, not a layout one, so setLayoutProperty(...'minzoom') would
+          // silently do nothing. maxzoom stays whatever the style shipped (24 default).
+          gl.setPaintProperty(lyr.id, 'icon-opacity', 0)
+          gl.setLayerZoomRange(lyr.id, POI_MIN_ZOOM, 24)
         } catch {
-          /* layer vanished between read and write — nothing to hide */
+          /* layer vanished between read and write — nothing to tune */
         }
       }
 
@@ -162,7 +177,9 @@ async function buildBaseLayer(L: any, sat: boolean): Promise<any> {
             type: 'symbol',
             source: 'openmaptiles',
             'source-layer': 'housenumber',
-            minzoom: 17,
+            // 16, not 17: at a delivery the door number is the whole point, and 17 was
+            // one step closer than the zoom a truck click actually lands on.
+            minzoom: 16,
             layout: { 'text-field': ['get', 'housenumber'], 'text-font': font, 'text-size': 10 },
             paint: { 'text-color': '#5b6472', 'text-halo-color': '#ffffff', 'text-halo-width': 1 },
           })
@@ -436,7 +453,7 @@ export function FleetMap({
           // explicitly: touch devices have no hover, so a tap is the only way a
           // phone user ever sees the plaque (and its link) at all.
           marker.on('click', () => {
-            map!.flyTo([m.lat, m.lng], Math.max(map!.getZoom(), 14), { duration: 0.6 })
+            map!.flyTo([m.lat, m.lng], Math.max(map!.getZoom(), POI_MIN_ZOOM), { duration: 0.6 })
             marker.openTooltip()
           })
           // Leaflet closes a hover tooltip the instant the cursor leaves the marker
@@ -467,7 +484,7 @@ export function FleetMap({
         } else {
           // Plain address pins with no card behind them keep the focus-in zoom.
           marker.on('click', () => {
-            map!.flyTo([m.lat, m.lng], Math.max(map!.getZoom(), 14), { duration: 0.6 })
+            map!.flyTo([m.lat, m.lng], Math.max(map!.getZoom(), POI_MIN_ZOOM), { duration: 0.6 })
           })
         }
         bounds.extend([m.lat, m.lng])
