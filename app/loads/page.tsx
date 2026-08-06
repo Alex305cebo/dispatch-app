@@ -17,6 +17,7 @@ import { DeleteButton } from '@/components/delete-button'
 import { DriverAvatar } from '@/components/driver-avatar'
 import { deleteLoad } from '@/app/actions'
 import { Info } from '@/components/info'
+import { AttentionList } from '@/components/attention-list'
 
 export const dynamic = 'force-dynamic'
 
@@ -274,44 +275,21 @@ function NeedsAttention({
   items: { load: LoadRecord; reasons: Reason[] }[]
   locale: Locale
 }) {
-  const shown = items.slice(0, 5)
-  const rest = items.length - shown.length
   return (
     <section className="panel mb-5 p-3">
       <h2 className="mb-2 flex items-center gap-1.5 px-0.5 text-2xs font-semibold uppercase tracking-wider text-white/62">
         <AlertTriangle size={12} className="text-warn-400" />
         {t(locale, 'loads.attention.title')} · <span className="nums">{items.length}</span>
       </h2>
-      <div className="flex flex-col gap-1.5">
-        {shown.map(({ load, reasons }) => (
-          <Link
-            key={load.id}
-            href={`/loads/${load.id}`}
-            className="panel-inset panel-interactive flex items-center gap-2 px-3 py-2"
-          >
-            <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
-              {load.origin ?? '—'} → {load.destination ?? '—'}
-            </span>
-            <span className="flex shrink-0 flex-wrap justify-end gap-1">
-              {reasons.map((r) => (
-                <span
-                  key={r.key}
-                  className={`rounded px-1.5 py-0.5 text-[10.5px] font-medium ${
-                    r.bad ? 'bg-bad-500/15 text-bad-400' : 'bg-warn-400/15 text-warn-400'
-                  }`}
-                >
-                  {t(locale, r.key)}
-                </span>
-              ))}
-            </span>
-          </Link>
-        ))}
-      </div>
-      {rest > 0 && (
-        <p className="mt-1.5 px-1 text-[11px] text-white/40">
-          {t(locale, 'loads.attention.more').replace('{n}', String(rest))}
-        </p>
-      )}
+      {/* Translated here, on the server, rather than shipping message keys and a
+          locale into the client component — the labels are a closed set of four. */}
+      <AttentionList
+        items={items.map(({ load, reasons }) => ({
+          id: load.id,
+          route: `${load.origin ?? '—'} → ${load.destination ?? '—'}`,
+          reasons: reasons.map((r) => ({ label: t(locale, r.key), bad: r.bad })),
+        }))}
+      />
     </section>
   )
 }
@@ -667,15 +645,22 @@ function DriverGroup({
   const featured = active ?? loads[0]!
   const rest = loads.filter((l) => l.id !== featured.id)
 
+  // The header used to carry a name and a count and nothing else, across the full
+  // width of the card — a lot of empty space for two short facts. What the money adds
+  // is the answer to "is this driver worth what he's running", which is the question
+  // the count alone raises and never answers.
+  const total = loads.reduce((s, l) => (l.status === 'cancelled' ? s : s + l.rate), 0)
+
   return (
-    <section className="panel p-4">
+    <section className="panel p-3">
       <Link
         href={`/trucks/${truck.id}`}
-        className="mb-3 flex items-center gap-3 transition-colors hover:text-haul-400"
+        className="mb-2 flex items-center gap-2.5 transition-colors hover:text-haul-400"
       >
-        <DriverAvatar truckId={truck.id} name={truck.driverName} hasPhoto={hasPhoto} size={36} />
+        <DriverAvatar truckId={truck.id} name={truck.driverName} hasPhoto={hasPhoto} size={30} />
         <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{truckLabel(truck)}</span>
-        <span className="shrink-0 text-[11px] font-normal text-white/45">
+        <span className="nums shrink-0 text-[12px] font-semibold text-white/75">{usd.format(total)}</span>
+        <span className="shrink-0 text-[11px] font-normal text-white/40">
           {t(locale, 'loads.page.countLoads').replace('{n}', String(loads.length))}
         </span>
       </Link>
@@ -715,16 +700,19 @@ function LoadRow({
   return (
     // Row is a flex container, not one big <Link>: the rate con button must
     // be a sibling of the link, never nested inside it.
-    <div className="flex items-center gap-3 rounded-xl border border-white/6 p-3 transition-colors hover:border-white/15">
-      <Link href={`/loads/${load.id}`} className="flex min-w-0 flex-1 items-center gap-4">
+    // Padding and type both a step down from before: one row of text was sitting in a
+    // card tall enough for three, which is what made the list read as mostly air.
+    // Nothing was dropped to get there — every figure that was here still is.
+    <div className="flex items-center gap-2 rounded-xl border border-white/6 px-3 py-2 transition-colors hover:border-white/15">
+      <Link href={`/loads/${load.id}`} className="flex min-w-0 flex-1 items-center gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate text-[14px] font-medium">
+            <span className="truncate text-[13.5px] font-medium">
               {load.origin ?? '—'} → {load.destination ?? '—'}
             </span>
             <StatusBadge status={load.status} locale={locale} />
           </div>
-          <div className="nums mt-1 text-[12px] text-white/65">
+          <div className="nums mt-0.5 truncate text-[11.5px] text-white/60">
             {t(locale, 'loads.page.net')}{' '}
             <span className={r.net >= 0 ? 'text-good-400/90' : 'text-bad-400/90'}>
               {usd.format(r.net)}
@@ -733,9 +721,9 @@ function LoadRow({
           </div>
         </div>
         <div className="shrink-0 text-right">
-          <div className="nums text-lg font-bold">{usd.format(load.rate)}</div>
+          <div className="nums text-[15px] font-bold leading-tight">{usd.format(load.rate)}</div>
           {load.loadedMiles > 0 && (
-            <div className="nums text-[11.5px] font-medium text-haul-300">
+            <div className="nums text-[11px] font-medium text-haul-300">
               {Math.round(load.loadedMiles).toLocaleString('en-US')} mi
             </div>
           )}
