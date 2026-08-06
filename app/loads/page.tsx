@@ -660,7 +660,9 @@ function DriverGroup({
         <DriverAvatar truckId={truck.id} name={truck.driverName} hasPhoto={hasPhoto} size={30} />
         <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{truckLabel(truck)}</span>
         <span className="nums shrink-0 text-[12px] font-semibold text-white/75">{usd.format(total)}</span>
-        <span className="shrink-0 text-[11px] font-normal text-white/40">
+        {/* The count is the first thing to go on a narrow phone: it's the least of the
+            three facts here, and keeping it would cost the driver's own name letters. */}
+        <span className="hidden shrink-0 text-[11px] font-normal text-white/40 min-[380px]:inline">
           {t(locale, 'loads.page.countLoads').replace('{n}', String(loads.length))}
         </span>
       </Link>
@@ -704,7 +706,15 @@ function LoadRow({
     // card tall enough for three, which is what made the list read as mostly air.
     // Nothing was dropped to get there — every figure that was here still is.
     <div className="flex items-center gap-2 rounded-xl border border-white/6 px-3 py-2 transition-colors hover:border-white/15">
-      <Link href={`/loads/${load.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+      {/* Stacked on a phone, one row from `sm` up. Side by side at 375px the route had
+          to share ~270px with the status badge AND the rate, so "Kansas City, MO →
+          Chicago, IL" clipped to a few letters — and the city pair is the one thing on
+          this row that must never be cut. Stacked, it gets the full width and the money
+          moves onto the line below, beside the figures it belongs with. */}
+      <Link
+        href={`/loads/${load.id}`}
+        className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-3"
+      >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="truncate text-[13.5px] font-medium">
@@ -720,7 +730,9 @@ function LoadRow({
             · {Math.round(r.totalMiles)} mi · {usd2.format(r.allInRpm)}/mi
           </div>
         </div>
-        <div className="shrink-0 text-right">
+        {/* Inline pair on the phone (rate then loaded miles, reading left to right),
+            stacked block on the right from `sm` up. */}
+        <div className="flex shrink-0 items-baseline gap-2 sm:block sm:text-right">
           <div className="nums text-[15px] font-bold leading-tight">{usd.format(load.rate)}</div>
           {load.loadedMiles > 0 && (
             <div className="nums text-[11px] font-medium text-haul-300">
