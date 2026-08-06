@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { LinkPending } from '@/components/link-pending'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { Notifier } from '@/components/notifier'
@@ -235,7 +236,7 @@ export function Nav({
         )
 
         const shape =
-          'nav-tab-btn flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl border px-1 py-2 md:flex-none md:flex-row md:gap-3 md:px-3 md:py-2.5'
+          'nav-tab-btn relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl border px-1 py-2 md:flex-none md:flex-row md:gap-3 md:px-3 md:py-2.5'
 
         if (it.soon) {
           return (
@@ -261,6 +262,10 @@ export function Nav({
             }`}
           >
             {body}
+            {/* The tab answers for itself while the next page is on its way. Absolute,
+                so the phone dock — where every tab is a few pixels wide — doesn't
+                reflow the moment it appears. Renders nothing at rest. */}
+            <LinkPending className="absolute right-1 top-1" />
           </Link>
         )
         })}
