@@ -300,7 +300,9 @@ async function FleetBoard({ locale }: { locale: Locale }) {
 function BoardSkeleton() {
   return (
     <div className="animate-pulse">
-      <div className="mb-4 h-[320px] rounded-2xl border border-white/8 bg-white/[0.03]" />
+      {/* `panel`, not bg-white/[0.03]: 3% of near-black on the light theme's #eef1f6
+          page is invisible, so this placeholder simply wasn't there in light mode. */}
+      <div className="panel mb-4 h-[320px]" />
       <div className="panel mb-4 h-[100px]" />
       <div className="space-y-2">
         {[0, 1, 2, 3].map((i) => (
