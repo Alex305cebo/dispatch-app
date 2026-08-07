@@ -44,10 +44,14 @@ async function attachDoc(
 }
 
 /** Wipe every company_id='demo' row (FK-safe order) and reseed a fresh, varied
- * little fleet — same shape as the real app, entirely made up. Driver names come in
- * matched EN/RU pairs (both are Western names — the RU side is just how a Russian-
- * speaking dispatcher would write them) so the seeded roster reads naturally in
- * whichever language triggered this reset. */
+ * little fleet — same shape as the real app, entirely made up.
+ *
+ * Driver names are Latin in BOTH locales. They used to come in EN/RU pairs picked by
+ * whichever language triggered the reset, which produced "Алекс Морган" for an English
+ * visitor and never changed when the language was switched — the name is a plain string
+ * in trucks.driver_name, so it cannot follow the UI language, and translating stored
+ * data on the fly would be wrong anyway. The drivers are American; Latin reads correctly
+ * either way. */
 async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void> {
   // Children first — trucks/loads have no ON DELETE CASCADE, so deleting a truck
   // while its maintenance/todos/meta/documents still reference it would just fail.
@@ -83,7 +87,6 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
     {
       number: 'DEMO-101',
       driverEn: 'Alex Morgan',
-      driverRu: 'Алекс Морган',
       phone: '+1 555-010-1101',
       vin: '1FUJGHDV8CLBP1101',
       plate: 'TX-DEMO1',
@@ -107,7 +110,6 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
     {
       number: 'DEMO-204',
       driverEn: 'Sam Rivera',
-      driverRu: 'Сэм Ривера',
       phone: '+1 555-020-2204',
       vin: '3AKJHHDR5LSLU2204',
       plate: 'IL-DEMO2',
@@ -131,7 +133,6 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
     {
       number: 'DEMO-317',
       driverEn: 'Jordan Lee',
-      driverRu: 'Джордан Ли',
       phone: '+1 555-030-3317',
       vin: '1XKYDP9X5MJ317317',
       plate: 'GA-DEMO3',
@@ -155,7 +156,6 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
     {
       number: 'DEMO-428',
       driverEn: 'Casey Brooks',
-      driverRu: 'Кейси Брукс',
       phone: '+1 555-040-4428',
       vin: '4V4NC9EJXEN428428',
       plate: 'AZ-DEMO4',
@@ -180,7 +180,6 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
     {
       number: 'DEMO-512',
       driverEn: 'Morgan Taylor',
-      driverRu: 'Морган Тейлор',
       phone: '+1 555-050-5512',
       vin: '3AKJHHDR8PSN90512',
       plate: 'TX-DEMO5',
@@ -204,7 +203,6 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
     {
       number: 'DEMO-633',
       driverEn: 'Riley Bennett',
-      driverRu: 'Райли Беннетт',
       phone: '+1 555-060-6633',
       vin: '1XPBD49X9JD633633',
       plate: 'TN-DEMO6',
@@ -228,7 +226,6 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
     {
       number: 'DEMO-745',
       driverEn: 'Drew Sullivan',
-      driverRu: 'Дрю Салливан',
       phone: '+1 555-070-7745',
       vin: '3HSDJAPR8NN745745',
       plate: 'NC-DEMO7',
@@ -252,7 +249,6 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
     {
       number: 'DEMO-860',
       driverEn: 'Quinn Parker',
-      driverRu: 'Куинн Паркер',
       phone: '+1 555-080-8860',
       vin: '1M1AW07Y9LM860860',
       plate: 'FL-DEMO8',
@@ -278,7 +274,11 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
 
   const truckIds: number[] = []
   for (const [i, t] of trucks.entries()) {
-    const driver = locale === 'ru' ? t.driverRu : t.driverEn
+    // Имя водителя латиницей в обеих локалях. Оно живёт в trucks.driver_name как
+    // обычная строка, поэтому при переключении языка сайта не менялось бы в любом
+    // случае — а посев зависел от того, на каком языке зашли ПЕРВЫМ. Отсюда
+    // «Алекс Морган» у англоязычного посетителя. Водители американские.
+    const driver = t.driverEn
     const rows = await sql`
       INSERT INTO trucks (name, number, driver_name, mpg, fuel_price_per_gallon,
                           driver_pay_mode, driver_cents_per_mile,
