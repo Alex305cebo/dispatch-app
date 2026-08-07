@@ -64,8 +64,8 @@ export const loadsDict = {
     en: "Drop or pick a PDF/photo from the broker — AI reads it and fills in the fields below. Scans work too.",
   },
   'newLoad.scanInfo': {
-    ru: 'Тот же распознаватель, что на странице «Rate con»: Google Gemini читает документ и заполняет форму. Работает с любым шаблоном и со сканами. Документ отправляется в Gemini.',
-    en: 'The same recognizer as the "Rate con" page: Google Gemini reads the document and fills in the form. Works with any template and with scans. The document is sent to Gemini.',
+    ru: 'Тот же распознаватель, что на странице «Rate con»: документ читает искусственный интеллект и заполняет форму. Работает с любым шаблоном и со сканами.',
+    en: 'The same recognizer as the "Rate con" page: AI reads the document and fills in the form. Works with any template and with scans.',
   },
   'newLoad.retry': { ru: '↻ Повторить', en: '↻ Retry' },
   'newLoad.formFilled': { ru: 'Форма заполнена из rate con — проверь и сохрани.', en: 'Form filled from the rate con — check it and save.' },
@@ -137,8 +137,8 @@ export const loadsDict = {
   // app/import/page.tsx
   'import.titleSuffix': { ru: '· подтверждение ставки от брокера', en: "· broker's rate confirmation" },
   'import.subtitle': {
-    ru: 'Мгновенный черновик собирается прямо в браузере, затем документ проверяет ИИ (Google Gemini, бесплатно) — он читает любой шаблон брокера и сканы. Ничего не выдумывается: чего нет в документе, то остаётся пустым.',
-    en: "An instant draft is assembled right in the browser, then AI (Google Gemini, free) checks the document — it reads any broker template and scans. Nothing is made up: whatever isn't in the document stays blank.",
+    ru: 'Мгновенный черновик собирается прямо в браузере, затем документ проверяет искусственный интеллект — он читает любой шаблон брокера и сканы. Ничего не выдумывается: чего нет в документе, то остаётся пустым.',
+    en: "An instant draft is assembled right in the browser, then AI checks the document — it reads any broker template and scans. Nothing is made up: whatever isn't in the document stays blank.",
   },
 
   // app/import/import-client.tsx — LABELS (found-field names)
@@ -189,12 +189,12 @@ export const loadsDict = {
   'import.readingDocument': { ru: 'Читаю документ…', en: 'Reading document…' },
   'import.dropRateCon': { ru: 'Перетащи rate confirmation', en: 'Drop a rate confirmation' },
   'import.dropInfo': {
-    ru: 'Перетащи или выбери PDF/фото rate confirmation от брокера. Документ читает ИИ (Google Gemini) — работает с любым шаблоном брокера и со сканами-фото.',
-    en: "Drop or pick a PDF/photo of the broker's rate confirmation. AI (Google Gemini) reads the document — works with any broker template and with scanned photos.",
+    ru: 'Перетащи или выбери PDF/фото rate confirmation от брокера. Документ читает искусственный интеллект — работает с любым шаблоном брокера и со сканами-фото.',
+    en: "Drop or pick a PDF/photo of the broker's rate confirmation. AI reads the document — works with any broker template and with scanned photos.",
   },
   'import.dropSubtext': {
-    ru: 'PDF или фото от брокера. Сканы тоже читаются. Для распознавания документ отправляется в Google Gemini (ИИ).',
-    en: 'A PDF or photo from the broker. Scans work too. The document is sent to Google Gemini (AI) for recognition.',
+    ru: 'PDF или фото от брокера. Сканы тоже читаются. Документ распознаёт искусственный интеллект.',
+    en: 'A PDF or photo from the broker. Scans work too. The document is recognised by AI.',
   },
   'import.retryScan': { ru: '↻ Повторить сканирование', en: '↻ Retry scan' },
 

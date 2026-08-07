@@ -128,10 +128,13 @@ export const adminDict = {
     ru: 'Кто, что и откуда: входы и действия с документами · последние {n}',
     en: 'Who, what, and from where: logins and document actions · last {n}',
   },
-  'admin.logins.geminiSpend': { ru: 'Расход ИИ · Gemini', en: 'AI spend · Gemini' },
+  'admin.logins.geminiSpend': { ru: 'Расход ИИ', en: 'AI spend' },
+  // Единственное место, где поставщик ещё назван, и намеренно: это админ-панель за
+  // логином, и без адреса консоли цифра расхода не даёт владельцу ничего — свериться
+  // с настоящим лимитом будет негде.
   'admin.logins.geminiInfo': {
-    ru: 'Сколько токенов приложение потратило на распознавание rate con через Google Gemini. Это наш счётчик — считает с момента добавления. Полный и точный расход (и лимиты) — в Google AI Studio (aistudio.google.com) по твоему API-ключу.',
-    en: 'How many tokens the app has spent recognizing rate cons via Google Gemini. This is our own counter, tracking since it was added. The full, exact spend (and limits) is in Google AI Studio (aistudio.google.com) under your API key.',
+    ru: 'Сколько токенов приложение потратило на распознавание rate con. Это наш счётчик — считает с момента добавления. Полный и точный расход (и лимиты) — в консоли поставщика ИИ (aistudio.google.com) по твоему API-ключу.',
+    en: 'How many tokens the app has spent recognizing rate cons. This is our own counter, tracking since it was added. The full, exact spend (and limits) is in the AI provider console (aistudio.google.com) under your API key.',
   },
   'admin.logins.tokens': { ru: 'токенов', en: 'tokens' },
   'admin.logins.calls': { ru: 'запросов', en: 'requests' },
