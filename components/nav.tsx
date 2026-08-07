@@ -8,7 +8,7 @@ import { Notifier } from '@/components/notifier'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { LocaleToggle } from '@/components/locale-toggle'
 import { autoRefreshFleet } from '@/app/actions'
-import { UserPanel } from '@/components/user-panel'
+import { UserPanel, TileSlot } from '@/components/user-panel'
 import type { CurrentUser } from '@/lib/session'
 import { useLocale } from '@/components/locale-provider'
 import { t, type MsgKey } from '@/lib/i18n'
@@ -322,14 +322,23 @@ export function Nav({
           {user && <JournalLink pathname={pathname} locale={locale} collapsed={!dockExpanded} />}
           <ThemeToggle collapsed={!dockExpanded} />
         </span>
-        <Notifier collapsed={!dockExpanded} />
+        {/* Avatar first, bell to its RIGHT: the account button is the anchor of this
+            row — it is what opens the menu — and an anchor belongs at the end of the
+            group it owns, not buried mid-row. */}
         {user && (
           <UserPanel user={user} dockCollapsed={!dockExpanded} onExpandDock={expandDock}>
-            <LocaleToggle />
-            <JournalLink pathname={pathname} locale={locale} />
-            <ThemeToggle />
+            <TileSlot label={t(locale, 'userPanel.tileLang')}>
+              <LocaleToggle />
+            </TileSlot>
+            <TileSlot label={t(locale, 'userPanel.tileJournal')}>
+              <JournalLink pathname={pathname} locale={locale} />
+            </TileSlot>
+            <TileSlot label={t(locale, 'userPanel.tileTheme')}>
+              <ThemeToggle />
+            </TileSlot>
           </UserPanel>
         )}
+        <Notifier collapsed={!dockExpanded} />
       </div>
     </nav>
   )

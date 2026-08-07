@@ -27,7 +27,16 @@ export const navDict = {
   'userPanel.changePassword': { ru: 'Сменить пароль', en: 'Change password' },
   'userPanel.newPasswordPlaceholder': { ru: 'Новый пароль, минимум 8 символов', en: 'New password, min 8 characters' },
   'userPanel.passwordChanged': { ru: 'Пароль изменён', en: 'Password changed' },
-  'userPanel.quickSettings': { ru: 'Язык, тема, журнал', en: 'Language, theme, journal' },
+  'userPanel.quickSettings': { ru: 'Настройки', en: 'Settings' },
+  'userPanel.adminSection': { ru: 'Администратор', en: 'Administrator' },
+  // Подписи плиток. Держим в одно слово: они стоят НАД кружком шириной 36px и
+  // обрезаются, если не влезли, — двухсловная подпись тут превращается в многоточие.
+  'userPanel.tileLang': { ru: 'Язык', en: 'Language' },
+  'userPanel.tileTheme': { ru: 'Тема', en: 'Theme' },
+  'userPanel.tileJournal': { ru: 'Журнал', en: 'Journal' },
+  'userPanel.tilePassword': { ru: 'Пароль', en: 'Password' },
+  'userPanel.tileUsers': { ru: 'Люди', en: 'People' },
+  'userPanel.tileImport': { ru: 'Импорт', en: 'Import' },
   'userPanel.admin': { ru: '🛡 Админ', en: '🛡 Admin' },
   'userPanel.logout': { ru: '⏻ Выйти', en: '⏻ Log out' },
 

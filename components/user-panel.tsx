@@ -10,12 +10,61 @@ import { Button } from '@/components/button'
 import { useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { KeyRound, LogOut, Upload, Users } from 'lucide-react'
 import { changeMyPassword } from '@/app/account/actions'
 import { signOut } from '@/app/login/actions'
 import { notify } from '@/lib/notify'
 import type { CurrentUser } from '@/lib/session'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
+
+/** Caption above, control below. Exported because the language/theme/journal controls
+ * are their own components and get captioned by the nav — every tile in this menu is
+ * labelled, so none of them is a guess. */
+export function TileSlot({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <span className="flex flex-col items-center gap-1">
+      <span className="w-full truncate text-center text-[9.5px] leading-none text-white/45">{label}</span>
+      {children}
+    </span>
+  )
+}
+
+const TILE_BASE =
+  'nav-icon-btn flex size-9 items-center justify-center rounded-full border transition-colors'
+const TILE_OFF = 'border-white/10 text-white/72 hover:border-white/25 hover:text-white'
+const TILE_ON = 'border-haul-500/50 bg-haul-500/15 text-haul-400'
+
+function MenuTile({
+  label,
+  children,
+  href,
+  active = false,
+  onClick,
+  onNavigate,
+}: {
+  label: string
+  children: React.ReactNode
+  href?: string
+  active?: boolean
+  onClick?: () => void
+  onNavigate?: () => void
+}) {
+  const cls = `${TILE_BASE} ${active ? TILE_ON : TILE_OFF}`
+  return (
+    <TileSlot label={label}>
+      {href ? (
+        <Link href={href} onClick={onNavigate} title={label} className={cls}>
+          {children}
+        </Link>
+      ) : (
+        <button type="button" onClick={onClick} title={label} aria-pressed={active} className={cls}>
+          {children}
+        </button>
+      )}
+    </TileSlot>
+  )
+}
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -48,6 +97,8 @@ export function UserPanel({
   const router = useRouter()
   const locale = useLocale()
   const [open, setOpen] = useState(false)
+  // Password form starts folded — its own tile opens it (see MenuTile below).
+  const [pwOpen, setPwOpen] = useState(false)
   const [pw, setPw] = useState('')
   const [pending, start] = useTransition()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -71,7 +122,13 @@ export function UserPanel({
   }, [open])
 
   function onAvatarClick() {
-    if (dockCollapsed && onExpandDock) {
+    // The "first tap only un-tucks the icons" rule belongs to the PHONE dock and
+    // nowhere else: `.nav-icon-btn.is-collapsed` is reset at md, so on desktop nothing
+    // was ever tucked away — yet the flag stayed true after the 5s idle timer and ate
+    // the first click on the avatar anyway. Reported as "меню открывается не с первого
+    // нажатия". Gate it on the same breakpoint the CSS uses.
+    const phone = typeof window !== 'undefined' && window.matchMedia('(max-width: 767.98px)').matches
+    if (phone && dockCollapsed && onExpandDock) {
       onExpandDock()
       return
     }
@@ -119,7 +176,7 @@ export function UserPanel({
         //
         // Fixed with a gutter on both sides can't overflow at any width: it spans the
         // screen on a phone and settles to its natural 16rem beside the sidebar.
-        <div className="fixed inset-x-3 bottom-24 z-[55] mx-auto max-w-sm rounded-xl border border-white/10 bg-ink-900 p-3.5 pr-9 shadow-2xl md:bottom-16 md:left-3 md:right-auto md:mx-0 md:w-64 md:max-w-none">
+        <div className="user-menu fixed inset-x-3 bottom-24 z-[55] mx-auto max-w-sm rounded-xl border border-white/10 bg-ink-900 p-3.5 pr-9 shadow-2xl md:bottom-16 md:left-3 md:right-auto md:mx-0 md:w-64 md:max-w-none">
           <button
             type="button"
             aria-label={t(locale, 'userPanel.close')}
@@ -133,49 +190,86 @@ export function UserPanel({
             {t(locale, user.role === 'admin' ? 'userPanel.roleAdmin' : 'userPanel.roleDispatcher')}
           </p>
 
-          {children && (
-            <div className="mt-3 hidden border-t border-white/8 pt-3 md:block">
-              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/50">
-                {t(locale, 'userPanel.quickSettings')}
+          {/* Каждый пункт — подпись сверху, круг снизу. Подпись именно НАД кнопкой:
+              иконка без слова заставляет гадать, а всплывающая подсказка на телефоне
+              не появляется вовсе. */}
+          <div className="mt-3 border-t border-white/8 pt-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/50">
+              {t(locale, 'userPanel.quickSettings')}
+            </p>
+            <div className="grid grid-cols-4 gap-1">
+              {/* Язык и тема живут в собственных компонентах и на телефоне остаются
+                  на панели снаружи — сюда они попадают только на десктопе. */}
+              {children}
+              <MenuTile
+                label={t(locale, 'userPanel.tilePassword')}
+                active={pwOpen}
+                onClick={() => setPwOpen((v) => !v)}
+              >
+                <KeyRound size={15} />
+              </MenuTile>
+            </div>
+
+            {/* Форма пароля раскрывается своей плиткой, а не занимает место всегда:
+                пароль меняют раз в полгода, а меню открывают каждый день. */}
+            {pwOpen && (
+              <div className="mt-2.5">
+                <input
+                  type="password"
+                  value={pw}
+                  autoFocus
+                  onChange={(e) => setPw(e.target.value)}
+                  placeholder={t(locale, 'userPanel.newPasswordPlaceholder')}
+                  className="w-full rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500"
+                />
+                <Button
+                  variant="primary"
+                  size="sm"
+                  block
+                  className="mt-2"
+                  loading={pending}
+                  disabled={pending || pw.length < 8}
+                  onClick={savePassword}
+                >
+                  {pending ? t(locale, 'common.saving') : t(locale, 'common.save')}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {user.role === 'admin' && (
+            <div className="mt-3 border-t border-white/8 pt-3">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/50">
+                {t(locale, 'userPanel.adminSection')}
               </p>
-              <div className="flex items-center gap-1">{children}</div>
+              <div className="grid grid-cols-4 gap-1">
+                <MenuTile
+                  label={t(locale, 'userPanel.tileUsers')}
+                  href="/admin"
+                  active={pathname.startsWith('/admin')}
+                  onNavigate={() => setOpen(false)}
+                >
+                  <Users size={15} />
+                </MenuTile>
+                <MenuTile
+                  label={t(locale, 'userPanel.tileImport')}
+                  href="/import"
+                  active={pathname.startsWith('/import')}
+                  onNavigate={() => setOpen(false)}
+                >
+                  <Upload size={15} />
+                </MenuTile>
+              </div>
             </div>
           )}
 
           <div className="mt-3 border-t border-white/8 pt-3">
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/50">
-              {t(locale, 'userPanel.changePassword')}
-            </p>
-            <input
-              type="password"
-              value={pw}
-              onChange={(e) => setPw(e.target.value)}
-              placeholder={t(locale, 'userPanel.newPasswordPlaceholder')}
-              className="w-full rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500"
-            />
-            <Button variant="primary" size="sm" block className="mt-2" disabled={pending || pw.length < 8}
-              onClick={savePassword}>
-              {pending ? t(locale, 'common.saving') : t(locale, 'common.save')}
-            </Button>
-          </div>
-
-          <div className="mt-3 flex items-center gap-3 border-t border-white/8 pt-3 text-[12px]">
-            {user.role === 'admin' && (
-              <Link
-                href="/admin"
-                onClick={() => setOpen(false)}
-                className={`transition-colors hover:text-white/85 ${
-                  pathname.startsWith('/admin') ? 'text-haul-400' : 'text-white/70'
-                }`}
-              >
-                {t(locale, 'userPanel.admin')}
-              </Link>
-            )}
             <button
               onClick={logout}
               disabled={pending}
-              className="text-white/70 transition-colors hover:text-white/85 disabled:opacity-40"
+              className="flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-[12.5px] text-white/70 transition-colors hover:bg-bad-500/10 hover:text-bad-400 disabled:opacity-40"
             >
+              <LogOut size={14} />
               {pending ? '…' : t(locale, 'userPanel.logout')}
             </button>
           </div>

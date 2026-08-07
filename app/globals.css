@@ -483,13 +483,34 @@
    The 0 0 0 1px layer below stands in for Tailwind's ring-1 ring-white/10 (dropped
    from the component's className): a plain box-shadow here would otherwise replace
    Tailwind's own ring box-shadow outright instead of composing with it. */
+/* A bead of tinted glass, not a flat disc. Four layers do the work and each one is
+   load-bearing: a bright inner arc along the top edge is the highlight where light
+   enters, a dark inner arc along the bottom is the shadow inside the far wall, the
+   ::after gloss is the reflection ON the surface, and the outer drop shadow lifts the
+   whole thing off the rail. The gradient fill stays underneath all of it, so the
+   colour reads as seen THROUGH the material rather than painted on top. */
 .nav-avatar-btn {
+  position: relative;
+  overflow: hidden;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.1),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
-    inset 0 -2px 3px 0 rgba(0, 0, 0, 0.25),
-    0 3px 8px -2px rgba(0, 0, 0, 0.55);
+    0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 2px 2px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -3px 5px 0 rgba(0, 0, 0, 0.35),
+    inset 0 0 8px 0 rgba(255, 255, 255, 0.15),
+    0 4px 10px -2px rgba(0, 0, 0, 0.55),
+    0 1px 2px 0 rgba(0, 0, 0, 0.4);
+}
+/* The gloss: a soft ellipse over the upper half, the shape a real highlight takes on
+   a sphere. pointer-events:none so it never swallows the click it sits on top of. */
+.nav-avatar-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(120% 80% at 30% -10%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.12) 45%, transparent 65%);
 }
 .nav-avatar-btn:hover {
   transform: translateY(-1px);
@@ -506,17 +527,29 @@
     inset 0 1px 4px 0 rgba(0, 0, 0, 0.4),
     inset 0 -1px 0 0 rgba(255, 255, 255, 0.1);
 }
-@media (min-width: 768px) {
-  .nav-avatar-btn {
-    transform: none;
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
-  }
-  .nav-avatar-btn:hover {
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
-  }
-  .nav-avatar-btn:active {
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
-  }
+/* The desktop override that used to sit here stripped every shadow back to a 1px ring,
+   which is exactly why the avatar read as a flat coloured circle in the sidebar. The
+   original reason — "the sidebar has its own panel, so no lift needed" — applies to the
+   flat icon buttons around it, not to the one control that has to look pressable. */
+
+/* Press feedback for every round control inside the account menu.
+   Needed because .nav-icon-btn is deliberately stripped of transform AND box-shadow at
+   md — right for flat icons sitting on the sidebar, wrong inside a popover, where a
+   tile that neither moves nor tints when clicked reads as "the click didn't land".
+   Two-class selector (0,2,0) so it outranks the bare `.nav-icon-btn` reset (0,1,0)
+   regardless of breakpoint; a Tailwind active:scale-* utility could not have won that. */
+.user-menu .nav-icon-btn {
+  transition:
+    transform 0.12s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease;
+}
+.user-menu .nav-icon-btn:hover {
+  background-color: rgba(109, 90, 232, 0.1);
+}
+.user-menu .nav-icon-btn:active {
+  transform: scale(0.9);
+  background-color: rgba(109, 90, 232, 0.22);
 }
 
 /* Bottom tab bar on the phone (Overview/Loads/Trucks/...) — the bar itself has no
