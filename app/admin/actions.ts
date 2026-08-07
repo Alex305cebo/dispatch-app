@@ -5,7 +5,8 @@ import { sql } from '@/lib/db'
 import { humanError } from '@/lib/msg'
 import { hashPassword } from '@/lib/auth'
 import { getCurrentUser } from '@/lib/session'
-import { getSetting, setSetting } from '@/lib/settings'
+import { deleteSetting, getSetting, setSetting } from '@/lib/settings'
+import { aiModelPref, fmcsaKey, geminiKey } from '@/lib/keys'
 import { CAPABILITIES, type CapabilityKey } from '@/lib/capabilities'
 import { capabilitiesFor, setUserCapability } from '@/lib/capabilities-server'
 import { getLocale } from '@/lib/i18n-server'
@@ -129,5 +130,35 @@ export async function getOpenAccess(): Promise<boolean> {
 export async function setOpenAccess(enabled: boolean): Promise<{ error: string } | void> {
   await assertAdmin()
   await setSetting('open_access', enabled ? '1' : '0')
+  revalidatePath('/admin')
+}
+
+/** Which third-party keys this install has, WITHOUT ever returning their values. The
+ * admin panel only needs to show "set / not set" and offer to replace — echoing a key
+ * back into a page would put it in the HTML, the RSC payload and the browser cache. */
+export async function getKeyStatus(): Promise<{ gemini: boolean; fmcsa: boolean; modelPref: 'saving' | 'quality' }> {
+  await assertAdmin()
+  const [gemini, fmcsa, modelPref] = await Promise.all([geminiKey(), fmcsaKey(), aiModelPref()])
+  return { gemini: gemini !== '', fmcsa: fmcsa !== '', modelPref }
+}
+
+/** Saves the install's own API keys. An empty string means "leave as it is" — the form
+ * never knows the current value, so a blank field must not wipe a working key. Passing
+ * the literal '-' clears one, which is the only way to undo a paste-mistake. */
+export async function saveKeys(input: {
+  gemini?: string
+  fmcsa?: string
+  modelPref?: 'saving' | 'quality'
+}): Promise<{ error: string } | void> {
+  await assertAdmin()
+  const write = async (key: string, raw: string | undefined) => {
+    const v = (raw ?? '').trim()
+    if (!v) return
+    if (v === '-') await deleteSetting(key)
+    else await setSetting(key, v)
+  }
+  await write('gemini_api_key', input.gemini)
+  await write('fmcsa_webkey', input.fmcsa)
+  if (input.modelPref) await setSetting('ai_model_pref', input.modelPref)
   revalidatePath('/admin')
 }

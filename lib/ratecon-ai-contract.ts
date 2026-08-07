@@ -31,6 +31,17 @@ export const AI_MODELS = [
   'gemini-3-flash-preview',
 ]
 
+/** The same three, strongest first. Worth choosing only once the install's key has
+ * billing behind it: the reasoning above — lead with the 500/day model because the
+ * request COUNT is the scarce resource — stops applying the moment the daily cap does.
+ * The admin picks between the two orders (Админ → Ключи). The fallback chain is
+ * identical either way, so the wrong choice costs ordering and nothing else. */
+export const AI_MODELS_QUALITY = [
+  'gemini-2.5-flash',
+  'gemini-3-flash-preview',
+  'gemini-3.1-flash-lite',
+]
+
 export const AI_PROMPT = `You are reading a US trucking RATE CONFIRMATION document. Extract ONLY facts printed in the document. Never guess, never infer — use null for anything not present.
 
 Rules:

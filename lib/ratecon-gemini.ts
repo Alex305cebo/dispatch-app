@@ -4,15 +4,16 @@ import 'server-only'
 // route uses. Lets a server action re-read a load's already-attached RC (as PDF
 // bytes) and pull the important-notes briefing — no browser round-trip.
 
-import { AI_MODELS, AI_PROMPT, AI_SCHEMA, type AiFields } from './ratecon-ai-contract.ts'
+import { AI_MODELS, AI_MODELS_QUALITY, AI_PROMPT, AI_SCHEMA, type AiFields } from './ratecon-ai-contract.ts'
 import { bumpGeminiUsage } from './gemini-usage.ts'
+import { geminiKey, aiModelPref } from './keys.ts'
 
 export async function geminiExtract(input: {
   text?: string
   pdfBase64?: string
   mime?: string
 }): Promise<{ fields: AiFields; model: string } | { error: string }> {
-  const key = process.env.GEMINI_API_KEY
+  const key = await geminiKey()
   if (!key) return { error: 'no_key' }
 
   const parts: unknown[] = [{ text: AI_PROMPT }]
@@ -25,7 +26,8 @@ export async function geminiExtract(input: {
   }
 
   let lastErr = 'no model answered'
-  for (const model of AI_MODELS) {
+  const models = (await aiModelPref()) === 'quality' ? AI_MODELS_QUALITY : AI_MODELS
+  for (const model of models) {
     try {
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
@@ -74,7 +76,7 @@ export async function translatePlainText(
   text: string,
   targetLang: string,
 ): Promise<{ text: string } | { error: string }> {
-  const key = process.env.GEMINI_API_KEY
+  const key = await geminiKey()
   if (!key) return { error: 'no_key' }
   const prompt = `Translate the following trucking rate-confirmation note into ${targetLang}. Keep phone numbers, dollar amounts, times and line breaks exactly as they are. If a line starts with a tag in square brackets like [SAFETY] or [CONTACT], leave that bracketed tag itself untranslated and unchanged, translate only the text after it. Output ONLY the translation, nothing else.\n\n${text.slice(0, 8000)}`
 

@@ -7,7 +7,7 @@
     "build": "next build",
     "typecheck": "tsc --noEmit",
     "start": "next start",
-    "db:init": "node --env-file=.env.local scripts/db-init.mjs",
+    "db:init": "node --env-file-if-exists=.env.local scripts/db-init.mjs",
     "test": "node --test lib/profit.test.ts lib/qr-load.test.ts lib/map.test.ts lib/ratecon.test.ts lib/geo.test.ts lib/trip-history.test.ts lib/fmt.test.ts lib/caption-kind.test.ts lib/heatmap.test.ts lib/load-status.test.ts"
   },
   "dependencies": {

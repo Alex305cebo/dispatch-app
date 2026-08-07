@@ -11,15 +11,18 @@ import { DEMO_AVATARS_JPEG_BASE64 } from './demo-avatars.ts'
 import { DEMO_DOC_PDF_BASE64 } from './demo-docs.ts'
 import type { Locale } from './i18n.ts'
 
-const DEMO_EMAIL = 'demo@dispatch4you.pro'
+// Neutral by design: the app is installed per customer, and their database should not
+// carry our domain in a user row. Never receives mail and can never be logged into —
+// password_hash stays empty, which verifyPassword always rejects.
+const DEMO_EMAIL = 'demo@demo.local'
 const RESET_KEY = 'demo_last_reset'
 const RESET_AFTER_MS = 24 * 60 * 60 * 1000
 
 async function demoUserId(): Promise<number> {
   const rows = (await sql`SELECT id FROM users WHERE email = ${DEMO_EMAIL}`) as { id: number }[]
   if (rows[0]) return rows[0].id
-  // Belt and suspenders — schema.sql already seeds this row, but a DB that hasn't
-  // been migrated yet shouldn't leave the demo link dead.
+  // This is now the ONLY place the demo account is created — schema.sql no longer
+  // seeds it, so a customer's database stays free of it until someone opens /demo.
   const created = await sql`
     INSERT INTO users (name, email, password_hash, role, is_demo)
     VALUES ('Demo', ${DEMO_EMAIL}, '', 'dispatcher', TRUE)

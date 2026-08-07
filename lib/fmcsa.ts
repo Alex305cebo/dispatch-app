@@ -8,6 +8,7 @@
 // crashes, census). parseRecord pulls all of it; the checklist surfaces the lot.
 
 import { sql } from './db'
+import { fmcsaKey } from './keys.ts'
 import { t, type Locale } from './i18n.ts'
 
 export type BrokerFlag = { level: 'block' | 'warn'; text: string }
@@ -221,7 +222,7 @@ export async function checkBroker(
     const granted = cachedRow.authority_granted ? String(cachedRow.authority_granted).slice(0, 10) : null
     base = parseRecord(cachedRow.raw, mc, granted, true)
   } else {
-    const key = process.env.FMCSA_WEBKEY
+    const key = await fmcsaKey()
     if (!key) return { error: 'no_key' }
     const data = await fmcsaGet(`carriers/docket-number/${mc}`, key)
     const rec = unwrapCarrier(data)
@@ -242,7 +243,7 @@ export async function checkBrokerByDot(
 ): Promise<BrokerCheck | { error: string }> {
   const dot = digits(dotRaw)
   if (!dot) return { error: t(locale, 'fmcsa.noMcToCheck') }
-  const key = process.env.FMCSA_WEBKEY
+  const key = await fmcsaKey()
   if (!key) return { error: 'no_key' }
 
   const data = await fmcsaGet(`carriers/${dot}`, key)

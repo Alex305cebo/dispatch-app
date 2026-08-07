@@ -1,24 +1,91 @@
-// Applies lib/schema.sql once. Deliberately NOT run on server start: on Vercel
-// "start" happens on every request.
-//   npm run db:init
+// Applies lib/schema.sql to a database, and — for a brand-new install — fills in the
+// company profile so the app is usable the moment someone logs in.
+//
+// Deliberately NOT run on server start: on Vercel "start" happens on every request.
+//
+//   npm run db:init                                  ← local dev, reads .env.local
+//   npm run db:init -- "postgres://…neon.tech/…"     ← a customer's database
+//   npm run db:init -- "postgres://…" --co-name="Acme Trucking" --co-mcdot="MC 123456"
+//
+// Safe to re-run: schema.sql is idempotent (CREATE/ALTER … IF NOT EXISTS), so this
+// doubles as the migration command when a customer's DB falls behind the code.
 import { readFile } from 'node:fs/promises'
 import { neon } from '@neondatabase/serverless'
 
-if (!process.env.DATABASE_URL) {
-  console.error('DATABASE_URL is not set. Put your Neon connection string in .env.local')
+// The URL can come from the command line, which is the whole point of this change:
+// a customer's database has no .env.local anywhere near it. Falls back to the env var
+// so local development keeps working exactly as before.
+const args = process.argv.slice(2)
+const url = args.find((a) => !a.startsWith('--')) ?? process.env.DATABASE_URL
+
+if (!url) {
+  console.error(
+    'No database URL.\n' +
+      '  local:    npm run db:init            (needs DATABASE_URL in .env.local)\n' +
+      '  customer: npm run db:init -- "postgres://…"',
+  )
   process.exit(1)
 }
 
-const sql = neon(process.env.DATABASE_URL)
+/** `--co-name=Acme` → ['co_name', 'Acme']. Only the seven keys getCompany() reads. */
+const CO_KEYS = ['name', 'owner', 'mcdot', 'address', 'email', 'phone', 'remit-to']
+const company = []
+for (const a of args) {
+  const m = /^--co-([a-z-]+)=(.*)$/.exec(a)
+  if (!m) continue
+  if (!CO_KEYS.includes(m[1])) {
+    console.error(`Unknown option --co-${m[1]}. Known: ${CO_KEYS.map((k) => `--co-${k}`).join(' ')}`)
+    process.exit(1)
+  }
+  company.push([`co_${m[1].replace('-', '_')}`, m[2]])
+}
+
+const sql = neon(url)
 const schema = await readFile(new URL('../lib/schema.sql', import.meta.url), 'utf8')
 
-// ponytail: naive split — Neon's HTTP driver takes one statement per call, and
-// schema.sql has no semicolons inside string literals OR comments. Reach for a
-// real parser only if that stops being true.
-const statements = schema
-  .split(';')
-  .map((s) => s.trim())
-  .filter(Boolean)
+// Neon's HTTP driver takes one statement per call, so the file has to be split.
+//
+// This used to be `schema.split(';')` with a note that schema.sql had no semicolons
+// inside comments or string literals. That stopped being true — line 266 grew a comment
+// reading "(ratecon-ai-contract brokerName); this is where it's kept", which split the
+// file mid-sentence and made the next chunk start with the word "this". Postgres then
+// answered `syntax error at or near "this"` and the whole command died, i.e. db:init
+// has been broken for anyone running it, silently, until someone ran it again.
+//
+// So: scan for a `;` that is genuinely outside a line comment and outside a quoted
+// string. Still small, and no longer relies on nobody ever typing a semicolon in prose.
+function splitStatements(sqlText) {
+  const out = []
+  let buf = ''
+  let inLineComment = false
+  let inString = false
+  for (let i = 0; i < sqlText.length; i++) {
+    const c = sqlText[i]
+    const next = sqlText[i + 1]
+    if (inLineComment) {
+      buf += c
+      if (c === '\n') inLineComment = false
+      continue
+    }
+    if (inString) {
+      buf += c
+      // '' inside a string is an escaped quote, not the end of it.
+      if (c === "'" && next === "'") { buf += next; i++; continue }
+      if (c === "'") inString = false
+      continue
+    }
+    if (c === '-' && next === '-') { inLineComment = true; buf += c; continue }
+    if (c === "'") { inString = true; buf += c; continue }
+    if (c === ';') { out.push(buf); buf = ''; continue }
+    buf += c
+  }
+  out.push(buf)
+  // A chunk of nothing but comments/whitespace is not a statement — Postgres rejects
+  // an empty query, and the trailing text after the last `;` is usually exactly that.
+  return out.map((s) => s.trim()).filter((s) => s && s.split('\n').some((l) => l.trim() && !l.trim().startsWith('--')))
+}
+
+const statements = splitStatements(schema)
 
 for (const stmt of statements) {
   const label = stmt.split('\n').find((l) => l.trim() && !l.trim().startsWith('--')) ?? stmt
@@ -28,3 +95,29 @@ for (const stmt of statements) {
 }
 
 console.log(`\nSchema applied — ${statements.length} statements.`)
+
+// Same upsert lib/settings.ts uses. Done here rather than left to the UI because
+// lib/invoice.ts refuses to build an invoice until co_name and co_mcdot exist — an
+// install that skips this looks finished and then fails at the first invoice.
+for (const [key, value] of company) {
+  await sql`INSERT INTO settings (key, value) VALUES (${key}, ${value})
+            ON CONFLICT (key) DO UPDATE SET value = ${value}`
+  console.log(`  ${key} = ${value}`)
+}
+
+// A verdict, not a silent exit: these four are exactly what has to be true before a
+// customer can be handed the URL, and each has bitten before.
+const [{ n: admins }] = await sql`SELECT count(*)::int AS n FROM users WHERE is_demo = FALSE`
+const [{ n: trucks }] = await sql`SELECT count(*)::int AS n FROM trucks WHERE company_id = 'default'`
+const rows = await sql`SELECT key, value FROM settings WHERE key IN ('co_name', 'co_mcdot')`
+const co = Object.fromEntries(rows.map((r) => [r.key, r.value]))
+const mark = (ok) => (ok ? 'ok' : 'MISSING')
+
+console.log(
+  `\nusers(real)=${admins}  trucks=${trucks}  ` +
+    `co_name=${mark(co.co_name)}  co_mcdot=${mark(co.co_mcdot)}`,
+)
+if (admins === 0) console.log('Next: open /login on the new domain — it offers to create the first admin.')
+if (!co.co_name || !co.co_mcdot) {
+  console.log('Company profile incomplete — invoicing will refuse until it is filled (Финансы → компания).')
+}

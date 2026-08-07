@@ -6,9 +6,10 @@ import { CompanyForm } from '@/components/invoice-actions'
 import { Info } from '@/components/info'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
-import { getOpenAccess, listUsers } from './actions'
+import { getKeyStatus, getOpenAccess, listUsers } from './actions'
 import { UserList } from './user-list'
 import { OpenAccessToggle } from './open-access-toggle'
+import { KeysForm } from './keys-form'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +20,12 @@ export default async function AdminPage() {
   if (!user || user.role !== 'admin') redirect('/')
   const locale = await getLocale()
 
-  const [users, company, openAccess] = await Promise.all([listUsers(), getCompany(), getOpenAccess()])
+  const [users, company, openAccess, keys] = await Promise.all([
+    listUsers(),
+    getCompany(),
+    getOpenAccess(),
+    getKeyStatus(),
+  ])
 
   return (
     <main className="mx-auto max-w-3xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -32,6 +38,14 @@ export default async function AdminPage() {
           <Info text={t(locale, 'admin.usersInfo')} />
         </h2>
         <UserList users={users} currentUserId={user.id} />
+      </section>
+
+      <section className="panel mt-4 p-5">
+        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          {t(locale, 'admin.keysHeading')}
+          <Info text={t(locale, 'admin.keysInfo')} />
+        </h2>
+        <KeysForm status={keys} />
       </section>
 
       <section className="panel mt-4 p-5">

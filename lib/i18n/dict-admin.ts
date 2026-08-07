@@ -14,6 +14,41 @@ export const adminDict = {
     en: 'Who can sign in to the app. Each dispatcher has "Dispatcher permissions" toggles for feature access (reports, Telegram, finances, etc). Disabling a user immediately kills all of their active sessions.',
   },
 
+  // Админ → Ключи. Приложение ставится отдельно каждой компании, поэтому у каждой
+  // установки свои ключи, и заводит их администратор, а не тот, кто её ставил.
+  'admin.keysHeading': { ru: 'Ключи', en: 'Keys' },
+  'admin.keysInfo': {
+    ru: 'Ключи этой установки к внешним сервисам. Заводятся бесплатно и принадлежат вашей компании: лимиты ваши, счёт ваш. Ключ никогда не показывается обратно — только «задан» или «не задан», заменить можно в любой момент.',
+    en: "This installation's own keys to outside services. They are free to obtain and belong to your company: your limits, your bill. A key is never shown back — only 'set' or 'not set' — and can be replaced at any time.",
+  },
+  'admin.keys.set': { ru: 'задан', en: 'set' },
+  'admin.keys.notSet': { ru: 'не задан', en: 'not set' },
+  'admin.keys.where': { ru: 'где взять →', en: 'where to get it →' },
+  'admin.keys.newPlaceholder': { ru: 'Вставьте ключ', en: 'Paste the key' },
+  'admin.keys.replacePlaceholder': { ru: 'Оставьте пустым, чтобы не менять', en: 'Leave empty to keep the current one' },
+  'admin.keys.saved': { ru: 'Ключи сохранены', en: 'Keys saved' },
+  'admin.keys.gemini': { ru: 'Искусственный интеллект', en: 'Artificial intelligence' },
+  'admin.keys.geminiHint': {
+    ru: 'Распознавание rate confirmation и фото документов. Ключ бесплатный, выдаётся сразу на ваш Google-аккаунт. Если позже подключите там оплату, тот же ключ получит платные лимиты — в приложении менять ничего не нужно. Чтобы стереть ключ, введите один дефис.',
+    en: 'Rate-confirmation and document-photo recognition. The key is free and issued instantly to your Google account. If you later enable billing there, the same key gets the paid limits — nothing changes in the app. To erase a key, enter a single dash.',
+  },
+  'admin.keys.fmcsa': { ru: 'Проверка брокеров (FMCSA)', en: 'Broker checks (FMCSA)' },
+  'admin.keys.fmcsaHint': {
+    ru: 'Проверка полномочий и страховки брокера по базе FMCSA. Ключ бесплатный, выдаётся сразу.',
+    en: "Broker authority and insurance lookups against the FMCSA database. The key is free and issued instantly.",
+  },
+  'admin.keys.modelPref': { ru: 'Что важнее при распознавании', en: 'Recognition priority' },
+  'admin.keys.modelSaving': { ru: 'Экономия', en: 'Economy' },
+  'admin.keys.modelQuality': { ru: 'Качество', en: 'Quality' },
+  'admin.keys.modelSavingHint': {
+    ru: 'Сначала пробуется модель с большим суточным лимитом. Это правильный выбор на бесплатном тарифе, где заканчиваются не токены, а количество запросов за день.',
+    en: 'The model with the larger daily allowance is tried first. This is the right choice on the free tier, where what runs out is the number of requests per day, not tokens.',
+  },
+  'admin.keys.modelQualityHint': {
+    ru: 'Сначала пробуется более сильная модель. Имеет смысл, только если в Google-аккаунте подключена оплата: на бесплатном тарифе её суточный лимит закончится после двух десятков документов.',
+    en: 'The stronger model is tried first. Worth choosing only if billing is enabled on the Google account: on the free tier its daily allowance runs out after a couple of dozen documents.',
+  },
+
   'admin.openAccessHeading': { ru: 'Открытый доступ', en: 'Open access' },
   'admin.openAccessInfo': {
     ru: 'Временно убрать вход для всех — например, чтобы кто-то посмотрел живые данные без своего аккаунта. Эта панель всегда остаётся под входом, чтобы можно было выключить обратно.',

@@ -343,9 +343,10 @@ DELETE FROM settings WHERE key='tg_dispatcher_access';
 -- "salt:hash".split(':') always fails on it, so this account can never be reached by
 -- typing a password, only via the dedicated demo-login flow.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE;
-INSERT INTO users (name, email, password_hash, role, is_demo)
-VALUES ('Демо', 'demo@dispatch4you.pro', '', 'dispatcher', TRUE)
-ON CONFLICT (email) DO UPDATE SET is_demo = TRUE;
+-- The demo account row is NOT seeded here any more. It was already redundant —
+-- demoUserId() in lib/demo.ts creates it lazily on the first /demo hit — and this file
+-- now runs against customers' databases, where a user row carrying OUR domain in its
+-- email address has no business existing.
 
 -- documents has no owning company_id of its own today (only inferred via truck_id/
 -- load_id) — the /docs library and /api/docs/[id] list or fetch by raw id with no
@@ -380,3 +381,14 @@ ALTER TABLE trucks ADD COLUMN IF NOT EXISTS unavailable TEXT
 -- again from the load page any time, not just in the one browser session right after
 -- import. NULL for loads never sourced from an RC (manual entry has nothing to render).
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS driver_info TEXT;
+
+-- Which revision of THIS file a database is running. The app is installed per company,
+-- so code and schema advance separately: a push reaches every install at once, but each
+-- customer's DB only moves when db:init is run against it. /api/health?ready= reports
+-- this value, which turns "did I remember to migrate that customer" into one request.
+--
+-- BUMP THIS whenever a column is added above. Nothing gates on the value — the app must
+-- never refuse to start over a version mismatch, because a hard stop is worse than the
+-- missing-column error it would be preventing.
+INSERT INTO settings (key, value) VALUES ('schema_version', '2026-08-07')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;

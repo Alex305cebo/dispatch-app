@@ -292,7 +292,6 @@ export function CardClient() {
         {brokerCheck?.state === 'nokey' && (
           <p className="text-[12px] leading-relaxed text-white/55">
             {t(locale, 'brokerCheck.noKey')}
-            <code className="text-white/75">FMCSA_WEBKEY</code>.
           </p>
         )}
         {brokerCheck?.state === 'error' && <p className="text-[13px] text-bad-400">{brokerCheck.message}</p>}

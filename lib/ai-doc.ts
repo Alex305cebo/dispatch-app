@@ -5,6 +5,7 @@
 // caption-kind imports DocClass back from here, but only as `import type`, which is
 // erased at compile time — no runtime import cycle.
 import { captionKind } from './caption-kind.ts'
+import { geminiKey } from './keys.ts'
 
 const KINDS = ['pod', 'bol', 'ratecon', 'invoice', 'other'] as const
 export type DocClass = (typeof KINDS)[number]
@@ -30,7 +31,7 @@ export async function classifyDocument(
   const byName = filename ? captionKind(filename) : null
   if (byName) return byName
 
-  const key = process.env.GEMINI_API_KEY
+  const key = await geminiKey()
   if (!key) return 'other'
   try {
     const res = await fetch(

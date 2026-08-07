@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { AI_MODELS, AI_PROMPT, AI_SCHEMA, type AiFields } from '@/lib/ratecon-ai-contract'
+import { AI_MODELS, AI_MODELS_QUALITY, AI_PROMPT, AI_SCHEMA, type AiFields } from '@/lib/ratecon-ai-contract'
 import { bumpGeminiUsage } from '@/lib/gemini-usage'
+import { geminiKey, aiModelPref } from '@/lib/keys'
 
 export const dynamic = 'force-dynamic'
 // Vision on a multi-page scan can take up to ~90s (that's what the UI promises) —
@@ -14,7 +15,7 @@ export const maxDuration = 120
 type Body = { text?: string; pdfBase64?: string; mime?: string }
 
 export async function POST(req: NextRequest) {
-  const key = process.env.GEMINI_API_KEY
+  const key = await geminiKey()
   if (!key) return NextResponse.json({ error: 'no_key' }, { status: 503 })
 
   let body: Body
@@ -57,7 +58,8 @@ export async function POST(req: NextRequest) {
   const MIN_SLICE_MS = 18_000
 
   let lastErr = 'no model answered'
-  for (const model of AI_MODELS) {
+  const models = (await aiModelPref()) === 'quality' ? AI_MODELS_QUALITY : AI_MODELS
+  for (const model of models) {
     const remaining = TOTAL_MS - (Date.now() - startedAt)
     if (remaining < MIN_SLICE_MS) {
       lastErr = 'ran out of time before a model answered'

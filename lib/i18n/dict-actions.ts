@@ -26,8 +26,8 @@ export const actionsDict = {
     en: 'A load was already created from this rate con.',
   },
   'actions.aiUnavailable': {
-    ru: 'ИИ временно недоступен — обратись к администратору.',
-    en: 'AI is temporarily unavailable — contact the administrator.',
+    ru: 'ИИ не подключён — администратор может добавить ключ в разделе Админ → Ключи.',
+    en: 'AI is not connected — an admin can add a key in Admin → Keys.',
   },
   'actions.aiFailedToRead': { ru: 'ИИ не прочитал:', en: 'AI could not read it:' },
   'actions.noMilesInRc': {

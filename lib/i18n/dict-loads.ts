@@ -395,9 +395,12 @@ export const loadsDict = {
     en: "Checks the broker in the FMCSA database by MC number: whether their authority is active, whether they have a surety bond, and how old the MC is. Plus automatic fraud red flags (no bond, young MC, public email, mismatched phone). A red ⛔ means don't take the load.",
   },
   'brokerCheck.checking': { ru: 'проверяю в FMCSA…', en: 'checking FMCSA…' },
+  // Раньше здесь советовали задать переменную окружения FMCSA_WEBKEY — диспетчеру
+  // это ни о чём не говорит и сделать он этого не может. Теперь ключ вводится в
+  // приложении, и текст указывает туда же.
   'brokerCheck.noKey': {
-    ru: 'Проверка отключена — нет ключа FMCSA. Заведи бесплатный WebKey на mobile.fmcsa.dot.gov/QCDevsite и добавь ',
-    en: 'Check disabled — no FMCSA key. Get a free WebKey at mobile.fmcsa.dot.gov/QCDevsite and add ',
+    ru: 'Проверка брокеров не подключена. Администратор может добавить бесплатный ключ FMCSA в разделе Админ → Ключи.',
+    en: 'Broker checks are not connected. An admin can add a free FMCSA key in Admin → Keys.',
   },
   'brokerCheck.bondYes': { ru: 'Бонд: есть', en: 'Bond: yes' },
   'brokerCheck.bondNo': { ru: 'Бонд: НЕТ', en: 'Bond: NO' },
