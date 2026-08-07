@@ -62,6 +62,35 @@ function brandName(raw: string): string {
     .join(' ')
 }
 
+/** Extracted so the same control can appear on the phone row and inside the desktop
+ * account menu without the markup being written twice and drifting apart. */
+function JournalLink({
+  pathname,
+  locale,
+  collapsed = false,
+}: {
+  pathname: string
+  locale: ReturnType<typeof useLocale>
+  collapsed?: boolean
+}) {
+  const active = pathname.startsWith('/logins')
+  return (
+    <Link
+      href="/logins"
+      title={t(locale, 'nav.journal')}
+      aria-label={t(locale, 'nav.journal')}
+      aria-current={active ? 'page' : undefined}
+      className={`nav-icon-btn flex size-9 items-center justify-center rounded-full border ${collapsed ? 'is-collapsed' : ''} ${
+        active
+          ? 'border-haul-500/50 text-haul-400'
+          : 'border-white/10 text-white/72 hover:border-white/25 hover:text-white/90'
+      }`}
+    >
+      <Icon d={icons.history} />
+    </Link>
+  )
+}
+
 type Item = { href: string; labelKey: MsgKey; icon: string; soon?: boolean; desktopOnly?: boolean }
 
 const ITEMS: Item[] = [
@@ -283,25 +312,24 @@ export function Nav({
         // 5-second idle countdown, not just the tap that first opened it.
         onClickCapture={bumpDockTimer}
       >
-        <LocaleToggle collapsed={!dockExpanded} />
+        {/* Phone keeps all four out where the thumb is. Desktop shows only the bell —
+            it is the one control that reports something (alert tints) rather than just
+            offering a switch — and folds language, journal and theme into the account
+            menu, which is where this class of app puts them. `contents` so the wrapper
+            adds no box of its own; `md:hidden` then removes the group wholesale. */}
+        <span className="contents md:hidden">
+          <LocaleToggle collapsed={!dockExpanded} />
+          {user && <JournalLink pathname={pathname} locale={locale} collapsed={!dockExpanded} />}
+          <ThemeToggle collapsed={!dockExpanded} />
+        </span>
         <Notifier collapsed={!dockExpanded} />
         {user && (
-          <Link
-            href="/logins"
-            title={t(locale, 'nav.journal')}
-            aria-label={t(locale, 'nav.journal')}
-            aria-current={pathname.startsWith('/logins') ? 'page' : undefined}
-            className={`nav-icon-btn flex size-9 items-center justify-center rounded-full border ${!dockExpanded ? 'is-collapsed' : ''} ${
-              pathname.startsWith('/logins')
-                ? 'border-haul-500/50 text-haul-400'
-                : 'border-white/10 text-white/72 hover:border-white/25 hover:text-white/90'
-            }`}
-          >
-            <Icon d={icons.history} />
-          </Link>
+          <UserPanel user={user} dockCollapsed={!dockExpanded} onExpandDock={expandDock}>
+            <LocaleToggle />
+            <JournalLink pathname={pathname} locale={locale} />
+            <ThemeToggle />
+          </UserPanel>
         )}
-        <ThemeToggle collapsed={!dockExpanded} />
-        {user && <UserPanel user={user} dockCollapsed={!dockExpanded} onExpandDock={expandDock} />}
       </div>
     </nav>
   )

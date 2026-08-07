@@ -28,6 +28,7 @@ export function UserPanel({
   user,
   dockCollapsed = false,
   onExpandDock,
+  children,
 }: {
   user: CurrentUser
   /** Whether the sibling icons (locale/notifications/journal/theme) are currently
@@ -36,6 +37,12 @@ export function UserPanel({
    * once they're out, opens it as before. */
   dockCollapsed?: boolean
   onExpandDock?: () => void
+  /** Utility controls that stay on the phone's icon row but fold in here on desktop —
+   * language, theme, journal. A navigation rail is the wrong home for four permanent
+   * round buttons; the reference apps in this class keep the rail for navigation and
+   * hang the switches off the account menu. Rendered on md+ only: on the phone the
+   * same controls are still on the row itself, where the thumb already is. */
+  children?: React.ReactNode
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -125,6 +132,15 @@ export function UserPanel({
           <p className="text-[11px] text-white/45">
             {t(locale, user.role === 'admin' ? 'userPanel.roleAdmin' : 'userPanel.roleDispatcher')}
           </p>
+
+          {children && (
+            <div className="mt-3 hidden border-t border-white/8 pt-3 md:block">
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/50">
+                {t(locale, 'userPanel.quickSettings')}
+              </p>
+              <div className="flex items-center gap-1">{children}</div>
+            </div>
+          )}
 
           <div className="mt-3 border-t border-white/8 pt-3">
             <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/50">

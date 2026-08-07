@@ -540,12 +540,22 @@
     0 10px 30px -8px rgba(0, 0, 0, 0.55),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.07);
 }
-:root[data-theme='light'] .nav-dock {
-  border-color: rgba(15, 23, 42, 0.08);
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow:
-    0 10px 30px -8px rgba(15, 23, 42, 0.2),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+/* PHONE ONLY — the media query here is load-bearing, not tidiness. Unscoped, this rule
+   also hit the DESKTOP sidebar, where .nav-dock is meant to be invisible: the desktop
+   reset lives in @media (min-width: 768px) as a bare `.nav-dock` (0,1,0) while this
+   selector scores (0,2,1), and a media query adds no specificity — so the reset lost,
+   every time. The result was exact: `border-radius: 0` from the reset DID win (equal
+   specificity, later in the file), the white glass fill did NOT, and the light-theme
+   sidebar wore a hard white SQUARE behind its tabs. Dark mode never showed it, because
+   there the base rule and the reset have the same specificity. */
+@media (max-width: 767.98px) {
+  :root[data-theme='light'] .nav-dock {
+    border-color: rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow:
+      0 10px 30px -8px rgba(15, 23, 42, 0.2),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+  }
 }
 
 .nav-tab-btn {
@@ -592,6 +602,13 @@
   }
   .nav-tab-btn:hover {
     background-color: rgba(255, 255, 255, 0.04);
+  }
+  /* Same trap as the dock above, milder symptom: 4% white over a light rail is
+     nothing at all, so hovering a tab in light mode gave no feedback whatsoever.
+     Ink instead of white, and the selector needs the [data-theme] weight to beat
+     the rule directly above it. */
+  :root[data-theme='light'] .nav-tab-btn:hover {
+    background-color: rgba(15, 23, 42, 0.05);
   }
   .nav-tab-btn[aria-current='page'] {
     background-color: rgba(255, 255, 255, 0.06);

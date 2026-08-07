@@ -27,6 +27,7 @@ export const navDict = {
   'userPanel.changePassword': { ru: 'Сменить пароль', en: 'Change password' },
   'userPanel.newPasswordPlaceholder': { ru: 'Новый пароль, минимум 8 символов', en: 'New password, min 8 characters' },
   'userPanel.passwordChanged': { ru: 'Пароль изменён', en: 'Password changed' },
+  'userPanel.quickSettings': { ru: 'Язык, тема, журнал', en: 'Language, theme, journal' },
   'userPanel.admin': { ru: '🛡 Админ', en: '🛡 Admin' },
   'userPanel.logout': { ru: '⏻ Выйти', en: '⏻ Log out' },
 
