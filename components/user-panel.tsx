@@ -10,7 +10,18 @@ import { Button } from '@/components/button'
 import { useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { KeyRound, LogOut, Upload, Users } from 'lucide-react'
+import {
+  DollarSign,
+  KeyRound,
+  LogOut,
+  PackagePlus,
+  RotateCw,
+  Send,
+  ShieldCheck,
+  Truck as TruckIcon,
+  Upload,
+  Users,
+} from 'lucide-react'
 import { changeMyPassword } from '@/app/account/actions'
 import { signOut } from '@/app/login/actions'
 import { notify } from '@/lib/notify'
@@ -77,9 +88,15 @@ export function UserPanel({
   user,
   dockCollapsed = false,
   onExpandDock,
+  showTelegram = false,
+  showFinances = false,
   children,
 }: {
   user: CurrentUser
+  /** Same capability flags the nav uses to hide dead tabs. A tile pointing at a screen
+   * this user is not allowed to open would be a promise the app then breaks. */
+  showTelegram?: boolean
+  showFinances?: boolean
   /** Whether the sibling icons (locale/notifications/journal/theme) are currently
    * tucked away (components/nav.tsx). When they are, the FIRST tap on the avatar
    * just brings them back instead of opening the profile popover — a second tap,
@@ -190,6 +207,79 @@ export function UserPanel({
             {t(locale, user.role === 'admin' ? 'userPanel.roleAdmin' : 'userPanel.roleDispatcher')}
           </p>
 
+          {/* Быстрые действия. Половина этих экранов иначе недостижима с телефона:
+              «Брокеры» и «Финансы» помечены в навигации как desktopOnly (в нижнюю
+              панель влезает только шесть вкладок), а «Импорта» нет в навигации
+              вообще. То есть это не ярлыки к соседней кнопке, а единственный вход. */}
+          <div className="mt-3 border-t border-white/8 pt-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/50">
+              {t(locale, 'userPanel.actionsSection')}
+            </p>
+            <div className="grid grid-cols-4 gap-2">
+              <MenuTile
+                label={t(locale, 'userPanel.tileNewLoad')}
+                href="/loads/new"
+                onNavigate={() => setOpen(false)}
+              >
+                <PackagePlus size={15} />
+              </MenuTile>
+              <MenuTile
+                label={t(locale, 'userPanel.tileNewTruck')}
+                href="/trucks/new"
+                onNavigate={() => setOpen(false)}
+              >
+                <TruckIcon size={15} />
+              </MenuTile>
+              <MenuTile
+                label={t(locale, 'userPanel.tileBrokers')}
+                href="/brokers"
+                active={pathname.startsWith('/brokers')}
+                onNavigate={() => setOpen(false)}
+              >
+                <ShieldCheck size={15} />
+              </MenuTile>
+              <MenuTile
+                label={t(locale, 'userPanel.tileImport')}
+                href="/import"
+                active={pathname.startsWith('/import')}
+                onNavigate={() => setOpen(false)}
+              >
+                <Upload size={15} />
+              </MenuTile>
+              {showFinances && (
+                <MenuTile
+                  label={t(locale, 'userPanel.tileFinances')}
+                  href="/invoices"
+                  active={pathname.startsWith('/invoices')}
+                  onNavigate={() => setOpen(false)}
+                >
+                  <DollarSign size={15} />
+                </MenuTile>
+              )}
+              {showTelegram && (
+                <MenuTile
+                  label={t(locale, 'userPanel.tileTelegram')}
+                  href="/telegram"
+                  active={pathname.startsWith('/telegram')}
+                  onNavigate={() => setOpen(false)}
+                >
+                  <Send size={15} />
+                </MenuTile>
+              )}
+              {/* Не ссылка, а механизм: перерисовать текущую страницу свежими данными,
+                  не уходя с неё. До этого единственным способом был F5. */}
+              <MenuTile
+                label={t(locale, 'userPanel.tileRefresh')}
+                onClick={() => {
+                  router.refresh()
+                  setOpen(false)
+                }}
+              >
+                <RotateCw size={15} />
+              </MenuTile>
+            </div>
+          </div>
+
           {/* Каждый пункт — подпись сверху, круг снизу. Подпись именно НАД кнопкой:
               иконка без слова заставляет гадать, а всплывающая подсказка на телефоне
               не появляется вовсе. */}
@@ -197,7 +287,7 @@ export function UserPanel({
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/50">
               {t(locale, 'userPanel.quickSettings')}
             </p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {/* Язык и тема живут в собственных компонентах и на телефоне остаются
                   на панели снаружи — сюда они попадают только на десктопе. */}
               {children}

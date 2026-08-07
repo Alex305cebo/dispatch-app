@@ -37,6 +37,13 @@ export const navDict = {
   'userPanel.tilePassword': { ru: 'Пароль', en: 'Password' },
   'userPanel.tileUsers': { ru: 'Люди', en: 'People' },
   'userPanel.tileImport': { ru: 'Импорт', en: 'Import' },
+  'userPanel.actionsSection': { ru: 'Действия', en: 'Actions' },
+  'userPanel.tileNewLoad': { ru: '+ Груз', en: '+ Load' },
+  'userPanel.tileNewTruck': { ru: '+ Трак', en: '+ Truck' },
+  'userPanel.tileBrokers': { ru: 'Брокеры', en: 'Brokers' },
+  'userPanel.tileFinances': { ru: 'Финансы', en: 'Finance' },
+  'userPanel.tileTelegram': { ru: 'Телеграм', en: 'Telegram' },
+  'userPanel.tileRefresh': { ru: 'Обновить', en: 'Refresh' },
   'userPanel.admin': { ru: '🛡 Админ', en: '🛡 Admin' },
   'userPanel.logout': { ru: '⏻ Выйти', en: '⏻ Log out' },
 

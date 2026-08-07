@@ -532,43 +532,30 @@
    original reason — "the sidebar has its own panel, so no lift needed" — applies to the
    flat icon buttons around it, not to the one control that has to look pressable. */
 
-/* ── Account menu: iOS Control Centre tiles ──────────────────────────────────────
-   Every control inside the menu is a big rounded square, the shape you get swiping
-   down on an iPhone — not the 36px circle it is out on the nav rail.
+/* ── Account menu tiles ──────────────────────────────────────────────────────────
+   Deliberately the SAME 36px circle as out on the rail. They were briefly enlarged to
+   iPhone Control-Centre squares and that was wrong: the menu holds a dozen actions,
+   and at that size a dozen tiles is a wall. Density is what makes a launcher useful;
+   size is what makes it impressive once.
 
-   Done here in CSS rather than by editing each component: the language, theme and
-   journal controls are three separate files that all render `nav-icon-btn size-9
-   rounded-full`, and restyling them individually would mean four copies of the same
-   decision. One block, scoped to .user-menu, converts whatever lands inside.
+   Styled here rather than in each component: language, theme and journal live in
+   three separate files that all render `nav-icon-btn size-9 rounded-full`, so a
+   per-component edit would mean four copies of one decision. One block scoped to
+   .user-menu covers whatever ends up inside, including controls added later.
 
-   Unlayered CSS also beats Tailwind utilities regardless of specificity, which is
-   what lets `width: 100%` override `size-9` and the radius override `rounded-full`.
-   The two-class selector additionally outranks the bare `.nav-icon-btn` reset (0,1,0)
-   that strips transform and shadow at md — without that the tiles would go dead on
-   desktop, which is the exact bug this file already carries a note about. */
+   The two-class selector is load-bearing — it outranks the bare `.nav-icon-btn`
+   reset (0,1,0) that strips transform and box-shadow at md. Without it these tiles go
+   visually dead on desktop, which is the very bug this file already documents. */
 .user-menu .nav-icon-btn {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 1;
-  border-radius: 1.35rem;
   border-color: rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.07);
-  -webkit-backdrop-filter: blur(18px) saturate(1.6);
-  backdrop-filter: blur(18px) saturate(1.6);
   box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.16),
-    inset 0 -2px 4px 0 rgba(0, 0, 0, 0.22),
-    0 4px 10px -5px rgba(0, 0, 0, 0.55);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 2px 0 rgba(0, 0, 0, 0.2);
   transition:
     transform 0.12s cubic-bezier(0.34, 1.4, 0.64, 1),
     background-color 0.18s ease,
     box-shadow 0.18s ease;
-}
-/* Glyphs scale with the tile — a 15px icon adrift in a 64px square looks like a
-   rendering mistake, not a button. */
-.user-menu .nav-icon-btn svg {
-  width: 22px;
-  height: 22px;
 }
 .user-menu .nav-icon-btn:hover {
   background-color: rgba(255, 255, 255, 0.12);

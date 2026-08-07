@@ -326,7 +326,13 @@ export function Nav({
             row — it is what opens the menu — and an anchor belongs at the end of the
             group it owns, not buried mid-row. */}
         {user && (
-          <UserPanel user={user} dockCollapsed={!dockExpanded} onExpandDock={expandDock}>
+          <UserPanel
+            user={user}
+            dockCollapsed={!dockExpanded}
+            onExpandDock={expandDock}
+            showTelegram={showTelegram}
+            showFinances={showFinances}
+          >
             <TileSlot label={t(locale, 'userPanel.tileLang')}>
               <LocaleToggle />
             </TileSlot>
