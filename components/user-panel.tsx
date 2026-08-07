@@ -24,7 +24,7 @@ import { t } from '@/lib/i18n'
 export function TileSlot({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <span className="flex flex-col items-center gap-1">
-      <span className="w-full truncate text-center text-[9.5px] leading-none text-white/45">{label}</span>
+      <span className="w-full truncate text-center text-[11px] leading-none text-white/50">{label}</span>
       {children}
     </span>
   )
@@ -176,7 +176,7 @@ export function UserPanel({
         //
         // Fixed with a gutter on both sides can't overflow at any width: it spans the
         // screen on a phone and settles to its natural 16rem beside the sidebar.
-        <div className="user-menu fixed inset-x-3 bottom-24 z-[55] mx-auto max-w-sm rounded-xl border border-white/10 bg-ink-900 p-3.5 pr-9 shadow-2xl md:bottom-16 md:left-3 md:right-auto md:mx-0 md:w-64 md:max-w-none">
+        <div className="user-menu fixed inset-x-3 bottom-24 z-[55] mx-auto max-w-sm rounded-xl border border-white/10 bg-ink-900 p-4 shadow-2xl md:bottom-16 md:left-3 md:right-auto md:mx-0 md:w-72 md:max-w-none">
           <button
             type="button"
             aria-label={t(locale, 'userPanel.close')}
@@ -185,7 +185,7 @@ export function UserPanel({
           >
             ✕
           </button>
-          <p className="truncate text-[13px] font-medium">{user.name}</p>
+          <p className="truncate pr-7 text-[13px] font-medium">{user.name}</p>
           <p className="text-[11px] text-white/45">
             {t(locale, user.role === 'admin' ? 'userPanel.roleAdmin' : 'userPanel.roleDispatcher')}
           </p>
@@ -197,7 +197,7 @@ export function UserPanel({
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/50">
               {t(locale, 'userPanel.quickSettings')}
             </p>
-            <div className="grid grid-cols-4 gap-1">
+            <div className="grid grid-cols-3 gap-2">
               {/* Язык и тема живут в собственных компонентах и на телефоне остаются
                   на панели снаружи — сюда они попадают только на десктопе. */}
               {children}
@@ -242,7 +242,7 @@ export function UserPanel({
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-white/50">
                 {t(locale, 'userPanel.adminSection')}
               </p>
-              <div className="grid grid-cols-4 gap-1">
+              <div className="grid grid-cols-3 gap-2">
                 <MenuTile
                   label={t(locale, 'userPanel.tileUsers')}
                   href="/admin"
