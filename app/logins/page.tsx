@@ -1,8 +1,10 @@
+import { redirect } from 'next/navigation'
 import { sql } from '@/lib/db'
 import { docKindLabel, type DocKind } from '@/lib/docs'
 import { getGeminiUsage } from '@/lib/gemini-usage'
 import { Info } from '@/components/info'
 import { Name } from '@/components/name'
+import { getCurrentUser } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t, type Locale } from '@/lib/i18n'
 
@@ -74,6 +76,14 @@ function when(at: string, locale: Locale): string {
 }
 
 export default async function Page() {
+  // Admin only. This page lists every login with IP, city and user agent, plus every
+  // document action by every dispatcher — one person's whole movement history readable
+  // by their colleagues. It had NO check at all: any signed-in user could open /logins
+  // by typing the URL. Hiding the button would not have changed that; the gate has to
+  // live here. Same shape as /admin, deliberately — one pattern for one rule.
+  const user = await getCurrentUser()
+  if (!user || user.role !== 'admin') redirect('/')
+
   const locale = await getLocale()
   const [loginsRaw, auditsRaw, gemini] = await Promise.all([
     sql`SELECT who, ip, user_agent, city, at FROM logins ORDER BY at DESC LIMIT 200`,

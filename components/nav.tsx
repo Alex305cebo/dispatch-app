@@ -319,7 +319,13 @@ export function Nav({
             adds no box of its own; `md:hidden` then removes the group wholesale. */}
         <span className="contents md:hidden">
           <LocaleToggle collapsed={!dockExpanded} />
-          {user && <JournalLink pathname={pathname} locale={locale} collapsed={!dockExpanded} />}
+          {/* Журнал — только администратору: страница показывает входы всех
+              сотрудников с IP, городом и устройством. Сама страница тоже это
+              проверяет (app/logins/page.tsx), здесь просто не предлагаем то, что
+              всё равно закрыто. */}
+          {user?.role === 'admin' && (
+            <JournalLink pathname={pathname} locale={locale} collapsed={!dockExpanded} />
+          )}
           <ThemeToggle collapsed={!dockExpanded} />
         </span>
         {/* Avatar first, bell to its RIGHT: the account button is the anchor of this
@@ -336,9 +342,11 @@ export function Nav({
             <TileSlot label={t(locale, 'userPanel.tileLang')}>
               <LocaleToggle />
             </TileSlot>
-            <TileSlot label={t(locale, 'userPanel.tileJournal')}>
-              <JournalLink pathname={pathname} locale={locale} />
-            </TileSlot>
+            {user.role === 'admin' && (
+              <TileSlot label={t(locale, 'userPanel.tileJournal')}>
+                <JournalLink pathname={pathname} locale={locale} />
+              </TileSlot>
+            )}
             <TileSlot label={t(locale, 'userPanel.tileTheme')}>
               <ThemeToggle />
             </TileSlot>
