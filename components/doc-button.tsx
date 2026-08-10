@@ -1,5 +1,7 @@
 'use client'
 
+import { DocLink } from '@/components/doc-link'
+
 // A big BOL / POD button next to "Open rate con": opens the document when it exists,
 // or uploads one (filed on THIS load with the right kind) when it doesn't. The upload
 // state is amber so a missing required doc reads as an action item, matching the glowing
@@ -33,8 +35,8 @@ export function DocButton({
 
   if (docId)
     return (
-      <a
-        href={`/view/${docId}`}
+      <DocLink
+        docId={docId}
         className="inline-flex items-center gap-2 rounded-xl border border-good-400/30 px-3 py-2 text-[13px] font-semibold text-good-400 transition-colors hover:border-good-400/60 hover:bg-good-400/10"
       >
         <svg
@@ -51,7 +53,7 @@ export function DocButton({
           <path d="M14 3v5h5" />
         </svg>
         {t(locale, 'loadDetail.openDoc').replace('{label}', label)}
-      </a>
+      </DocLink>
     )
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {

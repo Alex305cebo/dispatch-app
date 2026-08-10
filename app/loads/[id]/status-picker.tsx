@@ -1,5 +1,7 @@
 'use client'
 
+import { DocLink } from '@/components/doc-link'
+
 import { useOptimistic, useTransition } from 'react'
 import { Ban, Check } from 'lucide-react'
 import { setStatus } from '@/app/actions'
@@ -41,12 +43,12 @@ const STEP_TONE: Record<LoadStatus, { dot: string; text: string; line: string }>
 function DocChip({ label, docId, due }: { label: string; docId: number | null; due: boolean }) {
   if (docId)
     return (
-      <a
-        href={`/view/${docId}`}
+      <DocLink
+        docId={docId}
         className="mt-1 rounded bg-good-400/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-good-400 ring-1 ring-good-400/30 transition-colors hover:bg-good-400/25"
       >
         {label}
-      </a>
+      </DocLink>
     )
   if (due)
     return (

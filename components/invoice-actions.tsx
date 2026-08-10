@@ -1,5 +1,7 @@
 'use client'
 
+import { DocLink } from '@/components/doc-link'
+
 import { Button } from '@/components/button'
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
@@ -84,12 +86,12 @@ export function InvoiceBox({
     <div className="flex flex-wrap items-center gap-3">
       <span className="text-[13px] font-medium">{invoiceNumber}</span>
       {invoiceDocId && (
-        <a
-          href={`/view/${invoiceDocId}`}
+        <DocLink
+          docId={invoiceDocId}
           className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/85 hover:bg-white/5"
         >
           {t(locale, 'finances.invoiceBox.open')}
-        </a>
+        </DocLink>
       )}
       <button
         disabled={pending}

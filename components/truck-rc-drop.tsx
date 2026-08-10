@@ -1,5 +1,7 @@
 'use client'
 
+import { DocLink } from '@/components/doc-link'
+
 import { Button } from '@/components/button'
 // Drop a rate con on the TRUCK page: parse (AI) → auto-create a load on THIS truck →
 // attach the RC → show Driver Info + warnings, all without a manual form. The star
@@ -186,12 +188,12 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
         {res.docId && (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[12px] text-white/55">{t(locale, 'import.rateConLabel')}</span>
-            <a
-              href={`/view/${res.docId}`}
+            <DocLink
+              docId={res.docId}
               className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/85 hover:bg-white/5"
             >
               {t(locale, 'import.open')}
-            </a>
+            </DocLink>
             <a
               href={`/api/docs/${res.docId}?download=1`}
               download={res.fileName || 'rate-con.pdf'}

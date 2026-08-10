@@ -1,5 +1,7 @@
 'use client'
 
+import { DocLink } from '@/components/doc-link'
+
 import { Button } from '@/components/button'
 // The care tab of a truck: oil countdown + passport, the to-fix list, and the
 // maintenance log. All writes go through server actions; lists arrive from the
@@ -454,15 +456,13 @@ export function TruckCare({
                 <li key={r.id} className="rounded-lg border border-white/6 px-3 py-2">
                   <div className="flex items-baseline justify-between gap-3">
                     {receipt ? (
-                      <a
-                        href={`/view/${receipt.id}`}
-                        target="_blank"
-                        rel="noreferrer"
+                      <DocLink
+                        docId={receipt.id}
                         title={t(locale, 'trucks.care.openReceipt')}
-                        className="text-[14px] text-white/85 hover:text-haul-400 hover:underline"
+                        className="text-left text-[14px] text-white/85 hover:text-haul-400 hover:underline"
                       >
                         {r.title}
-                      </a>
+                      </DocLink>
                     ) : (
                       <span className="text-[14px] text-white/85">{r.title}</span>
                     )}
@@ -500,9 +500,9 @@ export function TruckCare({
                     {receipt && (
                       <>
                         {' · '}
-                        <a href={`/view/${receipt.id}`} target="_blank" rel="noreferrer" className="text-haul-400 hover:underline">
+                        <DocLink docId={receipt.id} className="text-haul-400 hover:underline">
                           📄 {t(locale, 'trucks.care.receiptLink')}
-                        </a>
+                        </DocLink>
                       </>
                     )}
                   </div>

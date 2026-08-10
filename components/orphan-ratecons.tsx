@@ -1,5 +1,7 @@
 'use client'
 
+import { DocLink } from '@/components/doc-link'
+
 import { Button } from '@/components/button'
 // Rate cons uploaded to this truck that never became a load — usually because the
 // AI read (60-90s on a scan) was interrupted by a page reload. One button turns
@@ -7,7 +9,6 @@ import { Button } from '@/components/button'
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { createLoadFromExistingRc, deleteDocument } from '@/app/actions'
 import { DeleteButton } from '@/components/delete-button'
 import { notify } from '@/lib/notify'
@@ -47,12 +48,12 @@ export function OrphanRateCons({ truckId, docs }: { truckId: number; docs: Orpha
             key={d.id}
             className="flex flex-wrap items-center gap-2 rounded-lg border border-white/8 bg-ink-900/50 px-2.5 py-2"
           >
-            <Link
-              href={`/view/${d.id}`}
-              className="min-w-0 flex-1 truncate text-[12.5px] text-white/80 hover:text-haul-400 hover:underline"
+            <DocLink
+              docId={d.id}
+              className="min-w-0 flex-1 truncate text-left text-[12.5px] text-white/80 hover:text-haul-400 hover:underline"
             >
               {d.title}
-            </Link>
+            </DocLink>
             <span className="nums shrink-0 text-[11px] text-white/40">
               {d.uploadedAt.slice(0, 10)}
             </span>

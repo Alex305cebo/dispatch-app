@@ -1,5 +1,7 @@
 'use client'
 
+import { DocLink } from '@/components/doc-link'
+
 import { FileX2, FolderOpen, Trash2 } from 'lucide-react'
 import { Button } from '@/components/button'
 import { Empty } from '@/components/empty'
@@ -289,14 +291,14 @@ function DocRow({
         {docKindLabel(doc.kind, locale)}
       </span>
       <div className="min-w-0 flex-1">
-        {/* Viewer, not the raw file — see components/ratecon-button.tsx. */}
-        <a
-          href={`/view/${doc.id}`}
-          className="block truncate text-md text-white/85 hover:text-haul-400 hover:underline"
+        {/* Окном поверх страницы, а не отдельной страницей — см. doc-link.tsx. */}
+        <DocLink
+          docId={doc.id}
+          className="block w-full truncate text-left text-md text-white/85 hover:text-haul-400 hover:underline"
           title={doc.title}
         >
           {doc.title}
-        </a>
+        </DocLink>
         {(from || to) && (
           <div className="truncate text-xs text-white/45">
             {from ?? '—'} → {to ?? '—'}

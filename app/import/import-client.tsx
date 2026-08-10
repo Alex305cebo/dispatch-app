@@ -1,5 +1,7 @@
 'use client'
 
+import { DocLink } from '@/components/doc-link'
+
 import { Button } from '@/components/button'
 import { useRef, useState } from 'react'
 import { motion } from 'motion/react'
@@ -158,12 +160,12 @@ export function ImportClient({ trucks }: { trucks: TruckRecord[] }) {
         {docId && (
           <div className="panel mb-4 flex flex-wrap items-center gap-2 p-3">
             <span className="text-[12px] text-white/55">{t(locale, 'import.rateConLabel')}</span>
-            <a
-              href={`/view/${docId}`}
+            <DocLink
+              docId={docId}
               className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/85 hover:bg-white/5"
             >
               {t(locale, 'import.open')}
-            </a>
+            </DocLink>
             <a
               href={`/api/docs/${docId}?download=1`}
               download
