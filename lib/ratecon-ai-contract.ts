@@ -49,7 +49,9 @@ Rules:
 - company = the facility/shipper name at that stop. street = street address line. city/state/zip from that stop's address. time = the date/appointment window EXACTLY as written (e.g. "07/15/26 12:00 Appt"). refs = pickup#/delivery#/PO/BOL/SID numbers belonging to that stop.
 - rate = the TOTAL amount payable to the carrier for this load (line haul plus fuel surcharge if a total is printed). NEVER an insurance limit, declared value, or per-mile figure.
 - loadedMiles only if a mileage/distance is printed.
-- referenceId = the load/order number of this load. brokerName/brokerPhone/brokerEmail = the broker's contact info.
+- referenceId = the load/order number of this load.
+- brokerName = the BROKERAGE COMPANY that issued this rate confirmation — the business name in the letterhead (e.g. "C.H. Robinson Worldwide, Inc.", "TQL", "Molo Solutions"). NEVER the name of the person who signed or sent it. A rate con is signed by a rep, and their name is NOT the broker: putting "Tyler Simpson" here makes the load unattributable to the company we actually haul for. If the letterhead shows only a logo with no legible company name, return null. Put the rep's name and direct number in importantNotes under [CONTACT].
+- brokerPhone/brokerEmail = the best contact phone and email printed for that brokerage (a rep's direct line and address are fine here — those ARE contact details).
 - mcNumber = the MC docket of the BROKER who issued this rate confirmation — the company in the letterhead that is PAYING for the load. A rate con normally prints TWO MC numbers, and the other one belongs to the CARRIER being hired (it sits in the "Carrier"/"Carrier Information"/"Bill To Carrier" block, next to the truck/driver details). NEVER return the carrier's MC. If the only MC printed belongs to the carrier, or you cannot tell the two apart with certainty, return null — a wrong MC sends the dispatcher to look up the wrong company.
 - pickupDate = first pickup date as MM/DD/YYYY. deliveryDate = final delivery date as MM/DD/YYYY.
 - weight like "42000 lbs" (keep the unit).

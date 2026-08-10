@@ -3,6 +3,7 @@
 // row can carry authority status when it's been checked. SERVER ONLY (queries DB).
 
 import { sql } from './db'
+import { emailDomain } from './broker-key.ts'
 
 export type OurBroker = {
   /** Digits-only MC, or null if only a name was ever captured. */
@@ -26,8 +27,19 @@ function nameFromEmail(email: string | null): string | null {
   return label ? label.replace(/\b\w/g, (c) => c.toUpperCase()) : null
 }
 
-/** Group the loads' broker fields into one row per broker (by MC when present,
- * else by lower-cased name), newest activity first. */
+/** Group the loads' broker fields into one row per broker, newest activity first.
+ *
+ * Key priority: MC → email domain → lower-cased name.
+ *
+ * The email domain sits in the middle because of a real case: a rate con is signed by a
+ * person, and the parser stored that person as the broker, so two C.H. Robinson loads
+ * arrived as "Tyler Simpson" and a third from another rep would have opened a third
+ * row. All of them carry @chrobinson.com, which identifies the company far better than
+ * a name typed differently on every document.
+ *
+ * What this still cannot do: join a load with NO MC to the FMCSA-checked row that has
+ * one. An FMCSA record contains no email, so there is no bridge — the MC has to be on
+ * the load itself. That is a data problem, not a grouping one. */
 export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
   const rows = (await sql`
     SELECT broker_mc, broker_name, broker_phone, broker_email, created_at
@@ -45,7 +57,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
   const byKey = new Map<string, OurBroker>()
   for (const r of rows) {
     const mc = digits(r.broker_mc) || null
-    const key = mc ?? (r.broker_name ?? '').toLowerCase().trim()
+    const key = mc ?? emailDomain(r.broker_email) ?? (r.broker_name ?? '').toLowerCase().trim()
     if (!key) continue
     const existing = byKey.get(key)
     if (existing) {
