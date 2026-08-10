@@ -331,7 +331,10 @@ export function TruckCare({
                 <input
                   type="checkbox"
                   checked={!!t.doneAt}
-                  onChange={() => start(async () => { await toggleTodo(t.id, truckId); router.refresh() })}
+                  // Без router.refresh(): toggleTodo уже делает revalidatePath('/trucks/{id}'),
+                  // и явный вызов давал ВТОРОЙ полный рендер страницы трака —
+                  // карта, GPS, история пути, документы — ради одной галочки.
+                  onChange={() => start(async () => { await toggleTodo(t.id, truckId) })}
                   className="size-4 shrink-0 accent-good-500"
                 />
                 <span

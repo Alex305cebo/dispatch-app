@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { AlertTriangle, CalendarDays, PackageOpen, Plus } from 'lucide-react'
 import { Button } from '@/components/button'
 import { ShowMore } from '@/components/collapse'
@@ -32,7 +33,43 @@ const COLUMN_ACCENT: Record<LoadRecord['status'], string> = {
   cancelled: 'border-t-bad-500/50',
 }
 
+// The page shell renders instantly; everything that needs the database lives in
+// <LoadsBoard> behind a Suspense boundary. That split is what keeps switching tabs or
+// paging the calendar from throwing the WHOLE page away: without it, the route-level
+// app/loading.tsx fires and a dispatcher watches the header, the week summary and the
+// attention list disappear and come back to see a different tab of the same data.
 export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string; week?: string; day?: string }>
+}) {
+  return (
+    <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
+      <Suspense fallback={<LoadsSkeleton />}>
+        <LoadsBoard searchParams={searchParams} />
+      </Suspense>
+    </main>
+  )
+}
+
+/** Placeholder while LoadsBoard resolves. Mirrors the real shape — heading, week
+ * summary, tab bar, cards — so nothing jumps when the data lands. */
+function LoadsSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="h-7 w-40 rounded-lg bg-white/8" />
+      <div className="panel mt-4 h-[86px]" />
+      <div className="panel mt-3 h-9" />
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="panel h-24" />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+async function LoadsBoard({
   searchParams,
 }: {
   searchParams: Promise<{ view?: string; week?: string; day?: string }>
@@ -126,7 +163,7 @@ export default async function Page({
   flagged.sort((a, b) => Number(b.reasons.some((x) => x.bad)) - Number(a.reasons.some((x) => x.bad)))
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
+    <>
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-1.5 text-xl font-bold tracking-tight">
@@ -194,7 +231,7 @@ export default async function Page({
           ))}
         </div>
       )}
-    </main>
+    </>
   )
 }
 

@@ -172,7 +172,7 @@ export default async function Page() {
             {alerts.slice(0, 6).map((a) => (
               <Link
                 key={`${a.truckId}-${a.item.label}`}
-                href={`/trucks/${a.truckId}?tab=care`}
+                href={`/trucks/${a.truckId}#care`}
                 className="text-white/80 hover:underline"
               >
                 <span className="text-white/50">#{a.number}</span> {a.item.label} —{' '}

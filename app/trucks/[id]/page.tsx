@@ -413,8 +413,12 @@ export default async function Page({
         </section>
       </div>
 
-      {/* ===== Care: oil, to-fix, compliance dates, service log ===== */}
-      <div className="mt-4">
+      {/* ===== Care: oil, to-fix, compliance dates, service log =====
+           id="care" is the target of the document-deadline links on the dashboard.
+           They used to point at ?tab=care — a parameter nothing has ever read, so the
+           click landed at the top of the page and left the dispatcher to scroll for the
+           expiry they had just clicked on. */}
+      <div id="care" className="mt-4 scroll-mt-4">
         <TruckCare
           truckId={truck.id}
           meta={meta}

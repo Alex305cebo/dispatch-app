@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { listDocsForLibrary, listTrashedDocs, listTrucks } from '@/lib/loads'
-import { DocLibrary, DocTrash, DocUpload } from '@/components/docs'
+import { DocUpload } from '@/components/docs'
+import { DocsTabs } from './docs-tabs'
 import { Info } from '@/components/info'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
@@ -52,29 +53,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         <DocUpload trucks={groups.map((g) => ({ id: g.id, label: g.driver ? `${g.label} · ${g.driver}` : g.label }))} />
       </div>
 
-      <div className="mb-4 flex gap-1.5 border-b border-white/8">
-        <Link
-          href="/docs"
-          className={`-mb-px border-b-2 px-3 py-2 text-[13px] font-medium transition-colors ${
-            tab === 'library' ? 'border-haul-500 text-white' : 'border-transparent text-white/55 hover:text-white/85'
-          }`}
-        >
-          {t(locale, 'docs.tab.library')}
-        </Link>
-        <Link
-          href="/docs?tab=trash"
-          className={`-mb-px border-b-2 px-3 py-2 text-[13px] font-medium transition-colors ${
-            tab === 'trash' ? 'border-haul-500 text-white' : 'border-transparent text-white/55 hover:text-white/85'
-          }`}
-        >
-          {t(locale, 'docs.tab.trash')}
-          {trash.length > 0 ? ` · ${trash.length}` : ''}
-        </Link>
-      </div>
+      {/* Вкладки — состояние, а не переход: обе выборки уже загружены выше. */}
+      <DocsTabs initialTab={tab} rows={rows} trash={trash} trucks={groups} />
 
-      <div className="panel p-4">
-        {tab === 'library' ? <DocLibrary rows={rows} trucks={groups} /> : <DocTrash rows={trash} />}
-      </div>
     </main>
   )
 }
