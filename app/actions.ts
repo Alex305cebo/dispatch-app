@@ -1182,3 +1182,18 @@ export async function truckTripHistory(
   const { tripHistory } = await import('@/lib/eld')
   return { legs: await tripHistory(unit, hours) }
 }
+
+/** Title and mime of one document, so a viewer can open in a modal instead of a page.
+ * Never returns the bytes — those still go through /api/docs/[id], which streams them
+ * with its own company check and caching. */
+export async function docMeta(id: number): Promise<{ title: string; mime: string } | { error: string }> {
+  const companyId = await companyScope()
+  const locale = await getLocale()
+  if (!(await docBelongs(companyId, id))) return { error: t(locale, 'actions.docNotFound') }
+  const rows = (await sql`SELECT title, mime FROM documents WHERE id = ${id}`) as {
+    title: string
+    mime: string
+  }[]
+  const row = rows[0]
+  return row ? { title: row.title, mime: row.mime } : { error: t(locale, 'actions.docNotFound') }
+}

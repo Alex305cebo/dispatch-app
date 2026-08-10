@@ -8,7 +8,7 @@
 // route-level Suspense boundary, that swap also flashed a full-page skeleton, which is
 // how it got noticed. Now only this panel refetches, through a server action.
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { TripHistory } from '@/components/trip-history'
 import { Info } from '@/components/info'
 import { SmallRefreshButton } from '@/components/small-refresh-button'
@@ -36,6 +36,16 @@ export function TripHistoryPanel({
   const [hours, setHours] = useState(initialHours)
   const [legs, setLegs] = useState(initialLegs)
   const [pending, start] = useTransition()
+
+  // useState seeds ONCE, and that broke the refresh button sitting in this very panel:
+  // SmallRefreshButton polls GPS and calls router.refresh(), the server re-runs
+  // tripHistory() and sends new initialLegs — which the component then ignored. The
+  // dispatcher got an "updated N trucks" toast and watched the history not change.
+  // Any fresh server render wins over what we last fetched ourselves.
+  useEffect(() => {
+    setLegs(initialLegs)
+    setHours(initialHours)
+  }, [initialLegs, initialHours])
 
   function pick(next: number) {
     if (next === hours || pending) return

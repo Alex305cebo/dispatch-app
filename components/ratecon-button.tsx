@@ -1,17 +1,23 @@
 'use client'
 
-// "Open the rate con" button, used everywhere a load is shown. Points at the in-app
-// viewer (/view/[id]), NOT at the raw file: a direct file link obeys the browser's
+// "Open the rate con" button, used everywhere a load is shown. Opens the document in a
+// modal over the current page instead of navigating to /view/[id]: a dispatcher who
+// glances at a rate con should not lose their place in the list, their scroll position
+// or the tab they were on, and then have to find it again with the back button.
+//
+// Never a plain link to the file itself: a direct file link obeys the browser's
 // "download PDFs instead of opening them" setting, which saves the file and opens the
 // downloads folder instead of showing the document.
 //
-// NOTE: never nest this inside a <Link> row — two anchors inside each other is
-// invalid HTML; put it as a sibling of the row link.
+// A <button>, not an <a>, so it is also safe next to a row link — two nested anchors
+// are invalid HTML, which the old version had to warn callers about.
 //
 // ponytail: 'use client' + useLocale() (context, not a prop) so every server-page
 // caller across the app keeps working unchanged — no locale prop to thread through
 // files outside this domain.
 
+import { useState } from 'react'
+import { DocModal } from '@/components/doc-modal'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 
@@ -24,9 +30,12 @@ export function RateConButton({
   compact?: boolean
 }) {
   const locale = useLocale()
+  const [open, setOpen] = useState(false)
   return (
-    <a
-      href={`/view/${docId}`}
+    <>
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
       title={t(locale, 'rateconButton.openTitle')}
       aria-label={t(locale, 'rateconButton.openTitle')}
       className={
@@ -49,6 +58,8 @@ export function RateConButton({
         <path d="M14 3v5h5" />
       </svg>
       {compact ? 'RC' : t(locale, 'rateconButton.openLabel')}
-    </a>
+    </button>
+    {open && <DocModal docId={docId} onClose={() => setOpen(false)} />}
+    </>
   )
 }

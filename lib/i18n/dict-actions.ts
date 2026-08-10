@@ -39,6 +39,7 @@ export const actionsDict = {
     ru: 'Файл больше 8 МБ — сожми или пришли меньше.',
     en: 'File is over 8 MB — compress it or send a smaller one.',
   },
+  'docModal.openPage': { ru: 'открыть страницей', en: 'open as a page' },
   'actions.docNotFound': { ru: 'Документ не найден.', en: 'Document not found.' },
   'actions.docNotInTrash': { ru: 'Документ не найден в корзине.', en: 'Document not found in the trash.' },
   'actions.rateNegative': { ru: 'Ставка не может быть отрицательной.', en: 'Rate cannot be negative.' },
