@@ -61,7 +61,6 @@ export function BrokerCheckPanel({ fields }: { fields: RateConFields }) {
       {state === 'nokey' && (
         <p className="mt-2 text-[12px] leading-relaxed text-white/55">
           {t(locale, 'brokerCheck.noKey')}
-          <code className="text-white/75">FMCSA_WEBKEY</code>.
         </p>
       )}
       {state === 'error' && <p className="mt-2 text-[13px] text-bad-400">{err}</p>}

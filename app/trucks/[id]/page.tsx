@@ -23,7 +23,7 @@ import { TruckRcDrop } from '@/components/truck-rc-drop'
 import { OrphanRateCons } from '@/components/orphan-ratecons'
 import { DocList, DocUpload } from '@/components/docs'
 import { RateConButton } from '@/components/ratecon-button'
-import { TripHistory } from '@/components/trip-history'
+import { TripHistoryPanel } from '@/components/trip-history-panel'
 import { SmallRefreshButton } from '@/components/small-refresh-button'
 import { TruckAvailability } from '@/components/truck-availability'
 import { Info } from '@/components/info'
@@ -283,31 +283,15 @@ export default async function Page({
       )}
 
       {/* ===== Trip history: drive legs + stops, long rests called out ===== */}
-      <details className="panel mt-4 p-4" open={history.length > 0}>
-        <summary className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          {t(locale, 'trucks.detail.tripHistory')} · {t(locale, historyWindow.key)}
-          <Info text={t(locale, 'trucks.detail.tripHistoryInfo')} />
-          <SmallRefreshButton />
-          <span className="ml-auto flex gap-1 normal-case">
-            {HISTORY_WINDOWS.map((w) => (
-              <Link
-                key={w.hours}
-                href={w.hours === 24 ? `/trucks/${truck.id}` : `/trucks/${truck.id}?history=${w.hours}`}
-                className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                  w.hours === historyWindow.hours
-                    ? 'bg-haul-500/15 text-haul-400'
-                    : 'text-white/45 hover:text-white/75'
-                }`}
-              >
-                {t(locale, w.key)}
-              </Link>
-            ))}
-          </span>
-        </summary>
-        <div className="mt-3">
-          <TripHistory legs={history} locale={locale} />
-        </div>
-      </details>
+      {/* The window switch is client-side now — see components/trip-history-panel.tsx.
+          ?history= is still honoured for the initial render so existing links keep
+          working, it just isn't how the buttons change the window any more. */}
+      <TripHistoryPanel
+        truckId={truck.id}
+        windows={HISTORY_WINDOWS}
+        initialHours={historyWindow.hours}
+        initialLegs={history}
+      />
 
       {/* ===== RC drop — the fastest path: paperwork in, load out ===== */}
       <section className="panel mt-4 p-4">

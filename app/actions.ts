@@ -15,6 +15,7 @@ import { haversineMiles } from '@/lib/geo'
 import { nextLoadStatus, GEOFENCE_MI } from '@/lib/load-status'
 import type { DocClass } from '@/lib/ai-doc'
 import { docBelongs, getLoad, loadBelongs, truckBelongs } from '@/lib/loads'
+import type { HistoryLeg } from '@/lib/trip-history'
 import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
 import { getSetting, setSetting } from '@/lib/settings'
 import { companyScope, demoReadOnly, getCurrentUser, verifyMyPassword } from '@/lib/session'
@@ -1159,4 +1160,25 @@ export async function addTruck(t: TruckInput): Promise<{ error: string } | void>
   }
   revalidatePath('/trucks')
   redirect(`/trucks/${id}`)
+}
+/** Trip history for one truck over a window, so the /trucks/[id] panel can switch
+ * 24h/3d/7d WITHOUT a page navigation. It used to be three <Link>s carrying ?history=,
+ * which re-rendered the entire truck page — map, loads, documents and all — to replace
+ * one list, and since app/loading.tsx added a route-level Suspense boundary that swap
+ * also flashed a full-page skeleton. */
+export async function truckTripHistory(
+  truckId: number,
+  hours: number,
+): Promise<{ legs: HistoryLeg[] } | { error: string }> {
+  const companyId = await companyScope()
+  const locale = await getLocale()
+  if (!(await truckBelongs(companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }
+  // Only the three windows the UI offers — an arbitrary number here would let a caller
+  // ask for a year of points, and the table is pruned to 7 days anyway (lib/eld.ts).
+  if (![24, 72, 168].includes(hours)) return { error: t(locale, 'actions.truckNotFound') }
+  const rows = (await sql`SELECT number FROM trucks WHERE id = ${truckId}`) as { number: string | null }[]
+  const unit = rows[0]?.number
+  if (!unit) return { legs: [] }
+  const { tripHistory } = await import('@/lib/eld')
+  return { legs: await tripHistory(unit, hours) }
 }
