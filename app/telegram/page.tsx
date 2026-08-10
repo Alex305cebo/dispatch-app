@@ -17,6 +17,7 @@ import { resolveTruckForChat } from '@/lib/tg-intake'
 import { listTrucks } from '@/lib/loads'
 import { TgSetup } from './tg-setup'
 import { TgSendBox } from './tg-chat'
+import { TgMessages } from './tg-messages'
 import { TgCheckButton } from './tg-check-button'
 import { TgDisconnectButton } from './tg-disconnect-button'
 import { TgAttachButton } from './tg-attach-button'
@@ -201,61 +202,7 @@ export default async function Page({
                 <span className="text-[14px] font-semibold">{open.name}</span>
                 {open.phone && <span className="text-[12px] text-white/45">+{open.phone}</span>}
               </div>
-              <div className="flex max-h-[58vh] flex-1 flex-col gap-1.5 overflow-y-auto p-4">
-                {(msgs ?? []).map((m) => (
-                  <div
-                    key={m.id}
-                    className={`max-w-[80%] rounded-2xl px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap ${
-                      m.out
-                        ? 'self-end rounded-br-sm bg-haul-500/25 text-white'
-                        : 'self-start rounded-bl-sm bg-white/8 text-white/90'
-                    }`}
-                  >
-                    {m.media === 'image' && (
-                      <>
-                        <TgImage src={`/api/tg-media/${open.id}/${m.id}`} />
-                        <TgAttachButton chatId={open.id} msgId={m.id} phone={open.phone} />
-                      </>
-                    )}
-                    {m.media === 'pdf' && (
-                      <>
-                        <a
-                          href={`/api/tg-media/${open.id}/${m.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mb-1 block overflow-hidden rounded-lg border border-white/10 bg-white/5 transition-colors hover:bg-white/8"
-                        >
-                          {m.hasThumb && (
-                            // Page-1 preview Telegram made for the file — "видно, что внутри".
-                            <img
-                              src={`/api/tg-media/${open.id}/${m.id}?thumb=1`}
-                              alt={t(locale, 'telegram.page.pdfPreviewAlt')}
-                              className="max-h-44 w-full object-cover object-top"
-                            />
-                          )}
-                          <span className="flex items-center gap-2 px-2.5 py-2">
-                            <span className="text-[17px]">📄</span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[12.5px] font-medium text-white/90">
-                                {m.fileName || t(locale, 'telegram.page.defaultDocName')}
-                              </span>
-                              <span className="block text-[11px] text-white/45">
-                                {m.fileSize ? `${humanSize(m.fileSize, locale)} · ` : ''}{t(locale, 'telegram.page.openPdf')}
-                              </span>
-                            </span>
-                          </span>
-                        </a>
-                        <TgAttachButton chatId={open.id} msgId={m.id} phone={open.phone} />
-                      </>
-                    )}
-                    {m.media === 'other' && !m.text && <span className="text-white/45">{t(locale, 'telegram.page.attachment')}</span>}
-                    {m.text}
-                    <span className="mt-0.5 block text-right text-[10px] text-white/40">
-                      {when(m.at, locale)}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <TgMessages chatId={open.id} phone={open.phone} initial={msgs ?? []} />
               <TgSendBox chatId={open.id} />
             </>
           )}

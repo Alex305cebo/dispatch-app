@@ -54,11 +54,10 @@ export function TgSendBox({ chatId }: { chatId: string }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [confirming])
 
-  // Poll while the chat is open — ~15s keeps it "live" without hammering Telegram.
-  useEffect(() => {
-    const t = setInterval(() => router.refresh(), 15_000)
-    return () => clearInterval(t)
-  }, [router])
+  // Опрос переехал в TgMessages и спрашивает только ОДИН разговор. Здесь он делал
+  // router.refresh(), то есть перерисовывал весь маршрут: список диалогов из API
+  // Telegram, аккаунт, карту чатов, listTrucks и по одному resolveTruckForChat на
+  // каждый диалог — ради проверки, нет ли новой строки в одной беседе.
 
   const unlocked = now > 0 && now < unlockedUntil
   const remaining = unlocked ? Math.ceil((unlockedUntil - now) / 1000) : 0

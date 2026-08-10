@@ -9,6 +9,8 @@ import {
   startLogin,
   tgMedia,
   tgSend,
+  tgMessages,
+  type TgMsg,
 } from '@/lib/telegram'
 import { intakeDriverMedia, remindMissingPods, resolveTruckForChat } from '@/lib/tg-intake'
 import { activeLoadForTruck } from '@/lib/loads'
@@ -195,5 +197,22 @@ export async function tgSendMessage(chatId: string, text: string): Promise<{ err
     revalidatePath('/telegram')
   } catch (e) {
     return { error: `${t(locale, 'telegram.actions.sendFailed')}: ${msg(e)}` }
+  }
+}
+
+/** Messages of ONE open chat, for the client-side poll.
+ *
+ * The chat pane used to stay fresh by calling router.refresh() every 15 seconds, which
+ * re-rendered the whole /telegram route: the dialog list from the Telegram API, the
+ * account info, the truck map, listTrucks, AND one resolveTruckForChat call per dialog
+ * — an N+1 over live API calls — all to find out whether one conversation had a new
+ * line. This returns just that conversation. */
+export async function tgPollMessages(chatId: string): Promise<{ msgs: TgMsg[] } | { error: string }> {
+  const user = await getCurrentUser()
+  if (!user || !(await can(user, 'telegram'))) return { error: t(await getLocale(), 'telegram.actions.noAccess') }
+  try {
+    return { msgs: await tgMessages(user.id, chatId) }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) }
   }
 }
