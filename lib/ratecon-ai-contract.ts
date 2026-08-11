@@ -46,7 +46,10 @@ export const AI_PROMPT = `You are reading a US trucking RATE CONFIRMATION docume
 
 Rules:
 - "stops" = every physical pickup (shipper) and delivery (consignee/receiver) stop, in trip order. The BROKER / logistics company in the letterhead and the CARRIER being paid are NEVER stops, even though their addresses are printed. A stop is where the truck loads or unloads freight.
-- company = the facility/shipper name at that stop. street = street address line. city/state/zip from that stop's address. time = the date/appointment window EXACTLY as written (e.g. "07/15/26 12:00 Appt"). refs = pickup#/delivery#/PO/BOL/SID numbers belonging to that stop.
+- company = the facility/shipper name at that stop. street = street address line only. time = the date/appointment window EXACTLY as written (e.g. "07/15/26 12:00 Appt"). refs = pickup#/delivery#/PO/BOL/SID numbers belonging to that stop.
+- city and state are REQUIRED for every stop and must be filled whenever the address shows a place at all. Many rate cons print the whole address as one run of text — "909 MAGNOLIA AVENUE AUBURNDALE, FL 33823 US" — where the city and state sit at the END of the street line, not on a line of their own. Split them out: street="909 MAGNOLIA AVENUE", city="AUBURNDALE", state="FL". Leaving city empty makes the load unmappable and its mileage uncomputable, so it is never the safe choice.
+- state = the two-letter US state code only ("FL", not "Florida", not "FL 33823").
+- zip = the postal code DIGITS only ("33823" or "33823-1234"). Never a country code, never "33823 US".
 - rate = the TOTAL amount payable to the carrier for this load (line haul plus fuel surcharge if a total is printed). NEVER an insurance limit, declared value, or per-mile figure.
 - loadedMiles only if a mileage/distance is printed.
 - referenceId = the load/order number of this load.
@@ -135,8 +138,61 @@ function stopBlock(s: AiStop | undefined): Stop {
   }
 }
 
-const cityOf = (s: AiStop | undefined): string | null =>
-  s?.city && s.state ? `${s.city}, ${s.state}` : null
+/** "909 MAGNOLIA AVENUE AUBURNDALE, FL 33823 US" → { city: 'AUBURNDALE', state: 'FL' }.
+ *
+ * Plenty of rate cons print the whole address as one run of text, and then the model
+ * fills `street` with all of it and leaves city/state empty. That cost a real load
+ * (Corporate Traffic #11694630): with no city there is nothing to geocode, so mileage
+ * could not be computed either, and the load was refused with "create it manually" —
+ * throwing away a document that had been read correctly in every other respect.
+ *
+ * Read from the END, not with one regex: a single pattern matched leftmost and happily
+ * returned "MAGNOLIA AVENUE AUBURNDALE" as the city. Walking backwards from the state
+ * and stopping at a house number or a street-type word gets the boundary right.
+ */
+const US_STATES = new Set(
+  ('AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND ' +
+    'OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC').split(' '),
+)
+/** Words that end a street and therefore start nothing — the city cannot reach past them. */
+const STREET_WORD =
+  /^(ave|avenue|st|street|rd|road|dr|drive|ln|lane|blvd|boulevard|hwy|highway|pkwy|parkway|way|ct|court|cir|circle|pl|place|ste|suite|box|unit|bldg|building|route|rt)\.?$/i
+
+export function cityStateFrom(text: string | null | undefined): { city: string; state: string } | null {
+  let rest = (text ?? '').trim()
+  if (!rest) return null
+  rest = rest.replace(/\b(?:US|USA)\.?$/i, '').trim() // trailing country
+  rest = rest.replace(/\s+\d{5}(?:-\d{4})?$/, '').trim() // trailing ZIP
+  rest = rest.replace(/[,\s]+$/, '')
+
+  const tokens = rest.split(/\s+/)
+  const stateTok = tokens.pop()
+  if (!stateTok) return null
+  const state = stateTok.replace(/[,.]/g, '').toUpperCase()
+  if (!US_STATES.has(state)) return null
+
+  const words: string[] = []
+  while (tokens.length > 0 && words.length < 3) {
+    const w = tokens[tokens.length - 1]!
+    // A house number, a PO box number or a street type means the city started after it.
+    if (/\d/.test(w) || STREET_WORD.test(w.replace(/[,.]+$/, ''))) break
+    tokens.pop()
+    const hadComma = /,$/.test(w)
+    words.unshift(w.replace(/,$/, ''))
+    // "AUBURNDALE, FL" — the comma sits at the END of the city, so seeing one means we
+    // have just consumed the city's LAST word and everything before it is street.
+    if (hadComma && words.length > 1) break
+  }
+  const city = words.join(' ').trim()
+  return city ? { city, state } : null
+}
+
+const cityOf = (s: AiStop | undefined): string | null => {
+  if (s?.city && s.state) return `${s.city}, ${s.state}`
+  // Fall back to reading the city off the street line before giving up.
+  const parsed = cityStateFrom(s?.street)
+  return parsed ? `${parsed.city}, ${parsed.state}` : null
+}
 
 /** Plain, geocodable "1234 Industrial Pkwy, Greer, SC 29650" — no company name, unlike stopBlock. */
 function addressLine(s: AiStop | undefined): string | null {
