@@ -450,3 +450,62 @@ export async function dieselPrice(
     return { error: e instanceof Error ? e.message : String(e) }
   }
 }
+
+/** ZIP → "AUBURNDALE, FL". The town a postcode belongs to, not just its coordinates.
+ *
+ * Needed because some rate cons print each stop as one run of text and the model comes
+ * back with a street and a ZIP but no city — and a load with no origin cannot be mapped,
+ * cannot have its mileage computed, and was refused outright. A US ZIP names exactly one
+ * place, so it is enough to recover what the document failed to separate.
+ *
+ * Cached in settings like every other geocode here: the same handful of warehouse ZIPs
+ * come back load after load, and both services below are rate-limited. */
+export async function zipPlace(zip: string): Promise<string | null> {
+  const clean = zip.replace(/\D/g, '').slice(0, 5)
+  if (clean.length !== 5) return null
+  const key = `geo:zipplace:${clean}`
+  const hit = await getSetting(key)
+  if (hit) return hit || null
+
+  // Zippopotam first: a free, keyless directory built for exactly this question, and it
+  // answers with the town. Nominatim, asked the same thing, returned "Polk County, FL"
+  // for 33823 — the postcode's administrative area, not the place a dispatcher would
+  // recognise, which is Auburndale. Nominatim stays as the fallback because it is
+  // already used everywhere else here and one dead service must not lose the load.
+  try {
+    const res = await fetch(`https://api.zippopotam.us/us/${clean}`)
+    if (res.ok) {
+      const data = (await res.json()) as {
+        places?: { 'place name'?: string; 'state abbreviation'?: string }[]
+      }
+      const p = data.places?.[0]
+      const city = p?.['place name']
+      const state = p?.['state abbreviation']
+      if (city && state) {
+        const place = `${city}, ${state}`
+        await setSetting(key, place)
+        return place
+      }
+    }
+  } catch {
+    // fall through to Nominatim
+  }
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&postalcode=${clean}&country=us`
+    const res = await fetch(url, { headers: { 'User-Agent': 'DispatchApp/1.0 (fleet tool)' } })
+    if (!res.ok) return null
+    const arr = (await res.json()) as { address?: Record<string, string> }[]
+    const a = arr[0]?.address
+    if (!a) return null
+    // Nominatim names the settlement differently by size; take whichever it used.
+    const city = a.city ?? a.town ?? a.village ?? a.hamlet ?? a.municipality ?? a.county
+    const state = a['ISO3166-2-lvl4']?.split('-')[1] ?? a.state
+    if (!city || !state) return null
+    const place = `${city}, ${state}`
+    await setSetting(key, place)
+    return place
+  } catch {
+    return null
+  }
+}

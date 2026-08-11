@@ -330,6 +330,35 @@ const onlyDigits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, ''
  * card (settings co_mcdot, free text like "MC 626911 · DOT 1708530"). Returning null
  * costs a broker lookup; returning our own number costs the dispatcher their trust in
  * the check, since it reports "no broker authority" for a company that never had any. */
+/** Fills a missing origin/destination from the stop's ZIP.
+ *
+ * The reader gives us a street and a ZIP but sometimes no city — the rate con printed
+ * the address as one run of text and the split went wrong. Without a city the load is
+ * refused outright, which throws away a document that was read correctly in every other
+ * respect. A US ZIP names exactly one place, so it is enough to recover.
+ *
+ * Only ever FILLS a gap: a city the reader did give us is never overwritten, because it
+ * came from the document itself and the ZIP lookup is an inference. */
+async function fillCitiesFromZip(load: QrLoad): Promise<QrLoad> {
+  if (load.origin && load.destination) return load
+  const zipOf = (address: string | null | undefined): string | null => {
+    const all = (address ?? '').match(/\b\d{5}\b/g)
+    return all?.[all.length - 1] ?? null
+  }
+  const { zipPlace } = await import('@/lib/geo-routing')
+  const [o, d] = await Promise.all([
+    load.origin ? null : (async () => {
+      const z = zipOf(load.pickupAddress)
+      return z ? await zipPlace(z) : null
+    })(),
+    load.destination ? null : (async () => {
+      const z = zipOf(load.deliveryAddress)
+      return z ? await zipPlace(z) : null
+    })(),
+  ])
+  return { ...load, origin: load.origin ?? o, destination: load.destination ?? d }
+}
+
 async function withoutOwnMc(load: QrLoad): Promise<QrLoad> {
   if (!load.brokerMc) return load
   const { getCompany } = await import('@/lib/invoice')
@@ -360,6 +389,13 @@ export async function createLoadFromRc(
     // fallback still can't tell them apart, so refuse the one number we can always
     // recognise: our own. Better an empty broker MC than a confident wrong one.
     load = await withoutOwnMc(load)
+    // A load with no origin/destination cannot be mapped, cannot be routed, and so
+    // cannot have its mileage computed — it just gets refused. Some rate cons print each
+    // stop as one run of text and the reader comes back with a street and a ZIP but no
+    // city (measured on Corporate Traffic #11694630: street "909 MAGNOLIA AVENUE", zip
+    // "33823", city empty). A US ZIP names exactly one place, so recover the city from
+    // it rather than throwing away a document that was read correctly otherwise.
+    load = await fillCitiesFromZip(load)
     // Plenty of real rate cons never print a mileage figure. loads.loaded_miles has
     // CHECK (> 0), so those used to die on a raw constraint violation — the load
     // silently never appeared. Fall back to actual road miles between the two cities
