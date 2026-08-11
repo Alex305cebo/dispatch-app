@@ -27,16 +27,32 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next({ request: { headers } })
   }
 
-  // Open-access mode (admin-panel switch, app/admin/actions.ts): the whole app
-  // works without signing in. /admin stays exempt so the switch that turns this
-  // back off can never itself be reached without a real login.
-  if (!req.nextUrl.pathname.startsWith('/admin') && (await getSetting('open_access')) === '1') {
-    return NextResponse.next({ request: { headers } })
-  }
-
+  // The session FIRST, and the open-access flag only if there isn't one. This ordering
+  // is not a preference:
+  //
+  // • Cost. This middleware runs on nearly every request — every RSC payload, every
+  //   server action, and every /api/driver-photo and /api/docs fetch. Asking the
+  //   database for `open_access` before the session meant two serial round trips in
+  //   front of each one; on a page with ten driver avatars that is twenty. Signed in is
+  //   the normal case, and it never needed that flag.
+  //
+  // • Correctness. Returning early on open_access skipped the identity headers even for
+  //   someone properly signed in, so with the switch on a real dispatcher went anonymous
+  //   everywhere except /admin — their name vanished and companyScope() fell back to the
+  //   real company. Open access is meant to let visitors in without a login, not to log
+  //   out the people who have one.
+  //
+  // sessionUser() returns null without querying when there is no cookie at all, so an
+  // anonymous visitor still pays exactly one query, not two.
   const user = await sessionUser(req.cookies.get(SESSION_COOKIE)?.value)
 
   if (!user) {
+    // Open-access mode (admin-panel switch, app/admin/actions.ts): the whole app works
+    // without signing in. /admin stays exempt so the switch that turns this back off can
+    // never itself be reached without a real login.
+    if (!req.nextUrl.pathname.startsWith('/admin') && (await getSetting('open_access')) === '1') {
+      return NextResponse.next({ request: { headers } })
+    }
     // rewrite, not redirect: the QR carries the load in the URL hash, and a redirect
     // would drop it. Rewriting keeps the address bar — and the hash — intact, so after
     // sign-in the load is still there.

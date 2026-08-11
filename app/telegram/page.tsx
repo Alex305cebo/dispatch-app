@@ -13,7 +13,7 @@ import {
   type TgDialog,
   type TgMsg,
 } from '@/lib/telegram'
-import { resolveTruckForChat } from '@/lib/tg-intake'
+import { phoneMap } from '@/lib/tg-intake'
 import { listTrucks } from '@/lib/loads'
 import { TgSetup } from './tg-setup'
 import { TgSendBox } from './tg-chat'
@@ -26,6 +26,9 @@ import { TgChatSettings } from './tg-chat-settings'
 import { Info } from '@/components/info'
 
 export const dynamic = 'force-dynamic'
+
+/** Phone → comparable digits, same normalisation phoneMap() keys by. */
+const onlyDigits = (v: string) => v.replace(/[^0-9]/g, '')
 // Two round-trips to Telegram (dialogs + messages) don't fit the default 10s.
 export const maxDuration = 60
 
@@ -115,10 +118,19 @@ export default async function Page({
 
   // Chat ↔ truck within MY account: my manual pick wins, else driver's phone from
   // the truck passport.
+  //
+  // Resolved here from two tables read ONCE, not by calling resolveTruckForChat per
+  // dialog: that helper re-reads tgChatTruckMap (already fetched above as `chatTruck`)
+  // and phoneMap on every call, so twenty chats meant forty avoidable round trips on
+  // every render of this page.
+  const phones = await phoneMap()
+  const truckNumberById = new Map(trucks.map((tr) => [tr.id, tr.number]))
   const truckByChat = new Map(
-    await Promise.all(
-      dialogs.map(async (d) => [d.id, (await resolveTruckForChat(user.id, d.id, d.phone))?.number] as const),
-    ),
+    dialogs.map((d) => {
+      const manual = chatTruck[d.id]
+      const byPhone = d.phone ? phones.get(onlyDigits(d.phone).slice(-10))?.number : undefined
+      return [d.id, (manual ? truckNumberById.get(manual) : undefined) ?? byPhone] as const
+    }),
   )
   const open = chatId ? dialogs.find((d) => d.id === chatId) : undefined
 

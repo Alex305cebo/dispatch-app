@@ -172,20 +172,33 @@ export function Nav({
   if (!showFinances) hidden.add('/invoices')
   const items = hidden.size ? ITEMS.filter((it) => !hidden.has(it.href)) : ITEMS
 
-  // Every login and every section switch is a chance to nudge GPS forward — no
-  // external cron ever got set up, so this was the only thing actually keeping
-  // Live Share data from going stale between manual "Обновить" clicks. Polling GPS
-  // into the DB is useless on its own though — the page already on screen was
-  // rendered with the OLD snapshot and nothing tells it to re-fetch, so a truck could
-  // sit shown "in the wrong place" indefinitely. router.refresh() re-renders the
-  // current route once fresh data actually landed (skipped entirely if throttled).
+  // Keeps Live Share GPS moving while anyone has the app open — no external cron was
+  // ever set up, so without this the data only advanced on a manual "Обновить".
+  // Polling into the DB is useless on its own: the page on screen was rendered from the
+  // OLD snapshot, so router.refresh() re-renders it once fresh data actually landed
+  // (and is skipped entirely when the server-side throttle says nothing changed).
+  //
+  // On a TIMER, not on every navigation. It used to run on each pathname change, and a
+  // server action forces Next to render the destination page on the server to build its
+  // response — so every click on a tab cost two full renders of that page instead of
+  // one, all year, to poll something the server throttles to once every three minutes
+  // anyway. The interval matches that throttle, so nothing is polled less often than
+  // before; the difference is that browsing no longer pays for it.
   useEffect(() => {
     if (!user) return
-    autoRefreshFleet()
-      .then((refreshed) => refreshed && router.refresh())
-      .catch(() => {})
+    const poll = () => {
+      // A backgrounded tab does not need fresh truck positions; a dispatcher leaves
+      // this open all day next to everything else.
+      if (document.hidden) return
+      autoRefreshFleet()
+        .then((refreshed) => refreshed && router.refresh())
+        .catch(() => {})
+    }
+    poll()
+    const id = setInterval(poll, 3 * 60 * 1000)
+    return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, user?.id])
+  }, [user?.id])
 
   return (
     <nav

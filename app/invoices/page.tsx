@@ -7,7 +7,6 @@ import {
   listTrucks,
   listUninvoicedDelivered,
   rateConByLoad,
-  truckForLoad,
   type LoadWithDispatcher,
   type Receivable,
 } from '@/lib/loads'
@@ -330,8 +329,17 @@ async function Paid({
   rateCons: Map<number, number>
   locale: Locale
 }) {
-  const loads = await listPaidLoads(companyId)
-  const trucks = await Promise.all(loads.map((l) => truckForLoad(companyId, l)))
+  // One listTrucks, not one getTruck per load. truckForLoad() inside a .map() was a
+  // query per paid row — and getTruck is not cached, so ten loads on the same truck were
+  // ten identical queries. The tab grows without bound as paid loads pile up, which is
+  // the one direction this list only ever moves. Both sibling tabs below already do it
+  // this way; this one was the outlier.
+  const [loads, allTrucks] = await Promise.all([listPaidLoads(companyId), listTrucks(companyId)])
+  const byTruckId = new Map<number, TruckRecord>(allTrucks.map((tr) => [tr.id, tr]))
+  // Same fallback truckForLoad() had: a load with no truck (or a dangling truck_id)
+  // still needs SOME cost model to price against, and the first truck is what the rest
+  // of the app uses for that.
+  const trucks = loads.map((l) => (l.truckId !== null ? byTruckId.get(l.truckId) : undefined) ?? allTrucks[0]!)
   // Old/incomplete loads can be missing miles or transit days — calcLoad throws on
   // those rather than guess, so a paid row without clean economics just shows the
   // rate with no breakdown instead of taking the whole tab down.

@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { BackButton } from '@/components/back-button'
-import { currentLoadForTruck, getTruck, listDocs, listLoads, rateConByLoad } from '@/lib/loads'
-import { truckLabel } from '@/lib/map'
+import { getTruck, listDocs, listLoads, rateConByLoad } from '@/lib/loads'
+import { currentLoadsByTruck, truckLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import {
   fleetStatusByUnit,
@@ -92,10 +92,14 @@ export default async function Page({
   const openTodos = todos.filter((t) => !t.doneAt).length
   const oil = oilStatus(meta, fs?.odometer ?? null)
 
-  // The truck's current assignment — feeds the hero's route/dates summary AND the
-  // map below it, so it's fetched once, unconditionally (a truck can have an active
-  // load worth showing even with no live GPS fix yet).
-  const activeLoad = await currentLoadForTruck(companyId, truck.id)
+  // The truck's current assignment — feeds the hero's route/dates summary AND the map
+  // below it. From the loads already in hand, not a fresh query. currentLoadForTruck() asked the
+  // database for exactly what listLoads({ truckId }) fetched at the top of this function
+  // — newest booked/in_transit load for this truck — and it sat SERIAL in front of
+  // loadMapData()'s external routing call, so the round trip was on the page's critical
+  // path twice over. currentLoadsByTruck() is the same rule, in memory, and is what
+  // /trucks and /tracking already use.
+  const activeLoad = currentLoadsByTruck(live).get(truck.id) ?? null
 
   // Map: the truck where it sits (ELD GPS) plus a delivery pin at its active load's
   // destination city, with rough miles + drive time to it.
