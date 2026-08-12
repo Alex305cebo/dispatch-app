@@ -32,8 +32,14 @@ import { segmentTrail, type HistoryLeg } from './trip-history.ts'
 import { t, type Locale } from './i18n.ts'
 
 // Breadcrumb for idle detection + trip history — fleet_status only holds the latest
-// point, this keeps a short trail. Pruned to 7 days on every write so it never needs
-// a cron. `location` is whatever description string the ELD already gave us for this
+// point, this keeps a trail. Pruned on every write so it never needs a cron.
+//
+// 100 days, not 7. Seven covered idle detection and the 7-day history window and
+// nothing else, which quietly made a quarterly IFTA report impossible: the tax is
+// computed from miles driven per state over three months, and three months of
+// positions were already deleted by the time anyone asked. Nothing reads past 7 days
+// yet — this is here so the data EXISTS when it does. Cost at ~288 pings per truck per
+// day: a few hundred thousand rows and a handful of megabytes for a small fleet. `location` is whatever description string the ELD already gave us for this
 // ping — free to keep, and it's what lets a stop leg say "Knoxville, TN" later.
 async function logPosition(
   unit: string,
@@ -44,7 +50,7 @@ async function logPosition(
 ) {
   if (lat === null || lng === null) return
   await sql`INSERT INTO truck_position_log (unit, lat, lng, drive_status, location) VALUES (${unit}, ${lat}, ${lng}, ${driveStatus}, ${location})`
-  await sql`DELETE FROM truck_position_log WHERE unit = ${unit} AND at < now() - interval '7 days'`
+  await sql`DELETE FROM truck_position_log WHERE unit = ${unit} AND at < now() - interval '100 days'`
 }
 
 /** How long the truck's GPS has stayed within ~0.5mi of its current spot, walking

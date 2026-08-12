@@ -33,8 +33,9 @@ import { t } from '@/lib/i18n'
 
 export const dynamic = 'force-dynamic'
 
-// truck_position_log is pruned to 7 days on every write (lib/eld.ts) — that's the
-// real ceiling on how far back "full history" can ever reach, not a UI choice.
+// The log itself now keeps 100 days (lib/eld.ts, so a quarterly IFTA report has data
+// to stand on), but the UI still offers at most 7: further back the trail is useful to
+// a tax calculation, not to a dispatcher reading a trip.
 const HISTORY_WINDOWS = [
   { hours: 24, key: 'trucks.history.24h' },
   { hours: 72, key: 'trucks.history.3d' },
