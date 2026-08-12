@@ -64,7 +64,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const companyId = user?.companyId ?? 'default'
   const [company, alerts, showTelegram, showFinances] = await Promise.all([
     getCompany(),
-    fleetExpiryAlerts(companyId),
+    // Локаль передаётся ОБОИМИ вызывающими (здесь и на главной) одинаково —
+    // иначе cache() перестал бы их склеивать и запрос ушёл бы дважды за рендер.
+    fleetExpiryAlerts(companyId, locale),
     // Capability-gated nav items — admins always see them; dispatchers per their access.
     can(user, 'telegram'),
     can(user, 'finances'),

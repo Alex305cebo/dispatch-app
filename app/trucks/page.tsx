@@ -13,7 +13,6 @@ import {
   oilStatus,
   openTodoCounts,
   truckMetas,
-  truckPhotoFlags,
 } from '@/lib/maintenance'
 import { sql } from '@/lib/db'
 import { usd, weekBounds, loadWeekAnchorMs } from '@/lib/fmt'
@@ -54,10 +53,12 @@ const unavailableLabel = (locale: Locale, status: 'repair' | 'vacation') =>
 export default async function Page() {
   const companyId = await companyScope()
   const locale = await getLocale()
-  const [trucks, company, photoIds, metas, todoCounts, fleetRaw] = await Promise.all([
+  // Без truckPhotoFlags: truckMetas уже возвращает hasPhoto по тем же строкам
+  // truck_meta (lib/maintenance.ts), так что это был отдельный круг в базу за тем,
+  // что и так приезжало. На главной он оправдан — там truckMetas не грузится.
+  const [trucks, company, metas, todoCounts, fleetRaw] = await Promise.all([
     listTrucks(companyId),
     getCompany(),
-    truckPhotoFlags(companyId),
     truckMetas(companyId),
     openTodoCounts(companyId),
     sql`SELECT unit, drive_status, location, odometer, fuel FROM fleet_status`,
@@ -168,7 +169,7 @@ export default async function Page() {
               {/* Identity + money */}
               <div className="flex items-center gap-3">
                 <div className="relative shrink-0">
-                  <DriverAvatar truckId={truck.id} name={truck.driverName} hasPhoto={photoIds.has(truck.id)} size={44} locale={locale} />
+                  <DriverAvatar truckId={truck.id} name={truck.driverName} hasPhoto={metas.get(truck.id)?.hasPhoto ?? false} size={44} locale={locale} />
                   <span
                     className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-ink-900 ${driveDot(fs?.drive_status ?? null)}`}
                   />

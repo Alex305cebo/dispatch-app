@@ -33,22 +33,23 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (!load) notFound()
   // The load's OWN truck — money is computed with the economics of the truck that
   // hauls it, not some global default.
-  const truck = await truckForLoad(companyId, load)
+  // Four independent reads, in parallel. They used to be four separate awaits in a row,
+  // and only the first actually depends on `load` — the other three were simply queued
+  // behind each other, in front of loadMapData()'s external routing call at the end.
+  const [truck, docs, company, fleet] = await Promise.all([
+    truckForLoad(companyId, load),
+    listDocs(companyId, { loadId: load.id }),
+    getCompany(),
+    fleetStatusByUnit(),
+  ])
 
   // Never throws: the DB CHECKs mirror calcLoad's throw conditions, so every stored
   // row is a valid input by construction.
   const r = calcLoad(load, truck)
-  const docs = await listDocs(companyId, { loadId: load.id })
   const invoiceDoc = docs.find((d) => d.kind === 'invoice')
   const rateConDoc = docs.find((d) => d.kind === 'ratecon')
   const bolDoc = docs.find((d) => d.kind === 'bol')
   const podDoc = docs.find((d) => d.kind === 'pod')
-  // Needed to tell the dispatcher up front if an invoice can even be built.
-  const company = await getCompany()
-
-  // This load's own map — truck → pickup → delivery for THIS load specifically,
-  // not just whatever the truck page happens to call its "current" assignment.
-  const fleet = await fleetStatusByUnit()
   const fs = truck.number ? fleet.get(truck.number) : undefined
   const { markers: mapMarkers, routes: mapRoutes, etaText, miles: routeMiles } = await loadMapData(load, truck, fs, locale)
 

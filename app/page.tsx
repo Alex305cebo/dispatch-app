@@ -82,7 +82,9 @@ export default async function Page() {
       listLoads(companyId),
       listTrucks(companyId),
       sql`SELECT unit, drive_status, location, lat, lng, fuel FROM fleet_status`,
-      fleetExpiryAlerts(companyId),
+      // Без локали функция подставляла 'en' по умолчанию, и подписи о сроках
+      // документов на главной были английскими при русском интерфейсе.
+      fleetExpiryAlerts(companyId, locale),
       rateConByLoad(companyId),
       truckPhotoFlags(companyId),
       truckTrailerNumbers(companyId),
