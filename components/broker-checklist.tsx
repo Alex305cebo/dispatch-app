@@ -281,6 +281,41 @@ export function BrokerChecklist({ check, collapsible = false }: { check: BrokerC
               {t(locale, 'brokers.verdictClean')}
             </p>
           )}
+
+          {/* Платёжная дисциплина брокера — дни до оплаты, жалобы — публично не
+              раздаётся никем: FMCSA знает про полномочия, страховку и бонд (всё выше),
+              а «сколько он платит по факту» живёт только в платных базах. Так что
+              вместо выдумывания цифры — прямые ссылки с уже подставленным MC, чтобы
+              проверка была одним кликом, а не поиском по трём сайтам. */}
+          {check.mc && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-white/[0.03] px-3 py-2 text-[12px]">
+              <span className="text-white/50">{t(locale, 'brokers.payHistory')}</span>
+              <a
+                href={`https://www.carrier411.com/`}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-haul-300 hover:underline"
+              >
+                Carrier411
+              </a>
+              <a
+                href={`https://www.ansonia.com/`}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-haul-300 hover:underline"
+              >
+                Ansonia
+              </a>
+              <a
+                href={`https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=MC_MX&query_string=${check.mc}`}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-haul-300 hover:underline"
+              >
+                SAFER
+              </a>
+            </div>
+          )}
         </>
       )}
     </div>

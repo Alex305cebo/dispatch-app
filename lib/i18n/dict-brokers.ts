@@ -44,6 +44,9 @@ export const brokersDict = {
   'brokers.ageMonths': { ru: '{months} мес.', en: '{months} mo.' },
   'brokers.ageUnknown': { ru: 'дата неизвестна', en: 'date unknown' },
 
+  // Платёжная дисциплина брокера публично не раздаётся — только платные базы,
+  // поэтому здесь ссылки, а не цифра.
+  'brokers.payHistory': { ru: 'Платит вовремя? Проверить:', en: 'Pays on time? Check:' },
   'brokers.verdictClean': { ru: '✓ Красных флагов нет — можно работать', en: '✓ No red flags — clear to work' },
   'brokers.detailsToggle': { ru: 'Все проверки ({n})', en: 'All checks ({n})' },
   'brokers.verdictFlags': { ru: 'Есть на что обратить внимание:', en: 'Points to watch:' },
