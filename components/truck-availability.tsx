@@ -4,7 +4,6 @@
 // An unavailable truck is badged across the app and excluded from "free" counts.
 
 import { useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { setTruckAvailability } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { t, type Locale } from '@/lib/i18n'
@@ -24,7 +23,6 @@ export function TruckAvailability({
   current: 'repair' | 'vacation' | null
   locale?: Locale
 }) {
-  const router = useRouter()
   const [pending, start] = useTransition()
   const active = current ?? 'active'
 
@@ -42,7 +40,6 @@ export function TruckAvailability({
               ? t(locale, 'trucks.avail.markedRepair')
               : t(locale, 'trucks.avail.markedVacation'),
         )
-        router.refresh()
       }
     })
   }

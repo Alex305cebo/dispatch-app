@@ -30,7 +30,6 @@ export function InvoiceBox({
   /** Are the company name + MC/DOT filled in? Without them an invoice can't be built. */
   companyReady?: boolean
 }) {
-  const router = useRouter()
   const locale = useLocale()
   const [pending, start] = useTransition()
 
@@ -41,7 +40,6 @@ export function InvoiceBox({
       else {
         notify('ok', t(locale, 'finances.invoiceBox.built').replace('{n}', res.invoiceNumber))
         window.open(`/api/docs/${res.docId}`, '_blank')
-        router.refresh()
       }
     })
 
@@ -49,7 +47,6 @@ export function InvoiceBox({
     start(async () => {
       await markPaid(loadId, v)
       notify('ok', v ? t(locale, 'finances.invoiceBox.marked') : t(locale, 'finances.invoiceBox.unmarked'))
-      router.refresh()
     })
 
   // Can't invoice without your own company details — say so up front, with the way
@@ -122,7 +119,6 @@ export function PaidToggle({ loadId, paid = false }: { loadId: number; paid?: bo
         start(async () => {
           await markPaid(loadId, !paid)
           notify('ok', paid ? t(locale, 'finances.paidToggle.unmarked') : t(locale, 'finances.paidToggle.marked'))
-          router.refresh()
         })
       }
       className={`shrink-0 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-50 ${
@@ -171,7 +167,6 @@ export function CompanyForm({ initial }: { initial: Company }) {
               if (res?.error) notify('error', res.error)
               else {
                 notify('ok', t(locale, 'finances.form.saved'))
-                router.refresh()
               }
             })
           }>

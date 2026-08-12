@@ -2,7 +2,6 @@
 
 import { Button } from '@/components/button'
 import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import {
   createUser,
   resetUserPassword,
@@ -23,7 +22,6 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
   const locale = useLocale()
   const ROLE_LABEL = { admin: t(locale, 'userPanel.roleAdmin'), dispatcher: t(locale, 'userPanel.roleDispatcher') }
   const capMeta = capabilityMeta(locale)
-  const router = useRouter()
   const [pending, start] = useTransition()
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
@@ -46,7 +44,6 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
       setPassword('')
       setRole('dispatcher')
       setAdding(false)
-      router.refresh()
     })
   }
 
@@ -56,7 +53,6 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
       if (res?.error) notify('error', res.error)
       else {
         notify('ok', u.disabledAt ? t(locale, 'admin.users.accessEnabled') : t(locale, 'admin.users.accessDisabled'))
-        router.refresh()
       }
     })
   }
@@ -65,7 +61,6 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
     start(async () => {
       const res = await setUserRole(u.id, next)
       if (res?.error) notify('error', res.error)
-      else router.refresh()
     })
   }
 
@@ -88,7 +83,6 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
       if (res?.error) notify('error', res.error)
       else {
         notify('ok', t(locale, 'admin.users.permsUpdated'))
-        router.refresh()
       }
     })
   }

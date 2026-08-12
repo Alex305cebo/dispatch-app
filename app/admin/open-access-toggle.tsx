@@ -1,7 +1,6 @@
 'use client'
 
 import { useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { setOpenAccess } from './actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
@@ -9,7 +8,6 @@ import { t } from '@/lib/i18n'
 
 export function OpenAccessToggle({ enabled }: { enabled: boolean }) {
   const locale = useLocale()
-  const router = useRouter()
   const [pending, start] = useTransition()
 
   function toggle() {
@@ -18,7 +16,6 @@ export function OpenAccessToggle({ enabled }: { enabled: boolean }) {
       if (res?.error) notify('error', res.error)
       else {
         notify('ok', enabled ? t(locale, 'admin.openAccess.turnedOff') : t(locale, 'admin.openAccess.turnedOn'))
-        router.refresh()
       }
     })
   }

@@ -8,7 +8,6 @@ import { Button } from '@/components/button'
 // each into a load server-side, so no re-uploading and nothing left stranded.
 
 import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { createLoadFromExistingRc, deleteDocument } from '@/app/actions'
 import { DeleteButton } from '@/components/delete-button'
 import { notify } from '@/lib/notify'
@@ -19,7 +18,6 @@ export type OrphanRc = { id: number; title: string; uploadedAt: string }
 
 export function OrphanRateCons({ truckId, docs }: { truckId: number; docs: OrphanRc[] }) {
   const locale = useLocale()
-  const router = useRouter()
   const [pending, start] = useTransition()
   const [working, setWorking] = useState<number | null>(null)
 
@@ -33,7 +31,6 @@ export function OrphanRateCons({ truckId, docs }: { truckId: number; docs: Orpha
       if ('error' in res) notify('error', res.error)
       else {
         notify('ok', t(locale, 'orphanRc.createdToast'))
-        router.refresh()
       }
     })
   }

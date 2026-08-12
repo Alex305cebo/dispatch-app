@@ -1,14 +1,12 @@
 'use client'
 
 import { useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { tgCheckNow } from './actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 
 export function TgCheckButton() {
-  const router = useRouter()
   const locale = useLocale()
   const [pending, start] = useTransition()
 
@@ -27,7 +25,6 @@ export function TgCheckButton() {
                 .replace('{skipped}', String(res.skipped))
                 .replace('{nudged}', String(res.nudged)),
             )
-            router.refresh()
           }
         })
       }

@@ -8,7 +8,6 @@ import { DocLink } from '@/components/doc-link'
 // chip on the status rail.
 
 import { useRef, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { uploadDocument } from '@/app/actions'
 import { notify } from '@/lib/notify'
@@ -29,7 +28,6 @@ export function DocButton({
   loadId: number
 }) {
   const locale = useLocale()
-  const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
   const [pending, start] = useTransition()
 
@@ -69,7 +67,6 @@ export function DocButton({
       if (res && 'error' in res) notify('error', res.error)
       else {
         notify('ok', t(locale, 'loadDetail.docUploaded').replace('{label}', label))
-        router.refresh()
       }
     })
   }

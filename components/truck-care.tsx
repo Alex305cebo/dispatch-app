@@ -136,7 +136,6 @@ export function TruckCare({
       else {
         notify('ok', ok)
         after?.()
-        router.refresh()
       }
     })
 
@@ -156,7 +155,6 @@ export function TruckCare({
       if ('error' in res) notify('error', res.error)
       else {
         notify('ok', t(locale, 'trucks.care.docAdded'))
-        router.refresh()
       }
     })
   }

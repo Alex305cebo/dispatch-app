@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { tgAttachToLoad } from './actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
@@ -17,7 +16,6 @@ export function TgAttachButton({
   msgId: number
   phone: string | null
 }) {
-  const router = useRouter()
   const locale = useLocale()
   const [pending, start] = useTransition()
   const [done, setDone] = useState<{ loadId: number; loadRoute: string } | null>(null)
@@ -43,7 +41,6 @@ export function TgAttachButton({
           else {
             notify('ok', t(locale, 'telegram.attach.added').replace('{route}', res.loadRoute))
             setDone({ loadId: res.loadId, loadRoute: res.loadRoute })
-            router.refresh()
           }
         })
       }

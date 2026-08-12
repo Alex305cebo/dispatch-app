@@ -6,7 +6,6 @@ import { Button } from '@/components/button'
 // a "Прочитано" button; after, it goes quiet. Editable so notes can be fixed/added.
 
 import { useEffect, useRef, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { markNotesRead, parseRcForNotes, setBrokerNotes, translateBrokerNotes } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
@@ -64,9 +63,7 @@ export function BrokerNotes({
   hasRc: boolean
 }) {
   const locale = useLocale()
-  const TAGS = tagsFor(locale)
-  const router = useRouter()
-  const [editing, setEditing] = useState(false)
+  const TAGS = tagsFor(locale)  const [editing, setEditing] = useState(false)
   const [text, setText] = useState(notes ?? '')
   const [pending, start] = useTransition()
   // Not persisted — re-translated on demand each time the page reloads, which is
@@ -118,7 +115,6 @@ export function BrokerNotes({
         )
         setRu(null)
         setShowRu(false)
-        router.refresh()
       }
     })
   }
@@ -132,7 +128,6 @@ export function BrokerNotes({
         setEditing(false)
         setRu(null)
         setShowRu(false)
-        router.refresh()
       }
     })
   }
@@ -140,7 +135,6 @@ export function BrokerNotes({
   function acknowledge() {
     start(async () => {
       await markNotesRead(loadId)
-      router.refresh()
     })
   }
 

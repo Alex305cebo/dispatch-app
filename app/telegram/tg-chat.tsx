@@ -68,7 +68,6 @@ export function TgSendBox({ chatId }: { chatId: string }) {
       if (res?.error) notify('error', res.error)
       else {
         setText('')
-        router.refresh()
       }
     })
 

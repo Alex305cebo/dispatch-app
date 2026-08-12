@@ -40,7 +40,6 @@ export function DocUpload({
    * repair receipt uploaded right from the maintenance log). */
   defaultKind?: DocKind
 }) {
-  const router = useRouter()
   const locale = useLocale()
   const [pending, start] = useTransition()
   const [kind, setKind] = useState<DocKind>(defaultKind)
@@ -61,7 +60,6 @@ export function DocUpload({
       else {
         notify('ok', t(locale, 'docs.upload.saved'), file.name)
         if (fileRef.current) fileRef.current.value = ''
-        router.refresh()
       }
     })
   }
@@ -136,7 +134,6 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
       else {
         notify('ok', t(locale, 'docs.delete.done'), doc.title)
         onClose()
-        router.refresh()
       }
     })
   }
@@ -214,7 +211,6 @@ function UnattachedActions({
       if ('error' in res) notify('error', res.error)
       else {
         notify('ok', t(locale, 'docs.unattached.recognizedToast'))
-        router.refresh()
       }
     })
   }
@@ -222,7 +218,6 @@ function UnattachedActions({
     start(async () => {
       await attachDocumentToLoad(docId, loadId)
       notify('ok', t(locale, 'docs.unattached.attachedToast'))
-      router.refresh()
     })
   }
 
@@ -477,7 +472,6 @@ export function DocTrash({ rows }: { rows: DocLibRow[] }) {
     start(async () => {
       await restoreDocument(id)
       notify('ok', t(locale, 'docs.trash.restored'), title)
-      router.refresh()
     })
   }
 

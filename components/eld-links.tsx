@@ -6,7 +6,6 @@ import { Button } from '@/components/button'
 // and no third-party product should be named or explained on their screen.
 
 import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { saveEldShareLinks } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
@@ -16,9 +15,7 @@ export function EldLinks({ count }: { count: number }) {
   const locale = useLocale()
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
-  const [pending, start] = useTransition()
-  const router = useRouter()
-
+  const [pending, start] = useTransition()
   function save() {
     start(async () => {
       const res = await saveEldShareLinks(text)
@@ -29,7 +26,6 @@ export function EldLinks({ count }: { count: number }) {
           `${t(locale, 'tracking.linksSavedPrefix')}${res.saved}${t(locale, 'tracking.updatedTrucksMid')}${res.updated}` +
             (res.errors.length ? `${t(locale, 'tracking.errorsSuffix')}${res.errors.length}` : ''),
         )
-        router.refresh()
       }
     })
   }

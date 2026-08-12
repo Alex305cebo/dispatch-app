@@ -7,7 +7,6 @@ import { Button } from '@/components/button'
 // stamps the audit row with their name, so there's no "who deleted it" field to type.
 
 import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
@@ -22,9 +21,7 @@ export function DeleteButton({
   id: number
   title: string
   note?: string // e.g. "and its calculations will be gone for good."
-}) {
-  const router = useRouter()
-  const locale = useLocale()
+}) {  const locale = useLocale()
   const [open, setOpen] = useState(false)
   const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
@@ -39,7 +36,6 @@ export function DeleteButton({
         notify('ok', t(locale, 'deleteButton.deleted'), title)
         setOpen(false)
         setPassword('')
-        router.refresh()
       }
     })
   }

@@ -1,14 +1,12 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { tgDisconnectAccount } from './actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 
 export function TgDisconnectButton() {
-  const router = useRouter()
   const locale = useLocale()
   const [pending, start] = useTransition()
   const [confirming, setConfirming] = useState(false)
@@ -33,7 +31,6 @@ export function TgDisconnectButton() {
           start(async () => {
             await tgDisconnectAccount()
             notify('ok', t(locale, 'telegram.disconnect.done'))
-            router.refresh()
           })
         }
         className="rounded-lg border border-bad-500/25 px-2.5 py-1 text-bad-400 transition-colors hover:border-bad-500/50 disabled:opacity-40"

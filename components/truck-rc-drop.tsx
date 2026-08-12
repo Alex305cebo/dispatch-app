@@ -8,7 +8,6 @@ import { Button } from '@/components/button'
 // of the "everything in one place, fewer clicks" redesign.
 
 import { useEffect, useRef, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { motion } from 'motion/react'
 import Link from 'next/link'
 import { extractPdf, looksScanned } from '@/lib/pdf-text'
@@ -39,7 +38,6 @@ const WTONE = {
 
 export function TruckRcDrop({ truckId }: { truckId: number }) {
   const locale = useLocale()
-  const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [stage, setStage] = useState('')
   const [elapsed, setElapsed] = useState(0)
@@ -101,7 +99,6 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
         const up = await uploadDocument(fd)
         if ('error' in up) throw new Error(up.error)
         notify('ok', t(locale, 'rcDrop.savedAsKind').replace('{kind}', docKindLabel(cls, locale)), file.name)
-        router.refresh()
         return
       }
 
@@ -150,7 +147,6 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
         fileName: file.name,
       })
       notify('ok', t(locale, 'rcDrop.createdToast'), file.name)
-      router.refresh()
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       setError(msg)

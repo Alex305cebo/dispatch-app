@@ -1,5 +1,18 @@
 'use server'
 
+// Правило про router.refresh() после этих действий: он НЕ нужен.
+//
+// Проверено по исходникам Next 15.5 (server/app-render/action-handler.js):
+// ответ серверного действия строится с `skipFlight: !workStore.pathWasRevalidated`.
+// Стоит действию вызвать revalidatePath — и ответ уже содержит заново отрисованное
+// дерево текущей страницы, которое роутер применяет сам. Вызов router.refresh()
+// рядом запрашивает ту же страницу ВТОРОЙ раз, то есть каждое сохранение стоило
+// двух полных серверных рендеров вместо одного.
+//
+// Осознанно оставлены только те refresh, за которыми нет revalidatePath: кнопки
+// «Обновить», опросы по таймеру, выход из аккаунта и смена языка (там меняется кука,
+// а не данные).
+
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'

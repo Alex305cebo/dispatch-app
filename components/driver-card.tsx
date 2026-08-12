@@ -6,7 +6,6 @@ import { Button } from '@/components/button'
 // passport — nobody could find either.
 
 import { useRef, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { saveDriverInfo, saveDriverPhoto } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { Info } from '@/components/info'
@@ -32,9 +31,7 @@ export function DriverCard({
   /** Nested inside another panel (the truck hero) — no own border/background, no header. */
   embedded?: boolean
   locale?: Locale
-}) {
-  const router = useRouter()
-  const [editing, setEditing] = useState(false)
+}) {  const [editing, setEditing] = useState(false)
   const [pending, start] = useTransition()
   const [photoPending, startPhoto] = useTransition()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -54,7 +51,6 @@ export function DriverCard({
       else {
         notify('ok', t(locale, 'trucks.driverCard.saved'))
         setEditing(false)
-        router.refresh()
       }
     })
   }
@@ -68,7 +64,6 @@ export function DriverCard({
       if (res?.error) notify('error', res.error)
       else {
         notify('ok', t(locale, 'trucks.driverCard.photoSaved'))
-        router.refresh()
       }
       if (fileRef.current) fileRef.current.value = ''
     })

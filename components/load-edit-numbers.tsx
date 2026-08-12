@@ -6,7 +6,6 @@ import { Button } from '@/components/button'
 // feed the profit calc, so saving refreshes the page with new numbers.
 
 import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { updateLoadDetails } from '@/app/actions'
 import { usd, usd2 } from '@/lib/fmt'
 import { notify } from '@/lib/notify'
@@ -30,9 +29,7 @@ export type LoadDetails = {
 }
 
 export function LoadEditNumbers({ load }: { load: LoadDetails }) {
-  const locale = useLocale()
-  const router = useRouter()
-  const [editing, setEditing] = useState(false)
+  const locale = useLocale()  const [editing, setEditing] = useState(false)
   const [pending, start] = useTransition()
 
   // Form state as strings (inputs), seeded from the load.
@@ -71,7 +68,6 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
       else {
         notify('ok', t(locale, 'loadEdit.updatedToast'))
         setEditing(false)
-        router.refresh()
       }
     })
   }
