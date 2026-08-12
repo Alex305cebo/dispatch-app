@@ -41,6 +41,10 @@ export type RateConFields = {
   brokerName: Found<string> | null
   brokerPhone: Found<string> | null
   brokerEmail: Found<string> | null
+  /** Через кого брокер платит перевозчикам, если документ это называет —
+   * TriumphPay, Comdata, RTS. Единственный публично доступный признак того, как
+   * до нас дойдут деньги: справочника «MC → факторинг» не существует. */
+  payVia: Found<string> | null
   referenceId: Found<string> | null
   pickupDate: Found<string> | null
   deliveryDate: Found<string> | null
@@ -590,6 +594,9 @@ export function parseRateCon(raw: string, items?: PositionedText[]): RateConFiel
     brokerName: null, // AI-only — merged in by aiToFields
     brokerPhone: search(text, [/\(?\d{3}\)?[\s\-.]\d{3}[\s\-.]\d{4}/], (m) => m[0]!.trim()),
     brokerEmail: search(text, [/[\w.+-]+@[\w-]+\.[a-z]{2,}/i], (m) => m[0]!),
+    // Только ИИ: имя платёжного сервиса стоит в свободном тексте, регулярка тут
+    // угадывала бы больше, чем находила.
+    payVia: null,
     referenceId: search(
       text,
       // The `#?` after the colon matters: "LOAD ID: #S4139751" is real, and without
@@ -698,6 +705,7 @@ export function toQrLoad(f: RateConFields): QrLoad {
     brokerMc: f.mcNumber?.value ?? null,
     brokerPhone: f.brokerPhone?.value ?? null,
     brokerEmail: f.brokerEmail?.value ?? null,
+    payVia: f.payVia?.value ?? null,
     referenceId: f.referenceId?.value ?? null,
     pickupDate: f.pickupDate?.value ?? null,
     deliveryDate: f.deliveryDate?.value ?? null,

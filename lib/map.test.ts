@@ -29,6 +29,7 @@ const truckRow: TruckRow = {
 }
 
 const loadRow: LoadRow = {
+  pay_via: null,
   id: 7,
   truck_id: 1,
   status: 'booked',

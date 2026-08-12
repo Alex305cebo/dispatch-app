@@ -392,3 +392,9 @@ ALTER TABLE loads ADD COLUMN IF NOT EXISTS driver_info TEXT;
 -- missing-column error it would be preventing.
 INSERT INTO settings (key, value) VALUES ('schema_version', '2026-08-07')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+
+-- Через кого брокер платит перевозчикам (TriumphPay, Comdata, RTS…), если рейт-кон
+-- это называет. Единственный публично доступный признак того, как до нас дойдут
+-- деньги: справочника «MC брокера → факторинговая компания» не существует, потому что
+-- факторинг берёт перевозчик, а не брокер. Заполняет ИИ при разборе документа.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS pay_via TEXT;

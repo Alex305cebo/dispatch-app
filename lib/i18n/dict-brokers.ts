@@ -153,6 +153,7 @@ export const brokersDict = {
   'brokers.loadsCount': { ru: 'грузов: {n}', en: 'loads: {n}' },
   'brokers.lastLoad': { ru: 'последний {date}', en: 'last {date}' },
   'brokers.noMc': { ru: 'без MC', en: 'no MC' },
+  'brokers.payVia': { ru: 'платит через {name}', en: 'pays via {name}' },
   'brokers.recheck': { ru: 'Проверить', en: 'Check' },
 
   // ── Largest brokers starter list ────────────────────────────

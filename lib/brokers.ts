@@ -13,6 +13,8 @@ export type OurBroker = {
   email: string | null
   loadCount: number
   lastLoad: string | null
+  /** Payment service named on this broker's rate cons (TriumphPay, Comdata…), newest first. */
+  payVia: string | null
   /** From the FMCSA cache, when this MC has been checked. */
   authorityStatus: string | null
   checkedAt: string | null
@@ -42,7 +44,7 @@ function nameFromEmail(email: string | null): string | null {
  * the load itself. That is a data problem, not a grouping one. */
 export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
   const rows = (await sql`
-    SELECT broker_mc, broker_name, broker_phone, broker_email, created_at
+    SELECT broker_mc, broker_name, broker_phone, broker_email, pay_via, created_at
     FROM loads
     WHERE company_id = ${companyId}
       AND (broker_name IS NOT NULL OR broker_mc IS NOT NULL)
@@ -51,6 +53,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
     broker_name: string | null
     broker_phone: string | null
     broker_email: string | null
+    pay_via: string | null
     created_at: string
   }[]
 
@@ -67,12 +70,14 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
       existing.phone ??= r.broker_phone
       existing.email ??= r.broker_email
       existing.mc ??= mc
+      existing.payVia ??= r.pay_via
     } else {
       byKey.set(key, {
         mc,
         name: r.broker_name,
         phone: r.broker_phone,
         email: r.broker_email,
+        payVia: r.pay_via,
         loadCount: 1,
         lastLoad: r.created_at ? String(r.created_at).slice(0, 10) : null,
         authorityStatus: null,
@@ -109,6 +114,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
         name: c.legal_name ?? c.dba_name,
         phone: c.phone,
         email: null,
+        payVia: null,
         loadCount: 0,
         lastLoad: null,
         authorityStatus: c.authority_status,

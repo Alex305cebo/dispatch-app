@@ -512,6 +512,7 @@ export const loadsDict = {
   'loads.week.deadhead': { ru: 'порожние', en: 'deadhead' },
   'loads.week.perTruck': { ru: 'на трак', en: 'per truck' },
   'loads.week.empty': { ru: 'На этой неделе грузов пока нет', en: 'No loads this week yet' },
+  'import.label.payVia': { ru: 'Платит через', en: 'Pays via' },
   'loads.attention.title': { ru: 'Требуют внимания', en: 'Needs attention' },
   'loads.attention.uninvoiced': { ru: 'счёт не выставлен', en: 'not invoiced' },
   'loads.attention.overdue': { ru: 'оплата просрочена', en: 'payment overdue' },

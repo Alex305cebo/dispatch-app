@@ -21,6 +21,7 @@ export type QrLoad = {
   brokerName: string | null
   brokerMc: string | null
   brokerEmail: string | null
+  payVia: string | null
   brokerPhone: string | null
   referenceId: string | null
   /** Printed on the rate con, not something the DAT extension can ever supply. */
@@ -65,6 +66,7 @@ export const EMPTY: QrLoad = {
   brokerName: null,
   brokerMc: null,
   brokerEmail: null,
+  payVia: null,
   brokerPhone: null,
   referenceId: null,
   // Rate-con detail: absent from a DAT listing, present when the Telegram bot
@@ -150,6 +152,7 @@ export function parseLoadHash(hash: string): QrLoad {
     brokerName: str('bn'),
     brokerMc: str('mc'),
     brokerEmail: str('email'),
+    payVia: null,
     brokerPhone: str('phone'),
     referenceId: str('ref'),
     pickupName: str('pn'),

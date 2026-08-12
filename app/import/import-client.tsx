@@ -35,6 +35,7 @@ function labelsFor(locale: Locale): Record<FoundKey, string> {
   return {
     rate: t(locale, 'import.label.rate'),
     loadedMiles: t(locale, 'import.label.loadedMiles'),
+    payVia: t(locale, 'import.label.payVia'),
     origin: t(locale, 'import.label.origin'),
     destination: t(locale, 'import.label.destination'),
     // Not "broker's MC": real rate cons carry the CARRIER's MC (yours) just as often.

@@ -167,6 +167,13 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                               : t(locale, 'brokers.statusInactive')}
                           </span>
                         )}
+                        {/* Кто реально платит: рейт-кон почти всегда называет платёжный
+                            сервис, а публичного справочника «MC → факторинг» не существует. */}
+                        {b.payVia && (
+                          <span className="shrink-0 rounded-full bg-haul-500/15 px-2 py-0.5 text-[10px] font-medium text-haul-300">
+                            {t(locale, 'brokers.payVia').replace('{name}', b.payVia)}
+                          </span>
+                        )}
                       </div>
                       <div className="mt-0.5 flex flex-wrap gap-x-3 text-[12px] text-white/45">
                         {b.phone && <span>{b.phone}</span>}

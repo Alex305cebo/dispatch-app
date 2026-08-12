@@ -27,6 +27,7 @@ const RATECON_ABSENT = Object.fromEntries(
 ) as { [K in keyof typeof RATECON_DETAIL]: null }
 
 const full: QrLoad = {
+  payVia: null,
   rate: 2400,
   loadedMiles: 1075,
   deadheadMiles: 75,

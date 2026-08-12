@@ -306,7 +306,7 @@ export async function createLoad(
                          destination, truck_location, spot_rpm, broker_name, broker_mc, broker_email,
                          broker_phone, reference_id, source, truck_id, pickup_date,
                          delivery_date, broker_notes, pickup_time, delivery_time,
-                         pickup_address, delivery_address, dispatcher_id, company_id, driver_info)
+                         pickup_address, delivery_address, dispatcher_id, company_id, driver_info, pay_via)
       VALUES (${load.rate}, ${load.loadedMiles}, ${deadheadMiles}, ${load.transitDays},
               ${load.origin}, ${load.destination}, ${load.truckLocation}, ${load.spotRpm},
               ${load.brokerName}, ${load.brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
@@ -314,7 +314,7 @@ export async function createLoad(
               ${load.deliveryDate ?? null}, ${load.brokerNotes ?? null},
               ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
               ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, ${dispatcherId}, ${companyId},
-              ${driverInfo ?? null})
+              ${driverInfo ?? null}, ${load.payVia ?? null})
       RETURNING id`
     id = (rows[0] as { id: number }).id
     if (docId && (await docBelongs(companyId, docId))) {
@@ -435,14 +435,14 @@ export async function createLoadFromRc(
                          destination, truck_location, spot_rpm, broker_name, broker_mc, broker_email,
                          broker_phone, reference_id, source, truck_id, pickup_date,
                          delivery_date, broker_notes, pickup_time, delivery_time,
-                         pickup_address, delivery_address, status, dispatcher_id, company_id, driver_info)
+                         pickup_address, delivery_address, status, dispatcher_id, company_id, driver_info, pay_via)
       VALUES (${load.rate}, ${loadedMiles}, ${deadheadMiles}, ${load.transitDays},
               ${load.origin}, ${load.destination}, ${load.truckLocation}, ${load.spotRpm},
               ${load.brokerName}, ${load.brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
               'qr', ${truckId}, ${load.pickupDate ?? null}, ${load.deliveryDate ?? null},
               ${load.brokerNotes ?? null}, ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
               ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, 'booked', ${dispatcherId}, ${companyId},
-              ${driverInfo ?? null})
+              ${driverInfo ?? null}, ${load.payVia ?? null})
       RETURNING id`
     const loadId = (rows[0] as { id: number }).id
     if (docId && (await docBelongs(companyId, docId)))

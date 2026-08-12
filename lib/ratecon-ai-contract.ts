@@ -55,6 +55,7 @@ Rules:
 - referenceId = the load/order number of this load.
 - brokerName = the BROKERAGE COMPANY that issued this rate confirmation — the business name in the letterhead (e.g. "C.H. Robinson Worldwide, Inc.", "TQL", "Molo Solutions"). NEVER the name of the person who signed or sent it. A rate con is signed by a rep, and their name is NOT the broker: putting "Tyler Simpson" here makes the load unattributable to the company we actually haul for. If the letterhead shows only a logo with no legible company name, return null. Put the rep's name and direct number in importantNotes under [CONTACT].
 - brokerPhone/brokerEmail = the best contact phone and email printed for that brokerage (a rep's direct line and address are fine here — those ARE contact details).
+- payVia = the NAME of the service the broker pays carriers THROUGH, if the document names one. Rate cons state this in the payment/remittance block, e.g. "All carrier payments are now being processed through triumphpay.com" -> "TriumphPay". Other common ones: Comdata, RTS, Apex, Triumph, OTR, eCapital, Denim. Also use it for an assignment notice ("this invoice has been assigned to ..."). Just the company name, no sentence. null if the document says nothing about how payment is processed — most do not.
 - mcNumber = the MC docket of the BROKER who issued this rate confirmation — the company in the letterhead that is PAYING for the load. A rate con normally prints TWO MC numbers, and the other one belongs to the CARRIER being hired (it sits in the "Carrier"/"Carrier Information"/"Bill To Carrier" block, next to the truck/driver details). NEVER return the carrier's MC. If the only MC printed belongs to the carrier, or you cannot tell the two apart with certainty, return null — a wrong MC sends the dispatcher to look up the wrong company.
 - pickupDate = first pickup date as MM/DD/YYYY. deliveryDate = final delivery date as MM/DD/YYYY.
 - weight like "42000 lbs" (keep the unit).
@@ -90,6 +91,7 @@ export const AI_SCHEMA = {
     mcNumber: { type: 'STRING', nullable: true },
     brokerPhone: { type: 'STRING', nullable: true },
     brokerEmail: { type: 'STRING', nullable: true },
+    payVia: { type: 'STRING', nullable: true },
     pickupDate: { type: 'STRING', nullable: true },
     deliveryDate: { type: 'STRING', nullable: true },
     importantNotes: { type: 'STRING', nullable: true },
@@ -119,6 +121,7 @@ export type AiFields = {
   mcNumber?: string | null
   brokerPhone?: string | null
   brokerEmail?: string | null
+  payVia?: string | null
   pickupDate?: string | null
   deliveryDate?: string | null
   importantNotes?: string | null
@@ -232,6 +235,7 @@ export function aiToFields(ai: AiFields, model: string, locale: Locale = 'en'): 
     brokerName: found(ai.brokerName, ev),
     brokerPhone: found(ai.brokerPhone, ev),
     brokerEmail: found(ai.brokerEmail, ev),
+    payVia: found(ai.payVia, ev),
     referenceId: found(ai.referenceId, ev),
     pickupDate: found(toIso(ai.pickupDate), ev),
     deliveryDate: found(toIso(ai.deliveryDate), ev),
@@ -261,6 +265,7 @@ export function mergeAi(base: RateConFields, ai: RateConFields): RateConFields {
     mcNumber: ai.mcNumber ?? base.mcNumber,
     brokerPhone: ai.brokerPhone ?? base.brokerPhone,
     brokerEmail: ai.brokerEmail ?? base.brokerEmail,
+    payVia: ai.payVia ?? base.payVia,
     referenceId: ai.referenceId ?? base.referenceId,
     pickupDate: ai.pickupDate ?? base.pickupDate,
     deliveryDate: ai.deliveryDate ?? base.deliveryDate,
