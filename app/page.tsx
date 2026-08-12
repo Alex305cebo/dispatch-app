@@ -268,8 +268,11 @@ export default async function Page() {
         </div>
       )}
 
+      {/* Четыре в ряд только с lg. На 640px четвёрка давала по ~155px на плитку, и
+          «$81,799» вылезал за край, а подпись схлопывалась в «TOT…». На планшете две
+          широкие читаются, четыре узкие — нет. */}
       {loads.length > 0 && (
-        <div className="panel mb-4 grid grid-cols-2 gap-2.5 p-2.5 sm:grid-cols-4">
+        <div className="panel mb-4 grid grid-cols-2 gap-2.5 p-2.5 lg:grid-cols-4">
           <Stat
             href="/loads"
             hero
@@ -607,8 +610,10 @@ function Stat({
           label underneath in 10px grey, so four tiles in a row read as four loose
           numbers with no way to tell at a glance which was which. */}
       <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1 text-2xs font-semibold uppercase tracking-wider text-white/55">
-          <span className="truncate">{label}</span>
+        <div className="flex min-w-0 items-center gap-1 text-2xs font-semibold uppercase tracking-wide text-white/55">
+          {/* Переносится на вторую строку, а не обрезается: «TOT…» не говорит ничего,
+              две строки говорят всё. Плитки в ряду тянутся до общей высоты. */}
+          <span className="min-w-0">{label}</span>
           {info && <Info text={info} />}
         </div>
         {icon && (
@@ -620,8 +625,12 @@ function Stat({
         )}
       </div>
 
+      {/* Размер по ширине экрана: на узком крупный шрифт не помещался и число
+          обрезалось молча — это хуже, чем то же число на пару пунктов мельче. */}
       <div
-        className={`nums mt-2 font-bold leading-none tracking-tight ${hero ? 'text-3xl' : 'text-2xl'} ${
+        className={`nums mt-2 break-all font-bold leading-none tracking-tight ${
+          hero ? 'text-2xl lg:text-3xl' : 'text-xl lg:text-2xl'
+        } ${
           tone === 'good' ? 'text-good-400' : tone === 'bad' ? 'text-bad-400' : ''
         }`}
       >
