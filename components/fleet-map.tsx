@@ -96,9 +96,18 @@ const SATELLITE_ATTRIB = MAPBOX_TOKEN
 // Per-layer tile options. Mapbox and MapTiler both serve the @2x/512 retina grid; bare OSM
 // and the Esri satellite stay on the plain 256 grid.
 const RETINA = Boolean(MAPBOX_TOKEN || MAPTILER_KEY)
+/** До какого зума у провайдера реально ЕСТЬ картинка. Дальше Leaflet растянет последний
+ * доступный тайл — размыто, но видно, где стоит трак. Без этого Esri отдаёт не 404, а
+ * серую заглушку «Map data not yet available», и карта просто исчезала. Esri занижен до 17:
+ * в городе снимки есть и глубже, а на сельской развязке — уже нет, и заглушка вылезала. */
+const SAT_NATIVE_ZOOM = MAPBOX_TOKEN ? 19 : MAPTILER_KEY ? 19 : 17
 function tileOpts(sat: boolean) {
   const attribution = sat ? SATELLITE_ATTRIB : STREET_ATTRIB
-  return RETINA ? { tileSize: 512, zoomOffset: -1, maxZoom: 20, attribution } : { maxZoom: 18, attribution }
+  // maxZoom = потолок карты (19), maxNativeZoom = потолок ЗАПРОСОВ к провайдеру.
+  const maxNativeZoom = sat ? SAT_NATIVE_ZOOM : RETINA ? 19 : 18
+  return RETINA
+    ? { tileSize: 512, zoomOffset: -1, maxZoom: 19, maxNativeZoom, attribution }
+    : { maxZoom: 19, maxNativeZoom, attribution }
 }
 
 /**
@@ -406,7 +415,10 @@ export function FleetMap({
       // Attribution control off at the owner's request (no on-map watermark). NOTE: the
       // tile sources (OpenFreeMap/OpenMapTiles/OSM data, MapTiler, Esri) technically require
       // a visible credit under their terms — this drops it deliberately.
-      map = L.map(ref.current, { zoomControl: true, attributionControl: false })
+      // minZoom 3 / maxZoom 19: без границ колесо уводило либо в серую сетку «Map data not
+      // yet available» (спутник кончается раньше, чем зум), либо на весь глобус, где траки
+      // сливались в одну точку. 3 ≈ вся страна целиком, 19 ≈ номера домов.
+      map = L.map(ref.current, { zoomControl: true, attributionControl: false, minZoom: 3, maxZoom: 19 })
       mapRef.current = map
       tileRef.current = (await buildBaseLayer(L, satelliteRef.current)).addTo(map)
 

@@ -91,6 +91,7 @@ export default async function Page({
   const weekMiles = weekRows.reduce((s, x) => s + x.r.totalMiles, 0)
   const avgRpm = weekMiles > 0 ? weekRows.reduce((s, x) => s + x.r.gross, 0) / weekMiles : 0
   const openTodos = todos.filter((t) => !t.doneAt).length
+  const hasUrgentTodo = todos.some((t) => !t.doneAt && t.priority === 'urgent')
   const oil = oilStatus(meta, fs?.odometer ?? null)
 
   // The truck's current assignment — feeds the hero's route/dates summary AND the map
@@ -115,6 +116,47 @@ export default async function Page({
   return (
     <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-10">
       <BackButton href="/trucks" label={t(locale, 'trucks.detail.backAll')} />
+
+      {/* Незакрытый ремонт — вверху, а не строкой внизу страницы: раньше о поломке
+          узнавали, только домотав до «Журнала», то есть практически никогда. Висит,
+          пока пункт не отметят выполненным в разделе «Нужно починить». */}
+      {openTodos > 0 && (
+        <a
+          href="#care"
+          className={`mt-3 flex items-start gap-2.5 rounded-xl border px-3.5 py-2.5 transition-colors ${
+            hasUrgentTodo
+              ? 'border-bad-500/35 bg-bad-500/[0.10] hover:bg-bad-500/[0.15]'
+              : 'border-warn-500/30 bg-warn-500/[0.08] hover:bg-warn-500/[0.13]'
+          }`}
+        >
+          <span
+            className={`mt-px flex size-6 shrink-0 items-center justify-center rounded-md ring-1 ${
+              hasUrgentTodo
+                ? 'bg-bad-500/20 text-bad-400 ring-bad-400/25'
+                : 'bg-warn-500/20 text-warn-400 ring-warn-400/25'
+            }`}
+          >
+            <span className="text-[12px] leading-none">🔧</span>
+          </span>
+          <div className="min-w-0 flex-1">
+            <p
+              className={`text-2xs font-semibold uppercase tracking-wider ${
+                hasUrgentTodo ? 'text-bad-400' : 'text-warn-400'
+              }`}
+            >
+              {t(locale, 'trucks.care.todoHeading')} · {openTodos}
+            </p>
+            <p className="mt-0.5 text-[13px] text-white/80">
+              {todos
+                .filter((x) => !x.doneAt)
+                .slice(0, 4)
+                .map((x) => (x.priority === 'urgent' ? `${x.title} (${t(locale, 'trucks.care.prioUrgent')})` : x.title))
+                .join(' · ')}
+              {openTodos > 4 && ` … +${openTodos - 4}`}
+            </p>
+          </div>
+        </a>
+      )}
 
       {/* ===== HERO: the truck in the centre, key info around it ===== */}
       <section className="relative mt-3 overflow-hidden rounded-3xl border border-white/8 bg-gradient-to-b from-ink-800/80 to-ink-950 px-4 pt-5 pb-4 sm:px-8">
@@ -435,11 +477,6 @@ export default async function Page({
           locale={locale}
         />
       </div>
-      {openTodos > 0 && (
-        <p className="mt-2 text-center text-[12px] text-bad-400">
-          {t(locale, 'trucks.detail.needsFixPrefix')} {openTodos} {t(locale, 'trucks.detail.needsFixSuffix')}
-        </p>
-      )}
 
       {/* ===== Economics — collapsed by default (rarely changed) ===== */}
       <details className="group panel mt-4 p-4">
