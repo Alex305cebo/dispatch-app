@@ -64,13 +64,19 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           {load.origin ?? '—'} → {load.destination ?? '—'}
         </h1>
         <p className="mt-1.5 text-[13px] text-white/65">
-          <Link href={`/trucks/${truck.id}`} className="text-haul-400 hover:underline">
-            {truckLabel(truck)}
-          </Link>
-          {' · '}
           {load.source === 'qr' ? t(locale, 'loadDetail.sourceQr') : t(locale, 'loadDetail.sourceManual')}
           {load.referenceId && ` · Ref ${load.referenceId}`}
         </p>
+        {/* Обратный переход на трак был номером в 13px внутри служебной строки — его
+            не находили. Теперь такая же кнопка, как маршрут на странице трака. */}
+        <Link
+          href={`/trucks/${truck.id}`}
+          className="group mt-2.5 inline-flex items-center gap-2 rounded-xl border border-haul-500/35 bg-haul-500/[0.10] px-3 py-1.5 transition-colors hover:border-haul-400/60 hover:bg-haul-500/20"
+        >
+          <span aria-hidden className="text-[14px] leading-none">🚛</span>
+          <span className="text-[15px] font-semibold">{truckLabel(truck)}</span>
+          <span className="text-[14px] text-haul-300 transition-transform group-hover:translate-x-0.5">↗</span>
+        </Link>
 
         {/* The rail needs the full width to lay five labelled steps out; sharing a flex
             row with the rate-con control squeezed it to ~160px and clipped every label

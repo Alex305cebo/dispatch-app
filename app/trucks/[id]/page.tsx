@@ -222,11 +222,18 @@ export default async function Page({
           {activeLoad ? (
             <>
               <div className="flex flex-wrap items-center justify-between gap-2">
+                {/* Кнопка, а не текст-ссылка: маршрут — единственный переход с трака на
+                    его груз, и подчёркиванием при наведении он себя не выдавал. */}
                 <Link
                   href={`/loads/${activeLoad.id}`}
-                  className="truncate text-[16px] font-semibold hover:text-haul-400"
+                  className="group flex min-w-0 items-center gap-2 rounded-xl border border-haul-500/35 bg-haul-500/[0.10] px-3 py-1.5 transition-colors hover:border-haul-400/60 hover:bg-haul-500/20"
                 >
-                  {activeLoad.origin ?? '—'} → {activeLoad.destination ?? '—'}
+                  <span className="truncate text-[16px] font-semibold">
+                    {activeLoad.origin ?? '—'} → {activeLoad.destination ?? '—'}
+                  </span>
+                  <span className="shrink-0 text-[14px] text-haul-300 transition-transform group-hover:translate-x-0.5">
+                    ↗
+                  </span>
                 </Link>
                 <StatusBadge status={activeLoad.status} locale={locale} />
               </div>
