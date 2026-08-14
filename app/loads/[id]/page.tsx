@@ -20,6 +20,7 @@ import { DocList, DocUpload } from '@/components/docs'
 import { InvoiceBox } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
 import { DocButton } from '@/components/doc-button'
+import { MissingDocsBanner } from '@/components/missing-docs-banner'
 import { BackButton } from '@/components/back-button'
 import { DriverInfoCard } from '@/components/driver-info-card'
 import { Info } from '@/components/info'
@@ -149,6 +150,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <FleetMap markers={mapMarkers} routes={mapRoutes} height={280} distanceMi={routeMiles} />
         </section>
       )}
+
+      <MissingDocsBanner
+        loadId={load.id}
+        status={load.status}
+        bolId={bolDoc?.id ?? null}
+        podId={podDoc?.id ?? null}
+        locale={locale}
+      />
 
       {/* Broker's must-read instructions — below the map, above the load's own
           details, expanded by default while unread so it can't be missed. */}

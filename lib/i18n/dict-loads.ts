@@ -79,6 +79,15 @@ export const loadsDict = {
   // app/loads/[id]/page.tsx
   'loadDetail.sourceQr': { ru: 'Пришёл с DAT по QR', en: 'Came in from DAT via QR' },
   'loadDetail.sourceManual': { ru: 'Добавлен вручную', en: 'Added manually' },
+  'loadDetail.docsMissingTitle': { ru: 'Не загружены {missing}', en: '{missing} not uploaded' },
+  'loadDetail.docsMissingHint': {
+    ru: 'Статус можно ставить и без них, но груз не закрыт, пока бумаги не пришли от водителя.',
+    en: 'The status moves without them, but the load is not closed until the driver sends the paperwork.',
+  },
+  'loadDetail.docsMissingBlocksPaid': {
+    ru: 'Отметить «Оплачен» без них не выйдет: пакет для счёта брокеру собирается именно из них.',
+    en: 'Marking Paid needs them: the broker invoice packet is built from these documents.',
+  },
   'loadDetail.trailerShort': { ru: 'прицеп', en: 'trailer' },
   'loadDetail.noRateCon': { ru: 'Rate con не прикреплён — загрузи его ниже, в документах груза.', en: "No rate con attached — upload it below, in the load's documents." },
   'loadDetail.openDoc': { ru: 'Открыть {label}', en: 'Open {label}' },

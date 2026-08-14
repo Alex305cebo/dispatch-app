@@ -183,13 +183,9 @@ async function autoAdvanceLoadStatuses(): Promise<void> {
       deliveryArrived,
     })
     if (next) {
-      // Same paperwork gate as the manual button: the truck physically leaving delivery
-      // doesn't close the load out until its BOL + POD are in. It stays in_transit and
-      // flips to delivered on a later poll, once the docs are uploaded.
-      if (next === 'delivered') {
-        const d = await deliveryDocs(r.id)
-        if (!d.bol || !d.pod) continue
-      }
+      // Бумажной проверки здесь больше нет — по той же причине, что и у кнопки в
+      // setStatus: трак физически уехал с выгрузки, значит груз доставлен, а POD
+      // подъедет фотографией позже. О недостающих бумагах говорит баннер на грузе.
       // Guard on the status we read, so a manual change in between wins over the auto-move.
       await sql`UPDATE loads SET status = ${next} WHERE id = ${r.id} AND status = ${r.status}`
     }
@@ -518,14 +514,18 @@ async function deliveryDocs(loadId: number): Promise<{ bol: boolean; pod: boolea
 export async function setStatus(id: number, status: LoadStatus): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
-  // "Delivered" (and paid, which implies it) is the point where the paperwork must exist —
-  // a load can't be closed out without its BOL and POD. Gate both the manual click here and
-  // the GPS auto-advance (autoAdvanceLoadStatuses) on the same check.
-  if (status === 'delivered' || status === 'paid') {
+  // «Доставлен» больше НЕ требует бумаг. Груз доставлен в тот момент, когда водитель
+  // его сдал, — а POD приходит фотографией через час-два, и всё это время статус врал.
+  // Вместо запрета на странице груза висит постоянный баннер о недостающих BOL/POD
+  // (components/missing-docs-banner.tsx), а список грузов помечает такой груз.
+  //
+  // «Оплачен» проверку сохраняет: это уже про деньги, и пакет для счёта (lib/invoice.ts)
+  // без POD собрать нельзя — там запрет не раздражает, а спасает.
+  if (status === 'paid') {
     const d = await deliveryDocs(id)
     if (!d.bol || !d.pod) {
       const missing = [!d.bol ? 'BOL' : null, !d.pod ? 'POD' : null].filter(Boolean).join(' + ')
-      return { error: t(await getLocale(), 'actions.deliveredNeedsDocs').replace('{missing}', missing) }
+      return { error: t(await getLocale(), 'actions.paidNeedsDocs').replace('{missing}', missing) }
     }
   }
   await sql`

@@ -6,9 +6,9 @@
 export const actionsDict = {
   'actions.needOriginDest': { ru: 'Нужны и откуда, и куда.', en: 'Need both an origin and a destination.' },
   'actions.noAccess': { ru: 'Нет доступа к этой функции.', en: 'No access to this feature.' },
-  'actions.deliveredNeedsDocs': {
-    ru: 'Нельзя отметить «Доставлен»: не загружены {missing}.',
-    en: 'Can’t mark Delivered: {missing} not uploaded.',
+  'actions.paidNeedsDocs': {
+    ru: 'Нельзя отметить «Оплачен»: не загружены {missing} — без них не собрать пакет для счёта.',
+    en: 'Can’t mark Paid: {missing} not uploaded — the invoice packet needs them.',
   },
   'actions.loadNotFound': { ru: 'Груз не найден.', en: 'Load not found.' },
   'actions.demoDisabled': { ru: 'В демо-режиме недоступно.', en: 'Not available in demo mode.' },
