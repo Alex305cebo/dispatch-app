@@ -4,6 +4,7 @@ import { eldStatus } from '@/lib/map'
 import { agoText } from '@/lib/fmt'
 import { idleSince } from '@/lib/eld'
 import { FleetMap, type MapMarker } from '@/components/fleet-map'
+import { SmallRefreshButton } from '@/components/small-refresh-button'
 import { t } from '@/lib/i18n'
 import { getLocale } from '@/lib/i18n-server'
 
@@ -49,6 +50,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </p>
 
         <div className="mt-4">
+          <div className="mb-2 flex justify-end">
+            <SmallRefreshButton local />
+          </div>
           {hasFix ? (
             <FleetMap markers={markers} routes={[]} />
           ) : (

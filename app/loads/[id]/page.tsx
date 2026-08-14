@@ -10,6 +10,7 @@ import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { loadMapData } from '@/lib/load-map'
 import { FleetMap } from '@/components/fleet-map'
+import { SmallRefreshButton } from '@/components/small-refresh-button'
 import { Analysis } from '@/components/analysis'
 import { LoadEditNumbers } from '@/components/load-edit-numbers'
 import { BrokerNotes } from '@/components/broker-notes'
@@ -117,6 +118,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             {t(locale, 'loadDetail.mapHeading')}
             <Info text={t(locale, 'loadDetail.mapInfo')} />
             {etaText && <span className="ml-auto text-[13px] font-semibold normal-case text-white/80">{etaText}</span>}
+            <span className={etaText ? '' : 'ml-auto'}>
+              <SmallRefreshButton />
+            </span>
           </h2>
           <FleetMap markers={mapMarkers} routes={mapRoutes} height={280} distanceMi={routeMiles} />
         </section>

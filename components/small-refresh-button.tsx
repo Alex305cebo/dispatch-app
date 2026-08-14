@@ -11,7 +11,13 @@ import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 
-export function SmallRefreshButton() {
+export function SmallRefreshButton({
+  /** Только перечитать страницу, БЕЗ опроса GPS-провайдера. Для публичной ссылки
+   * /track/[id]: она открыта без логина, и дать оттуда кнопку, опрашивающую весь парк,
+   * значит отдать постороннему расход нашего лимита у вендора. Позицию всё равно
+   * обновляет автоопрос из приложения — здесь показываем свежайшее, что уже в базе. */
+  local = false,
+}: { local?: boolean } = {}) {
   const locale = useLocale()
   const router = useRouter()
   const [pending, start] = useTransition()
@@ -20,6 +26,7 @@ export function SmallRefreshButton() {
     e.preventDefault()
     e.stopPropagation()
     start(async () => {
+      if (local) return router.refresh()
       const res = await refreshFleetStatus()
       if (res.errors.length) notify('warn', res.errors.join(' · '))
       else
