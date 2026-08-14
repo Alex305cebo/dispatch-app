@@ -26,6 +26,12 @@ export type LoadDetails = {
   truckLocation: string | null
   pickupDate: string | null
   deliveryDate: string | null
+  /** Окно из рейт-кона («8/14/2026 09:00-13:00»), если оно было прочитано. */
+  pickupTime?: string | null
+  deliveryTime?: string | null
+  /** Наш собственный средний $/милю по этому направлению — подпорка на месте
+   * биржевого спот-рейта, которого у нас нет ни от одного бесплатного источника. */
+  laneAvgRpm?: number | null
 }
 
 export function LoadEditNumbers({ load }: { load: LoadDetails }) {
@@ -75,7 +81,12 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
   if (!editing) {
     return (
       <>
-        <dl className="flex flex-col gap-2.5 text-[13px]">
+        {/* Две колонки вместо столбика из двенадцати строк — тот же объём занимает
+            вдвое меньше высоты. Брокер, MC, телефон и даты рисуются ВСЕГДА, даже
+            пустыми: раньше строки просто не было, и «в рейт-коне нет MC» было не
+            отличить от «поле есть, но мы его не показали» — а заодно не видно, что
+            надо дописать руками. */}
+        <dl className="grid grid-cols-1 gap-x-8 gap-y-2 text-[13px] sm:grid-cols-2">
           <Row label={t(locale, 'loadEdit.rate')} value={usd.format(load.rate)} />
           <Row label={t(locale, 'loadEdit.loadedMiles')} value={String(load.loadedMiles)} />
           <Row label={t(locale, 'loadEdit.deadheadMiles')} value={`${load.deadheadMiles} mi`} />
@@ -83,18 +94,34 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
           <Row
             label={t(locale, 'loadEdit.spotRate')}
             value={load.spotRpm ? `${usd2.format(load.spotRpm)}/mi` : '—'}
+            // Биржевого фида у нас нет, и вечный прочерк ни о чём не говорит. Вместо
+            // него — единственная честная опора: сколько мы сами брали на этом
+            // направлении раньше.
+            hint={
+              load.spotRpm
+                ? undefined
+                : load.laneAvgRpm
+                  ? `${t(locale, 'loadEdit.ourLaneAvg')} ${usd2.format(load.laneAvgRpm)}/mi`
+                  : t(locale, 'loadEdit.noMarketData')
+            }
           />
+          <Row label={t(locale, 'loadEdit.brokerName')} value={load.brokerName ?? '—'} />
+          <Row label={t(locale, 'loadEdit.brokerMc')} value={load.brokerMc ?? '—'} />
+          <Row
+            label={t(locale, 'loadEdit.phone')}
+            value={load.brokerPhone ?? '—'}
+            href={load.brokerPhone ? `tel:${load.brokerPhone}` : undefined}
+          />
+          <Row
+            label="Email"
+            value={load.brokerEmail ?? '—'}
+            href={load.brokerEmail ? `mailto:${load.brokerEmail}` : undefined}
+          />
+          {/* Окно из рейт-кона («8/14/2026 09:00-13:00») информативнее голой даты —
+              диспетчеру нужен именно интервал, поэтому оно идёт первым. */}
+          <Row label={t(locale, 'loadEdit.pickup')} value={load.pickupTime || load.pickupDate || '—'} />
+          <Row label={t(locale, 'loadEdit.delivery')} value={load.deliveryTime || load.deliveryDate || '—'} />
           {load.truckLocation && <Row label={t(locale, 'loadEdit.truckWasAt')} value={load.truckLocation} />}
-          {load.brokerName && <Row label={t(locale, 'loadEdit.brokerName')} value={load.brokerName} />}
-          {load.brokerMc && <Row label={t(locale, 'loadEdit.brokerMc')} value={load.brokerMc} />}
-          {load.brokerPhone && (
-            <Row label={t(locale, 'loadEdit.phone')} value={load.brokerPhone} href={`tel:${load.brokerPhone}`} />
-          )}
-          {load.brokerEmail && (
-            <Row label="Email" value={load.brokerEmail} href={`mailto:${load.brokerEmail}`} />
-          )}
-          {load.pickupDate && <Row label={t(locale, 'loadEdit.pickup')} value={load.pickupDate} />}
-          {load.deliveryDate && <Row label={t(locale, 'loadEdit.delivery')} value={load.deliveryDate} />}
         </dl>
         <button
           onClick={() => setEditing(true)}
@@ -176,11 +203,22 @@ function Field({
   )
 }
 
-function Row({ label, value, href }: { label: string; value: string; href?: string }) {
+function Row({
+  label,
+  value,
+  href,
+  hint,
+}: {
+  label: string
+  value: string
+  href?: string
+  /** Приписка под значением — чем заменить прочерк, когда самого значения нет. */
+  hint?: string
+}) {
   return (
-    <div className="flex items-baseline justify-between gap-4">
-      <dt className="text-white/60">{label}</dt>
-      <dd className="nums text-right font-medium">
+    <div className="flex items-baseline justify-between gap-4 border-b border-white/[0.06] pb-1.5">
+      <dt className="shrink-0 text-white/60">{label}</dt>
+      <dd className="nums min-w-0 text-right font-medium">
         {href ? (
           <a href={href} className="text-haul-400 hover:underline">
             {value}
@@ -188,6 +226,7 @@ function Row({ label, value, href }: { label: string; value: string; href?: stri
         ) : (
           value
         )}
+        {hint && <span className="ml-1.5 text-[11px] font-normal text-white/40">{hint}</span>}
       </dd>
     </div>
   )

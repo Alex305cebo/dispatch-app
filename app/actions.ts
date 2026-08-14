@@ -903,12 +903,22 @@ export async function parseRcForNotes(
   const driverInfo = formatDriverInfo(fields)
 
   try {
+    // COALESCE у реквизитов брокера, а не присваивание: у груза, заведённого с DAT по
+    // QR, брокер приходит одним названием без MC и почты, и рейт-кон — единственное
+    // место, где они есть. Но если диспетчер уже поправил их руками, перезаписывать
+    // нельзя, поэтому дописываем только пустые.
     await sql`UPDATE loads SET
       broker_notes = ${load.brokerNotes}, notes_read_at = NULL,
       transit_days = ${load.transitDays},
       pickup_date = ${load.pickupDate}, delivery_date = ${load.deliveryDate},
       pickup_time = ${load.pickupTime}, delivery_time = ${load.deliveryTime},
       pickup_address = ${load.pickupAddress}, delivery_address = ${load.deliveryAddress},
+      broker_name = COALESCE(broker_name, ${load.brokerName}),
+      broker_mc = COALESCE(broker_mc, ${load.brokerMc}),
+      broker_phone = COALESCE(broker_phone, ${load.brokerPhone}),
+      broker_email = COALESCE(broker_email, ${load.brokerEmail}),
+      reference_id = COALESCE(reference_id, ${load.referenceId}),
+      pay_via = COALESCE(pay_via, ${load.payVia}),
       driver_info = ${driverInfo}
       WHERE id = ${loadId} AND company_id = ${companyId}`
   } catch (e) {

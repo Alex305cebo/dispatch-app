@@ -79,6 +79,7 @@ export const loadsDict = {
   // app/loads/[id]/page.tsx
   'loadDetail.sourceQr': { ru: 'Пришёл с DAT по QR', en: 'Came in from DAT via QR' },
   'loadDetail.sourceManual': { ru: 'Добавлен вручную', en: 'Added manually' },
+  'loadDetail.trailerShort': { ru: 'прицеп', en: 'trailer' },
   'loadDetail.noRateCon': { ru: 'Rate con не прикреплён — загрузи его ниже, в документах груза.', en: "No rate con attached — upload it below, in the load's documents." },
   'loadDetail.openDoc': { ru: 'Открыть {label}', en: 'Open {label}' },
   'loadDetail.uploadDoc': { ru: 'Загрузить {label}', en: 'Upload {label}' },
@@ -232,6 +233,8 @@ export const loadsDict = {
   'loadEdit.deadheadMiles': { ru: 'Пустые мили (deadhead)', en: 'Deadhead miles' },
   'loadEdit.transitDays': { ru: 'Дней в пути', en: 'Transit days' },
   'loadEdit.spotRate': { ru: 'Spot rate (рынок)', en: 'Spot rate (market)' },
+  'loadEdit.ourLaneAvg': { ru: 'наш средний по направлению', en: 'our lane average' },
+  'loadEdit.noMarketData': { ru: 'рынок не подключён', en: 'no market feed' },
   'loadEdit.truckWasAt': { ru: 'Трак был в', en: 'Truck was at' },
   'loadEdit.brokerName': { ru: 'Брокер', en: 'Broker' },
   'loadEdit.brokerMc': { ru: 'Брокер MC', en: 'Broker MC' },

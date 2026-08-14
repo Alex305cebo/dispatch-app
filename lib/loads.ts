@@ -279,3 +279,38 @@ export async function docBelongs(companyId: CompanyId, docId: number): Promise<b
   const rows = await sql`SELECT 1 FROM documents WHERE id = ${docId} AND company_id = ${companyId}`
   return rows.length > 0
 }
+
+/** Штат из «EVANSVILLE, IN» → «IN». null, если города в таком виде нет. */
+const stateOf = (city: string | null) => city?.trim().match(/,\s*([A-Z]{2})$/)?.[1] ?? null
+
+/**
+ * Наш собственный средний $/милю на этом направлении — то, что показывается вместо
+ * биржевого спот-рейта. Публичного бесплатного фида спот-рынка не существует
+ * (DAT/Truckstop продают его), а вечный прочерк в «Детали» не говорит диспетчеру
+ * ничего. Сколько мы сами брали за милю между этими штатами — цифра, которая у нас
+ * уже есть и по которой ставку действительно можно сравнить.
+ *
+ * Считаем по паре ШТАТОВ, а не городов: город-в-город у маленького парка почти
+ * никогда не повторится, а IN→CA повторяется. Отменённые и сам этот груз исключены.
+ */
+export async function laneAvgRpmFor(
+  companyId: CompanyId,
+  origin: string | null,
+  destination: string | null,
+  exceptLoadId: number,
+): Promise<number | null> {
+  const from = stateOf(origin)
+  const to = stateOf(destination)
+  if (!from || !to) return null
+  const rows = (await sql`
+    SELECT AVG(rate / NULLIF(loaded_miles, 0)) AS rpm, COUNT(*) AS n
+    FROM loads
+    WHERE company_id = ${companyId} AND id <> ${exceptLoadId}
+      AND status <> 'cancelled' AND loaded_miles > 0
+      AND origin ILIKE ${'%, ' + from} AND destination ILIKE ${'%, ' + to}`) as {
+    rpm: string | number | null
+    n: string | number
+  }[]
+  const rpm = rows[0]?.rpm == null ? null : Number(rows[0].rpm)
+  return rpm && Number.isFinite(rpm) && rpm > 0 ? rpm : null
+}

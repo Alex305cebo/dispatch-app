@@ -1,10 +1,11 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getLoad, listDocs, truckForLoad } from '@/lib/loads'
+import { getLoad, laneAvgRpmFor, listDocs, truckForLoad } from '@/lib/loads'
 import { truckLabel } from '@/lib/map'
+import { shortName } from '@/lib/fmt'
 import { calcLoad } from '@/lib/profit'
 import { getCompany } from '@/lib/invoice'
-import { fleetStatusByUnit } from '@/lib/maintenance'
+import { fleetStatusByUnit, getTruckMeta } from '@/lib/maintenance'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
@@ -43,6 +44,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     getCompany(),
     fleetStatusByUnit(),
   ])
+  // Прицеп для кнопки трака + наш средний $/милю по этому направлению. Оба нужны
+  // только для показа, поэтому идут вторым параллельным заходом, уже зная truck.id.
+  const [truckMeta, laneAvgRpm] = await Promise.all([
+    getTruckMeta(truck.id),
+    laneAvgRpmFor(companyId, load.origin, load.destination, load.id),
+  ])
 
   // Never throws: the DB CHECKs mirror calcLoad's throw conditions, so every stored
   // row is a valid input by construction.
@@ -74,7 +81,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           className="group mt-2.5 inline-flex items-center gap-2 rounded-xl border border-haul-500/35 bg-haul-500/[0.10] px-3 py-1.5 transition-colors hover:border-haul-400/60 hover:bg-haul-500/20"
         >
           <span aria-hidden className="text-[14px] leading-none">🚛</span>
+          {/* Один номер трака ничего не говорит: чтобы позвонить или найти машину,
+              диспетчеру нужны водитель и прицеп. Фамилия — инициалом, иначе кнопка
+              перестаёт помещаться в строку на телефоне. */}
           <span className="text-[15px] font-semibold">{truckLabel(truck)}</span>
+          {truckMeta?.trailerNumber && (
+            <span className="text-[13px] text-white/60">
+              · {t(locale, 'loadDetail.trailerShort')} {truckMeta.trailerNumber}
+            </span>
+          )}
+          {truck.driverName && (
+            <span className="text-[13px] text-white/75">· {shortName(truck.driverName)}</span>
+          )}
           <span className="text-[14px] text-haul-300 transition-transform group-hover:translate-x-0.5">↗</span>
         </Link>
 
@@ -162,6 +180,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             truckLocation: load.truckLocation,
             pickupDate: load.pickupDate,
             deliveryDate: load.deliveryDate,
+            pickupTime: load.pickupTime,
+            deliveryTime: load.deliveryTime,
+            laneAvgRpm,
           }}
         />
       </section>
