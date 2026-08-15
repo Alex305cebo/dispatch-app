@@ -14,7 +14,7 @@ import {
   truckMetas,
 } from '@/lib/maintenance'
 import { sql } from '@/lib/db'
-import { usd, weekBounds, loadWeekAnchorMs } from '@/lib/fmt'
+import { usd, shortName, weekBounds, loadWeekAnchorMs } from '@/lib/fmt'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t, type Locale } from '@/lib/i18n'
@@ -141,6 +141,7 @@ export default async function Page() {
           rows={perTruck.map(({ truck, working }) => ({
             id: truck.id,
             label: truck.number?.trim() || truck.name,
+            sub: shortName(truck.driverName),
             working,
           }))}
         />

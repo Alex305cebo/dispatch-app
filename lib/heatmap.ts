@@ -19,7 +19,15 @@ export type HeatDayLoad = {
   isDelivery: boolean
 }
 /** dayKey → the load(s) that covered that day. Presence = working; absence = idle. */
-export type HeatRow = { id: number; label: string; working: Map<string, HeatDayLoad[]> }
+export type HeatRow = {
+  id: number
+  label: string
+  /** Вторая строка в левой колонке — водитель. Номер трака ничего не говорит о
+   * том, чья это строка: диспетчер держит в голове людей, а не инвентарные
+   * номера. Одной строкой не помещается, колонка узкая по устройству сетки. */
+  sub?: string | null
+  working: Map<string, HeatDayLoad[]>
+}
 
 /** Local YYYY-MM-DD — a day boundary in California must not shift a cell one column. */
 export function dayKey(d: Date | number): string {

@@ -189,7 +189,10 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
               }
           return (
             <div key={r.id} className="flex items-center gap-1.5 py-px">
-              <span className="w-16 shrink-0 truncate text-2xs text-white/50 sm:w-20">{r.label}</span>
+              <span className="w-16 shrink-0 truncate leading-tight sm:w-24">
+                <span className="block truncate text-2xs text-white/65">{r.label}</span>
+                {r.sub && <span className="block truncate text-[9.5px] text-white/40">{r.sub}</span>}
+              </span>
               <div className="flex flex-1 gap-1 sm:flex-none">
                 {cols.map((c, i) => {
                   const key = colKeys[i]!
@@ -207,7 +210,7 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                           x: box.left + box.width / 2,
                           top: box.top,
                           bottom: box.bottom,
-                          label: r.label,
+                          label: r.sub ? `${r.label} · ${r.sub}` : r.label,
                           day: key,
                           loads: loads ?? [],
                         })

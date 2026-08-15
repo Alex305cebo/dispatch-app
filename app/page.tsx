@@ -30,7 +30,7 @@ import { companyScope, getCurrentUser } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t as tr, type Locale } from '@/lib/i18n'
 import { can } from '@/lib/capabilities-server'
-import { usd, usd2, driveTime, weekStart } from '@/lib/fmt'
+import { usd, usd2, driveTime, shortName, weekStart } from '@/lib/fmt'
 import { StatusBadge } from '@/components/status'
 import { FleetHeatmap } from '@/components/fleet-heatmap'
 import { buildWorkingDays } from '@/lib/heatmap'
@@ -325,6 +325,7 @@ export default async function Page() {
             rows={trucks.map((t) => ({
               id: t.id,
               label: t.number?.trim() || t.name,
+              sub: shortName(t.driverName),
               working: buildWorkingDays(live.filter((l) => l.truckId === t.id)),
             }))}
           />
