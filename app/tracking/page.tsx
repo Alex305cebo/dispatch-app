@@ -71,12 +71,19 @@ async function FleetBoard({ locale }: { locale: Locale }) {
     listTrucks(companyId),
     listLoads(companyId),
     sql`SELECT * FROM fleet_status`,
-    sql`SELECT truck_id, driver_phone FROM truck_meta`,
+    // Прицеп берём здесь же: запрос к truck_meta всё равно уже идёт, а номер
+    // прицепа нужен подписи трака (truckLabel) — отдельного захода он не стоит.
+    sql`SELECT truck_id, driver_phone, trailer_number FROM truck_meta`,
   ])
   // One query for the whole fleet, instead of currentLoadForTruck() per truck.
   const currentByTruck = currentLoadsByTruck(loads)
   const rows = rowsRaw as FS[]
-  const phoneRows = phoneRowsRaw as { truck_id: number; driver_phone: string | null }[]
+  const phoneRows = phoneRowsRaw as {
+    truck_id: number
+    driver_phone: string | null
+    trailer_number: string | null
+  }[]
+  const trailerByTruck = new Map(phoneRows.filter((r) => r.trailer_number).map((r) => [r.truck_id, r.trailer_number!]))
   const byUnit = new Map(rows.map((r) => [r.unit, r]))
   const phoneById = new Map(phoneRows.map((r) => [r.truck_id, r.driver_phone]))
   // Freshest row, not an arbitrary one — SELECT * has no ORDER BY, so rows[0] was
@@ -219,7 +226,7 @@ async function FleetBoard({ locale }: { locale: Locale }) {
       markers.push({
         lat: fs.lat!,
         lng: fs.lng!,
-        label: truckLabel(t),
+        label: truckLabel(t, trailerByTruck.get(t.id)),
         // Fuel belongs in the hover card too — a dispatcher choosing which truck takes
         // the next load is looking at the MAP, not at the list underneath it.
         sub: [
@@ -241,7 +248,7 @@ async function FleetBoard({ locale }: { locale: Locale }) {
 
     trackingRows.push({
       id: t.id,
-      label: truckLabel(t),
+      label: truckLabel(t, trailerByTruck.get(t.id)),
       city: fs?.location ?? null,
       eldSeen: fs?.eld_seen ?? null,
       statusText: st.text,

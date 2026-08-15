@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getLoad, laneAvgRpmFor, listDocs, truckForLoad } from '@/lib/loads'
 import { truckLabel } from '@/lib/map'
-import { shortName } from '@/lib/fmt'
 import { calcLoad } from '@/lib/profit'
 import { getCompany } from '@/lib/invoice'
 import { fleetStatusByUnit, getTruckMeta } from '@/lib/maintenance'
@@ -82,18 +81,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           className="group mt-2.5 inline-flex items-center gap-2 rounded-xl border border-haul-500/35 bg-haul-500/[0.10] px-3 py-1.5 transition-colors hover:border-haul-400/60 hover:bg-haul-500/20"
         >
           <span aria-hidden className="text-[14px] leading-none">🚛</span>
-          {/* Один номер трака ничего не говорит: чтобы позвонить или найти машину,
-              диспетчеру нужны водитель и прицеп. Фамилия — инициалом, иначе кнопка
-              перестаёт помещаться в строку на телефоне. */}
-          <span className="text-[15px] font-semibold">{truckLabel(truck)}</span>
-          {truckMeta?.trailerNumber && (
-            <span className="text-[13px] text-white/60">
-              · {t(locale, 'loadDetail.trailerShort')} {truckMeta.trailerNumber}
-            </span>
-          )}
-          {truck.driverName && (
-            <span className="text-[13px] text-white/75">· {shortName(truck.driverName)}</span>
-          )}
+          {/* Водитель, трак и прицеп собраны в truckLabel — ровно та же подпись, что
+              на обзоре и в списке траков. Раньше здесь лежали три отдельных куска в
+              своём порядке, и один и тот же трак читался не так, как на других
+              страницах. */}
+          <span className="text-[15px] font-semibold">
+            {truckLabel(truck, truckMeta?.trailerNumber)}
+          </span>
           <span className="text-[14px] text-haul-300 transition-transform group-hover:translate-x-0.5">↗</span>
         </Link>
 

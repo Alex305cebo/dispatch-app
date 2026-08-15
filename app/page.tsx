@@ -371,7 +371,7 @@ export default async function Page() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="truncate text-md font-medium">{truckLabel(t)}</span>
+                    <span className="truncate text-md font-medium">{truckLabel(t, trailers.get(t.id))}</span>
                     {/* Icon-only, with the words on hover. Spelled out ("🔧 в ремонте")
                         this badge took ~55px out of the very row that holds the truck
                         number and driver name, and those two are what the card is for
@@ -395,7 +395,8 @@ export default async function Page() {
                   </div>
                   <div className="flex items-center gap-1.5 truncate text-[12px] text-white/60">
                     <span className="min-w-0 truncate">
-                      {trailers.has(t.id) && <>{tr(locale, 'overview.trailer').replace('{n}', String(trailers.get(t.id)))}</>}
+                      {/* Прицеп уехал в подпись выше (truckLabel), здесь осталось
+                          только место — иначе номер печатался бы дважды подряд. */}
                       {cityOf(fs?.location ?? null) ?? tr(locale, 'overview.noEldData')}
                     </span>
                     {/* Tank level rides with the location line — same glance, and it

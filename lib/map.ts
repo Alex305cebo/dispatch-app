@@ -5,7 +5,7 @@
 
 import type { Load, TruckSettings } from './profit.ts'
 import { t, type Locale } from './i18n.ts'
-import { normalizeApptTime } from './fmt.ts'
+import { normalizeApptTime, shortName } from './fmt.ts'
 
 export type LoadStatus = 'quoted' | 'booked' | 'in_transit' | 'delivered' | 'paid' | 'cancelled'
 
@@ -91,18 +91,26 @@ export function currentLoadsByTruck(loads: LoadRecord[]): Map<number, LoadRecord
   return out
 }
 
-/** "425 · TR-5301" for the fleet UI — the equipment's own identity, tractor then
- * trailer. The driver's name used to be the second half and no longer is: every
- * surface that prints this label already shows the driver on its own line directly
- * underneath, so half the label's width was spent repeating what was already there.
+/**
+ * «Edwin M. TRK-2237 TRL-1847» — как трак называют вслух и как его пишут брокеру.
  *
- * `trailer` is optional because the number alone is still a complete truck label —
- * callers without truck_meta loaded (see truckTrailerNumbers) degrade to it instead
- * of being forced into an extra query. */
+ * Одна форма на всё приложение. Раньше каждая поверхность собирала подпись сама:
+ * на обзоре стоял голый номер, а водитель прятался в инициалах аватарки и прицеп
+ * жил строкой ниже; на списке траков было «2237 · 1847»; на грузе — три отдельных
+ * куска. Один и тот же трак выглядел по-разному в трёх местах.
+ *
+ * Фамилия инициалом: полностью она удваивает длину подписи и вытесняет номера — а
+ * номера и есть то, ради чего подпись читают.
+ *
+ * `trailer` необязателен: вызывающий без загруженной truck_meta (см.
+ * truckTrailerNumbers) теряет TRL, а не получает лишний запрос к базе. Без имени
+ * водителя остаётся «TRK-2237» — тоже законченная подпись. */
 export function truckLabel(t: TruckRecord, trailer?: string | null): string {
   const num = t.number?.trim() || t.name
   const trl = trailer?.trim()
-  return trl ? `${num} · ${trl}` : num
+  return [shortName(t.driverName), num ? `TRK-${num}` : null, trl ? `TRL-${trl}` : null]
+    .filter(Boolean)
+    .join(' ')
 }
 
 /** ZigZag duty codes → a plain label + a colour bucket. Shared between /tracking

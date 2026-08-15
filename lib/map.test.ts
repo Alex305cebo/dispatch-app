@@ -4,6 +4,7 @@ import {
   currentLoadsByTruck,
   rowToLoad,
   rowToTruck,
+  truckLabel,
   type LoadRecord,
   type LoadRow,
   type TruckRow,
@@ -139,4 +140,22 @@ test('each truck keeps its own load — no bleed between trucks', () => {
   assert.equal(m.get(1)?.destination, 'Dallas, TX')
   assert.equal(m.get(2)?.destination, 'Reno, NV')
   assert.equal(m.size, 2)
+})
+
+// Одна подпись на всё приложение: водитель, трак, прицеп. Порядок и префиксы
+// закреплены тестом, потому что их диктуют брокеру вслух и вписывают в переписку —
+// перепутанные местами куски там читаются как другой трак.
+test('подпись трака: имя, инициал фамилии, TRK, TRL', () => {
+  const t = rowToTruck({ ...truckRow, driver_name: 'Edwin Morales', number: '2237' })
+  assert.equal(truckLabel(t, '1847'), 'Edwin M. TRK-2237 TRL-1847')
+})
+
+test('без прицепа подпись просто теряет TRL', () => {
+  const t = rowToTruck({ ...truckRow, driver_name: 'Edwin Morales', number: '2237' })
+  assert.equal(truckLabel(t), 'Edwin M. TRK-2237')
+})
+
+test('без водителя остаётся номер трака, а не пустая строка', () => {
+  const t = rowToTruck({ ...truckRow, driver_name: null, number: '2237' })
+  assert.equal(truckLabel(t, '1847'), 'TRK-2237 TRL-1847')
 })

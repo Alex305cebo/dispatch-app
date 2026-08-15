@@ -1,6 +1,5 @@
 import { Fuel, Plus } from 'lucide-react'
 import { Button } from '@/components/button'
-import { Name } from '@/components/name'
 import { LinkPending } from '@/components/link-pending'
 import Link from 'next/link'
 import { listLoads, listTrucks } from '@/lib/loads'
@@ -179,8 +178,8 @@ export default async function Page() {
                       the badge drop to its own line on a tight card instead of spilling
                       over the week-gross column to its right. */}
                   <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                    {/* Tractor · trailer — the equipment's identity. The driver's name
-                        is the line directly below, so it has no business up here. */}
+                    {/* Водитель, трак и прицеп одной подписью — та же, что на обзоре
+                        и на странице груза (lib/map.ts truckLabel). */}
                     <span className="shrink-0 text-[15px] font-semibold">
                       {truckLabel(truck, meta?.trailerNumber)}
                     </span>
@@ -196,13 +195,8 @@ export default async function Page() {
                     ) : null}
                   </div>
                   <div className="mt-0.5 truncate text-[12px] text-white/60">
-                    {truck.driverName ? (
-                      <>
-                        <Name full={truck.driverName} /> ·{' '}
-                      </>
-                    ) : (
-                      ''
-                    )}
+                    {/* Водитель уехал в подпись выше — здесь осталось только место,
+                        иначе имя печаталось бы дважды подряд. */}
                     📍 {cityOf(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')}
                   </div>
                   {/* VIN, once the ELD has reported it (auto-filled — see lib/eld.ts).
