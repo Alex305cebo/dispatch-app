@@ -160,14 +160,28 @@ export function TruckCare({
   }
 
   const oilTone = { good: 'text-good-400', warn: 'text-warn-400', bad: 'text-bad-400' }
+  const oilBar = { good: 'bg-good-400', warn: 'bg-warn-400', bad: 'bg-bad-500' }
+  // Доля интервала, которая уже проехана. Больше 100% не бывает: перерасход упирается
+  // в полную полосу, и о нём говорит цвет, а не длина.
+  const oilUsedPct =
+    oil && meta?.oilIntervalMi
+      ? Math.max(
+          0,
+          Math.min(100, Math.round(((meta.oilIntervalMi - oil.milesLeft) / meta.oilIntervalMi) * 100)),
+        )
+      : null
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Oil + passport */}
+      {/* Секция 1 — «Состояние трака»: масло, сроки документов и паспорт. Раньше это
+          были две отдельные карточки, а масло — предложением текстом. Одно состояние
+          машины разъезжалось по двум блокам, и «18,628 mi до замены» само по себе
+          ничего не говорило: много это или мало, видно только рядом с интервалом.
+          Полоса отвечает на это без арифметики. */}
       <section className="panel p-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            {t(locale, 'trucks.care.oilHeading')}
+            {t(locale, 'trucks.care.stateHeading')}
             <Info text={t(locale, 'trucks.care.oilInfo')} />
           </h2>
           <button
@@ -178,26 +192,81 @@ export function TruckCare({
           </button>
         </div>
 
-        <div className="mt-2 text-[13px] leading-relaxed text-white/72">
-          {oil ? (
-            <>
-              {t(locale, 'trucks.care.untilChange')}{' '}
+        <div className="mt-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[13px] font-medium text-white/80">
+              {t(locale, 'trucks.care.oilHeading')}
+            </span>
+            {oil ? (
               <span className={`nums text-[16px] font-bold ${oilTone[oil.tone]}`}>
                 {oil.milesLeft.toLocaleString('en-US')} mi
+                <span className="ml-1.5 text-[11px] font-medium text-white/45">
+                  {t(locale, oil.tone === 'bad' ? 'trucks.care.overdueShort' : 'trucks.care.leftShort')}
+                </span>
               </span>
-              {oil.tone === 'bad' && t(locale, 'trucks.care.timeToChange')}
-            </>
-          ) : meta?.oilLastOdometer ? (
-            t(locale, 'trucks.care.lastChangeRecorded')
-          ) : (
-            t(locale, 'trucks.care.needOdometer')
+            ) : (
+              <span className="text-[12px] text-white/50">
+                {meta?.oilLastOdometer
+                  ? t(locale, 'trucks.care.lastChangeRecorded')
+                  : t(locale, 'trucks.care.needOdometer')}
+              </span>
+            )}
+          </div>
+
+          {/* Полоса — сколько интервала уже проехано. Перерасход упирается в 100%:
+              дальше расти нечему, о нём говорит красный цвет, а не длина. */}
+          {oil && oilUsedPct !== null && (
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/[0.06]">
+              <div
+                className={`h-full rounded-full transition-[width] ${oilBar[oil.tone]}`}
+                style={{ width: `${oilUsedPct}%` }}
+              />
+            </div>
           )}
-          {currentOdometer !== null && (
-            <span className="text-white/45">
-              {t(locale, 'trucks.care.odometerNow')}{Math.round(currentOdometer).toLocaleString('en-US')} mi
-            </span>
-          )}
+
+          <p className="nums mt-1.5 text-[11px] text-white/40">
+            {currentOdometer !== null && (
+              <>
+                {t(locale, 'trucks.care.odometerShort')}{' '}
+                {Math.round(currentOdometer).toLocaleString('en-US')} mi
+              </>
+            )}
+            {meta?.oilIntervalMi ? (
+              <>
+                {currentOdometer !== null && ' · '}
+                {t(locale, 'trucks.care.intervalShort')} {meta.oilIntervalMi.toLocaleString('en-US')} mi
+              </>
+            ) : null}
+          </p>
         </div>
+
+        {/* Сроки документов переехали сюда из своей карточки и стали чипами: семь
+            строк во всю ширину занимали пол-экрана ради семи чисел. Дата — в
+            подсказке при наведении, на виду остаётся то, что решает: сколько дней. */}
+        {exp.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-1.5 border-t border-white/8 pt-3">
+            {exp.map((e) => (
+              <span
+                key={e.label}
+                title={e.date}
+                className={`inline-flex items-baseline gap-1.5 rounded-lg px-2.5 py-1 text-[12px] ${
+                  e.tone === 'bad'
+                    ? 'bg-bad-500/12 text-bad-400'
+                    : e.tone === 'warn'
+                      ? 'bg-warn-400/12 text-warn-400'
+                      : 'bg-white/[0.05] text-white/70'
+                }`}
+              >
+                {e.label}
+                <span className="nums font-semibold">
+                  {e.daysLeft < 0
+                    ? t(locale, 'trucks.common.overdue')
+                    : `${e.daysLeft} ${t(locale, 'trucks.common.daysSuffix')}`}
+                </span>
+              </span>
+            ))}
+          </div>
+        )}
 
         {editMeta && (
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -254,45 +323,11 @@ export function TruckCare({
         )}
       </section>
 
-      {/* Compliance expiry dates */}
-      {exp.length > 0 && (
-        <section className="panel p-4">
-          <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            {t(locale, 'trucks.care.expiryHeading')}
-            <Info text={t(locale, 'trucks.care.expiryInfo')} />
-          </h2>
-          <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">
-            {exp.map((e) => (
-              <li
-                key={e.label}
-                className="flex items-center justify-between rounded-lg border border-white/6 px-3 py-2"
-              >
-                <span className="text-[13px] text-white/80">{e.label}</span>
-                <span className="flex items-center gap-2">
-                  <span className="nums text-[12px] text-white/50">{e.date}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                      e.tone === 'bad'
-                        ? 'bg-bad-500/15 text-bad-400'
-                        : e.tone === 'warn'
-                          ? 'bg-warn-400/15 text-warn-400'
-                          : 'bg-good-500/15 text-good-400'
-                    }`}
-                  >
-                    {e.daysLeft < 0 ? t(locale, 'trucks.common.overdue') : `${e.daysLeft} ${t(locale, 'trucks.common.daysSuffix')}`}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* To-fix list + maintenance log — one card: what's still broken, and what's
-          already been fixed, are the same ongoing story for this truck. */}
+      {/* Секция 2 — «Ремонт и обслуживание»: что сломано и что уже починено. Одна
+          история трака, поэтому одна карточка. */}
       <section className="panel p-4">
         <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          {t(locale, 'trucks.care.todoHeading')}
+          {t(locale, 'trucks.care.serviceHeading')}
           <Info text={t(locale, 'trucks.care.todoInfo')} />
         </h2>
 
