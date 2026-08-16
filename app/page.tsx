@@ -30,10 +30,12 @@ import { companyScope, getCurrentUser } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t as tr, type Locale } from '@/lib/i18n'
 import { can } from '@/lib/capabilities-server'
-import { usd, usd2, driveTime, weekStart } from '@/lib/fmt'
+import { usd, usd2, driveTime, shortName, weekStart } from '@/lib/fmt'
 import { StatusBadge } from '@/components/status'
 import { NeedsLoad } from '@/components/needs-load'
+import { FleetHeatmap } from '@/components/fleet-heatmap'
 import { idleFleet } from '@/lib/idle-fleet'
+import { buildWorkingDays } from '@/lib/heatmap'
 import { RateConButton } from '@/components/ratecon-button'
 import { DriverAvatar } from '@/components/driver-avatar'
 import { Info } from '@/components/info'
@@ -321,11 +323,40 @@ export default async function Page() {
         </div>
       )}
 
-      {/* Здесь стоял календарь загрузки за 14 дней. Он отвечал на вопрос «как парк
-          отработал позапрошлую неделю» — отчёт, на который нельзя отреагировать, а
-          на семи траках с одним активным грузом ещё и почти пустой. На его месте
-          список дел: кому искать груз, где этот трак стоит и сколько уже стоит.
-          Сама тепловая карта осталась на /trucks, где ретроспектива уместна. */}
+      {/* Календарь загрузки за 14 дней — как парк отработал прошлые две недели. */}
+      {trucks.length > 0 && live.length > 0 && (
+        <div className="mb-6">
+          <FleetHeatmap
+            rows={trucks.map((t) => {
+              const cur = currentByTruck.get(t.id)
+              return {
+                id: t.id,
+                label: t.number?.trim() || t.name,
+                sub: shortName(t.driverName),
+                working: buildWorkingDays(live.filter((l) => l.truckId === t.id)),
+                // Те же два правых столбца, что и на /trucks: куда едет либо где
+                // стоит, и когда освободится. Иначе на обзоре они стояли бы пустыми.
+                place: cur
+                  ? `→ ${cur.destination ?? '—'}`
+                  : (cityOf((t.number ? byUnit.get(t.number)?.location : null) ?? null) ??
+                     tr(locale, 'overview.noEldData')),
+                when: t.unavailable
+                  ? {
+                      text: tr(locale, t.unavailable === 'repair' ? 'overview.repair' : 'overview.onVacation'),
+                      tone: 'off' as const,
+                    }
+                  : cur
+                    ? { text: tr(locale, 'trucks.heatmap.onLoad'), tone: 'busy' as const }
+                    : { text: tr(locale, 'trucks.heatmap.free'), tone: 'free' as const },
+              }
+            })}
+          />
+        </div>
+      )}
+
+      {/* Отдельной секцией под календарём, а не вместо него: календарь смотрит назад
+          («как отработали»), список — вперёд («что делать сегодня»). Это два разных
+          вопроса, и ни один не отменяет другой. */}
       <NeedsLoad
         rows={idleFleet(trucks, live, placeByTruck)}
         trucks={byId}
