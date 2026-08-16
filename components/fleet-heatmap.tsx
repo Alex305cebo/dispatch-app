@@ -176,8 +176,6 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
           cells snap to a fixed 14px and the utilisation bar fills the rest. */}
       <div className="w-full">
         {rows.map((r) => {
-          const workedDays = colKeys.filter((k) => r.working.has(k)).length
-          const pct = Math.round((workedDays / winDays) * 100)
           // Window revenue: each load counted once even though it spans several cells.
           const seen = new Set<number>()
           let earned = 0
@@ -225,26 +223,23 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                   )
                 })}
               </div>
-              {/* Utilisation as a bar — fills the right-hand space that used to sit empty
-                  and makes the % legible at a glance (long green = busy truck). Hidden on
-                  a phone, where the row scrolls and there's no room to spare. */}
-              <div className="ml-2 hidden h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.05] sm:block">
-                <div
-                  className={`h-full rounded-full ${
-                    pct >= 70 ? 'bg-good-400' : pct >= 35 ? 'bg-white/30' : 'bg-warn-400/80'
-                  }`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              {/* The right side that used to be blank: utilisation AND what the truck
-                  earned across the window — the two numbers that make a row worth a
-                  glance. */}
+              {/* Здесь стояли полоса загрузки и процент отработанных дней. Из «43%» не
+                  следует ни одного действия: он не говорит ни где трак, ни когда он
+                  освободится, — а именно это нужно, чтобы искать ему груз. На их месте
+                  два факта: место и срок. Скрыты на телефоне, как и полоса до них. */}
+              <span className="ml-2 hidden min-w-0 flex-1 truncate text-2xs text-white/55 sm:block">
+                {r.place ?? '—'}
+              </span>
               <span
-                className={`nums ml-1.5 w-8 shrink-0 text-right text-2xs font-semibold sm:ml-2 sm:w-10 ${
-                  pct >= 70 ? 'text-good-400' : pct >= 35 ? 'text-white/60' : 'text-warn-400'
+                className={`ml-2 hidden w-20 shrink-0 truncate text-right text-2xs font-semibold sm:block ${
+                  r.when?.tone === 'busy'
+                    ? 'text-good-400'
+                    : r.when?.tone === 'off'
+                      ? 'text-white/35'
+                      : 'text-warn-400'
                 }`}
               >
-                {pct}%
+                {r.when?.text ?? ''}
               </span>
               <span className="nums w-12 shrink-0 text-right text-[10px] text-white/45 sm:w-16 sm:text-2xs">
                 {earned > 0 ? usd.format(earned) : '—'}

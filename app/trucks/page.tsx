@@ -46,6 +46,16 @@ function cityOf(location: string | null): string | null {
   return m ? m[1] : location
 }
 
+/** «2026-08-17» → «17 авг». Год не пишем: столбец про ближайшие дни. */
+function shortDate(iso: string, locale: Locale): string {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
+  if (!y || !m || !d) return iso
+  return new Date(y, m - 1, d).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'en-US', {
+    day: 'numeric',
+    month: 'short',
+  })
+}
+
 const unavailableLabel = (locale: Locale, status: 'repair' | 'vacation') =>
   t(locale, status === 'repair' ? 'trucks.avail.repair' : 'trucks.avail.vacation')
 
@@ -138,12 +148,31 @@ export default async function Page() {
 
       <div className="mb-4">
         <FleetHeatmap
-          rows={perTruck.map(({ truck, working }) => ({
-            id: truck.id,
-            label: truck.number?.trim() || truck.name,
-            sub: shortName(truck.driverName),
-            working,
-          }))}
+          rows={perTruck.map(({ truck, working, current }) => {
+            const fs = truck.number ? byUnit.get(truck.number) : undefined
+            return {
+              id: truck.id,
+              label: truck.number?.trim() || truck.name,
+              sub: shortName(truck.driverName),
+              working,
+              // Два правых столбца вместо полосы и процента: куда едет либо где
+              // стоит, и когда освободится. Данные уже на странице — карточки
+              // парка ниже читают ровно эти же current и byUnit.
+              place: current
+                ? `→ ${current.destination ?? '—'}`
+                : (cityOf(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')),
+              when: truck.unavailable
+                ? { text: unavailableLabel(locale, truck.unavailable), tone: 'off' as const }
+                : current
+                  ? {
+                      text: current.deliveryDate
+                        ? `${t(locale, 'trucks.heatmap.until')} ${shortDate(current.deliveryDate, locale)}`
+                        : t(locale, 'trucks.heatmap.onLoad'),
+                      tone: 'busy' as const,
+                    }
+                  : { text: t(locale, 'trucks.heatmap.free'), tone: 'free' as const },
+            }
+          })}
         />
       </div>
 
