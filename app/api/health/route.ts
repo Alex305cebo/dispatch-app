@@ -23,7 +23,10 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   const ready = req.nextUrl.searchParams.get('ready')
-  if (ready === null) return NextResponse.json({ ok: true, ts: Date.now() })
+  // build — когда собралась ТА версия, что сейчас отвечает. Отдаётся и без секрета:
+  // это не тайна, а единственный способ снаружи проверить, доехал ли деплой.
+  if (ready === null)
+    return NextResponse.json({ ok: true, ts: Date.now(), build: process.env.BUILD_STAMP ?? null })
 
   const secret = process.env.CRON_SECRET
   if (!secret || ready !== secret) {
