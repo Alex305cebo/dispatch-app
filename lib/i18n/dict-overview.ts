@@ -55,21 +55,6 @@ export const overviewDict = {
     en: 'Total miles across all active loads — loaded plus empty (deadhead).',
   },
 
-  'needsLoad.title': { ru: 'Кому искать груз', en: 'Who needs a load' },
-  'needsLoad.info': {
-    ru: 'Парк, отсортированный по срочности: сверху те, кто дольше всех стоит без груза, — с них начинают обзвон. Дальше те, кто скоро освободится, с датой и городом выгрузки: под них груз ищут заранее, пока трак ещё в пути. Сумма рядом — во что уже обошёлся простой: платёж за трак, страховка, ELD и пермиты капают каждый день, едет он или нет. Ремонт и отпуск внизу — их загрузить нельзя.',
-    en: 'The fleet sorted by urgency: trucks sitting without a load the longest come first — start the calls there. Below them, trucks about to free up, with the date and city of delivery, so you can book them while they are still rolling. The figure beside a row is what the idle time has already cost: truck payment, insurance, ELD and permits accrue every day whether it moves or not. Repair and vacation sit at the bottom — they cannot be dispatched.',
-  },
-  'needsLoad.freeOf': { ru: 'из {n} без груза', en: 'of {n} without a load' },
-  'needsLoad.perDay': { ru: '/день простоя', en: '/day idle' },
-  'needsLoad.allBusy': { ru: 'Весь парк в работе', en: 'Whole fleet is working' },
-  'needsLoad.idleDays': { ru: 'стоит {n} дн', en: 'idle {n}d' },
-  'needsLoad.freeOn': { ru: 'свободен {d}', en: 'free {d}' },
-  'needsLoad.onLoad': { ru: 'везёт груз', en: 'on a load' },
-  'needsLoad.never': { ru: 'ни одного рейса', en: 'never ran' },
-  'needsLoad.noPlace': { ru: 'нет данных GPS', en: 'no GPS data' },
-  'needsLoad.repair': { ru: 'в ремонте', en: 'in repair' },
-  'needsLoad.vacation': { ru: 'в отпуске', en: 'on vacation' },
   'overview.fleetHeading': { ru: 'Парк', en: 'Fleet' },
   'overview.fleetInfo': {
     ru: 'Все траки с живыми данными: где сейчас трак и сколько он заработал за неделю. Кружок слева — статус движения по GPS: зелёный едет, синий on-duty, серый стоит. Нажми на трак — вся его карточка.',

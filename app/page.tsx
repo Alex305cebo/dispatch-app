@@ -30,10 +30,10 @@ import { companyScope, getCurrentUser } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t as tr, type Locale } from '@/lib/i18n'
 import { can } from '@/lib/capabilities-server'
-import { usd, usd2, driveTime, weekStart } from '@/lib/fmt'
+import { usd, usd2, driveTime, shortName, weekStart } from '@/lib/fmt'
 import { StatusBadge } from '@/components/status'
-import { NeedsLoad } from '@/components/needs-load'
-import { idleFleet } from '@/lib/idle-fleet'
+import { FleetHeatmap } from '@/components/fleet-heatmap'
+import { buildWorkingDays } from '@/lib/heatmap'
 import { RateConButton } from '@/components/ratecon-button'
 import { DriverAvatar } from '@/components/driver-avatar'
 import { Info } from '@/components/info'
@@ -97,11 +97,6 @@ export default async function Page() {
   const byId = new Map<number, TruckRecord>(trucks.map((t) => [t.id, t]))
   const byUnit = new Map(fleet.map((f) => [f.unit, f]))
   const fallback = trucks[0]
-  // Где стоит каждый трак — для карты «Кому искать груз». Позиции уже в руках,
-  // это разворот той же fleet_status по id трака вместо номера юнита.
-  const placeByTruck = new Map<number, string | null>(
-    trucks.map((t) => [t.id, (t.number ? byUnit.get(t.number)?.location : null) ?? null]),
-  )
 
   // Each load is costed against its own truck, then summed across the fleet.
   const live = loads.filter((l) => l.status !== 'cancelled')
@@ -321,17 +316,21 @@ export default async function Page() {
         </div>
       )}
 
-      {/* Здесь стоял календарь загрузки за 14 дней. Он отвечал на вопрос «как парк
-          отработал позапрошлую неделю» — отчёт, на который нельзя отреагировать, а
-          на семи траках с одним активным грузом ещё и почти пустой. На его месте
-          список дел: кому искать груз, где этот трак стоит и сколько уже стоит.
-          Сама тепловая карта осталась на /trucks, где ретроспектива уместна. */}
-      <NeedsLoad
-        rows={idleFleet(trucks, live, placeByTruck)}
-        trucks={byId}
-        trailers={trailers}
-        locale={locale}
-      />
+      {/* Fleet utilisation heatmap — the same section as /trucks, surfaced on the
+          Overview so idle trucks and fleet-wide gaps are visible without leaving the
+          dashboard. Only when there are loads to plot. */}
+      {trucks.length > 0 && live.length > 0 && (
+        <div className="mb-6">
+          <FleetHeatmap
+            rows={trucks.map((t) => ({
+              id: t.id,
+              label: t.number?.trim() || t.name,
+              sub: shortName(t.driverName),
+              working: buildWorkingDays(live.filter((l) => l.truckId === t.id)),
+            }))}
+          />
+        </div>
+      )}
 
       {/* Fleet at a glance — driver + last-known ELD status, straight from the trucks. */}
       <div className="mb-2 mt-2 flex items-center justify-between">
