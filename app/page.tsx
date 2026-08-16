@@ -404,7 +404,9 @@ export default async function Page() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="truncate text-md font-medium">{truckLabel(t, trailers.get(t.id))}</span>
+                    <span className="min-w-0 break-words text-[14px] font-medium leading-snug sm:text-md">
+                      {truckLabel(t, trailers.get(t.id))}
+                    </span>
                     {/* Icon-only, with the words on hover. Spelled out ("🔧 в ремонте")
                         this badge took ~55px out of the very row that holds the truck
                         number and driver name, and those two are what the card is for

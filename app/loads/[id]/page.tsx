@@ -78,14 +78,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             не находили. Теперь такая же кнопка, как маршрут на странице трака. */}
         <Link
           href={`/trucks/${truck.id}`}
-          className="group mt-2.5 inline-flex items-center gap-2 rounded-xl border border-haul-500/35 bg-haul-500/[0.10] px-3 py-1.5 transition-colors hover:border-haul-400/60 hover:bg-haul-500/20"
+          /* max-w-full + flex-wrap: inline-flex по умолчанию не переносится, и на
+             узком телефоне «Edwin M. TRK-2237 TRL-1847» вылезал бы за край экрана
+             вместе с кнопкой. */
+          className="group mt-2.5 inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-0.5 rounded-xl border border-haul-500/35 bg-haul-500/[0.10] px-3 py-1.5 transition-colors hover:border-haul-400/60 hover:bg-haul-500/20"
         >
           <span aria-hidden className="text-[14px] leading-none">🚛</span>
           {/* Водитель, трак и прицеп собраны в truckLabel — ровно та же подпись, что
               на обзоре и в списке траков. Раньше здесь лежали три отдельных куска в
               своём порядке, и один и тот же трак читался не так, как на других
               страницах. */}
-          <span className="text-[15px] font-semibold">
+          <span className="min-w-0 break-words text-[14px] font-semibold leading-snug sm:text-[15px]">
             {truckLabel(truck, truckMeta?.trailerNumber)}
           </span>
           <span className="text-[14px] text-haul-300 transition-transform group-hover:translate-x-0.5">↗</span>

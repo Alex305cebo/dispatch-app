@@ -204,13 +204,16 @@ export default async function Page() {
                   />
                 </div>
                 <div className="min-w-0 flex-1">
-                  {/* Number never truncates — it's the truck's identity. flex-wrap lets
-                      the badge drop to its own line on a tight card instead of spilling
-                      over the week-gross column to its right. */}
+                  {/* Подпись переносится по словам, а не обрезается и не выталкивает
+                      соседей. Раньше на ней стояло shrink-0: с голым номером («2237»)
+                      это всегда помещалось, а с водителем и прицепом строка стала
+                      втрое длиннее и вылезала за край карточки поверх суммы справа.
+                      Обрезать её тоже нельзя — первым бы исчез номер прицепа, ради
+                      которого подпись и собрана. */}
                   <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
                     {/* Водитель, трак и прицеп одной подписью — та же, что на обзоре
                         и на странице груза (lib/map.ts truckLabel). */}
-                    <span className="shrink-0 text-[15px] font-semibold">
+                    <span className="min-w-0 break-words text-[14px] font-semibold leading-snug sm:text-[15px]">
                       {truckLabel(truck, meta?.trailerNumber)}
                     </span>
                     <LinkPending className="text-haul-400" />

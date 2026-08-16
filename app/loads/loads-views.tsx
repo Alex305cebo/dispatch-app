@@ -517,7 +517,9 @@ function DriverGroup({
         className="mb-2 flex items-center gap-2.5 transition-colors hover:text-haul-400"
       >
         <DriverAvatar truckId={truck.id} name={truck.driverName} hasPhoto={hasPhoto} size={30} />
-        <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{truckLabel(truck)}</span>
+        <span className="min-w-0 flex-1 break-words text-[13px] font-semibold leading-snug sm:text-[14px]">
+          {truckLabel(truck)}
+        </span>
         <span className="nums shrink-0 text-[12px] font-semibold text-white/75">{usd.format(total)}</span>
         {/* The count is the first thing to go on a narrow phone: it's the least of the
             three facts here, and keeping it would cost the driver's own name letters. */}
