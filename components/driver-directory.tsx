@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { ChevronRight, Copy } from 'lucide-react'
+import { saveDispatcherPhone } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
@@ -9,15 +10,20 @@ import { t } from '@/lib/i18n'
 /**
  * Справочник водителей — то, что у диспетчера спрашивает брокер.
  *
- * Зачем отдельная секция. Эти шесть полей брокер спрашивает в каждом звонке, а
- * лежали они в четырёх разных местах: имя и номер трака — на карточке, телефон,
- * прицеп и VIN — внутри «паспорта трака» под кнопкой на странице конкретного
- * трака, MC компании — вообще в настройках. Собрать их во время разговора значило
- * уйти со страницы два-три раза, держа брокера на линии.
+ * Зачем отдельная секция. Эти поля брокер спрашивает в каждом звонке, а лежали они
+ * в четырёх разных местах: имя и номер трака — на карточке, телефон, прицеп и VIN —
+ * внутри «паспорта трака» на странице конкретного трака, MC и название компании —
+ * в настройках. Собрать их во время разговора значило уйти со страницы два-три
+ * раза, держа брокера на линии.
  *
- * Свёрнутый вид — одна строка на водителя, чтобы секция наверху не съедала экран.
- * Развёрнутый — шесть полей, каждое копируется в один щелчок, плюс «скопировать
- * всё» одним блоком: брокеру эти данные обычно отправляют текстом, а не диктуют.
+ * Почему показываем ровно тот текст, который копируется. Диспетчер эти данные не
+ * диктует, а отправляет сообщением, и формат у них устоявшийся — до строчки. Если
+ * на экране одна раскладка, а в буфере другая, доверия к кнопке нет. Поэтому
+ * развёрнутый водитель — это и есть готовый блок, а «Скопировать» кладёт в буфер
+ * ровно его.
+ *
+ * Сама секция свёрнута: она стоит первой на странице и в развёрнутом виде
+ * отодвигала бы парк за нижний край экрана.
  */
 
 export interface DriverEntry {
@@ -29,125 +35,179 @@ export interface DriverEntry {
   vin: string | null
 }
 
-export function DriverDirectory({ drivers, mcdot }: { drivers: DriverEntry[]; mcdot: string }) {
+export function DriverDirectory({
+  drivers,
+  mc,
+  companyName,
+  dispatcherName,
+  dispatcherPhone,
+}: {
+  drivers: DriverEntry[]
+  mc: string
+  companyName: string
+  dispatcherName: string
+  /** Личный номер диспетчера. В блоке он стоит рядом с именем — брокер звонит
+   * человеку, который прислал груз, а не на общий номер компании. */
+  dispatcherPhone: string
+}) {
   const locale = useLocale()
-  // Открыт максимум один: справочник читают по одному водителю за раз, а список
-  // из восьми развёрнутых карточек — это уже не компактная секция наверху.
-  const [open, setOpen] = useState<number | null>(null)
+  const [openSection, setOpenSection] = useState(false)
+  // Открыт максимум один водитель: справочник читают по одному за раз, а восемь
+  // развёрнутых блоков — это уже не компактная секция наверху страницы.
+  const [openDriver, setOpenDriver] = useState<number | null>(null)
+  const [phone, setPhone] = useState(dispatcherPhone)
+  const [editPhone, setEditPhone] = useState(false)
+  const [pending, start] = useTransition()
 
   if (drivers.length === 0) return null
 
   return (
     <section className="panel mb-4 p-3 sm:p-4">
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <button
+        type="button"
+        onClick={() => setOpenSection((v) => !v)}
+        aria-expanded={openSection}
+        className="flex w-full items-center gap-2 text-left"
+      >
+        <ChevronRight
+          size={14}
+          strokeWidth={2.5}
+          className={`shrink-0 text-white/40 transition-transform ${openSection ? 'rotate-90' : ''}`}
+        />
         <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white/62">
           {t(locale, 'drivers.title')}
         </h2>
-        <span className="text-[11px] text-white/40">{t(locale, 'drivers.subtitle')}</span>
-      </div>
+        <span className="nums text-[11px] text-white/35">{drivers.length}</span>
+        <span className="ml-auto truncate text-[11px] text-white/40">
+          {t(locale, 'drivers.subtitle')}
+        </span>
+      </button>
 
-      <ul className="flex flex-col gap-1">
-        {drivers.map((d) => {
-          const isOpen = open === d.truckId
-          const fields: { label: string; value: string | null }[] = [
-            { label: t(locale, 'drivers.name'), value: d.driverName },
-            { label: t(locale, 'drivers.phone'), value: d.driverPhone },
-            { label: t(locale, 'drivers.truck'), value: d.truckNumber },
-            { label: t(locale, 'drivers.trailer'), value: d.trailerNumber },
-            { label: 'MC', value: mcdot || null },
-            { label: 'VIN', value: d.vin },
-          ]
-
-          return (
-            <li key={d.truckId} className="rounded-lg border border-white/6">
-              <button
-                type="button"
-                onClick={() => setOpen(isOpen ? null : d.truckId)}
-                aria-expanded={isOpen}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-white/[0.03]"
-              >
-                <ChevronRight
-                  size={13}
-                  strokeWidth={2.5}
-                  className={`shrink-0 text-white/35 transition-transform ${isOpen ? 'rotate-90' : ''}`}
+      {openSection && (
+        <>
+          {/* Свой номер диспетчер вписывает прямо здесь: в базе его негде было
+              хранить, а в блок он обязан попасть — брокер перезванивает человеку,
+              а не на общий номер компании. */}
+          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-white/6 px-3 py-2 text-[12px]">
+            <span className="text-white/50">{t(locale, 'drivers.dispatcher')}</span>
+            <span className="font-medium text-white/85">{dispatcherName || '—'}</span>
+            {editPhone ? (
+              <>
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="786 461 4739"
+                  className="nums min-w-0 flex-1 rounded-md border border-white/10 bg-ink-950/70 px-2 py-1 text-[12px] text-white outline-none focus:border-haul-500"
                 />
-                <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
-                  {d.driverName || t(locale, 'drivers.noName')}
-                </span>
-                {/* В свёрнутой строке — только номера: по ним водителя и находят,
-                    остальное разворачивается. */}
-                <span className="nums shrink-0 text-[12px] text-white/45">
-                  {d.truckNumber ? `TRK-${d.truckNumber}` : '—'}
-                  {d.trailerNumber ? ` · TRL-${d.trailerNumber}` : ''}
-                </span>
-              </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() =>
+                    start(async () => {
+                      const res = await saveDispatcherPhone(phone)
+                      if (res?.error) notify('error', res.error)
+                      else {
+                        notify('ok', t(locale, 'drivers.phoneSaved'))
+                        setEditPhone(false)
+                      }
+                    })
+                  }
+                  className="shrink-0 rounded-md bg-haul-500/20 px-2 py-1 text-[12px] font-medium text-haul-300 hover:bg-haul-500/30 disabled:opacity-50"
+                >
+                  {t(locale, 'drivers.save')}
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="nums text-white/85">{phone || t(locale, 'drivers.noPhone')}</span>
+                <button
+                  type="button"
+                  onClick={() => setEditPhone(true)}
+                  className="text-[11px] text-haul-400 hover:underline"
+                >
+                  {t(locale, 'drivers.editPhone')}
+                </button>
+              </>
+            )}
+          </div>
 
-              {isOpen && (
-                <div className="border-t border-white/6 px-3 py-2.5">
-                  <dl className="grid gap-1.5 sm:grid-cols-2">
-                    {fields.map((f) => (
-                      <CopyRow key={f.label} label={f.label} value={f.value} locale={locale} />
-                    ))}
-                  </dl>
+          <ul className="mt-2 flex flex-col gap-1">
+            {drivers.map((d) => {
+              const isOpen = openDriver === d.truckId
+              const block = infoBlock(d, { mc, companyName, dispatcherName, dispatcherPhone: phone })
+              return (
+                <li key={d.truckId} className="rounded-lg border border-white/6">
                   <button
                     type="button"
-                    onClick={() => copy(blockFor(d, mcdot, locale), t(locale, 'drivers.copiedAll'))}
-                    className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border border-haul-500/35 bg-haul-500/[0.10] px-2.5 py-1 text-[12px] font-medium text-haul-300 transition-colors hover:border-haul-400/60 hover:bg-haul-500/20"
+                    onClick={() => setOpenDriver(isOpen ? null : d.truckId)}
+                    aria-expanded={isOpen}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-white/[0.03]"
                   >
-                    <Copy size={12} strokeWidth={2.5} />
-                    {t(locale, 'drivers.copyAll')}
+                    <ChevronRight
+                      size={13}
+                      strokeWidth={2.5}
+                      className={`shrink-0 text-white/35 transition-transform ${isOpen ? 'rotate-90' : ''}`}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
+                      {d.driverName || t(locale, 'drivers.noName')}
+                    </span>
+                    <span className="nums shrink-0 text-[12px] text-white/45">
+                      {d.truckNumber ? `TRK-${d.truckNumber}` : '—'}
+                      {d.trailerNumber ? ` · TRL-${d.trailerNumber}` : ''}
+                    </span>
                   </button>
-                </div>
-              )}
-            </li>
-          )
-        })}
-      </ul>
+
+                  {isOpen && (
+                    <div className="border-t border-white/6 p-3">
+                      <pre className="nums overflow-x-auto whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-white/85">
+                        {block}
+                      </pre>
+                      <button
+                        type="button"
+                        onClick={() => copy(block, t(locale, 'drivers.copied'))}
+                        className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border border-haul-500/35 bg-haul-500/[0.10] px-2.5 py-1 text-[12px] font-medium text-haul-300 transition-colors hover:border-haul-400/60 hover:bg-haul-500/20"
+                      >
+                        <Copy size={12} strokeWidth={2.5} />
+                        {t(locale, 'drivers.copy')}
+                      </button>
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </>
+      )}
     </section>
   )
 }
 
-/** Одно поле. Пустое не копируется и подписано, где его заполнить. */
-function CopyRow({
-  label,
-  value,
-  locale,
-}: {
-  label: string
-  value: string | null
-  locale: Parameters<typeof t>[0]
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 text-[12.5px]">
-      <dt className="shrink-0 text-white/50">{label}</dt>
-      <dd className="min-w-0 text-right">
-        {value ? (
-          <button
-            type="button"
-            onClick={() => copy(value, t(locale, 'drivers.copied'))}
-            title={t(locale, 'drivers.copyHint')}
-            className="nums group inline-flex max-w-full items-center gap-1.5 break-all text-left font-medium text-white/85 hover:text-haul-300"
-          >
-            {value}
-            <Copy size={11} strokeWidth={2.5} className="shrink-0 text-white/25 group-hover:text-haul-400" />
-          </button>
-        ) : (
-          <span className="text-white/30">{t(locale, 'drivers.empty')}</span>
-        )}
-      </dd>
-    </div>
-  )
-}
-
-/** Готовый блок для отправки брокеру — он обычно просит текстом, а не голосом. */
-function blockFor(d: DriverEntry, mcdot: string, locale: Parameters<typeof t>[0]): string {
+/**
+ * Готовый блок для брокера — в том виде, в котором его отправляют. Раскладка,
+ * порядок строк и пустые строки повторяют образец заказчика: это устоявшийся
+ * формат отрасли, брокер читает его глазами и ждёт именно такой.
+ *
+ * Всегда по-английски, независимо от языка интерфейса: получатель — американский
+ * брокер, а не пользователь приложения.
+ */
+export function infoBlock(
+  d: DriverEntry,
+  co: { mc: string; companyName: string; dispatcherName: string; dispatcherPhone: string },
+): string {
+  const dash = (v: string | null | undefined) => (v && v.trim() ? v.trim() : '—')
   return [
-    `${t(locale, 'drivers.name')}: ${d.driverName || '—'}`,
-    `${t(locale, 'drivers.phone')}: ${d.driverPhone || '—'}`,
-    `${t(locale, 'drivers.truck')}: ${d.truckNumber || '—'}`,
-    `${t(locale, 'drivers.trailer')}: ${d.trailerNumber || '—'}`,
-    `MC: ${mcdot || '—'}`,
-    `VIN: ${d.vin || '—'}`,
+    `Driver Name – ${dash(d.driverName)}`,
+    `Driver Phone Number – ${dash(d.driverPhone)}`,
+    `Truck Number – ${dash(d.truckNumber)}`,
+    `Trailer Number – ${dash(d.trailerNumber)}`,
+    '',
+    `Truck VIN - ${dash(d.vin)}`,
+    '',
+    '',
+    `Dispatcher – ${dash(co.dispatcherName)}`,
+    `Dispatcher Number – ${dash(co.dispatcherPhone)}`,
+    `MC - ${dash(co.mc)}`,
+    `Company Name – ${dash(co.companyName)}`,
   ].join('\n')
 }
 
@@ -156,6 +216,6 @@ function copy(text: string, okMessage: string) {
     .writeText(text)
     .then(() => notify('ok', okMessage))
     // Буфер закрыт (нет https или отказано в разрешении) — молчать нельзя, иначе
-    // человек будет думать, что скопировалось, и вставит брокеру пустоту.
+    // человек решит, что скопировалось, и отправит брокеру пустоту.
     .catch(() => notify('warn', text))
 }

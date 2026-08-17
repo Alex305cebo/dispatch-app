@@ -28,3 +28,13 @@ export async function setSetting(key: string, value: string): Promise<void> {
 export async function deleteSetting(key: string): Promise<void> {
   await sql`DELETE FROM settings WHERE key = ${key}`
 }
+
+/** Личный номер диспетчера — один ключ на пользователя.
+ *
+ * Не колонка в users: номер есть не у всех и меняется у одного человека, а не у
+ * схемы. Тот же приём, что уже применён к ключам Telegram. Живёт здесь, а не в
+ * app/actions.ts, потому что в файле с 'use server' каждый экспорт обязан быть
+ * async-функцией — синхронный хелпер там роняет сборку. */
+export function dispatcherPhoneKey(userId: number): string {
+  return `disp_phone:${userId}`
+}

@@ -30,7 +30,7 @@ import type { DocClass } from '@/lib/ai-doc'
 import { docBelongs, getLoad, loadBelongs, truckBelongs } from '@/lib/loads'
 import type { HistoryLeg } from '@/lib/trip-history'
 import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
-import { getSetting, setSetting } from '@/lib/settings'
+import { dispatcherPhoneKey, getSetting, setSetting } from '@/lib/settings'
 import { companyScope, demoReadOnly, getCurrentUser, verifyMyPassword } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
 import type { CapabilityKey } from '@/lib/capabilities'
@@ -42,6 +42,22 @@ export async function vetBroker(
   ctx: RcContext,
 ): Promise<BrokerCheck | { error: string }> {
   return checkBroker(mc, ctx, await getLocale())
+}
+
+/**
+ * Личный номер диспетчера — для блока «Driver Info», который отправляют брокеру.
+ *
+ * Лежит в settings под ключом с id пользователя, а не колонкой в users: номер есть
+ * не у всех и меняется у одного человека, а не у схемы. Тот же приём, что уже
+ * применён к ключам Telegram (lib/telegram.ts).
+ */
+export async function saveDispatcherPhone(phone: string): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const user = await getCurrentUser()
+  if (!user) return { error: t(await getLocale(), 'actions.noAccess') }
+  await setSetting(dispatcherPhoneKey(user.id), phone.trim())
+  revalidatePath('/trucks')
 }
 
 /** Manual broker lookup from the Brokers page — by MC or DOT number. */

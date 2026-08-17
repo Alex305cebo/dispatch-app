@@ -6,6 +6,8 @@ import { listLoads, listTrucks } from '@/lib/loads'
 import { currentLoadsByTruck, truckLabel } from '@/lib/map'
 import { FleetHeatmap } from '@/components/fleet-heatmap'
 import { DriverDirectory } from '@/components/driver-directory'
+import { dispatcherPhoneKey, getSetting } from '@/lib/settings'
+import { getCurrentUser } from '@/lib/session'
 import { buildWorkingDays } from '@/lib/heatmap'
 import { getCompany } from '@/lib/invoice'
 import {
@@ -66,12 +68,15 @@ export default async function Page() {
   // Без truckPhotoFlags: truckMetas уже возвращает hasPhoto по тем же строкам
   // truck_meta (lib/maintenance.ts), так что это был отдельный круг в базу за тем,
   // что и так приезжало. На главной он оправдан — там truckMetas не грузится.
-  const [trucks, company, metas, todoCounts, fleetRaw] = await Promise.all([
+  const user = await getCurrentUser()
+  const [trucks, company, metas, todoCounts, fleetRaw, dispatcherPhone] = await Promise.all([
     listTrucks(companyId),
     getCompany(),
     truckMetas(companyId),
     openTodoCounts(companyId),
     sql`SELECT unit, drive_status, location, odometer, fuel FROM fleet_status`,
+    // Свой номер диспетчера — в блок «Driver Info» для брокера.
+    user ? getSetting(dispatcherPhoneKey(user.id)) : Promise.resolve(null),
   ])
   const byUnit = new Map((fleetRaw as FS[]).map((f) => [f.unit, f]))
 
@@ -131,7 +136,10 @@ export default async function Page() {
           на странице конкретного трака, MC компании — в настройках. Данные новых
           запросов не стоят: trucks, metas и company страница уже загрузила. */}
       <DriverDirectory
-        mcdot={company.mcdot}
+        mc={company.mcdot.replace(/^MC[\s#-]*/i, '')}
+        companyName={company.name}
+        dispatcherName={user?.name ?? ''}
+        dispatcherPhone={dispatcherPhone ?? ''}
         drivers={trucks.map((truck) => {
           const meta = metas.get(truck.id)
           return {
