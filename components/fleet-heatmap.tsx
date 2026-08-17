@@ -171,9 +171,12 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
         {t(locale, 'trucks.heatmap.axisNote')}
       </p>
 
-      {/* Always full width, never scrolls. On a phone the day cells flex to share the
-          space (rubber columns), so all 14 fit without horizontal scroll; from sm up the
-          cells snap to a fixed 14px and the utilisation bar fills the rest. */}
+      {/* Всегда во всю ширину, без горизонтальной прокрутки: клетки резиновые, все
+          14 помещаются на любом экране. Растягивается именно календарь, а текстовые
+          столбцы справа фиксированы по ширине — раньше было наоборот (клетки жёстко
+          по 14px, место справа flex-1), и на широком экране между сеткой и текстом
+          зияло полтысячи пикселей пустоты. Потолок клетки max-w-7, иначе на большом
+          мониторе она расплывалась бы в прямоугольник. */}
       <div className="w-full">
         {rows.map((r) => {
           // Window revenue: each load counted once even though it spans several cells.
@@ -191,7 +194,7 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                 <span className="block truncate text-2xs text-white/65">{r.label}</span>
                 {r.sub && <span className="block truncate text-[9.5px] text-white/40">{r.sub}</span>}
               </span>
-              <div className="flex flex-1 gap-1 sm:flex-none">
+              <div className="flex min-w-0 flex-1 gap-1">
                 {cols.map((c, i) => {
                   const key = colKeys[i]!
                   const loads = r.working.get(key)
@@ -214,7 +217,7 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                         })
                       }}
                       onMouseLeave={scheduleClose}
-                      className={`flex h-3.5 min-w-0 flex-1 items-center justify-center rounded-[3px] transition-colors hover:bg-white/10 sm:size-3.5 sm:flex-none ${
+                      className={`flex h-4 min-w-0 max-w-7 flex-1 items-center justify-center rounded-[3px] transition-colors hover:bg-white/10 ${
                         weekend[i] ? 'bg-haul-500/[0.13]' : ''
                       }`}
                     >
@@ -227,7 +230,7 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                   следует ни одного действия: он не говорит ни где трак, ни когда он
                   освободится, — а именно это нужно, чтобы искать ему груз. На их месте
                   два факта: место и срок. Скрыты на телефоне, как и полоса до них. */}
-              <span className="ml-2 hidden min-w-0 flex-1 truncate text-2xs text-white/55 sm:block">
+              <span className="ml-2 hidden w-32 shrink-0 truncate text-2xs text-white/55 sm:block lg:w-40">
                 {r.place ?? '—'}
               </span>
               <span
@@ -249,15 +252,17 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
         })}
         {/* Date axis: the month sits in the left gutter (under the truck names); each
             cube gets its own day-of-month number so a cell reads as a real date. */}
+        {/* Геометрия оси обязана повторять геометрию строк символ в символ, иначе
+            числа разъезжаются с клетками, над которыми они стоят. */}
         <div className="mt-1 flex items-center gap-1.5">
-          <span className="w-16 shrink-0 truncate text-2xs font-medium capitalize text-white/45 sm:w-20">
+          <span className="w-16 shrink-0 truncate text-2xs font-medium capitalize text-white/45 sm:w-24">
             {monthLabel}
           </span>
-          <div className="flex flex-1 gap-1 sm:flex-none">
+          <div className="flex min-w-0 flex-1 gap-1">
             {cols.map((c, i) => (
               <span
                 key={i}
-                className={`nums min-w-0 flex-1 text-center text-[8.5px] font-semibold leading-none sm:w-3.5 sm:flex-none ${
+                className={`nums min-w-0 max-w-7 flex-1 text-center text-[8.5px] font-semibold leading-none ${
                   weekend[i] ? 'text-haul-300/80' : 'font-normal text-white/30'
                 }`}
               >
@@ -265,8 +270,8 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
               </span>
             ))}
           </div>
-          <span className="ml-2 hidden h-1.5 flex-1 sm:block" />
-          <span className="ml-1.5 w-8 shrink-0 sm:ml-2 sm:w-10" />
+          <span className="ml-2 hidden w-32 shrink-0 sm:block lg:w-40" />
+          <span className="ml-2 hidden w-20 shrink-0 sm:block" />
           <span className="w-12 shrink-0 sm:w-16" />
         </div>
       </div>
