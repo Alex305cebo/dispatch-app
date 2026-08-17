@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { currentLoadsByTruck, truckLabel } from '@/lib/map'
 import { FleetHeatmap } from '@/components/fleet-heatmap'
+import { DriverDirectory } from '@/components/driver-directory'
 import { buildWorkingDays } from '@/lib/heatmap'
 import { getCompany } from '@/lib/invoice'
 import {
@@ -123,6 +124,26 @@ export default async function Page() {
           {t(locale, 'trucks.page.addTruck')}
         </Button>
       </div>
+
+      {/* Справочник водителей — первым делом на странице. Эти шесть полей брокер
+          спрашивает в каждом звонке, а лежали они в четырёх разных местах: имя и
+          номер трака на карточке, телефон, прицеп и VIN — внутри «паспорта трака»
+          на странице конкретного трака, MC компании — в настройках. Данные новых
+          запросов не стоят: trucks, metas и company страница уже загрузила. */}
+      <DriverDirectory
+        mcdot={company.mcdot}
+        drivers={trucks.map((truck) => {
+          const meta = metas.get(truck.id)
+          return {
+            truckId: truck.id,
+            driverName: truck.driverName,
+            driverPhone: meta?.driverPhone ?? null,
+            truckNumber: truck.number,
+            trailerNumber: meta?.trailerNumber ?? null,
+            vin: meta?.vin ?? null,
+          }
+        })}
+      />
 
       {/* Fleet at a glance — the same counters a dispatcher juggles in their head. */}
       <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-white/8 bg-white/[0.02] px-4 py-3 text-[12.5px]">
