@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { checkTolls, type TollCheck } from '@/app/actions'
 import { FleetMap, type MapMarker, type MapRoute } from '@/components/fleet-map'
 import { Button } from '@/components/button'
+import { CityInput } from '@/components/city-input'
 import { usd, usd2, driveTime } from '@/lib/fmt'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
@@ -90,36 +91,25 @@ export function TollsClient({
         </p>
       )}
 
-      {/* Нативный datalist, а не свой выпадающий список: браузер сам фильтрует по
-          вводу, работает с клавиатуры и на телефоне — писать для этого код незачем.
-          Поля остаются обычными текстовыми, вписать можно город не из списка. */}
-      <datalist id="toll-cities">
-        {cities.map((c) => (
-          <option key={c} value={c} />
-        ))}
-      </datalist>
-
-      <section className="panel p-4">
+      <section className="panel relative z-20 p-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block">
             <span className={label}>{t(locale, 'tolls.from')}</span>
-            <input
+            <CityInput
               value={from}
-              onChange={(e) => setFrom(e.target.value)}
+              onChange={setFrom}
+              cities={cities}
               placeholder="Philadelphia, PA"
-              list="toll-cities"
-              autoComplete="off"
               className={input}
             />
           </label>
           <label className="block">
             <span className={label}>{t(locale, 'tolls.to')}</span>
-            <input
+            <CityInput
               value={to}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={setTo}
+              cities={cities}
               placeholder="Pittsburgh, PA"
-              list="toll-cities"
-              autoComplete="off"
               className={input}
             />
           </label>
