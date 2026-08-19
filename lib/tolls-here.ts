@@ -58,7 +58,7 @@ export async function hereTollRoute(
   from: { lat: number; lng: number },
   to: { lat: number; lng: number },
   truck: TruckSpec,
-  opts: { avoidTolls?: boolean } = {},
+  opts: { avoidTolls?: boolean; transponder?: boolean } = {},
 ): Promise<TollQuote | { error: string }> {
   const key = await hereKey()
   if (!key) return { error: 'no_key' }
@@ -75,12 +75,18 @@ export async function hereTollRoute(
   params.set('vehicle[grossWeight]', String(Math.round(truck.grossWeightLb * LB_TO_KG)))
   params.set('vehicle[height]', String(Math.round(truck.heightFt * FT_TO_CM)))
   if (opts.avoidTolls) params.set('avoid[features]', 'tollRoad')
+  // ponytail: параметр принимается (HTTP 200), но на живом ответе тариф не менялся —
+  // HERE всё равно вернул videoToll. Точное имя набора транспондеров в их
+  // документации не описано, поэтому скидку E-ZPass пока считаем сами, выбирая
+  // тариф транспондера из вариантов, которые HERE и так присылает.
+  if (opts.transponder) params.set('tolls[transponders]', 'EZPass')
 
   // Кэш проверяем ДО лимита: повторный взгляд на тот же маршрут не должен
   // расходовать месячную квоту.
   const cacheKey =
     `here:${from.lat.toFixed(3)},${from.lng.toFixed(3)}->${to.lat.toFixed(3)},${to.lng.toFixed(3)}` +
-    `:${truck.axles}/${truck.grossWeightLb}/${truck.heightFt}${opts.avoidTolls ? ':free' : ''}`
+    `:${truck.axles}/${truck.grossWeightLb}/${truck.heightFt}` +
+    `${opts.avoidTolls ? ':free' : ''}${opts.transponder ? ':tag' : ''}`
   const hit = await getSetting(cacheKey)
   if (hit) {
     try {
@@ -109,7 +115,7 @@ export async function hereTollRoute(
         `HTTP ${res.status}`
       return { error: msg }
     }
-    const quote = parseHereRoute(json, decodeFlexPolyline)
+    const quote = parseHereRoute(json, decodeFlexPolyline, 'USD', opts.transponder ?? false)
     // Пустой ответ — не ошибка сети, а «маршрута нет»: между точками может не быть
     // дороги, законной для трака заданной высоты и веса.
     if (!quote) return { error: 'no_route' }

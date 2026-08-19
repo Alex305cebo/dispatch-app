@@ -102,3 +102,61 @@ test('профиль по умолчанию — пятиосный сцеп н�
   assert.equal(DEFAULT_TRUCK.axles, 5)
   assert.equal(DEFAULT_TRUCK.grossWeightLb, 80_000)
 })
+
+// Живой ответ HERE на Филадельфия → Питтсбург (сокращён): четыре ГРУППЫ — это
+// четыре пункта оплаты, их складывают. А внутри группы несколько fares — это
+// альтернативы по способу оплаты за один и тот же проезд, и складывать их
+// нельзя: именно на этом сумма раздувалась вчетверо.
+const PA_TURNPIKE = {
+  routes: [
+    {
+      sections: [
+        {
+          summary: { length: 492_000, duration: 25_000 },
+          tolls: [
+            {
+              countryCode: 'USA',
+              tollSystem: 'PA TURNPIKE 476',
+              tollCollectionLocations: [{ name: 'Tredyffrin Twp' }],
+              fares: [
+                { name: 'PA TURNPIKE 476', price: { currency: 'USD', value: 9.42 }, paymentMethods: ['videoToll'] },
+                { name: 'PA TURNPIKE 476', price: { currency: 'USD', value: 4.1 }, paymentMethods: ['transponder'] },
+              ],
+            },
+            {
+              countryCode: 'USA',
+              tollSystem: 'PA TURNPIKE 476',
+              tollCollectionLocations: [{ name: 'Brecknock Twp' }, { name: 'Monroeville' }],
+              fares: [
+                { name: 'PA TURNPIKE 476', price: { currency: 'USD', value: 285.76 }, paymentMethods: ['videoToll'] },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+}
+
+test('альтернативы внутри одного пункта не складываются', () => {
+  const q = parseHereRoute(PA_TURNPIKE, decode)!
+  assert.equal(q.fares.length, 2, 'два пункта оплаты — две строки')
+  assert.equal(q.total, 295.18) // 9.42 + 285.76, а НЕ 9.42 + 4.10 + 285.76
+})
+
+test('без транспондера берётся дорогой тариф — ошибаться безопаснее вверх', () => {
+  const q = parseHereRoute(PA_TURNPIKE, decode, 'USD', false)!
+  assert.equal(q.fares[0]!.amount, 9.42)
+})
+
+test('с транспондером берётся его тариф — это то, что реально спишется', () => {
+  const q = parseHereRoute(PA_TURNPIKE, decode, 'USD', true)!
+  assert.equal(q.fares[0]!.amount, 4.1)
+  assert.equal(q.total, 289.86)
+})
+
+test('строка называет пункт оплаты, а не систему — «PA TURNPIKE 476» повторялась бы', () => {
+  const q = parseHereRoute(PA_TURNPIKE, decode)!
+  assert.equal(q.fares[0]!.name, 'Tredyffrin Twp')
+  assert.equal(q.fares[1]!.name, 'Brecknock Twp → Monroeville')
+})

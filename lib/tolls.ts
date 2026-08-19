@@ -52,6 +52,10 @@ interface HereRoute {
     tolls?: {
       countryCode?: string
       tollSystem?: string
+      /** Физические пункты оплаты этой группы. Их имена куда полезнее названия
+       * системы: на одном маршруте «PA TURNPIKE 476» повторяется четырежды, а
+       * «Tredyffrin Twp → Monroeville» сразу говорит, где именно платят. */
+      tollCollectionLocations?: { name?: string }[]
       fares?: {
         name?: string
         price?: { value?: number; currency?: string }
@@ -61,6 +65,9 @@ interface HereRoute {
     }[]
   }[]
 }
+
+/** Способы оплаты, означающие транспондер (E-ZPass и родня). */
+const TRANSPONDER = /transponder|ezpass|e-zpass|pass/i
 
 const METERS_TO_MILES = 0.000621371
 
@@ -78,6 +85,7 @@ export function parseHereRoute(
   json: unknown,
   decodePolyline: (s: string) => [number, number][],
   wantCurrency = 'USD',
+  hasTransponder = false,
 ): TollQuote | null {
   const route = (json as { routes?: HereRoute[] })?.routes?.[0]
   if (!route?.sections?.length) return null
@@ -91,20 +99,46 @@ export function parseHereRoute(
     meters += s.summary?.length ?? 0
     seconds += s.summary?.duration ?? 0
     if (s.polyline) coords.push(...decodePolyline(s.polyline))
+
+    // Элемент tolls — это ОДИН пункт (или отрезок) оплаты, а fares внутри него —
+    // альтернативы по способу оплаты за один и тот же проезд, а не отдельные
+    // платежи. Складывать их было бы двойным счётом: на живом маршруте
+    // Филадельфия — Питтсбург так набежало бы вчетверо больше настоящего.
+    // Складываем ГРУППЫ, а внутри группы выбираем один тариф.
     for (const toll of s.tolls ?? []) {
-      for (const f of toll.fares ?? []) {
-        const priced = f.convertedPrice?.currency === wantCurrency ? f.convertedPrice : f.price
-        const amount = priced?.value
-        if (typeof amount !== 'number') continue
-        fares.push({
-          name: f.name?.trim() || toll.tollSystem?.trim() || '—',
-          system: toll.tollSystem?.trim() || '',
-          country: toll.countryCode?.trim() || '',
-          amount,
-          currency: priced?.currency || wantCurrency,
-          methods: f.paymentMethods ?? [],
+      const options = (toll.fares ?? [])
+        .map((f) => {
+          const priced = f.convertedPrice?.currency === wantCurrency ? f.convertedPrice : f.price
+          return { f, amount: priced?.value, currency: priced?.currency || wantCurrency }
         })
-      }
+        .filter((o): o is { f: NonNullable<typeof o.f>; amount: number; currency: string } =>
+          typeof o.amount === 'number',
+        )
+      if (options.length === 0) continue
+
+      // С транспондером берём тариф транспондера — он и дешевле, и это то, что
+      // реально спишется. Без него берём САМЫЙ ДОРОГОЙ из оставшихся: ошибиться
+      // в большую сторону безопасно (диспетчер заложил больше, чем заплатит),
+      // в меньшую — нет.
+      const byTransponder = hasTransponder
+        ? options.find((o) => (o.f.paymentMethods ?? []).some((m) => TRANSPONDER.test(m)))
+        : undefined
+      const chosen =
+        byTransponder ?? options.reduce((a, b) => (b.amount > a.amount ? b : a))
+
+      const where = (toll.tollCollectionLocations ?? [])
+        .map((l) => l.name?.trim())
+        .filter(Boolean)
+        .join(' → ')
+
+      fares.push({
+        name: where || chosen.f.name?.trim() || toll.tollSystem?.trim() || '—',
+        system: toll.tollSystem?.trim() || '',
+        country: toll.countryCode?.trim() || '',
+        amount: chosen.amount,
+        currency: chosen.currency,
+        methods: chosen.f.paymentMethods ?? [],
+      })
     }
   }
 
