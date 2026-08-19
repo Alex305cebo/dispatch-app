@@ -34,19 +34,23 @@ export async function GET(req: NextRequest) {
   }
 
   // Imported lazily so the liveness path above stays free of the DB module entirely.
-  const [{ sql }, { geminiKey, fmcsaKey }, { getSetting }] = await Promise.all([
-    import('@/lib/db'),
-    import('@/lib/keys'),
-    import('@/lib/settings'),
-  ])
+  const [{ sql }, { geminiKey, fmcsaKey, hereKey }, { getSetting }, { hereUsage }] =
+    await Promise.all([
+      import('@/lib/db'),
+      import('@/lib/keys'),
+      import('@/lib/settings'),
+      import('@/lib/tolls-here'),
+    ])
 
   try {
-    const [admins, trucks, co, gemini, fmcsa, schemaVersion] = await Promise.all([
+    const [admins, trucks, co, gemini, fmcsa, here, hereMonth, schemaVersion] = await Promise.all([
       sql`SELECT count(*)::int AS n FROM users WHERE is_demo = FALSE AND role = 'admin'`,
       sql`SELECT count(*)::int AS n FROM trucks WHERE company_id = 'default'`,
       sql`SELECT key, value FROM settings WHERE key IN ('co_name', 'co_mcdot')`,
       geminiKey(),
       fmcsaKey(),
+      hereKey(),
+      hereUsage(),
       getSetting('schema_version'),
     ])
     const coMap = Object.fromEntries((co as { key: string; value: string }[]).map((r) => [r.key, r.value]))
@@ -59,9 +63,14 @@ export async function GET(req: NextRequest) {
       keys: {
         gemini: gemini !== '',
         fmcsa: fmcsa !== '',
+        here: here !== '',
         eld: !!process.env.ELD_USERNAME && !!process.env.ELD_PASSWORD,
         cron: true, // reaching this branch at all proves CRON_SECRET is set and matched
       },
+      // Расход платных дорог за текущий месяц против нашего же потолка. Бесплатный
+      // объём Routing у HERE — 5000/мес, потолок ниже впятеро, и это видно цифрой,
+      // а не на слово.
+      tolls: { usedThisMonth: hereMonth.used, cap: hereMonth.cap },
     })
   } catch (e) {
     // A failure here is almost always "schema never applied" — say so rather than
