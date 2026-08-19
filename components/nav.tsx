@@ -30,6 +30,8 @@ const icons: Record<string, string> = {
   history: 'M12 8v4l3 3 M3.05 11a9 9 0 1 0 .5-4 M3 4v6h6',
   money: 'M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
   shield: 'M12 3l7 3v6c0 4-3 7-7 8-4-1-7-4-7-8V6z M9 12l2 2 4-4',
+  // Шлагбаум: стойка и поднятая стрела — узнаваемый знак платной дороги.
+  toll: 'M5 21V8 M3 8h4 M7 11l14-4 M7 14l14-4',
 }
 
 function Icon({ d }: { d: string }) {
@@ -102,6 +104,9 @@ const ITEMS: Item[] = [
   // Phone tab bar fits 6 — Brokers rides the desktop sidebar, reachable on phone
   // via load/import links.
   { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield', desktopOnly: true },
+  // Тоже только на десктопе: на телефоне в панель влезает шесть пунктов, а
+  // маршрут с толлами считают за столом перед букингом, а не за рулём.
+  { href: '/tolls', labelKey: 'nav.tolls', icon: 'toll', desktopOnly: true },
   { href: '/telegram', labelKey: 'nav.telegram', icon: 'chat' },
   // The phone tab bar fits 6 — this stays reachable from dashboard/load pages there.
   { href: '/invoices', labelKey: 'nav.finances', icon: 'money', desktopOnly: true },

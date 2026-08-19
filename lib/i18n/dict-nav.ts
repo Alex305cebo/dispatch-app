@@ -10,6 +10,7 @@ export const navDict = {
   'nav.tracking': { ru: 'Трекинг', en: 'Track' },
   'nav.docs': { ru: 'Файлы', en: 'Docs' },
   'nav.brokers': { ru: 'Брокеры', en: 'Brokers' },
+  'nav.tolls': { ru: 'Платные дороги', en: 'Tolls' },
   'nav.telegram': { ru: 'Telegram', en: 'Telegram' },
   'nav.finances': { ru: 'Финансы', en: 'Finances' },
   'nav.journal': { ru: 'Журнал', en: 'Log' },

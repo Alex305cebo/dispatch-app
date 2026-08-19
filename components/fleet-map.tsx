@@ -38,6 +38,10 @@ export type MapRoute = {
   from: [number, number]
   to: [number, number]
   coords?: [number, number][] // road polyline; when absent we draw a straight line
+  /** Раздел платных дорог рисует на одной карте два маршрута сразу. Одним цветом
+   * они читаются как один путь с петлёй, поэтому объезд идёт серым пунктиром, а
+   * платный — сплошной линией акцента. */
+  tone?: 'toll' | 'free'
 }
 
 // move=green/on=amber/rest=gray — the convergent pattern across Samsara, Verizon
@@ -427,11 +431,12 @@ export function FleetMap({
       // is a solid line following roads; the straight-line fallback is dashed.
       for (const r of routes) {
         const road = r.coords && r.coords.length > 1
+        const free = r.tone === 'free'
         L.polyline(road ? r.coords! : [r.from, r.to], {
-          color: DEST,
-          weight: road ? 4 : 2,
-          opacity: road ? 0.85 : 0.7,
-          dashArray: road ? undefined : '6 7',
+          color: free ? '#8b93a5' : DEST,
+          weight: free ? 3 : road ? 4 : 2,
+          opacity: free ? 0.75 : road ? 0.85 : 0.7,
+          dashArray: free ? '7 6' : road ? undefined : '6 7',
         }).addTo(map!)
         if (road) for (const c of r.coords!) bounds.extend(c)
       }

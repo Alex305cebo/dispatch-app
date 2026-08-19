@@ -1272,3 +1272,84 @@ export async function docMeta(id: number): Promise<{ title: string; mime: string
   const row = rows[0]
   return row ? { title: row.title, mime: row.mime } : { error: t(locale, 'actions.docNotFound') }
 }
+
+/* ---------- Платные дороги ---------- */
+
+export type TollCheck = {
+  toll: import('@/lib/tolls').TollQuote
+  free: import('@/lib/tolls').TollQuote | null
+  compare: import('@/lib/tolls').TollComparison | null
+  from: { lat: number; lng: number }
+  to: { lat: number; lng: number }
+  used: number
+  cap: number
+}
+
+/**
+ * Считает маршрут через платные дороги и, следом, объезд — и сравнивает их.
+ *
+ * Два запроса, а не один, потому что вопрос диспетчера не «сколько стоят толлы»,
+ * а «стоит ли их объезжать». Ответ на него — разница, и без второго маршрута её
+ * не существует.
+ *
+ * Города превращаются в координаты через тот же бесплатный геокодер, что и весь
+ * остальной сайт (Nominatim с кэшем): к HERE ходим только за самими толлами, и
+ * только столько раз, сколько нужно.
+ */
+export async function checkTolls(input: {
+  from: string
+  to: string
+  axles: number
+  grossWeightLb: number
+  transponder: boolean
+}): Promise<TollCheck | { error: string }> {
+  const locale = await getLocale()
+  if (!input.from?.trim() || !input.to?.trim()) return { error: t(locale, 'actions.needOriginDest') }
+
+  const { cityCoords } = await import('@/lib/geo-routing')
+  const [a, b] = await Promise.all([cityCoords(input.from), cityCoords(input.to)])
+  if (!a || !b) return { error: t(locale, 'tolls.notFound') }
+
+  const { hereTollRoute, hereUsage } = await import('@/lib/tolls-here')
+  const { compareRoutes, DEFAULT_TRUCK } = await import('@/lib/tolls')
+  const truck = {
+    axles: Math.max(2, Math.min(9, Math.round(input.axles) || DEFAULT_TRUCK.axles)),
+    grossWeightLb: Math.max(10_000, Math.round(input.grossWeightLb) || DEFAULT_TRUCK.grossWeightLb),
+    heightFt: DEFAULT_TRUCK.heightFt,
+  }
+
+  const toll = await hereTollRoute(a, b, truck, { transponder: input.transponder })
+  if ('error' in toll) return { error: tollError(toll.error, locale) }
+
+  // Объезд считаем только если платные вообще есть: иначе второй запрос ушёл бы
+  // из месячной квоты за ответ, который заранее известен.
+  const free = toll.total > 0 ? await hereTollRoute(a, b, truck, { avoidTolls: true, transponder: input.transponder }) : null
+  const freeQuote = free && !('error' in free) ? free : null
+
+  // Цена лишней мили объезда — топливо плюс обслуживание того трака, которым
+  // считаем. Берём средние по парку значения из настроек первого трака: раздел
+  // отвечает на вопрос до того, как груз привязан к машине.
+  const companyId = await companyScope()
+  const { defaultTruck } = await import('@/lib/loads')
+  const t0 = await defaultTruck(companyId)
+  const costPerMile = t0.fuelPricePerGallon / (t0.mpg || 6.5) + t0.maintenanceCostPerMile
+
+  const usage = await hereUsage()
+  return {
+    toll,
+    free: freeQuote,
+    compare: freeQuote ? compareRoutes(toll, freeQuote, costPerMile) : null,
+    from: a,
+    to: b,
+    used: usage.used,
+    cap: usage.cap,
+  }
+}
+
+/** Коды из lib/tolls-here.ts — человеку, а не в консоль. */
+function tollError(code: string, locale: Awaited<ReturnType<typeof getLocale>>): string {
+  if (code === 'no_key') return t(locale, 'tolls.noKey')
+  if (code === 'monthly_cap') return t(locale, 'tolls.capReached')
+  if (code === 'no_route') return t(locale, 'tolls.noRoute')
+  return `${t(locale, 'tolls.failed')} ${code}`
+}

@@ -17,6 +17,7 @@ import { telegramDict } from './i18n/dict-telegram.ts'
 import { adminDict } from './i18n/dict-admin.ts'
 import { overviewDict } from './i18n/dict-overview.ts'
 import { brokersDict } from './i18n/dict-brokers.ts'
+import { tollsDict } from './i18n/dict-tolls.ts'
 
 export type Locale = 'ru' | 'en'
 export const LOCALES: Locale[] = ['en', 'ru']
@@ -41,6 +42,7 @@ const DICT = {
   ...adminDict,
   ...overviewDict,
   ...brokersDict,
+  ...tollsDict,
 } as const
 
 export type MsgKey = keyof typeof DICT
