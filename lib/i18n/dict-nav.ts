@@ -37,6 +37,7 @@ export const navDict = {
   'userPanel.tilePassword': { ru: 'Пароль', en: 'Password' },
   'userPanel.tileUsers': { ru: 'Люди', en: 'People' },
   'userPanel.tileImport': { ru: 'Импорт', en: 'Import' },
+  'userPanel.tileKeys': { ru: 'Ключи', en: 'Keys' },
   'userPanel.actionsSection': { ru: 'Действия', en: 'Actions' },
   'userPanel.tileNewLoad': { ru: '+ Груз', en: '+ Load' },
   'userPanel.tileNewTruck': { ru: '+ Трак', en: '+ Truck' },

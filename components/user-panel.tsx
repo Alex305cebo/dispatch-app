@@ -349,6 +349,17 @@ export function UserPanel({
                 >
                   <Upload size={15} />
                 </MenuTile>
+                {/* Ключи живут на той же странице, что и люди, но искать их за
+                    кнопкой «Люди» никто не станет: слово ничего про ключи не
+                    говорит. Своя плитка ведёт в тот же /admin, сразу к якорю. */}
+                <MenuTile
+                  label={t(locale, 'userPanel.tileKeys')}
+                  href="/admin#keys"
+                  active={false}
+                  onNavigate={() => setOpen(false)}
+                >
+                  <KeyRound size={15} />
+                </MenuTile>
               </div>
             </div>
           )}
