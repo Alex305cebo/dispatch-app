@@ -17,7 +17,18 @@ import { t } from '@/lib/i18n'
  * в одну строку словами: считать её в уме над двумя колонками цифр никто не
  * станет, а решение принимают именно по ней.
  */
-export function TollsClient({ hasKey, used, cap }: { hasKey: boolean; used: number; cap: number }) {
+export function TollsClient({
+  hasKey,
+  used,
+  cap,
+  cities,
+}: {
+  hasKey: boolean
+  used: number
+  cap: number
+  /** Подсказки для полей города: свои направления впереди, дальше грузовые узлы. */
+  cities: string[]
+}) {
   const locale = useLocale()
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -79,6 +90,15 @@ export function TollsClient({ hasKey, used, cap }: { hasKey: boolean; used: numb
         </p>
       )}
 
+      {/* Нативный datalist, а не свой выпадающий список: браузер сам фильтрует по
+          вводу, работает с клавиатуры и на телефоне — писать для этого код незачем.
+          Поля остаются обычными текстовыми, вписать можно город не из списка. */}
+      <datalist id="toll-cities">
+        {cities.map((c) => (
+          <option key={c} value={c} />
+        ))}
+      </datalist>
+
       <section className="panel p-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block">
@@ -87,6 +107,8 @@ export function TollsClient({ hasKey, used, cap }: { hasKey: boolean; used: numb
               value={from}
               onChange={(e) => setFrom(e.target.value)}
               placeholder="Philadelphia, PA"
+              list="toll-cities"
+              autoComplete="off"
               className={input}
             />
           </label>
@@ -96,6 +118,8 @@ export function TollsClient({ hasKey, used, cap }: { hasKey: boolean; used: numb
               value={to}
               onChange={(e) => setTo(e.target.value)}
               placeholder="Pittsburgh, PA"
+              list="toll-cities"
+              autoComplete="off"
               className={input}
             />
           </label>

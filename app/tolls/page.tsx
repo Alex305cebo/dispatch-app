@@ -3,6 +3,8 @@ import { TollsClient } from './tolls-client'
 import { hereKey } from '@/lib/keys'
 import { hereUsage } from '@/lib/tolls-here'
 import { defaultTruck } from '@/lib/loads'
+import { citySuggestions } from '@/lib/city-suggest'
+import { sql } from '@/lib/db'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
@@ -20,7 +22,19 @@ export const dynamic = 'force-dynamic'
 export default async function TollsPage() {
   const locale = await getLocale()
   const companyId = await companyScope()
-  const [key, usage, truck] = await Promise.all([hereKey(), hereUsage(), defaultTruck(companyId)])
+  const [key, usage, , cityRows] = await Promise.all([
+    hereKey(),
+    hereUsage(),
+    defaultTruck(companyId),
+    // Города собственных грузов — они и есть самые вероятные подсказки: парк
+    // ездит по одним и тем же направлениям, а мелких городков вроде
+    // «Auburndale, FL» ни в одном общем справочнике нет.
+    sql`SELECT DISTINCT city FROM (
+          SELECT origin AS city FROM loads WHERE company_id = ${companyId} AND origin IS NOT NULL
+          UNION SELECT destination FROM loads WHERE company_id = ${companyId} AND destination IS NOT NULL
+        ) x`,
+  ])
+  const cities = citySuggestions((cityRows as { city: string }[]).map((r) => r.city))
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -30,7 +44,7 @@ export default async function TollsPage() {
       </h1>
       <p className="mb-5 text-[13px] text-white/65">{t(locale, 'tolls.subtitle')}</p>
 
-      <TollsClient hasKey={key !== ''} used={usage.used} cap={usage.cap} />
+      <TollsClient hasKey={key !== ''} used={usage.used} cap={usage.cap} cities={cities} />
     </main>
   )
 }
