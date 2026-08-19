@@ -398,3 +398,7 @@ ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 -- деньги: справочника «MC брокера → факторинговая компания» не существует, потому что
 -- факторинг берёт перевозчик, а не брокер. Заполняет ИИ при разборе документа.
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS pay_via TEXT;
+
+-- Платные дороги по маршруту груза, доллары. До этой колонки прибыль считалась
+-- так, будто дороги бесплатные: на восточных рейсах это трёхзначная ошибка.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS toll_cost NUMERIC;

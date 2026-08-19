@@ -219,3 +219,29 @@ test('быстрый и короткий получают свои ярлыки'
 test('пустой список вариантов не роняет ранжирование', () => {
   assert.deepEqual(rankOptions([], 0.55), [])
 })
+
+import { tagsNeeded, type TollFare } from './tolls.ts'
+
+const fare = (system: string, name = ''): TollFare => ({
+  name: name || system,
+  system,
+  country: 'USA',
+  amount: 10,
+  currency: 'USD',
+  methods: [],
+  points: [],
+})
+
+test('северо-восточные системы сводятся к одной метке E-ZPass', () => {
+  const tags = tagsNeeded([fare('PA TURNPIKE 476'), fare('NEW JERSEY TURNPIKE'), fare('OHIO TURNPIKE')])
+  assert.deepEqual(tags, ['E-ZPass'])
+})
+
+test('маршрут через несколько штатов называет все нужные метки', () => {
+  const tags = tagsNeeded([fare('PA TURNPIKE'), fare('FLORIDA TURNPIKE'), fare('NTTA DALLAS')])
+  assert.deepEqual(tags.sort(), ['E-ZPass', 'SunPass', 'TxTag / EZ TAG'])
+})
+
+test('незнакомая дорога не приписывается к чужой метке', () => {
+  assert.deepEqual(tagsNeeded([fare('SOME PRIVATE BRIDGE CO')]), [])
+})

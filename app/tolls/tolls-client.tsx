@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useTransition } from 'react'
-import { checkTolls, tollsFromDocument, type TollCheck } from '@/app/actions'
+import { checkTolls, saveLoadTolls, tollsFromDocument, type TollCheck } from '@/app/actions'
 import { FleetMap, type MapMarker, type MapRoute } from '@/components/fleet-map'
 import { Button } from '@/components/button'
 import { CityInput } from '@/components/city-input'
@@ -44,12 +44,15 @@ export function TollsClient({
   const [loadId, setLoadId] = useState('')
   /** Точки, через которые маршрут обязан пройти, по порядку. */
   const [via, setVia] = useState<string[]>([])
+  /** Момент выезда: часть дорог тарифицируется по часу. Пусто — «сейчас». */
+  const [departure, setDeparture] = useState('')
   const [res, setRes] = useState<TollCheck | null>(null)
   const [chosen, setChosen] = useState(0)
   /** Пункт оплаты, к которому карта «летит» по щелчку в списке. */
   const [focus, setFocus] = useState<{ lat: number; lng: number } | null>(null)
   const [pending, start] = useTransition()
   const [reading, setReading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   function run(over?: { from?: string; to?: string; loadId?: string }) {
@@ -66,6 +69,7 @@ export function TollsClient({
         truckId: truckId ? Number(truckId) : null,
         loadId: lid ? Number(lid) : null,
         via: via.filter((v) => v.trim()),
+        departure: departure || null,
       })
       if ('error' in r) {
         setRes(null)
@@ -259,6 +263,18 @@ export function TollsClient({
               className={input}
             />
           </label>
+          {/* Часть дорог тарифицируется по часу: в Нью-Йорке и Чикаго пик дороже
+              межпикового, и выехать на два часа позже иногда выгоднее объезда. */}
+          <label className="block w-44">
+            <span className={label}>{t(locale, 'tolls.departure')}</span>
+            <input
+              type="datetime-local"
+              value={departure}
+              onChange={(e) => setDeparture(e.target.value)}
+              title={t(locale, 'tolls.departureHint')}
+              className={input}
+            />
+          </label>
           <label className="flex cursor-pointer items-center gap-2 pb-2 text-[13px] text-white/80">
             <input
               type="checkbox"
@@ -316,8 +332,51 @@ export function TollsClient({
                   .replace('{after}', usd.format(res.load.netBefore - option.total))}
               </p>
               <p className="mt-1 text-[12.5px] text-white/55">{res.load.lane}</p>
+              {/* Записываем по кнопке, а не сами: маршрут считают и «на посмотреть»,
+                  под ещё не взятый груз, и молча менять чужую чистую нельзя. */}
+              <Button
+                variant="primary"
+                size="sm"
+                className="mt-3"
+                disabled={saving}
+                onClick={() => {
+                  const id = res.load!.id
+                  setSaving(true)
+                  void saveLoadTolls(id, option.total)
+                    .then((r) => {
+                      if (r?.error) notify('error', r.error)
+                      else notify('ok', t(locale, 'tolls.savedToLoad'))
+                    })
+                    .finally(() => setSaving(false))
+                }}
+              >
+                {t(locale, 'tolls.saveToLoad')}
+              </Button>
             </section>
           )}
+
+          {/* Единого пропуска по стране нет: выехав из Пенсильвании во Флориду,
+              трак теряет E-ZPass на границе и без SunPass платит по номеру —
+              самый дорогой тариф плюс счёт по почте через месяц. */}
+          <section className="panel p-4">
+            <h2 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+              {t(locale, 'tolls.tags')}
+            </h2>
+            {res.tags.length === 0 ? (
+              <p className="text-[13px] text-white/55">{t(locale, 'tolls.tagsNone')}</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {res.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-lg bg-haul-500/15 px-2.5 py-1 text-[12.5px] font-medium text-haul-300"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </section>
 
           <section className="panel p-4">
             <h2 className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">

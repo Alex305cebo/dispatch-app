@@ -157,6 +157,7 @@ export type LoadRow = {
   broker_mc: string | null
   broker_email: string | null
   pay_via: string | null
+  toll_cost?: number | string | null
   broker_phone: string | null
   broker_notes?: string | null
   notes_read_at?: Date | string | null
@@ -218,6 +219,7 @@ export function rowToLoad(r: LoadRow): LoadRecord {
     brokerMc: r.broker_mc,
     brokerEmail: r.broker_email,
     payVia: r.pay_via ?? null,
+    tolls: r.toll_cost == null ? 0 : Number(r.toll_cost),
     brokerPhone: r.broker_phone,
     brokerNotes: r.broker_notes ?? null,
     notesReadAt: r.notes_read_at ? new Date(r.notes_read_at).toISOString() : null,

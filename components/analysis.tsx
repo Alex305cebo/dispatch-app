@@ -14,6 +14,10 @@ const SLICES = [
   { key: 'fuel', color: 'bg-amber-400', labelKey: 'analysis.fuelShort' },
   { key: 'driver', color: 'bg-cyan-400', labelKey: 'analysis.driverLabel' },
   { key: 'maintenance', color: 'bg-fuchsia-400', labelKey: 'analysis.maintenanceLabel' },
+  // Толлы стоят рядом с топливом и обслуживанием — это тоже плата за дорогу, и
+  // на восточных рейсах доля у них сопоставимая. У груза без посчитанных толлов
+  // долька нулевая и в полосе не видна.
+  { key: 'tolls', color: 'bg-orange-400', labelKey: 'analysis.tollsLabel' },
   { key: 'truckPayment', color: 'bg-slate-300', labelKey: 'analysis.truckPaymentLabel' },
   { key: 'insurance', color: 'bg-slate-400', labelKey: 'analysis.insuranceLabel' },
   { key: 'eldPermits', color: 'bg-slate-500', labelKey: 'analysis.eldLabel' },
@@ -193,6 +197,15 @@ export function Analysis({
             color="bg-violet-400/80"
             hint={t(locale, 'analysis.maintenanceHint')}
           />
+          {r.tolls > 0 && (
+            <CostBar
+              label={t(locale, 'analysis.tollsLabel')}
+              amount={r.tolls}
+              gross={r.gross}
+              color="bg-orange-400/80"
+              hint={t(locale, 'analysis.tollsHint')}
+            />
+          )}
           <CostBar
             label={t(locale, 'analysis.truckPaymentLabel')}
             amount={r.truckPayment}

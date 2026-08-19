@@ -71,6 +71,10 @@ export async function hereTollRoute(
      * Задав такую точку руками, диспетчер оставляет неизбежное неизбежным, а
      * экономию ищет дальше по пути. */
     via?: { lat: number; lng: number }[]
+    /** Момент выезда, ISO без зоны. Часть дорог тарифицируется по часу: в
+     * Нью-Йорке и Чикаго пик дороже межпикового, и выехать на два часа позже
+     * иногда дешевле, чем объезжать. Без него HERE считает по текущему времени. */
+    departure?: string
   } = {},
 ): Promise<TollQuote[] | { error: string }> {
   const key = await hereKey()
@@ -93,6 +97,7 @@ export async function hereTollRoute(
   if (opts.avoidTolls) params.set('avoid[features]', 'tollRoad')
   // via повторяется столько раз, сколько точек: URLSearchParams.append, а не set.
   for (const v of opts.via ?? []) params.append('via', `${v.lat},${v.lng}`)
+  if (opts.departure) params.set('departureTime', opts.departure)
   // ponytail: параметр принимается (HTTP 200), но на живом ответе тариф не менялся —
   // HERE всё равно вернул videoToll. Точное имя набора транспондеров в их
   // документации не описано, поэтому скидку E-ZPass пока считаем сами, выбирая
@@ -105,7 +110,8 @@ export async function hereTollRoute(
     `here:${from.lat.toFixed(3)},${from.lng.toFixed(3)}->${to.lat.toFixed(3)},${to.lng.toFixed(3)}` +
     `:${truck.axles}/${truck.grossWeightLb}/${truck.heightFt}` +
     `${opts.avoidTolls ? ':free' : ''}${opts.transponder ? ':tag' : ''}` +
-    `${(opts.via ?? []).map((v) => `:${v.lat.toFixed(3)},${v.lng.toFixed(3)}`).join('')}`
+    `${(opts.via ?? []).map((v) => `:${v.lat.toFixed(3)},${v.lng.toFixed(3)}`).join('')}` +
+    `${opts.departure ? `:${opts.departure}` : ''}`
   const hit = await getSetting(cacheKey)
   if (hit) {
     try {

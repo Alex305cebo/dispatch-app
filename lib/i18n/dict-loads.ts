@@ -329,6 +329,11 @@ export const loadsDict = {
   'brokerNotes.updateFromRc': { ru: 'обновить из рейткона', en: 'update from rate con' },
 
   // components/analysis.tsx
+  'analysis.tollsLabel': { ru: 'Платные дороги', en: 'Tolls' },
+  'analysis.tollsHint': {
+    ru: 'Проезд по платным дорогам на этом маршруте. Считается в разделе «Толлы» и записывается на груз кнопкой; пока не посчитан — ноль, и прибыль показывается так, будто дороги бесплатные.',
+    en: 'Toll roads on this route. Calculated in the Tolls section and written onto the load with a button; until then it is zero and profit is shown as if the roads were free.',
+  },
   'analysis.net': { ru: 'Чистыми', en: 'Net' },
   'analysis.marginLine': {
     ru: ' · маржа {pct}% · себестоимость груза (за вычетом всех расходов) ',

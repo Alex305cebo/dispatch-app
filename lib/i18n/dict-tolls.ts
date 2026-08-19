@@ -92,6 +92,21 @@ export const tollsDict = {
     en: 'Where the route must pass through. Every New York bridge is tolled — there is nothing to avoid there, and savings live further along.',
   },
   'tolls.removeVia': { ru: 'Убрать', en: 'Remove' },
+  'tolls.saveToLoad': { ru: 'Записать в груз', en: 'Save onto the load' },
+  'tolls.savedToLoad': {
+    ru: 'Толлы записаны — теперь они в себестоимости груза',
+    en: 'Tolls saved — now part of the load cost',
+  },
+  'tolls.departure': { ru: 'Выезд', en: 'Departure' },
+  'tolls.departureHint': {
+    ru: 'Цена части дорог зависит от часа: в Нью-Йорке и Чикаго пиковый тариф выше.',
+    en: 'Some roads price by the hour: peak rates in New York and Chicago are higher.',
+  },
+  'tolls.tags': { ru: 'Нужны транспондеры', en: 'Transponders needed' },
+  'tolls.tagsNone': {
+    ru: 'Известных систем на маршруте не нашлось — платить по номеру.',
+    en: 'No known systems on this route — pay by plate.',
+  },
   'tolls.info': {
     ru: 'Стоимость проезда считает HERE по траковому профилю: число осей и полная масса меняют тариф в разы. Сравниваются два маршрута — через платные дороги и в объезд, — и разница переводится в деньги: лишние мили объезда стоят топлива и обслуживания, и часто дороже самих толлов. С транспондером берётся тариф E-ZPass, без него — тариф «по номеру», который выше. Число обращений ограничено нарочно, чтобы бесплатный тариф HERE нельзя было превысить.',
     en: 'Toll cost comes from HERE using a truck profile: axle count and gross weight change the rate several times over. Two routes are compared — through the tolls and around them — and the difference is put in dollars: the detour’s extra miles cost fuel and maintenance, often more than the tolls themselves. With a transponder the E-ZPass rate is used; without one, the higher pay-by-plate rate. The number of requests is capped on purpose so HERE’s free tier cannot be exceeded.',

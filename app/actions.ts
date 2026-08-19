@@ -1285,6 +1285,8 @@ export type TollCheck = {
    * его чистой прибылью. Без этого раздел остаётся калькулятором, а с этим
    * отвечает на вопрос, ради которого груз и берут. */
   load: { id: number; lane: string; rate: number; netBefore: number } | null
+  /** Метки, которые понадобятся в дороге: единого пропуска по стране нет. */
+  tags: string[]
   used: number
   cap: number
 }
@@ -1312,6 +1314,8 @@ export async function checkTolls(input: {
   loadId?: number | null
   /** Города, через которые маршрут обязан пройти, — по порядку. */
   via?: string[]
+  /** Момент выезда: часть дорог тарифицируется по часу. */
+  departure?: string | null
 }): Promise<TollCheck | { error: string }> {
   const locale = await getLocale()
   const companyId = await companyScope()
@@ -1362,14 +1366,15 @@ export async function checkTolls(input: {
     heightFt: DEFAULT_TRUCK.heightFt,
   }
 
-  const main = await hereTollRoute(a, b, spec, { transponder: input.transponder, via })
+  const dep = input.departure || undefined
+  const main = await hereTollRoute(a, b, spec, { transponder: input.transponder, via, departure: dep })
   if ('error' in main) return { error: tollError(main.error, locale) }
 
   // Объезд запрашиваем, только если платные вообще есть: иначе второе обращение
   // ушло бы из месячной квоты за заранее известный ответ.
   const anyTolls = main.some((q) => q.total > 0)
   const avoid = anyTolls
-    ? await hereTollRoute(a, b, spec, { avoidTolls: true, transponder: input.transponder, via })
+    ? await hereTollRoute(a, b, spec, { avoidTolls: true, transponder: input.transponder, via, departure: dep })
     : null
   const avoidQuotes = avoid && !('error' in avoid) ? avoid : []
 
@@ -1387,8 +1392,18 @@ export async function checkTolls(input: {
     costPerMile,
   )
 
+  const { tagsNeeded } = await import('@/lib/tolls')
   const usage = await hereUsage()
-  return { options, from: a, to: b, costPerMile, load, used: usage.used, cap: usage.cap }
+  return {
+    options,
+    from: a,
+    to: b,
+    costPerMile,
+    load,
+    tags: tagsNeeded(options[0]?.fares ?? []),
+    used: usage.used,
+    cap: usage.cap,
+  }
 }
 
 /** Коды из lib/tolls-here.ts — человеку, а не в консоль. */
@@ -1450,4 +1465,28 @@ export async function tollsFromDocument(
   const load = toQrLoad(aiToFields(res.fields, res.model))
   if (!load.origin || !load.destination) return { error: t(locale, 'tolls.docNoRoute') }
   return { from: load.origin, to: load.destination, rate: load.rate || null }
+}
+
+/**
+ * Записывает посчитанные толлы на груз — с этого момента они входят в прибыль.
+ *
+ * Отдельным действием, а не автоматически при расчёте: маршрут в разделе считают
+ * и «на посмотреть», под ещё не взятый груз, и молча менять чистую по чужому
+ * грузу от одного взгляда на карту нельзя.
+ */
+export async function saveLoadTolls(
+  loadId: number,
+  tolls: number,
+): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const locale = await getLocale()
+  const companyId = await companyScope()
+  if (!(await loadBelongs(companyId, loadId))) return { error: t(locale, 'actions.loadNotFound') }
+  const value = Math.max(0, Math.round(tolls * 100) / 100)
+  await sql`UPDATE loads SET toll_cost = ${value} WHERE id = ${loadId} AND company_id = ${companyId}`
+  revalidatePath(`/loads/${loadId}`)
+  revalidatePath('/loads')
+  revalidatePath('/')
+  revalidatePath('/invoices')
 }
