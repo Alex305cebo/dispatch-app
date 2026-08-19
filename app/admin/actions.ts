@@ -6,7 +6,7 @@ import { humanError } from '@/lib/msg'
 import { hashPassword } from '@/lib/auth'
 import { getCurrentUser } from '@/lib/session'
 import { deleteSetting, getSetting, setSetting } from '@/lib/settings'
-import { aiModelPref, fmcsaKey, geminiKey } from '@/lib/keys'
+import { aiModelPref, fmcsaKey, geminiKey, hereKey } from '@/lib/keys'
 import { CAPABILITIES, type CapabilityKey } from '@/lib/capabilities'
 import { capabilitiesFor, setUserCapability } from '@/lib/capabilities-server'
 import { getLocale } from '@/lib/i18n-server'
@@ -93,6 +93,9 @@ export async function createUser(
     return { error: /unique/i.test(String(e)) ? t(locale, 'admin.err.emailTaken') : humanError(e) }
   }
   revalidatePath('/admin')
+  // Ключ HERE читает раздел платных дорог — без этого он остался бы
+  // на закэшированном «ключа нет» до следующей полной перезагрузки.
+  revalidatePath('/tolls')
 }
 
 export async function setUserRole(userId: number, role: 'admin' | 'dispatcher'): Promise<{ error: string } | void> {
@@ -136,10 +139,20 @@ export async function setOpenAccess(enabled: boolean): Promise<{ error: string }
 /** Which third-party keys this install has, WITHOUT ever returning their values. The
  * admin panel only needs to show "set / not set" and offer to replace — echoing a key
  * back into a page would put it in the HTML, the RSC payload and the browser cache. */
-export async function getKeyStatus(): Promise<{ gemini: boolean; fmcsa: boolean; modelPref: 'saving' | 'quality' }> {
+export async function getKeyStatus(): Promise<{
+  gemini: boolean
+  fmcsa: boolean
+  here: boolean
+  modelPref: 'saving' | 'quality'
+}> {
   await assertAdmin()
-  const [gemini, fmcsa, modelPref] = await Promise.all([geminiKey(), fmcsaKey(), aiModelPref()])
-  return { gemini: gemini !== '', fmcsa: fmcsa !== '', modelPref }
+  const [gemini, fmcsa, here, modelPref] = await Promise.all([
+    geminiKey(),
+    fmcsaKey(),
+    hereKey(),
+    aiModelPref(),
+  ])
+  return { gemini: gemini !== '', fmcsa: fmcsa !== '', here: here !== '', modelPref }
 }
 
 /** Saves the install's own API keys. An empty string means "leave as it is" — the form
@@ -148,6 +161,7 @@ export async function getKeyStatus(): Promise<{ gemini: boolean; fmcsa: boolean;
 export async function saveKeys(input: {
   gemini?: string
   fmcsa?: string
+  here?: string
   modelPref?: 'saving' | 'quality'
 }): Promise<{ error: string } | void> {
   await assertAdmin()
@@ -159,6 +173,7 @@ export async function saveKeys(input: {
   }
   await write('gemini_api_key', input.gemini)
   await write('fmcsa_webkey', input.fmcsa)
+  await write('here_api_key', input.here)
   if (input.modelPref) await setSetting('ai_model_pref', input.modelPref)
   revalidatePath('/admin')
 }

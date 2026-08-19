@@ -44,3 +44,10 @@ export function fmcsaKey(): Promise<string> {
 export async function aiModelPref(): Promise<'saving' | 'quality'> {
   return (await getSetting('ai_model_pref')) === 'quality' ? 'quality' : 'saving'
 }
+
+/** HERE Routing v8 — платные дороги. Бесплатный уровень платформы HERE покрывает
+ * парк такого размера с многократным запасом; без ключа раздел «Платные дороги»
+ * честно говорит, что считать нечем, вместо того чтобы выдумывать цифры. */
+export function hereKey(): Promise<string> {
+  return keyFrom('here_api_key', process.env.HERE_API_KEY)
+}

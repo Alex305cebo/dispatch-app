@@ -65,22 +65,24 @@ function Field({
 export function KeysForm({
   status,
 }: {
-  status: { gemini: boolean; fmcsa: boolean; modelPref: 'saving' | 'quality' }
+  status: { gemini: boolean; fmcsa: boolean; here: boolean; modelPref: 'saving' | 'quality' }
 }) {
   const locale = useLocale()
   const [gemini, setGemini] = useState('')
   const [fmcsa, setFmcsa] = useState('')
+  const [here, setHere] = useState('')
   const [pref, setPref] = useState(status.modelPref)
   const [pending, start] = useTransition()
 
   function save() {
     start(async () => {
-      const res = await saveKeys({ gemini, fmcsa, modelPref: pref })
+      const res = await saveKeys({ gemini, fmcsa, here, modelPref: pref })
       if (res?.error) notify('error', res.error)
       else {
         notify('ok', t(locale, 'admin.keys.saved'))
         setGemini('')
         setFmcsa('')
+        setHere('')
       }
     })
   }
@@ -102,6 +104,14 @@ export function KeysForm({
         value={fmcsa}
         onChange={setFmcsa}
         href="https://mobile.fmcsa.dot.gov/QCDevsite/"
+      />
+      <Field
+        label={t(locale, 'admin.keys.here')}
+        hint={t(locale, 'admin.keys.hereHint')}
+        isSet={status.here}
+        value={here}
+        onChange={setHere}
+        href="https://platform.here.com/admin/apps"
       />
 
       {/* Only meaningful once the key has billing behind it — said plainly in the hint

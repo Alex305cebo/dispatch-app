@@ -37,6 +37,11 @@ export const adminDict = {
     ru: 'Проверка полномочий и страховки брокера по базе FMCSA. Ключ бесплатный, выдаётся сразу.',
     en: "Broker authority and insurance lookups against the FMCSA database. The key is free and issued instantly.",
   },
+  'admin.keys.here': { ru: 'Ключ HERE (платные дороги)', en: 'HERE key (tolls)' },
+  'admin.keys.hereHint': {
+    ru: 'Считает стоимость платных дорог для трака по осям и весу. Бесплатный уровень HERE покрывает парк с запасом; без ключа раздел «Платные дороги» просто скажет, что считать нечем.',
+    en: 'Prices toll roads for a truck by axles and weight. HERE’s free tier covers a fleet this size with room to spare; without a key the Tolls section simply says it has nothing to calculate with.',
+  },
   'admin.keys.modelPref': { ru: 'Что важнее при распознавании', en: 'Recognition priority' },
   'admin.keys.modelSaving': { ru: 'Экономия', en: 'Economy' },
   'admin.keys.modelQuality': { ru: 'Качество', en: 'Quality' },
