@@ -383,7 +383,7 @@ export function TollsClient({
               {t(locale, 'tolls.options')}
             </h2>
             <div className="grid gap-2 sm:grid-cols-3">
-              {res.options.map((o, i) => (
+              {res.options.slice(0, 3).map((o, i) => (
                 <OptionCard
                   key={o.id}
                   o={o}
@@ -504,17 +504,23 @@ function OptionCard({
           </span>
         ))}
       </div>
-      <p className="nums mt-1.5 text-xl font-bold">{usd.format(o.totalCost)}</p>
-      <p className="text-[10px] uppercase tracking-wider text-white/40">{t(locale, 'tolls.fullCost')}</p>
+      {/* Крупно — ТОЛЛЫ: за ними в этот раздел и приходят. Полная стоимость
+          поездки раньше стояла здесь, и «$817» при нулевых платных читалось как
+          несуразно дорогой проезд. Она осталась, но строкой сравнения внизу, где
+          и приносит пользу: ею объясняется, почему дешёвый по толлам вариант
+          может оказаться дороже. */}
+      <p className={`nums mt-1.5 text-xl font-bold ${o.total > 0 ? 'text-warn-400' : 'text-good-400'}`}>
+        {usd.format(o.total)}
+      </p>
+      <p className="text-[10px] uppercase tracking-wider text-white/40">
+        {t(locale, 'tolls.tollsTotal')}
+      </p>
       <p className="nums mt-1.5 text-[12px] text-white/60">
         {o.miles.toLocaleString('en-US')} mi · {driveTime(o.minutes, locale)}
       </p>
-      <p className="nums text-[12px] text-warn-400">
-        {t(locale, 'tolls.tollsTotal')} {usd.format(o.total)}
-      </p>
-      <p className="mt-1 text-[11px] text-white/40">
+      <p className="nums mt-1 text-[11px] text-white/40" title={t(locale, 'tolls.fullCostHint')}>
         {extra <= 0
-          ? t(locale, 'tolls.isBest')
+          ? `${t(locale, 'tolls.isBest')} · ${usd.format(o.totalCost)}`
           : t(locale, 'tolls.vsBest').replace('{v}', usd.format(extra))}
       </p>
     </button>
