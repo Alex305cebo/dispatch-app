@@ -42,6 +42,8 @@ export type MapRoute = {
    * они читаются как один путь с петлёй, поэтому объезд идёт серым пунктиром, а
    * платный — сплошной линией акцента. */
   tone?: 'toll' | 'free'
+  /** Ключ варианта. Есть — по линии можно щёлкнуть и выбрать её (см. onRoute). */
+  id?: string
 }
 
 // move=green/on=amber/rest=gray — the convergent pattern across Samsara, Verizon
@@ -374,6 +376,7 @@ export function FleetMap({
   height = 340,
   distanceMi = null,
   onSelect,
+  onRoute,
   focus = null,
 }: {
   markers: MapMarker[]
@@ -384,6 +387,9 @@ export function FleetMap({
   /** Fires with a truck's id when its pin is clicked, and with null when the click
    * lands on empty map (Leaflet doesn't propagate marker clicks to the map). */
   onSelect?: (truckId: number | null) => void
+  /** Щелчок по линии маршрута — с её `id`. Карта перестаёт быть картинкой:
+   * вариант выбирают там же, где на него смотрят, а не только кнопкой сверху. */
+  onRoute?: (id: string) => void
   /** Точка, к которой карту просят подлететь снаружи — раздел платных дорог так
    * показывает пункт оплаты, выбранный в списке. Меняется объектом, поэтому
    * повторный щелчок по той же строке снова ведёт карту к ней. */
@@ -405,6 +411,8 @@ export function FleetMap({
   // straight into the effect's deps would tear down and rebuild the map on each click.
   const selectRef = useRef(onSelect)
   selectRef.current = onSelect
+  const routeRef = useRef(onRoute)
+  routeRef.current = onRoute
   const mapRef = useRef<import('leaflet').Map | null>(null)
   const tileRef = useRef<import('leaflet').TileLayer | null>(null)
 
@@ -445,12 +453,36 @@ export function FleetMap({
       for (const r of routes) {
         const road = r.coords && r.coords.length > 1
         const free = r.tone === 'free'
-        L.polyline(road ? r.coords! : [r.from, r.to], {
+        const line = L.polyline(road ? r.coords! : [r.from, r.to], {
           color: free ? '#8b93a5' : DEST,
           weight: free ? 3 : road ? 4 : 2,
           opacity: free ? 0.75 : road ? 0.85 : 0.7,
           dashArray: free ? '7 6' : road ? undefined : '6 7',
         }).addTo(map!)
+
+        if (r.id && road) {
+          // Невыбранный маршрут можно выбрать щелчком прямо по нему. Тонкая линия
+          // в три пикселя — мишень, в которую не попасть мышью и тем более пальцем,
+          // поэтому поверх кладётся широкая прозрачная: она ловит щелчок, а видно
+          // по-прежнему тонкую.
+          const id = r.id
+          const hit = L.polyline(r.coords!, { color: '#000', weight: 18, opacity: 0 }).addTo(map!)
+          for (const target of [line, hit]) {
+            target.on('click', (e: { originalEvent?: Event }) => {
+              // Иначе щелчок дойдёт до карты и та поймёт его как «снять выбор».
+              e.originalEvent?.stopPropagation()
+              routeRef.current?.(id)
+            })
+            target.on('mouseover', () => {
+              if (free) line.setStyle({ color: DEST, opacity: 1 })
+            })
+            target.on('mouseout', () => {
+              if (free) line.setStyle({ color: '#8b93a5', opacity: 0.75 })
+            })
+          }
+          ;(hit.getElement() as SVGElement | null)?.style.setProperty('cursor', 'pointer')
+        }
+
         if (road) for (const c of r.coords!) bounds.extend(c)
       }
       // Empty map = "show me the whole fleet again". Leaflet doesn't bubble a marker

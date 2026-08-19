@@ -64,7 +64,6 @@ export async function hereTollRoute(
   truck: TruckSpec,
   opts: {
     avoidTolls?: boolean
-    transponder?: boolean
     /** Точки, через которые маршрут обязан пройти. Нужны там, где объехать
      * нельзя в принципе: мосты и туннели Нью-Йорка платные все до одного, и
      * «объезд» вокруг них — это лишняя сотня миль ради дороги, которой нет.
@@ -98,18 +97,13 @@ export async function hereTollRoute(
   // via повторяется столько раз, сколько точек: URLSearchParams.append, а не set.
   for (const v of opts.via ?? []) params.append('via', `${v.lat},${v.lng}`)
   if (opts.departure) params.set('departureTime', opts.departure)
-  // ponytail: параметр принимается (HTTP 200), но на живом ответе тариф не менялся —
-  // HERE всё равно вернул videoToll. Точное имя набора транспондеров в их
-  // документации не описано, поэтому скидку E-ZPass пока считаем сами, выбирая
-  // тариф транспондера из вариантов, которые HERE и так присылает.
-  if (opts.transponder) params.set('tolls[transponders]', 'EZPass')
 
   // Кэш проверяем ДО лимита: повторный взгляд на тот же маршрут не должен
   // расходовать месячную квоту.
   const cacheKey =
     `here:${from.lat.toFixed(3)},${from.lng.toFixed(3)}->${to.lat.toFixed(3)},${to.lng.toFixed(3)}` +
     `:${truck.axles}/${truck.grossWeightLb}/${truck.heightFt}` +
-    `${opts.avoidTolls ? ':free' : ''}${opts.transponder ? ':tag' : ''}` +
+    `${opts.avoidTolls ? ':free' : ''}` +
     `${(opts.via ?? []).map((v) => `:${v.lat.toFixed(3)},${v.lng.toFixed(3)}`).join('')}` +
     `${opts.departure ? `:${opts.departure}` : ''}`
   const hit = await getSetting(cacheKey)
@@ -140,7 +134,7 @@ export async function hereTollRoute(
         `HTTP ${res.status}`
       return { error: msg }
     }
-    const quotes = parseHereRoutes(json, decodeFlexPolyline, 'USD', opts.transponder ?? false)
+    const quotes = parseHereRoutes(json, decodeFlexPolyline, 'USD')
     // Пустой ответ — не ошибка сети, а «маршрута нет»: между точками может не быть
     // дороги, законной для трака заданной высоты и веса.
     if (quotes.length === 0) return { error: 'no_route' }

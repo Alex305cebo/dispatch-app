@@ -1285,8 +1285,6 @@ export type TollCheck = {
    * его чистой прибылью. Без этого раздел остаётся калькулятором, а с этим
    * отвечает на вопрос, ради которого груз и берут. */
   load: { id: number; lane: string; rate: number; netBefore: number } | null
-  /** Метки, которые понадобятся в дороге: единого пропуска по стране нет. */
-  tags: string[]
   used: number
   cap: number
 }
@@ -1307,7 +1305,6 @@ export async function checkTolls(input: {
   to: string
   axles: number
   grossWeightLb: number
-  transponder: boolean
   /** Трак, по экономике которого считается цена лишней мили. */
   truckId?: number | null
   /** Груз, под который считаем: подставляет маршрут и показывает удар по чистой. */
@@ -1367,14 +1364,14 @@ export async function checkTolls(input: {
   }
 
   const dep = input.departure || undefined
-  const main = await hereTollRoute(a, b, spec, { transponder: input.transponder, via, departure: dep })
+  const main = await hereTollRoute(a, b, spec, { via, departure: dep })
   if ('error' in main) return { error: tollError(main.error, locale) }
 
   // Объезд запрашиваем, только если платные вообще есть: иначе второе обращение
   // ушло бы из месячной квоты за заранее известный ответ.
   const anyTolls = main.some((q) => q.total > 0)
   const avoid = anyTolls
-    ? await hereTollRoute(a, b, spec, { avoidTolls: true, transponder: input.transponder, via, departure: dep })
+    ? await hereTollRoute(a, b, spec, { avoidTolls: true, via, departure: dep })
     : null
   const avoidQuotes = avoid && !('error' in avoid) ? avoid : []
 
@@ -1392,7 +1389,6 @@ export async function checkTolls(input: {
     costPerMile,
   )
 
-  const { tagsNeeded } = await import('@/lib/tolls')
   const usage = await hereUsage()
   return {
     options,
@@ -1400,7 +1396,6 @@ export async function checkTolls(input: {
     to: b,
     costPerMile,
     load,
-    tags: tagsNeeded(options[0]?.fares ?? []),
     used: usage.used,
     cap: usage.cap,
   }

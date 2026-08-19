@@ -92,8 +92,7 @@ interface HereRoute {
   }[]
 }
 
-/** Способы оплаты, означающие транспондер (E-ZPass и родня). */
-const TRANSPONDER = /transponder|ezpass|e-zpass|pass/i
+
 
 const METERS_TO_MILES = 0.000621371
 
@@ -111,7 +110,6 @@ export function parseHereRoute(
   json: unknown,
   decodePolyline: (s: string) => [number, number][],
   wantCurrency = 'USD',
-  hasTransponder = false,
 ): TollQuote | null {
   const route = (json as { routes?: HereRoute[] })?.routes?.[0]
   if (!route?.sections?.length) return null
@@ -142,15 +140,11 @@ export function parseHereRoute(
         )
       if (options.length === 0) continue
 
-      // С транспондером берём тариф транспондера — он и дешевле, и это то, что
-      // реально спишется. Без него берём САМЫЙ ДОРОГОЙ из оставшихся: ошибиться
-      // в большую сторону безопасно (диспетчер заложил больше, чем заплатит),
-      // в меньшую — нет.
-      const byTransponder = hasTransponder
-        ? options.find((o) => (o.f.paymentMethods ?? []).some((m) => TRANSPONDER.test(m)))
-        : undefined
-      const chosen =
-        byTransponder ?? options.reduce((a, b) => (b.amount > a.amount ? b : a))
+      // Берём САМЫЙ ДОРОГОЙ из вариантов оплаты. Раздел отвечает на вопрос
+      // «сколько будет стоить проезд», и ошибиться в большую сторону безопасно:
+      // диспетчер заложил больше, чем спишется. Ошибка вниз — это груз, взятый
+      // по ставке, которая не окупается.
+      const chosen = options.reduce((a, b) => (b.amount > a.amount ? b : a))
 
       const locations = toll.tollCollectionLocations ?? []
       const where = locations
@@ -231,12 +225,11 @@ export function parseHereRoutes(
   json: unknown,
   decodePolyline: (s: string) => [number, number][],
   wantCurrency = 'USD',
-  hasTransponder = false,
 ): TollQuote[] {
   const routes = (json as { routes?: unknown[] })?.routes ?? []
   const out: TollQuote[] = []
   for (const r of routes) {
-    const q = parseHereRoute({ routes: [r] }, decodePolyline, wantCurrency, hasTransponder)
+    const q = parseHereRoute({ routes: [r] }, decodePolyline, wantCurrency)
     if (q) out.push(q)
   }
   return out
@@ -282,48 +275,4 @@ export function rankOptions(
   best('miles', 'shortest')
   best('total', 'leastTolls')
   return options.sort((a, b) => a.totalCost - b.totalCost)
-}
-
-/**
- * Какие транспондеры нужны на этом маршруте.
- *
- * Единого пропуска по стране не существует: толлами в США управляют около
- * дюжины независимых агентств, у каждого своя метка. Диспетчер, отправляя трак
- * из Пенсильвании во Флориду, должен знать заранее, что E-ZPass там кончится и
- * дальше начнётся SunPass, — иначе трак поедет «по номеру», а это самый дорогой
- * тариф и отдельный счёт по почте через месяц.
- *
- * Сопоставление грубое, по названию системы из ответа HERE: точного справочника
- * «дорога → метка» бесплатно нет, но названия агентств устойчивы и узнаваемы.
- * Неизвестная дорога честно попадает в «платить по номеру», а не приписывается
- * к чужой метке.
- */
-const TAG_RULES: { tag: string; test: RegExp }[] = [
-  { tag: 'SunPass', test: /sunpass|florida|miami|orlando|tampa|alligator|selmon/i },
-  { tag: 'TxTag / EZ TAG', test: /txtag|ez ?tag|texas|harris county|ntta|dallas|austin|houston/i },
-  { tag: 'FasTrak', test: /fastrak|california|golden gate|bay area|orange county|riverside/i },
-  { tag: 'PikePass', test: /pikepass|oklahoma/i },
-  { tag: 'K-TAG', test: /k-?tag|kansas/i },
-  { tag: 'Peach Pass', test: /peach ?pass|georgia/i },
-  { tag: 'Good To Go', test: /good ?to ?go|washington state|tacoma/i },
-  { tag: 'ExpressToll', test: /expresstoll|colorado|e-470/i },
-  { tag: 'NC Quick Pass', test: /quick ?pass|north carolina|triangle expressway/i },
-  // E-ZPass ПОСЛЕДНИМ, и это не косметика: у него в шаблоне общее слово
-  // «turnpike», и стоя первым он забирал себе «FLORIDA TURNPIKE», которая на
-  // самом деле SunPass. Правила по штатам должны отработать раньше общего.
-  {
-    tag: 'E-ZPass',
-    test: /e-?zpass|turnpike|thruway|parkway|port authority|mta|tappan|delaware|maryland|ohio|indiana|illinois|skyway|west virginia|massachusetts|maine|new hampshire|rhode island|virginia|dulles|chesapeake/i,
-  },
-]
-
-/** Метки, которые понадобятся на маршруте, — по одной строке, без повторов. */
-export function tagsNeeded(fares: TollFare[]): string[] {
-  const tags = new Set<string>()
-  for (const f of fares) {
-    const text = `${f.system} ${f.name}`
-    const rule = TAG_RULES.find((r) => r.test.test(text))
-    if (rule) tags.add(rule.tag)
-  }
-  return [...tags].sort()
 }

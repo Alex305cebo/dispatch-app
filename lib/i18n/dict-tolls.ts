@@ -10,7 +10,6 @@ export const tollsDict = {
   'tolls.to': { ru: 'Куда', en: 'To' },
   'tolls.axles': { ru: 'Осей', en: 'Axles' },
   'tolls.weight': { ru: 'Вес, lb', en: 'Weight, lb' },
-  'tolls.transponder': { ru: 'E-ZPass / транспондер', en: 'E-ZPass / transponder' },
   'tolls.calc': { ru: 'Посчитать', en: 'Calculate' },
   'tolls.calculating': { ru: 'Считаю…', en: 'Calculating…' },
 
@@ -83,8 +82,6 @@ export const tollsDict = {
     en: 'No pickup and delivery cities found in the document.',
   },
   'tolls.pointOnMap': { ru: 'Показать на карте', en: 'Show on the map' },
-  'tolls.methodVideo': { ru: 'по номеру', en: 'by plate' },
-  'tolls.methodTag': { ru: 'транспондер', en: 'transponder' },
   'tolls.via': { ru: 'Через', en: 'Via' },
   'tolls.addVia': { ru: '+ точка маршрута', en: '+ waypoint' },
   'tolls.viaHint': {
@@ -102,13 +99,8 @@ export const tollsDict = {
     ru: 'Цена части дорог зависит от часа: в Нью-Йорке и Чикаго пиковый тариф выше.',
     en: 'Some roads price by the hour: peak rates in New York and Chicago are higher.',
   },
-  'tolls.tags': { ru: 'Нужны транспондеры', en: 'Transponders needed' },
-  'tolls.tagsNone': {
-    ru: 'Известных систем на маршруте не нашлось — платить по номеру.',
-    en: 'No known systems on this route — pay by plate.',
-  },
   'tolls.info': {
-    ru: 'Стоимость проезда считает HERE по траковому профилю: число осей и полная масса меняют тариф в разы. Сравниваются два маршрута — через платные дороги и в объезд, — и разница переводится в деньги: лишние мили объезда стоят топлива и обслуживания, и часто дороже самих толлов. С транспондером берётся тариф E-ZPass, без него — тариф «по номеру», который выше. Число обращений ограничено нарочно, чтобы бесплатный тариф HERE нельзя было превысить.',
-    en: 'Toll cost comes from HERE using a truck profile: axle count and gross weight change the rate several times over. Two routes are compared — through the tolls and around them — and the difference is put in dollars: the detour’s extra miles cost fuel and maintenance, often more than the tolls themselves. With a transponder the E-ZPass rate is used; without one, the higher pay-by-plate rate. The number of requests is capped on purpose so HERE’s free tier cannot be exceeded.',
+    ru: 'Стоимость проезда считает HERE по траковому профилю: число осей и полная масса меняют тариф в разы. Показываются несколько вариантов маршрута; крупная цифра в карточке — сами платные дороги, мелкая строка внизу сравнивает варианты по полной стоимости поездки, потому что маршрут с нулевыми толлами бывает дороже — лишние мили съедают больше. Из вариантов оплаты берётся самый дорогой: ошибиться в большую сторону безопасно, в меньшую — нет. Число обращений ограничено нарочно, чтобы бесплатный тариф HERE нельзя было превысить.',
+    en: 'Toll cost comes from HERE using a truck profile: axle count and gross weight change the rate several times over. Several route options are shown; the large figure on a card is the tolls themselves, and the small line below compares options by full trip cost, because a zero-toll route can still cost more — the extra miles eat the difference. Of the payment options the most expensive is used: erring high is safe, erring low is not. The number of requests is capped on purpose so HERE’s free tier cannot be exceeded.',
   },
 } as const

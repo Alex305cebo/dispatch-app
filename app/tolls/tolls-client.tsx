@@ -39,7 +39,6 @@ export function TollsClient({
   const [to, setTo] = useState('')
   const [axles, setAxles] = useState('5')
   const [weight, setWeight] = useState('80000')
-  const [transponder, setTransponder] = useState(true)
   const [truckId, setTruckId] = useState('')
   const [loadId, setLoadId] = useState('')
   /** Точки, через которые маршрут обязан пройти, по порядку. */
@@ -65,7 +64,6 @@ export function TollsClient({
         to: t2,
         axles: Number(axles),
         grossWeightLb: Number(weight),
-        transponder,
         truckId: truckId ? Number(truckId) : null,
         loadId: lid ? Number(lid) : null,
         via: via.filter((v) => v.trim()),
@@ -116,9 +114,9 @@ export function TollsClient({
     }
     // Невыбранные варианты — бледным и ПОД выбранным: видно, где пути расходятся,
     // но глаз держится основного.
-    for (const [i, o] of res.options.entries())
-      if (i !== chosen) routes.push({ ...ends, coords: o.coords, tone: 'free' })
-    routes.push({ ...ends, coords: option.coords, tone: 'toll' })
+    for (const [i, o] of res.options.slice(0, 3).entries())
+      if (i !== chosen) routes.push({ ...ends, coords: o.coords, tone: 'free', id: o.id })
+    routes.push({ ...ends, coords: option.coords, tone: 'toll', id: option.id })
 
     markers.push(
       { lat: res.from.lat, lng: res.from.lng, label: from || '—', kind: 'pickup' },
@@ -275,15 +273,6 @@ export function TollsClient({
               className={input}
             />
           </label>
-          <label className="flex cursor-pointer items-center gap-2 pb-2 text-[13px] text-white/80">
-            <input
-              type="checkbox"
-              checked={transponder}
-              onChange={(e) => setTransponder(e.target.checked)}
-              className="size-4 accent-haul-500"
-            />
-            {t(locale, 'tolls.transponder')}
-          </label>
 
           <div className="ml-auto flex items-center gap-2">
             {/* Скриншот борда или рейт-кон вместо ручного ввода городов. */}
@@ -355,29 +344,6 @@ export function TollsClient({
             </section>
           )}
 
-          {/* Единого пропуска по стране нет: выехав из Пенсильвании во Флориду,
-              трак теряет E-ZPass на границе и без SunPass платит по номеру —
-              самый дорогой тариф плюс счёт по почте через месяц. */}
-          <section className="panel p-4">
-            <h2 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-              {t(locale, 'tolls.tags')}
-            </h2>
-            {res.tags.length === 0 ? (
-              <p className="text-[13px] text-white/55">{t(locale, 'tolls.tagsNone')}</p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {res.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-lg bg-haul-500/15 px-2.5 py-1 text-[12.5px] font-medium text-haul-300"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
-          </section>
-
           <section className="panel p-4">
             <h2 className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
               {t(locale, 'tolls.options')}
@@ -406,6 +372,13 @@ export function TollsClient({
               height={380}
               distanceMi={option.miles}
               focus={focus}
+              onRoute={(id) => {
+                const i = res.options.findIndex((o) => o.id === id)
+                if (i >= 0) {
+                  setChosen(i)
+                  setFocus(null)
+                }
+              }}
             />
           </section>
 
@@ -435,13 +408,6 @@ export function TollsClient({
                           <span className="text-white/85">{f.name}</span>
                           {f.system && f.system !== f.name && (
                             <span className="ml-2 text-[11px] text-white/40">{f.system}</span>
-                          )}
-                          {f.methods.length > 0 && (
-                            <span className="ml-2 text-[11px] text-white/35">
-                              {f.methods.some((m) => /transponder|pass/i.test(m))
-                                ? t(locale, 'tolls.methodTag')
-                                : t(locale, 'tolls.methodVideo')}
-                            </span>
                           )}
                         </span>
                         <span className="nums shrink-0 font-medium">{usd2.format(f.amount)}</span>

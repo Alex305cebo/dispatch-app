@@ -144,15 +144,12 @@ test('альтернативы внутри одного пункта не ск�
   assert.equal(q.total, 295.18) // 9.42 + 285.76, а НЕ 9.42 + 4.10 + 285.76
 })
 
-test('без транспондера берётся дорогой тариф — ошибаться безопаснее вверх', () => {
-  const q = parseHereRoute(PA_TURNPIKE, decode, 'USD', false)!
+test('из вариантов оплаты берётся самый дорогой — ошибаться безопаснее вверх', () => {
+  // В группе два тарифа за один и тот же проезд: 9.42 по номеру и 4.10 с меткой.
+  // Показываем 9.42: заложить больше, чем спишется, безопасно; заложить меньше —
+  // это груз, взятый по ставке, которая не окупается.
+  const q = parseHereRoute(PA_TURNPIKE, decode)!
   assert.equal(q.fares[0]!.amount, 9.42)
-})
-
-test('с транспондером берётся его тариф — это то, что реально спишется', () => {
-  const q = parseHereRoute(PA_TURNPIKE, decode, 'USD', true)!
-  assert.equal(q.fares[0]!.amount, 4.1)
-  assert.equal(q.total, 289.86)
 })
 
 test('строка называет пункт оплаты, а не систему — «PA TURNPIKE 476» повторялась бы', () => {
@@ -220,28 +217,3 @@ test('пустой список вариантов не роняет ранжи�
   assert.deepEqual(rankOptions([], 0.55), [])
 })
 
-import { tagsNeeded, type TollFare } from './tolls.ts'
-
-const fare = (system: string, name = ''): TollFare => ({
-  name: name || system,
-  system,
-  country: 'USA',
-  amount: 10,
-  currency: 'USD',
-  methods: [],
-  points: [],
-})
-
-test('северо-восточные системы сводятся к одной метке E-ZPass', () => {
-  const tags = tagsNeeded([fare('PA TURNPIKE 476'), fare('NEW JERSEY TURNPIKE'), fare('OHIO TURNPIKE')])
-  assert.deepEqual(tags, ['E-ZPass'])
-})
-
-test('маршрут через несколько штатов называет все нужные метки', () => {
-  const tags = tagsNeeded([fare('PA TURNPIKE'), fare('FLORIDA TURNPIKE'), fare('NTTA DALLAS')])
-  assert.deepEqual(tags.sort(), ['E-ZPass', 'SunPass', 'TxTag / EZ TAG'])
-})
-
-test('незнакомая дорога не приписывается к чужой метке', () => {
-  assert.deepEqual(tagsNeeded([fare('SOME PRIVATE BRIDGE CO')]), [])
-})
