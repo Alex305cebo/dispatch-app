@@ -1276,25 +1276,29 @@ export async function docMeta(id: number): Promise<{ title: string; mime: string
 /* ---------- Платные дороги ---------- */
 
 export type TollCheck = {
-  toll: import('@/lib/tolls').TollQuote
-  free: import('@/lib/tolls').TollQuote | null
-  compare: import('@/lib/tolls').TollComparison | null
+  options: import('@/lib/tolls').RouteOption[]
   from: { lat: number; lng: number }
   to: { lat: number; lng: number }
+  /** Цена мили пробега у выбранного трака — по ней считалась полная стоимость. */
+  costPerMile: number
+  /** Заполняется, когда считали под конкретный груз: видно, что толлы делают с
+   * его чистой прибылью. Без этого раздел остаётся калькулятором, а с этим
+   * отвечает на вопрос, ради которого груз и берут. */
+  load: { id: number; lane: string; rate: number; netBefore: number } | null
   used: number
   cap: number
 }
 
 /**
- * Считает маршрут через платные дороги и, следом, объезд — и сравнивает их.
+ * Считает варианты маршрута с платными дорогами.
  *
- * Два запроса, а не один, потому что вопрос диспетчера не «сколько стоят толлы»,
- * а «стоит ли их объезжать». Ответ на него — разница, и без второго маршрута её
- * не существует.
+ * Два обращения к HERE, не больше: первое приносит основной маршрут и две
+ * альтернативы одним ответом, второе — попытку объехать платные. Дальше всё
+ * считается у нас.
  *
- * Города превращаются в координаты через тот же бесплатный геокодер, что и весь
- * остальной сайт (Nominatim с кэшем): к HERE ходим только за самими толлами, и
- * только столько раз, сколько нужно.
+ * Варианты ранжируются по ПОЛНОЙ стоимости — толлы плюс пробег, — потому что
+ * маршрут с наименьшими толлами почти всегда самый длинный, и экономия уходит в
+ * топливо. Сравнивать по одним толлам значило бы советовать заведомо худшее.
  */
 export async function checkTolls(input: {
   from: string
@@ -1302,48 +1306,89 @@ export async function checkTolls(input: {
   axles: number
   grossWeightLb: number
   transponder: boolean
+  /** Трак, по экономике которого считается цена лишней мили. */
+  truckId?: number | null
+  /** Груз, под который считаем: подставляет маршрут и показывает удар по чистой. */
+  loadId?: number | null
+  /** Города, через которые маршрут обязан пройти, — по порядку. */
+  via?: string[]
 }): Promise<TollCheck | { error: string }> {
   const locale = await getLocale()
-  if (!input.from?.trim() || !input.to?.trim()) return { error: t(locale, 'actions.needOriginDest') }
+  const companyId = await companyScope()
+
+  // Груз задаёт маршрут сам: диспетчер выбирает груз, а не перепечатывает города.
+  let load: TollCheck['load'] = null
+  let from = input.from
+  let to = input.to
+  let truckId = input.truckId ?? null
+  if (input.loadId) {
+    const l = await getLoad(companyId, input.loadId)
+    if (l) {
+      from = l.origin ?? from
+      to = l.destination ?? to
+      truckId = truckId ?? l.truckId
+      const truckForLoadFn = (await import('@/lib/loads')).truckForLoad
+      const tr = await truckForLoadFn(companyId, l)
+      const { calcLoad } = await import('@/lib/profit')
+      load = {
+        id: l.id,
+        lane: `${l.origin ?? '—'} → ${l.destination ?? '—'}`,
+        rate: l.rate,
+        netBefore: calcLoad(l, tr).net,
+      }
+    }
+  }
+
+  if (!from?.trim() || !to?.trim()) return { error: t(locale, 'actions.needOriginDest') }
 
   const { cityCoords } = await import('@/lib/geo-routing')
-  const [a, b] = await Promise.all([cityCoords(input.from), cityCoords(input.to)])
+  const viaNames = (input.via ?? []).map((v) => v.trim()).filter(Boolean)
+  const [a, b, ...viaPoints] = await Promise.all([
+    cityCoords(from),
+    cityCoords(to),
+    ...viaNames.map((v) => cityCoords(v)),
+  ])
   if (!a || !b) return { error: t(locale, 'tolls.notFound') }
+  // Ненайденная промежуточная точка — не повод считать «как получится»: маршрут
+  // получился бы не тот, о котором просили, и об этом никто бы не узнал.
+  const via = viaPoints.filter((v): v is NonNullable<typeof v> => v !== null)
+  if (via.length !== viaNames.length) return { error: t(locale, 'tolls.notFound') }
 
   const { hereTollRoute, hereUsage } = await import('@/lib/tolls-here')
-  const { compareRoutes, DEFAULT_TRUCK } = await import('@/lib/tolls')
-  const truck = {
+  const { rankOptions, DEFAULT_TRUCK } = await import('@/lib/tolls')
+  const spec = {
     axles: Math.max(2, Math.min(9, Math.round(input.axles) || DEFAULT_TRUCK.axles)),
     grossWeightLb: Math.max(10_000, Math.round(input.grossWeightLb) || DEFAULT_TRUCK.grossWeightLb),
     heightFt: DEFAULT_TRUCK.heightFt,
   }
 
-  const toll = await hereTollRoute(a, b, truck, { transponder: input.transponder })
-  if ('error' in toll) return { error: tollError(toll.error, locale) }
+  const main = await hereTollRoute(a, b, spec, { transponder: input.transponder, via })
+  if ('error' in main) return { error: tollError(main.error, locale) }
 
-  // Объезд считаем только если платные вообще есть: иначе второй запрос ушёл бы
-  // из месячной квоты за ответ, который заранее известен.
-  const free = toll.total > 0 ? await hereTollRoute(a, b, truck, { avoidTolls: true, transponder: input.transponder }) : null
-  const freeQuote = free && !('error' in free) ? free : null
+  // Объезд запрашиваем, только если платные вообще есть: иначе второе обращение
+  // ушло бы из месячной квоты за заранее известный ответ.
+  const anyTolls = main.some((q) => q.total > 0)
+  const avoid = anyTolls
+    ? await hereTollRoute(a, b, spec, { avoidTolls: true, transponder: input.transponder, via })
+    : null
+  const avoidQuotes = avoid && !('error' in avoid) ? avoid : []
 
-  // Цена лишней мили объезда — топливо плюс обслуживание того трака, которым
-  // считаем. Берём средние по парку значения из настроек первого трака: раздел
-  // отвечает на вопрос до того, как груз привязан к машине.
-  const companyId = await companyScope()
-  const { defaultTruck } = await import('@/lib/loads')
-  const t0 = await defaultTruck(companyId)
-  const costPerMile = t0.fuelPricePerGallon / (t0.mpg || 6.5) + t0.maintenanceCostPerMile
+  // Цена мили — у ТОГО трака, которым поедут. Разные машины в парке жгут
+  // по-разному, и на тысяче миль разница в расходе решает, стоит ли крюк.
+  const { getTruck, defaultTruck } = await import('@/lib/loads')
+  const truck = (truckId ? await getTruck(companyId, truckId) : null) ?? (await defaultTruck(companyId))
+  const costPerMile = truck.fuelPricePerGallon / (truck.mpg || 6.5) + truck.maintenanceCostPerMile
+
+  const options = rankOptions(
+    [
+      ...main.map((quote, i) => ({ quote, source: (i === 0 ? 'main' : 'alt') as 'main' | 'alt' })),
+      ...avoidQuotes.map((quote) => ({ quote, source: 'avoid' as const })),
+    ],
+    costPerMile,
+  )
 
   const usage = await hereUsage()
-  return {
-    toll,
-    free: freeQuote,
-    compare: freeQuote ? compareRoutes(toll, freeQuote, costPerMile) : null,
-    from: a,
-    to: b,
-    used: usage.used,
-    cap: usage.cap,
-  }
+  return { options, from: a, to: b, costPerMile, load, used: usage.used, cap: usage.cap }
 }
 
 /** Коды из lib/tolls-here.ts — человеку, а не в консоль. */
@@ -1352,4 +1397,57 @@ function tollError(code: string, locale: Awaited<ReturnType<typeof getLocale>>):
   if (code === 'monthly_cap') return t(locale, 'tolls.capReached')
   if (code === 'no_route') return t(locale, 'tolls.noRoute')
   return `${t(locale, 'tolls.failed')} ${code}`
+}
+
+/** Активные грузы — чтобы считать толлы прямо под груз, а не перепечатывать города. */
+export async function tollLoadChoices(): Promise<{ id: number; label: string }[]> {
+  const companyId = await companyScope()
+  const rows = (await sql`
+    SELECT id, origin, destination FROM loads
+    WHERE company_id = ${companyId} AND status IN ('quoted', 'booked', 'in_transit')
+      AND origin IS NOT NULL AND destination IS NOT NULL
+    ORDER BY created_at DESC LIMIT 30`) as { id: number; origin: string; destination: string }[]
+  return rows.map((r) => ({ id: r.id, label: `${r.origin} → ${r.destination}` }))
+}
+
+/**
+ * Маршрут из документа: скриншот с DAT, рейт-кон, что угодно с городами.
+ *
+ * Диспетчер смотрит на груз в борде или на присланный rate con — и там уже
+ * написано, откуда и куда. Перепечатывать это в форму руками, чтобы узнать
+ * толлы, — лишний шаг ровно там, где решение принимают за секунды.
+ *
+ * Читает тот же разбор, что и рейт-коны (lib/ratecon-gemini.ts): он умеет
+ * доставать остановки из документа, а скриншот борда для модели — такая же
+ * картинка с городами. Ставка и мили, если нашлись, тоже возвращаются: по ним
+ * сразу видно, что от ставки останется после платных дорог.
+ */
+export async function tollsFromDocument(
+  fd: FormData,
+): Promise<{ from: string; to: string; rate: number | null } | { error: string }> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const locale = await getLocale()
+  const file = fd.get('file')
+  if (!(file instanceof File) || file.size === 0) return { error: t(locale, 'tolls.docEmpty') }
+  if (file.size > 8 * 1024 * 1024) return { error: t(locale, 'tolls.docTooBig') }
+
+  const b64 = Buffer.from(await file.arrayBuffer()).toString('base64')
+  const { geminiExtract } = await import('@/lib/ratecon-gemini')
+  const res = await geminiExtract({ pdfBase64: b64, mime: file.type || 'image/jpeg' })
+  if ('error' in res)
+    return {
+      error:
+        res.error === 'no_key'
+          ? t(locale, 'actions.aiUnavailable')
+          : `${t(locale, 'actions.recognizeFailed')} ${res.error}`,
+    }
+
+  const { aiToFields, toQrLoad } = await import('@/lib/ratecon-ai-contract').then(async (m) => ({
+    aiToFields: m.aiToFields,
+    toQrLoad: (await import('@/lib/ratecon')).toQrLoad,
+  }))
+  const load = toQrLoad(aiToFields(res.fields, res.model))
+  if (!load.origin || !load.destination) return { error: t(locale, 'tolls.docNoRoute') }
+  return { from: load.origin, to: load.destination, rate: load.rate || null }
 }

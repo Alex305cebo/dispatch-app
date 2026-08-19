@@ -6,7 +6,7 @@ import 'server-only'
 import { hereKey } from './keys.ts'
 import { getSetting, setSetting } from './settings.ts'
 import { decodeFlexPolyline } from './flexpolyline.ts'
-import { parseHereRoute, type TollQuote, type TruckSpec } from './tolls.ts'
+import { parseHereRoutes, type TollQuote, type TruckSpec } from './tolls.ts'
 
 /**
  * Жёсткий потолок обращений к HERE за календарный месяц.
@@ -62,8 +62,17 @@ export async function hereTollRoute(
   from: { lat: number; lng: number },
   to: { lat: number; lng: number },
   truck: TruckSpec,
-  opts: { avoidTolls?: boolean; transponder?: boolean } = {},
-): Promise<TollQuote | { error: string }> {
+  opts: {
+    avoidTolls?: boolean
+    transponder?: boolean
+    /** Точки, через которые маршрут обязан пройти. Нужны там, где объехать
+     * нельзя в принципе: мосты и туннели Нью-Йорка платные все до одного, и
+     * «объезд» вокруг них — это лишняя сотня миль ради дороги, которой нет.
+     * Задав такую точку руками, диспетчер оставляет неизбежное неизбежным, а
+     * экономию ищет дальше по пути. */
+    via?: { lat: number; lng: number }[]
+  } = {},
+): Promise<TollQuote[] | { error: string }> {
   const key = await hereKey()
   if (!key) return { error: 'no_key' }
 
@@ -73,12 +82,17 @@ export async function hereTollRoute(
     transportMode: 'truck',
     return: 'summary,polyline,tolls',
     currency: 'USD',
+    // Три маршрута по цене одного обращения: альтернативы приходят тем же
+    // ответом, и кнопки «другой путь» не стоят ни цента месячной квоты.
+    alternatives: '2',
     apiKey: key,
   })
   params.set('truck[axleCount]', String(truck.axles))
   params.set('vehicle[grossWeight]', String(Math.round(truck.grossWeightLb * LB_TO_KG)))
   params.set('vehicle[height]', String(Math.round(truck.heightFt * FT_TO_CM)))
   if (opts.avoidTolls) params.set('avoid[features]', 'tollRoad')
+  // via повторяется столько раз, сколько точек: URLSearchParams.append, а не set.
+  for (const v of opts.via ?? []) params.append('via', `${v.lat},${v.lng}`)
   // ponytail: параметр принимается (HTTP 200), но на живом ответе тариф не менялся —
   // HERE всё равно вернул videoToll. Точное имя набора транспондеров в их
   // документации не описано, поэтому скидку E-ZPass пока считаем сами, выбирая
@@ -90,12 +104,13 @@ export async function hereTollRoute(
   const cacheKey =
     `here:${from.lat.toFixed(3)},${from.lng.toFixed(3)}->${to.lat.toFixed(3)},${to.lng.toFixed(3)}` +
     `:${truck.axles}/${truck.grossWeightLb}/${truck.heightFt}` +
-    `${opts.avoidTolls ? ':free' : ''}${opts.transponder ? ':tag' : ''}`
+    `${opts.avoidTolls ? ':free' : ''}${opts.transponder ? ':tag' : ''}` +
+    `${(opts.via ?? []).map((v) => `:${v.lat.toFixed(3)},${v.lng.toFixed(3)}`).join('')}`
   const hit = await getSetting(cacheKey)
   if (hit) {
     try {
-      const c = JSON.parse(hit) as { at: number; quote: TollQuote }
-      if (Date.now() - c.at < CACHE_TTL_MS) return c.quote
+      const c = JSON.parse(hit) as { at: number; quotes: TollQuote[] }
+      if (Date.now() - c.at < CACHE_TTL_MS && Array.isArray(c.quotes)) return c.quotes
     } catch {
       // разберём заново
     }
@@ -119,12 +134,12 @@ export async function hereTollRoute(
         `HTTP ${res.status}`
       return { error: msg }
     }
-    const quote = parseHereRoute(json, decodeFlexPolyline, 'USD', opts.transponder ?? false)
+    const quotes = parseHereRoutes(json, decodeFlexPolyline, 'USD', opts.transponder ?? false)
     // Пустой ответ — не ошибка сети, а «маршрута нет»: между точками может не быть
     // дороги, законной для трака заданной высоты и веса.
-    if (!quote) return { error: 'no_route' }
-    await setSetting(cacheKey, JSON.stringify({ at: Date.now(), quote }))
-    return quote
+    if (quotes.length === 0) return { error: 'no_route' }
+    await setSetting(cacheKey, JSON.stringify({ at: Date.now(), quotes }))
+    return quotes
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'network error' }
   }

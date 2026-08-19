@@ -24,6 +24,12 @@ export interface TruckSpec {
 
 export const DEFAULT_TRUCK: TruckSpec = { axles: 5, grossWeightLb: 80_000, heightFt: 13.6 }
 
+export interface TollPoint {
+  name: string
+  lat: number
+  lng: number
+}
+
 export interface TollFare {
   /** Название пункта или системы, как его пишет сама дорога. */
   name: string
@@ -33,6 +39,10 @@ export interface TollFare {
   currency: string
   /** Транспондер, наличные, по почте — цена у них разная, и это не мелочь. */
   methods: string[]
+  /** Где физически стоят рамки этого платежа. HERE их присылает, и раньше мы их
+   * выбрасывали — а это единственное, что превращает список сумм в карту: по ним
+   * ставятся метки и по щелчку строки карта летит к нужной рамке. */
+  points: TollPoint[]
 }
 
 export interface TollQuote {
@@ -43,6 +53,22 @@ export interface TollQuote {
   total: number
   currency: string
 }
+
+/** Вариант маршрута — та же поездка, посчитанная другим путём. */
+export interface RouteOption extends TollQuote {
+  /** Устойчивый ключ для React и для выбора варианта. */
+  id: string
+  /** Откуда взялся: обычный маршрут, его альтернатива или попытка объехать платные. */
+  source: 'main' | 'alt' | 'avoid'
+  /** Толлы ПЛЮС цена пробега — то, во что поездка обойдётся целиком. Сравнивать
+   * варианты по одним толлам бессмысленно: самый дешёвый по толлам обычно самый
+   * длинный, и разница уходит в топливо. */
+  totalCost: number
+  /** Короткие ярлыки: «дешевле всего», «быстрее», «меньше платных». */
+  badges: OptionBadge[]
+}
+
+export type OptionBadge = 'cheapest' | 'fastest' | 'shortest' | 'leastTolls'
 
 /** Форма ответа HERE — ровно те поля, которые мы читаем. */
 interface HereRoute {
@@ -55,7 +81,7 @@ interface HereRoute {
       /** Физические пункты оплаты этой группы. Их имена куда полезнее названия
        * системы: на одном маршруте «PA TURNPIKE 476» повторяется четырежды, а
        * «Tredyffrin Twp → Monroeville» сразу говорит, где именно платят. */
-      tollCollectionLocations?: { name?: string }[]
+      tollCollectionLocations?: { name?: string; location?: { lat?: number; lng?: number } }[]
       fares?: {
         name?: string
         price?: { value?: number; currency?: string }
@@ -126,10 +152,14 @@ export function parseHereRoute(
       const chosen =
         byTransponder ?? options.reduce((a, b) => (b.amount > a.amount ? b : a))
 
-      const where = (toll.tollCollectionLocations ?? [])
+      const locations = toll.tollCollectionLocations ?? []
+      const where = locations
         .map((l) => l.name?.trim())
         .filter(Boolean)
         .join(' → ')
+      const points: TollPoint[] = locations
+        .filter((l) => typeof l.location?.lat === 'number' && typeof l.location?.lng === 'number')
+        .map((l) => ({ name: l.name?.trim() || '', lat: l.location!.lat!, lng: l.location!.lng! }))
 
       fares.push({
         name: where || chosen.f.name?.trim() || toll.tollSystem?.trim() || '—',
@@ -138,6 +168,7 @@ export function parseHereRoute(
         amount: chosen.amount,
         currency: chosen.currency,
         methods: chosen.f.paymentMethods ?? [],
+        points,
       })
     }
   }
@@ -186,4 +217,69 @@ export function compareRoutes(
     extraCost,
     net: Math.round((tollsSaved - extraCost) * 100) / 100,
   }
+}
+
+
+/**
+ * Все варианты маршрута из одного ответа HERE.
+ *
+ * `alternatives=2` возвращает до трёх маршрутов за ОДИН запрос — то есть кнопки
+ * «другой путь» не стоят ни одного обращения сверх уже потраченного. Раньше
+ * читался только первый, и два готовых варианта просто выбрасывались.
+ */
+export function parseHereRoutes(
+  json: unknown,
+  decodePolyline: (s: string) => [number, number][],
+  wantCurrency = 'USD',
+  hasTransponder = false,
+): TollQuote[] {
+  const routes = (json as { routes?: unknown[] })?.routes ?? []
+  const out: TollQuote[] = []
+  for (const r of routes) {
+    const q = parseHereRoute({ routes: [r] }, decodePolyline, wantCurrency, hasTransponder)
+    if (q) out.push(q)
+  }
+  return out
+}
+
+/**
+ * Приводит варианты к сравнимому виду и вешает ярлыки.
+ *
+ * Ранжируем по ПОЛНОЙ стоимости — толлы плюс цена пробега, — а не по одним
+ * толлам: маршрут с наименьшими толлами почти всегда самый длинный, и вся
+ * экономия уходит в топливо и часы водителя. Именно на этом основан весь смысл
+ * раздела, поэтому «дешевле всего» считается по сумме, а не по одной её половине.
+ *
+ * Одинаковые по расстоянию и деньгам варианты отбрасываются: три кнопки с одним
+ * и тем же ответом — это не выбор, а шум.
+ */
+export function rankOptions(
+  raw: { quote: TollQuote; source: RouteOption['source'] }[],
+  costPerMile: number,
+): RouteOption[] {
+  const seen = new Set<string>()
+  const options: RouteOption[] = []
+  for (const [i, r] of raw.entries()) {
+    const key = `${r.quote.miles}:${r.quote.total.toFixed(2)}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    options.push({
+      ...r.quote,
+      id: `${r.source}-${i}`,
+      source: r.source,
+      totalCost: Math.round((r.quote.total + r.quote.miles * costPerMile) * 100) / 100,
+      badges: [],
+    })
+  }
+  if (options.length === 0) return []
+
+  const best = <K extends keyof RouteOption>(field: K, badge: OptionBadge) => {
+    const winner = options.reduce((a, b) => ((b[field] as number) < (a[field] as number) ? b : a))
+    winner.badges.push(badge)
+  }
+  best('totalCost', 'cheapest')
+  best('minutes', 'fastest')
+  best('miles', 'shortest')
+  best('total', 'leastTolls')
+  return options.sort((a, b) => a.totalCost - b.totalCost)
 }

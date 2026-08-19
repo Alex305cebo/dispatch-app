@@ -160,3 +160,62 @@ test('строка называет пункт оплаты, а не систе�
   assert.equal(q.fares[0]!.name, 'Tredyffrin Twp')
   assert.equal(q.fares[1]!.name, 'Brecknock Twp → Monroeville')
 })
+
+import { rankOptions } from './tolls.ts'
+
+const opt = (miles: number, minutes: number, total: number): TollQuote => ({
+  miles,
+  minutes,
+  coords: [],
+  fares: [],
+  total,
+  currency: 'USD',
+})
+
+test('варианты ранжируются по ПОЛНОЙ стоимости, а не по одним толлам', () => {
+  // Короткий с толлами против длинного без них. По толлам «выигрывает» второй,
+  // по деньгам — первый: 90 лишних миль стоят дороже, чем $40 платных дорог.
+  const ranked = rankOptions(
+    [
+      { quote: opt(700, 660, 40), source: 'main' },
+      { quote: opt(790, 760, 0), source: 'avoid' },
+    ],
+    0.55,
+  )
+  assert.equal(ranked[0]!.miles, 700, 'первым должен идти дешевле ПО СУММЕ')
+  assert.ok(ranked[0]!.badges.includes('cheapest'))
+  assert.ok(ranked[1]!.badges.includes('leastTolls'), 'ярлык «меньше платных» у второго')
+})
+
+test('полная стоимость это толлы плюс пробег', () => {
+  const [o] = rankOptions([{ quote: opt(1000, 900, 50), source: 'main' }], 0.6)
+  assert.equal(o!.totalCost, 650) // 50 + 1000×0.6
+})
+
+test('одинаковые варианты не превращаются в три кнопки с одним ответом', () => {
+  const ranked = rankOptions(
+    [
+      { quote: opt(700, 660, 40), source: 'main' },
+      { quote: opt(700, 660, 40), source: 'alt' },
+      { quote: opt(750, 700, 10), source: 'alt' },
+    ],
+    0.55,
+  )
+  assert.equal(ranked.length, 2)
+})
+
+test('быстрый и короткий получают свои ярлыки', () => {
+  const ranked = rankOptions(
+    [
+      { quote: opt(700, 900, 90), source: 'main' },
+      { quote: opt(720, 600, 60), source: 'alt' },
+    ],
+    0.55,
+  )
+  assert.ok(ranked.find((o) => o.miles === 700)!.badges.includes('shortest'))
+  assert.ok(ranked.find((o) => o.minutes === 600)!.badges.includes('fastest'))
+})
+
+test('пустой список вариантов не роняет ранжирование', () => {
+  assert.deepEqual(rankOptions([], 0.55), [])
+})

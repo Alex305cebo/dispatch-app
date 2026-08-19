@@ -2,7 +2,9 @@ import { Info } from '@/components/info'
 import { TollsClient } from './tolls-client'
 import { hereKey } from '@/lib/keys'
 import { hereUsage } from '@/lib/tolls-here'
-import { defaultTruck } from '@/lib/loads'
+import { defaultTruck, listTrucks } from '@/lib/loads'
+import { truckLabel } from '@/lib/map'
+import { tollLoadChoices } from '@/app/actions'
 import { citySuggestions } from '@/lib/city-suggest'
 import { sql } from '@/lib/db'
 import { companyScope } from '@/lib/session'
@@ -22,7 +24,7 @@ export const dynamic = 'force-dynamic'
 export default async function TollsPage() {
   const locale = await getLocale()
   const companyId = await companyScope()
-  const [key, usage, , cityRows] = await Promise.all([
+  const [key, usage, , cityRows, trucks, loadChoices] = await Promise.all([
     hereKey(),
     hereUsage(),
     defaultTruck(companyId),
@@ -33,6 +35,8 @@ export default async function TollsPage() {
           SELECT origin AS city FROM loads WHERE company_id = ${companyId} AND origin IS NOT NULL
           UNION SELECT destination FROM loads WHERE company_id = ${companyId} AND destination IS NOT NULL
         ) x`,
+    listTrucks(companyId),
+    tollLoadChoices(),
   ])
   const cities = citySuggestions((cityRows as { city: string }[]).map((r) => r.city))
 
@@ -44,7 +48,14 @@ export default async function TollsPage() {
       </h1>
       <p className="mb-5 text-[13px] text-white/65">{t(locale, 'tolls.subtitle')}</p>
 
-      <TollsClient hasKey={key !== ''} used={usage.used} cap={usage.cap} cities={cities} />
+      <TollsClient
+        hasKey={key !== ''}
+        used={usage.used}
+        cap={usage.cap}
+        cities={cities}
+        trucks={trucks.map((tr) => ({ id: tr.id, label: truckLabel(tr) }))}
+        loads={loadChoices}
+      />
     </main>
   )
 }

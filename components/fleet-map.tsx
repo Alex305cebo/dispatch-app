@@ -374,6 +374,7 @@ export function FleetMap({
   height = 340,
   distanceMi = null,
   onSelect,
+  focus = null,
 }: {
   markers: MapMarker[]
   routes?: MapRoute[]
@@ -383,6 +384,10 @@ export function FleetMap({
   /** Fires with a truck's id when its pin is clicked, and with null when the click
    * lands on empty map (Leaflet doesn't propagate marker clicks to the map). */
   onSelect?: (truckId: number | null) => void
+  /** Точка, к которой карту просят подлететь снаружи — раздел платных дорог так
+   * показывает пункт оплаты, выбранный в списке. Меняется объектом, поэтому
+   * повторный щелчок по той же строке снова ведёт карту к ней. */
+  focus?: { lat: number; lng: number } | null
 }) {
   const locale = useLocale()
   const ref = useRef<HTMLDivElement>(null)
@@ -405,6 +410,14 @@ export function FleetMap({
 
   // Builds the map from scratch — only when markers/routes actually change, never
   // on a satellite toggle. Rebuilding on every toggle was what reset the view.
+  // Полёт к точке из списка. Отдельным эффектом, чтобы не перестраивать карту:
+  // пересборка сбросила бы масштаб и позицию, которые диспетчер только что выбрал.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !focus) return
+    map.flyTo([focus.lat, focus.lng], Math.max(map.getZoom(), 12), { duration: 0.7 })
+  }, [focus])
+
   useEffect(() => {
     if (!ref.current || markers.length === 0) return
     let disposed = false
