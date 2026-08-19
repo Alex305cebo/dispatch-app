@@ -10,7 +10,10 @@ export const navDict = {
   'nav.tracking': { ru: 'Трекинг', en: 'Track' },
   'nav.docs': { ru: 'Файлы', en: 'Docs' },
   'nav.brokers': { ru: 'Брокеры', en: 'Brokers' },
-  'nav.tolls': { ru: 'Платные дороги', en: 'Tolls' },
+  // В боковом меню «Платные дороги» переносилось на две строки и толкало соседей.
+  // «Толлы» — то самое слово, которым это и называют вслух в диспетчерской, и оно
+  // втрое короче. Полное название осталось заголовком самого раздела.
+  'nav.tolls': { ru: 'Толлы', en: 'Tolls' },
   'nav.telegram': { ru: 'Telegram', en: 'Telegram' },
   'nav.finances': { ru: 'Финансы', en: 'Finances' },
   'nav.journal': { ru: 'Журнал', en: 'Log' },
