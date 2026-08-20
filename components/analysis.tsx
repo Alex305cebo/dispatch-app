@@ -94,6 +94,14 @@ export function Analysis({
 }) {
   const locale = useLocale()
   const good = r.net >= 0
+  // Свежая установка сеет трак-заглушку со всеми расходами по нулям
+  // (lib/schema.sql): без единого трака defaultTruck() бросает исключение, а
+  // чужие цифры в заглушке были бы хуже нулей. Но и нули врут — при нулевой
+  // себестоимости «чистыми» равно ставке целиком, то есть каждый груз выглядит
+  // стопроцентно прибыльным. Пока расходы не заданы, показываем это словами, а
+  // не красивой цифрой: расход топлива у трака есть всегда, и ноль тут значит
+  // ровно одно — настройки не заполнены.
+  const notConfigured = r.totalCost === 0
   const vsSpot = spotRpm && spotRpm > 0 ? r.loadedRpm - spotRpm : null
 
   return (
@@ -103,15 +111,21 @@ export function Analysis({
         <Money value={r.gross} />
       </div>
 
-      <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">
-        {t(locale, 'analysis.net')}{' '}
-        <span className={`nums font-semibold ${good ? 'text-good-400' : 'text-bad-400'}`}>
-          {usd.format(r.net)}
-        </span>
-        {t(locale, 'analysis.marginLine').replace('{pct}', r.marginPercent.toFixed(0))}
-        <span className="nums text-white/85">{usd.format(r.breakEvenRate)}</span>
-        {t(locale, 'analysis.belowLoss')}
-      </p>
+      {notConfigured ? (
+        <p className="mt-1.5 rounded-xl border border-warn-400/30 bg-warn-500/[0.08] px-3 py-2 text-[13px] leading-relaxed text-warn-400">
+          {t(locale, 'analysis.notConfigured')}
+        </p>
+      ) : (
+        <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">
+          {t(locale, 'analysis.net')}{' '}
+          <span className={`nums font-semibold ${good ? 'text-good-400' : 'text-bad-400'}`}>
+            {usd.format(r.net)}
+          </span>
+          {t(locale, 'analysis.marginLine').replace('{pct}', r.marginPercent.toFixed(0))}
+          <span className="nums text-white/85">{usd.format(r.breakEvenRate)}</span>
+          {t(locale, 'analysis.belowLoss')}
+        </p>
+      )}
 
       {/* Always visible, not behind the disclosure below: this is the one picture that
           answers "is this load worth taking", and it was buried. */}

@@ -334,6 +334,10 @@ export const loadsDict = {
     ru: 'Проезд по платным дорогам на этом маршруте. Считается в разделе «Толлы» и записывается на груз кнопкой; пока не посчитан — ноль, и прибыль показывается так, будто дороги бесплатные.',
     en: 'Toll roads on this route. Calculated in the Tolls section and written onto the load with a button; until then it is zero and profit is shown as if the roads were free.',
   },
+  'analysis.notConfigured': {
+    ru: 'Прибыль не посчитана: у трака не заданы расходы. Откройте Траки → нужный трак → «Экономика трака» и впишите расход топлива, оплату водителя, платёж за трак, страховку и обслуживание. До этого любая цифра прибыли была бы выдумкой.',
+    en: 'Profit not calculated: this truck has no costs set. Open Trucks → the truck → “Truck economics” and fill in fuel burn, driver pay, truck payment, insurance and maintenance. Until then any profit figure would be made up.',
+  },
   'analysis.net': { ru: 'Чистыми', en: 'Net' },
   'analysis.marginLine': {
     ru: ' · маржа {pct}% · себестоимость груза (за вычетом всех расходов) ',

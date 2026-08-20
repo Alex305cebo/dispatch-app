@@ -246,7 +246,9 @@ export async function getTruck(companyId: CompanyId, id: number): Promise<TruckR
 /** A sensible default truck when nothing else picks one (first-created). */
 export async function defaultTruck(companyId: CompanyId): Promise<TruckRecord> {
   const rows = (await sql`SELECT * FROM trucks WHERE company_id = ${companyId} ORDER BY id LIMIT 1`) as TruckRow[]
-  if (!rows[0]) throw new Error('No truck configured — run: npm run db:init')
+  // Текст видит диспетчер на странице, а не тот, кто ставил приложение: совет
+  // «запустите npm run db:init» ему ничего не говорит и выглядит поломкой.
+  if (!rows[0]) throw new Error('Ни одного трака не заведено. Траки → + Трак.')
   return rowToTruck(rows[0])
 }
 

@@ -236,12 +236,29 @@ CREATE TABLE IF NOT EXISTS truck_todos (
 );
 CREATE INDEX IF NOT EXISTS todos_truck ON truck_todos(truck_id, done_at NULLS FIRST, created_at DESC);
 
--- Seed one truck so a fresh DB has something to assign loads to.
+-- Заглушка, чтобы на пустой базе было к чему привязать первый груз: без единого
+-- трака defaultTruck() бросает исключение (lib/loads.ts).
+--
+-- Названа явной заглушкой НАРОЧНО. Раньше строка называлась «Truck 1» и несла
+-- реальную экономику одного конкретного парка: 60¢/милю водителю, $60/день за
+-- трак, факторинг 2%, 6.5 mpg. В чужой установке это чужие цифры, которые
+-- выглядят авторитетно: новый владелец открывает прибыль по первому же грузу,
+-- видит «чистыми $1,477» и не догадывается, что расчёт идёт по чьим-то ставкам.
+--
+-- Поэтому: имя говорит, что трак не настроен, а все ставки по нулям. Нули
+-- безопаснее чужих цифр, но сами по себе тоже врут — только в другую сторону:
+-- при нулевых расходах «чистыми» равно ставке целиком. Поэтому в разборе груза
+-- стоит проверка (components/analysis.tsx): пока себестоимость нулевая, вместо
+-- красивой цифры выводится предупреждение. Одно без другого не работает.
+--
+-- Исключение — mpg: расход не может быть нулём, calcLoad делит на него и
+-- бросает исключение. Там 6.5 — общеизвестное среднее для Class 8, а не чья-то
+-- настройка.
 INSERT INTO trucks (id, name, number, driver_name, mpg, fuel_price_per_gallon,
                     driver_pay_mode, driver_cents_per_mile,
                     truck_payment_per_day, insurance_per_day, eld_permits_per_day,
                     maintenance_cost_per_mile, factoring_percent, dispatch_percent)
-VALUES (1, 'Truck 1', '1', '', 6.5, 3.85, 'cpm', 60, 60, 40, 8, 0.18, 2, 0)
+VALUES (1, 'Трак не настроен', '1', '', 6.5, 0, 'cpm', 0, 0, 0, 0, 0, 0, 0)
 ON CONFLICT (id) DO NOTHING;
 
 -- ===== Roadmap features (invoicing/AR, compliance dates, broker vetting) =====
