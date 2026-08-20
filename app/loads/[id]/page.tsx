@@ -10,6 +10,8 @@ import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { loadMapData } from '@/lib/load-map'
 import { FleetMap } from '@/components/fleet-map'
+import { LocalTime } from '@/components/local-time'
+import { zoneFor } from '@/lib/tz'
 import { SmallRefreshButton } from '@/components/small-refresh-button'
 import { Analysis } from '@/components/analysis'
 import { LoadEditNumbers } from '@/components/load-edit-numbers'
@@ -60,6 +62,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const podDoc = docs.find((d) => d.kind === 'pod')
   const fs = truck.number ? fleet.get(truck.number) : undefined
   const { markers: mapMarkers, routes: mapRoutes, etaText, miles: routeMiles } = await loadMapData(load, truck, fs, locale)
+  // Часовой пояс ТАМ, ГДЕ ТРАК СЕЙЧАС, — офлайн по координатам GPS (lib/tz.ts).
+  // Диспетчер и водитель почти никогда не в одном поясе, а окна погрузки и
+  // звонки живут по времени водителя; считать разницу в уме на каждом грузе —
+  // ровно тот случай, когда ошибаются на час и опаздывают на приёмку.
+  const driverZone = zoneFor(fs?.lat, fs?.lng)
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -139,7 +146,21 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
             {t(locale, 'loadDetail.mapHeading')}
             <Info text={t(locale, 'loadDetail.mapInfo')} />
-            {etaText && <span className="ml-auto text-[13px] font-semibold normal-case text-white/80">{etaText}</span>}
+            {driverZone && (
+              <span className="ml-auto flex items-baseline gap-1.5 normal-case">
+                <span className="text-[10px] tracking-wider text-white/40">
+                  {t(locale, 'loadDetail.driverTime')}
+                </span>
+                <LocalTime zone={driverZone} className="nums text-[13px] font-semibold text-white/80" />
+              </span>
+            )}
+            {etaText && (
+              <span
+                className={`text-[13px] font-semibold normal-case text-white/80 ${driverZone ? '' : 'ml-auto'}`}
+              >
+                {etaText}
+              </span>
+            )}
             <span className={etaText ? '' : 'ml-auto'}>
               <SmallRefreshButton />
             </span>

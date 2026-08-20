@@ -88,6 +88,7 @@ export const loadsDict = {
     ru: 'Отметить «Оплачен» без них не выйдет: пакет для счёта брокеру собирается именно из них.',
     en: 'Marking Paid needs them: the broker invoice packet is built from these documents.',
   },
+  'loadDetail.driverTime': { ru: 'у водителя', en: 'driver time' },
   'loadDetail.trailerShort': { ru: 'прицеп', en: 'trailer' },
   'loadDetail.noRateCon': { ru: 'Rate con не прикреплён — загрузи его ниже, в документах груза.', en: "No rate con attached — upload it below, in the load's documents." },
   'loadDetail.openDoc': { ru: 'Открыть {label}', en: 'Open {label}' },
