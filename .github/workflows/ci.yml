@@ -27,11 +27,16 @@ jobs:
       - run: npm test
       # The gate that matters: prove `next build` actually completes on a clean machine,
       # so a broken build is caught HERE instead of failing (and churning processes) on
-      # Hostinger. next build imports server modules to compile them, and lib/db.ts throws
-      # at import time without DATABASE_URL — a syntactically valid dummy satisfies that,
-      # nothing connects (every DB page is force-dynamic, so no query runs at build).
-      - name: Build
+      # Hostinger.
+      #
+      # DATABASE_URL здесь НЕ задан, и это часть проверки, а не упущение. Раньше
+      # lib/db.ts бросал исключение при загрузке модуля, поэтому сборке требовалась
+      # хотя бы фиктивная строка подключения. Для установки клиенту это была
+      # ловушка: Hostinger начинает сборку сразу при подключении репозитория, до
+      # того как переменные заданы, и первый деплой падал с ошибкой про базу.
+      # Подключение теперь ленивое, и эта строчка сторожит границу — вернётся
+      # проверка на верхний уровень, CI покраснеет здесь, а не у клиента.
+      - name: Build (без DATABASE_URL — сборка не должна требовать базу)
         run: npm run build
         env:
-          DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci'
           NEXT_TELEMETRY_DISABLED: '1'
