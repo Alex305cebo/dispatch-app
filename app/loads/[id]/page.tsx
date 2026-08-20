@@ -8,6 +8,7 @@ import { fleetStatusByUnit, getTruckMeta } from '@/lib/maintenance'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
+import { driveTime } from '@/lib/fmt'
 import { loadMapData } from '@/lib/load-map'
 import { FleetMap } from '@/components/fleet-map'
 import { LocalTime } from '@/components/local-time'
@@ -61,7 +62,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const bolDoc = docs.find((d) => d.kind === 'bol')
   const podDoc = docs.find((d) => d.kind === 'pod')
   const fs = truck.number ? fleet.get(truck.number) : undefined
-  const { markers: mapMarkers, routes: mapRoutes, etaText, miles: routeMiles } = await loadMapData(load, truck, fs, locale)
+  const { markers: mapMarkers, routes: mapRoutes, miles: routeMiles, etaMin } = await loadMapData(load, truck, fs, locale)
   // Часовой пояс ТАМ, ГДЕ ТРАК СЕЙЧАС, — офлайн по координатам GPS (lib/tz.ts).
   // Диспетчер и водитель почти никогда не в одном поясе, а окна погрузки и
   // звонки живут по времени водителя; считать разницу в уме на каждом грузе —
@@ -146,25 +147,50 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
             {t(locale, 'loadDetail.mapHeading')}
             <Info text={t(locale, 'loadDetail.mapInfo')} />
-            {driverZone && (
-              <span className="ml-auto flex items-baseline gap-1.5 normal-case">
-                <span className="text-[10px] tracking-wider text-white/40">
-                  {t(locale, 'loadDetail.driverTime')}
-                </span>
-                <LocalTime zone={driverZone} className="nums text-[13px] font-semibold text-white/80" />
-              </span>
-            )}
-            {etaText && (
-              <span
-                className={`text-[13px] font-semibold normal-case text-white/80 ${driverZone ? '' : 'ml-auto'}`}
-              >
-                {etaText}
-              </span>
-            )}
-            <span className={etaText ? '' : 'ml-auto'}>
+            <span className="ml-auto">
               <SmallRefreshButton />
             </span>
           </h2>
+          {/* Три отдельные плитки, а не одна строка «82 mi · ~1ч 34м»: время у
+              водителя, расстояние и срок — разные вопросы, и слитые в строку они
+              читаются как одно число. Плитки переносятся, а не сжимаются: на узком
+              экране лучше два ряда, чем обрезанное время. */}
+          {(driverZone || routeMiles != null || etaMin != null) && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {driverZone && (
+                <div className="flex-1 basis-[7.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-white/45">
+                    {t(locale, 'loadDetail.driverTime')}
+                  </div>
+                  {/* Высота зафиксирована: первый кадр LocalTime пустой (гидратация),
+                      и без неё плитка подпрыгивала бы при загрузке страницы. */}
+                  <div className="flex min-h-[1.375rem] items-baseline">
+                    <LocalTime zone={driverZone} className="nums text-[15px] font-semibold text-white/85" />
+                  </div>
+                </div>
+              )}
+              {routeMiles != null && (
+                <div className="flex-1 basis-[7.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-white/45">
+                    {t(locale, 'loadDetail.distanceLeft')}
+                  </div>
+                  <div className="nums min-h-[1.375rem] text-[15px] font-semibold text-white/85">
+                    {routeMiles} <span className="text-[11px] font-medium text-white/45">mi</span>
+                  </div>
+                </div>
+              )}
+              {etaMin != null && (
+                <div className="flex-1 basis-[7.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-white/45">
+                    {t(locale, 'loadDetail.etaLeft')}
+                  </div>
+                  <div className="nums min-h-[1.375rem] text-[15px] font-semibold text-white/85">
+                    ~{driveTime(etaMin, locale)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           <FleetMap markers={mapMarkers} routes={mapRoutes} height={280} distanceMi={routeMiles} />
         </section>
       )}
