@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { zoneTime } from '@/lib/fmt'
 
 /**
  * Местное время там, где сейчас трак.
@@ -27,35 +28,12 @@ export function LocalTime({ zone, className }: { zone: string; className?: strin
   // Первый рендер пустой намеренно: время на сервере и в браузере разное, и
   // отрисовав его на сервере, мы получили бы расхождение гидратации.
   if (!now) return null
-
-  let text: string
-  try {
-    text = new Intl.DateTimeFormat('en-US', {
-      timeZone: zone,
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(now)
-  } catch {
-    return null
-  }
-
-  // Короткое имя пояса рядом с временем: «14:32 PDT». Без него непонятно, чьё
-  // это время — водителя или своё.
-  let abbr = ''
-  try {
-    abbr =
-      new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'short' })
-        .formatToParts(now)
-        .find((p) => p.type === 'timeZoneName')?.value ?? ''
-  } catch {
-    /* без аббревиатуры тоже читается */
-  }
+  const text = zoneTime(zone, now)
+  if (!text) return null
 
   return (
     <span className={className} title={zone}>
       {text}
-      {abbr && ` ${abbr}`}
     </span>
   )
 }

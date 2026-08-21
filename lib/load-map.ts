@@ -8,6 +8,7 @@ import type { FleetStatus } from './maintenance-core'
 import { cityCoordsBest, deliveryInfoBest } from './geo-routing'
 import { headingOf } from './eld'
 import { driveTime } from './fmt'
+import { zoneFor } from './tz'
 import { t, type Locale } from './i18n.ts'
 import type { MapMarker, MapRoute } from '@/components/fleet-map'
 
@@ -117,6 +118,7 @@ export async function loadMapData(
   const truckM: MapMarker = {
     lat,
     lng,
+    zone: zoneFor(lat, lng) ?? undefined,
     label: truck.number ?? truck.name,
     sub: [
       fs?.location,

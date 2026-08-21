@@ -4,6 +4,7 @@ import { eldStatus } from '@/lib/map'
 import { agoText } from '@/lib/fmt'
 import { idleSince } from '@/lib/eld'
 import { FleetMap, type MapMarker } from '@/components/fleet-map'
+import { zoneFor } from '@/lib/tz'
 import { SmallRefreshButton } from '@/components/small-refresh-button'
 import { t } from '@/lib/i18n'
 import { getLocale } from '@/lib/i18n-server'
@@ -33,7 +34,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const idleHours = idleAt ? Math.floor((Date.now() - idleAt.getTime()) / 3_600_000) : null
   const st = eldStatus(row.drive_status, idleHours)
   const markers: MapMarker[] = hasFix
-    ? [{ lat: row.lat!, lng: row.lng!, label: row.number ?? '—', sub: row.location ?? undefined, tone: st.tone, kind: 'truck' }]
+    ? [
+        {
+          lat: row.lat!,
+          lng: row.lng!,
+          label: row.number ?? '—',
+          sub: row.location ?? undefined,
+          zone: zoneFor(row.lat, row.lng) ?? undefined,
+          tone: st.tone,
+          kind: 'truck',
+        },
+      ]
     : []
 
   return (

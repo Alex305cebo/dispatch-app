@@ -130,3 +130,30 @@ export function normalizeApptTime(raw: string | null | undefined): string | null
   s = s.replace(/^(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(.+?)\s+[–-]\s+\1\s+(.+)$/, '$1 $2 – $3')
   return s.replace(/\s+/g, ' ').trim()
 }
+
+/** Время в чужом часовом поясе словами: «14:32 PDT».
+ *
+ * Аббревиатура обязательна: без неё непонятно, чьё это время — водителя или своё.
+ * Пояс — IANA-имя (см. lib/tz.ts). Формат и переход на летнее время делает Intl,
+ * поэтому своей арифметики с часами здесь нет и быть не должно.
+ *
+ * Живёт здесь, а не в lib/tz.ts, потому что нужен и на клиенте: tz.ts тянет
+ * полигоны поясов на 150 КБ, и импорт его в браузерный бандл был бы платой ни за что.
+ */
+export function zoneTime(zone: string, now: Date): string | null {
+  try {
+    const time = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(now)
+    const abbr = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'short' })
+      .formatToParts(now)
+      .find((p) => p.type === 'timeZoneName')?.value
+    return abbr ? `${time} ${abbr}` : time
+  } catch {
+    // Неизвестное имя пояса — лучше промолчать, чем показать своё время как чужое.
+    return null
+  }
+}
