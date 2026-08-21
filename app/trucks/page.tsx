@@ -20,6 +20,7 @@ import { sql } from '@/lib/db'
 import { usd, shortName, weekBounds, loadWeekAnchorMs } from '@/lib/fmt'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
+import { placeCity } from '@/lib/place'
 import { t, type Locale } from '@/lib/i18n'
 import { DriverAvatar } from '@/components/driver-avatar'
 import { StatusBadge } from '@/components/status'
@@ -41,12 +42,6 @@ function driveDot(s: string | null): string {
   if (/mi\/h|^d$/i.test(s)) return 'bg-good-500'
   if (/^on$/i.test(s)) return 'bg-haul-500'
   return 'bg-white/30'
-}
-
-function cityOf(location: string | null): string | null {
-  if (!location) return null
-  const m = location.match(/from\s+(.+)$/i)
-  return m ? m[1] : location
 }
 
 /** «2026-08-17» → «17 авг». Год не пишем: столбец про ближайшие дни. */
@@ -189,7 +184,7 @@ export default async function Page() {
               // парка ниже читают ровно эти же current и byUnit.
               place: current
                 ? `→ ${current.destination ?? '—'}`
-                : (cityOf(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')),
+                : (placeCity(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')),
               when: truck.unavailable
                 ? { text: unavailableLabel(locale, truck.unavailable), tone: 'off' as const }
                 : current
@@ -259,7 +254,7 @@ export default async function Page() {
                   <div className="mt-0.5 truncate text-[12px] text-white/60">
                     {/* Водитель уехал в подпись выше — здесь осталось только место,
                         иначе имя печаталось бы дважды подряд. */}
-                    📍 {cityOf(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')}
+                    📍 {placeCity(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')}
                   </div>
                   {/* VIN, once the ELD has reported it (auto-filled — see lib/eld.ts).
                       Small and muted: it's the truck's legal identity for registration

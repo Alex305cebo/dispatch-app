@@ -73,6 +73,20 @@ test('отменённый груз не считается работой', () 
   assert.equal(rows[0]!.days, null) // выгрузок не было вовсе
 })
 
+test('трак без единого рейса не занимает верх списка — там работающие', () => {
+  const rows = idleFleet(
+    [truck(1), truck(2), truck(3)],
+    [
+      load({ id: 2, truckId: 2, deliveryDate: '2026-08-14' }), // стоит 2 дня
+      load({ id: 3, truckId: 3, status: 'in_transit', deliveryDate: '2026-08-18' }), // везёт груз
+    ],
+    new Map(),
+    NOW,
+  )
+  // #1 не возил ничего ни разу — он ниже и стоящего, и едущего.
+  assert.deepEqual(rows.map((r) => r.truckId), [2, 3, 1])
+})
+
 test('порядок: дольше всех стоящий сверху, занятые ниже, ремонт в самом конце', () => {
   const rows = idleFleet(
     [
@@ -82,6 +96,7 @@ test('порядок: дольше всех стоящий сверху, зан�
       truck(4),
     ],
     [
+      load({ id: 1, truckId: 1, deliveryDate: '2026-08-01' }), // в ремонте, но рейсы были
       load({ id: 2, truckId: 2, deliveryDate: '2026-08-14' }), // стоит 2 дня
       load({ id: 3, truckId: 3, deliveryDate: '2026-08-05' }), // стоит 11 дней
       load({ id: 4, truckId: 4, status: 'in_transit', deliveryDate: '2026-08-18' }),

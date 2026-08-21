@@ -5,6 +5,7 @@ import { agoText } from '@/lib/fmt'
 import { idleSince } from '@/lib/eld'
 import { FleetMap, type MapMarker } from '@/components/fleet-map'
 import { zoneFor } from '@/lib/tz'
+import { fixPlace } from '@/lib/place'
 import { SmallRefreshButton } from '@/components/small-refresh-button'
 import { t } from '@/lib/i18n'
 import { getLocale } from '@/lib/i18n-server'
@@ -27,6 +28,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     WHERE t.id = ${Number(id)}`) as Row[]
   const row = rows[0]
   if (!row) notFound()
+  const place = fixPlace(row.location, row.lat, row.lng)
 
   const hasFix = row.lat !== null && row.lng !== null
   const idleAt =
@@ -39,7 +41,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           lat: row.lat!,
           lng: row.lng!,
           label: row.number ?? '—',
-          sub: row.location ?? undefined,
+          sub: place ?? undefined,
           zone: zoneFor(row.lat, row.lng) ?? undefined,
           tone: st.tone,
           kind: 'truck',
@@ -54,7 +56,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <div className="mx-auto max-w-2xl">
         <h1 className="text-[18px] font-semibold">{t(locale, 'tracking.truckHash')}{row.number ?? '—'}</h1>
         <p className="mt-1 text-[13px] text-white/65">
-          {row.location ?? t(locale, 'tracking.noData')} · {st.text}
+          {place ?? t(locale, 'tracking.noData')} · {st.text}
           {row.updated_at && (
             <span className="text-white/40"> · {t(locale, 'tracking.updatedPrefix')}{agoText(row.updated_at, locale)}</span>
           )}

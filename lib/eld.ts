@@ -28,6 +28,7 @@
 import { sql } from './db.ts'
 import { getSetting, setSetting } from './settings.ts'
 import { haversineMiles, bearing } from './geo.ts'
+import { fixPlace } from './place.ts'
 import { segmentTrail, type HistoryLeg } from './trip-history.ts'
 import { t, type Locale } from './i18n.ts'
 
@@ -125,7 +126,9 @@ export async function tripHistory(unit: string, hours = 24): Promise<HistoryLeg[
     SELECT lat, lng, at, location FROM truck_position_log
     WHERE unit = ${unit} AND at >= now() - interval '1 hour' * ${hours}
     ORDER BY at ASC`) as { lat: number; lng: number; at: string; location: string | null }[]
-  return segmentTrail(rows)
+  // Тот же разбор штата, что и для снимка парка: в логе лежит сырая строка вендора,
+  // и в истории пути она врала ровно так же, как на карте.
+  return segmentTrail(rows.map((r) => ({ ...r, location: fixPlace(r.location, r.lat, r.lng) })))
 }
 
 /* ===== Vendor-key path — ZigZag "External" API v2 =============================

@@ -1,5 +1,6 @@
 // Truck care QUERIES (server only — imports lib/db). Types + pure helpers live in
 // lib/maintenance-core.ts; re-exported here so server callers can import both from
+import { fixPlace } from './place.ts'
 // one place. Client components must import from maintenance-core, never from here.
 
 import { cache } from 'react'
@@ -175,7 +176,9 @@ export async function fleetStatusByUnit(): Promise<Map<string, FleetStatus>> {
         driverName: r.driver_name,
         hosPercent: r.hos_percent,
         driveStatus: r.drive_status,
-        location: r.location,
+        // Штат правится здесь, а не в каждом месте показа: карта, списки,
+        // карточки траков и обзор читают ровно этот снимок.
+        location: fixPlace(r.location, r.lat, r.lng),
         lat: r.lat,
         lng: r.lng,
         odometer: r.odometer,
