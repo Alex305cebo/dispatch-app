@@ -1,10 +1,15 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  DAY_MS,
+  dayTotals,
   daySpans,
   segmentTrail,
   startOfDay,
+  stopRole,
+  summarize,
   type HistoryLeg,
+  type LoadStop,
   type TrailPoint,
 } from './trip-history.ts'
 
@@ -112,4 +117,59 @@ test('a leg crossing midnight is clipped to each day, never overflowing', () => 
 test('legs from other days are dropped, not drawn at a negative offset', () => {
   const d = day('2026-07-20T00:00:00')
   assert.equal(daySpans([drive('2026-07-18T06:00:00', '2026-07-18T09:00:00')], d).length, 0)
+})
+
+test('итог окна: мили, часы за рулём, стоянки и средняя по трассе', () => {
+  const d1 = drivingFrom(0, 25, BASE.lng) // два часа хода
+  const p1 = parkedFrom(d1.endMin + 5, 20, d1.endLng) // и полтора часа стоянки
+  const s = summarize(segmentTrail([...d1.points, ...p1.points]))
+  assert.equal(s.stops, 1)
+  assert.ok(s.stopMin >= 90, 'стоянка целиком попадает в итог')
+  assert.ok(s.driveMin >= 120)
+  assert.ok(s.miles > 0)
+  assert.ok(s.avgMph !== null && s.avgMph > 0, 'средняя считается по времени движения')
+  assert.equal(s.longest?.minutes, s.stopMin)
+})
+
+test('короткая поездка не выдаёт среднюю скорость по одной точке', () => {
+  const legs = segmentTrail(drivingFrom(0, 4, BASE.lng).points) // 15 минут хода
+  assert.equal(summarize(legs).avgMph, null)
+})
+
+test('мили рейса через полночь делятся между днями, а не достаются одному', () => {
+  const start = new Date(2026, 7, 20, 22, 0, 0).getTime()
+  const legs: HistoryLeg[] = [
+    {
+      kind: 'drive',
+      from: new Date(start).toISOString(),
+      to: new Date(start + 4 * 3600_000).toISOString(), // 22:00 → 02:00
+      miles: 200,
+      minutes: 240,
+      fromLocation: null,
+      toLocation: null,
+    },
+  ]
+  const d1 = dayTotals(legs, startOfDay(start))
+  const d2 = dayTotals(legs, startOfDay(start) + DAY_MS)
+  assert.equal(d1.miles, 100) // два часа до полуночи
+  assert.equal(d2.miles, 100)
+  assert.equal(d1.driveMin + d2.driveMin, 240)
+})
+
+test('стоянка в городе погрузки в день погрузки — это детеншен', () => {
+  const stops: LoadStop[] = [
+    { city: 'Bakersfield, CA', kind: 'pickup', day: '2026-08-20' },
+    { city: 'Dallas, TX', kind: 'delivery', day: '2026-08-23' },
+  ]
+  const at = new Date(2026, 7, 20, 9, 0, 0).toISOString()
+  assert.equal(stopRole('2.0mi N from Bakersfield, CA', at, stops), 'pickup')
+  assert.equal(stopRole('Bakersfield, CA', at, stops), 'pickup')
+})
+
+test('тот же город, но не в те дни — обычная стоянка, а не детеншен', () => {
+  const stops: LoadStop[] = [{ city: 'Bakersfield, CA', kind: 'pickup', day: '2026-08-20' }]
+  const at = new Date(2026, 7, 27, 9, 0, 0).toISOString()
+  assert.equal(stopRole('2.0mi N from Bakersfield, CA', at, stops), null)
+  assert.equal(stopRole('Fresno, CA', new Date(2026, 7, 20, 9, 0, 0).toISOString(), stops), null)
+  assert.equal(stopRole(null, at, stops), null)
 })

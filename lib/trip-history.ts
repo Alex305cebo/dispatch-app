@@ -124,3 +124,108 @@ export function daySpans(legs: HistoryLeg[], dayMs: number): DaySpan[] {
       widthPct: ((s.toMs - s.fromMs) / DAY_MS) * 100,
     }))
 }
+
+export type TripSummary = {
+  miles: number
+  driveMin: number
+  /** Всё время, что трак стоял: и короткие остановки, и длинные отдыхи. */
+  stopMin: number
+  stops: number
+  longRests: number
+  /** Средняя за время ДВИЖЕНИЯ, а не за сутки: скорость по трассе, а не «миль в день». */
+  avgMph: number | null
+  longest: { minutes: number; location: string | null; long: boolean } | null
+}
+
+/** Итог по окну (24 часа / 3 дня / 7 дней) — шапка секции «История пути».
+ * Одна функция на всю секцию: те же числа считались бы по-разному в трёх местах. */
+export function summarize(legs: HistoryLeg[]): TripSummary {
+  let miles = 0
+  let driveMin = 0
+  let stopMin = 0
+  let stops = 0
+  let longRests = 0
+  let longest: TripSummary['longest'] = null
+  for (const l of legs) {
+    if (l.kind === 'drive') {
+      miles += l.miles
+      driveMin += l.minutes
+      continue
+    }
+    stopMin += l.minutes
+    stops++
+    if (l.long) longRests++
+    if (!longest || l.minutes > longest.minutes) {
+      longest = { minutes: l.minutes, location: l.location, long: l.long }
+    }
+  }
+  return {
+    miles,
+    driveMin,
+    stopMin,
+    stops,
+    longRests,
+    // Час за рулём — нижняя граница, ниже которой средняя скорость считается по шуму.
+    avgMph: driveMin >= 60 ? Math.round(miles / (driveMin / 60)) : null,
+    longest,
+  }
+}
+
+/**
+ * Итог одного календарного дня. Мили отрезка, перешедшего полночь, делятся между
+ * днями пропорционально времени: приписать все 471 милю дню, в котором рейс начался,
+ * значит показать дню, где трак ехал до утра, ноль.
+ */
+export function dayTotals(legs: HistoryLeg[], dayMs: number): { miles: number; driveMin: number } {
+  let miles = 0
+  let driveMin = 0
+  for (const s of daySpans(legs, dayMs)) {
+    if (s.leg.kind !== 'drive') continue
+    const whole = Date.parse(s.leg.to) - Date.parse(s.leg.from)
+    const share = whole > 0 ? (s.toMs - s.fromMs) / whole : 1
+    miles += s.leg.miles * share
+    driveMin += (s.toMs - s.fromMs) / 60000
+  }
+  return { miles: Math.round(miles), driveMin: Math.round(driveMin) }
+}
+
+/** Остановка груза: город и дата по рейт-кону. Дата обязательна — без неё домашний
+ * город водителя, совпавший с городом погрузки, помечался бы «на погрузке» всегда. */
+export type LoadStop = { city: string; kind: 'pickup' | 'delivery'; day: string | null }
+
+/** «12.0mi N from Bakersfield, CA» → «bakersfield, ca». */
+function cityKey(place: string | null | undefined): string | null {
+  const s = place?.trim()
+  if (!s) return null
+  const tail = /from\s+(.+)$/i.exec(s)?.[1] ?? s
+  // Приставка с фактическим штатом («NV · …») тут не участвует: она стоит перед
+  // «from», и до хвоста с городом не доходит.
+  return tail.toLowerCase().trim() || null
+}
+
+const NEAR_DAY_MS = 36 * 60 * 60 * 1000
+
+/**
+ * Стояла ли машина под погрузкой или выгрузкой — то, за что диспетчер выставляет
+ * детеншен. Своего ELD об этом не спросишь: он знает только, что трак не двигался.
+ * Мы знаем груз, поэтому сопоставляем город стоянки с городом рейт-кона.
+ */
+export function stopRole(
+  location: string | null,
+  atIso: string,
+  stops: LoadStop[],
+): 'pickup' | 'delivery' | null {
+  const key = cityKey(location)
+  if (!key) return null
+  const at = Date.parse(atIso)
+  for (const s of stops) {
+    const sk = cityKey(s.city)
+    if (!sk || sk !== key) continue
+    if (!s.day) continue
+    const day = Date.parse(s.day)
+    if (Number.isNaN(day) || Number.isNaN(at)) continue
+    if (Math.abs(at - day) > NEAR_DAY_MS) continue
+    return s.kind
+  }
+  return null
+}
