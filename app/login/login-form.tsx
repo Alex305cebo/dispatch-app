@@ -29,6 +29,7 @@ export function LoginForm({
   needsSchema,
   companyName,
   showDemo,
+  demoUrl,
   askLocale,
   initialLocale,
 }: {
@@ -36,8 +37,11 @@ export function LoginForm({
   /** Название компании из базы — заголовок карточки входа. Пусто на первом
    * запуске (в базе его ещё нет) и в установке. */
   companyName: string
-  /** Показывать ли кнопку публичного демо. У клиентской установки её нет. */
+  /** Показывать ли кнопку публичного демо ЭТОЙ установки. У клиентской копии её нет. */
   showDemo: boolean
+  /** Адрес отдельной установки-витрины. Указан — кнопка ведёт туда, и база этой
+   * установки в показе не участвует вовсе. */
+  demoUrl: string
   /** Таблиц в базе ещё нет — это установка, а не просто первый аккаунт. Отдельно
    * от bootstrap, потому что заголовок и надпись на кнопке разные: «Установить»
    * занимает секунды, и молчащая кнопка «Создать аккаунт» выглядит зависшей. */
@@ -284,8 +288,15 @@ export function LoginForm({
 
         {error && <p className="mt-2 text-[13px] text-bad-400">{error}</p>}
 
-        {!bootstrap && showDemo && (
-          <Button href="/demo" external variant="secondary" size="lg" block className="mt-3">
+        {!bootstrap && (demoUrl || showDemo) && (
+          <Button
+            href={demoUrl || '/demo'}
+            external
+            variant="secondary"
+            size="lg"
+            block
+            className="mt-3"
+          >
             {t(locale, 'login.demo')}
           </Button>
         )}

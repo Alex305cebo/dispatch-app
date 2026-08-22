@@ -68,6 +68,15 @@ export const adminDict = {
     ru: 'Демо выключено: посторонний внутрь не попадёт, кнопки на входе нет.',
     en: 'Demo is off: no button on the login screen, no way in for a stranger.',
   },
+  'admin.demoPublic.urlLabel': { ru: 'Адрес отдельного демо', en: 'Separate demo address' },
+  'admin.demoPublic.urlHint': {
+    ru: 'Если демо живёт отдельной установкой — впишите её адрес, и на экране входа появится кнопка «Посмотреть демо», ведущая туда. Это безопасный вариант для рабочей копии: гость смотрит чужой сервер, ваша база в показе не участвует. Пусто — кнопки не будет (или будет своё демо, если включено выше).',
+    en: 'If the demo runs as its own installation, put its address here and the login screen gets a "View the demo" button pointing there. This is the safe option for a working copy: the visitor browses another server and your database is not involved. Blank — no button (or the demo of this install, if enabled above).',
+  },
+  'admin.demoPublic.badUrl': {
+    ru: 'Адрес должен начинаться с https:// и быть целым — например https://demo.dispatch4you.pro',
+    en: 'The address must start with https:// and be complete — for example https://demo.dispatch4you.pro',
+  },
   'admin.demoPublic.turnOn': { ru: 'Включить', en: 'Turn on' },
   'admin.demoPublic.turnOff': { ru: 'Выключить', en: 'Turn off' },
   'admin.demoPublic.turnedOn': { ru: 'Демо включено', en: 'Demo is on' },

@@ -60,8 +60,20 @@ export default async function LoginPage() {
   // место в ЕГО базе (у Neon бесплатно полгигабайта). Ключа нет — демо включено,
   // так что старые установки не замечают правки вовсе; форма установки пишет '0',
   // и у каждой новой копии двери нет с первого дня.
-  const conf = installed ? await getSettings(['co_name', 'demo_public']) : new Map<string, string>()
+  const conf = installed
+    ? await getSettings(['co_name', 'demo_public', 'demo_url'])
+    : new Map<string, string>()
   const companyName = conf.get('co_name') ?? ''
+  // Демо ДО входа — первое, что должен иметь возможность сделать человек, который
+  // приложение ещё не купил. Два разных источника:
+  //
+  // demo_url — отдельная установка-витрина. Её база не имеет к этой никакого
+  // отношения, поэтому у клиента показывать демо безопасно: гость гуляет по чужому
+  // серверу, а не по его грузам.
+  //
+  // demo_public — демо ЭТОЙ установки (наша витрина). У клиента выключено формой
+  // установки: там демо-данные легли бы в его же базу.
+  const demoUrl = conf.get('demo_url') ?? ''
   const showDemo = conf.get('demo_public') !== '0'
 
   // Whether to ask for a language is decided here, server-side, because
@@ -76,6 +88,7 @@ export default async function LoginPage() {
       bootstrap={rows.length === 0}
       companyName={companyName}
       showDemo={showDemo}
+      demoUrl={demoUrl}
       needsSchema={!installed}
       askLocale={!cookie}
       initialLocale={resolveLocale(cookie)}

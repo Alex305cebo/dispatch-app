@@ -6,7 +6,7 @@ import { CompanyForm } from '@/components/invoice-actions'
 import { Info } from '@/components/info'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
-import { getDemoPublic, getKeyStatus, getOpenAccess, listUsers } from './actions'
+import { getDemoConfig, getKeyStatus, getOpenAccess, listUsers } from './actions'
 import { UserList } from './user-list'
 import { OpenAccessToggle } from './open-access-toggle'
 import { KeysForm } from './keys-form'
@@ -21,12 +21,12 @@ export default async function AdminPage() {
   if (!user || user.role !== 'admin') redirect('/')
   const locale = await getLocale()
 
-  const [users, company, openAccess, keys, demoPublic] = await Promise.all([
+  const [users, company, openAccess, keys, demo] = await Promise.all([
     listUsers(),
     getCompany(),
     getOpenAccess(),
     getKeyStatus(),
-    getDemoPublic(),
+    getDemoConfig(),
   ])
 
   return (
@@ -63,7 +63,7 @@ export default async function AdminPage() {
           {t(locale, 'admin.demoPublicHeading')}
           <Info text={t(locale, 'admin.demoPublicInfo')} />
         </h2>
-        <DemoToggle enabled={demoPublic} />
+        <DemoToggle enabled={demo.enabled} url={demo.url} />
       </section>
 
       <section className="panel mt-4 p-5" data-tour="company">

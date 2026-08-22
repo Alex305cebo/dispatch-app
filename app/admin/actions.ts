@@ -5,7 +5,7 @@ import { sql } from '@/lib/db'
 import { humanError } from '@/lib/msg'
 import { hashPassword } from '@/lib/auth'
 import { getCurrentUser } from '@/lib/session'
-import { deleteSetting, getSetting, setSetting } from '@/lib/settings'
+import { deleteSetting, getSetting, getSettings, setSetting } from '@/lib/settings'
 import { aiModelPref, fmcsaKey, geminiKey, hereKey } from '@/lib/keys'
 import { CAPABILITIES, type CapabilityKey } from '@/lib/capabilities'
 import { capabilitiesFor, setUserCapability } from '@/lib/capabilities-server'
@@ -142,16 +142,29 @@ export async function setOpenAccess(enabled: boolean): Promise<{ error: string }
  * этой строки в базе нет, и выключить им демо задним числом правкой кода было бы
  * подменой их настройки. Форма установки новой копии пишет '0' — у клиента демо
  * нет с первого дня, а витрину включают здесь. */
-export async function getDemoPublic(): Promise<boolean> {
+export async function getDemoConfig(): Promise<{ enabled: boolean; url: string }> {
   await assertAdmin()
-  return (await getSetting('demo_public')) !== '0'
+  const conf = await getSettings(['demo_public', 'demo_url'])
+  return { enabled: conf.get('demo_public') !== '0', url: conf.get('demo_url') ?? '' }
 }
 
-export async function setDemoPublic(enabled: boolean): Promise<{ error: string } | void> {
+export async function setDemoConfig(input: { enabled: boolean; url: string }): Promise<{ error: string } | void> {
   await assertAdmin()
-  await setSetting('demo_public', enabled ? '1' : '0')
+  const url = input.url.trim()
+  // Только https и только целый адрес. Это поле печатается в href на экране входа,
+  // то есть до всякой авторизации: 'javascript:' отсюда стал бы дырой, открытой
+  // любому посетителю. Проверка на сервере, а не в форме, — форму обойти можно.
+  if (url && !/^https:\/\/[^\s]+$/.test(url)) {
+    return { error: await demoUrlError() }
+  }
+  await setSetting('demo_public', input.enabled ? '1' : '0')
+  await setSetting('demo_url', url)
   revalidatePath('/admin')
   revalidatePath('/login')
+}
+
+async function demoUrlError(): Promise<string> {
+  return t(await getLocale(), 'admin.demoPublic.badUrl')
 }
 
 /** Which third-party keys this install has, WITHOUT ever returning their values. The
