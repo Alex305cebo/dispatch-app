@@ -12,6 +12,13 @@ export const loginDict = {
   },
   'login.bootstrap_submit': { ru: 'Создать аккаунт', en: 'Create account' },
 
+  // Переменная окружения не вписана — приложение стоит на хостинге, но базы у него нет.
+  'login.nodb_title': { ru: 'База не подключена', en: 'No database connected' },
+  'login.nodb_text': {
+    ru: 'В панели хостинга (Environment variables) добавьте переменную DATABASE_URL — прямую (direct) строку подключения к Postgres — и перезапустите приложение. После этого здесь появится форма установки.',
+    en: 'In the hosting panel (Environment variables) add DATABASE_URL — the direct Postgres connection string — and restart the app. The setup form will appear here once it is set.',
+  },
+
   // Первый запуск на пустой базе — установка, а не просто создание аккаунта.
   'login.install_title': { ru: 'Установка', en: 'Setup' },
   'login.install_subtitle': {
