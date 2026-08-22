@@ -58,8 +58,8 @@ export const loginDict = {
   },
   'login.error.enterCompany': { ru: 'Впиши название компании.', en: 'Enter the company name.' },
   'login.error.schemaFailed': {
-    ru: 'Не вышло создать таблицы. Проверь DATABASE_URL в панели хостинга — строка должна быть прямая (direct), а не pooled.',
-    en: 'Could not create the tables. Check DATABASE_URL in the hosting panel — it must be the direct connection string, not the pooled one.',
+    ru: 'Не вышло создать таблицы. Частая причина — строка подключения не прямая (нужна direct, не pooled). Точная ошибка — в логах приложения на хостинге.',
+    en: 'Could not create the tables. The usual cause is a pooled connection string — the direct one is required. The exact error is in the app logs on the hosting panel.',
   },
   'login.error.emailTaken': { ru: 'Этот email уже занят.', en: 'This email is already taken.' },
   'login.error.createFailed': { ru: 'Не вышло создать аккаунт.', en: 'Could not create the account.' },

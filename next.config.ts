@@ -17,6 +17,14 @@ const config: NextConfig = {
   // The floating "N" pill bottom-left is Next.js's own dev-mode route indicator —
   // not part of this app's UI, just development tooling chrome. Off entirely.
   devIndicators: false,
+  // schema.sql читается с диска во время работы (lib/install.ts — установка на
+  // пустую базу), а Hostinger разворачивает не репозиторий, а обрезанную сборку:
+  // в развёрнутом lib/ лежат два файла из шестидесяти. Сейчас schema.sql среди них
+  // оказался сам, но полагаться на удачу трассировщика нельзя — путь собирается
+  // из process.cwd() и статически не виден. Эта строка включает файл в сборку явно.
+  outputFileTracingIncludes: {
+    '/login': ['./lib/schema.sql'],
+  },
   experimental: {
     serverActions: {
       // Document upload goes through a server action; default cap is 1MB and a
