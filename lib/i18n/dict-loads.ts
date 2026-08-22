@@ -71,8 +71,15 @@ export const loadsDict = {
   'newLoad.formFilled': { ru: 'Форма заполнена из rate con — проверь и сохрани.', en: 'Form filled from the rate con — check it and save.' },
   'newLoad.clearOtherFile': { ru: 'очистить / другой файл', en: 'clear / different file' },
   'newLoad.recognizedToast': { ru: 'Rate con распознан — проверь поля', en: 'Rate con recognized — check the fields' },
-  'newLoad.aiUnavailable': { ru: 'ИИ временно недоступен — обратись к администратору.', en: 'AI is temporarily unavailable — contact your administrator.' },
-  'newLoad.aiUnavailableShort': { ru: 'ИИ недоступен', en: 'AI unavailable' },
+  // Не «временно недоступен»: это единственная причина, по которой сюда попадают, —
+  // ключ не вставлен, и сам он не появится. Прежний текст отсылал к администратору,
+  // хотя на новой установке администратор — тот самый человек, который это читает.
+  // Поэтому здесь дорога до нужного экрана целиком.
+  'newLoad.aiUnavailable': {
+    ru: 'Ключ Google AI не вставлен — без него распознавание не работает. Меню аккаунта (кружок слева внизу) → Ключи → вставить ключ. Он бесплатный, выдаётся в Google AI Studio за минуту.',
+    en: 'The Google AI key is not set — recognition cannot work without it. Account menu (the circle at the bottom left) → Keys → paste the key. It is free and Google AI Studio issues it in a minute.',
+  },
+  'newLoad.aiUnavailableShort': { ru: 'ключ Google AI не вставлен', en: 'the Google AI key is not set' },
   'newLoad.notRecognized': { ru: 'Не распознался: {detail}. Попробуй ещё раз.', en: 'Could not recognize: {detail}. Try again.' },
   'newLoad.notReadToast': { ru: 'Не прочитался: {msg}', en: "Couldn't read it: {msg}" },
 
