@@ -158,6 +158,9 @@ export function CompanyForm({ initial }: { initial: Company }) {
           {t(locale, 'finances.form.remitTo')}
         </span>
         <textarea value={c.remitTo} onChange={f('remitTo')} rows={2} className={input} />
+        <span className="mt-1 block text-[11.5px] leading-relaxed text-white/50">
+          {t(locale, 'finances.form.remitToHint')}
+        </span>
       </label>
       <div className="sm:col-span-2">
         <Button variant="primary" disabled={pending}

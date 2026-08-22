@@ -132,8 +132,15 @@ export const financesDict = {
   'finances.form.phone': { ru: 'Телефон', en: 'Phone' },
   'finances.form.email': { ru: 'Email', en: 'Email' },
   'finances.form.remitTo': {
-    ru: 'Remit-to (если возит факторинг — их адрес; пусто = платят напрямую)',
-    en: 'Remit-to (if you factor — their address; blank = paid directly)',
+    ru: 'Кому платить по этому счёту (Remit-To)',
+    en: 'Where this invoice gets paid (Remit-To)',
+  },
+  // Подпись под полем, а не в его названии: строчка «если возит факторинг — их
+  // адрес» помещалась, но не объясняла НИЧЕГО тому, кто про факторинг слышит
+  // впервые, — а поле при этом решает, кому брокер отправит деньги.
+  'finances.form.remitToHint': {
+    ru: 'Заполняйте, только если ваши счета выкупает факторинговая компания: впишите её название, адрес и реквизиты — брокер заплатит ей. Работаете без факторинга — оставьте пустым, в счёте встанет адрес вашей компании и брокер заплатит вам напрямую.',
+    en: 'Fill this in only if a factoring company buys your invoices: put their name, address and payment details here and the broker pays them. No factoring — leave it blank, the invoice carries your own address and the broker pays you directly.',
   },
   'finances.form.saved': { ru: 'Данные компании сохранены', en: 'Company details saved' },
   'finances.form.save': { ru: 'Сохранить компанию', en: 'Save company' },
