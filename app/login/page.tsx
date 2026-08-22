@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 import { sql } from '@/lib/db'
 import { schemaInstalled } from '@/lib/install'
-import { getSetting } from '@/lib/settings'
+import { getSettings } from '@/lib/settings'
 import { LOCALE_COOKIE, resolveLocale, t } from '@/lib/i18n'
 import { LoginForm } from './login-form'
 
@@ -54,7 +54,15 @@ export default async function LoginPage() {
   // не может знать, что строка «не та»: база рабочая, схема на месте, аккаунты
   // есть, вход открывается как ни в чём не бывало — и на домене клиента оказывается
   // чужая компания. Имя компании из базы ловит это за секунду, до первого входа.
-  const companyName = installed ? ((await getSetting('co_name')) ?? '') : ''
+  //
+  // Публичное демо на входе — нормально для нашей витрины и неуместно у клиента:
+  // это дверь, в которую с его домена входит кто угодно, и данные демо занимают
+  // место в ЕГО базе (у Neon бесплатно полгигабайта). Ключа нет — демо включено,
+  // так что старые установки не замечают правки вовсе; форма установки пишет '0',
+  // и у каждой новой копии двери нет с первого дня.
+  const conf = installed ? await getSettings(['co_name', 'demo_public']) : new Map<string, string>()
+  const companyName = conf.get('co_name') ?? ''
+  const showDemo = conf.get('demo_public') !== '0'
 
   // Whether to ask for a language is decided here, server-side, because
   // resolveLocale() answers "en" for anyone who has never chosen — a silent default
@@ -67,6 +75,7 @@ export default async function LoginPage() {
     <LoginForm
       bootstrap={rows.length === 0}
       companyName={companyName}
+      showDemo={showDemo}
       needsSchema={!installed}
       askLocale={!cookie}
       initialLocale={resolveLocale(cookie)}

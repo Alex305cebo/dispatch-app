@@ -9,6 +9,14 @@ export const dynamic = 'force-dynamic'
 // one-click link — signs the browser in as the shared public demo account (fresh
 // sandbox data if the last visitor's has gone stale) and drops straight into the app.
 export async function GET(req: Request) {
+  // Выключено у клиентских установок (форма установки пишет demo_public='0').
+  // Проверка здесь, а не только на кнопке: кнопку убрать мало — адрес /demo
+  // публичный, его достаточно набрать руками. Ключа нет — демо работает, поэтому
+  // наши собственные установки правки не замечают.
+  const { getSetting } = await import('@/lib/settings')
+  if ((await getSetting('demo_public')) === '0') {
+    return new NextResponse(null, { status: 307, headers: { Location: '/login' } })
+  }
   const locale = await getLocale()
   const token = await startDemoSession(locale)
   // `?next=` lets a link hand the demo a destination — the Telegram bot sends
