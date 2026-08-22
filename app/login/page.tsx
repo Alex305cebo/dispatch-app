@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { sql } from '@/lib/db'
 import { schemaInstalled } from '@/lib/install'
+import { getSetting } from '@/lib/settings'
 import { LOCALE_COOKIE, resolveLocale, t } from '@/lib/i18n'
 import { LoginForm } from './login-form'
 
@@ -39,6 +40,14 @@ export default async function LoginPage() {
   const installed = await schemaInstalled()
   const rows = installed ? await sql`SELECT 1 FROM users WHERE is_demo = FALSE LIMIT 1` : []
 
+  // Чьё это приложение — крупно, на самом входе. Не украшение: установок теперь
+  // несколько, каждой в панели хостинга вписывают СВОЮ строку подключения, и
+  // единственная ошибка, которую иначе никто не заметит, — чужая база. Приложение
+  // не может знать, что строка «не та»: база рабочая, схема на месте, аккаунты
+  // есть, вход открывается как ни в чём не бывало — и на домене клиента оказывается
+  // чужая компания. Имя компании из базы ловит это за секунду, до первого входа.
+  const companyName = installed ? ((await getSetting('co_name')) ?? '') : ''
+
   // Whether to ask for a language is decided here, server-side, because
   // resolveLocale() answers "en" for anyone who has never chosen — a silent default
   // that a Russian speaker never gets asked about. Reading the cookie here instead of
@@ -49,6 +58,7 @@ export default async function LoginPage() {
   return (
     <LoginForm
       bootstrap={rows.length === 0}
+      companyName={companyName}
       needsSchema={!installed}
       askLocale={!cookie}
       initialLocale={resolveLocale(cookie)}

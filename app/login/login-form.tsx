@@ -27,10 +27,14 @@ const input =
 export function LoginForm({
   bootstrap,
   needsSchema,
+  companyName,
   askLocale,
   initialLocale,
 }: {
   bootstrap: boolean
+  /** Название компании из базы — заголовок карточки входа. Пусто на первом
+   * запуске (в базе его ещё нет) и в установке. */
+  companyName: string
   /** Таблиц в базе ещё нет — это установка, а не просто первый аккаунт. Отдельно
    * от bootstrap, потому что заголовок и надпись на кнопке разные: «Установить»
    * занимает секунды, и молчащая кнопка «Создать аккаунт» выглядит зависшей. */
@@ -105,7 +109,7 @@ export function LoginForm({
               D
             </div>
             <div>
-              <h1 className="text-[15px] font-semibold leading-tight">Dispatch</h1>
+              <h1 className="text-[15px] font-semibold leading-tight">{companyName || 'Dispatch'}</h1>
               <p className="text-[12px] text-white/65">Choose your language · Выберите язык</p>
             </div>
           </div>
@@ -137,7 +141,7 @@ export function LoginForm({
             D
           </div>
           <div>
-            <h1 className="text-[15px] font-semibold leading-tight">Dispatch</h1>
+            <h1 className="text-[15px] font-semibold leading-tight">{companyName || 'Dispatch'}</h1>
             <p className="text-[12px] text-white/65">
               {needsSchema
                 ? t(locale, 'login.install_title')
