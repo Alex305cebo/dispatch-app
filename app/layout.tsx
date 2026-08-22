@@ -62,7 +62,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // being the one thing every route renders through.
   const [user, locale] = [await getCurrentUser(), await getLocale()]
   const companyId = user?.companyId ?? 'default'
-  const [company, alerts, showTelegram, showFinances] = await Promise.all([
+  // .catch — из-за установки. Все четыре запроса здесь оформительские: имя компании
+  // в шапке, значок просроченных документов, два пункта меню. Но макет общий для
+  // ВСЕХ страниц, включая /login, и на пустой или неподключённой базе он падал
+  // раньше, чем страница успевала сказать, что базы нет: человек, только что
+  // нажавший «Deploy», видел «Application error» без единой подсказки. Проверено
+  // вживую на kgzapp.online.
+  //
+  // Молчит только оформление: собственные запросы страницы по-прежнему падают
+  // громко, и настоящий сбой базы виден на первой же рабочей странице.
+  const chrome = await Promise.all([
     getCompany(),
     // Локаль передаётся ОБОИМИ вызывающими (здесь и на главной) одинаково —
     // иначе cache() перестал бы их склеивать и запрос ушёл бы дважды за рендер.
@@ -70,10 +79,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // Capability-gated nav items — admins always see them; dispatchers per their access.
     can(user, 'telegram'),
     can(user, 'finances'),
-  ])
+  ]).catch(() => null)
   // Overdue/≤30-day document expiries — a badge on the Траки nav item, visible from
   // anywhere in the app, not just the one banner on the dashboard.
-  const urgentDocs = alerts.filter((a) => a.item.tone === 'bad').length
+  const urgentDocs = (chrome?.[1] ?? []).filter((a) => a.item.tone === 'bad').length
 
   return (
     // suppressHydrationWarning: the inline script sets data-theme before hydration,
@@ -89,10 +98,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               so `user` is null here and Nav just doesn't render the account row —
               harmless anyway, since the login form covers the nav completely. */}
           <Nav
-            companyName={company.name}
+            companyName={chrome?.[0].name ?? ''}
             user={user}
-            showTelegram={showTelegram}
-            showFinances={showFinances}
+            showTelegram={chrome?.[2] ?? false}
+            showFinances={chrome?.[3] ?? false}
             urgentDocs={urgentDocs}
           />
           {user?.isDemo && <DemoModeBanner />}
