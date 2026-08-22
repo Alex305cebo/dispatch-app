@@ -13,12 +13,20 @@ export default async function LoginPage() {
   // видит пятисотку Next вместо ответа на вопрос «что делать дальше». Это самый
   // первый экран любой новой установки — он обязан объяснять себя сам.
   if (!process.env.DATABASE_URL) {
+    // На двух языках сразу, и это не избыточность: язык выбирают на следующем
+    // экране, а этот показывается ДО него — кука ещё не поставлена, и resolveLocale
+    // молча отвечает «en» тому, кто английского не знает. Тот же приём, что на
+    // экране выбора языка: вопрос, который нельзя задать на одном языке.
     const locale = resolveLocale((await cookies()).get(LOCALE_COOKIE)?.value)
+    const other = locale === 'ru' ? 'en' : 'ru'
     return (
       <main className="fixed inset-0 z-[100] flex items-center justify-center bg-ink-950 px-4">
         <div className="panel w-full max-w-md p-6">
-          <h1 className="text-[15px] font-semibold">{t(locale, 'login.nodb_title')}</h1>
+          <h1 className="text-[15px] font-semibold">
+            {t(locale, 'login.nodb_title')} · {t(other, 'login.nodb_title')}
+          </h1>
           <p className="mt-2 text-[13px] leading-relaxed text-white/72">{t(locale, 'login.nodb_text')}</p>
+          <p className="mt-1.5 text-[12.5px] leading-relaxed text-white/45">{t(other, 'login.nodb_text')}</p>
           <code className="mt-3 block rounded-lg border border-white/8 bg-ink-900/80 px-3 py-2 text-[12.5px] text-white/85">
             DATABASE_URL=postgresql://…
           </code>
