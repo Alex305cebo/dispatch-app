@@ -10,6 +10,8 @@ import {
   SESSION_COOKIE,
   SESSION_DAYS,
 } from '@/lib/auth'
+import { applySchema, schemaInstalled } from '@/lib/install'
+import { setSetting } from '@/lib/settings'
 import { t } from '@/lib/i18n'
 import { getLocale } from '@/lib/i18n-server'
 
@@ -46,20 +48,42 @@ async function startSession(userId: number, remember: boolean) {
 }
 
 /**
- * First-run only: creates the first account, which becomes admin. Refuses once any
- * account exists — after that, use signIn. The login PAGE decides which form to show
- * by checking whether users exist; this re-checks server-side so the bootstrap path
- * can never run twice even if two tabs race.
+ * Первый запуск, он же установка: при необходимости накатывает схему, создаёт
+ * первый аккаунт (он становится администратором) и записывает профиль компании.
+ *
+ * Три шага здесь, а не в трёх местах, потому что для клиента это один шаг —
+ * «поставить приложение». Раньше схему накатывали командой с нашей машины, а
+ * профиль компании передавали её флагами; клиент не мог сделать ни того, ни
+ * другого, и каждая установка упиралась в нас.
+ *
+ * Дверь та же самая, что и была: как только существует хоть один настоящий
+ * аккаунт, эта функция отказывает — и это же закрывает установку от посторонних.
+ * Проверка повторяется на сервере, чтобы две вкладки не прошли её одновременно.
  */
 export async function bootstrapAdmin(
   name: string,
   email: string,
   password: string,
+  coName: string,
+  coMcdot: string,
 ): Promise<{ error: string } | void> {
   const locale = await getLocale()
   if (!name.trim()) return { error: t(locale, 'login.error.enterName') }
   if (!EMAIL_RE.test(email.trim())) return { error: t(locale, 'login.error.badEmail') }
   if (password.length < 8) return { error: t(locale, 'login.error.passwordMin') }
+  if (!coName.trim()) return { error: t(locale, 'login.error.enterCompany') }
+
+  // Пустая база: сначала схема, иначе следующий же запрос упадёт на отсутствующей
+  // таблице. schema.sql идемпотентна, так что гонка двух вкладок здесь ничего не
+  // ломает — второй проход просто ничего не создаёт.
+  if (!(await schemaInstalled())) {
+    try {
+      await applySchema()
+    } catch (e) {
+      console.error('applySchema failed', e)
+      return { error: t(locale, 'login.error.schemaFailed') }
+    }
+  }
 
   const existing = await sql`SELECT 1 FROM users WHERE is_demo = FALSE LIMIT 1`
   if (existing.length > 0) return { error: t(locale, 'login.error.accountExists') }
@@ -76,6 +100,13 @@ export async function bootstrapAdmin(
       error: /unique/i.test(String(e)) ? t(locale, 'login.error.emailTaken') : t(locale, 'login.error.createFailed'),
     }
   }
+  // Профиль компании — здесь, а не «потом в настройках»: lib/invoice.ts отказывается
+  // выставлять счёт, пока co_name и co_mcdot пустые, и установка, которая выглядит
+  // законченной, ломается на первом же счёте. MC/DOT можно дописать позже, название —
+  // нет, поэтому обязательное только оно.
+  await setSetting('co_name', coName.trim())
+  if (coMcdot.trim()) await setSetting('co_mcdot', coMcdot.trim())
+
   await startSession(userId, true)
   await logAudit(name.trim())
 }

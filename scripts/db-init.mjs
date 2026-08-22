@@ -11,6 +11,7 @@
 // doubles as the migration command when a customer's DB falls behind the code.
 import { readFile } from 'node:fs/promises'
 import { neon } from '@neondatabase/serverless'
+import { splitStatements } from '../lib/install.ts'
 
 // The URL can come from the command line, which is the whole point of this change:
 // a customer's database has no .env.local anywhere near it. Falls back to the env var
@@ -43,48 +44,9 @@ for (const a of args) {
 const sql = neon(url)
 const schema = await readFile(new URL('../lib/schema.sql', import.meta.url), 'utf8')
 
-// Neon's HTTP driver takes one statement per call, so the file has to be split.
-//
-// This used to be `schema.split(';')` with a note that schema.sql had no semicolons
-// inside comments or string literals. That stopped being true — line 266 grew a comment
-// reading "(ratecon-ai-contract brokerName); this is where it's kept", which split the
-// file mid-sentence and made the next chunk start with the word "this". Postgres then
-// answered `syntax error at or near "this"` and the whole command died, i.e. db:init
-// has been broken for anyone running it, silently, until someone ran it again.
-//
-// So: scan for a `;` that is genuinely outside a line comment and outside a quoted
-// string. Still small, and no longer relies on nobody ever typing a semicolon in prose.
-function splitStatements(sqlText) {
-  const out = []
-  let buf = ''
-  let inLineComment = false
-  let inString = false
-  for (let i = 0; i < sqlText.length; i++) {
-    const c = sqlText[i]
-    const next = sqlText[i + 1]
-    if (inLineComment) {
-      buf += c
-      if (c === '\n') inLineComment = false
-      continue
-    }
-    if (inString) {
-      buf += c
-      // '' inside a string is an escaped quote, not the end of it.
-      if (c === "'" && next === "'") { buf += next; i++; continue }
-      if (c === "'") inString = false
-      continue
-    }
-    if (c === '-' && next === '-') { inLineComment = true; buf += c; continue }
-    if (c === "'") { inString = true; buf += c; continue }
-    if (c === ';') { out.push(buf); buf = ''; continue }
-    buf += c
-  }
-  out.push(buf)
-  // A chunk of nothing but comments/whitespace is not a statement — Postgres rejects
-  // an empty query, and the trailing text after the last `;` is usually exactly that.
-  return out.map((s) => s.trim()).filter((s) => s && s.split('\n').some((l) => l.trim() && !l.trim().startsWith('--')))
-}
-
+// Разбор файла на операторы — общий с приложением: страница первого запуска
+// накатывает ту же схему тем же разбором (lib/install.ts). Две копии этого
+// разбора уже однажды разошлись и сломали db:init молча.
 const statements = splitStatements(schema)
 
 for (const stmt of statements) {

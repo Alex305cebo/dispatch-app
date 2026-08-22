@@ -1,0 +1,88 @@
+// Установка на пустую базу — из самого приложения, а не командой в терминале.
+//
+// Зачем. Схему накатывал `npm run db:init` с машины разработчика. Клиент так не
+// поставит никогда — значит, каждая установка упиралась в нас, и это была
+// главная разница между «нашим проектом» и «инструментом, который можно
+// поставить». Здесь ровно та же схема, но её накатывает страница первого
+// запуска: вписал DATABASE_URL в панели хостинга, открыл /login — приложение
+// достроило себя само.
+//
+// Файл НАРОЧНО не помечен 'server-only': scripts/db-init.mjs берёт отсюда
+// splitStatements, а 'server-only' бросает исключение в обычном Node. Ничего,
+// кроме разбора текста, на верхнем уровне тут нет — модуль с базой грузится
+// динамически, внутри функций, и в скрипт не попадает.
+
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+
+/**
+ * Разбить schema.sql на отдельные операторы: HTTP-драйвер Neon принимает по
+ * одному за вызов.
+ *
+ * Раньше это был `schema.split(';')` с пометкой «в файле нет точек с запятой
+ * внутри комментариев и строк». Пометка перестала быть правдой: в комментарии
+ * появилось «(ratecon-ai-contract brokerName); this is where it's kept», файл
+ * разрезало посреди фразы, Postgres ответил `syntax error at or near "this"` —
+ * и db:init молча не работал ни у кого.
+ *
+ * Поэтому ищем `;`, который действительно вне строчного комментария и вне
+ * кавычек. Всё ещё мелочь — но больше не держится на том, что никто никогда не
+ * напишет точку с запятой в прозе.
+ */
+export function splitStatements(sqlText: string): string[] {
+  const out: string[] = []
+  let buf = ''
+  let inLineComment = false
+  let inString = false
+  for (let i = 0; i < sqlText.length; i++) {
+    const c = sqlText[i]
+    const next = sqlText[i + 1]
+    if (inLineComment) {
+      buf += c
+      if (c === '\n') inLineComment = false
+      continue
+    }
+    if (inString) {
+      buf += c
+      // '' внутри строки — экранированная кавычка, а не её конец.
+      if (c === "'" && next === "'") { buf += next; i++; continue }
+      if (c === "'") inString = false
+      continue
+    }
+    if (c === '-' && next === '-') { inLineComment = true; buf += c; continue }
+    if (c === "'") { inString = true; buf += c; continue }
+    if (c === ';') { out.push(buf); buf = ''; continue }
+    buf += c
+  }
+  out.push(buf)
+  // Кусок из одних комментариев и пробелов — не оператор: Postgres отвергает
+  // пустой запрос, а хвост после последней `;` обычно именно такой.
+  return out
+    .map((s) => s.trim())
+    .filter((s) => s && s.split('\n').some((l) => l.trim() && !l.trim().startsWith('--')))
+}
+
+/** Схема уже накатана? Один дешёвый вопрос вместо попытки прочитать таблицу:
+ * to_regclass отвечает NULL, а не исключением, если таблицы нет. Исключение
+ * отсюда означает, что база недоступна вообще, — и его наверх пускаем как
+ * есть, чтобы «база лежит» не выглядело как «база пустая». */
+export async function schemaInstalled(): Promise<boolean> {
+  const { sql } = await import('./db.ts')
+  const rows = (await sql`SELECT to_regclass('public.users') AS t`) as { t: string | null }[]
+  return rows[0]?.t != null
+}
+
+/** Накатить lib/schema.sql. Идемпотентно (всё через CREATE/ALTER … IF NOT
+ * EXISTS), поэтому годится и как первая установка, и как миграция.
+ *
+ * Файл читается с диска, а не импортируется строкой: на хостинге приложение
+ * запускается как `next start` из корня репозитория, schema.sql лежит рядом.
+ * Для serverless-сборки (`output: 'standalone'`) сюда понадобился бы
+ * outputFileTracingIncludes — сейчас его нет, потому что нет и standalone. */
+export async function applySchema(): Promise<number> {
+  const { sql } = await import('./db.ts')
+  const schema = await readFile(join(process.cwd(), 'lib', 'schema.sql'), 'utf8')
+  const statements = splitStatements(schema)
+  for (const stmt of statements) await sql.query(stmt)
+  return statements.length
+}

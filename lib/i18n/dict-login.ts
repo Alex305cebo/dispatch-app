@@ -11,6 +11,17 @@ export const loginDict = {
     en: 'No accounts yet — create the first one, it becomes the administrator.',
   },
   'login.bootstrap_submit': { ru: 'Создать аккаунт', en: 'Create account' },
+
+  // Первый запуск на пустой базе — установка, а не просто создание аккаунта.
+  'login.install_title': { ru: 'Установка', en: 'Setup' },
+  'login.install_subtitle': {
+    ru: 'База пустая. Заполни форму — приложение создаст таблицы, профиль компании и твой аккаунт администратора.',
+    en: 'The database is empty. Fill this in — the app will create its tables, the company profile and your admin account.',
+  },
+  'login.install_submit': { ru: 'Установить', en: 'Install' },
+  'login.installing': { ru: 'Устанавливаю базу…', en: 'Setting up the database…' },
+  'login.company': { ru: 'Название компании', en: 'Company name' },
+  'login.mcdot': { ru: 'MC / DOT (можно позже)', en: 'MC / DOT (optional for now)' },
   'login.remember': { ru: 'Запомнить этот компьютер', en: 'Remember this computer' },
   'login.remember_on': {
     ru: 'Войдёшь один раз — устройство запомнит вход надолго. Не включай на чужом компьютере.',
@@ -37,6 +48,11 @@ export const loginDict = {
   'login.error.accountExists': {
     ru: 'Аккаунт уже создан — используй форму входа.',
     en: 'An account already exists — use the sign-in form.',
+  },
+  'login.error.enterCompany': { ru: 'Впиши название компании.', en: 'Enter the company name.' },
+  'login.error.schemaFailed': {
+    ru: 'Не вышло создать таблицы. Проверь DATABASE_URL в панели хостинга — строка должна быть прямая (direct), а не pooled.',
+    en: 'Could not create the tables. Check DATABASE_URL in the hosting panel — it must be the direct connection string, not the pooled one.',
   },
   'login.error.emailTaken': { ru: 'Этот email уже занят.', en: 'This email is already taken.' },
   'login.error.createFailed': { ru: 'Не вышло создать аккаунт.', en: 'Could not create the account.' },

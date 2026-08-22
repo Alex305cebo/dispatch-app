@@ -26,15 +26,22 @@ const input =
  * chrome (logo, language picker, password field, submit) is identical either way. */
 export function LoginForm({
   bootstrap,
+  needsSchema,
   askLocale,
   initialLocale,
 }: {
   bootstrap: boolean
+  /** Таблиц в базе ещё нет — это установка, а не просто первый аккаунт. Отдельно
+   * от bootstrap, потому что заголовок и надпись на кнопке разные: «Установить»
+   * занимает секунды, и молчащая кнопка «Создать аккаунт» выглядит зависшей. */
+  needsSchema: boolean
   /** No locale cookie yet — greet with the language choice before anything else. */
   askLocale: boolean
   initialLocale: Locale
 }) {
   const [name, setName] = useState('')
+  const [coName, setCoName] = useState('')
+  const [coMcdot, setCoMcdot] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(true)
@@ -69,7 +76,7 @@ export function LoginForm({
     setError(null)
     start(async () => {
       const res = bootstrap
-        ? await bootstrapAdmin(name, email, password)
+        ? await bootstrapAdmin(name, email, password, coName, coMcdot)
         : await signIn(email, password, remember)
       if (res?.error) {
         setError(res.error)
@@ -132,7 +139,11 @@ export function LoginForm({
           <div>
             <h1 className="text-[15px] font-semibold leading-tight">Dispatch</h1>
             <p className="text-[12px] text-white/65">
-              {bootstrap ? t(locale, 'login.bootstrap_title') : t(locale, 'login.subtitle')}
+              {needsSchema
+                ? t(locale, 'login.install_title')
+                : bootstrap
+                  ? t(locale, 'login.bootstrap_title')
+                  : t(locale, 'login.subtitle')}
             </p>
           </div>
           {/* Language picker — first thing on the very first screen. */}
@@ -154,15 +165,39 @@ export function LoginForm({
 
         {bootstrap && (
           <p className="mb-3 rounded-lg border border-haul-500/25 bg-haul-500/[0.07] px-3 py-2 text-[12.5px] leading-relaxed text-haul-300">
-            {t(locale, 'login.bootstrap_subtitle')}
+            {needsSchema ? t(locale, 'login.install_subtitle') : t(locale, 'login.bootstrap_subtitle')}
           </p>
+        )}
+
+        {/* Компания — первым полем: на первом запуске отвечают на вопрос «что ставим»,
+            а уже потом «кто я». Название обязательно (без него счёт не выставить),
+            MC/DOT можно дописать позже в админке. */}
+        {bootstrap && (
+          <input
+            type="text"
+            value={coName}
+            autoFocus
+            autoComplete="organization"
+            onChange={(e) => setCoName(e.target.value)}
+            placeholder={t(locale, 'login.company')}
+            className={`mb-2.5 ${input}`}
+          />
+        )}
+
+        {bootstrap && (
+          <input
+            type="text"
+            value={coMcdot}
+            onChange={(e) => setCoMcdot(e.target.value)}
+            placeholder={t(locale, 'login.mcdot')}
+            className={`mb-2.5 ${input}`}
+          />
         )}
 
         {bootstrap && (
           <input
             type="text"
             value={name}
-            autoFocus
             autoComplete="name"
             onChange={(e) => setName(e.target.value)}
             placeholder={t(locale, 'login.name')}
@@ -227,9 +262,17 @@ export function LoginForm({
           block
           className="mt-4"
           loading={pending}
-          disabled={!email || !password || (bootstrap && !name)}
+          disabled={!email || !password || (bootstrap && (!name || !coName))}
         >
-          {pending ? t(locale, 'login.checking') : bootstrap ? t(locale, 'login.bootstrap_submit') : t(locale, 'login.submit')}
+          {pending
+            ? needsSchema
+              ? t(locale, 'login.installing')
+              : t(locale, 'login.checking')
+            : needsSchema
+              ? t(locale, 'login.install_submit')
+              : bootstrap
+                ? t(locale, 'login.bootstrap_submit')
+                : t(locale, 'login.submit')}
         </Button>
 
         {error && <p className="mt-2 text-[13px] text-bad-400">{error}</p>}

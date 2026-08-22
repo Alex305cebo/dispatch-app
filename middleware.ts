@@ -50,8 +50,18 @@ export async function middleware(req: NextRequest) {
     // Open-access mode (admin-panel switch, app/admin/actions.ts): the whole app works
     // without signing in. /admin stays exempt so the switch that turns this back off can
     // never itself be reached without a real login.
-    if (!req.nextUrl.pathname.startsWith('/admin') && (await getSetting('open_access')) === '1') {
-      return NextResponse.next({ request: { headers } })
+    // try/catch — из-за пустой базы. На только что созданной базе таблицы settings
+    // ещё нет, и этот запрос падал ДО того, как посетитель успевал увидеть страницу
+    // установки: всё приложение отвечало 500, включая единственную дверь внутрь.
+    // Промах здесь стоит ровно ничего: не смогли прочитать флаг — считаем, что
+    // открытого доступа нет, и отправляем на /login, где страница объяснит, что база
+    // пустая, и предложит её установить.
+    try {
+      if (!req.nextUrl.pathname.startsWith('/admin') && (await getSetting('open_access')) === '1') {
+        return NextResponse.next({ request: { headers } })
+      }
+    } catch {
+      // база недоступна или пуста — решает /login
     }
     // rewrite, not redirect: the QR carries the load in the URL hash, and a redirect
     // would drop it. Rewriting keeps the address bar — and the hash — intact, so after
