@@ -6,10 +6,11 @@ import { CompanyForm } from '@/components/invoice-actions'
 import { Info } from '@/components/info'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
-import { getKeyStatus, getOpenAccess, listUsers } from './actions'
+import { getDemoPublic, getKeyStatus, getOpenAccess, listUsers } from './actions'
 import { UserList } from './user-list'
 import { OpenAccessToggle } from './open-access-toggle'
 import { KeysForm } from './keys-form'
+import { DemoToggle } from './demo-toggle'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,11 +21,12 @@ export default async function AdminPage() {
   if (!user || user.role !== 'admin') redirect('/')
   const locale = await getLocale()
 
-  const [users, company, openAccess, keys] = await Promise.all([
+  const [users, company, openAccess, keys, demoPublic] = await Promise.all([
     listUsers(),
     getCompany(),
     getOpenAccess(),
     getKeyStatus(),
+    getDemoPublic(),
   ])
 
   return (
@@ -54,6 +56,14 @@ export default async function AdminPage() {
           <Info text={t(locale, 'admin.openAccessInfo')} />
         </h2>
         <OpenAccessToggle enabled={openAccess} />
+      </section>
+
+      <section className="panel mt-4 p-5">
+        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          {t(locale, 'admin.demoPublicHeading')}
+          <Info text={t(locale, 'admin.demoPublicInfo')} />
+        </h2>
+        <DemoToggle enabled={demoPublic} />
       </section>
 
       <section className="panel mt-4 p-5" data-tour="company">

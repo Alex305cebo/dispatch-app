@@ -136,6 +136,24 @@ export async function setOpenAccess(enabled: boolean): Promise<{ error: string }
   revalidatePath('/admin')
 }
 
+/** Публичное демо на входе: кнопка «посмотреть без регистрации».
+ *
+ * Отсутствие ключа = включено. Это ради установок, которые уже работают: у них
+ * этой строки в базе нет, и выключить им демо задним числом правкой кода было бы
+ * подменой их настройки. Форма установки новой копии пишет '0' — у клиента демо
+ * нет с первого дня, а витрину включают здесь. */
+export async function getDemoPublic(): Promise<boolean> {
+  await assertAdmin()
+  return (await getSetting('demo_public')) !== '0'
+}
+
+export async function setDemoPublic(enabled: boolean): Promise<{ error: string } | void> {
+  await assertAdmin()
+  await setSetting('demo_public', enabled ? '1' : '0')
+  revalidatePath('/admin')
+  revalidatePath('/login')
+}
+
 /** Which third-party keys this install has, WITHOUT ever returning their values. The
  * admin panel only needs to show "set / not set" and offer to replace — echoing a key
  * back into a page would put it in the HTML, the RSC payload and the browser cache. */

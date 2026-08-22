@@ -54,6 +54,25 @@ export const adminDict = {
     en: 'The stronger model is tried first. Worth choosing only if billing is enabled on the Google account: on the free tier its daily allowance runs out after a couple of dozen documents.',
   },
 
+  // Публичное демо — витрине нужно, клиентской копии нет.
+  'admin.demoPublicHeading': { ru: 'Публичное демо', en: 'Public demo' },
+  'admin.demoPublicInfo': {
+    ru: 'Кнопка «посмотреть демо без регистрации» на экране входа. Нужна витрине, чтобы клиент увидел приложение с готовыми данными до покупки. В рабочей копии компании её включать не стоит: это дверь, в которую входит кто угодно, а данные демо занимают место в вашей базе.',
+    en: 'The "view the demo without signing up" button on the login screen. A showcase install needs it so a prospect can see the app with data before buying. A working company copy should leave it off: it is a door anyone can walk through, and the demo data takes room in your database.',
+  },
+  'admin.demoPublic.currentlyOn': {
+    ru: 'Демо включено: на входе есть кнопка, любой может зайти и посмотреть придуманный парк.',
+    en: 'Demo is on: the login screen has a button, and anyone can look around a made-up fleet.',
+  },
+  'admin.demoPublic.currentlyOff': {
+    ru: 'Демо выключено: посторонний внутрь не попадёт, кнопки на входе нет.',
+    en: 'Demo is off: no button on the login screen, no way in for a stranger.',
+  },
+  'admin.demoPublic.turnOn': { ru: 'Включить', en: 'Turn on' },
+  'admin.demoPublic.turnOff': { ru: 'Выключить', en: 'Turn off' },
+  'admin.demoPublic.turnedOn': { ru: 'Демо включено', en: 'Demo is on' },
+  'admin.demoPublic.turnedOff': { ru: 'Демо выключено', en: 'Demo is off' },
+
   'admin.openAccessHeading': { ru: 'Открытый доступ', en: 'Open access' },
   'admin.openAccessInfo': {
     ru: 'Временно убрать вход для всех — например, чтобы кто-то посмотрел живые данные без своего аккаунта. Эта панель всегда остаётся под входом, чтобы можно было выключить обратно.',
