@@ -105,8 +105,6 @@ export async function bootstrapAdmin(
   // законченной, ломается на первом же счёте. MC/DOT можно дописать позже, название —
   // нет, поэтому обязательное только оно.
   await setSetting('co_name', coName.trim())
-  // Своя установка — не витрина: публичного демо у клиента быть не должно.
-  await setSetting('demo_public', '0')
   if (coMcdot.trim()) await setSetting('co_mcdot', coMcdot.trim())
 
   await startSession(userId, true)
