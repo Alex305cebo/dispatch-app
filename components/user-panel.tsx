@@ -176,6 +176,7 @@ export function UserPanel({
         onClick={onAvatarClick}
         title={user.name}
         aria-label={user.name}
+        data-tour="avatar"
         className="nav-avatar-btn flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-haul-500 to-good-500 text-[12px] font-semibold text-white"
       >
         {initialsOf(user.name)}

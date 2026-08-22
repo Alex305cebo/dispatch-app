@@ -302,6 +302,9 @@ export function Nav({
           <Link
             key={it.href}
             href={it.href}
+            // Цель вводной экскурсии: /trucks -> "nav-trucks". Ставится на всех
+            // пунктах разом, чтобы шаг экскурсии не зависел от порядка в списке.
+            data-tour={'nav-' + it.href.replace(/\//g, '')}
             title={t(locale, it.labelKey)}
             aria-current={active ? 'page' : undefined}
             className={`${shape} ${it.desktopOnly ? 'max-md:hidden' : ''} ${

@@ -32,7 +32,7 @@ export default async function AdminPage() {
       <h1 className="text-xl font-bold tracking-tight">{t(locale, 'admin.title')}</h1>
       <p className="mb-6 text-[13px] text-white/65">{t(locale, 'admin.subtitle')}</p>
 
-      <section className="panel p-5">
+      <section className="panel p-5" data-tour="users">
         <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
           {t(locale, 'admin.usersHeading')}
           <Info text={t(locale, 'admin.usersInfo')} />
@@ -40,7 +40,7 @@ export default async function AdminPage() {
         <UserList users={users} currentUserId={user.id} />
       </section>
 
-      <section className="panel mt-4 p-5">
+      <section className="panel mt-4 p-5" data-tour="keys">
         <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
           {t(locale, 'admin.keysHeading')}
           <Info text={t(locale, 'admin.keysInfo')} />
@@ -56,7 +56,7 @@ export default async function AdminPage() {
         <OpenAccessToggle enabled={openAccess} />
       </section>
 
-      <section className="panel mt-4 p-5">
+      <section className="panel mt-4 p-5" data-tour="company">
         <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
           {t(locale, 'admin.companyHeading')}
           <Info text={t(locale, 'admin.companyInfo')} />

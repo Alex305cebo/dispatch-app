@@ -9,6 +9,8 @@ import { can } from '@/lib/capabilities-server'
 import { fleetExpiryAlerts } from '@/lib/maintenance'
 import { DemoModeBanner } from '@/components/demo-mode-banner'
 import { Toaster } from '@/components/toaster'
+import { Tour } from '@/components/tour'
+import { tourSteps } from '@/lib/tour'
 import { t } from '@/lib/i18n'
 import './globals.css'
 
@@ -83,6 +85,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Overdue/≤30-day document expiries — a badge on the Траки nav item, visible from
   // anywhere in the app, not just the one banner on the dashboard.
   const urgentDocs = (chrome?.[1] ?? []).filter((a) => a.item.tone === 'bad').length
+  // Вводная экскурсия для первого администратора. Отдельно от chrome и с тем же
+  // .catch: не открылась настройка — это не повод не пустить человека в приложение.
+  const tour = await tourSteps(user, locale).catch(() => null)
 
   return (
     // suppressHydrationWarning: the inline script sets data-theme before hydration,
@@ -118,6 +123,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {/* Fixed overlay — outside the padded content wrapper so it isn't offset by
               the desktop sidebar's md:pl-52. */}
           <Toaster />
+          {tour && <Tour steps={tour} />}
         </LocaleProvider>
       </body>
     </html>
