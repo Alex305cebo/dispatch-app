@@ -123,7 +123,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {/* Fixed overlay — outside the padded content wrapper so it isn't offset by
               the desktop sidebar's md:pl-52. */}
           <Toaster />
-          {tour && <Tour steps={tour} />}
+          {tour && <Tour steps={tour} persist={user?.isDemo ? 'session' : 'local'} />}
         </LocaleProvider>
       </body>
     </html>

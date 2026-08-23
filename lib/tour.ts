@@ -1,8 +1,14 @@
-// Шаги вводной экскурсии: что первому администратору сделать после установки.
+// Шаги вводной экскурсии: как работает приложение и что сделать после установки.
 //
-// Зачем сервер. Шаг «уже сделано» решается не памятью браузера, а состоянием базы:
-// ключи вставлены, реквизиты заполнены, трак заведён. Иначе экскурсия врёт — гонит
-// по кругу за тем, что человек сделал вчера с другого устройства.
+// Два зрителя. Администратор при первом входе — ему шаги про ключи, людей и
+// реквизиты помечаются «уже сделано» по состоянию базы, а не по памяти браузера:
+// иначе экскурсия гонит по кругу за тем, что человек сделал вчера с другого
+// устройства. И гость демо — ему те же экраны, но ничего не «сделано» и ничего
+// не запоминается: каждый новый посетитель должен увидеть рассказ с начала.
+//
+// У каждого шага — снимок настоящего экрана (public/guide, снимаются скриптом
+// scripts/guide-shots.mjs с демо-данных). Подсветить кнопку мало: человек должен
+// увидеть, как выглядит результат, до того как сам туда нажмёт.
 
 import 'server-only'
 import { sql } from './db.ts'
@@ -19,13 +25,49 @@ export type TourStep = {
   href: string
   /** data-tour цели на странице. Пусто — карточка показывается по центру. */
   target: string
+  /** Снимок экрана из public/guide. Пусто — шаг без картинки. */
+  image: string
   done: boolean
 }
 
+type Def = { key: string; href: string; target: string; image: string; admin?: boolean }
+
+/** Порядок — это и есть первый рабочий день: настроить, завести трак, взять груз,
+ * следить, собрать бумаги, выставить счёт. */
+const STEPS: Def[] = [
+  { key: 'welcome', href: '/', target: '', image: 'overview' },
+  { key: 'keys', href: '/admin', target: 'keys', image: 'admin-keys', admin: true },
+  { key: 'company', href: '/admin', target: 'company', image: 'admin-company', admin: true },
+  { key: 'users', href: '/admin', target: 'users', image: 'admin-users', admin: true },
+  { key: 'trucks', href: '/trucks/new', target: 'nav-trucks', image: 'truck-new' },
+  { key: 'truckCard', href: '/trucks', target: '', image: 'truck-detail' },
+  { key: 'loads', href: '/loads/new', target: 'nav-loads', image: 'load-new' },
+  { key: 'loadCard', href: '/loads', target: '', image: 'load-detail' },
+  { key: 'tracking', href: '/tracking', target: 'nav-tracking', image: 'tracking' },
+  { key: 'docs', href: '/docs', target: 'nav-docs', image: 'docs' },
+  { key: 'brokers', href: '/brokers', target: '', image: 'brokers' },
+  { key: 'tolls', href: '/tolls', target: '', image: 'tolls' },
+  { key: 'invoices', href: '/invoices', target: '', image: 'invoices' },
+]
+
 export async function tourSteps(user: CurrentUser | null, locale: Locale): Promise<TourStep[] | null> {
-  // Только настоящему администратору: шаги — про ключи, людей и реквизиты, и
-  // диспетчеру там делать нечего. Демо-аккаунт тоже мимо: он ничего не настраивает.
-  if (!user || user.role !== 'admin' || user.isDemo) return null
+  if (!user) return null
+  // Диспетчеру — нет: настраивать ему нечего, а экраны он и так знает от того,
+  // кто его завёл. Админу и гостю демо — да.
+  if (user.role !== 'admin' && !user.isDemo) return null
+
+  const label = (s: Def, done: boolean): TourStep => ({
+    key: s.key,
+    href: s.href,
+    target: s.target,
+    image: s.image,
+    done,
+    title: t(locale, `tour.${s.key}.title` as Parameters<typeof t>[1]),
+    text: t(locale, `tour.${s.key}.text` as Parameters<typeof t>[1]),
+  })
+
+  // Демо: админских шагов нет (в админку гостя не пускает), ничего не «сделано».
+  if (user.isDemo) return STEPS.filter((s) => !s.admin).map((s) => label(s, false))
 
   const conf = await getSettings(['co_mcdot', `tour_done:${user.id}`])
   if (conf.get(`tour_done:${user.id}`) === '1') return null
@@ -47,24 +89,12 @@ export async function tourSteps(user: CurrentUser | null, locale: Locale): Promi
     trucks: 0,
     loads: 0,
   }
-
-  const steps: TourStep[] = [
-    { key: 'welcome', href: '', target: 'avatar', done: false },
-    { key: 'keys', href: '/admin', target: 'keys', done: gemini !== '' },
-    { key: 'company', href: '/admin', target: 'company', done: !!conf.get('co_mcdot') },
-    { key: 'users', href: '/admin', target: 'users', done: n.users > 1 },
-    { key: 'trucks', href: '/trucks/new', target: 'nav-trucks', done: n.trucks > 0 },
-    { key: 'loads', href: '/loads/new', target: 'nav-loads', done: n.loads > 0 },
-  ].map((s) => ({
-    ...s,
-    title: t(locale, `tour.${s.key}.title` as Parameters<typeof t>[1]),
-    text: t(locale, `tour.${s.key}.text` as Parameters<typeof t>[1]),
-  }))
-
-  // Всё уже настроено — экскурсии нет. Иначе она всплыла бы у компании, которая
-  // работает третий месяц, просто потому что зашли с нового устройства.
-  // 'welcome' не в счёт: у него нет состояния, он просто здоровается.
-  if (steps.every((s) => s.key === 'welcome' || s.done)) return null
-
-  return steps
+  const doneByKey: Record<string, boolean> = {
+    keys: gemini !== '',
+    company: !!conf.get('co_mcdot'),
+    users: n.users > 1,
+    trucks: n.trucks > 0,
+    loads: n.loads > 0,
+  }
+  return STEPS.map((s) => label(s, doneByKey[s.key] ?? false))
 }
