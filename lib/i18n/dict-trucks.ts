@@ -113,6 +113,10 @@ export const trucksDict = {
   'trucks.detail.pickup': { ru: 'Пикап', en: 'Pickup' },
   'trucks.detail.rate': { ru: 'Ставка', en: 'Rate' },
   'trucks.detail.noActiveLoad': { ru: 'Груза сейчас нет — трак свободен.', en: 'No load right now — truck is free.' },
+  'trucks.detail.idleAt': {
+    ru: 'Груза нет. Стоит пустой: {place} — груз искать отсюда.',
+    en: 'No load. Sitting empty in {place} — look for a load from here.',
+  },
   'trucks.detail.addLoad': { ru: '+ груз', en: '+ load' },
   'trucks.detail.onMap': { ru: 'На карте', en: 'On the map' },
   'trucks.detail.onMapInfo': {

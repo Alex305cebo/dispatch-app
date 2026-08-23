@@ -1,3 +1,4 @@
+import { cityOf } from '@/lib/maintenance-core'
 import { Fuel, Plus } from 'lucide-react'
 import { Button } from '@/components/button'
 import { LinkPending } from '@/components/link-pending'
@@ -43,11 +44,6 @@ function driveDot(s: string | null): string {
   return 'bg-white/30'
 }
 
-function cityOf(location: string | null): string | null {
-  if (!location) return null
-  const m = location.match(/from\s+(.+)$/i)
-  return m ? m[1] : location
-}
 
 /** «2026-08-17» → «17 авг». Год не пишем: столбец про ближайшие дни. */
 function shortDate(iso: string, locale: Locale): string {

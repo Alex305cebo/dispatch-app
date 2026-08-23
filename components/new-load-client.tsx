@@ -22,9 +22,11 @@ import { t } from '@/lib/i18n'
 
 export function NewLoadClient({
   trucks,
+  placeByTruck,
   defaultTruckId,
 }: {
   trucks: TruckRecord[]
+  placeByTruck?: Record<number, string>
   defaultTruckId?: number
 }) {
   const locale = useLocale()
@@ -181,6 +183,7 @@ export function NewLoadClient({
       <LoadForm
         key={scanKey}
         trucks={trucks}
+        placeByTruck={placeByTruck}
         defaultTruckId={defaultTruckId}
         initial={fields ? toQrLoad(fields) : undefined}
         source={fields ? 'qr' : 'manual'}

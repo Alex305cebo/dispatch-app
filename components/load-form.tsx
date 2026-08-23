@@ -17,6 +17,7 @@ import { t as tr } from '@/lib/i18n'
 
 export function LoadForm({
   trucks,
+  placeByTruck = {},
   defaultTruckId,
   initial = EMPTY,
   source = 'manual',
@@ -26,6 +27,9 @@ export function LoadForm({
   driverInfo,
 }: {
   trucks: TruckRecord[]
+  /** Город, где трак стоит сейчас (по GPS), — в подписи варианта. Выбирать трак
+   * под груз, не зная, где он, нельзя; раньше за этим ходили в другой раздел. */
+  placeByTruck?: Record<number, string>
   defaultTruckId?: number
   initial?: QrLoad
   source?: 'manual' | 'qr'
@@ -93,6 +97,7 @@ export function LoadForm({
               {trucks.map((t) => (
                 <option key={t.id} value={t.id}>
                   {truckLabel(t)}
+                  {placeByTruck[t.id] ? ` · ${placeByTruck[t.id]}` : ''}
                 </option>
               ))}
             </select>

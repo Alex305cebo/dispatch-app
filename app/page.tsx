@@ -1,3 +1,4 @@
+import { cityOf } from '@/lib/maintenance-core'
 import {
   CalendarClock,
   DollarSign,
@@ -67,12 +68,6 @@ function driveDotTitle(s: string | null, locale: Locale): string {
   return tr(locale, 'overview.driveDot.stopped')
 }
 
-// ELD gives "12.0mi N from Ashland, VA" — the card just wants "Ashland, VA".
-function cityOf(location: string | null): string | null {
-  if (!location) return null
-  const m = location.match(/from\s+(.+)$/i)
-  return m ? m[1] : location
-}
 
 export default async function Page() {
   const companyId = await companyScope()

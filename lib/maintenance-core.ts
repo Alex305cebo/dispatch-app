@@ -97,3 +97,11 @@ export function oilStatus(
   const tone = milesLeft > 5000 ? 'good' : milesLeft > 1000 ? 'warn' : 'bad'
   return { milesLeft, tone }
 }
+
+/** ELD пишет «12.0mi N from Ashland, VA» — там, где нужен город, берём «Ashland, VA».
+ * Раньше эта функция лежала двумя одинаковыми копиями в обзоре и в списке траков. */
+export function cityOf(location: string | null | undefined): string | null {
+  if (!location) return null
+  const m = location.match(/from\s+(.+)$/i)
+  return m ? m[1]! : location
+}

@@ -1,3 +1,4 @@
+import { cityOf } from '@/lib/maintenance-core'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { BackButton } from '@/components/back-button'
@@ -258,7 +259,11 @@ export default async function Page({
             </>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-white/55">
-              {t(locale, 'trucks.detail.noActiveLoad')}
+              {/* Не просто «свободен», а ГДЕ стоит: это и есть ответ, в каком городе
+                  искать ему груз. Без GPS остаётся прежняя фраза. */}
+              {cityOf(fs?.location)
+                ? t(locale, 'trucks.detail.idleAt').replace('{place}', cityOf(fs?.location)!)
+                : t(locale, 'trucks.detail.noActiveLoad')}
               <Link href={`/loads/new?truck=${truck.id}`} className="text-haul-400 hover:underline">
                 {t(locale, 'trucks.detail.addLoad')}
               </Link>
