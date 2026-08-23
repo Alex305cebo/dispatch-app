@@ -15,6 +15,47 @@ import { getLocale } from '@/lib/i18n-server'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+/**
+ * Тормоз на подбор пароля.
+ *
+ * Вход — обычный серверный вызов, и до этой правки его можно было дёргать в цикле
+ * сколько угодно: ни задержки, ни блокировки. PBKDF2 делает каждую попытку не
+ * бесплатной, но это защита от чтения украденной базы, а не от подбора — и она же
+ * работает против нас: тысяча попыток в минуту укладывает процессор, даже если ни
+ * одна не угадает.
+ *
+ * Счётчик в памяти процесса, не в базе. Приложение живёт одним процессом Node на
+ * своём хостинге, и лишняя таблица под это — миграция, которую пришлось бы катить
+ * руками на каждой установке.
+ * ponytail: одна копия приложения. Появится вторая — счётчик переезжает в базу,
+ * иначе лимит станет вдвое мягче.
+ */
+const FAILS = new Map<string, { n: number; until: number }>()
+const MAX_FAILS = 8
+const LOCK_MS = 15 * 60 * 1000
+
+function throttleKey(email: string, ip: string | null): string {
+  return `${email.trim().toLowerCase()}|${ip ?? ''}`
+}
+
+function lockedOut(key: string): boolean {
+  const rec = FAILS.get(key)
+  if (!rec) return false
+  if (Date.now() > rec.until) {
+    FAILS.delete(key)
+    return false
+  }
+  return rec.n >= MAX_FAILS
+}
+
+function noteFail(key: string): void {
+  const rec = FAILS.get(key)
+  const fresh = !rec || Date.now() > rec.until
+  FAILS.set(key, { n: fresh ? 1 : rec.n + 1, until: Date.now() + LOCK_MS })
+  // Карта не растёт бесконечно: раз в вызов подчищаем истёкшее.
+  if (FAILS.size > 500) for (const [k, v] of FAILS) if (Date.now() > v.until) FAILS.delete(k)
+}
+
 // Login audit — who, from what device, and the city of the IP. Best-effort: a
 // failed insert or geolocation must never block sign-in.
 async function logAudit(who: string) {
@@ -85,6 +126,9 @@ export async function signIn(
   password: string,
   remember: boolean,
 ): Promise<{ error: string } | void> {
+  const ip = ((await headers()).get('x-forwarded-for') ?? '').split(',')[0]!.trim() || null
+  const key = throttleKey(email, ip)
+  if (lockedOut(key)) return { error: t(await getLocale(), 'login.error.tooManyTries') }
   const rows = (await sql`
     SELECT id, name, password_hash FROM users
     WHERE email = ${email.trim().toLowerCase()} AND disabled_at IS NULL`) as {
@@ -96,8 +140,10 @@ export async function signIn(
   // Same generic error either way — confirming "no such email" to a stranger is a
   // free account-enumeration oracle, so a bad email and a bad password look identical.
   if (!user || !(await verifyPassword(password, user.password_hash))) {
+    noteFail(key)
     return { error: t(await getLocale(), 'login.error.badCredentials') }
   }
+  FAILS.delete(key)
   await startSession(user.id, remember)
   await logAudit(user.name)
 }

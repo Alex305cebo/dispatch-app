@@ -15,15 +15,24 @@ export async function middleware(req: NextRequest) {
   headers.delete('x-user-role')
   headers.delete('x-company-id')
 
+  // Серверное действие узнаётся по этому заголовку. Действие — обычный POST на
+  // адрес страницы, и на ПУБЛИЧНОМ адресе оно выполнилось бы без сессии: сами
+  // действия личность не проверяют, они берут её из заголовков, которые ставит эта
+  // функция, а companyScope() без сессии отвечает «основная компания». То есть
+  // POST на /track/1 с идентификатором действия прошёл бы как действие сотрудника.
+  // Публичные страницы своих действий не вызывают (кнопка на /track перечитывает
+  // страницу и только), поэтому запрет здесь ничего не ломает.
+  const isAction = req.method === 'POST' && req.headers.has('next-action')
+
   // Public, no session needed — signs the browser in as the demo account and
   // redirects, see app/demo/route.ts.
-  if (req.nextUrl.pathname.startsWith('/demo')) {
+  if (req.nextUrl.pathname.startsWith('/demo') && !isAction) {
     return NextResponse.next({ request: { headers } })
   }
 
   // Public, no session needed — a single truck's live map for sharing with a
   // broker/customer, see app/track/[id]/page.tsx. Only truck number + location.
-  if (req.nextUrl.pathname.startsWith('/track/')) {
+  if (req.nextUrl.pathname.startsWith('/track/') && !isAction) {
     return NextResponse.next({ request: { headers } })
   }
 
@@ -47,6 +56,11 @@ export async function middleware(req: NextRequest) {
   const user = await sessionUser(req.cookies.get(SESSION_COOKIE)?.value)
 
   if (!user) {
+    // Действие без сессии на публичном адресе — отказ, а не переход на /login:
+    // переход отдал бы 200 со страницей входа, и вызывающий счёл бы, что сработало.
+    if (isAction && (req.nextUrl.pathname.startsWith('/track/') || req.nextUrl.pathname.startsWith('/demo'))) {
+      return new NextResponse('Unauthorized', { status: 401 })
+    }
     // Open-access mode (admin-panel switch, app/admin/actions.ts): the whole app works
     // without signing in. /admin stays exempt so the switch that turns this back off can
     // never itself be reached without a real login.

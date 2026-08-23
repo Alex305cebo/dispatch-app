@@ -20,7 +20,17 @@ export async function GET(
   const row = rows[0] as { mime: string; b64: string } | undefined
   if (!row) return new NextResponse('Not found', { status: 404 })
 
+  // Тип приходит из браузера при загрузке, поэтому здесь он не «как есть», а из
+  // короткого списка картинок: с типом text/html этот же адрес выполнял бы чужой
+  // скрипт на нашем домене (та же дыра, что закрыта в /api/docs/[id]).
+  const mime = (row.mime || '').split(';')[0]!.trim().toLowerCase()
+  const ok = mime === 'image/jpeg' || mime === 'image/png' || mime === 'image/webp'
   return new NextResponse(Buffer.from(row.b64, 'base64'), {
-    headers: { 'content-type': row.mime, 'cache-control': 'private, max-age=3600' },
+    headers: {
+      'content-type': ok ? mime : 'application/octet-stream',
+      'cache-control': 'private, max-age=3600',
+      'x-content-type-options': 'nosniff',
+      ...(ok ? {} : { 'content-disposition': 'attachment' }),
+    },
   })
 }

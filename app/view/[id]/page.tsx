@@ -3,6 +3,7 @@ import { sql } from '@/lib/db'
 import { docKindLabel, fmtSize, type DocKind } from '@/lib/docs'
 import { DocViewer } from '@/components/doc-viewer'
 import { BackButton } from '@/components/back-button'
+import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 
@@ -18,9 +19,12 @@ export default async function Page({
   const { id } = await params
   const back = (await searchParams).from
   const locale = await getLocale()
+  // Область компании обязательна: сами байты /api/docs/[id] и так не отдаст чужой
+  // компании, но без этого условия страница показывала бы демо-сессии название и
+  // размер настоящего документа — по перебору номеров.
   const rows = await sql`
     SELECT id, kind, title, mime, size_bytes, load_id, truck_id
-    FROM documents WHERE id = ${Number(id)}`
+    FROM documents WHERE id = ${Number(id)} AND company_id = ${await companyScope()}`
   const doc = rows[0] as
     | {
         id: number

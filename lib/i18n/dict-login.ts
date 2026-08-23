@@ -41,4 +41,8 @@ export const loginDict = {
   'login.error.emailTaken': { ru: 'Этот email уже занят.', en: 'This email is already taken.' },
   'login.error.createFailed': { ru: 'Не вышло создать аккаунт.', en: 'Could not create the account.' },
   'login.error.badCredentials': { ru: 'Неверный email или пароль.', en: 'Wrong email or password.' },
+  'login.error.tooManyTries': {
+    ru: 'Слишком много попыток. Подождите 15 минут и попробуйте снова.',
+    en: 'Too many attempts. Wait 15 minutes and try again.',
+  },
 } as const
