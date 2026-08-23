@@ -44,6 +44,41 @@ export const loginDict = {
     ru: '🧪 Посмотреть живое демо — без регистрации',
     en: '🧪 View live demo — no sign-up',
   },
+  // Заявка на аккаунт с экрана входа
+  'login.register_title': { ru: 'Новый аккаунт', en: 'New account' },
+  'login.register_subtitle': {
+    ru: 'Аккаунт создастся сразу, но войти можно будет после того, как администратор компании подтвердит заявку в разделе «Люди».',
+    en: 'The account is created right away, but you can sign in once a company administrator approves the request under People.',
+  },
+  'login.register_submit': { ru: 'Отправить заявку', en: 'Send request' },
+  'login.registerLink': { ru: 'Создать аккаунт', en: 'Create an account' },
+  // Забыл пароль
+  'login.forgot_title': { ru: 'Сброс пароля', en: 'Reset password' },
+  'login.forgot_subtitle': {
+    ru: 'Введите email, код восстановления (его выдали при создании аккаунта) и новый пароль. Кода нет — попросите администратора сбросить пароль в разделе «Люди».',
+    en: 'Enter your email, the recovery code you were given when the account was created, and a new password. No code — ask an administrator to reset it under People.',
+  },
+  'login.forgot_submit': { ru: 'Сменить пароль', en: 'Change password' },
+  'login.forgotLink': { ru: 'Забыли пароль?', en: 'Forgot password?' },
+  'login.backToSignIn': { ru: 'К входу', en: 'Back to sign in' },
+  'login.recoveryCode': { ru: 'Код восстановления', en: 'Recovery code' },
+  'login.newPassword': { ru: 'Новый пароль', en: 'New password' },
+  // Экран с выданным кодом
+  'login.code.title': { ru: 'Сохраните код восстановления', en: 'Save your recovery code' },
+  'login.code.text': {
+    ru: 'Если забудете пароль, этот код — единственный способ его сменить самому. Запишите его или сохраните в менеджере паролей.',
+    en: 'If you forget your password, this code is the only way to change it yourself. Write it down or keep it in a password manager.',
+  },
+  'login.code.hint': {
+    ru: 'Показывается один раз. Новый можно выпустить в меню аккаунта — прежний тогда перестанет действовать.',
+    en: 'Shown once. A new one can be issued from the account menu — the old one stops working then.',
+  },
+  'login.code.waitAdmin': {
+    ru: 'Заявка отправлена. Войти получится после подтверждения администратором.',
+    en: 'Request sent. You can sign in once an administrator approves it.',
+  },
+  'login.code.saved': { ru: 'Записал — войти', en: 'Saved it — sign in' },
+  'login.code.backToSignIn': { ru: 'Понятно', en: 'Got it' },
   'login.language': { ru: 'Язык', en: 'Language' },
   'login.hidePassword': { ru: 'Скрыть пароль', en: 'Hide password' },
   'login.showPassword': { ru: 'Показать пароль', en: 'Show password' },
@@ -60,6 +95,18 @@ export const loginDict = {
   'login.error.schemaFailed': {
     ru: 'Не вышло создать таблицы. Частая причина — строка подключения не прямая (нужна direct, не pooled). Точная ошибка — в логах приложения на хостинге.',
     en: 'Could not create the tables. The usual cause is a pooled connection string — the direct one is required. The exact error is in the app logs on the hosting panel.',
+  },
+  'login.error.pending': {
+    ru: 'Пароль верный, но заявку ещё не подтвердил администратор. Попросите его зайти в «Люди».',
+    en: 'The password is right, but an administrator has not approved the request yet. Ask them to check People.',
+  },
+  'login.error.useSetup': {
+    ru: 'Аккаунтов ещё нет — первый создаётся через установку, обновите страницу.',
+    en: 'There are no accounts yet — the first one is created through setup; reload the page.',
+  },
+  'login.error.badRecovery': {
+    ru: 'Email или код восстановления не подходят.',
+    en: 'The email or recovery code does not match.',
   },
   'login.error.emailTaken': { ru: 'Этот email уже занят.', en: 'This email is already taken.' },
   'login.error.createFailed': { ru: 'Не вышло создать аккаунт.', en: 'Could not create the account.' },

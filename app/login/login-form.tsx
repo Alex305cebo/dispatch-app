@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/button'
 import { useState, useTransition } from 'react'
-import { bootstrapAdmin, signIn } from './actions'
+import { bootstrapAdmin, registerRequest, resetWithRecovery, signIn, type Created } from './actions'
 import { LOCALE_COOKIE, LOCALES, t, type Locale } from '@/lib/i18n'
 
 function EyeIcon({ open }: { open: boolean }) {
@@ -22,6 +22,11 @@ function EyeIcon({ open }: { open: boolean }) {
 const input =
   'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none transition-all placeholder:text-white/45 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
 
+/** Что показывает карточка. 'signin' — обычный вход; 'register' — заявка на аккаунт;
+ * 'forgot' — сброс пароля по коду восстановления; 'code' — экран с только что
+ * выданным кодом, после которого либо внутрь, либо «ждите подтверждения». */
+type Mode = 'signin' | 'register' | 'forgot' | 'code'
+
 /** Same form for both first-run (create the admin) and every login after — the
  * chrome (logo, language picker, password field, submit) is identical either way. */
 export function LoginForm({
@@ -34,33 +39,36 @@ export function LoginForm({
   initialLocale,
 }: {
   bootstrap: boolean
-  /** Название компании из базы — заголовок карточки входа. Пусто на первом
-   * запуске (в базе его ещё нет) и в установке. */
-  companyName: string
-  /** Показывать ли кнопку публичного демо ЭТОЙ установки. У клиентской копии её нет. */
-  showDemo: boolean
-  /** Адрес отдельной установки-витрины. Указан — кнопка ведёт туда, и база этой
-   * установки в показе не участвует вовсе. */
-  demoUrl: string
   /** Таблиц в базе ещё нет — это установка, а не просто первый аккаунт. Отдельно
    * от bootstrap, потому что заголовок и надпись на кнопке разные: «Установить»
    * занимает секунды, и молчащая кнопка «Создать аккаунт» выглядит зависшей. */
   needsSchema: boolean
+  /** Название компании из базы — заголовок карточки входа. Пусто на первом
+   * запуске (в базе его ещё нет) и в установке. */
+  companyName: string
+  /** Показывать ли кнопку публичного демо ЭТОЙ установки. */
+  showDemo: boolean
+  /** Адрес отдельной установки-витрины. Указан — кнопка ведёт туда. */
+  demoUrl: string
   /** No locale cookie yet — greet with the language choice before anything else. */
   askLocale: boolean
   initialLocale: Locale
 }) {
+  const [mode, setMode] = useState<Mode>('signin')
   const [name, setName] = useState('')
   const [coName, setCoName] = useState('')
   const [coMcdot, setCoMcdot] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [recovery, setRecovery] = useState('')
   const [remember, setRemember] = useState(true)
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [locale, setLocale] = useState<Locale>(initialLocale)
   const [asking, setAsking] = useState(askLocale)
   const [pending, start] = useTransition()
+  // Экран с кодом: сам код и что после него — вход (reload) или ожидание админа.
+  const [issued, setIssued] = useState<{ code: string; next: 'enter' | 'wait' } | null>(null)
 
   function writeLocaleCookie(l: Locale) {
     document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`
@@ -82,25 +90,55 @@ export function LoginForm({
     window.location.reload()
   }
 
+  function switchMode(m: Mode) {
+    setMode(m)
+    setError(null)
+    setPassword('')
+    setRecovery('')
+  }
+
+  /** A full reload, not router.refresh(): middleware rewrote this response, so the
+   * address bar already holds the real URL — including a QR's #load data — and
+   * reloading it fetches that same URL fresh, same as refresh() intended. Unlike
+   * refresh()'s RSC-only fetch, a plain reload is just an ordinary page request,
+   * which behaves correctly behind reverse proxies that don't handle Next's RSC
+   * response format cleanly (seen in production on Hostinger: refresh() surfaced
+   * as "An unexpected response was received from the server"). */
+  function enter() {
+    window.location.reload()
+  }
+
+  function showCode(res: Created, next: 'enter' | 'wait') {
+    if ('error' in res) {
+      setError(res.error)
+      return
+    }
+    setIssued({ code: res.recoveryCode, next })
+    setMode('code')
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     start(async () => {
-      const res = bootstrap
-        ? await bootstrapAdmin(name, email, password, coName, coMcdot)
-        : await signIn(email, password, remember)
+      if (bootstrap) {
+        showCode(await bootstrapAdmin(name, email, password, coName, coMcdot), 'enter')
+        return
+      }
+      if (mode === 'register') {
+        showCode(await registerRequest(name, email, password), 'wait')
+        return
+      }
+      if (mode === 'forgot') {
+        showCode(await resetWithRecovery(email, recovery, password), 'enter')
+        return
+      }
+      const res = await signIn(email, password, remember)
       if (res?.error) {
         setError(res.error)
         return
       }
-      // A full reload, not router.refresh(): middleware rewrote this response, so the
-      // address bar already holds the real URL — including a QR's #load data — and
-      // reloading it fetches that same URL fresh, same as refresh() intended. Unlike
-      // refresh()'s RSC-only fetch, a plain reload is just an ordinary page request,
-      // which behaves correctly behind reverse proxies that don't handle Next's RSC
-      // response format cleanly (seen in production on Hostinger: refresh() surfaced
-      // as "An unexpected response was received from the server").
-      window.location.reload()
+      enter()
     })
   }
 
@@ -138,6 +176,69 @@ export function LoginForm({
     )
   }
 
+  // Код восстановления — один раз, крупно, с просьбой сохранить. Кнопка «Дальше»
+  // нарочно не мгновенная: это единственный момент, когда код можно записать.
+  if (mode === 'code' && issued) {
+    return (
+      <main className="fixed inset-0 z-[100] flex items-center justify-center bg-ink-950 px-4">
+        <div className="panel w-full max-w-sm p-6">
+          <h1 className="text-[15px] font-semibold">{t(locale, 'login.code.title')}</h1>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">{t(locale, 'login.code.text')}</p>
+          <div className="nums mt-4 select-all rounded-xl border border-haul-500/30 bg-haul-500/[0.08] px-4 py-3 text-center text-[20px] font-bold tracking-wider text-haul-300">
+            {issued.code}
+          </div>
+          <p className="mt-2 text-[11.5px] leading-relaxed text-white/45">{t(locale, 'login.code.hint')}</p>
+          {issued.next === 'wait' && (
+            <p className="mt-3 rounded-lg border border-warn-400/25 bg-warn-400/[0.07] px-3 py-2 text-[12.5px] leading-relaxed text-warn-400">
+              {t(locale, 'login.code.waitAdmin')}
+            </p>
+          )}
+          <Button
+            variant="primary"
+            size="lg"
+            block
+            className="mt-4"
+            onClick={() => (issued.next === 'enter' ? enter() : (setIssued(null), switchMode('signin')))}
+          >
+            {t(locale, issued.next === 'enter' ? 'login.code.saved' : 'login.code.backToSignIn')}
+          </Button>
+        </div>
+      </main>
+    )
+  }
+
+  const title = needsSchema
+    ? t(locale, 'login.install_title')
+    : bootstrap
+      ? t(locale, 'login.bootstrap_title')
+      : mode === 'register'
+        ? t(locale, 'login.register_title')
+        : mode === 'forgot'
+          ? t(locale, 'login.forgot_title')
+          : t(locale, 'login.subtitle')
+
+  const submitLabel = pending
+    ? needsSchema
+      ? t(locale, 'login.installing')
+      : t(locale, 'login.checking')
+    : needsSchema
+      ? t(locale, 'login.install_submit')
+      : bootstrap
+        ? t(locale, 'login.bootstrap_submit')
+        : mode === 'register'
+          ? t(locale, 'login.register_submit')
+          : mode === 'forgot'
+            ? t(locale, 'login.forgot_submit')
+            : t(locale, 'login.submit')
+
+  const askName = bootstrap || mode === 'register'
+  const canSubmit =
+    !!email &&
+    !!password &&
+    (!askName || !!name) &&
+    (!bootstrap || !!coName) &&
+    (mode !== 'forgot' || !!recovery)
+
   return (
     // Covers the nav: middleware rewrites this page over whatever route was asked
     // for, so usePathname() still reports that route and the nav can't know to hide.
@@ -149,13 +250,7 @@ export function LoginForm({
           </div>
           <div>
             <h1 className="text-[15px] font-semibold leading-tight">{companyName || 'Dispatch'}</h1>
-            <p className="text-[12px] text-white/65">
-              {needsSchema
-                ? t(locale, 'login.install_title')
-                : bootstrap
-                  ? t(locale, 'login.bootstrap_title')
-                  : t(locale, 'login.subtitle')}
-            </p>
+            <p className="text-[12px] text-white/65">{title}</p>
           </div>
           {/* Language picker — first thing on the very first screen. */}
           <div className="ml-auto flex overflow-hidden rounded-lg border border-white/10 text-[12px] font-semibold">
@@ -179,6 +274,16 @@ export function LoginForm({
             {needsSchema ? t(locale, 'login.install_subtitle') : t(locale, 'login.bootstrap_subtitle')}
           </p>
         )}
+        {!bootstrap && mode === 'register' && (
+          <p className="mb-3 rounded-lg border border-haul-500/25 bg-haul-500/[0.07] px-3 py-2 text-[12.5px] leading-relaxed text-haul-300">
+            {t(locale, 'login.register_subtitle')}
+          </p>
+        )}
+        {!bootstrap && mode === 'forgot' && (
+          <p className="mb-3 rounded-lg border border-haul-500/25 bg-haul-500/[0.07] px-3 py-2 text-[12.5px] leading-relaxed text-haul-300">
+            {t(locale, 'login.forgot_subtitle')}
+          </p>
+        )}
 
         {/* Компания — первым полем: на первом запуске отвечают на вопрос «что ставим»,
             а уже потом «кто я». Название обязательно (без него счёт не выставить),
@@ -194,7 +299,6 @@ export function LoginForm({
             className={`mb-2.5 ${input}`}
           />
         )}
-
         {bootstrap && (
           <input
             type="text"
@@ -205,10 +309,11 @@ export function LoginForm({
           />
         )}
 
-        {bootstrap && (
+        {askName && (
           <input
             type="text"
             value={name}
+            autoFocus={!bootstrap}
             autoComplete="name"
             onChange={(e) => setName(e.target.value)}
             placeholder={t(locale, 'login.name')}
@@ -219,20 +324,31 @@ export function LoginForm({
         <input
           type="email"
           value={email}
-          autoFocus={!bootstrap}
+          autoFocus={!askName}
           autoComplete="email"
           onChange={(e) => setEmail(e.target.value)}
           placeholder={t(locale, 'login.email')}
           className={`mb-2.5 ${input}`}
         />
 
+        {mode === 'forgot' && (
+          <input
+            type="text"
+            value={recovery}
+            autoComplete="one-time-code"
+            onChange={(e) => setRecovery(e.target.value)}
+            placeholder={t(locale, 'login.recoveryCode')}
+            className={`nums mb-2.5 uppercase ${input}`}
+          />
+        )}
+
         <div className="relative">
           <input
             type={showPw ? 'text' : 'password'}
             value={password}
-            autoComplete={bootstrap ? 'new-password' : 'current-password'}
+            autoComplete={mode === 'signin' && !bootstrap ? 'current-password' : 'new-password'}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder={t(locale, 'login.password')}
+            placeholder={mode === 'forgot' ? t(locale, 'login.newPassword') : t(locale, 'login.password')}
             className={`${input} pr-11`}
           />
           <button
@@ -246,7 +362,7 @@ export function LoginForm({
           </button>
         </div>
 
-        {!bootstrap && (
+        {!bootstrap && mode === 'signin' && (
           <>
             <label className="mt-3 flex cursor-pointer items-center gap-2.5 select-none">
               <input
@@ -266,37 +382,35 @@ export function LoginForm({
         {/* loading, not just disabled: the old button only greyed out while the
             request was in flight, which looks identical to "you haven't filled the
             form in yet". The spinner says the click landed. */}
-        <Button
-          type="submit"
-          variant="primary"
-          size="lg"
-          block
-          className="mt-4"
-          loading={pending}
-          disabled={!email || !password || (bootstrap && (!name || !coName))}
-        >
-          {pending
-            ? needsSchema
-              ? t(locale, 'login.installing')
-              : t(locale, 'login.checking')
-            : needsSchema
-              ? t(locale, 'login.install_submit')
-              : bootstrap
-                ? t(locale, 'login.bootstrap_submit')
-                : t(locale, 'login.submit')}
+        <Button type="submit" variant="primary" size="lg" block className="mt-4" loading={pending} disabled={!canSubmit}>
+          {submitLabel}
         </Button>
 
         {error && <p className="mt-2 text-[13px] text-bad-400">{error}</p>}
 
-        {!bootstrap && (demoUrl || showDemo) && (
-          <Button
-            href={demoUrl || '/demo'}
-            external
-            variant="secondary"
-            size="lg"
-            block
-            className="mt-3"
-          >
+        {/* Две дороги, которых раньше не было: забыл пароль и нет аккаунта. Обе —
+            ссылками под кнопкой, а не отдельными кнопками: вход остаётся главным. */}
+        {!bootstrap && (
+          <div className="mt-3 flex flex-wrap justify-between gap-x-4 gap-y-1 text-[12.5px]">
+            {mode === 'signin' ? (
+              <>
+                <button type="button" onClick={() => switchMode('forgot')} className="text-haul-300 hover:underline">
+                  {t(locale, 'login.forgotLink')}
+                </button>
+                <button type="button" onClick={() => switchMode('register')} className="text-haul-300 hover:underline">
+                  {t(locale, 'login.registerLink')}
+                </button>
+              </>
+            ) : (
+              <button type="button" onClick={() => switchMode('signin')} className="text-white/60 hover:text-white/90">
+                ← {t(locale, 'login.backToSignIn')}
+              </button>
+            )}
+          </div>
+        )}
+
+        {!bootstrap && mode === 'signin' && (demoUrl || showDemo) && (
+          <Button href={demoUrl || '/demo'} external variant="secondary" size="lg" block className="mt-3">
             {t(locale, 'login.demo')}
           </Button>
         )}

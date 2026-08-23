@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 import { sql } from '@/lib/db'
-import { schemaInstalled } from '@/lib/install'
+import { ensureSchema, schemaInstalled } from '@/lib/install'
 import { getSettings } from '@/lib/settings'
 import { LOCALE_COOKIE, resolveLocale, t } from '@/lib/i18n'
 import { LoginForm } from './login-form'
@@ -46,6 +46,9 @@ export default async function LoginPage() {
   // то же самое, что «база пустая», и молча предлагать установку поверх живой базы
   // было бы хуже ошибки.
   const installed = await schemaInstalled()
+  // Код обновился — база дотягивается сама (lib/install.ts). Здесь, потому что
+  // экран входа — первое, что открывают после любого деплоя.
+  if (installed) await ensureSchema()
   const rows = installed ? await sql`SELECT 1 FROM users WHERE is_demo = FALSE LIMIT 1` : []
 
   // Чьё это приложение — крупно, на самом входе. Не украшение: установок теперь

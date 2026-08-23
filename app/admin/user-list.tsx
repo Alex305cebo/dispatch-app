@@ -3,7 +3,9 @@
 import { Button } from '@/components/button'
 import { useState, useTransition } from 'react'
 import {
+  approveUser,
   createUser,
+  rejectUser,
   resetUserPassword,
   setDispatcherCapability,
   setUserDisabled,
@@ -57,6 +59,14 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
     })
   }
 
+  function decide(u: AdminUser, approve: boolean) {
+    start(async () => {
+      const res = approve ? await approveUser(u.id) : await rejectUser(u.id)
+      if (res?.error) notify('error', res.error)
+      else notify('ok', t(locale, approve ? 'admin.users.approved' : 'admin.users.rejected'))
+    })
+  }
+
   function changeRole(u: AdminUser, next: 'admin' | 'dispatcher') {
     start(async () => {
       const res = await setUserRole(u.id, next)
@@ -103,10 +113,30 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
                     {t(locale, 'admin.users.disabledBadge')}
                   </span>
                 )}
+                {u.pendingSince && (
+                  <span className="rounded-full bg-warn-400/15 px-1.5 py-0.5 text-[10px] font-medium text-warn-400">
+                    {t(locale, 'admin.users.pendingBadge')}
+                  </span>
+                )}
               </div>
               <div className="text-[12px] text-white/55">{u.email}</div>
             </div>
 
+            {u.pendingSince ? (
+              <>
+                <Button variant="primary" size="sm" disabled={pending} onClick={() => decide(u, true)}>
+                  {t(locale, 'admin.users.approve')}
+                </Button>
+                <button
+                  disabled={pending}
+                  onClick={() => decide(u, false)}
+                  className="rounded-lg border border-bad-500/25 px-2.5 py-1.5 text-[12px] text-bad-400 transition-colors hover:border-bad-500/50 disabled:opacity-40"
+                >
+                  {t(locale, 'admin.users.reject')}
+                </button>
+              </>
+            ) : (
+            <>
             <select
               value={u.role}
               disabled={pending || u.id === currentUserId}
@@ -136,6 +166,8 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
             >
               {u.disabledAt ? t(locale, 'admin.users.enable') : t(locale, 'admin.users.disable')}
             </button>
+            </>
+            )}
           </div>
 
           {resetFor === u.id && (

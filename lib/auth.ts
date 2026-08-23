@@ -51,6 +51,20 @@ export async function verifyPassword(password: string, stored: string): Promise<
   return diff === 0
 }
 
+/** Код восстановления: 12 знаков, без похожих друг на друга символов (0/O, 1/I/L),
+ * группами по четыре — такие диктуют по телефону и переписывают с бумажки без
+ * ошибок. Энтропии ~57 бит: перебор через форму входа бессмысленен. */
+const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+export function generateRecoveryCode(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(12))
+  const chars = Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length])
+  return `${chars.slice(0, 4).join('')}-${chars.slice(4, 8).join('')}-${chars.slice(8).join('')}`
+}
+/** Как его ни введи — со строчными, пробелами, без дефисов — сравнивается одно и то же. */
+export function normalizeRecoveryCode(raw: string): string {
+  return raw.toUpperCase().replace(/[^A-Z0-9]/g, '')
+}
+
 export const SESSION_COOKIE = 'dispatch_session'
 // "Remember this device" persists the cookie itself this long; the session ROW gets
 // the same lifetime either way — an unremembered login is ended by the browser
@@ -84,7 +98,7 @@ export async function sessionUser(token: string | undefined | null): Promise<Ses
   const rows = (await sql`
     SELECT u.id, u.name, u.email, u.role, u.is_demo FROM sessions s
     JOIN users u ON u.id = s.user_id
-    WHERE s.token = ${token} AND s.expires_at > now() AND u.disabled_at IS NULL`) as
+    WHERE s.token = ${token} AND s.expires_at > now() AND u.disabled_at IS NULL AND u.pending_since IS NULL`) as
     | { id: number; name: string; email: string; role: 'admin' | 'dispatcher'; is_demo: boolean }[]
   const row = rows[0]
   if (!row) return null

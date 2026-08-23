@@ -35,3 +35,9 @@ test('настоящая schema.sql режется на осмысленные �
     assert.match(first.trim(), /^(CREATE|ALTER|INSERT|UPDATE|DROP|COMMENT|DO|WITH|DELETE)\b/i, first.slice(0, 60))
   }
 })
+
+test('версия схемы читается из schema.sql и совпадает с датой', async () => {
+  const { schemaFileVersion } = await import('./install.ts')
+  const v = await schemaFileVersion()
+  assert.match(v ?? '', /^\d{4}-\d{2}-\d{2}$/, `версия: ${v}`)
+})

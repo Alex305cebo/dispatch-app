@@ -86,3 +86,39 @@ export async function applySchema(): Promise<number> {
   for (const stmt of statements) await sql.query(stmt)
   return statements.length
 }
+
+/** Версия схемы, зашитая в schema.sql — та строка, что он сам пишет в settings. */
+export async function schemaFileVersion(): Promise<string | null> {
+  const schema = await readFile(join(process.cwd(), 'lib', 'schema.sql'), 'utf8')
+  return /\('schema_version',\s*'([^']+)'\)/.exec(schema)?.[1] ?? null
+}
+
+let ensured: string | null = null
+
+/**
+ * Дотянуть схему до версии кода — на живой базе, без командной строки.
+ *
+ * Раньше код доезжал до клиента пушем, а его база — только когда мы запускали
+ * db:init с нашей машины. Новая колонка в коде и старая база у клиента — это
+ * ошибка «column does not exist» в самый неожиданный момент и только у него.
+ * schema.sql идемпотентен (везде IF NOT EXISTS / ON CONFLICT), поэтому
+ * «мигрировать» и «накатить заново» — одно и то же, и делать это можно при
+ * каждом запуске.
+ *
+ * Один раз на процесс: сравнение версий — запрос к базе, а вызывается это с
+ * экрана входа, куда ходят часто. Ошибки гасятся: не смогли мигрировать — это
+ * не причина не пустить человека внутрь, на первой же рабочей странице сбой
+ * базы и так будет виден.
+ */
+export async function ensureSchema(): Promise<void> {
+  const want = await schemaFileVersion()
+  if (!want || ensured === want) return
+  try {
+    const { sql } = await import('./db.ts')
+    const rows = (await sql`SELECT value FROM settings WHERE key = 'schema_version'`) as { value: string }[]
+    if (rows[0]?.value !== want) await applySchema()
+    ensured = want
+  } catch (e) {
+    console.error('ensureSchema failed', e)
+  }
+}

@@ -27,6 +27,8 @@ export type AdminUser = {
   role: 'admin' | 'dispatcher'
   createdAt: string
   disabledAt: string | null
+  /** Заявка с экрана входа, ещё не подтверждённая. */
+  pendingSince: string | null
   /** Effective feature access, for dispatchers only (admins have everything). */
   capabilities: Record<CapabilityKey, boolean> | null
 }
@@ -37,14 +39,16 @@ export async function listUsers(): Promise<AdminUser[]> {
   // sessions/dispatcher_id work for it — but it's not a dispatcher anyone here
   // manages, so it must never show up for a real admin to edit or get confused by.
   const rows = (await sql`
-    SELECT id, name, email, role, created_at, disabled_at FROM users
-    WHERE is_demo = FALSE ORDER BY created_at ASC`) as {
+    SELECT id, name, email, role, created_at, disabled_at, pending_since FROM users
+    WHERE is_demo = FALSE
+    ORDER BY (pending_since IS NOT NULL) DESC, created_at ASC`) as {
     id: number
     name: string
     email: string
     role: 'admin' | 'dispatcher'
     created_at: string
     disabled_at: string | null
+    pending_since: string | null
   }[]
   return Promise.all(
     rows.map(async (r) => ({
@@ -54,6 +58,7 @@ export async function listUsers(): Promise<AdminUser[]> {
       role: r.role,
       createdAt: r.created_at,
       disabledAt: r.disabled_at,
+      pendingSince: r.pending_since,
       capabilities: r.role === 'dispatcher' ? await capabilitiesFor(r.id) : null,
     })),
   )
@@ -96,6 +101,21 @@ export async function createUser(
   // Ключ HERE читает раздел платных дорог — без этого он остался бы
   // на закэшированном «ключа нет» до следующей полной перезагрузки.
   revalidatePath('/tolls')
+}
+
+/** Подтвердить заявку: с этого момента пароль, который человек задал сам, пускает. */
+export async function approveUser(userId: number): Promise<{ error: string } | void> {
+  await assertAdmin()
+  await sql`UPDATE users SET pending_since = NULL WHERE id = ${userId}`
+  revalidatePath('/admin')
+}
+
+/** Отклонить: строка удаляется целиком. Это не «отключить» — у заявки нет ни
+ * грузов, ни журнала, ни сессий, хранить её незачем, а email освобождается. */
+export async function rejectUser(userId: number): Promise<{ error: string } | void> {
+  await assertAdmin()
+  await sql`DELETE FROM users WHERE id = ${userId} AND pending_since IS NOT NULL`
+  revalidatePath('/admin')
 }
 
 export async function setUserRole(userId: number, role: 'admin' | 'dispatcher'): Promise<{ error: string } | void> {

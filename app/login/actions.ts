@@ -5,7 +5,9 @@ import { sql } from '@/lib/db'
 import {
   createSession,
   destroySession,
+  generateRecoveryCode,
   hashPassword,
+  normalizeRecoveryCode,
   verifyPassword,
   SESSION_COOKIE,
   SESSION_DAYS,
@@ -47,6 +49,17 @@ async function startSession(userId: number, remember: boolean) {
   })
 }
 
+/** Новый код восстановления для пользователя: в базу — хеш, наружу — сам код.
+ * Показывается один раз; потерял — перевыпускается из меню или сбрасывается
+ * администратором. */
+async function issueRecoveryCode(userId: number): Promise<string> {
+  const code = generateRecoveryCode()
+  await sql`UPDATE users SET recovery_hash = ${await hashPassword(normalizeRecoveryCode(code))} WHERE id = ${userId}`
+  return code
+}
+
+export type Created = { error: string } | { recoveryCode: string }
+
 /**
  * Первый запуск, он же установка: при необходимости накатывает схему, создаёт
  * первый аккаунт (он становится администратором) и записывает профиль компании.
@@ -66,7 +79,7 @@ export async function bootstrapAdmin(
   password: string,
   coName: string,
   coMcdot: string,
-): Promise<{ error: string } | void> {
+): Promise<Created> {
   const locale = await getLocale()
   if (!name.trim()) return { error: t(locale, 'login.error.enterName') }
   if (!EMAIL_RE.test(email.trim())) return { error: t(locale, 'login.error.badEmail') }
@@ -107,8 +120,42 @@ export async function bootstrapAdmin(
   await setSetting('co_name', coName.trim())
   if (coMcdot.trim()) await setSetting('co_mcdot', coMcdot.trim())
 
+  const recoveryCode = await issueRecoveryCode(userId)
   await startSession(userId, true)
   await logAudit(name.trim())
+  return { recoveryCode }
+}
+
+/**
+ * Заявка с экрана входа. Аккаунт создаётся сразу, но с pending_since: внутрь не
+ * пускает, пока администратор не подтвердит в «Люди». Открытая регистрация без
+ * подтверждения была бы дверью в данные компании для любого прохожего, а
+ * «написать админу, чтобы завёл» — той самой зависимостью от одного человека,
+ * из-за которой эта кнопка и появилась.
+ */
+export async function registerRequest(name: string, email: string, password: string): Promise<Created> {
+  const locale = await getLocale()
+  if (!name.trim()) return { error: t(locale, 'login.error.enterName') }
+  if (!EMAIL_RE.test(email.trim())) return { error: t(locale, 'login.error.badEmail') }
+  if (password.length < 8) return { error: t(locale, 'login.error.passwordMin') }
+
+  // Пустая база — это установка, а не заявка: первый аккаунт обязан стать админом.
+  const existing = await sql`SELECT 1 FROM users WHERE is_demo = FALSE LIMIT 1`
+  if (existing.length === 0) return { error: t(locale, 'login.error.useSetup') }
+
+  let userId: number
+  try {
+    const rows = await sql`
+      INSERT INTO users (name, email, password_hash, role, pending_since)
+      VALUES (${name.trim()}, ${email.trim().toLowerCase()}, ${await hashPassword(password)}, 'dispatcher', now())
+      RETURNING id`
+    userId = (rows[0] as { id: number }).id
+  } catch (e) {
+    return {
+      error: /unique/i.test(String(e)) ? t(locale, 'login.error.emailTaken') : t(locale, 'login.error.createFailed'),
+    }
+  }
+  return { recoveryCode: await issueRecoveryCode(userId) }
 }
 
 export async function signIn(
@@ -116,21 +163,60 @@ export async function signIn(
   password: string,
   remember: boolean,
 ): Promise<{ error: string } | void> {
+  const locale = await getLocale()
   const rows = (await sql`
-    SELECT id, name, password_hash FROM users
+    SELECT id, name, password_hash, pending_since FROM users
     WHERE email = ${email.trim().toLowerCase()} AND disabled_at IS NULL`) as {
     id: number
     name: string
     password_hash: string
+    pending_since: string | null
   }[]
   const user = rows[0]
   // Same generic error either way — confirming "no such email" to a stranger is a
   // free account-enumeration oracle, so a bad email and a bad password look identical.
   if (!user || !(await verifyPassword(password, user.password_hash))) {
-    return { error: t(await getLocale(), 'login.error.badCredentials') }
+    return { error: t(locale, 'login.error.badCredentials') }
   }
+  // Пароль верный, но заявку ещё не подтвердили. Об этом — прямо: человек сделал
+  // всё правильно, и «неверный пароль» здесь было бы ложью.
+  if (user.pending_since) return { error: t(locale, 'login.error.pending') }
   await startSession(user.id, remember)
   await logAudit(user.name)
+}
+
+/**
+ * «Забыл пароль»: email + код восстановления → новый пароль. Без почты и без
+ * администратора — единственный админ иначе запирал бы себя навсегда.
+ *
+ * Код одноразовый: после сброса выдаётся новый, чтобы у человека всегда был
+ * действующий. Все прежние сессии гасятся — тот, кто увёл пароль, теряет вход.
+ */
+export async function resetWithRecovery(email: string, code: string, newPassword: string): Promise<Created> {
+  const locale = await getLocale()
+  if (newPassword.length < 8) return { error: t(locale, 'login.error.passwordMin') }
+  const rows = (await sql`
+    SELECT id, name, recovery_hash, pending_since FROM users
+    WHERE email = ${email.trim().toLowerCase()} AND is_demo = FALSE AND disabled_at IS NULL`) as {
+    id: number
+    name: string
+    recovery_hash: string | null
+    pending_since: string | null
+  }[]
+  const user = rows[0]
+  // Один и тот же ответ на «нет такого email» и «код не тот» — по той же причине,
+  // что и при входе: форма без сессии не должна подтверждать, чьи адреса тут есть.
+  if (!user || !user.recovery_hash || !(await verifyPassword(normalizeRecoveryCode(code), user.recovery_hash))) {
+    return { error: t(locale, 'login.error.badRecovery') }
+  }
+  await sql`UPDATE users SET password_hash = ${await hashPassword(newPassword)} WHERE id = ${user.id}`
+  await sql`DELETE FROM sessions WHERE user_id = ${user.id}`
+  const recoveryCode = await issueRecoveryCode(user.id)
+  if (!user.pending_since) {
+    await startSession(user.id, true)
+    await logAudit(user.name)
+  }
+  return { recoveryCode }
 }
 
 export async function signOut(): Promise<void> {

@@ -38,6 +38,11 @@ export const navDict = {
   'userPanel.tileLang': { ru: 'Язык', en: 'Language' },
   'userPanel.tileTheme': { ru: 'Тема', en: 'Theme' },
   'userPanel.tileJournal': { ru: 'Журнал', en: 'Journal' },
+  'userPanel.tileRecovery': { ru: 'Код восст.', en: 'Recovery' },
+  'userPanel.recoveryIssued': {
+    ru: 'Новый код восстановления. Сохраните: прежний больше не действует, а этот показывается один раз.',
+    en: 'New recovery code. Save it: the old one no longer works, and this one is shown once.',
+  },
   'userPanel.tilePassword': { ru: 'Пароль', en: 'Password' },
   'userPanel.tileUsers': { ru: 'Люди', en: 'People' },
   'userPanel.tileImport': { ru: 'Импорт', en: 'Import' },

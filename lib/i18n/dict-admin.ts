@@ -142,6 +142,11 @@ export const adminDict = {
   // User list (app/admin/user-list.tsx)
   'admin.users.addedOk': { ru: 'Пользователь добавлен', en: 'User added' },
   'admin.users.you': { ru: 'это ты', en: 'you' },
+  'admin.users.pendingBadge': { ru: 'заявка', en: 'request' },
+  'admin.users.approve': { ru: 'Подтвердить', en: 'Approve' },
+  'admin.users.reject': { ru: 'Отклонить', en: 'Reject' },
+  'admin.users.approved': { ru: 'Аккаунт подтверждён — человек может войти', en: 'Approved — they can sign in now' },
+  'admin.users.rejected': { ru: 'Заявка удалена', en: 'Request removed' },
   'admin.users.disabledBadge': { ru: 'отключён', en: 'disabled' },
   'admin.users.password': { ru: 'Пароль', en: 'Password' },
   'admin.users.enable': { ru: 'Включить', en: 'Enable' },

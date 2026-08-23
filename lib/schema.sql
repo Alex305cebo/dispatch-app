@@ -407,7 +407,7 @@ ALTER TABLE loads ADD COLUMN IF NOT EXISTS driver_info TEXT;
 -- BUMP THIS whenever a column is added above. Nothing gates on the value — the app must
 -- never refuse to start over a version mismatch, because a hard stop is worse than the
 -- missing-column error it would be preventing.
-INSERT INTO settings (key, value) VALUES ('schema_version', '2026-08-07')
+INSERT INTO settings (key, value) VALUES ('schema_version', '2026-08-22')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- Через кого брокер платит перевозчикам (TriumphPay, Comdata, RTS…), если рейт-кон
@@ -419,3 +419,10 @@ ALTER TABLE loads ADD COLUMN IF NOT EXISTS pay_via TEXT;
 -- Платные дороги по маршруту груза, доллары. До этой колонки прибыль считалась
 -- так, будто дороги бесплатные: на восточных рейсах это трёхзначная ошибка.
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS toll_cost NUMERIC;
+
+-- Восстановление пароля без почты. Код выдаётся при создании аккаунта (и
+-- перевыпускается из меню), хранится как хеш, тем же PBKDF2, что и пароль.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS recovery_hash TEXT;
+-- Самостоятельная заявка с экрана входа: аккаунт есть, но до подтверждения
+-- администратором внутрь не пускает. Подтвердили — колонка обнуляется.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_since TIMESTAMPTZ;

@@ -13,6 +13,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   DollarSign,
   KeyRound,
+  LifeBuoy,
   LogOut,
   PackagePlus,
   RotateCw,
@@ -22,7 +23,7 @@ import {
   Upload,
   Users,
 } from 'lucide-react'
-import { changeMyPassword } from '@/app/account/actions'
+import { changeMyPassword, newRecoveryCode } from '@/app/account/actions'
 import { signOut } from '@/app/login/actions'
 import { notify } from '@/lib/notify'
 import type { CurrentUser } from '@/lib/session'
@@ -117,6 +118,7 @@ export function UserPanel({
   // Password form starts folded — its own tile opens it (see MenuTile below).
   const [pwOpen, setPwOpen] = useState(false)
   const [pw, setPw] = useState('')
+  const [recovery, setRecovery] = useState<string | null>(null)
   const [pending, start] = useTransition()
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -299,7 +301,29 @@ export function UserPanel({
               >
                 <KeyRound size={15} />
               </MenuTile>
+              {/* Код восстановления — единственный путь назад, если пароль забыт, а
+                  ты единственный админ. Перевыпуск гасит прежний код. */}
+              <MenuTile
+                label={t(locale, 'userPanel.tileRecovery')}
+                active={recovery !== null}
+                onClick={() =>
+                  start(async () => {
+                    const res = await newRecoveryCode()
+                    if ('error' in res) notify('error', res.error)
+                    else setRecovery(res.code)
+                  })
+                }
+              >
+                <LifeBuoy size={15} />
+              </MenuTile>
             </div>
+
+            {recovery && (
+              <div className="mt-2.5 rounded-lg border border-haul-500/30 bg-haul-500/[0.08] p-2.5">
+                <p className="text-[11px] text-white/60">{t(locale, 'userPanel.recoveryIssued')}</p>
+                <p className="nums mt-1 select-all text-center text-[16px] font-bold tracking-wider text-haul-300">{recovery}</p>
+              </div>
+            )}
 
             {/* Форма пароля раскрывается своей плиткой, а не занимает место всегда:
                 пароль меняют раз в полгода, а меню открывают каждый день. */}
