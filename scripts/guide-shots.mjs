@@ -1,52 +1,84 @@
-// Снимки экранов для вводной экскурсии (public/guide/*.jpg).
+// Снимки для вводной экскурсии (public/guide/*.jpg) — не страницы целиком, а
+// ТОТ блок, о котором шаг: карта — карту, форма — форму. Целая страница в
+// карточке 700px нечитаема; секция — читаема.
 //
-// Снимаются с ДЕМО-данных — там заполненный парк, а не пустые таблицы. Админские
-// экраны (ключи, реквизиты, люди) гостю демо недоступны: для них передайте адрес
-// установки, где вы вошли администратором, и куки сессии через переменные
-// окружения (см. ниже). Баннер «ДЕМО-режим» срезается сверху.
+// Блоки находятся по тексту заголовка, а не по координатам: вёрстка поедет —
+// снимок останется точным. Снимаются с ДЕМО-данных: там заполненный парк.
+// Админские экраны гостю демо недоступны — для них нужна сессия администратора
+// (GUIDE_SESSION) на установке GUIDE_BASE.
 //
-// Запуск (playwright-core в зависимости не входит — он нужен только здесь):
+// Запуск (playwright-core в зависимости не входит — нужен только здесь):
 //   npm i --no-save playwright-core
-//   node scripts/guide-shots.mjs                       # демо на kgzapp.online
-//   GUIDE_BASE=https://... GUIDE_SESSION=<dispatch_session> node scripts/guide-shots.mjs --admin
-//
+//   node scripts/guide-shots.mjs
+//   GUIDE_BASE=https://… GUIDE_SESSION=<dispatch_session> node scripts/guide-shots.mjs --admin
 // Нужен установленный Chrome: скрипт берёт его, а не качает свой браузер.
 
 import { chromium } from 'playwright-core'
 import { mkdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 const BASE = process.env.GUIDE_BASE || 'https://kgzapp.online'
-const OUT = new URL('../public/guide/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
+const OUT = fileURLToPath(new URL('../public/guide/', import.meta.url))
 const ADMIN = process.argv.includes('--admin')
-const BANNER = 30 // высота полосы «ДЕМО-режим»
+const PAD = 14
 
 mkdirSync(OUT, { recursive: true })
 const host = new URL(BASE).hostname
 const browser = await chromium.launch({ channel: 'chrome', headless: true })
-const ctx = await browser.newContext({ viewport: { width: 1280, height: 820 }, locale: 'ru-RU' })
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 1600 }, locale: 'ru-RU' })
 const cookies = [{ name: 'locale', value: 'ru', domain: host, path: '/' }]
 if (ADMIN && process.env.GUIDE_SESSION)
   cookies.push({ name: 'dispatch_session', value: process.env.GUIDE_SESSION, domain: host, path: '/' })
 await ctx.addCookies(cookies)
+// Экскурсия открывается на первом же экране и попала бы в каждый кадр — снимаем
+// с закрытой. Она сама себя фотографировать не должна.
+await ctx.addInitScript(() => {
+  sessionStorage.setItem('tour:pos', 'closed')
+  localStorage.setItem('tour:pos', 'closed')
+})
 const page = await ctx.newPage()
 
-async function shot(name, url, wait = 1000) {
+/** Блок по заголовку: ближайшая секция/панель, внутри которой этот текст. */
+const block = (text) => page.locator('section, .panel, details, form').filter({ hasText: text }).first()
+
+/**
+ * Снимок области, накрывающей все переданные блоки (объединение рамок), с полями.
+ * maxH режет слишком высокие блоки снизу: карточке трака хватает шапки.
+ * Вьюпорт высокий (1600), а не fullPage: в полностраничном режиме рамки блоков и
+ * координаты кадра расходились, и у снимков оказывался срезан левый край.
+ */
+async function shot(name, url, locators, { wait = 1200, maxH = 620 } = {}) {
   await page.goto(BASE + url, { waitUntil: 'networkidle', timeout: 90000 })
   await page.waitForTimeout(wait)
-  const crop = ADMIN ? 0 : BANNER
+  await page.evaluate(() => window.scrollTo(0, 0))
+  // Ярлык свёрнутой экскурсии висит поверх страницы — в инструкции ему не место.
+  await page.addStyleTag({ content: '.z-\[190\]{display:none!important}' })
+  const boxes = []
+  for (const l of locators) {
+    const b = await l.boundingBox().catch(() => null)
+    if (b) boxes.push(b)
+  }
+  if (!boxes.length) {
+    console.warn('SKIP', name, '— блок не найден')
+    return
+  }
+  const x = Math.max(0, Math.min(...boxes.map((b) => b.x)) - PAD)
+  const y = Math.max(0, Math.min(...boxes.map((b) => b.y)) - PAD)
+  const r = Math.max(...boxes.map((b) => b.x + b.width)) + PAD
+  const bot = Math.max(...boxes.map((b) => b.y + b.height)) + PAD
   await page.screenshot({
     path: `${OUT}${name}.jpg`,
     type: 'jpeg',
-    quality: 80,
-    clip: { x: 0, y: crop, width: 1280, height: 820 - crop },
+    quality: 82,
+    clip: { x, y, width: r - x, height: Math.min(bot - y, maxH) },
   })
-  console.log('shot', name, page.url())
+  console.log('shot', name, `${Math.round(r - x)}x${Math.round(Math.min(bot - y, maxH))}`)
 }
 
 if (ADMIN) {
-  await shot('admin-keys', '/admin#keys', 1500)
-  await shot('admin-company', '/admin#company', 1500)
-  await shot('admin-users', '/admin', 1500)
+  await shot('admin-keys', '/admin', [block('Ключи')], { maxH: 560 })
+  await shot('admin-company', '/admin', [block('Данные компании')], { maxH: 560 })
+  await shot('admin-users', '/admin', [block('Пользователи')], { maxH: 480 })
 } else {
   await page.goto(BASE + '/demo', { waitUntil: 'networkidle', timeout: 90000 })
   // Адреса трака и груза в демо меняются при пересеве — берём из списков.
@@ -58,18 +90,27 @@ if (ADMIN) {
   const loads = await page.$$eval('a[href^="/loads/"]', (as) =>
     [...new Set(as.map((a) => a.getAttribute('href')))].filter((h) => /^\/loads\/\d+$/.test(h)),
   )
-  await shot('overview', '/', 1500)
-  await shot('trucks', '/trucks')
-  await shot('truck-new', '/trucks/new')
-  if (trucks[1]) await shot('truck-detail', trucks[1], 2500)
-  await shot('loads', '/loads')
-  await shot('load-new', '/loads/new')
-  if (loads[0]) await shot('load-detail', loads[0], 2000)
-  await shot('tracking', '/tracking', 3500)
-  await shot('docs', '/docs')
-  await shot('invoices', '/invoices')
-  await shot('brokers', '/brokers')
-  await shot('tolls', '/tolls', 2500)
+
+  // Обзор: плитки цифр и лента «Загрузка парка» — два соседних блока.
+  await shot('overview', '/', [block('Рейт всего'), block('Загрузка парка')], { wait: 1800 })
+  // Новый трак: сама форма.
+  await shot('truck-new', '/trucks/new', [block('Трак')], { maxH: 700 })
+  // Карточка трака: шапка с машиной, плитками и текущим заданием.
+  if (trucks[1]) await shot('truck-detail', trucks[1], [page.locator('main section').first()], { wait: 2500, maxH: 760 })
+  // Новый груз: блок скана и форма с расчётом справа.
+  await shot('load-new', '/loads/new', [page.getByText('Сканировать rate con').first(), block('Ставка за груз'), block('Груз')], { maxH: 700 })
+  // Карточка груза: шапка со статусами.
+  if (loads[0]) await shot('load-detail', loads[0], [page.locator('main section').first()], { wait: 2000, maxH: 640 })
+  // Трекинг: карта и цифры под ней.
+  await shot('tracking', '/tracking', [page.locator('.fleet-map').first(), block('Нажми трак на карте')], { wait: 4000 })
+  // Файлы: вкладки видов документов и список.
+  await shot('docs', '/docs', [page.locator('main .panel').first(), page.locator('main .panel').nth(1)], { maxH: 560 })
+  // Финансы: плитки «ждём» и список счетов.
+  await shot('invoices', '/invoices', [block('Ждём всего'), block('Просрочено')], { maxH: 600 })
+  // Брокеры: проверка по MC и свой список.
+  await shot('brokers', '/brokers', [block('Проверить брокера'), block('Наши брокеры')], { maxH: 600 })
+  // Толлы: форма маршрута и результат под ней.
+  await shot('tolls', '/tolls', [page.locator('main section').first(), page.locator('main section').nth(1)], { wait: 3000, maxH: 620 })
 }
 
 await browser.close()
