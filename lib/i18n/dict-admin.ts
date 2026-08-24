@@ -26,6 +26,10 @@ export const adminDict = {
   'admin.keys.where': { ru: 'где взять →', en: 'where to get it →' },
   'admin.keys.newPlaceholder': { ru: 'Вставьте ключ', en: 'Paste the key' },
   'admin.keys.replacePlaceholder': { ru: 'Оставьте пустым, чтобы не менять', en: 'Leave empty to keep the current one' },
+  'admin.keys.test': { ru: 'Проверить ключ', en: 'Test the key' },
+  'admin.keys.testing': { ru: 'Проверяю…', en: 'Testing…' },
+  'admin.keys.testOk': { ru: 'Ключ работает, отвечает {model}', en: 'Key works, {model} answered' },
+  'admin.keys.testNoKey': { ru: 'Ключ не задан — вставьте его и сохраните.', en: 'No key set — paste one and save.' },
   'admin.keys.saved': { ru: 'Ключи сохранены', en: 'Keys saved' },
   'admin.keys.gemini': { ru: 'Искусственный интеллект', en: 'Artificial intelligence' },
   'admin.keys.geminiHint': {

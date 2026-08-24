@@ -209,6 +209,44 @@ export async function getKeyStatus(): Promise<{
 /** Saves the install's own API keys. An empty string means "leave as it is" — the form
  * never knows the current value, so a blank field must not wipe a working key. Passing
  * the literal '-' clears one, which is the only way to undo a paste-mistake. */
+/**
+ * Проверка ключа ИИ одним нажатием: жив, отозван, исчерпан или не принят.
+ *
+ * Без неё «вставил ключ и надеюсь» проверялось только следующим рейт-коном, а
+ * ответ приходил в виде красной строки на другом экране через полторы минуты.
+ * Запрос крошечный — одно слово, — и на дневной лимит он практически не влияет.
+ */
+export async function testAiKey(): Promise<{ ok: true; model: string } | { error: string }> {
+  await assertAdmin()
+  const locale = await getLocale()
+  const key = await geminiKey()
+  if (!key) return { error: t(locale, 'admin.keys.testNoKey') }
+
+  const { AI_MODELS } = await import('@/lib/ratecon-ai-contract')
+  const { aiFailKind, aiFailMessage, worstFail } = await import('@/lib/ai-error')
+  let fail: Awaited<ReturnType<typeof aiFailKind>> | null = null
+  for (const model of AI_MODELS) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
+            generationConfig: { maxOutputTokens: 8, temperature: 0 },
+          }),
+        },
+      )
+      if (res.ok) return { ok: true, model }
+      fail = worstFail(fail, aiFailKind(res.status, await res.text().catch(() => '')))
+    } catch {
+      fail = worstFail(fail, 'busy')
+    }
+  }
+  return { error: aiFailMessage(fail ?? 'other', locale) }
+}
+
 export async function saveKeys(input: {
   gemini?: string
   fmcsa?: string

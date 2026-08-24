@@ -11,7 +11,7 @@ import { Button } from '@/components/button'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
-import { saveKeys } from './actions'
+import { saveKeys, testAiKey } from './actions'
 
 function Field({
   label,
@@ -71,6 +71,22 @@ export function KeysForm({
   const [gemini, setGemini] = useState('')
   const [pref, setPref] = useState(status.modelPref)
   const [pending, start] = useTransition()
+  // Результат проверки держим рядом с полем, а не в всплывающем уведомлении: его
+  // читают, сравнивая с тем, что только что вставили.
+  const [check, setCheck] = useState<{ ok: boolean; text: string } | null>(null)
+  const [checking, startCheck] = useTransition()
+
+  function test() {
+    setCheck(null)
+    startCheck(async () => {
+      const res = await testAiKey()
+      setCheck(
+        'error' in res
+          ? { ok: false, text: res.error }
+          : { ok: true, text: t(locale, 'admin.keys.testOk').replace('{model}', res.model) },
+      )
+    })
+  }
 
   function save() {
     start(async () => {
@@ -93,6 +109,14 @@ export function KeysForm({
         onChange={setGemini}
         href="https://aistudio.google.com/apikey"
       />
+      <div className="-mt-2 flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="secondary" disabled={checking} onClick={test}>
+          {checking ? t(locale, 'admin.keys.testing') : t(locale, 'admin.keys.test')}
+        </Button>
+        {check && (
+          <span className={`text-[12px] ${check.ok ? 'text-good-400' : 'text-bad-400'}`}>{check.text}</span>
+        )}
+      </div>
       {/* Проверка брокеров (FMCSA) и платные дороги (HERE) работают на НАШИХ
           ключах, заданных при установке переменными окружения. Полей для них тут
           нет намеренно: клиенту нечего заводить и нечего терять — обе службы
