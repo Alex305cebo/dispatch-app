@@ -99,8 +99,14 @@ export const telegramDict = {
 
   // app/telegram/tg-attach-button.tsx
   'telegram.attach.inLoad': { ru: '✓ В грузе {route} →', en: '✓ On load {route} →' },
+  'telegram.attach.createdLoad': { ru: '✓ Создан груз {route} →', en: '✓ Load created: {route} →' },
+  'telegram.attach.created': { ru: 'Из рейт-кона создан груз {route}', en: 'Rate con turned into load {route}' },
   'telegram.attach.added': { ru: 'Добавлено к грузу {route}', en: 'Added to load {route}' },
   'telegram.attach.adding': { ru: 'Добавляю…', en: 'Adding…' },
+  'telegram.actions.rcSavedNotRead': {
+    ru: 'Рейт-кон сохранён в файлах трака, но прочитать его не удалось. Откройте карточку трака и нажмите «Создать груз из рейт-кона».',
+    en: 'The rate con is saved in the truck files, but could not be read. Open the truck and press "Create load from rate con".',
+  },
   'telegram.attach.toDriverLoad': { ru: '📎 В груз водителя', en: '📎 To driver\'s load' },
 
   // app/telegram/tg-disconnect-button.tsx

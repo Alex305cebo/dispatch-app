@@ -92,10 +92,20 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
         // media gets vision-classified — the dispatcher's own posts file solely by
         // caption, never guessed as a POD/BOL.
         const forced = captionKind(m.text)
-        const kind: DocClass | null = !truck || !load
+        // Рейткон принимается и БЕЗ активного груза: он описывает будущий рейс, а не
+        // текущий. POD и BOL — наоборот, они всегда про тот груз, что трак везёт.
+        const kind: DocClass | null = !truck
           ? null
           : forced ?? (m.mine ? null : await classifyDocument(m.bytes.toString('base64'), m.mime))
-        if (!truck || !load || (kind !== 'pod' && kind !== 'bol' && kind !== 'ratecon')) {
+        // Рейткон НИКОГДА не подшивается к текущему грузу. Он описывает СВОЙ рейс —
+        // водитель присылает бумагу на завтрашний груз, а она вставала документом к
+        // тому, что трак везёт сегодня: в грузе Уолпол→Фредерик лежал рейткон на
+        // Северную Каролину → Флориду. Складываем его к траку без груза, и трак
+        // предлагает «Создать груз из рейт-кона» (components/orphan-ratecons.tsx),
+        // где рейс заводится по самой бумаге.
+        const rcNoLoad = kind === 'ratecon'
+        const target = rcNoLoad ? null : load
+        if (!truck || (!target && !rcNoLoad) || (kind !== 'pod' && kind !== 'bol' && kind !== 'ratecon')) {
           skipped++
         } else {
           // A driver who sends the SAME photo to two dispatchers would otherwise file it
@@ -103,7 +113,7 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
           // sits on it. Cheap; dupes here are rare enough not to warrant an index.
           const dup = (await sql`
             SELECT 1 FROM documents
-            WHERE load_id = ${load.id} AND kind = ${kind} AND size_bytes = ${m.bytes.length}
+            WHERE truck_id = ${truck.truckId} AND kind = ${kind} AND size_bytes = ${m.bytes.length}
               AND deleted_at IS NULL LIMIT 1`) as unknown[]
           if (dup.length) {
             skipped++
@@ -112,14 +122,14 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
             const ext = m.mime.includes('pdf') ? 'pdf' : 'jpg'
             await sql`
               INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data, company_id)
-              VALUES (${load.id}, ${truck.truckId}, ${kind},
+              VALUES (${target ? target.id : null}, ${truck.truckId}, ${kind},
                       ${`${kind.toUpperCase()} #${truck.number} tg.${ext}`}, ${m.mime}, ${m.bytes.length},
                       decode(${hex}, 'hex'), ${REAL})`
             attached++
             // A dispatcher only ever has POD/BOL/rate con, never an "invoice" of their
             // own — the invoice is generated FROM the POD, so once it lands there's no
             // manual step.
-            if (kind === 'pod') await autoInvoiceIfReady(REAL, load.id)
+            if (kind === 'pod' && target) await autoInvoiceIfReady(REAL, target.id)
             // Acknowledge like a human dispatcher would — but only when the DRIVER sent
             // it; acking your own posted rate con would be talking to yourself.
             if (!m.mine) {
@@ -128,7 +138,7 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
                   ? 'POD получил, спасибо 👍'
                   : kind === 'bol'
                     ? 'BOL получил, спасибо'
-                    : 'Рейткон получил, прикрепил к грузу 👍'
+                    : 'Рейткон получил, оформляю груз 👍'
               await tgSend(uid, m.chatId, ack).catch(() => {})
             }
           }
