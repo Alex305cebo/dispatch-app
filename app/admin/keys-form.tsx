@@ -79,7 +79,7 @@ export function KeysForm({
   function test() {
     setCheck(null)
     startCheck(async () => {
-      const res = await testAiKey()
+      const res = await testAiKey(gemini)
       setCheck(
         'error' in res
           ? { ok: false, text: res.error }
@@ -113,6 +113,11 @@ export function KeysForm({
         <Button size="sm" variant="secondary" disabled={checking} onClick={test}>
           {checking ? t(locale, 'admin.keys.testing') : t(locale, 'admin.keys.test')}
         </Button>
+        {/* Что именно проверяется — набранное или сохранённое: без этой подписи
+            «не принят» непонятно к какому ключу относится. */}
+        <span className="text-[11px] text-white/40">
+          {t(locale, gemini.trim() ? 'admin.keys.testTyped' : 'admin.keys.testSaved')}
+        </span>
         {check && (
           <span className={`text-[12px] ${check.ok ? 'text-good-400' : 'text-bad-400'}`}>{check.text}</span>
         )}

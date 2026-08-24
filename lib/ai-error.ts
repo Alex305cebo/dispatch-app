@@ -14,6 +14,10 @@ export type AiFail =
   | 'revoked'
   /** Ключа нет либо он неверный. */
   | 'badkey'
+  /** Ключ настоящий, но в проекте Google не включён Generative Language API. */
+  | 'disabled'
+  /** У ключа стоят ограничения (сайт-источник, IP, список API) — сервер под них не подходит. */
+  | 'restricted'
   /** Модель перегружена или временно недоступна. Помогает просто повтор. */
   | 'busy'
   | 'other'
@@ -23,7 +27,16 @@ export type AiFail =
 export function aiFailKind(status: number, body?: string): AiFail {
   const b = (body ?? '').toLowerCase()
   if (status === 429) return 'quota'
-  if (status === 403) return b.includes('leak') || b.includes('revok') ? 'revoked' : 'badkey'
+  if (status === 403) {
+    if (b.includes('leak') || b.includes('revok')) return 'revoked'
+    // Google отвечает 403 на три разные вещи, и раньше все три читались как
+    // «ключ не принят» — а чинятся они по-разному.
+    if (b.includes('service_disabled') || b.includes('has not been used') || b.includes('is disabled'))
+      return 'disabled'
+    if (b.includes('service_blocked') || b.includes('referer') || b.includes('referrer') || b.includes('ip address'))
+      return 'restricted'
+    return 'badkey'
+  }
   if (status === 400 && b.includes('api key')) return 'badkey'
   if (status === 401) return 'badkey'
   if (status === 503 || status === 500 || status === 502) return 'busy'
@@ -39,6 +52,10 @@ export function aiFailMessage(kind: AiFail, locale: Locale, detail?: string): st
       return t(locale, 'ai.err.revoked')
     case 'badkey':
       return t(locale, 'ai.err.badkey')
+    case 'disabled':
+      return t(locale, 'ai.err.disabled')
+    case 'restricted':
+      return t(locale, 'ai.err.restricted')
     case 'busy':
       return t(locale, 'ai.err.busy')
     default:
@@ -49,7 +66,7 @@ export function aiFailMessage(kind: AiFail, locale: Locale, detail?: string): st
 /** Из нескольких неудач подряд выбирается самая объясняющая: отозванный ключ важнее
  * исчерпанной квоты, квота важнее «модель занята». Иначе в сообщение попадала беда
  * последней модели в списке, а не та, из-за которой всё встало. */
-const RANK: Record<AiFail, number> = { revoked: 4, badkey: 3, quota: 2, busy: 1, other: 0 }
+const RANK: Record<AiFail, number> = { revoked: 6, restricted: 5, disabled: 4, badkey: 3, quota: 2, busy: 1, other: 0 }
 
 export function worstFail(a: AiFail | null, b: AiFail): AiFail {
   if (!a) return b

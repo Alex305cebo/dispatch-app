@@ -83,6 +83,14 @@ export const navDict = {
     ru: 'Google отозвал ключ ИИ (обычно — ключ попал в открытый доступ). Нужен новый ключ: Админ → Ключи.',
     en: 'Google revoked the AI key (usually because it leaked publicly). Create a new one: Admin → Keys.',
   },
+  'ai.err.disabled': {
+    ru: 'Ключ настоящий, но в проекте Google не включён Generative Language API. Проще всего создать ключ прямо в AI Studio (aistudio.google.com/apikey) — там он включается сам.',
+    en: 'The key is real, but the Generative Language API is not enabled in that Google project. Easiest fix: create the key in AI Studio (aistudio.google.com/apikey), which enables it for you.',
+  },
+  'ai.err.restricted': {
+    ru: 'У ключа стоят ограничения (по сайту-источнику, IP или списку API) — сервер под них не подходит. Снимите ограничения либо создайте ключ без них.',
+    en: 'The key has restrictions (HTTP referrer, IP, or API list) the server does not satisfy. Remove them or create an unrestricted key.',
+  },
   'ai.err.badkey': {
     ru: 'Ключ ИИ не принят. Проверьте его в разделе Админ → Ключи.',
     en: 'The AI key was rejected. Check it under Admin → Keys.',

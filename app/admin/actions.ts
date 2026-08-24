@@ -216,10 +216,17 @@ export async function getKeyStatus(): Promise<{
  * ответ приходил в виде красной строки на другом экране через полторы минуты.
  * Запрос крошечный — одно слово, — и на дневной лимит он практически не влияет.
  */
-export async function testAiKey(): Promise<{ ok: true; model: string } | { error: string }> {
+export async function testAiKey(
+  /** Значение из поля, ещё не сохранённое. Проверяем именно его: иначе кнопка
+   * проверяла старый ключ, пока новый стоял рядом набранным, и отвечала «не принят»
+   * про то, что человек уже собрался заменить. Здесь ключ только проверяется и
+   * никуда не записывается. */
+  candidate?: string,
+): Promise<{ ok: true; model: string } | { error: string }> {
   await assertAdmin()
   const locale = await getLocale()
-  const key = await geminiKey()
+  const typed = candidate?.trim()
+  const key = typed && typed !== '-' ? typed : await geminiKey()
   if (!key) return { error: t(locale, 'admin.keys.testNoKey') }
 
   const { AI_MODELS } = await import('@/lib/ratecon-ai-contract')

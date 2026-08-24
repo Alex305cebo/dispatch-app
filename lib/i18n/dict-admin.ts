@@ -27,6 +27,8 @@ export const adminDict = {
   'admin.keys.newPlaceholder': { ru: 'Вставьте ключ', en: 'Paste the key' },
   'admin.keys.replacePlaceholder': { ru: 'Оставьте пустым, чтобы не менять', en: 'Leave empty to keep the current one' },
   'admin.keys.test': { ru: 'Проверить ключ', en: 'Test the key' },
+  'admin.keys.testTyped': { ru: 'проверяю набранный ключ', en: 'testing the typed key' },
+  'admin.keys.testSaved': { ru: 'проверяю сохранённый ключ', en: 'testing the saved key' },
   'admin.keys.testing': { ru: 'Проверяю…', en: 'Testing…' },
   'admin.keys.testOk': { ru: 'Ключ работает, отвечает {model}', en: 'Key works, {model} answered' },
   'admin.keys.testNoKey': { ru: 'Ключ не задан — вставьте его и сохраните.', en: 'No key set — paste one and save.' },
