@@ -48,6 +48,7 @@ export function FleetPanel({
   totals,
   updatedText,
   staleMinutes,
+  between,
 }: {
   markers: MapMarker[]
   routes: MapRoute[]
@@ -56,6 +57,11 @@ export function FleetPanel({
   /** Pre-formatted on the server — "обновлено 3 мин назад" or the no-snapshot line. */
   updatedText: string
   staleMinutes: number | null
+  /** Блоки, которые встают МЕЖДУ счётчиками и списком траков: справочник водителей и
+   * календарь загрузки. Место выбрано не случайно — оба отвечают на вопросы, которые
+   * задают до разбора отдельного трака: «что сказать брокеру» и «кто когда
+   * освободится». За списком карточек их приходилось искать прокруткой. */
+  between?: React.ReactNode
 }) {
   const locale = useLocale()
   const [selected, setSelected] = useState<number | null>(null)
@@ -147,6 +153,8 @@ export function FleetPanel({
           <RefreshFleetButton staleMinutes={staleMinutes} />
         </div>
       </div>
+
+      {between}
 
       <FleetList rows={rows} selectedId={selected} />
     </>

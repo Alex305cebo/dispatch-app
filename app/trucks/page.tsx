@@ -139,9 +139,14 @@ export default async function Page() {
           геокодирование и маршрутизатор: шапка и всё, что ниже, показываются сразу. */}
       <EldLinks count={shareCount} />
       <Suspense fallback={<BoardSkeleton />}>
-        <FleetBoard locale={locale} />
-      </Suspense>
-
+        <FleetBoard
+          locale={locale}
+          // Справочник водителей и календарь загрузки — сразу под картой и
+          // счётчиками, ДО списка траков. Оба отвечают на вопросы, которые задают
+          // раньше разбора отдельной машины: что сказать брокеру и кто когда
+          // освободится. Под списком карточек их приходилось искать прокруткой.
+          between={
+            <>
       {/* Справочник водителей — первым делом на странице. Эти шесть полей брокер
           спрашивает в каждом звонке, а лежали они в четырёх разных местах: имя и
           номер трака на карточке, телефон, прицеп и VIN — внутри «паспорта трака»
@@ -165,28 +170,6 @@ export default async function Page() {
           }
         })}
       />
-
-      {/* Fleet at a glance — the same counters a dispatcher juggles in their head. */}
-      <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-white/8 bg-white/[0.02] px-4 py-3 text-[12.5px]">
-        <span className="flex items-center gap-1.5 text-white/80">
-          <span className="size-2 rounded-full bg-haul-500" /> {busy} {t(locale, 'trucks.page.withLoad')}
-        </span>
-        <span className="flex items-center gap-1.5 text-white/80">
-          <span className="size-2 rounded-full bg-good-500" /> {free} {t(locale, 'trucks.page.free')}
-        </span>
-        {unavailable > 0 && (
-          <span className="flex items-center gap-1.5 text-warn-400">
-            <span className="size-2 rounded-full bg-warn-400" /> {unavailable} {t(locale, 'trucks.page.unavailable')}
-          </span>
-        )}
-        <span className="ml-auto flex items-center gap-1 text-white/45">
-          {t(locale, 'trucks.page.weekGross')}{' '}
-          <span className="nums font-semibold text-white/85">
-            {usd.format(perTruck.reduce((s, x) => s + x.weekGross, 0))}
-          </span>
-          <Info text={t(locale, 'trucks.page.weekGrossInfo')} />
-        </span>
-      </div>
 
       <div className="mb-4">
         <FleetHeatmap
@@ -216,6 +199,32 @@ export default async function Page() {
             }
           })}
         />
+      </div>
+            </>
+          }
+        />
+      </Suspense>
+
+      {/* Fleet at a glance — the same counters a dispatcher juggles in their head. */}
+      <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-white/8 bg-white/[0.02] px-4 py-3 text-[12.5px]">
+        <span className="flex items-center gap-1.5 text-white/80">
+          <span className="size-2 rounded-full bg-haul-500" /> {busy} {t(locale, 'trucks.page.withLoad')}
+        </span>
+        <span className="flex items-center gap-1.5 text-white/80">
+          <span className="size-2 rounded-full bg-good-500" /> {free} {t(locale, 'trucks.page.free')}
+        </span>
+        {unavailable > 0 && (
+          <span className="flex items-center gap-1.5 text-warn-400">
+            <span className="size-2 rounded-full bg-warn-400" /> {unavailable} {t(locale, 'trucks.page.unavailable')}
+          </span>
+        )}
+        <span className="ml-auto flex items-center gap-1 text-white/45">
+          {t(locale, 'trucks.page.weekGross')}{' '}
+          <span className="nums font-semibold text-white/85">
+            {usd.format(perTruck.reduce((s, x) => s + x.weekGross, 0))}
+          </span>
+          <Info text={t(locale, 'trucks.page.weekGrossInfo')} />
+        </span>
       </div>
 
       <div className="stagger grid gap-2.5 sm:grid-cols-2">
