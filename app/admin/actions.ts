@@ -192,18 +192,22 @@ async function demoUrlError(): Promise<string> {
  * back into a page would put it in the HTML, the RSC payload and the browser cache. */
 export async function getKeyStatus(): Promise<{
   gemini: boolean
+  /** 'settings' — введён в приложении, 'env' — старый, из переменной окружения. */
+  geminiSource: 'settings' | 'env' | null
   fmcsa: boolean
   here: boolean
   modelPref: 'saving' | 'quality'
 }> {
   await assertAdmin()
-  const [gemini, fmcsa, here, modelPref] = await Promise.all([
+  const { geminiKeySource } = await import('@/lib/keys')
+  const [gemini, geminiSource, fmcsa, here, modelPref] = await Promise.all([
     geminiKey(),
+    geminiKeySource(),
     fmcsaKey(),
     hereKey(),
     aiModelPref(),
   ])
-  return { gemini: gemini !== '', fmcsa: fmcsa !== '', here: here !== '', modelPref }
+  return { gemini: gemini !== '', geminiSource, fmcsa: fmcsa !== '', here: here !== '', modelPref }
 }
 
 /** Saves the install's own API keys. An empty string means "leave as it is" — the form

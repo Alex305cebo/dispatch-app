@@ -26,6 +26,10 @@ export const adminDict = {
   'admin.keys.where': { ru: 'где взять →', en: 'where to get it →' },
   'admin.keys.newPlaceholder': { ru: 'Вставьте ключ', en: 'Paste the key' },
   'admin.keys.replacePlaceholder': { ru: 'Оставьте пустым, чтобы не менять', en: 'Leave empty to keep the current one' },
+  'admin.keys.fromEnv': {
+    ru: 'Сейчас работает ключ из переменной окружения хостинга — тот, что задавали при установке. Ключ, введённый здесь, заменит его, но только ПОСЛЕ нажатия «Сохранить».',
+    en: 'The key in use right now comes from the hosting environment variable — the one set at install time. A key entered here replaces it, but only AFTER you press Save.',
+  },
   'admin.keys.test': { ru: 'Проверить ключ', en: 'Test the key' },
   'admin.keys.testTyped': { ru: 'проверяю набранный ключ', en: 'testing the typed key' },
   'admin.keys.testSaved': { ru: 'проверяю сохранённый ключ', en: 'testing the saved key' },

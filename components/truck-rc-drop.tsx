@@ -94,11 +94,19 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
         setStage(t(locale, 'rcDrop.stageSaving'))
         const fd = new FormData()
         fd.append('file', file)
-        fd.append('kind', cls)
+        // Тип не определён — кладём как «Другое», но НЕ выдаём это за распознавание:
+        // ниже об этом говорится прямо, чтобы ярлык не принимали за прочитанный тип.
+        fd.append('kind', cls ?? 'other')
         fd.append('truckId', String(truckId))
         const up = await uploadDocument(fd)
         if ('error' in up) throw new Error(up.error)
-        notify('ok', t(locale, 'rcDrop.savedAsKind').replace('{kind}', docKindLabel(cls, locale)), file.name)
+        notify(
+          cls ? 'ok' : 'warn',
+          cls
+            ? t(locale, 'rcDrop.savedAsKind').replace('{kind}', docKindLabel(cls, locale))
+            : t(locale, 'rcDrop.savedUnknownKind'),
+          file.name,
+        )
         return
       }
 

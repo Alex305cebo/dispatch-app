@@ -307,6 +307,10 @@ export const loadsDict = {
   'rcDrop.stageRetrying': { ru: 'Не получилось с первого раза — пробую ещё раз…', en: "Didn't work the first time — trying again…" },
   'rcDrop.stageCreating': { ru: 'Создаю груз…', en: 'Creating load…' },
   'rcDrop.createdToast': { ru: 'Груз создан из rate con', en: 'Load created from the rate con' },
+  'rcDrop.savedUnknownKind': {
+    ru: 'Тип определить не удалось — ИИ недоступен. Файл сохранён в трак как «Другое»; поправьте тип в списке документов.',
+    en: 'Could not determine the type — the AI is unavailable. Saved to the truck as "Other"; fix the type in the documents list.',
+  },
   'rcDrop.savedAsKind': { ru: 'Распознано как {kind} — сохранено в трак', en: 'Recognized as {kind} — saved to the truck' },
   'rcDrop.createdBadge': { ru: '✓ Груз создан · проверено ИИ', en: '✓ Load created · AI checked' },
   'rcDrop.openLoad': { ru: 'Открыть груз', en: 'Open load' },

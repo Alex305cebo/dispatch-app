@@ -663,12 +663,16 @@ const MAX_DOC_BYTES = 8 * 1024 * 1024
 /** Vision-classify an uploaded document (base64) into a doc kind before deciding what to do
  * with it — so a BOL dropped on the truck card is filed as a BOL, not force-labelled a rate
  * con. Degrades to 'other' with no AI key; never throws. */
-export async function classifyDoc(base64: string, mime: string, filename?: string): Promise<DocClass> {
+export async function classifyDoc(
+  base64: string,
+  mime: string,
+  filename?: string,
+): Promise<DocClass | null> {
   const { classifyDocument } = await import('@/lib/ai-doc')
-  // null значит «определить не удалось» (нет ключа, кончился дневной лимит). Здесь
-  // это по-прежнему 'other': загрузка руками не должна падать из-за квоты — файл
-  // сохранится, тип диспетчер поправит на месте.
-  return (await classifyDocument(base64, mime, filename)) ?? 'other'
+  // null — «определить не удалось» (ключ мёртв, кончился дневной лимит). Наверх это
+  // уходит как есть: раньше здесь стояло 'other', и файл получал ярлык «Другое», хотя
+  // его никто не смотрел. Ярлык врал, а по нему потом искали.
+  return classifyDocument(base64, mime, filename)
 }
 
 /**

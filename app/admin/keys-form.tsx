@@ -65,7 +65,13 @@ function Field({
 export function KeysForm({
   status,
 }: {
-  status: { gemini: boolean; fmcsa: boolean; here: boolean; modelPref: 'saving' | 'quality' }
+  status: {
+    gemini: boolean
+    geminiSource: 'settings' | 'env' | null
+    fmcsa: boolean
+    here: boolean
+    modelPref: 'saving' | 'quality'
+  }
 }) {
   const locale = useLocale()
   const [gemini, setGemini] = useState('')
@@ -109,6 +115,13 @@ export function KeysForm({
         onChange={setGemini}
         href="https://aistudio.google.com/apikey"
       />
+      {/* Ключ из переменной окружения — почти всегда тот, что ставили при установке.
+          Пока он там, набранное в поле не действует: действует сохранённое. */}
+      {status.geminiSource === 'env' && (
+        <p className="-mt-2 rounded-lg border border-warn-400/25 bg-warn-400/[0.07] px-2.5 py-1.5 text-[11.5px] leading-snug text-warn-400">
+          {t(locale, 'admin.keys.fromEnv')}
+        </p>
+      )}
       <div className="-mt-2 flex flex-wrap items-center gap-2">
         <Button size="sm" variant="secondary" disabled={checking} onClick={test}>
           {checking ? t(locale, 'admin.keys.testing') : t(locale, 'admin.keys.test')}

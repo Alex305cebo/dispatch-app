@@ -23,6 +23,18 @@ async function keyFrom(settingKey: string, envValue: string | undefined): Promis
   return (stored ?? '').trim() || (envValue ?? '').trim()
 }
 
+/** Откуда взят ключ: из настроек приложения или из переменной окружения хостинга.
+ *
+ * Экран «Ключи» показывал «задан» в обоих случаях, и это оказалось ловушкой: человек
+ * создал новый ключ, вставил в поле, но не сохранил — приложение продолжало работать
+ * на СТАРОМ ключе из переменной окружения, а надпись «задан» подтверждала, что всё в
+ * порядке. Теперь видно, какой именно ключ сейчас в деле. */
+export async function geminiKeySource(): Promise<'settings' | 'env' | null> {
+  const stored = (await getSetting('gemini_api_key'))?.trim()
+  if (stored) return 'settings'
+  return (process.env.GEMINI_API_KEY ?? '').trim() ? 'env' : null
+}
+
 /** Google AI key — rate-con parsing and document classification. '' when unset, which
  * every call site already handles by degrading instead of throwing. */
 export function geminiKey(): Promise<string> {
