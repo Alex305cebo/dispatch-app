@@ -21,7 +21,8 @@ export function DeleteButton({
   id: number
   title: string
   note?: string // e.g. "and its calculations will be gone for good."
-}) {  const locale = useLocale()
+}) {
+  const locale = useLocale()
   const [open, setOpen] = useState(false)
   const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
@@ -77,6 +78,14 @@ export function DeleteButton({
               />
             </div>
             {err && <p className="mt-2 text-[12.5px] text-bad-400">{err}</p>}
+            {/* Подсказка только после ошибки: спрашивают тут пароль от ВХОДА, а
+                привычка тянет набрать старый короткий PIN — по одному «Неверный
+                пароль» этого не понять. */}
+            {err && (
+              <p className="mt-1 text-[11.5px] leading-relaxed text-white/45">
+                {t(locale, 'deleteButton.wrongHint')}
+              </p>
+            )}
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setOpen(false)}>
                 {t(locale, 'common.cancel')}

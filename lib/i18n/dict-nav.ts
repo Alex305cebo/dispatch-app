@@ -76,7 +76,11 @@ export const navDict = {
     ru: 'Введи свой пароль — тот, которым входишь. Запись, кто удалил, останется в Журнале.',
     en: 'Enter your own login password. A record of who deleted it stays in the Log.',
   },
-  'deleteButton.passwordPlaceholder': { ru: 'Твой пароль', en: 'Your password' },
+  'deleteButton.passwordPlaceholder': { ru: 'Пароль от входа в приложение', en: 'Your app sign-in password' },
+  'deleteButton.wrongHint': {
+    ru: 'Это пароль, которым вы входите в приложение, а не старый PIN. Забыли — Админ → Люди → сбросить пароль.',
+    en: 'This is the password you sign in with, not the old PIN. Forgot it? Admin → People → reset password.',
+  },
   'deleteButton.deleted': { ru: 'Удалено', en: 'Deleted' },
 
   'session.expired': { ru: 'Сессия истекла — войди заново.', en: 'Your session expired — sign in again.' },
