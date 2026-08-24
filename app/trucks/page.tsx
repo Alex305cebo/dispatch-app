@@ -3,6 +3,9 @@ import { Fuel, Plus } from 'lucide-react'
 import { Button } from '@/components/button'
 import { LinkPending } from '@/components/link-pending'
 import Link from 'next/link'
+import { Suspense } from 'react'
+import { EldLinks } from '@/components/eld-links'
+import { BoardSkeleton, FleetBoard } from './fleet-board'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { currentLoadsByTruck, truckLabel } from '@/lib/map'
 import { FleetHeatmap } from '@/components/fleet-heatmap'
@@ -65,6 +68,10 @@ export default async function Page() {
   // truck_meta (lib/maintenance.ts), так что это был отдельный круг в базу за тем,
   // что и так приезжало. На главной он оправдан — там truckMetas не грузится.
   const user = await getCurrentUser()
+  // Сколько ссылок Live Share заведено — подпись блока ELD, переехавшего сюда
+  // вместе с картой. Одно чтение настройки, оно и так кэшируется.
+  const shareRaw = await getSetting('eld_share_tokens')
+  const shareCount = shareRaw ? (JSON.parse(shareRaw) as string[]).length : 0
   const [trucks, company, metas, todoCounts, fleetRaw, dispatcherPhone] = await Promise.all([
     listTrucks(companyId),
     getCompany(),
@@ -125,6 +132,15 @@ export default async function Page() {
           {t(locale, 'trucks.page.addTruck')}
         </Button>
       </div>
+
+      {/* Живая часть парка — первым делом: карта, счётчики и список «где сейчас».
+          Раньше это был отдельный раздел «Трекинг», и один и тот же трак жил на двух
+          экранах разными половинами. Своя Suspense-граница, потому что здесь ждут
+          геокодирование и маршрутизатор: шапка и всё, что ниже, показываются сразу. */}
+      <EldLinks count={shareCount} />
+      <Suspense fallback={<BoardSkeleton />}>
+        <FleetBoard locale={locale} />
+      </Suspense>
 
       {/* Справочник водителей — первым делом на странице. Эти шесть полей брокер
           спрашивает в каждом звонке, а лежали они в четырёх разных местах: имя и

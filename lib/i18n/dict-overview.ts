@@ -75,7 +75,7 @@ export const overviewDict = {
     ru: 'Все траки с живыми данными: где сейчас трак и сколько он заработал за неделю. Кружок слева — статус движения по GPS: зелёный едет, синий on-duty, серый стоит. Нажми на трак — вся его карточка.',
     en: "Every truck with live data: where it is now and what it earned this week. The dot on the left is GPS movement status: green is driving, blue is on-duty, gray is stopped. Click a truck for its full card.",
   },
-  'overview.trackingLink': { ru: 'Трекинг →', en: 'Tracking →' },
+  'overview.trackingLink': { ru: 'Весь парк →', en: 'Whole fleet →' },
   'overview.repair': { ru: '🔧 ремонт', en: '🔧 repair' },
   'overview.onVacation': { ru: '🌴 отпуск', en: '🌴 vacation' },
   'overview.trailer': { ru: 'Трейлер {n} · ', en: 'Trailer {n} · ' },

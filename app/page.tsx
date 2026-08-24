@@ -310,7 +310,7 @@ export default async function Page() {
             info={tr(locale, 'overview.inWorkInfo')}
           />
           <Stat
-            href="/tracking"
+            href="/trucks"
             icon={<Route size={15} strokeWidth={2.5} />}
             accent="haul"
             label={tr(locale, 'overview.totalMiles')}
@@ -367,7 +367,7 @@ export default async function Page() {
           {tr(locale, 'overview.fleetHeading')}
           <Info text={tr(locale, 'overview.fleetInfo')} />
         </h2>
-        <Link href="/tracking" className="text-[12px] text-haul-400 hover:underline">
+        <Link href="/trucks" className="text-[12px] text-haul-400 hover:underline">
           {tr(locale, 'overview.trackingLink')}
         </Link>
       </div>

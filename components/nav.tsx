@@ -99,7 +99,6 @@ const ITEMS: Item[] = [
   { href: '/', labelKey: 'nav.overview', icon: 'dash' },
   { href: '/loads', labelKey: 'nav.loads', icon: 'loads' },
   { href: '/trucks', labelKey: 'nav.trucks', icon: 'settings' },
-  { href: '/tracking', labelKey: 'nav.tracking', icon: 'track' },
   { href: '/docs', labelKey: 'nav.docs', icon: 'docs' },
   // Брокеры, Толлы и Финансы раньше были только на десктопе: в панель телефона
   // влезало шесть пунктов, и лишние просто прятали. На телефоне до них не было

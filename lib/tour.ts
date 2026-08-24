@@ -43,7 +43,9 @@ const STEPS: Def[] = [
   { key: 'truckCard', href: '/trucks', target: '', image: 'truck-detail' },
   { key: 'loads', href: '/loads/new', target: 'nav-loads', image: 'load-new' },
   { key: 'loadCard', href: '/loads', target: '', image: 'load-detail' },
-  { key: 'tracking', href: '/tracking', target: 'nav-tracking', image: 'tracking' },
+  // Раздел слился с «Траками» — шаг остаётся (карта и живой список никуда не
+  // делись), но ведёт туда же, куда теперь ведёт меню.
+  { key: 'tracking', href: '/trucks', target: 'nav-trucks', image: 'tracking' },
   { key: 'docs', href: '/docs', target: 'nav-docs', image: 'docs' },
   { key: 'brokers', href: '/brokers', target: '', image: 'brokers' },
   { key: 'tolls', href: '/tolls', target: '', image: 'tolls' },
