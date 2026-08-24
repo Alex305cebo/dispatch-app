@@ -60,6 +60,51 @@ export async function saveDispatcherPhone(phone: string): Promise<{ error: strin
   revalidatePath('/trucks')
 }
 
+/** Поиск брокера по названию — когда MC на бумаге не напечатан. Возвращает
+ * кандидатов из FMCSA; выбирает человек. */
+export async function findBrokerByName(name: string) {
+  const { searchByName } = await import('@/lib/fmcsa')
+  return searchByName(name, await getLocale())
+}
+
+/**
+ * Контакты этого же брокера с ПРОШЛЫХ грузов: почта для счёта, телефон, MC.
+ *
+ * В FMCSA почты нет вовсе — там только регистрационные данные, — поэтому адрес,
+ * куда слать инвойс, живёт ровно в одном месте: в наших же прошлых грузах. Один раз
+ * вписали, дальше подставляется само.
+ */
+export async function brokerContactsFromHistory(
+  name: string | null,
+  mc: string | null,
+): Promise<{ email: string | null; phone: string | null; mc: string | null; payVia: string | null }> {
+  const companyId = await companyScope()
+  const key = (name ?? '').trim().toLowerCase()
+  const mcDigits = (mc ?? '').replace(/\D/g, '')
+  if (!key && !mcDigits) return { email: null, phone: null, mc: null, payVia: null }
+  const rows = (await sql`
+    SELECT broker_email, broker_phone, broker_mc, pay_via FROM loads
+    WHERE company_id = ${companyId}
+      AND (
+        (${mcDigits} <> '' AND regexp_replace(coalesce(broker_mc, ''), '\D', '', 'g') = ${mcDigits})
+        OR (${key} <> '' AND lower(coalesce(broker_name, '')) = ${key})
+      )
+    ORDER BY created_at DESC`) as {
+    broker_email: string | null
+    broker_phone: string | null
+    broker_mc: string | null
+    pay_via: string | null
+  }[]
+  const first = <T,>(pick: (r: (typeof rows)[number]) => T | null): T | null =>
+    rows.map(pick).find((v) => v != null && String(v).trim() !== '') ?? null
+  return {
+    email: first((r) => r.broker_email),
+    phone: first((r) => r.broker_phone),
+    mc: first((r) => r.broker_mc),
+    payVia: first((r) => r.pay_via),
+  }
+}
+
 /** Manual broker lookup from the Brokers page — by MC or DOT number. */
 export async function runBrokerCheck(
   by: 'mc' | 'dot',

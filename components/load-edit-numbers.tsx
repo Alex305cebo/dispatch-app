@@ -6,7 +6,7 @@ import { Button } from '@/components/button'
 // feed the profit calc, so saving refreshes the page with new numbers.
 
 import { useState, useTransition } from 'react'
-import { updateLoadDetails } from '@/app/actions'
+import { brokerContactsFromHistory, findBrokerByName, runBrokerCheck, updateLoadDetails } from '@/app/actions'
 import { usd, usd2 } from '@/lib/fmt'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
@@ -35,7 +35,8 @@ export type LoadDetails = {
 }
 
 export function LoadEditNumbers({ load }: { load: LoadDetails }) {
-  const locale = useLocale()  const [editing, setEditing] = useState(false)
+  const locale = useLocale()
+  const [editing, setEditing] = useState(false)
   const [pending, start] = useTransition()
 
   // Form state as strings (inputs), seeded from the load.
@@ -54,6 +55,57 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
   })
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setF({ ...f, [k]: e.target.value })
+
+  // Поиск MC по названию. MC печатают не все брокеры, а без него ни проверить
+  // контору, ни выставить счёт; название на бумаге есть всегда.
+  const [hits, setHits] = useState<
+    { dot: string; legalName: string; dbaName: string | null; city: string | null; state: string | null; active: boolean }[]
+  >([])
+  const [lookup, startLookup] = useTransition()
+
+  function findMc() {
+    setHits([])
+    startLookup(async () => {
+      const res = await findBrokerByName(f.brokerName)
+      if ('error' in res) {
+        notify('error', res.error)
+        return
+      }
+      setHits(res.results)
+    })
+  }
+
+  /** Выбрали компанию — достаём её MC (по DOT, уже существующей проверкой). */
+  function pick(dot: string, legalName: string) {
+    startLookup(async () => {
+      const res = await runBrokerCheck('dot', dot)
+      if ('error' in res) {
+        notify('error', res.error)
+        return
+      }
+      setF((prev) => ({ ...prev, brokerMc: res.mc ?? prev.brokerMc, brokerName: legalName || prev.brokerName }))
+      setHits([])
+      if (!res.mc) notify('warn', t(locale, 'loadEdit.noMcForCompany'))
+    })
+  }
+
+  // Почты в FMCSA нет вовсе, поэтому адрес для счёта берётся из наших же прошлых
+  // грузов этого брокера: один раз вписали — дальше подставляется.
+  function fromHistory() {
+    startLookup(async () => {
+      const h = await brokerContactsFromHistory(f.brokerName || load.brokerName, f.brokerMc || load.brokerMc)
+      if (!h.email && !h.phone && !h.mc) {
+        notify('warn', t(locale, 'loadEdit.nothingInHistory'))
+        return
+      }
+      setF((prev) => ({
+        ...prev,
+        brokerEmail: prev.brokerEmail || h.email || '',
+        brokerPhone: prev.brokerPhone || h.phone || '',
+        brokerMc: prev.brokerMc || h.mc || '',
+      }))
+    })
+  }
 
   function save() {
     start(async () => {
@@ -113,7 +165,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
             href={load.brokerPhone ? `tel:${load.brokerPhone}` : undefined}
           />
           <Row
-            label="Email"
+            label={t(locale, 'loadEdit.invoiceTo')}
             value={load.brokerEmail ?? '—'}
             href={load.brokerEmail ? `mailto:${load.brokerEmail}` : undefined}
           />
@@ -144,6 +196,46 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
         <Field label={t(locale, 'loadEdit.brokerName')} value={f.brokerName} onChange={set('brokerName')} text />
         <Field label={t(locale, 'loadEdit.brokerMc')} value={f.brokerMc} onChange={set('brokerMc')} text />
       </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="secondary" disabled={lookup || f.brokerName.trim().length < 3} onClick={findMc}>
+          {lookup ? t(locale, 'loadEdit.findingMc') : t(locale, 'loadEdit.findMc')}
+        </Button>
+        <Button size="sm" variant="secondary" disabled={lookup} onClick={fromHistory}>
+          {t(locale, 'loadEdit.fromHistory')}
+        </Button>
+      </div>
+
+      {hits.length > 0 && (
+        <div className="rounded-xl border border-white/10 bg-ink-950/60 p-2">
+          <p className="px-1 pb-1 text-[11px] text-white/45">{t(locale, 'loadEdit.pickCompany')}</p>
+          <div className="flex flex-col gap-1">
+            {/* Выбирает человек: у крупного брокера в реестре десятки строк —
+                перевозчик, брокерская контора, дочерние фирмы, — и подставить
+                наугад значит отправить счёт не туда. */}
+            {hits.map((h) => (
+              <button
+                key={h.dot}
+                type="button"
+                disabled={lookup}
+                onClick={() => pick(h.dot, h.legalName)}
+                className="rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/8 disabled:opacity-50"
+              >
+                <span className="block truncate text-[12.5px] font-medium text-white/85">
+                  {h.legalName}
+                  {h.dbaName ? ` (dba ${h.dbaName})` : ''}
+                </span>
+                <span className="block truncate text-[11px] text-white/45">
+                  DOT {h.dot}
+                  {h.city ? ` · ${h.city}, ${h.state ?? ''}` : ''}
+                  {h.active ? '' : ` · ${t(locale, 'loadEdit.notAllowed')}`}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3">
         <Field label={t(locale, 'loadEdit.phone')} value={f.brokerPhone} onChange={set('brokerPhone')} text />
         <Field label="Email" value={f.brokerEmail} onChange={set('brokerEmail')} text />

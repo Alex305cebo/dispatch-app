@@ -236,6 +236,56 @@ export async function checkBroker(
 
 /** Check a broker by USDOT number. Resolves the MC docket so DOT and MC lookups
  * share one cache row. */
+export type NameHit = {
+  dot: string
+  legalName: string
+  dbaName: string | null
+  city: string | null
+  state: string | null
+  /** Разрешено ли работать прямо сейчас — по нему сразу видно живую контору. */
+  active: boolean
+}
+
+/**
+ * Поиск компании в FMCSA ПО НАЗВАНИЮ.
+ *
+ * Зачем: MC на рейт-коне печатают не все, а без него ни проверить брокера, ни
+ * выставить счёт. Название же есть всегда — с него и ищем. Дальше по найденному DOT
+ * работает обычная проверка (checkBrokerByDot), которая сама достаёт номер MC.
+ *
+ * У крупных брокеров в реестре десятки строк (перевозчик, брокерская контора,
+ * дочерние фирмы), поэтому выбирает человек, а не мы за него: подставить наугад —
+ * это счёт не туда.
+ */
+export async function searchByName(
+  nameRaw: string,
+  locale: Locale = 'en',
+): Promise<{ results: NameHit[] } | { error: string }> {
+  const name = nameRaw.trim()
+  if (name.length < 3) return { error: t(locale, 'fmcsa.nameTooShort') }
+  const key = await fmcsaKey()
+  if (!key) return { error: 'no_key' }
+
+  const data = await fmcsaGet(`carriers/name/${encodeURIComponent(name)}`, key)
+  const list: any[] = Array.isArray(data?.content) ? data.content : data?.content ? [data.content] : []
+  const results: NameHit[] = list
+    .map((row: any) => row?.carrier ?? row)
+    .filter((rec: any) => rec?.dotNumber)
+    .map((rec: any) => ({
+      dot: String(rec.dotNumber),
+      legalName: rec.legalName ?? '—',
+      dbaName: rec.dbaName ?? null,
+      city: rec.phyCity ?? null,
+      state: rec.phyState ?? null,
+      active: rec.allowedToOperate === 'Y' || rec.statusCode === 'A',
+    }))
+    // Работающие сверху: мёртвые записи в реестре живут вечно и путают выбор.
+    .sort((a: NameHit, b: NameHit) => Number(b.active) - Number(a.active))
+    .slice(0, 10)
+  if (!results.length) return { error: t(locale, 'fmcsa.nameNotFound').replace('{name}', name) }
+  return { results }
+}
+
 export async function checkBrokerByDot(
   dotRaw: string,
   ctx: RcContext = {},
