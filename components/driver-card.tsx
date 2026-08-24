@@ -10,6 +10,7 @@ import { saveDriverInfo, saveDriverPhoto } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { Info } from '@/components/info'
 import { DriverAvatar } from '@/components/driver-avatar'
+import { infoBlock } from '@/components/driver-directory'
 import { t, type Locale } from '@/lib/i18n'
 
 export function DriverCard({
@@ -19,6 +20,10 @@ export function DriverCard({
   cdlExpiry,
   medcardExpiry,
   hasPhoto,
+  truckNumber,
+  trailerNumber,
+  vin,
+  broker,
   embedded,
   locale = 'en',
 }: {
@@ -28,10 +33,19 @@ export function DriverCard({
   cdlExpiry: string | null
   medcardExpiry: string | null
   hasPhoto: boolean
+  /** Номер трака, прицепа и VIN. Брокер спрашивает их в каждом звонке вместе с
+   * именем и телефоном, а лежали они на другой странице — в паспорте трака. */
+  truckNumber?: string | null
+  trailerNumber?: string | null
+  vin?: string | null
+  /** Компания и диспетчер — вторая половина блока, который уходит брокеру. Без них
+   * кнопка «скопировать» не показывается: половина блока хуже, чем его отсутствие. */
+  broker?: { mc: string; companyName: string; dispatcherName: string; dispatcherPhone: string }
   /** Nested inside another panel (the truck hero) — no own border/background, no header. */
   embedded?: boolean
   locale?: Locale
-}) {  const [editing, setEditing] = useState(false)
+}) {
+  const [editing, setEditing] = useState(false)
   const [pending, start] = useTransition()
   const [photoPending, startPhoto] = useTransition()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -79,12 +93,39 @@ export function DriverCard({
           {!embedded && <Info text={t(locale, 'trucks.driverCard.info')} />}
         </h2>
         {!editing && (
-          <button
-            onClick={() => setEditing(true)}
-            className="rounded-lg border border-white/10 px-3 py-1 text-[12px] font-medium text-white/70 transition-colors hover:border-white/25 hover:text-white"
-          >
-            {name || phone ? t(locale, 'trucks.driverCard.edit') : t(locale, 'trucks.driverCard.fill')}
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Готовый блок для брокера — тот же текст, что на странице «Траки»:
+                один формат в двух местах, иначе брокер получал бы разные письма. */}
+            {broker && (
+              <button
+                onClick={() =>
+                  copyText(
+                    infoBlock(
+                      {
+                        truckId,
+                        driverName: name,
+                        driverPhone: phone,
+                        truckNumber: truckNumber ?? null,
+                        trailerNumber: trailerNumber ?? null,
+                        vin: vin ?? null,
+                      },
+                      broker,
+                    ),
+                    t(locale, 'trucks.driverCard.copied'),
+                  )
+                }
+                className="rounded-lg border border-white/10 px-3 py-1 text-[12px] font-medium text-white/70 transition-colors hover:border-white/25 hover:text-white"
+              >
+                {t(locale, 'trucks.driverCard.copyForBroker')}
+              </button>
+            )}
+            <button
+              onClick={() => setEditing(true)}
+              className="rounded-lg border border-white/10 px-3 py-1 text-[12px] font-medium text-white/70 transition-colors hover:border-white/25 hover:text-white"
+            >
+              {name || phone ? t(locale, 'trucks.driverCard.edit') : t(locale, 'trucks.driverCard.fill')}
+            </button>
+          </div>
         )}
       </div>
 
@@ -155,9 +196,14 @@ export function DriverCard({
               onChange={(e) => pickPhoto(e.target.files?.[0])}
             />
           </label>
+          {/* Порядок строк — как в блоке для брокера: имя, телефон, трак, прицеп,
+              VIN. Дальше сроки документов, они нужны не брокеру, а нам. */}
           <dl className="grid flex-1 grid-cols-2 gap-x-4 gap-y-1.5 text-[13px] sm:grid-cols-4">
             <Row label={t(locale, 'trucks.driverCard.nameRowLabel')} value={name || '—'} />
             <Row label={t(locale, 'trucks.driverCard.phoneRowLabel')} value={phone || '—'} href={phone ? `tel:${phone}` : undefined} />
+            <Row label={t(locale, 'trucks.driverCard.truckRowLabel')} value={truckNumber || '—'} />
+            <Row label={t(locale, 'trucks.driverCard.trailerRowLabel')} value={trailerNumber || '—'} />
+            <Row label={t(locale, 'trucks.driverCard.vinRowLabel')} value={vin || '—'} />
             <Row label={t(locale, 'trucks.driverCard.cdlLabel')} value={cdlExpiry || '—'} />
             <Row label={t(locale, 'trucks.driverCard.medcardLabel')} value={medcardExpiry || '—'} />
           </dl>
@@ -165,6 +211,15 @@ export function DriverCard({
       )}
     </Wrap>
   )
+}
+
+/** Буфер закрыт (нет https или отказано в разрешении) — молчать нельзя, иначе
+ * человек решит, что скопировалось, и отправит брокеру пустоту. */
+function copyText(text: string, okMessage: string) {
+  navigator.clipboard
+    .writeText(text)
+    .then(() => notify('ok', okMessage))
+    .catch(() => notify('warn', text))
 }
 
 // Was nested inside DriverCard — a new function identity every render, so React

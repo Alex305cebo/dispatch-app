@@ -318,6 +318,11 @@ export const trucksDict = {
   'trucks.driverCard.phoneLabel': { ru: 'Телефон', en: 'Phone' },
   'trucks.driverCard.cdlLabel': { ru: 'CDL до', en: 'CDL until' },
   'trucks.driverCard.medcardLabel': { ru: 'Медкарта до', en: 'Medical card until' },
+  'trucks.driverCard.truckRowLabel': { ru: 'ТРАК', en: 'TRUCK' },
+  'trucks.driverCard.trailerRowLabel': { ru: 'ТРЕЙЛЕР', en: 'TRAILER' },
+  'trucks.driverCard.vinRowLabel': { ru: 'VIN ТРАКА', en: 'TRUCK VIN' },
+  'trucks.driverCard.copyForBroker': { ru: 'Скопировать для брокера', en: 'Copy for broker' },
+  'trucks.driverCard.copied': { ru: 'Данные водителя скопированы', en: 'Driver info copied' },
   'trucks.driverCard.nameRowLabel': { ru: 'Имя', en: 'Name' },
   'trucks.driverCard.phoneRowLabel': { ru: 'Телефон', en: 'Phone' },
 

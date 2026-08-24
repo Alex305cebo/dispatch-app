@@ -28,7 +28,9 @@ import { TripHistoryPanel } from '@/components/trip-history-panel'
 import { SmallRefreshButton } from '@/components/small-refresh-button'
 import { TruckAvailability } from '@/components/truck-availability'
 import { Info } from '@/components/info'
-import { companyScope } from '@/lib/session'
+import { companyScope, getCurrentUser } from '@/lib/session'
+import { getCompany } from '@/lib/invoice'
+import { dispatcherPhoneKey, getSetting } from '@/lib/settings'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 
@@ -60,16 +62,23 @@ export default async function Page({
   const historyWindow =
     HISTORY_WINDOWS.find((w) => w.hours === requestedHours) ?? HISTORY_WINDOWS[0]
 
-  const [loads, meta, records, todos, fleet, docs, rateCons, history] = await Promise.all([
-    listLoads(companyId, { truckId: truck.id }),
-    getTruckMeta(truck.id),
-    listMaintenance(truck.id),
-    listTodos(truck.id),
-    fleetStatusByUnit(),
-    listDocs(companyId, { truckId: truck.id }),
-    rateConByLoad(companyId),
-    truck.number ? tripHistory(truck.number, historyWindow.hours) : Promise.resolve([]),
-  ])
+  // Компания, диспетчер и его телефон — для готового блока «Driver Info», который
+  // диспетчер копирует брокеру прямо из карточки водителя. Оба запроса кэшированы и
+  // идут в общей пачке, отдельного захода в базу это не стоит.
+  const user = await getCurrentUser()
+  const [loads, meta, records, todos, fleet, docs, rateCons, history, company, dispatcherPhone] =
+    await Promise.all([
+      listLoads(companyId, { truckId: truck.id }),
+      getTruckMeta(truck.id),
+      listMaintenance(truck.id),
+      listTodos(truck.id),
+      fleetStatusByUnit(),
+      listDocs(companyId, { truckId: truck.id }),
+      rateConByLoad(companyId),
+      truck.number ? tripHistory(truck.number, historyWindow.hours) : Promise.resolve([]),
+      getCompany(),
+      user ? getSetting(dispatcherPhoneKey(user.id)) : Promise.resolve(null),
+    ])
   const fs = truck.number ? fleet.get(truck.number) : undefined
 
   const live = loads.filter((l) => l.status !== 'cancelled')
@@ -280,6 +289,17 @@ export default async function Page({
             cdlExpiry={meta?.cdlExpiry ?? null}
             medcardExpiry={meta?.medcardExpiry ?? null}
             hasPhoto={meta?.hasPhoto ?? false}
+            truckNumber={truck.number}
+            trailerNumber={meta?.trailerNumber ?? null}
+            vin={meta?.vin ?? null}
+            broker={{
+              // MC печатается без приставки: в блоке для брокера строка уже
+              // начинается с «MC - », и «MC - MC 626911» читалось бы как ошибка.
+              mc: company.mcdot.replace(/^MC[\s#-]*/i, ''),
+              companyName: company.name,
+              dispatcherName: user?.name ?? '',
+              dispatcherPhone: dispatcherPhone ?? '',
+            }}
             embedded
             locale={locale}
           />
