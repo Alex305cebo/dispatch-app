@@ -115,3 +115,58 @@ test('отрицательные толлы отвергаются, а не ти
     calcLoad({ rate: 2400, loadedMiles: 1000, deadheadMiles: 100, transitDays: 2, tolls: -50 }, cpmTruck),
   )
 })
+
+test('порожние мили: доля и цена считаются по тем же ставкам, что и рейс', () => {
+  const load = { rate: 2000, loadedMiles: 800, deadheadMiles: 200, transitDays: 2 }
+  const cpm = calcLoad(load, {
+    mpg: 6,
+    fuelPricePerGallon: 4.2,
+    driverPay: { mode: 'cpm', centsPerMile: 60 },
+    maintenanceCostPerMile: 0.15,
+    truckPaymentPerDay: 60,
+    insurancePerDay: 40,
+    eldPermitsPerDay: 8,
+    factoringPercent: 2,
+    dispatchPercent: 4,
+  })
+  assert.equal(cpm.deadheadMiles, 200)
+  assert.equal(Math.round(cpm.deadheadPercent), 20) // 200 из 1000
+  // 200 миль × (4.2/6 топливо + 0.15 обслуживание + 0.60 водителю) = 290
+  assert.equal(Math.round(cpm.deadheadCost), 290)
+})
+
+test('при проценте от гросса порожняк не тянет зарплату водителя', () => {
+  const load = { rate: 2000, loadedMiles: 800, deadheadMiles: 200, transitDays: 2 }
+  const pct = calcLoad(load, {
+    mpg: 6,
+    fuelPricePerGallon: 4.2,
+    driverPay: { mode: 'percent', percentOfGross: 25 },
+    maintenanceCostPerMile: 0.15,
+    truckPaymentPerDay: 60,
+    insurancePerDay: 40,
+    eldPermitsPerDay: 8,
+    factoringPercent: 2,
+    dispatchPercent: 4,
+  })
+  // 200 × (0.7 + 0.15) = 170 — без зарплаты, она считается от ставки
+  assert.equal(Math.round(pct.deadheadCost), 170)
+})
+
+test('нет порожняка — нет и его цены', () => {
+  const r = calcLoad(
+    { rate: 2000, loadedMiles: 800, deadheadMiles: 0, transitDays: 2 },
+    {
+      mpg: 6,
+      fuelPricePerGallon: 4.2,
+      driverPay: { mode: 'cpm', centsPerMile: 60 },
+      maintenanceCostPerMile: 0.15,
+      truckPaymentPerDay: 60,
+      insurancePerDay: 40,
+      eldPermitsPerDay: 8,
+      factoringPercent: 2,
+      dispatchPercent: 4,
+    },
+  )
+  assert.equal(r.deadheadCost, 0)
+  assert.equal(r.deadheadPercent, 0)
+})

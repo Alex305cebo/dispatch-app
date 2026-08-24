@@ -391,6 +391,11 @@ export const loadsDict = {
     ru: 'Чистыми, поделённые на дни в пути — сколько груз приносит в день, чтобы сравнивать грузы разной длины между собой.',
     en: 'Net profit divided by transit days — how much the load earns per day, so loads of different lengths can be compared.',
   },
+  'analysis.deadhead': { ru: 'Порожний пробег', en: 'Deadhead' },
+  'analysis.deadheadInfo': {
+    ru: 'Мили до погрузки, за которые никто не платит. Показаны отдельно: это единственный расход, которым управляет выбор груза, а не трак. Сумма уже входит в топливо, обслуживание и — при оплате за милю — в зарплату водителя, поэтому складывать её с полосами ниже не нужно. Больше 20% пробега порожняком — повод искать груз ближе.',
+    en: 'Miles driven to the pickup that nobody pays for. Shown on their own because this is the one cost the choice of load controls, not the truck. The amount is already inside fuel, maintenance and — on per-mile pay — the driver, so do not add it to the bars below. Over 20% of the miles empty is a reason to look for a closer load.',
+  },
   'analysis.gross': { ru: 'Гросс', en: 'Gross' },
   // Short forms for the rate-split bar's legend, where the full labels
   // ("Топливо · 960 mi @ 6.5 mpg") would wrap the whole row.

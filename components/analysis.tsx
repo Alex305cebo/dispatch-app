@@ -182,6 +182,27 @@ export function Analysis({
           ))}
         </div>
 
+        {/* Порожняк. Стоит ПЕРЕД разбором расходов и отдельной строкой, потому что
+            это единственная статья, на которую диспетчер влияет решением взять или не
+            взять груз: топливо и зарплата — следствие, подача — выбор. Складывать её
+            с полосами ниже нельзя, она уже сидит в топливе и зарплате; об этом и
+            сказано подписью. */}
+        {r.deadheadMiles > 0 && (
+          <div className="mt-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5">
+            <span className="text-[13px] text-white/78">
+              {t(locale, 'analysis.deadhead')}
+              <Info text={t(locale, 'analysis.deadheadInfo')} />
+            </span>
+            <span className="nums text-[13px] text-white/85">
+              {Math.round(r.deadheadMiles)} mi ·{' '}
+              <span className={r.deadheadPercent >= 20 ? 'text-warn-400' : 'text-white/60'}>
+                {r.deadheadPercent.toFixed(0)}%
+              </span>{' '}
+              · <span className="text-bad-400">−{usd.format(r.deadheadCost)}</span>
+            </span>
+          </div>
+        )}
+
         <div className="mt-5 border-t border-white/8 pt-3">
           <div className="flex items-baseline justify-between pb-2">
             <span className="text-[13px] text-white/78">{t(locale, 'analysis.gross')}</span>

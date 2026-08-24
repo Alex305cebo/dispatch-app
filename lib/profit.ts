@@ -61,6 +61,15 @@ export type Breakdown = {
   marginPercent: number
   /** Rate at which this load nets exactly zero. Below it you pay to haul. */
   breakEvenRate: number
+  /** Пустые мили — их видно в форме, но не видно, во что они обходятся. */
+  deadheadMiles: number
+  /** Их доля во всём пробеге: 0 миль и 300 миль порожняка — разный рейс. */
+  deadheadPercent: number
+  /** Деньги, съеденные порожняком: топливо, обслуживание и — в режиме за милю —
+   * зарплата водителя на этих милях. Это НЕ отдельная статья расходов: она уже
+   * сидит внутри топлива и зарплаты, здесь та же сумма показана отдельно, чтобы
+   * было видно цену подачи. Складывать с остальными строками нельзя. */
+  deadheadCost: number
 }
 
 export function calcLoad(load: Load, s: TruckSettings): Breakdown {
@@ -127,5 +136,15 @@ export function calcLoad(load: Load, s: TruckSettings): Breakdown {
     netPerDay: net / load.transitDays,
     marginPercent: gross > 0 ? (net / gross) * 100 : 0,
     breakEvenRate,
+    deadheadMiles: load.deadheadMiles,
+    deadheadPercent: totalMiles > 0 ? (load.deadheadMiles / totalMiles) * 100 : 0,
+    // Считается по тем же ставкам, что и весь рейс: расход топлива на милю,
+    // обслуживание на милю и зарплата за милю, если водителю платят за мили.
+    // При проценте от гросса порожняк зарплату не увеличивает — и здесь не учтён.
+    deadheadCost:
+      load.deadheadMiles *
+      (s.fuelPricePerGallon / s.mpg +
+        s.maintenanceCostPerMile +
+        (s.driverPay.mode === 'cpm' ? s.driverPay.centsPerMile / 100 : 0)),
   }
 }
