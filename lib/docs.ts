@@ -8,6 +8,10 @@ import { t, type Locale } from './i18n.ts'
 // components/docs.tsx enumerates the kind list).
 export const DOC_KINDS = {
   ratecon: 'Rate con',
+  // Отдельный лист «Driver / Carrier Information Sheet»: TQL и другие брокеры
+  // присылают его вместе с рейт-коном на ТОТ ЖЕ груз. В нём стопы, окна, номера и
+  // требования, но НЕТ ставки — это не рейт-кон, и грузом он не становится.
+  driverinfo: 'Driver Info',
   bol: 'BOL',
   pod: 'POD',
   invoice: 'Инвойс',
@@ -21,6 +25,7 @@ export type DocKind = keyof typeof DOC_KINDS
 export function docKindLabel(kind: DocKind, locale: Locale): string {
   switch (kind) {
     case 'ratecon': return t(locale, 'docs.kind.ratecon')
+    case 'driverinfo': return t(locale, 'docs.kind.driverinfo')
     case 'bol': return t(locale, 'docs.kind.bol')
     case 'pod': return t(locale, 'docs.kind.pod')
     case 'invoice': return t(locale, 'docs.kind.invoice')

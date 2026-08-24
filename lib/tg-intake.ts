@@ -105,7 +105,10 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
         // где рейс заводится по самой бумаге.
         const rcNoLoad = kind === 'ratecon'
         const target = rcNoLoad ? null : load
-        if (!truck || (!target && !rcNoLoad) || (kind !== 'pod' && kind !== 'bol' && kind !== 'ratecon')) {
+        // Лист водителя (TQL и другие шлют его вместе с рейт-коном) — такой же
+        // нужный документ груза, как BOL: подшивается к текущему грузу.
+        const filed = kind === 'pod' || kind === 'bol' || kind === 'ratecon' || kind === 'driverinfo'
+        if (!truck || (!target && !rcNoLoad) || !filed) {
           skipped++
         } else {
           // A driver who sends the SAME photo to two dispatchers would otherwise file it
@@ -138,7 +141,9 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
                   ? 'POD получил, спасибо 👍'
                   : kind === 'bol'
                     ? 'BOL получил, спасибо'
-                    : 'Рейткон получил, оформляю груз 👍'
+                    : kind === 'driverinfo'
+                      ? 'Инфо по грузу получил, приложил 👍'
+                      : 'Рейткон получил, оформляю груз 👍'
               await tgSend(uid, m.chatId, ack).catch(() => {})
             }
           }

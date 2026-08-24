@@ -78,3 +78,31 @@ test('unrelated or empty captions match nothing', () => {
     assert.equal(captionKind(s), null, JSON.stringify(s))
   }
 })
+
+test('лист водителя узнаётся по названию файла', () => {
+  for (const s of [
+    'TQL (38072427) - Driver Info.pdf',
+    'driver_information_sheet.pdf',
+    'Carrier Information Sheet 8891.pdf',
+  ]) {
+    assert.equal(captionKind(s), 'driverinfo', s)
+  }
+})
+
+test('рейт-кон остаётся рейт-коном, даже если в имени есть driver info', () => {
+  assert.equal(captionKind('Rate con + driver info 8891.pdf'), 'ratecon')
+})
+
+test('лист водителя узнаётся по собственному заголовку в тексте', () => {
+  const tql =
+    'DRIVER/CARRIER INFORMATION SHEET TQL PO# 38072427 Pickup Dates Delivery Dates ' +
+    'CARRIER CONTACT Name Dispatcher Driver LOAD INFORMATION Mode Trailer Type'
+  assert.equal(docKindFromText(tql), 'driverinfo')
+})
+
+test('упоминание рейт-кона внутри листа водителя не делает его рейт-коном', () => {
+  const t =
+    'DRIVER INFORMATION SHEET — see the rate confirmation for payment terms. ' +
+    'Pickup: Summerville SC. Delivery: Romeoville IL. Trailer: 53 ft van.'
+  assert.equal(docKindFromText(t), 'driverinfo')
+})

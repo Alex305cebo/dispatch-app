@@ -23,6 +23,7 @@ type Done = { loadId: number | null; loadRoute: string; created?: boolean }
 const KINDS: { key: DocClass | 'auto'; label: MsgKey }[] = [
   { key: 'auto', label: 'telegram.attach.kindAuto' },
   { key: 'ratecon', label: 'docs.kind.ratecon' },
+  { key: 'driverinfo', label: 'docs.kind.driverinfo' },
   { key: 'bol', label: 'docs.kind.bol' },
   { key: 'pod', label: 'docs.kind.pod' },
   { key: 'other', label: 'docs.kind.other' },

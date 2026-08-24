@@ -110,6 +110,7 @@ export function DocUpload({
 
 const KIND_TONE: Record<DocKind, string> = {
   ratecon: 'bg-haul-500/15 text-haul-400',
+  driverinfo: 'bg-haul-500/10 text-haul-300',
   bol: 'bg-good-500/15 text-good-400',
   pod: 'bg-good-500/15 text-good-400',
   invoice: 'bg-haul-500/15 text-haul-400',

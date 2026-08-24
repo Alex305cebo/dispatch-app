@@ -68,6 +68,7 @@ export const docsDict = {
 
   // lib/docs.ts — DOC_KINDS labels, looked up via docKindLabel()
   'docs.kind.ratecon': { ru: 'Rate con', en: 'Rate con' },
+  'docs.kind.driverinfo': { ru: 'Driver Info', en: 'Driver Info' },
   'docs.kind.bol': { ru: 'BOL', en: 'BOL' },
   'docs.kind.pod': { ru: 'POD', en: 'POD' },
   'docs.kind.invoice': { ru: 'Инвойс', en: 'Invoice' },

@@ -7,13 +7,14 @@
 import { captionKind } from './caption-kind.ts'
 import { geminiKey } from './keys.ts'
 
-const KINDS = ['pod', 'bol', 'ratecon', 'invoice', 'other'] as const
+const KINDS = ['pod', 'bol', 'ratecon', 'driverinfo', 'invoice', 'other'] as const
 export type DocClass = (typeof KINDS)[number]
 
 const PROMPT = `Classify this trucking document image. Answer with ONE word only, exactly one of:
 pod  — proof of delivery / delivery receipt (signed, "received", delivery signature)
 bol  — bill of lading (shipping document at pickup)
-ratecon — rate confirmation from a broker
+ratecon — rate confirmation from a broker: it states the RATE the carrier is paid
+driverinfo — driver/carrier information sheet: stops, appointment times, reference numbers, equipment and requirements, but NO rate paid to the carrier (often titled "Driver Information", "Carrier Information Sheet", "Load Information", and it may say it is for informational purposes only)
 invoice — an invoice
 other — anything else (fuel receipt, lumper receipt, random photo)
 Answer with just the single word.`

@@ -13,6 +13,14 @@ const CAPTION_KINDS: { kind: DocClass; re: RegExp }[] = [
   // "rate_confirmation_88213.pdf" and "Rate-Con 4471.pdf", and an underscore used to
   // break the match outright — which is how a rate con got filed as "other".
   { kind: 'ratecon', re: /\brate[\s._-]*con(f|firmation)?|рейт[\s._-]*кон|рейткон/i },
+  // Идёт ПОСЛЕ рейт-кона: у файла «Rate con + driver info.pdf» главное слово первое.
+  {
+    kind: 'driverinfo',
+    // (?![a-z]) вместо \b на конце: в именах файлов дальше идёт «_sheet», а
+    // подчёркивание для \b — обычная буква, и «driver_information_sheet.pdf» не
+    // совпадал. Ровно так названия и приходят от брокеров.
+    re: /\bdriver[\s._-]*info(?:rmation)?(?![a-z])|\bcarrier[\s._-]*info(?:rmation)?[\s._-]*sheet(?![a-z])|инфо[\s._-]*водител/i,
+  },
 ]
 
 export function captionKind(text: string): DocClass | null {
@@ -40,6 +48,12 @@ export function captionKind(text: string): DocClass | null {
 // for the case that carries the volume.
 const RATECON_TEXT = /\brate[\s._-]*con(?:f|firmation)?\b|\b(?:load|carrier)[\s._-]*confirmation\b/i
 
+/** Лист с данными для водителя называет себя так же прямо, как рейт-кон. Отличать
+ * его текстом важно вдвойне: ставки в нём нет, и попытка сделать из него груз
+ * заканчивается ошибкой «нет ставки» — а документ при этом нужный и подшивается к
+ * тому же грузу. */
+const DRIVERINFO_TEXT = /\bdriver\s*\/?\s*carrier\s+information\s+sheet\b|\bdriver\s+information\s+sheet\b|\bcarrier\s+information\s+sheet\b/i
+
 /**
  * 'ratecon' when the document says so about itself, null otherwise — and null means
  * "ask the model", never "not a rate con". Every uncertain document still gets its
@@ -49,5 +63,8 @@ const RATECON_TEXT = /\brate[\s._-]*con(?:f|firmation)?\b|\b(?:load|carrier)[\s.
 export function docKindFromText(text: string): DocClass | null {
   const t = (text ?? '').trim()
   if (t.length < 40) return null // too little to be a document's own text
+  // Лист водителя проверяется ПЕРВЫМ: он часто ссылается на рейт-кон словами
+  // «rate confirmation», и по одному этому упоминанию его приняли бы за рейт-кон.
+  if (DRIVERINFO_TEXT.test(t)) return 'driverinfo'
   return RATECON_TEXT.test(t) ? 'ratecon' : null
 }
