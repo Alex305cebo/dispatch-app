@@ -1172,7 +1172,19 @@ const d = (s: string | null) => (s && s.trim() ? s : null)
  */
 export async function saveDriverInfo(
   truckId: number,
-  d: { name: string; phone: string; cdlExpiry: string; medcardExpiry: string },
+  d: {
+    name: string
+    phone: string
+    cdlExpiry: string
+    medcardExpiry: string
+    /** Номера трака, прицепа и VIN — те самые, что диспетчер диктует брокеру. Раньше
+     * они правились только в «паспорте трака» этажом ниже, и человек, открывший
+     * карточку водителя, менял имя с телефоном, а номер прицепа искал в другом месте.
+     * Необязательные: старые вызовы этих полей не передают и ничего не затирают. */
+    truckNumber?: string
+    trailerNumber?: string
+    vin?: string
+  },
 ): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
@@ -1180,13 +1192,24 @@ export async function saveDriverInfo(
   if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
   try {
     await sql`UPDATE trucks SET driver_name = ${d.name.trim() || null} WHERE id = ${truckId}`
+    // Номер трака стирать нельзя: по нему GPS находит машину (fleet_status.unit).
+    // Пустое поле значит «не менял», а не «убрать».
+    const num = d.truckNumber?.trim()
+    if (num) await sql`UPDATE trucks SET number = ${num} WHERE id = ${truckId}`
+    const trailer = d.trailerNumber?.trim() ?? null
+    const vin = d.vin?.trim() ?? null
     await sql`
-      INSERT INTO truck_meta (truck_id, driver_phone, cdl_expiry, medcard_expiry)
-      VALUES (${truckId}, ${d.phone.trim() || null}, ${d.cdlExpiry || null}, ${d.medcardExpiry || null})
+      INSERT INTO truck_meta (truck_id, driver_phone, cdl_expiry, medcard_expiry, trailer_number, vin)
+      VALUES (${truckId}, ${d.phone.trim() || null}, ${d.cdlExpiry || null}, ${d.medcardExpiry || null},
+              ${trailer}, ${vin})
       ON CONFLICT (truck_id) DO UPDATE SET
         driver_phone   = EXCLUDED.driver_phone,
         cdl_expiry     = EXCLUDED.cdl_expiry,
-        medcard_expiry = EXCLUDED.medcard_expiry`
+        medcard_expiry = EXCLUDED.medcard_expiry,
+        -- COALESCE, а не присваивание: форма может не показывать эти поля (её зовут
+        -- и с других экранов), и тогда пустое значение не должно стирать номер.
+        trailer_number = COALESCE(EXCLUDED.trailer_number, truck_meta.trailer_number),
+        vin            = COALESCE(EXCLUDED.vin, truck_meta.vin)`
   } catch (e) {
     return { error: humanError(e, locale) }
   }

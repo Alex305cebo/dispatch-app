@@ -54,6 +54,9 @@ export function DriverCard({
     phone: phone ?? '',
     cdlExpiry: cdlExpiry ?? '',
     medcardExpiry: medcardExpiry ?? '',
+    truckNumber: truckNumber ?? '',
+    trailerNumber: trailerNumber ?? '',
+    vin: vin ?? '',
   })
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setF({ ...f, [k]: e.target.value })
@@ -151,6 +154,13 @@ export function DriverCard({
               <Field label={t(locale, 'trucks.driverCard.phoneLabel')} value={f.phone} onChange={set('phone')} placeholder="(555) 123-4567" />
             </div>
           </div>
+          {/* Номера правятся здесь же: их диктуют брокеру вместе с именем и
+              телефоном, а лежали они в «паспорте трака» на другом экране. */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Field label={t(locale, 'trucks.driverCard.truckRowLabel')} value={f.truckNumber} onChange={set('truckNumber')} placeholder="1935" />
+            <Field label={t(locale, 'trucks.driverCard.trailerRowLabel')} value={f.trailerNumber} onChange={set('trailerNumber')} placeholder="53487" />
+            <Field label={t(locale, 'trucks.driverCard.vinRowLabel')} value={f.vin} onChange={set('vin')} placeholder="3AKJJHDR8TSWJ2407" />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t(locale, 'trucks.driverCard.cdlLabel')} value={f.cdlExpiry} onChange={set('cdlExpiry')} type="date" />
             <Field label={t(locale, 'trucks.driverCard.medcardLabel')} value={f.medcardExpiry} onChange={set('medcardExpiry')} type="date" />
@@ -167,6 +177,9 @@ export function DriverCard({
                   phone: phone ?? '',
                   cdlExpiry: cdlExpiry ?? '',
                   medcardExpiry: medcardExpiry ?? '',
+                  truckNumber: truckNumber ?? '',
+                  trailerNumber: trailerNumber ?? '',
+                  vin: vin ?? '',
                 })
                 setEditing(false)
               }}
