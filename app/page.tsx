@@ -29,6 +29,7 @@ import { deliveryInfo } from '@/lib/geo-routing'
 import { fleetExpiryAlerts, truckPhotoFlags, truckTrailerNumbers } from '@/lib/maintenance'
 import { companyScope, getCurrentUser } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
+import { fixPlace, placeCity } from '@/lib/place'
 import { t as tr, type Locale } from '@/lib/i18n'
 import { can } from '@/lib/capabilities-server'
 import { usd, usd2, driveTime, shortName, weekStart } from '@/lib/fmt'
@@ -68,7 +69,6 @@ function driveDotTitle(s: string | null, locale: Locale): string {
   return tr(locale, 'overview.driveDot.stopped')
 }
 
-
 export default async function Page() {
   const companyId = await companyScope()
   const locale = await getLocale()
@@ -90,7 +90,9 @@ export default async function Page() {
       showFinances ? listReceivables(companyId) : Promise.resolve([]),
       showFinances ? listUninvoicedDelivered(companyId) : Promise.resolve([]),
     ])
-  const fleet = fleetRaw as FS[]
+  // Строка места приходит из ELD с чужим штатом (см. lib/place.ts) — правим сразу
+  // на входе, чтобы ни одна карточка ниже не показала «CA» для трака в Неваде.
+  const fleet = (fleetRaw as FS[]).map((r) => ({ ...r, location: fixPlace(r.location, r.lat, r.lng) }))
   const byId = new Map<number, TruckRecord>(trucks.map((t) => [t.id, t]))
   const byUnit = new Map(fleet.map((f) => [f.unit, f]))
   const fallback = trucks[0]
@@ -333,7 +335,7 @@ export default async function Page() {
                 // стоит, и когда освободится. Иначе на обзоре они стояли бы пустыми.
                 place: cur
                   ? `→ ${cur.destination ?? '—'}`
-                  : (cityOf((t.number ? byUnit.get(t.number)?.location : null) ?? null) ??
+                  : (placeCity((t.number ? byUnit.get(t.number)?.location : null) ?? null) ??
                      tr(locale, 'overview.noEldData')),
                 when: t.unavailable
                   ? {
@@ -427,7 +429,7 @@ export default async function Page() {
                     <span className="min-w-0 truncate">
                       {/* Прицеп уехал в подпись выше (truckLabel), здесь осталось
                           только место — иначе номер печатался бы дважды подряд. */}
-                      {cityOf(fs?.location ?? null) ?? tr(locale, 'overview.noEldData')}
+                      {placeCity(fs?.location ?? null) ?? tr(locale, 'overview.noEldData')}
                     </span>
                     {/* Tank level rides with the location line — same glance, and it
                         never has to compete with the week's money on the right. */}

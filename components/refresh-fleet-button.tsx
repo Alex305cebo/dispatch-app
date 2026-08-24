@@ -6,6 +6,7 @@ import { refreshFleetStatus } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
+import { REFRESH_BTN } from '@/components/small-refresh-button'
 
 /** GPS older than this on page open = pull fresh automatically. */
 const STALE_MINUTES = 10
@@ -72,7 +73,7 @@ export function RefreshFleetButton({ staleMinutes }: { staleMinutes: number | nu
       <button
         disabled={pending}
         onClick={() => refresh()}
-        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1 text-[11px] font-medium text-white/70 transition-colors hover:border-white/25 hover:text-white disabled:opacity-50"
+        className={REFRESH_BTN}
       >
         <span className={pending ? 'animate-spin' : ''}>↻</span>
         {pending ? t(locale, 'tracking.updating') : t(locale, 'tracking.refresh')}

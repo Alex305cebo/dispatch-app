@@ -350,6 +350,12 @@ export default async function Page({
         windows={HISTORY_WINDOWS}
         initialHours={historyWindow.hours}
         initialLegs={history}
+        // Города погрузок и выгрузок этого трака — по ним стоянка в истории
+        // распознаётся как детеншен. Грузы уже загружены выше, нового запроса нет.
+        stops={loads.flatMap((l) => [
+          ...(l.origin ? [{ city: l.origin, kind: 'pickup' as const, day: l.pickupDate }] : []),
+          ...(l.destination ? [{ city: l.destination, kind: 'delivery' as const, day: l.deliveryDate }] : []),
+        ])}
       />
 
       {/* ===== RC drop — the fastest path: paperwork in, load out ===== */}

@@ -13,6 +13,7 @@ import { RefreshFleetButton } from '@/components/refresh-fleet-button'
 import { Button } from '@/components/button'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
+import { LocalTime } from '@/components/local-time'
 
 export type FleetTotals = {
   deliveryMiles: number
@@ -115,7 +116,14 @@ export function FleetPanel({
         <div className="mb-2 flex items-center justify-between gap-2 px-1.5">
           {row ? (
             <>
-              <span className="truncate text-[13px] font-semibold text-white">{row.label}</span>
+              <span className="flex min-w-0 items-baseline gap-2">
+                <span className="truncate text-[13px] font-semibold text-white">{row.label}</span>
+                {/* Время водителя, а не пятая плитка: плиток ровно четыре в обоих
+                    состояниях, и пятая ломала бы ряд именно при выборе трака. */}
+                {row.zone && (
+                  <LocalTime zone={row.zone} className="nums shrink-0 text-[11.5px] text-white/45" />
+                )}
+              </span>
               <Button size="sm" variant="ghost" icon={<X size={12} />} onClick={() => setSelected(null)}>
                 {t(locale, 'tracking.wholeFleet')}
               </Button>

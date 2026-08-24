@@ -12,11 +12,52 @@ import {
   SESSION_DAYS,
 } from '@/lib/auth'
 import { applySchema, schemaInstalled } from '@/lib/install'
-import { deleteSetting, getSetting, setSetting } from '@/lib/settings'
+import { setSetting } from '@/lib/settings'
 import { t } from '@/lib/i18n'
 import { getLocale } from '@/lib/i18n-server'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/**
+ * Тормоз на подбор пароля.
+ *
+ * Вход — обычный серверный вызов, и до этой правки его можно было дёргать в цикле
+ * сколько угодно: ни задержки, ни блокировки. PBKDF2 делает каждую попытку не
+ * бесплатной, но это защита от чтения украденной базы, а не от подбора — и она же
+ * работает против нас: тысяча попыток в минуту укладывает процессор, даже если ни
+ * одна не угадает.
+ *
+ * Счётчик в памяти процесса, не в базе. Приложение живёт одним процессом Node на
+ * своём хостинге, и лишняя таблица под это — миграция, которую пришлось бы катить
+ * руками на каждой установке.
+ * ponytail: одна копия приложения. Появится вторая — счётчик переезжает в базу,
+ * иначе лимит станет вдвое мягче.
+ */
+const FAILS = new Map<string, { n: number; until: number }>()
+const MAX_FAILS = 8
+const LOCK_MS = 15 * 60 * 1000
+
+function throttleKey(email: string, ip: string | null): string {
+  return `${email.trim().toLowerCase()}|${ip ?? ''}`
+}
+
+function lockedOut(key: string): boolean {
+  const rec = FAILS.get(key)
+  if (!rec) return false
+  if (Date.now() > rec.until) {
+    FAILS.delete(key)
+    return false
+  }
+  return rec.n >= MAX_FAILS
+}
+
+function noteFail(key: string): void {
+  const rec = FAILS.get(key)
+  const fresh = !rec || Date.now() > rec.until
+  FAILS.set(key, { n: fresh ? 1 : rec.n + 1, until: Date.now() + LOCK_MS })
+  // Карта не растёт бесконечно: раз в вызов подчищаем истёкшее.
+  if (FAILS.size > 500) for (const [k, v] of FAILS) if (Date.now() > v.until) FAILS.delete(k)
+}
 
 // Login audit — who, from what device, and the city of the IP. Best-effort: a
 // failed insert or geolocation must never block sign-in.
@@ -64,24 +105,6 @@ function birthdayOk(b: string): boolean {
 }
 async function saveBirthday(userId: number, birthday: string): Promise<void> {
   await sql`UPDATE users SET recovery_hash = ${await hashPassword(normalizeRecoveryCode(birthday))} WHERE id = ${userId}`
-}
-
-/** Замок от перебора дат: счётчик неудач на email, окно 15 минут, порог 5. */
-const TRY_WINDOW_MS = 15 * 60 * 1000
-const TRY_MAX = 5
-async function throttled(email: string): Promise<boolean> {
-  const raw = await getSetting(`pwtry:${email}`)
-  if (!raw) return false
-  const [n, ts] = raw.split(':').map(Number)
-  if (!n || !ts || Date.now() - ts > TRY_WINDOW_MS) return false
-  return n >= TRY_MAX
-}
-async function noteFailure(email: string): Promise<void> {
-  const key = `pwtry:${email}`
-  const raw = await getSetting(key)
-  const [n, ts] = (raw ?? '').split(':').map(Number)
-  const fresh = n && ts && Date.now() - ts <= TRY_WINDOW_MS
-  await setSetting(key, fresh ? `${n + 1}:${ts}` : `1:${Date.now()}`)
 }
 
 /**
@@ -195,6 +218,9 @@ export async function signIn(
   remember: boolean,
 ): Promise<{ error: string } | void> {
   const locale = await getLocale()
+  const ip = ((await headers()).get('x-forwarded-for') ?? '').split(',')[0]!.trim() || null
+  const key = throttleKey(email, ip)
+  if (lockedOut(key)) return { error: t(locale, 'login.error.tooManyTries') }
   const rows = (await sql`
     SELECT id, name, password_hash, pending_since FROM users
     WHERE email = ${email.trim().toLowerCase()} AND disabled_at IS NULL`) as {
@@ -207,8 +233,10 @@ export async function signIn(
   // Same generic error either way — confirming "no such email" to a stranger is a
   // free account-enumeration oracle, so a bad email and a bad password look identical.
   if (!user || !(await verifyPassword(password, user.password_hash))) {
+    noteFail(key)
     return { error: t(locale, 'login.error.badCredentials') }
   }
+  FAILS.delete(key)
   // Пароль верный, но заявку ещё не подтвердили. Об этом — прямо: человек сделал
   // всё правильно, и «неверный пароль» здесь было бы ложью.
   if (user.pending_since) return { error: t(locale, 'login.error.pending') }
@@ -229,7 +257,11 @@ export async function resetWithRecovery(
   const locale = await getLocale()
   if (newPassword.length < 8) return { error: t(locale, 'login.error.passwordMin') }
   const mail = email.trim().toLowerCase()
-  if (await throttled(mail)) return { error: t(locale, 'login.error.tooManyTries') }
+  // Тот же замок, что и на входе: дата рождения — слабый секрет, и без счётчика
+  // её можно перебрать за вечер.
+  const ip = ((await headers()).get('x-forwarded-for') ?? '').split(',')[0]!.trim() || null
+  const key = throttleKey(mail, ip)
+  if (lockedOut(key)) return { error: t(locale, 'login.error.tooManyTries') }
   const rows = (await sql`
     SELECT id, name, recovery_hash, pending_since FROM users
     WHERE email = ${mail} AND is_demo = FALSE AND disabled_at IS NULL`) as {
@@ -242,10 +274,10 @@ export async function resetWithRecovery(
   // Один и тот же ответ на «нет такого email» и «дата не та» — по той же причине,
   // что и при входе: форма без сессии не должна подтверждать, чьи адреса тут есть.
   if (!user || !user.recovery_hash || !(await verifyPassword(normalizeRecoveryCode(birthday), user.recovery_hash))) {
-    await noteFailure(mail)
+    noteFail(key)
     return { error: t(locale, 'login.error.badRecovery') }
   }
-  await deleteSetting(`pwtry:${mail}`)
+  FAILS.delete(key)
   await sql`UPDATE users SET password_hash = ${await hashPassword(newPassword)} WHERE id = ${user.id}`
   await sql`DELETE FROM sessions WHERE user_id = ${user.id}`
   if (user.pending_since) return { error: t(locale, 'login.error.pending') }

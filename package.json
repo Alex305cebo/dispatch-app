@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit",
     "start": "next start",
     "db:init": "node --env-file-if-exists=.env.local scripts/db-init.mjs",
-    "test": "node --test lib/profit.test.ts lib/qr-load.test.ts lib/map.test.ts lib/ratecon.test.ts lib/geo.test.ts lib/trip-history.test.ts lib/fmt.test.ts lib/caption-kind.test.ts lib/heatmap.test.ts lib/load-status.test.ts lib/brokers.test.ts lib/ratecon-city.test.ts lib/idle-fleet.test.ts lib/flexpolyline.test.ts lib/tolls.test.ts lib/city-suggest.test.ts lib/install.test.ts"
+    "test": "node --test lib/profit.test.ts lib/qr-load.test.ts lib/map.test.ts lib/ratecon.test.ts lib/geo.test.ts lib/trip-history.test.ts lib/fmt.test.ts lib/caption-kind.test.ts lib/heatmap.test.ts lib/load-status.test.ts lib/brokers.test.ts lib/ratecon-city.test.ts lib/idle-fleet.test.ts lib/flexpolyline.test.ts lib/tolls.test.ts lib/city-suggest.test.ts lib/install.test.ts lib/us-state.test.ts lib/place.test.ts"
   },
   "dependencies": {
     "@maplibre/maplibre-gl-leaflet": "^0.1.3",
@@ -27,7 +27,8 @@
     "react-dom": "^19.1.1",
     "server-only": "^0.0.1",
     "tailwindcss": "^4.3.3",
-    "telegram": "^2.26.22"
+    "telegram": "^2.26.22",
+    "tz-lookup": "^6.1.25"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.21",

@@ -2,6 +2,8 @@ import { Suspense } from 'react'
 import { sql } from '@/lib/db'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { currentLoadsByTruck, truckLabel, eldStatus } from '@/lib/map'
+import { zoneFor } from '@/lib/tz'
+import { fixPlace } from '@/lib/place'
 import { type MapMarker, type MapRoute } from '@/components/fleet-map'
 import { EldLinks } from '@/components/eld-links'
 import { FleetPanel } from '@/components/fleet-panel'
@@ -77,7 +79,9 @@ async function FleetBoard({ locale }: { locale: Locale }) {
   ])
   // One query for the whole fleet, instead of currentLoadForTruck() per truck.
   const currentByTruck = currentLoadsByTruck(loads)
-  const rows = rowsRaw as FS[]
+  // Строка места приходит из ELD с чужим штатом (см. lib/place.ts) — правим сразу
+  // на входе, чтобы ни одна карточка ниже не показала «CA» для трака в Неваде.
+  const rows = (rowsRaw as FS[]).map((r) => ({ ...r, location: fixPlace(r.location, r.lat, r.lng) }))
   const phoneRows = phoneRowsRaw as {
     truck_id: number
     driver_phone: string | null
@@ -241,6 +245,7 @@ async function FleetBoard({ locale }: { locale: Locale }) {
         kind: 'truck',
         heading: heading ?? undefined,
         eta: legToDelivery ? `${totalMiles} mi · ~${driveTime(totalEtaMin, locale)}${tr(locale, 'tracking.toDelivery')}` : undefined,
+        zone: zoneFor(fs.lat, fs.lng) ?? undefined,
         href: `/trucks/${t.id}`,
         truckId: t.id,
       })
@@ -257,6 +262,7 @@ async function FleetBoard({ locale }: { locale: Locale }) {
       loadId: load?.id ?? null,
       loadRoute: load ? `${load.origin ?? '—'} → ${load.destination ?? '—'}` : null,
       phone: phoneById.get(t.id) ?? null,
+      zone: zoneFor(fs?.lat, fs?.lng),
       delivery,
       driveTimeText: legToDelivery ? driveTime(totalEtaMin, locale) : null,
       weather: weather ? { event: weather.event, headline: weather.headline } : null,

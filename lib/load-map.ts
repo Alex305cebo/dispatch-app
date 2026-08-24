@@ -8,6 +8,7 @@ import type { FleetStatus } from './maintenance-core'
 import { cityCoordsBest, deliveryInfoBest } from './geo-routing'
 import { headingOf } from './eld'
 import { driveTime } from './fmt'
+import { zoneFor } from './tz'
 import { t, type Locale } from './i18n.ts'
 import type { MapMarker, MapRoute } from '@/components/fleet-map'
 
@@ -25,6 +26,10 @@ export type LoadMapData = {
   etaText: string | null
   /** Total road miles of the drawn route — shown big over the map. */
   miles: number | null
+  /** Минуты до выгрузки отдельным числом. Раньше наружу отдавалась только готовая
+   * строка «82 mi · ~1ч 34м до delivery», и разложить её на отдельные плитки без
+   * разбора текста было нельзя. Форматирует уже вызывающий, под своё место. */
+  etaMin: number | null
 }
 
 /** How old an ELD fix may be before we stop presenting it as "where the truck is now".
@@ -52,6 +57,7 @@ export async function loadMapData(
   const routes: MapRoute[] = []
   let etaText: string | null = null
   let miles: number | null = null
+  let etaMin: number | null = null
 
   // Prefer the RC's exact street address over the bare city — pins the real dock,
   // not just the city center. Falls back to ZIP then city if OSM can't resolve that
@@ -98,9 +104,9 @@ export async function loadMapData(
       routes.push({ from: [pickup.lat, pickup.lng], to: [dest.lat, dest.lng], coords: leg?.coords })
       miles = leg?.miles ?? (load.loadedMiles > 0 ? load.loadedMiles : null)
     }
-    return { markers, routes, etaText, miles }
+    return { markers, routes, etaText, miles, etaMin }
   }
-  if (noGps) return { markers, routes, etaText, miles }
+  if (noGps) return { markers, routes, etaText, miles, etaMin }
 
   // Age of the fix itself, not of our last poll — a stale pin is greyed out and says so
   // instead of pretending the truck is standing there right now.
@@ -112,6 +118,7 @@ export async function loadMapData(
   const truckM: MapMarker = {
     lat,
     lng,
+    zone: zoneFor(lat, lng) ?? undefined,
     label: truck.number ?? truck.name,
     sub: [
       fs?.location,
@@ -163,6 +170,7 @@ export async function loadMapData(
     const routeMiles = (legToPickup?.miles ?? 0) + legToDelivery.miles
     miles = routeMiles
     const routeEtaMin = (legToPickup?.etaMin ?? 0) + legToDelivery.etaMin
+    etaMin = routeEtaMin
     etaText = `${routeMiles} mi · ~${driveTime(routeEtaMin, locale)}${t(locale, 'tracking.toDelivery')}`
     truckM.eta = etaText
     if (legToPickup && pickup) {
@@ -186,5 +194,5 @@ export async function loadMapData(
   }
 
   markers.push(truckM)
-  return { markers, routes, etaText, miles }
+  return { markers, routes, etaText, miles, etaMin }
 }

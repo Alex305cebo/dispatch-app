@@ -99,8 +99,25 @@ export const telegramDict = {
 
   // app/telegram/tg-attach-button.tsx
   'telegram.attach.inLoad': { ru: '✓ В грузе {route} →', en: '✓ On load {route} →' },
+  'telegram.attach.createdLoad': { ru: '✓ Создан груз {route} →', en: '✓ Load created: {route} →' },
+  'telegram.attach.created': { ru: 'Из рейт-кона создан груз {route}', en: 'Rate con turned into load {route}' },
   'telegram.attach.added': { ru: 'Добавлено к грузу {route}', en: 'Added to load {route}' },
   'telegram.attach.adding': { ru: 'Добавляю…', en: 'Adding…' },
+  'telegram.attach.choose': { ru: 'Выбрать тип и место', en: 'Choose type and destination' },
+  'telegram.attach.kindTitle': { ru: 'Что это за файл', en: 'What this file is' },
+  'telegram.attach.kindAuto': { ru: 'определить', en: 'detect' },
+  'telegram.attach.whereTitle': { ru: 'Куда положить', en: 'Where it goes' },
+  'telegram.attach.newLoad': { ru: 'Новый груз', en: 'New load' },
+  'telegram.attach.newLoadHint': { ru: 'завести рейс по этой бумаге', en: 'create a load from this paper' },
+  'telegram.attach.truckFiles': { ru: 'Файлы трака', en: 'Truck files' },
+  'telegram.attach.truckFilesHint': { ru: 'без привязки к грузу', en: 'not tied to a load' },
+  'telegram.attach.noLoads': { ru: 'У трака нет грузов', en: 'This truck has no loads' },
+  'telegram.attach.savedToTruck': { ru: 'Сохранено в файлы трака', en: 'Saved to truck files' },
+  'telegram.attach.inTruckFiles': { ru: '✓ В файлах трака', en: '✓ In truck files' },
+  'telegram.actions.rcSavedNotRead': {
+    ru: 'Рейт-кон сохранён в файлах трака, но прочитать его не удалось. Откройте карточку трака и нажмите «Создать груз из рейт-кона».',
+    en: 'The rate con is saved in the truck files, but could not be read. Open the truck and press "Create load from rate con".',
+  },
   'telegram.attach.toDriverLoad': { ru: '📎 В груз водителя', en: '📎 To driver\'s load' },
 
   // app/telegram/tg-disconnect-button.tsx

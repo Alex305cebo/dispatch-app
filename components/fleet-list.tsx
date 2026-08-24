@@ -5,6 +5,7 @@
 
 import { useState } from 'react'
 import { Fuel, Phone, Copy, Package, AlertTriangle } from 'lucide-react'
+import { LocalTime } from '@/components/local-time'
 import Link from 'next/link'
 import { notify } from '@/lib/notify'
 import { Button } from '@/components/button'
@@ -22,6 +23,10 @@ export type TrackingRow = {
   loadId: number | null
   loadRoute: string | null
   phone: string | null
+  /** IANA-пояс последнего GPS-фикса — рядом с телефоном показывает, который час у
+   * водителя. Половина парка живёт в другом поясе, и звонок в 4 утра стоит дороже
+   * любой сэкономленной минуты. */
+  zone: string | null
   delivery: { to: string; miles: number; etaMin: number } | null
   driveTimeText: string | null
   weather: { event: string; headline: string } | null
@@ -149,6 +154,12 @@ export function FleetList({
             <div className="mt-1 flex items-center justify-between gap-2 text-[12px] text-white/55">
               <span className="flex min-w-0 items-center gap-1">
                 <span className="truncate">{r.city ?? t(locale, 'tracking.noEldData')}</span>
+                {r.zone && (
+                  <LocalTime
+                    zone={r.zone}
+                    className="nums shrink-0 text-[11.5px] text-white/40"
+                  />
+                )}
                 {r.city && (
                   <button
                     onClick={() => void copyLocation(r.city!)}

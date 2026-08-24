@@ -93,7 +93,7 @@ function JournalLink({
   )
 }
 
-type Item = { href: string; labelKey: MsgKey; icon: string; soon?: boolean; desktopOnly?: boolean }
+type Item = { href: string; labelKey: MsgKey; icon: string; soon?: boolean }
 
 const ITEMS: Item[] = [
   { href: '/', labelKey: 'nav.overview', icon: 'dash' },
@@ -101,15 +101,14 @@ const ITEMS: Item[] = [
   { href: '/trucks', labelKey: 'nav.trucks', icon: 'settings' },
   { href: '/tracking', labelKey: 'nav.tracking', icon: 'track' },
   { href: '/docs', labelKey: 'nav.docs', icon: 'docs' },
-  // Phone tab bar fits 6 — Brokers rides the desktop sidebar, reachable on phone
-  // via load/import links.
-  { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield', desktopOnly: true },
-  // Тоже только на десктопе: на телефоне в панель влезает шесть пунктов, а
-  // маршрут с толлами считают за столом перед букингом, а не за рулём.
-  { href: '/tolls', labelKey: 'nav.tolls', icon: 'toll', desktopOnly: true },
+  // Брокеры, Толлы и Финансы раньше были только на десктопе: в панель телефона
+  // влезало шесть пунктов, и лишние просто прятали. На телефоне до них не было
+  // никакого пути, кроме ссылок с других страниц. Теперь панель прокручивается —
+  // прятать нечего.
+  { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield' },
+  { href: '/tolls', labelKey: 'nav.tolls', icon: 'toll' },
   { href: '/telegram', labelKey: 'nav.telegram', icon: 'chat' },
-  // The phone tab bar fits 6 — this stays reachable from dashboard/load pages there.
-  { href: '/invoices', labelKey: 'nav.finances', icon: 'money', desktopOnly: true },
+  { href: '/invoices', labelKey: 'nav.finances', icon: 'money' },
 ]
 
 export function Nav({
@@ -154,6 +153,62 @@ export function Nav({
     document.documentElement.classList.toggle('nav-collapsed', railFolded)
     localStorage.setItem('nav-folded', railFolded ? '1' : '0')
   }, [railFolded])
+
+  // Лента вкладок на телефоне: она шире экрана, и активная вкладка должна быть
+  // видна сама, без поиска пальцем. Возим её в центр при каждой смене страницы.
+  const dockRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const dock = dockRef.current
+    const tab = dock?.querySelector('[aria-current="page"]')
+    if (!dock || !tab) return
+    if (dock.scrollWidth <= dock.clientWidth + 1) return // десктоп и широкий экран
+    const d = dock.getBoundingClientRect()
+    const el = tab.getBoundingClientRect()
+    dock.scrollBy({ left: el.left + el.width / 2 - (d.left + d.width / 2), behavior: 'smooth' })
+  }, [pathname])
+
+  // Края ленты подсказывают, что она едет: где есть продолжение, там вкладки
+  // растворяются (маска в globals.css). Без подсказки прокрутку просто не находят.
+  const [edge, setEdge] = useState<'none' | 'start' | 'end' | 'both'>('none')
+  useEffect(() => {
+    const dock = dockRef.current
+    if (!dock) return
+    const read = () => {
+      const more = dock.scrollWidth - dock.clientWidth
+      if (more <= 1) return setEdge('none')
+      const left = dock.scrollLeft > 4
+      const right = dock.scrollLeft < more - 4
+      setEdge(left && right ? 'both' : left ? 'start' : right ? 'end' : 'none')
+    }
+    read()
+    dock.addEventListener('scroll', read, { passive: true })
+    window.addEventListener('resize', read)
+    return () => {
+      dock.removeEventListener('scroll', read)
+      window.removeEventListener('resize', read)
+    }
+  }, [])
+
+  // Пальцем лента едет сама (это обычная прокрутка), мышью — нет: курсором её
+  // возят перетаскиванием. Мышь и только мышь, иначе мы перехватили бы у пальца
+  // инерцию, которую браузер делает лучше нас.
+  const drag = useRef<{ x: number; left: number } | null>(null)
+  // Отдельный флаг, а не поле внутри drag: click приходит ПОСЛЕ pointerup, и если
+  // сбросить состояние на отпускании, протаскивание ленты открывало бы страницу
+  // вкладки, на которой остановился курсор.
+  const dragged = useRef(false)
+  function onPointerDown(e: React.PointerEvent) {
+    if (e.pointerType !== 'mouse' || !dockRef.current) return
+    dragged.current = false
+    drag.current = { x: e.clientX, left: dockRef.current.scrollLeft }
+  }
+  function onPointerMove(e: React.PointerEvent) {
+    const d = drag.current
+    if (!d || !dockRef.current) return
+    const dx = e.clientX - d.x
+    if (Math.abs(dx) > 4) dragged.current = true
+    dockRef.current.scrollLeft = d.left - dx
+  }
 
   function bumpDockTimer() {
     if (collapseTimer.current) clearTimeout(collapseTimer.current)
@@ -254,7 +309,23 @@ export function Nav({
 
       {/* Tabs: a floating glass dock on the phone (see .nav-dock), a plain column in the
           sidebar. */}
-      <div className="nav-dock flex items-stretch justify-around gap-0.5 md:flex-col md:gap-0.5">
+      <div className="nav-dock">
+        <div
+          ref={dockRef}
+          data-edge={edge}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={() => (drag.current = null)}
+          onPointerLeave={() => (drag.current = null)}
+          onClickCapture={(e) => {
+            // Протащили ленту — это была прокрутка, а не выбор вкладки.
+            if (dragged.current) {
+              e.preventDefault()
+              dragged.current = false
+            }
+          }}
+          className="nav-dock-scroll flex items-stretch gap-0.5 md:flex-col md:gap-0.5"
+        >
         {items.map((it) => {
         const active = !it.soon && (it.href === '/' ? pathname === '/' : pathname.startsWith(it.href))
 
@@ -282,8 +353,11 @@ export function Nav({
           </>
         )
 
+        // Ширина фиксированная, а не flex-1: девять вкладок, поделённые поровну,
+        // дали бы по сорок пикселей с обрезанной подписью у каждой. Здесь вкладка
+        // всегда читается целиком, а лишнее уезжает за край — туда, где его и ищут.
         const shape =
-          'nav-tab-btn relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl border px-1 py-2 md:flex-none md:flex-row md:gap-3 md:px-3 md:py-2.5'
+          'nav-tab-btn relative flex w-[4.5rem] shrink-0 snap-center flex-col items-center gap-1 rounded-xl border px-1 py-2 md:w-auto md:flex-none md:flex-row md:gap-3 md:px-3 md:py-2.5'
 
         if (it.soon) {
           return (
@@ -307,7 +381,7 @@ export function Nav({
             data-tour={'nav-' + it.href.replace(/\//g, '')}
             title={t(locale, it.labelKey)}
             aria-current={active ? 'page' : undefined}
-            className={`${shape} ${it.desktopOnly ? 'max-md:hidden' : ''} ${
+            className={`${shape} ${
               active ? 'text-haul-400 md:text-white' : 'text-white/70 hover:text-white/90'
             }`}
           >
@@ -319,6 +393,7 @@ export function Nav({
           </Link>
         )
         })}
+        </div>
       </div>
 
       {/* Account row — one round icon set, visible at every width. Used to be split

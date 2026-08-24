@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
+import { zoneTime } from '@/lib/fmt'
 
 export type MapMarker = {
   lat: number
@@ -23,6 +24,10 @@ export type MapMarker = {
   label: string // "2237 · Martinez Edwin" or "Delivery · Atlanta, GA"
   sub?: string // status / location line(s); '\n' splits into separate muted lines
   eta?: string // delivery hint, e.g. "145 mi · ~2ч 40м" — highlighted blue
+  /** IANA-пояс точки (lib/tz.ts) — плашка показывает местное время водителя.
+   * Диспетчер и водитель почти никогда не в одном поясе, а звонят и назначают
+   * окна по времени водителя. */
+  zone?: string
   tone?: 'move' | 'on' | 'rest'
   kind?: 'truck' | 'dest' | 'pickup'
   heading?: number // 0-360, compass — rotates the moving-truck arrow to face it
@@ -230,6 +235,10 @@ function popupHtml(m: MapMarker, openLabel: string): string {
   const eta = m.eta
     ? `<div style="color:${DEST};font-weight:600;margin-top:3px">🎯 ${esc(m.eta)}</div>`
     : ''
+  // Считается в момент открытия плашки (bindTooltip получает функцию), а не при
+  // создании маркера: карта живёт открытой минутами, и вшитое время успело бы соврать.
+  const local = m.zone ? zoneTime(m.zone, new Date()) : null
+  const clock = local ? `<div style="color:#fff;opacity:.75">🕒 ${esc(local)}</div>` : ''
   // The arrow: a clear "open the card" affordance. The tooltip is made interactive
   // and the whole plaque navigates (see the marker loop), so this doubles as the hint
   // and the visible click target.
@@ -238,7 +247,7 @@ function popupHtml(m: MapMarker, openLabel: string): string {
     : ''
   return `<div style="font:500 10.5px/1.4 system-ui,sans-serif">
     <div style="font-weight:700;font-size:11.5px;color:#fff;margin-bottom:2px">${esc(m.label)}</div>
-    ${lines}${eta}${open}
+    ${clock}${lines}${eta}${open}
   </div>`
 }
 
@@ -501,7 +510,7 @@ export function FleetMap({
         // routes the click through Leaflet's target system, which swallowed our own
         // handler. Instead the plaque gets pointer-events via CSS (globals.css) and a
         // plain DOM click listener below — simplest thing that actually fires.
-        marker.bindTooltip(popupHtml(m, t(locale, 'tracking.openArrow')), {
+        marker.bindTooltip(() => popupHtml(m, t(locale, 'tracking.openArrow')), {
           direction: 'top',
           offset: [0, -8],
           opacity: 1,

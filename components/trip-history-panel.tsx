@@ -16,7 +16,7 @@ import { truckTripHistory } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t, type MsgKey } from '@/lib/i18n'
-import type { HistoryLeg } from '@/lib/trip-history'
+import type { HistoryLeg, LoadStop } from '@/lib/trip-history'
 
 export type HistoryWindow = { hours: number; key: MsgKey }
 
@@ -25,12 +25,16 @@ export function TripHistoryPanel({
   windows,
   initialHours,
   initialLegs,
+  stops,
 }: {
   truckId: number
   windows: readonly HistoryWindow[]
   initialHours: number
   /** Rendered on the server for the first paint, so the panel is never empty on load. */
   initialLegs: HistoryLeg[]
+  /** Города и даты погрузок-выгрузок этого трака: по ним стоянка в списке узнаётся
+   * как детеншен, а не как обычный простой. Страница знает грузы, ELD — нет. */
+  stops: LoadStop[]
 }) {
   const locale = useLocale()
   const [hours, setHours] = useState(initialHours)
@@ -93,7 +97,7 @@ export function TripHistoryPanel({
         </span>
       </summary>
       <div className={`mt-3 transition-opacity ${pending ? 'opacity-50' : ''}`}>
-        <TripHistory legs={legs} locale={locale} />
+        <TripHistory legs={legs} locale={locale} stops={stops} />
       </div>
     </details>
   )
