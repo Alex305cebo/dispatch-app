@@ -15,7 +15,7 @@ import {
 import { intakeDriverMedia, remindMissingPods, resolveTruckForChat } from '@/lib/tg-intake'
 import { activeLoadForTruck } from '@/lib/loads'
 import { createLoadFromRc } from '@/app/actions'
-import { classifyDocument } from '@/lib/ai-doc'
+import { classifyDocument, type DocClass } from '@/lib/ai-doc'
 import { autoInvoiceIfReady } from '@/lib/invoice'
 import { sql } from '@/lib/db'
 import { demoReadOnly, getCurrentUser, verifyMyPassword, type CurrentUser } from '@/lib/session'
@@ -153,11 +153,49 @@ export async function setMyChatTruck(chatId: string, truckId: number | null): Pr
  * сохранён за траком, и на его странице стоит кнопка «Создать груз из рейт-кона».
  * Потерять документ нельзя ни в одной ветке.
  */
+export type TgFileTarget = number | 'new' | 'truck'
+export type TgAttachOpts = { kind?: DocClass | 'auto'; target?: TgFileTarget }
+
+/** Грузы этого трака для выбора «куда». Список короткий и свежий сверху: бумагу
+ * подшивают либо к тому, что везут, либо к тому, что взяли пару дней назад. */
+export async function tgFileTargets(
+  chatId: string,
+  driverPhone: string | null,
+): Promise<{ truck: string; loads: { id: number; route: string; status: string }[] } | { error: string }> {
+  let user: CurrentUser
+  try {
+    user = await requireTgUser()
+  } catch (e) {
+    return { error: msg(e) }
+  }
+  const truck = await resolveTruckForChat(user.id, chatId, driverPhone)
+  if (!truck) return { error: t(await getLocale(), 'telegram.actions.noTruckLinked') }
+  const rows = (await sql`
+    SELECT id, origin, destination, status FROM loads
+    WHERE company_id = 'default' AND truck_id = ${truck.truckId} AND status <> 'cancelled'
+    ORDER BY created_at DESC LIMIT 8`) as {
+    id: number
+    origin: string | null
+    destination: string | null
+    status: string
+  }[]
+  return {
+    truck: truck.number ?? '',
+    loads: rows.map((r) => ({
+      id: r.id,
+      route: `${r.origin ?? '—'} → ${r.destination ?? '—'}`,
+      status: r.status,
+    })),
+  }
+}
+
 export async function tgAttachToLoad(
   chatId: string,
   msgId: number,
   driverPhone: string | null,
-): Promise<{ ok: true; loadId: number; loadRoute: string; created?: boolean } | { error: string }> {
+  /** Ручной выбор диспетчера. Без него всё решается само, как и раньше. */
+  opts?: TgAttachOpts,
+): Promise<{ ok: true; loadId: number | null; loadRoute: string; created?: boolean } | { error: string }> {
   const ro = await demoReadOnly()
   if (ro) return ro
   let user: CurrentUser
@@ -173,28 +211,63 @@ export async function tgAttachToLoad(
   const media = await tgMedia(user.id, chatId, msgId).catch(() => null)
   if (!media) return { error: t(locale, 'telegram.actions.downloadFailed') }
 
-  const kind =
-    media.mime.startsWith('image/') || media.mime === 'application/pdf'
-      ? await classifyDocument(media.bytes.toString('base64'), media.mime)
-      : 'other'
   const ext = media.mime.includes('pdf') ? 'pdf' : 'jpg'
+  // Тип: либо назвал диспетчер, либо определяем сами. Названный вручную не
+  // перепроверяется — человек видит бумагу, а ИИ её угадывает.
+  const chosen = opts?.kind && opts.kind !== 'auto' ? opts.kind : null
+  const kind: DocClass =
+    chosen ??
+    (media.mime.startsWith('image/') || media.mime === 'application/pdf'
+      ? await classifyDocument(media.bytes.toString('base64'), media.mime)
+      : 'other')
+
+  const save = async (loadId: number | null) => {
+    await sql`
+      INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data, company_id)
+      VALUES (${loadId}, ${truck.truckId}, ${kind},
+              ${`${kind.toUpperCase()} #${truck.number} tg.${ext}`}, ${media.mime}, ${media.bytes.length},
+              decode(${media.bytes.toString('hex')}, 'hex'), 'default')`
+    revalidatePath('/docs')
+    revalidatePath(`/trucks/${truck.truckId}`)
+    if (loadId) revalidatePath(`/loads/${loadId}`)
+  }
 
   // Telegram is real-accounts-only (never the public demo sandbox) — see the REAL
   // constant + comment in lib/tg-intake.ts.
-  if (kind === 'ratecon') return attachRateCon(truck, media, ext, locale)
+  const target = opts?.target
+
+  // «В файлы трака» — когда груза для этой бумаги ещё нет или он тут ни при чём
+  // (страховка, чек за ремонт). Документ виден на карточке трака.
+  if (target === 'truck') {
+    await save(null)
+    return { ok: true, loadId: null, loadRoute: '' }
+  }
+
+  // «Новый груз» — читаем бумагу и заводим рейс по ней, не сверяясь с имеющимися:
+  // диспетчер уже сказал, что это другой груз.
+  if (target === 'new') return attachRateCon(truck, media, ext, locale, true)
+
+  if (typeof target === 'number') {
+    const rows = (await sql`
+      SELECT id, origin, destination FROM loads
+      WHERE id = ${target} AND truck_id = ${truck.truckId} AND company_id = 'default'`) as {
+      id: number
+      origin: string | null
+      destination: string | null
+    }[]
+    const picked = rows[0]
+    if (!picked) return { error: t(locale, 'telegram.actions.noActiveLoad') }
+    await save(picked.id)
+    if (kind === 'pod') await autoInvoiceIfReady('default', picked.id)
+    return { ok: true, loadId: picked.id, loadRoute: `${picked.origin ?? ''} → ${picked.destination ?? ''}` }
+  }
+
+  if (kind === 'ratecon') return attachRateCon(truck, media, ext, locale, false)
 
   const load = await activeLoadForTruck('default', truck.truckId)
   if (!load) return { error: t(locale, 'telegram.actions.noActiveLoad') }
-
-  await sql`
-    INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data, company_id)
-    VALUES (${load.id}, ${truck.truckId}, ${kind},
-            ${`${kind.toUpperCase()} #${truck.number} tg.${ext}`}, ${media.mime}, ${media.bytes.length},
-            decode(${media.bytes.toString('hex')}, 'hex'), 'default')`
+  await save(load.id)
   if (kind === 'pod') await autoInvoiceIfReady('default', load.id)
-
-  revalidatePath(`/loads/${load.id}`)
-  revalidatePath('/docs')
   return { ok: true, loadId: load.id, loadRoute: `${load.origin ?? ''} → ${load.destination ?? ''}` }
 }
 
@@ -208,6 +281,8 @@ async function attachRateCon(
   media: { mime: string; bytes: Buffer },
   ext: string,
   locale: Awaited<ReturnType<typeof getLocale>>,
+  /** Диспетчер выбрал «новый груз» — сверять с имеющимися нечего. */
+  forceNew: boolean,
 ): Promise<{ ok: true; loadId: number; loadRoute: string; created?: boolean } | { error: string }> {
   // Сначала сохраняем, потом читаем: чтение сканa у ИИ занимает до полутора минут, и
   // упасть на нём означало бы потерять присланный документ совсем.
@@ -243,11 +318,13 @@ async function attachRateCon(
     reference_id: string | null
   }[]
   const ref = load.referenceId?.trim().toLowerCase()
-  const match = mine.find(
-    (l) =>
-      (!!ref && l.reference_id?.trim().toLowerCase() === ref) ||
-      (sameCity(l.origin, load.origin) && sameCity(l.destination, load.destination)),
-  )
+  const match = forceNew
+    ? undefined
+    : mine.find(
+        (l) =>
+          (!!ref && l.reference_id?.trim().toLowerCase() === ref) ||
+          (sameCity(l.origin, load.origin) && sameCity(l.destination, load.destination)),
+      )
   if (match) {
     await sql`UPDATE documents SET load_id = ${match.id} WHERE id = ${docId} AND load_id IS NULL`
     revalidatePath(`/loads/${match.id}`)
