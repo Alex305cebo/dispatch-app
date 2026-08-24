@@ -13,6 +13,7 @@
 // popup and in the list underneath the map, same as every product researched does.
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
@@ -604,7 +605,7 @@ export function FleetMap({
       mapRef.current = null
       tileRef.current = null
     }
-  }, [markers, routes])
+  }, [markers, routes, expanded])
 
   // Swaps just the tile layer in place on a satellite toggle — no fitBounds, no
   // rebuild, so whatever the dispatcher panned/zoomed to survives the switch.
@@ -637,27 +638,17 @@ export function FleetMap({
     )
   }
 
-  return (
-    <>
-      {/* Затемнение позади развёрнутой карты. Клик по нему закрывает — это ожидаемый
-          жест, и без него единственным выходом остаётся маленький крестик. */}
-      {expanded && (
-        <div
-          className="fixed inset-0 z-[1400] bg-black/70 backdrop-blur-sm"
-          onClick={() => setExpanded(false)}
-          aria-hidden
-        />
-      )}
-      <div
-        className={
-          expanded
-            ? // Не на весь экран, а с полями: видно, что это окно поверх страницы,
-              // и остаётся куда нажать, чтобы закрыть.
-              'fleet-map panel fixed inset-3 z-[1500] overflow-hidden sm:inset-6 lg:inset-10'
-            : 'fleet-map panel relative z-0 overflow-hidden'
-        }
-        style={expanded ? undefined : { height }}
-      >
+  const content = (
+    <div
+      className={
+        expanded
+          ? // Почти во весь экран, но с полями: видно, что это окно поверх страницы,
+            // и есть куда нажать, чтобы закрыть.
+            'fleet-map panel fixed inset-2 z-[1500] overflow-hidden sm:inset-4 lg:inset-6'
+          : 'fleet-map panel relative z-0 overflow-hidden'
+      }
+      style={expanded ? undefined : { height }}
+    >
       {/* Leaflet's own chrome (container bg, popup theme) is styled in globals.css
           under .fleet-map — Tailwind's arbitrary `[&_...]` variants don't reach this
           dynamically mounted tree in this build, see the comment there. */}
@@ -712,7 +703,29 @@ export function FleetMap({
           pulsing pill (the dot pings while it's rolling); several show a live tally of how
           many are moving / on duty / stopped. Nothing when no truck is on the map. */}
       <LiveStatus trucks={markers.filter((m) => m.kind === 'truck')} locale={locale} />
-      </div>
-    </>
+    </div>
+  )
+
+  if (!expanded) return content
+
+  // Через портал в <body>, а не просто position: fixed на месте.
+  //
+  // Карта живёт внутри карточки, а у каждой карточки (.panel) есть backdrop-filter —
+  // и элемент с ним по спецификации становится системой отсчёта для fixed-потомков.
+  // Поэтому «во весь экран» разворачивалось во весь РАЗМЕР КАРТОЧКИ: со стороны это
+  // выглядело так, будто карта, наоборот, свернулась. Портал выносит окно из-под
+  // карточки, и никакой её стиль на него больше не влияет.
+  return createPortal(
+    <>
+      {/* Затемнение позади окна. Клик по нему закрывает — ожидаемый жест, без него
+          единственным выходом остаётся маленькая кнопка в углу. */}
+      <div
+        className="fixed inset-0 z-[1400] bg-black/75 backdrop-blur-sm"
+        onClick={() => setExpanded(false)}
+        aria-hidden
+      />
+      {content}
+    </>,
+    document.body,
   )
 }
