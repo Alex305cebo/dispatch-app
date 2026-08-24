@@ -297,6 +297,7 @@ export default async function Page({
               // начинается с «MC - », и «MC - MC 626911» читалось бы как ошибка.
               mc: company.mcdot.replace(/^MC[\s#-]*/i, ''),
               companyName: company.name,
+              companyEmail: company.email,
               dispatcherName: user?.name ?? '',
               dispatcherPhone: dispatcherPhone ?? '',
             }}

@@ -134,6 +134,7 @@ export default async function Page() {
       <DriverDirectory
         mc={company.mcdot.replace(/^MC[\s#-]*/i, '')}
         companyName={company.name}
+        companyEmail={company.email}
         dispatcherName={user?.name ?? ''}
         dispatcherPhone={dispatcherPhone ?? ''}
         drivers={trucks.map((truck) => {

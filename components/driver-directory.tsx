@@ -39,12 +39,15 @@ export function DriverDirectory({
   drivers,
   mc,
   companyName,
+  companyEmail,
   dispatcherName,
   dispatcherPhone,
 }: {
   drivers: DriverEntry[]
   mc: string
   companyName: string
+  /** Почта компании из профиля — та, что стоит в блоке строкой Email. */
+  companyEmail: string
   dispatcherName: string
   /** Личный номер диспетчера. В блоке он стоит рядом с именем — брокер звонит
    * человеку, который прислал груз, а не на общий номер компании. */
@@ -134,7 +137,7 @@ export function DriverDirectory({
           <ul className="mt-2 flex flex-col gap-1">
             {drivers.map((d) => {
               const isOpen = openDriver === d.truckId
-              const block = infoBlock(d, { mc, companyName, dispatcherName, dispatcherPhone: phone })
+              const block = infoBlock(d, { mc, companyName, companyEmail, dispatcherName, dispatcherPhone: phone })
               return (
                 <li key={d.truckId} className="rounded-lg border border-white/6">
                   <button
@@ -183,31 +186,50 @@ export function DriverDirectory({
 }
 
 /**
- * Готовый блок для брокера — в том виде, в котором его отправляют. Раскладка,
- * порядок строк и пустые строки повторяют образец заказчика: это устоявшийся
- * формат отрасли, брокер читает его глазами и ждёт именно такой.
+ * Готовый блок для брокера — в том виде, в котором его отправляют.
+ *
+ * Раскладка, порядок строк и пустая строка посередине повторяют образец заказчика:
+ * это устоявшийся формат отрасли, брокер читает его глазами и ждёт именно такой.
+ * Дефис везде обычный, а не типографское тире: блок вставляют в чужие системы, и
+ * длинное тире там иногда приезжает вопросительным знаком.
+ *
+ * Все значения — живые: водитель и номера из карточки трака, компания, MC и почта
+ * из профиля компании, диспетчер и его телефон из учётной записи того, кто нажал
+ * кнопку. Ничего не зашито в код, поэтому блок не устаревает.
  *
  * Всегда по-английски, независимо от языка интерфейса: получатель — американский
  * брокер, а не пользователь приложения.
  */
 export function infoBlock(
   d: DriverEntry,
-  co: { mc: string; companyName: string; dispatcherName: string; dispatcherPhone: string },
+  co: {
+    mc: string
+    companyName: string
+    companyEmail: string
+    dispatcherName: string
+    dispatcherPhone: string
+  },
 ): string {
   const dash = (v: string | null | undefined) => (v && v.trim() ? v.trim() : '—')
+  // Телефон — одними цифрами: его вставляют в чужие поля и звонилки, а пробелы и
+  // скобки там мешают. Плюс у международного номера сохраняем.
+  const tel = (v: string | null | undefined) => {
+    const t = (v ?? '').trim()
+    if (!t) return '—'
+    const digits = t.replace(/[^\d+]/g, '')
+    return digits || '—'
+  }
   return [
-    `Driver Name – ${dash(d.driverName)}`,
-    `Driver Phone Number – ${dash(d.driverPhone)}`,
-    `Truck Number – ${dash(d.truckNumber)}`,
-    `Trailer Number – ${dash(d.trailerNumber)}`,
+    `Driver Name - ${dash(d.driverName)}`,
+    `Driver Phone Number - ${tel(d.driverPhone)}`,
+    `Truck Number - ${dash(d.truckNumber)}`,
+    `Trailer Number - ${dash(d.trailerNumber)}`,
     '',
-    `Truck VIN - ${dash(d.vin)}`,
-    '',
-    '',
-    `Dispatcher – ${dash(co.dispatcherName)}`,
-    `Dispatcher Number – ${dash(co.dispatcherPhone)}`,
     `MC - ${dash(co.mc)}`,
-    `Company Name – ${dash(co.companyName)}`,
+    `Company Name - ${dash(co.companyName)}`,
+    `Email - ${dash(co.companyEmail)}`,
+    `Dispatcher - ${dash(co.dispatcherName)}`,
+    `Dispatcher Number - ${tel(co.dispatcherPhone)}`,
   ].join('\n')
 }
 

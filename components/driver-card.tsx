@@ -40,7 +40,13 @@ export function DriverCard({
   vin?: string | null
   /** Компания и диспетчер — вторая половина блока, который уходит брокеру. Без них
    * кнопка «скопировать» не показывается: половина блока хуже, чем его отсутствие. */
-  broker?: { mc: string; companyName: string; dispatcherName: string; dispatcherPhone: string }
+  broker?: {
+    mc: string
+    companyName: string
+    companyEmail: string
+    dispatcherName: string
+    dispatcherPhone: string
+  }
   /** Nested inside another panel (the truck hero) — no own border/background, no header. */
   embedded?: boolean
   locale?: Locale
