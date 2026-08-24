@@ -407,6 +407,7 @@ export function FleetMap({
   const locale = useLocale()
   const ref = useRef<HTMLDivElement>(null)
   const [satellite, setSatellite] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   // Read inside the map-build effect without making `satellite` one of its deps —
   // that effect only re-runs when the DATA changes, not the basemap choice.
   const satelliteRef = useRef(satellite)
@@ -429,6 +430,32 @@ export function FleetMap({
   // on a satellite toggle. Rebuilding on every toggle was what reset the view.
   // Полёт к точке из списка. Отдельным эффектом, чтобы не перестраивать карту:
   // пересборка сбросила бы масштаб и позицию, которые диспетчер только что выбрал.
+  // Leaflet считает размеры один раз при монтировании: без пересчёта половина
+  // развёрнутой карты остаётся серой, а маркеры уезжают мимо своих координат.
+  // Кадр задержки — чтобы разметка успела примениться до замера.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const id = requestAnimationFrame(() => map.invalidateSize())
+    return () => cancelAnimationFrame(id)
+  }, [expanded])
+
+  // Esc закрывает — привычный выход из окна поверх страницы. Заодно придерживаем
+  // прокрутку страницы под ним: колесо должно двигать карту, а не текст за ней.
+  useEffect(() => {
+    if (!expanded) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExpanded(false)
+    }
+    window.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [expanded])
+
   useEffect(() => {
     const map = mapRef.current
     if (!map || !focus) return
@@ -607,7 +634,26 @@ export function FleetMap({
   }
 
   return (
-    <div className="fleet-map panel relative z-0 overflow-hidden" style={{ height }}>
+    <>
+      {/* Затемнение позади развёрнутой карты. Клик по нему закрывает — это ожидаемый
+          жест, и без него единственным выходом остаётся маленький крестик. */}
+      {expanded && (
+        <div
+          className="fixed inset-0 z-[1400] bg-black/70 backdrop-blur-sm"
+          onClick={() => setExpanded(false)}
+          aria-hidden
+        />
+      )}
+      <div
+        className={
+          expanded
+            ? // Не на весь экран, а с полями: видно, что это окно поверх страницы,
+              // и остаётся куда нажать, чтобы закрыть.
+              'fleet-map panel fixed inset-3 z-[1500] overflow-hidden sm:inset-6 lg:inset-10'
+            : 'fleet-map panel relative z-0 overflow-hidden'
+        }
+        style={expanded ? undefined : { height }}
+      >
       {/* Leaflet's own chrome (container bg, popup theme) is styled in globals.css
           under .fleet-map — Tailwind's arbitrary `[&_...]` variants don't reach this
           dynamically mounted tree in this build, see the comment there. */}
@@ -621,17 +667,48 @@ export function FleetMap({
           <span className="ml-1 text-[12px] font-medium text-white/60">mi</span>
         </div>
       )}
-      <button
-        type="button"
-        onClick={() => setSatellite((v) => !v)}
-        className="absolute right-2.5 top-2.5 z-[1000] rounded-lg border border-white/15 bg-ink-950/85 px-2.5 py-1.5 text-[11px] font-semibold text-white/85 backdrop-blur transition-colors hover:bg-ink-900"
-      >
-        {satellite ? t(locale, 'tracking.mapLabel') : t(locale, 'tracking.satelliteLabel')}
-      </button>
+      <div className="absolute right-2.5 top-2.5 z-[1000] flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => setSatellite((v) => !v)}
+          className="rounded-lg border border-white/15 bg-ink-950/85 px-2.5 py-1.5 text-[11px] font-semibold text-white/85 backdrop-blur transition-colors hover:bg-ink-900"
+        >
+          {satellite ? t(locale, 'tracking.mapLabel') : t(locale, 'tracking.satelliteLabel')}
+        </button>
+        {/* Развернуть/свернуть. На врезке высотой 280 px маршрут через полстраны —
+            это линия в три пикселя; чтобы разглядеть съезды и площадки, карту надо
+            открыть больше. */}
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          title={t(locale, expanded ? 'tracking.mapCollapse' : 'tracking.mapExpand')}
+          aria-label={t(locale, expanded ? 'tracking.mapCollapse' : 'tracking.mapExpand')}
+          className="flex size-[30px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 text-white/85 backdrop-blur transition-colors hover:bg-ink-900"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4" aria-hidden>
+            {expanded ? (
+              <>
+                <path d="M9 3v6H3" />
+                <path d="M15 21v-6h6" />
+                <path d="M3 21l6-6" />
+                <path d="M21 3l-6 6" />
+              </>
+            ) : (
+              <>
+                <path d="M15 3h6v6" />
+                <path d="M9 21H3v-6" />
+                <path d="M21 3l-7 7" />
+                <path d="M3 21l7-7" />
+              </>
+            )}
+          </svg>
+        </button>
+      </div>
       {/* Live status, not a passive colour key: one truck shows its own state as a
           pulsing pill (the dot pings while it's rolling); several show a live tally of how
           many are moving / on duty / stopped. Nothing when no truck is on the map. */}
       <LiveStatus trucks={markers.filter((m) => m.kind === 'truck')} locale={locale} />
-    </div>
+      </div>
+    </>
   )
 }
