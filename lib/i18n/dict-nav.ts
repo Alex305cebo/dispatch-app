@@ -38,11 +38,12 @@ export const navDict = {
   'userPanel.tileLang': { ru: 'Язык', en: 'Language' },
   'userPanel.tileTheme': { ru: 'Тема', en: 'Theme' },
   'userPanel.tileJournal': { ru: 'Журнал', en: 'Journal' },
-  'userPanel.tileRecovery': { ru: 'Код восст.', en: 'Recovery' },
-  'userPanel.recoveryIssued': {
-    ru: 'Новый код восстановления. Сохраните: прежний больше не действует, а этот показывается один раз.',
-    en: 'New recovery code. Save it: the old one no longer works, and this one is shown once.',
+  'userPanel.tileRecovery': { ru: 'Дата восст.', en: 'Recovery' },
+  'userPanel.recoveryHint': {
+    ru: 'Дата рождения для «Забыли пароль?» на экране входа. Задайте или замените — прежняя перестанет действовать.',
+    en: 'The birth date for "Forgot password?" on the sign-in screen. Set or replace it — the previous one stops working.',
   },
+  'userPanel.recoverySaved': { ru: 'Дата сохранена', en: 'Date saved' },
   'userPanel.tilePassword': { ru: 'Пароль', en: 'Password' },
   'userPanel.tileUsers': { ru: 'Люди', en: 'People' },
   'userPanel.tileImport': { ru: 'Импорт', en: 'Import' },

@@ -5,7 +5,6 @@ import { sql } from '@/lib/db'
 import {
   createSession,
   destroySession,
-  generateRecoveryCode,
   hashPassword,
   normalizeRecoveryCode,
   verifyPassword,
@@ -13,7 +12,7 @@ import {
   SESSION_DAYS,
 } from '@/lib/auth'
 import { applySchema, schemaInstalled } from '@/lib/install'
-import { setSetting } from '@/lib/settings'
+import { deleteSetting, getSetting, setSetting } from '@/lib/settings'
 import { t } from '@/lib/i18n'
 import { getLocale } from '@/lib/i18n-server'
 
@@ -49,25 +48,45 @@ async function startSession(userId: number, remember: boolean) {
   })
 }
 
-/** Новый код восстановления для пользователя: в базу — хеш, наружу — сам код.
- * Показывается один раз; потерял — перевыпускается из меню или сбрасывается
- * администратором. */
-async function issueRecoveryCode(userId: number): Promise<string> {
-  const code = generateRecoveryCode()
-  await sql`UPDATE users SET recovery_hash = ${await hashPassword(normalizeRecoveryCode(code))} WHERE id = ${userId}`
-  return code
+/** Дата рождения — «код восстановления», который не надо записывать.
+ *
+ * ЧЕСТНО О ЦЕНЕ: дата — слабый секрет (десятки тысяч вариантов, и близкие её
+ * знают). Выбрана сознательно, потому что случайные коды владельцы теряли — а
+ * потерянный код хуже слабого. Слабость компенсирует замок ниже (throttled):
+ * пять неверных попыток — и сброс для этого email заперт на 15 минут, перебор
+ * дат становится бессмысленным. Хранится тем же PBKDF2-хешем, что и пароль. */
+const BIRTHDAY_RE = /^\d{4}-\d{2}-\d{2}$/
+function birthdayOk(b: string): boolean {
+  if (!BIRTHDAY_RE.test(b)) return false
+  const year = Number(b.slice(0, 4))
+  const now = new Date().getFullYear()
+  return year >= 1920 && year <= now - 10
+}
+async function saveBirthday(userId: number, birthday: string): Promise<void> {
+  await sql`UPDATE users SET recovery_hash = ${await hashPassword(normalizeRecoveryCode(birthday))} WHERE id = ${userId}`
 }
 
-export type Created = { error: string } | { recoveryCode: string }
+/** Замок от перебора дат: счётчик неудач на email, окно 15 минут, порог 5. */
+const TRY_WINDOW_MS = 15 * 60 * 1000
+const TRY_MAX = 5
+async function throttled(email: string): Promise<boolean> {
+  const raw = await getSetting(`pwtry:${email}`)
+  if (!raw) return false
+  const [n, ts] = raw.split(':').map(Number)
+  if (!n || !ts || Date.now() - ts > TRY_WINDOW_MS) return false
+  return n >= TRY_MAX
+}
+async function noteFailure(email: string): Promise<void> {
+  const key = `pwtry:${email}`
+  const raw = await getSetting(key)
+  const [n, ts] = (raw ?? '').split(':').map(Number)
+  const fresh = n && ts && Date.now() - ts <= TRY_WINDOW_MS
+  await setSetting(key, fresh ? `${n + 1}:${ts}` : `1:${Date.now()}`)
+}
 
 /**
  * Первый запуск, он же установка: при необходимости накатывает схему, создаёт
  * первый аккаунт (он становится администратором) и записывает профиль компании.
- *
- * Три шага здесь, а не в трёх местах, потому что для клиента это один шаг —
- * «поставить приложение». Раньше схему накатывали командой с нашей машины, а
- * профиль компании передавали её флагами; клиент не мог сделать ни того, ни
- * другого, и каждая установка упиралась в нас.
  *
  * Дверь та же самая, что и была: как только существует хоть один настоящий
  * аккаунт, эта функция отказывает — и это же закрывает установку от посторонних.
@@ -79,12 +98,17 @@ export async function bootstrapAdmin(
   password: string,
   coName: string,
   coMcdot: string,
-): Promise<Created> {
+  birthday: string,
+  consent: boolean,
+): Promise<{ error: string } | void> {
   const locale = await getLocale()
   if (!name.trim()) return { error: t(locale, 'login.error.enterName') }
   if (!EMAIL_RE.test(email.trim())) return { error: t(locale, 'login.error.badEmail') }
   if (password.length < 8) return { error: t(locale, 'login.error.passwordMin') }
   if (!coName.trim()) return { error: t(locale, 'login.error.enterCompany') }
+  if (!birthdayOk(birthday)) return { error: t(locale, 'login.error.badBirthday') }
+  // Проверка на сервере, а не только галочкой в форме: форму можно обойти.
+  if (!consent) return { error: t(locale, 'login.error.needConsent') }
 
   // Пустая база: сначала схема, иначе следующий же запрос упадёт на отсутствующей
   // таблице. schema.sql идемпотентна, так что гонка двух вкладок здесь ничего не
@@ -114,30 +138,36 @@ export async function bootstrapAdmin(
     }
   }
   // Профиль компании — здесь, а не «потом в настройках»: lib/invoice.ts отказывается
-  // выставлять счёт, пока co_name и co_mcdot пустые, и установка, которая выглядит
-  // законченной, ломается на первом же счёте. MC/DOT можно дописать позже, название —
-  // нет, поэтому обязательное только оно.
+  // выставлять счёт, пока co_name и co_mcdot пустые. MC/DOT можно дописать позже,
+  // название — нет, поэтому обязательное только оно.
   await setSetting('co_name', coName.trim())
   if (coMcdot.trim()) await setSetting('co_mcdot', coMcdot.trim())
 
-  const recoveryCode = await issueRecoveryCode(userId)
+  await saveBirthday(userId, birthday)
+  // Согласие — с меткой времени: «галочка стояла» без «когда» ничего не стоит.
+  await setSetting(`consent:${userId}`, new Date().toISOString())
   await startSession(userId, true)
   await logAudit(name.trim())
-  return { recoveryCode }
 }
 
 /**
  * Заявка с экрана входа. Аккаунт создаётся сразу, но с pending_since: внутрь не
  * пускает, пока администратор не подтвердит в «Люди». Открытая регистрация без
- * подтверждения была бы дверью в данные компании для любого прохожего, а
- * «написать админу, чтобы завёл» — той самой зависимостью от одного человека,
- * из-за которой эта кнопка и появилась.
+ * подтверждения была бы дверью в данные компании для любого прохожего.
  */
-export async function registerRequest(name: string, email: string, password: string): Promise<Created> {
+export async function registerRequest(
+  name: string,
+  email: string,
+  password: string,
+  birthday: string,
+  consent: boolean,
+): Promise<{ error: string } | void> {
   const locale = await getLocale()
   if (!name.trim()) return { error: t(locale, 'login.error.enterName') }
   if (!EMAIL_RE.test(email.trim())) return { error: t(locale, 'login.error.badEmail') }
   if (password.length < 8) return { error: t(locale, 'login.error.passwordMin') }
+  if (!birthdayOk(birthday)) return { error: t(locale, 'login.error.badBirthday') }
+  if (!consent) return { error: t(locale, 'login.error.needConsent') }
 
   // Пустая база — это установка, а не заявка: первый аккаунт обязан стать админом.
   const existing = await sql`SELECT 1 FROM users WHERE is_demo = FALSE LIMIT 1`
@@ -155,7 +185,8 @@ export async function registerRequest(name: string, email: string, password: str
       error: /unique/i.test(String(e)) ? t(locale, 'login.error.emailTaken') : t(locale, 'login.error.createFailed'),
     }
   }
-  return { recoveryCode: await issueRecoveryCode(userId) }
+  await saveBirthday(userId, birthday)
+  await setSetting(`consent:${userId}`, new Date().toISOString())
 }
 
 export async function signIn(
@@ -186,37 +217,40 @@ export async function signIn(
 }
 
 /**
- * «Забыл пароль»: email + код восстановления → новый пароль. Без почты и без
- * администратора — единственный админ иначе запирал бы себя навсегда.
- *
- * Код одноразовый: после сброса выдаётся новый, чтобы у человека всегда был
- * действующий. Все прежние сессии гасятся — тот, кто увёл пароль, теряет вход.
+ * «Забыли пароль»: email + дата рождения → новый пароль, сразу внутрь. Без почты
+ * и без администратора — единственный админ иначе запирал бы себя навсегда.
+ * Все прежние сессии гасятся: тот, кто увёл старый пароль, теряет вход.
  */
-export async function resetWithRecovery(email: string, code: string, newPassword: string): Promise<Created> {
+export async function resetWithRecovery(
+  email: string,
+  birthday: string,
+  newPassword: string,
+): Promise<{ error: string } | void> {
   const locale = await getLocale()
   if (newPassword.length < 8) return { error: t(locale, 'login.error.passwordMin') }
+  const mail = email.trim().toLowerCase()
+  if (await throttled(mail)) return { error: t(locale, 'login.error.tooManyTries') }
   const rows = (await sql`
     SELECT id, name, recovery_hash, pending_since FROM users
-    WHERE email = ${email.trim().toLowerCase()} AND is_demo = FALSE AND disabled_at IS NULL`) as {
+    WHERE email = ${mail} AND is_demo = FALSE AND disabled_at IS NULL`) as {
     id: number
     name: string
     recovery_hash: string | null
     pending_since: string | null
   }[]
   const user = rows[0]
-  // Один и тот же ответ на «нет такого email» и «код не тот» — по той же причине,
+  // Один и тот же ответ на «нет такого email» и «дата не та» — по той же причине,
   // что и при входе: форма без сессии не должна подтверждать, чьи адреса тут есть.
-  if (!user || !user.recovery_hash || !(await verifyPassword(normalizeRecoveryCode(code), user.recovery_hash))) {
+  if (!user || !user.recovery_hash || !(await verifyPassword(normalizeRecoveryCode(birthday), user.recovery_hash))) {
+    await noteFailure(mail)
     return { error: t(locale, 'login.error.badRecovery') }
   }
+  await deleteSetting(`pwtry:${mail}`)
   await sql`UPDATE users SET password_hash = ${await hashPassword(newPassword)} WHERE id = ${user.id}`
   await sql`DELETE FROM sessions WHERE user_id = ${user.id}`
-  const recoveryCode = await issueRecoveryCode(user.id)
-  if (!user.pending_since) {
-    await startSession(user.id, true)
-    await logAudit(user.name)
-  }
-  return { recoveryCode }
+  if (user.pending_since) return { error: t(locale, 'login.error.pending') }
+  await startSession(user.id, true)
+  await logAudit(user.name)
 }
 
 export async function signOut(): Promise<void> {

@@ -23,7 +23,7 @@ import {
   Upload,
   Users,
 } from 'lucide-react'
-import { changeMyPassword, newRecoveryCode } from '@/app/account/actions'
+import { changeMyPassword, setRecoveryBirthday } from '@/app/account/actions'
 import { signOut } from '@/app/login/actions'
 import { notify } from '@/lib/notify'
 import type { CurrentUser } from '@/lib/session'
@@ -118,7 +118,8 @@ export function UserPanel({
   // Password form starts folded — its own tile opens it (see MenuTile below).
   const [pwOpen, setPwOpen] = useState(false)
   const [pw, setPw] = useState('')
-  const [recovery, setRecovery] = useState<string | null>(null)
+  const [bdayOpen, setBdayOpen] = useState(false)
+  const [bday, setBday] = useState('')
   const [pending, start] = useTransition()
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -301,27 +302,50 @@ export function UserPanel({
               >
                 <KeyRound size={15} />
               </MenuTile>
-              {/* Код восстановления — единственный путь назад, если пароль забыт, а
-                  ты единственный админ. Перевыпуск гасит прежний код. */}
+              {/* Дата рождения для «Забыли пароль?» — единственный путь назад, если
+                  пароль забыт, а ты единственный админ. Хранится хешем; здесь её
+                  можно задать или заменить (нужно аккаунтам, созданным до того,
+                  как дата появилась в регистрации). */}
               <MenuTile
                 label={t(locale, 'userPanel.tileRecovery')}
-                active={recovery !== null}
-                onClick={() =>
-                  start(async () => {
-                    const res = await newRecoveryCode()
-                    if ('error' in res) notify('error', res.error)
-                    else setRecovery(res.code)
-                  })
-                }
+                active={bdayOpen}
+                onClick={() => setBdayOpen((v) => !v)}
               >
                 <LifeBuoy size={15} />
               </MenuTile>
             </div>
 
-            {recovery && (
-              <div className="mt-2.5 rounded-lg border border-haul-500/30 bg-haul-500/[0.08] p-2.5">
-                <p className="text-[11px] text-white/60">{t(locale, 'userPanel.recoveryIssued')}</p>
-                <p className="nums mt-1 select-all text-center text-[16px] font-bold tracking-wider text-haul-300">{recovery}</p>
+            {bdayOpen && (
+              <div className="mt-2.5">
+                <p className="mb-1.5 text-[11px] leading-relaxed text-white/55">
+                  {t(locale, 'userPanel.recoveryHint')}
+                </p>
+                <input
+                  type="date"
+                  value={bday}
+                  onChange={(e) => setBday(e.target.value)}
+                  className="w-full rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500"
+                />
+                <Button
+                  variant="primary"
+                  size="sm"
+                  block
+                  className="mt-2"
+                  loading={pending}
+                  disabled={pending || !bday}
+                  onClick={() =>
+                    start(async () => {
+                      const res = await setRecoveryBirthday(bday)
+                      if (res?.error) notify('error', res.error)
+                      else {
+                        notify('ok', t(locale, 'userPanel.recoverySaved'))
+                        setBdayOpen(false)
+                      }
+                    })
+                  }
+                >
+                  {t(locale, 'common.save')}
+                </Button>
               </div>
             )}
 

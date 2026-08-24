@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/button'
 import { useState, useTransition } from 'react'
-import { bootstrapAdmin, registerRequest, resetWithRecovery, signIn, type Created } from './actions'
+import { bootstrapAdmin, registerRequest, resetWithRecovery, signIn } from './actions'
 import { LOCALE_COOKIE, LOCALES, t, type Locale } from '@/lib/i18n'
 
 function EyeIcon({ open }: { open: boolean }) {
@@ -23,9 +23,9 @@ const input =
   'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none transition-all placeholder:text-white/45 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
 
 /** Что показывает карточка. 'signin' — обычный вход; 'register' — заявка на аккаунт;
- * 'forgot' — сброс пароля по коду восстановления; 'code' — экран с только что
- * выданным кодом, после которого либо внутрь, либо «ждите подтверждения». */
-type Mode = 'signin' | 'register' | 'forgot' | 'code'
+ * 'forgot' — сброс пароля по дате рождения; 'sent' — заявка отправлена, ждём
+ * подтверждения администратором. */
+type Mode = 'signin' | 'register' | 'forgot' | 'sent'
 
 /** Same form for both first-run (create the admin) and every login after — the
  * chrome (logo, language picker, password field, submit) is identical either way. */
@@ -60,15 +60,14 @@ export function LoginForm({
   const [coMcdot, setCoMcdot] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [recovery, setRecovery] = useState('')
+  const [birthday, setBirthday] = useState('')
+  const [consent, setConsent] = useState(false)
   const [remember, setRemember] = useState(true)
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [locale, setLocale] = useState<Locale>(initialLocale)
-  const [asking, setAsking] = useState(askLocale)
+  const [asking] = useState(askLocale)
   const [pending, start] = useTransition()
-  // Экран с кодом: сам код и что после него — вход (reload) или ожидание админа.
-  const [issued, setIssued] = useState<{ code: string; next: 'enter' | 'wait' } | null>(null)
 
   function writeLocaleCookie(l: Locale) {
     document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`
@@ -94,27 +93,15 @@ export function LoginForm({
     setMode(m)
     setError(null)
     setPassword('')
-    setRecovery('')
   }
 
   /** A full reload, not router.refresh(): middleware rewrote this response, so the
    * address bar already holds the real URL — including a QR's #load data — and
-   * reloading it fetches that same URL fresh, same as refresh() intended. Unlike
-   * refresh()'s RSC-only fetch, a plain reload is just an ordinary page request,
-   * which behaves correctly behind reverse proxies that don't handle Next's RSC
-   * response format cleanly (seen in production on Hostinger: refresh() surfaced
-   * as "An unexpected response was received from the server"). */
+   * reloading it fetches that same URL fresh. Unlike refresh()'s RSC-only fetch, a
+   * plain reload behaves correctly behind reverse proxies that don't handle Next's
+   * RSC response format cleanly (seen in production on Hostinger). */
   function enter() {
     window.location.reload()
-  }
-
-  function showCode(res: Created, next: 'enter' | 'wait') {
-    if ('error' in res) {
-      setError(res.error)
-      return
-    }
-    setIssued({ code: res.recoveryCode, next })
-    setMode('code')
   }
 
   function submit(e: React.FormEvent) {
@@ -122,23 +109,26 @@ export function LoginForm({
     setError(null)
     start(async () => {
       if (bootstrap) {
-        showCode(await bootstrapAdmin(name, email, password, coName, coMcdot), 'enter')
+        const res = await bootstrapAdmin(name, email, password, coName, coMcdot, birthday, consent)
+        if (res?.error) setError(res.error)
+        else enter()
         return
       }
       if (mode === 'register') {
-        showCode(await registerRequest(name, email, password), 'wait')
+        const res = await registerRequest(name, email, password, birthday, consent)
+        if (res?.error) setError(res.error)
+        else switchMode('sent')
         return
       }
       if (mode === 'forgot') {
-        showCode(await resetWithRecovery(email, recovery, password), 'enter')
+        const res = await resetWithRecovery(email, birthday, password)
+        if (res?.error) setError(res.error)
+        else enter()
         return
       }
       const res = await signIn(email, password, remember)
-      if (res?.error) {
-        setError(res.error)
-        return
-      }
-      enter()
+      if (res?.error) setError(res.error)
+      else enter()
     })
   }
 
@@ -176,31 +166,15 @@ export function LoginForm({
     )
   }
 
-  // Код восстановления — один раз, крупно, с просьбой сохранить. Кнопка «Дальше»
-  // нарочно не мгновенная: это единственный момент, когда код можно записать.
-  if (mode === 'code' && issued) {
+  // Заявка ушла — сказать, что дальше, а не молча вернуть форму входа.
+  if (mode === 'sent') {
     return (
       <main className="fixed inset-0 z-[100] flex items-center justify-center bg-ink-950 px-4">
         <div className="panel w-full max-w-sm p-6">
-          <h1 className="text-[15px] font-semibold">{t(locale, 'login.code.title')}</h1>
-          <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">{t(locale, 'login.code.text')}</p>
-          <div className="nums mt-4 select-all rounded-xl border border-haul-500/30 bg-haul-500/[0.08] px-4 py-3 text-center text-[20px] font-bold tracking-wider text-haul-300">
-            {issued.code}
-          </div>
-          <p className="mt-2 text-[11.5px] leading-relaxed text-white/45">{t(locale, 'login.code.hint')}</p>
-          {issued.next === 'wait' && (
-            <p className="mt-3 rounded-lg border border-warn-400/25 bg-warn-400/[0.07] px-3 py-2 text-[12.5px] leading-relaxed text-warn-400">
-              {t(locale, 'login.code.waitAdmin')}
-            </p>
-          )}
-          <Button
-            variant="primary"
-            size="lg"
-            block
-            className="mt-4"
-            onClick={() => (issued.next === 'enter' ? enter() : (setIssued(null), switchMode('signin')))}
-          >
-            {t(locale, issued.next === 'enter' ? 'login.code.saved' : 'login.code.backToSignIn')}
+          <h1 className="text-[15px] font-semibold">{t(locale, 'login.sent.title')}</h1>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">{t(locale, 'login.sent.text')}</p>
+          <Button variant="primary" size="lg" block className="mt-4" onClick={() => switchMode('signin')}>
+            {t(locale, 'login.backToSignIn')}
           </Button>
         </div>
       </main>
@@ -232,12 +206,15 @@ export function LoginForm({
             : t(locale, 'login.submit')
 
   const askName = bootstrap || mode === 'register'
+  const askBirthday = bootstrap || mode === 'register' || mode === 'forgot'
+  const askConsent = bootstrap || mode === 'register'
   const canSubmit =
     !!email &&
     !!password &&
     (!askName || !!name) &&
     (!bootstrap || !!coName) &&
-    (mode !== 'forgot' || !!recovery)
+    (!askBirthday || !!birthday) &&
+    (!askConsent || consent)
 
   return (
     // Covers the nav: middleware rewrites this page over whatever route was asked
@@ -324,22 +301,33 @@ export function LoginForm({
         <input
           type="email"
           value={email}
-          autoFocus={!askName}
+          autoFocus={!askName && mode === 'signin'}
           autoComplete="email"
           onChange={(e) => setEmail(e.target.value)}
           placeholder={t(locale, 'login.email')}
           className={`mb-2.5 ${input}`}
         />
 
-        {mode === 'forgot' && (
-          <input
-            type="text"
-            value={recovery}
-            autoComplete="one-time-code"
-            onChange={(e) => setRecovery(e.target.value)}
-            placeholder={t(locale, 'login.recoveryCode')}
-            className={`nums mb-2.5 uppercase ${input}`}
-          />
+        {askBirthday && (
+          <label className="mb-2.5 block">
+            <span className="mb-1 block text-[11px] uppercase tracking-wider text-white/55">
+              {t(locale, 'login.birthday')}
+            </span>
+            {/* Родной календарь браузера: щёлкнул — выбрал — подтвердил. Никакой
+                своей библиотеки дат: телефон покажет своё колесо, компьютер — свой
+                календарь, и оба заполнят поле одним форматом. */}
+            <input
+              type="date"
+              value={birthday}
+              onChange={(e) => setBirthday(e.target.value)}
+              min="1920-01-01"
+              max={`${new Date().getFullYear() - 10}-12-31`}
+              className={input}
+            />
+            <span className="mt-1 block text-[11px] leading-relaxed text-white/45">
+              {t(locale, mode === 'forgot' ? 'login.birthdayForgotHint' : 'login.birthdayHint')}
+            </span>
+          </label>
         )}
 
         <div className="relative">
@@ -361,6 +349,18 @@ export function LoginForm({
             <EyeIcon open={showPw} />
           </button>
         </div>
+
+        {askConsent && (
+          <label className="mt-3 flex cursor-pointer items-start gap-2.5 select-none">
+            <input
+              type="checkbox"
+              checked={consent}
+              onChange={(e) => setConsent(e.target.checked)}
+              className="mt-0.5 size-4 shrink-0 accent-haul-500"
+            />
+            <span className="text-[12px] leading-relaxed text-white/65">{t(locale, 'login.consent')}</span>
+          </label>
+        )}
 
         {!bootstrap && mode === 'signin' && (
           <>
@@ -388,8 +388,8 @@ export function LoginForm({
 
         {error && <p className="mt-2 text-[13px] text-bad-400">{error}</p>}
 
-        {/* Две дороги, которых раньше не было: забыл пароль и нет аккаунта. Обе —
-            ссылками под кнопкой, а не отдельными кнопками: вход остаётся главным. */}
+        {/* Две дороги: забыл пароль и нет аккаунта. Ссылками под кнопкой, а не
+            отдельными кнопками — вход остаётся главным. */}
         {!bootstrap && (
           <div className="mt-3 flex flex-wrap justify-between gap-x-4 gap-y-1 text-[12.5px]">
             {mode === 'signin' ? (

@@ -55,30 +55,32 @@ export const loginDict = {
   // Забыл пароль
   'login.forgot_title': { ru: 'Сброс пароля', en: 'Reset password' },
   'login.forgot_subtitle': {
-    ru: 'Введите email, код восстановления (его выдали при создании аккаунта) и новый пароль. Кода нет — попросите администратора сбросить пароль в разделе «Люди».',
-    en: 'Enter your email, the recovery code you were given when the account was created, and a new password. No code — ask an administrator to reset it under People.',
+    ru: 'Введите email, дату рождения, указанную при создании аккаунта, и новый пароль. Не выходит — администратор сбросит пароль в разделе «Люди».',
+    en: 'Enter your email, the birth date given when the account was created, and a new password. Stuck — an administrator can reset it under People.',
   },
   'login.forgot_submit': { ru: 'Сменить пароль', en: 'Change password' },
   'login.forgotLink': { ru: 'Забыли пароль?', en: 'Forgot password?' },
   'login.backToSignIn': { ru: 'К входу', en: 'Back to sign in' },
-  'login.recoveryCode': { ru: 'Код восстановления', en: 'Recovery code' },
   'login.newPassword': { ru: 'Новый пароль', en: 'New password' },
-  // Экран с выданным кодом
-  'login.code.title': { ru: 'Сохраните код восстановления', en: 'Save your recovery code' },
-  'login.code.text': {
-    ru: 'Если забудете пароль, этот код — единственный способ его сменить самому. Запишите его или сохраните в менеджере паролей.',
-    en: 'If you forget your password, this code is the only way to change it yourself. Write it down or keep it in a password manager.',
+  // Дата рождения — «код восстановления», который не надо записывать
+  'login.birthday': { ru: 'Дата рождения', en: 'Date of birth' },
+  'login.birthdayHint': {
+    ru: 'Понадобится, если забудете пароль: «Забыли пароль?» спросит email и эту дату.',
+    en: 'Needed if you forget the password: "Forgot password?" asks for your email and this date.',
   },
-  'login.code.hint': {
-    ru: 'Показывается один раз. Новый можно выпустить в меню аккаунта — прежний тогда перестанет действовать.',
-    en: 'Shown once. A new one can be issued from the account menu — the old one stops working then.',
+  'login.birthdayForgotHint': {
+    ru: 'Та дата, что указана при создании аккаунта.',
+    en: 'The date given when the account was created.',
   },
-  'login.code.waitAdmin': {
-    ru: 'Заявка отправлена. Войти получится после подтверждения администратором.',
-    en: 'Request sent. You can sign in once an administrator approves it.',
+  'login.consent': {
+    ru: 'Соглашаюсь с условиями конфиденциальности: данные компании — грузы, документы, люди — доступны только её сотрудникам и не передаются третьим лицам.',
+    en: 'I accept the privacy terms: company data — loads, documents, people — is visible to its staff only and is not shared with third parties.',
   },
-  'login.code.saved': { ru: 'Записал — войти', en: 'Saved it — sign in' },
-  'login.code.backToSignIn': { ru: 'Понятно', en: 'Got it' },
+  'login.sent.title': { ru: 'Заявка отправлена', en: 'Request sent' },
+  'login.sent.text': {
+    ru: 'Аккаунт создан и ждёт подтверждения администратором (раздел «Люди»). Как только подтвердит — вход по вашему email и паролю.',
+    en: 'The account is created and waits for an administrator to approve it (under People). Once approved, sign in with your email and password.',
+  },
   'login.language': { ru: 'Язык', en: 'Language' },
   'login.hidePassword': { ru: 'Скрыть пароль', en: 'Hide password' },
   'login.showPassword': { ru: 'Показать пароль', en: 'Show password' },
@@ -105,8 +107,17 @@ export const loginDict = {
     en: 'There are no accounts yet — the first one is created through setup; reload the page.',
   },
   'login.error.badRecovery': {
-    ru: 'Email или код восстановления не подходят.',
-    en: 'The email or recovery code does not match.',
+    ru: 'Email или дата рождения не подходят.',
+    en: 'The email or birth date does not match.',
+  },
+  'login.error.badBirthday': { ru: 'Укажите дату рождения.', en: 'Pick your date of birth.' },
+  'login.error.needConsent': {
+    ru: 'Нужно согласие с условиями конфиденциальности.',
+    en: 'You need to accept the privacy terms.',
+  },
+  'login.error.tooManyTries': {
+    ru: 'Слишком много попыток. Подождите 15 минут и попробуйте снова.',
+    en: 'Too many attempts. Wait 15 minutes and try again.',
   },
   'login.error.emailTaken': { ru: 'Этот email уже занят.', en: 'This email is already taken.' },
   'login.error.createFailed': { ru: 'Не вышло создать аккаунт.', en: 'Could not create the account.' },

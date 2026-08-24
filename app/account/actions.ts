@@ -1,6 +1,6 @@
 'use server'
 
-import { generateRecoveryCode, hashPassword, normalizeRecoveryCode } from '@/lib/auth'
+import { hashPassword, normalizeRecoveryCode } from '@/lib/auth'
 import { getCurrentUser } from '@/lib/session'
 import { sql } from '@/lib/db'
 import { getLocale } from '@/lib/i18n-server'
@@ -20,14 +20,14 @@ export async function changeMyPassword(newPassword: string): Promise<{ error: st
   await sql`UPDATE users SET password_hash = ${await hashPassword(newPassword)} WHERE id = ${user.id}`
 }
 
-/** Новый код восстановления — прежний перестаёт действовать. Показывается один раз,
- * хранится только хешем: прочитать его из базы потом нельзя, только выпустить ещё. */
-export async function newRecoveryCode(): Promise<{ error: string } | { code: string }> {
+/** Дата рождения для «Забыли пароль?» — задать или поменять. Хранится только
+ * хешем, как пароль: прочитать её из базы потом нельзя, лишь заменить. Нужна
+ * прежде всего аккаунтам, созданным до того, как дата появилась в регистрации. */
+export async function setRecoveryBirthday(birthday: string): Promise<{ error: string } | void> {
   const user = await getCurrentUser()
   const locale = await getLocale()
   if (!user) return { error: t(locale, 'admin.err.notAuthorized') }
   if (user.isDemo) return { error: t(locale, 'admin.err.demoReadOnly') }
-  const code = generateRecoveryCode()
-  await sql`UPDATE users SET recovery_hash = ${await hashPassword(normalizeRecoveryCode(code))} WHERE id = ${user.id}`
-  return { code }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(birthday)) return { error: t(locale, 'login.error.badBirthday') }
+  await sql`UPDATE users SET recovery_hash = ${await hashPassword(normalizeRecoveryCode(birthday))} WHERE id = ${user.id}`
 }
