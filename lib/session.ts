@@ -5,6 +5,7 @@ import { headers } from 'next/headers'
 import { sql } from './db.ts'
 import { verifyPassword } from './auth.ts'
 import { t, type Locale } from './i18n.ts'
+import { DELETE_WORD } from './delete-word.ts'
 
 export type CurrentUser = {
   id: number
@@ -32,6 +33,27 @@ export async function verifyMyPassword(
   }[]
   const hash = rows[0]?.password_hash
   if (!hash || !(await verifyPassword(password, hash))) return { error: t(locale, 'session.wrongPassword') }
+  return { user }
+}
+
+/**
+ * Подтверждение удаления: человек печатает DELETE.
+ *
+ * Раньше здесь спрашивали пароль от входа. Он не добавлял безопасности — сессия
+ * УЖЕ доказывает, кто это, и именно из неё берётся имя для Журнала, — а вот вреда
+ * приносил: пароль набирают на автомате, и это ровно то состояние, в котором
+ * сносят нужный документ. Печатая слово, человек не вспоминает пароль, а решает.
+ *
+ * Возвращает пользователя — вызывающему он нужен, чтобы записать в Журнал, кто
+ * удалил. Запись остаётся такой же, как была.
+ */
+export async function confirmDelete(
+  word: string,
+  locale: Locale = 'ru',
+): Promise<{ user: CurrentUser } | { error: string }> {
+  const user = await getCurrentUser()
+  if (!user) return { error: t(locale, 'session.expired') }
+  if (word.trim() !== DELETE_WORD) return { error: t(locale, 'session.typeDelete') }
   return { user }
 }
 

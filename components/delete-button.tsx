@@ -1,15 +1,17 @@
 'use client'
 
 import { Button } from '@/components/button'
-// Guarded delete: a ✕ that opens a password confirm and calls a server action
-// (id, password). Used for documents and loads — anything whose removal must land
-// in the Log. The action verifies the SIGNED-IN user's own login password and
-// stamps the audit row with their name, so there's no "who deleted it" field to type.
+// Guarded delete: a ✕ that opens a confirm where the word DELETE is typed out, then
+// calls a server action (id, confirm). Used for documents, loads, maintenance and
+// todos — anything whose removal must land in the Log. Who did it comes from the
+// session, so there is no "who deleted it" field to type; the typed word is the
+// deliberate pause before something irreversible.
 
 import { useState, useTransition } from 'react'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
+import { DELETE_WORD } from '@/lib/delete-word'
 
 export function DeleteButton({
   action,
@@ -17,25 +19,26 @@ export function DeleteButton({
   title,
   note,
 }: {
-  action: (id: number, password: string) => Promise<{ error?: string } | void>
+  action: (id: number, confirm: string) => Promise<{ error?: string } | void>
   id: number
   title: string
   note?: string // e.g. "and its calculations will be gone for good."
-}) {  const locale = useLocale()
+}) {
+  const locale = useLocale()
   const [open, setOpen] = useState(false)
-  const [password, setPassword] = useState('')
+  const [word, setWord] = useState('')
   const [err, setErr] = useState('')
   const [pending, start] = useTransition()
 
   function submit() {
     setErr('')
     start(async () => {
-      const res = await action(id, password)
+      const res = await action(id, word)
       if (res?.error) setErr(res.error)
       else {
         notify('ok', t(locale, 'deleteButton.deleted'), title)
         setOpen(false)
-        setPassword('')
+        setWord('')
       }
     })
   }
@@ -68,12 +71,16 @@ export function DeleteButton({
             <div className="mt-4 flex flex-col gap-2">
               <input
                 autoFocus
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && password && submit()}
-                placeholder={t(locale, 'deleteButton.passwordPlaceholder')}
-                className={field}
+                type="text"
+                inputMode="text"
+                autoCapitalize="characters"
+                autoComplete="off"
+                spellCheck={false}
+                value={word}
+                onChange={(e) => setWord(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === 'Enter' && word === DELETE_WORD && submit()}
+                placeholder={DELETE_WORD}
+                className={`${field} nums tracking-[0.2em]`}
               />
             </div>
             {err && <p className="mt-2 text-[12.5px] text-bad-400">{err}</p>}
@@ -81,7 +88,7 @@ export function DeleteButton({
               <Button variant="ghost" onClick={() => setOpen(false)}>
                 {t(locale, 'common.cancel')}
               </Button>
-              <Button variant="danger" disabled={pending || !password}
+              <Button variant="danger" disabled={pending || word !== DELETE_WORD}
                 onClick={submit}>
                 {pending ? t(locale, 'common.deleting') : t(locale, 'common.delete')}
               </Button>

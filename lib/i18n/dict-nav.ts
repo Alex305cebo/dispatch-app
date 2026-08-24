@@ -79,15 +79,18 @@ export const navDict = {
   'deleteButton.heading': { ru: 'Удалить', en: 'Delete' },
   'deleteButton.defaultNote': { ru: 'удалится насовсем.', en: 'will be permanently deleted.' },
   'deleteButton.body': {
-    ru: 'Введи свой пароль — тот, которым входишь. Запись, кто удалил, останется в Журнале.',
-    en: 'Enter your own login password. A record of who deleted it stays in the Log.',
+    ru: 'Напечатай DELETE заглавными буквами, чтобы подтвердить. Запись, кто удалил, останется в Журнале.',
+    en: 'Type DELETE in capital letters to confirm. A record of who deleted it stays in the Log.',
   },
-  'deleteButton.passwordPlaceholder': { ru: 'Твой пароль', en: 'Your password' },
   'deleteButton.deleted': { ru: 'Удалено', en: 'Deleted' },
 
   'session.expired': { ru: 'Сессия истекла — войди заново.', en: 'Your session expired — sign in again.' },
   'session.enterPassword': { ru: 'Введи пароль.', en: 'Enter your password.' },
   'session.wrongPassword': { ru: 'Неверный пароль.', en: 'Wrong password.' },
+  'session.typeDelete': {
+    ru: 'Чтобы удалить, напечатай DELETE заглавными буквами.',
+    en: 'To delete, type DELETE in capital letters.',
+  },
 
   'msg.needMiles': { ru: 'Укажи мили — без них расчёта нет.', en: 'Enter miles — the calc needs them.' },
   'msg.transitDaysPositive': { ru: 'Дней в пути должно быть больше нуля.', en: 'Transit days must be more than zero.' },

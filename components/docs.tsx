@@ -1,13 +1,14 @@
 'use client'
 
 import { DocLink } from '@/components/doc-link'
+import { DELETE_WORD } from '@/lib/delete-word'
 
 import { FileX2, FolderOpen, Trash2 } from 'lucide-react'
 import { Button } from '@/components/button'
 import { Empty } from '@/components/empty'
 // Upload + list + library for documents. Server pages fetch the metadata and pass
 // it in; the file itself travels through the uploadDocument server action (≤8MB).
-// Deleting is guarded (name + PIN) and audited — see DeleteDialog / deleteDocument.
+// Deleting is guarded (type DELETE) and audited — see DeleteDialog / deleteDocument.
 
 import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
@@ -118,18 +119,18 @@ const KIND_TONE: Record<DocKind, string> = {
   other: 'bg-white/8 text-white/60',
 }
 
-/** Confirm a deletion with the signed-in user's own password. One dialog per list. */
+/** Подтверждение удаления словом DELETE. Один диалог на список. */
 function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
   const router = useRouter()
   const locale = useLocale()
-  const [password, setPassword] = useState('')
+  const [word, setWord] = useState('')
   const [err, setErr] = useState('')
   const [pending, start] = useTransition()
 
   function submit() {
     setErr('')
     start(async () => {
-      const res = await deleteDocument(doc.id, password)
+      const res = await deleteDocument(doc.id, word)
       if (res?.error) setErr(res.error)
       else {
         notify('ok', t(locale, 'docs.delete.done'), doc.title)
@@ -157,12 +158,16 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
         <div className="mt-4 flex flex-col gap-2">
           <input
             autoFocus
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && password && submit()}
-            placeholder={t(locale, 'docs.delete.passwordPlaceholder')}
-            className={field}
+            type="text"
+            inputMode="text"
+            autoCapitalize="characters"
+            autoComplete="off"
+            spellCheck={false}
+            value={word}
+            onChange={(e) => setWord(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === 'Enter' && word === DELETE_WORD && submit()}
+            placeholder={DELETE_WORD}
+            className={`${field} nums tracking-[0.2em]`}
           />
         </div>
         {err && <p className="mt-2 text-[12.5px] text-bad-400">{err}</p>}
@@ -170,7 +175,7 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
           <Button variant="ghost" onClick={onClose}>
             {t(locale, 'docs.delete.cancel')}
           </Button>
-          <Button variant="danger" disabled={pending || !password}
+          <Button variant="danger" disabled={pending || word !== DELETE_WORD}
             onClick={submit}>
             {pending ? t(locale, 'docs.delete.deleting') : t(locale, 'docs.delete.confirm')}
           </Button>

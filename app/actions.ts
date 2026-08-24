@@ -31,7 +31,7 @@ import { docBelongs, getLoad, loadBelongs, truckBelongs } from '@/lib/loads'
 import type { HistoryLeg } from '@/lib/trip-history'
 import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
 import { dispatcherPhoneKey, getSetting, setSetting } from '@/lib/settings'
-import { companyScope, demoReadOnly, getCurrentUser, verifyMyPassword } from '@/lib/session'
+import { companyScope, confirmDelete, demoReadOnly, getCurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
 import type { CapabilityKey } from '@/lib/capabilities'
 import { t } from '@/lib/i18n'
@@ -707,11 +707,11 @@ async function auditDelete(
  * stays put until purgeDocument removes it for real. Guarded by the signed-in user's
  * own password, audited (who, what, the load route) — shown in the Журнал.
  */
-export async function deleteDocument(id: number, password: string): Promise<{ error: string } | void> {
+export async function deleteDocument(id: number, confirm: string): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
   const locale = await getLocale()
-  const check = await verifyMyPassword(password, locale)
+  const check = await confirmDelete(confirm, locale)
   if ('error' in check) return { error: check.error }
   const who = check.user.name || t(locale, 'actions.dispatcherFallback')
   if (!(await docBelongs(check.user.companyId, id))) return { error: t(locale, 'actions.docNotFound') }
@@ -754,11 +754,11 @@ export async function restoreDocument(id: number): Promise<void> {
 
 /** Erases a trashed document for real — same name + PIN guard as the soft delete,
  * since this direction can't be undone. */
-export async function purgeDocument(id: number, password: string): Promise<{ error: string } | void> {
+export async function purgeDocument(id: number, confirm: string): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
   const locale = await getLocale()
-  const check = await verifyMyPassword(password, locale)
+  const check = await confirmDelete(confirm, locale)
   if ('error' in check) return { error: check.error }
   const who = check.user.name || t(locale, 'actions.dispatcherFallback')
   if (!(await docBelongs(check.user.companyId, id))) return { error: t(locale, 'actions.docNotInTrash') }
@@ -951,11 +951,11 @@ export async function parseRcForNotes(
  * in the Журнал). Its documents are kept but detached, so the paperwork stays in the
  * library instead of blocking the delete on the foreign key.
  */
-export async function deleteLoad(id: number, password: string): Promise<{ error: string } | void> {
+export async function deleteLoad(id: number, confirm: string): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
   const locale = await getLocale()
-  const check = await verifyMyPassword(password, locale)
+  const check = await confirmDelete(confirm, locale)
   if ('error' in check) return { error: check.error }
   const who = check.user.name || t(locale, 'actions.dispatcherFallback')
   if (!(await loadBelongs(check.user.companyId, id))) return { error: t(locale, 'actions.loadNotFound') }
@@ -1022,12 +1022,12 @@ export async function addMaintenance(
 export async function deleteMaintenance(
   id: number,
   truckId: number,
-  password: string,
+  confirm: string,
 ): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
   const locale = await getLocale()
-  const check = await verifyMyPassword(password, locale)
+  const check = await confirmDelete(confirm, locale)
   if ('error' in check) return { error: check.error }
   const who = check.user.name || t(locale, 'actions.dispatcherFallback')
   if (!(await truckBelongs(check.user.companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }
@@ -1074,12 +1074,12 @@ export async function toggleTodo(id: number, truckId: number): Promise<void> {
 export async function deleteTodo(
   id: number,
   truckId: number,
-  password: string,
+  confirm: string,
 ): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
   const locale = await getLocale()
-  const check = await verifyMyPassword(password, locale)
+  const check = await confirmDelete(confirm, locale)
   if ('error' in check) return { error: check.error }
   const who = check.user.name || t(locale, 'actions.dispatcherFallback')
   if (!(await truckBelongs(check.user.companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }

@@ -387,7 +387,7 @@ export function TruckCare({
                   </span>
                 )}
                 <DeleteButton
-                  action={(id, password) => deleteTodo(id, truckId, password)}
+                  action={(id, confirm) => deleteTodo(id, truckId, confirm)}
                   id={t.id}
                   title={t.title}
                 />
@@ -520,7 +520,7 @@ export function TruckCare({
                         />
                       </label>
                       <DeleteButton
-                        action={(id, password) => deleteMaintenance(id, truckId, password)}
+                        action={(id, confirm) => deleteMaintenance(id, truckId, confirm)}
                         id={r.id}
                         title={r.title}
                       />

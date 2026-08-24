@@ -38,10 +38,9 @@ export const docsDict = {
   // DeleteDialog
   'docs.delete.title': { ru: 'Удалить документ', en: 'Delete document' },
   'docs.delete.body': {
-    ru: '«{t}» переместится в корзину — насовсем удаляется только оттуда. Введи свой пароль — запись, кто удалил, останется в Журнале.',
-    en: '"{t}" will move to Trash — it is only permanently deleted from there. Enter your password — the record of who deleted it stays in the Log.',
+    ru: '«{t}» переместится в корзину — насовсем удаляется только оттуда. Напечатай DELETE заглавными, чтобы подтвердить. Запись, кто удалил, останется в Журнале.',
+    en: '"{t}" will move to Trash — it is only permanently deleted from there. Type DELETE in capitals to confirm. The record of who deleted it stays in the Log.',
   },
-  'docs.delete.passwordPlaceholder': { ru: 'Твой пароль', en: 'Your password' },
   'docs.delete.cancel': { ru: 'Отмена', en: 'Cancel' },
   'docs.delete.deleting': { ru: 'Удаляю…', en: 'Deleting…' },
   'docs.delete.confirm': { ru: 'Удалить', en: 'Delete' },
