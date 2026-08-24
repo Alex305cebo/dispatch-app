@@ -320,9 +320,19 @@ export default async function Page() {
         </div>
       )}
 
+      {/* Список дел стоит ПЕРЕД календарём: «что делать сегодня» важнее, чем «как
+          отработали две недели». Календарь смотрит назад и остаётся ниже — он два
+          разных вопроса, и ни один не отменяет другой, но порядок чтения решает. */}
+      <NeedsLoad
+        rows={idleFleet(trucks, live, placeByTruck)}
+        trucks={byId}
+        trailers={trailers}
+        locale={locale}
+      />
+
       {/* Календарь загрузки за 14 дней — как парк отработал прошлые две недели. */}
       {trucks.length > 0 && live.length > 0 && (
-        <div className="mb-6">
+        <div className="mb-4">
           <FleetHeatmap
             rows={trucks.map((t) => {
               const cur = currentByTruck.get(t.id)
@@ -351,16 +361,6 @@ export default async function Page() {
         </div>
       )}
 
-      {/* Отдельной секцией под календарём, а не вместо него: календарь смотрит назад
-          («как отработали»), список — вперёд («что делать сегодня»). Это два разных
-          вопроса, и ни один не отменяет другой. */}
-      <NeedsLoad
-        rows={idleFleet(trucks, live, placeByTruck)}
-        trucks={byId}
-        trailers={trailers}
-        locale={locale}
-      />
-
       {/* Fleet at a glance — driver + last-known ELD status, straight from the trucks. */}
       <div className="mb-2 mt-2 flex items-center justify-between">
         <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
@@ -371,7 +371,7 @@ export default async function Page() {
           {tr(locale, 'overview.trackingLink')}
         </Link>
       </div>
-      <div className="stagger grid gap-2 sm:grid-cols-2">
+      <div className="stagger grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {trucks.map((t) => {
           const fs = t.number ? byUnit.get(t.number) : undefined
           const week = weekGrossByTruck.get(t.id) ?? 0
@@ -389,11 +389,11 @@ export default async function Page() {
               // min-w-0: this card is a grid item (single column below `sm`) and grid
               // items default to min-width:auto, so its own natural content width
               // was blowing out the grid track past the viewport on narrow phones.
-              className="panel panel-interactive group flex min-w-0 flex-col gap-2.5 p-3.5"
+              className="panel panel-interactive group flex min-w-0 flex-col gap-2 p-3"
             >
               <div className="flex items-center gap-3">
                 <div className="relative shrink-0">
-                  <DriverAvatar truckId={t.id} name={t.driverName} hasPhoto={photoIds.has(t.id)} size={40} />
+                  <DriverAvatar truckId={t.id} name={t.driverName} hasPhoto={photoIds.has(t.id)} size={34} />
                   <span
                     title={driveDotTitle(fs?.drive_status ?? null, locale)}
                     className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-ink-900 ${driveDot(fs?.drive_status ?? null)}`}
@@ -480,16 +480,16 @@ export default async function Page() {
 
       {rows.length > 0 ? (
         <>
-          <h2 className="mb-2 mt-6 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          <h2 className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-wider text-white/62">
             {tr(locale, 'overview.recentLoads')}
           </h2>
-          <div className="flex flex-col gap-2">
-            {rows.slice(0, 5).map(({ load, truck, r }) => {
+          <div className="flex flex-col gap-1.5">
+            {rows.slice(0, 8).map(({ load, truck, r }) => {
               const rcId = rateCons.get(load.id)
               return (
                 <div
                   key={load.id}
-                  className="panel flex items-center gap-3 p-4 transition-colors hover:border-white/15"
+                  className="panel flex items-center gap-3 p-3 transition-colors hover:border-white/15"
                 >
                   <Link href={`/loads/${load.id}`} className="flex min-w-0 flex-1 items-center gap-4">
                     <div className="min-w-0 flex-1">
