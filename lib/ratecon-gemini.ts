@@ -7,6 +7,8 @@ import 'server-only'
 import { AI_MODELS, AI_MODELS_QUALITY, AI_PROMPT, AI_SCHEMA, type AiFields } from './ratecon-ai-contract.ts'
 import { bumpGeminiUsage } from './gemini-usage.ts'
 import { geminiKey, aiModelPref } from './keys.ts'
+import { aiFailKind, aiFailMessage, worstFail, type AiFail } from './ai-error.ts'
+import { getLocale } from './i18n-server.ts'
 
 export async function geminiExtract(input: {
   text?: string
@@ -25,7 +27,9 @@ export async function geminiExtract(input: {
     return { error: 'empty' }
   }
 
-  let lastErr = 'no model answered'
+  let lastErr = ''
+  // Копим не последнюю беду, а самую объясняющую: отозванный ключ важнее квоты.
+  let fail: AiFail | null = null
   const models = (await aiModelPref()) === 'quality' ? AI_MODELS_QUALITY : AI_MODELS
   for (const model of models) {
     try {
@@ -45,6 +49,7 @@ export async function geminiExtract(input: {
         },
       )
       if (!res.ok) {
+        fail = worstFail(fail, aiFailKind(res.status, await res.text().catch(() => '')))
         lastErr = `${model}: HTTP ${res.status}`
         continue
       }
@@ -62,7 +67,9 @@ export async function geminiExtract(input: {
       continue
     }
   }
-  return { error: lastErr }
+  // Код HTTP остаётся в скобках для нас, а первое, что читает диспетчер, — что
+  // делать: ждать сброса лимита, менять ключ или просто повторить.
+  return { error: aiFailMessage(fail ?? 'other', await getLocale(), lastErr) }
 }
 
 // gemini-3-flash-preview "thinks" before answering — fine for RC extraction (worth

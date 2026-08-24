@@ -18,12 +18,26 @@ invoice — an invoice
 other — anything else (fuel receipt, lumper receipt, random photo)
 Answer with just the single word.`
 
+/** Лестница из трёх моделей вместо одной. У каждой модели свой дневной лимит на
+ * бесплатном ключе, поэтому исчерпанная первая больше не означает, что определить
+ * тип нечем: пробуем следующую. Порядок — по дневному лимиту, самый щедрый первым. */
+const CLASSIFY_MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-2.0-flash']
+
+/**
+ * Тип документа. null — «определить не удалось» (нет ключа, кончился лимит, модель
+ * молчит), и это НЕ то же самое, что «другое».
+ *
+ * Раньше любая неудача возвращала 'other', и при исчерпанном лимите каждый файл из
+ * Telegram молча становился «Другое»: рейт-коны и накладные ложились в общую кучу, а
+ * причина нигде не называлась. Теперь вызывающий видит разницу и может попросить
+ * человека выбрать тип руками.
+ */
 export async function classifyDocument(
   base64: string,
   mime: string,
   /** The uploaded file's own name. Optional only so old call sites keep compiling. */
   filename?: string,
-): Promise<DocClass> {
+): Promise<DocClass | null> {
   // The filename first: brokers send "RateConf_2002711744.pdf", which says what the
   // document is more reliably than reading the page — and says it for free, offline,
   // with no API key and no way to time out. Same matcher the Telegram captions use,
@@ -32,7 +46,20 @@ export async function classifyDocument(
   if (byName) return byName
 
   const key = await geminiKey()
-  if (!key) return 'other'
+  if (!key) return null
+  for (const model of CLASSIFY_MODELS) {
+    const word = await askModel(model, key, base64, mime)
+    if (word) return word
+  }
+  return null
+}
+
+async function askModel(
+  model: string,
+  key: string,
+  base64: string,
+  mime: string,
+): Promise<DocClass | null> {
   try {
     const res = await fetch(
       // flash-lite, not flash: on the free tier gemini-2.5-flash allows 20 requests
@@ -40,7 +67,7 @@ export async function classifyDocument(
       // every upload — ten documents and the whole feature is dead until midnight.
       // gemini-3.1-flash-lite allows 500/day for the same money (none). Naming one
       // word out of five is not the task that needs the stronger model.
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
       {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -59,11 +86,14 @@ export async function classifyDocument(
         }),
       },
     )
-    if (!res.ok) return 'other'
+    // Неудача этой модели — не приговор: следующая в лестнице живёт на своём лимите.
+    if (!res.ok) return null
     const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
     const word = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '').toLowerCase().trim()
+    // Модель ответила, но не тем словом — это её ответ «ничего из перечисленного»,
+    // то есть честное 'other', а не сбой.
     return (KINDS as readonly string[]).includes(word) ? (word as DocClass) : 'other'
   } catch {
-    return 'other'
+    return null
   }
 }

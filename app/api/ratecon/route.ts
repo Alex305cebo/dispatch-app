@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { AI_MODELS, AI_MODELS_QUALITY, AI_PROMPT, AI_SCHEMA, type AiFields } from '@/lib/ratecon-ai-contract'
 import { bumpGeminiUsage } from '@/lib/gemini-usage'
 import { geminiKey, aiModelPref } from '@/lib/keys'
+import { aiFailKind, aiFailMessage, worstFail, type AiFail } from '@/lib/ai-error'
+import { getLocale } from '@/lib/i18n-server'
 
 export const dynamic = 'force-dynamic'
 // Vision on a multi-page scan can take up to ~90s (that's what the UI promises) —
@@ -58,6 +60,8 @@ export async function POST(req: NextRequest) {
   const MIN_SLICE_MS = 18_000
 
   let lastErr = 'no model answered'
+  // Худшая из бед по всем моделям — по ней и объясняем. Код HTTP остаётся в скобках.
+  let fail: AiFail | null = null
   const models = (await aiModelPref()) === 'quality' ? AI_MODELS_QUALITY : AI_MODELS
   for (const model of models) {
     const remaining = TOTAL_MS - (Date.now() - startedAt)
@@ -97,6 +101,7 @@ export async function POST(req: NextRequest) {
     }
     if (!res.ok) {
       // 404 = model renamed, 429 = quota — both legitimately fall to the next model.
+      fail = worstFail(fail, aiFailKind(res.status, await res.text().catch(() => '')))
       lastErr = `${model}: HTTP ${res.status}`
       continue
     }
@@ -115,5 +120,8 @@ export async function POST(req: NextRequest) {
       continue
     }
   }
-  return NextResponse.json({ error: lastErr }, { status: 502 })
+  return NextResponse.json(
+    { error: aiFailMessage(fail ?? 'other', await getLocale(), lastErr) },
+    { status: 502 },
+  )
 }

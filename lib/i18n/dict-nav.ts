@@ -75,6 +75,27 @@ export const navDict = {
   },
   'demo.signIn': { ru: 'Войти в свой аккаунт →', en: 'Sign in to your account →' },
 
+  'ai.err.quota': {
+    ru: 'Кончился дневной бесплатный лимит ИИ — все модели исчерпаны. Обновится в 10:00 МСК (полночь по тихоокеанскому времени). До этого тип и данные документа можно задать вручную.',
+    en: 'The free daily AI quota is used up on every model. It resets at midnight Pacific time. Until then set the document type and fields by hand.',
+  },
+  'ai.err.revoked': {
+    ru: 'Google отозвал ключ ИИ (обычно — ключ попал в открытый доступ). Нужен новый ключ: Админ → Ключи.',
+    en: 'Google revoked the AI key (usually because it leaked publicly). Create a new one: Admin → Keys.',
+  },
+  'ai.err.badkey': {
+    ru: 'Ключ ИИ не принят. Проверьте его в разделе Админ → Ключи.',
+    en: 'The AI key was rejected. Check it under Admin → Keys.',
+  },
+  'ai.err.busy': {
+    ru: 'ИИ сейчас перегружен. Попробуйте ещё раз через минуту.',
+    en: 'The AI is overloaded right now. Try again in a minute.',
+  },
+  'ai.err.other': { ru: 'ИИ не ответил', en: 'The AI did not answer' },
+  'ai.err.kindUnknown': {
+    ru: 'Не удалось определить тип файла (ИИ недоступен). Выберите тип и место стрелкой рядом с кнопкой.',
+    en: 'Could not determine the file type (AI unavailable). Pick type and destination with the arrow next to the button.',
+  },
   'deleteButton.title': { ru: 'Удалить', en: 'Delete' },
   'deleteButton.heading': { ru: 'Удалить', en: 'Delete' },
   'deleteButton.defaultNote': { ru: 'удалится насовсем.', en: 'will be permanently deleted.' },

@@ -215,11 +215,16 @@ export async function tgAttachToLoad(
   // Тип: либо назвал диспетчер, либо определяем сами. Названный вручную не
   // перепроверяется — человек видит бумагу, а ИИ её угадывает.
   const chosen = opts?.kind && opts.kind !== 'auto' ? opts.kind : null
-  const kind: DocClass =
+  const guessed =
     chosen ??
     (media.mime.startsWith('image/') || media.mime === 'application/pdf'
       ? await classifyDocument(media.bytes.toString('base64'), media.mime)
       : 'other')
+  // Определить не удалось (кончился дневной лимит ИИ) — не подшиваем наугад. Раньше
+  // такой файл молча становился «Другое» и уезжал к текущему грузу; теперь просим
+  // выбрать тип рядом стоящей стрелкой, благо выбор там есть.
+  if (guessed === null) return { error: t(locale, 'ai.err.kindUnknown') }
+  const kind: DocClass = guessed
 
   const save = async (loadId: number | null) => {
     await sql`
