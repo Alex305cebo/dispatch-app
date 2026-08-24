@@ -278,6 +278,8 @@ export const trucksDict = {
     ru: 'Пока мало данных — история копится с каждым опросом ELD (раз в ~5 минут), за день-два здесь появится полная картина.',
     en: 'Not much data yet — history builds up with every ELD poll (about every 5 minutes); give it a day or two for the full picture.',
   },
+  'trucks.trip.freshToday': { ru: 'Свежие данные, сегодня', en: 'Fresh data, today' },
+  'trucks.trip.freshOld': { ru: 'Свежее этого нет — трак молчит с', en: 'Nothing newer — last seen' },
   'trucks.trip.behindWheel': { ru: 'за рулём', en: 'driving' },
   'trucks.trip.tileMiles': { ru: 'пробег', en: 'distance' },
   'trucks.trip.tileDrive': { ru: 'за рулём', en: 'driving' },

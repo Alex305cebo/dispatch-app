@@ -23,7 +23,7 @@ import {
   type HistoryLeg,
   type LoadStop,
 } from '@/lib/trip-history'
-import { driveTime } from '@/lib/fmt'
+import { agoText, driveTime } from '@/lib/fmt'
 import { t, type Locale } from '@/lib/i18n'
 
 const loc = (locale: Locale) => (locale === 'ru' ? 'ru-RU' : 'en-US')
@@ -159,6 +159,20 @@ export function TripHistory({
     return <p className="text-[13px] leading-relaxed text-white/55">{t(locale, 'trucks.trip.empty')}</p>
   }
 
+  // Свежее — сверху. Историю открывают, чтобы узнать, что с траком СЕЙЧАС, а не
+  // чтобы читать позавчерашний день первым: до сегодняшнего дня приходилось
+  // прокручивать всю ленту вниз. Порядок переворачиваем один раз и дальше работаем
+  // только с ним — выбор отрезка ищется по индексу в ЭТОМ массиве.
+  const ordered = [...legs].reverse()
+  // Самая свежая точка следа: конец первого отрезка перевёрнутого списка.
+  const freshest = ordered[0]?.to ?? null
+  // Сегодняшний ли это день — по часам БРАУЗЕРА (nowMs ставится после монтирования).
+  // Взять серверное время нельзя: у сервера свой пояс, и «сегодня» разъехалось бы.
+  const isToday =
+    freshest && nowMs !== null
+      ? dateOf(freshest, locale) === dateOf(new Date(nowMs).toISOString(), locale)
+      : false
+
   const total = summarize(legs)
   // Часы под погрузкой и выгрузкой — то, за что выставляют детеншен. Считаются
   // здесь, а не в summarize: сопоставление с городами рейт-кона живёт на этом экране.
@@ -170,6 +184,21 @@ export function TripHistory({
 
   return (
     <div>
+      {/* Свежесть данных — первой строкой. Без неё непонятно, показывает лента
+          сегодняшний день или трак молчит со вчера, а по самой ленте это видно
+          только тому, кто помнит сегодняшнее число. */}
+      {freshest && nowMs !== null && (
+        <p className="mb-2 flex flex-wrap items-center gap-1.5 text-[11.5px]">
+          <span className={`size-1.5 rounded-full ${isToday ? 'bg-good-400' : 'bg-warn-400'}`} />
+          <span className={isToday ? 'text-good-400' : 'text-warn-400'}>
+            {t(locale, isToday ? 'trucks.trip.freshToday' : 'trucks.trip.freshOld')}
+          </span>
+          <span className="nums text-white/45">
+            {timeOf(freshest, locale)} · {agoText(freshest, locale)}
+          </span>
+        </p>
+      )}
+
       {/* Итог окна — первое, что нужно: сколько наездили и где потеряли время.
           Раньше эти числа приходилось складывать глазами по строкам. */}
       <div className="mb-3 flex flex-wrap gap-2">
@@ -190,7 +219,7 @@ export function TripHistory({
       </div>
 
       <ol className="flex flex-col gap-1.5">
-        {legs.map((leg, i) => {
+        {ordered.map((leg, i) => {
           const day = dateOf(leg.from, locale)
           const isNewDay = day !== lastDate
           lastDate = day
@@ -198,7 +227,7 @@ export function TripHistory({
           // Все отрезки этого календарного дня, а не только те, что ниже разделителя:
           // рейс, начавшийся вчера вечером, занимает и сегодняшние часы.
           const ofDay = isNewDay
-            ? legs.filter((l) => Date.parse(l.to) > dayMs && Date.parse(l.from) < dayMs + DAY_MS)
+            ? ordered.filter((l) => Date.parse(l.to) > dayMs && Date.parse(l.from) < dayMs + DAY_MS)
             : []
           const totals = isNewDay ? dayTotals(ofDay, dayMs) : null
           const role = leg.kind === 'stop' ? stopRole(leg.location, leg.from, stops) : null
@@ -223,7 +252,7 @@ export function TripHistory({
                     <DayRibbon
                       dayMs={dayMs}
                       legs={ofDay}
-                      allLegs={legs}
+                      allLegs={ordered}
                       locale={locale}
                       stops={stops}
                       selected={selected}
