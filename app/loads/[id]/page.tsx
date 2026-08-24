@@ -191,7 +191,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               )}
             </div>
           )}
-          <FleetMap markers={mapMarkers} routes={mapRoutes} height={280} distanceMi={routeMiles} />
+          <FleetMap markers={mapMarkers} routes={mapRoutes} height="clamp(300px, 42vh, 540px)" distanceMi={routeMiles} />
         </section>
       )}
 

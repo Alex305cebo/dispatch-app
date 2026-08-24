@@ -369,7 +369,7 @@ export function TollsClient({
             <FleetMap
               markers={markers}
               routes={routes}
-              height={380}
+              height="clamp(360px, 52vh, 660px)"
               distanceMi={option.miles}
               focus={focus}
               onRoute={(id) => {

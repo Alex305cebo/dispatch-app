@@ -304,7 +304,7 @@ export function CardClient() {
           {t(locale, 'loadCard.map')}
         </h2>
         {markers.length ? (
-          <FleetMap markers={markers} routes={routes} height={320} distanceMi={geo?.miles ?? null} />
+          <FleetMap markers={markers} routes={routes} height="clamp(320px, 46vh, 560px)" distanceMi={geo?.miles ?? null} />
         ) : mapProblem ? (
           // Без этого страница крутила «скелет» вечно: рейт-кон без адреса
           // погрузки выглядел как вечная загрузка, и понять, чего не хватает,

@@ -382,7 +382,7 @@ function LiveStatus({ trucks, locale }: { trucks: MapMarker[]; locale: ReturnTyp
 export function FleetMap({
   markers,
   routes = [],
-  height = 340,
+  height = 'clamp(340px, 46vh, 620px)',
   distanceMi = null,
   onSelect,
   onRoute,
@@ -390,7 +390,11 @@ export function FleetMap({
 }: {
   markers: MapMarker[]
   routes?: MapRoute[]
-  height?: number
+  /** Высота карты. По умолчанию доля окна, а не фиксированные пиксели: на ноутбуке
+   * и на большом мониторе «достаточно большая карта» — разные числа, а маршрут через
+   * полстраны в трёхсотпиксельной полоске не читается вовсе. Нижняя граница держит
+   * телефон, верхняя не даёт карте съесть страницу целиком. */
+  height?: number | string
   /** Total road miles of the drawn route — shown big, over the map, when provided. */
   distanceMi?: number | null
   /** Fires with a truck's id when its pin is clicked, and with null when the click

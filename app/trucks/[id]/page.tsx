@@ -358,7 +358,7 @@ export default async function Page({
             </h2>
             <SmallRefreshButton />
           </div>
-          <FleetMap markers={mapMarkers} routes={mapRoutes} height={300} distanceMi={routeMiles} />
+          <FleetMap markers={mapMarkers} routes={mapRoutes} height="clamp(320px, 46vh, 600px)" distanceMi={routeMiles} />
         </section>
       )}
 
