@@ -115,6 +115,11 @@ export async function applyAdminReset(): Promise<void> {
     const rows = (await sql`SELECT value FROM settings WHERE key = 'admin_reset_done'`) as { value: string }[]
     if (rows[0]?.value === want) return
     await sql`DELETE FROM sessions`
+    // Сначала отвязать всё, что смотрит на пользователей, иначе база правомерно
+    // откажет (проверено логами: loads_dispatcher_id_fkey). Метка «кто вёл груз»
+    // при сбросе теряется — люди удаляются, показывать всё равно некого.
+    await sql`UPDATE loads SET dispatcher_id = NULL WHERE dispatcher_id IS NOT NULL`
+    await sql`DELETE FROM user_capabilities WHERE user_id IN (SELECT id FROM users WHERE is_demo = FALSE)`
     await sql`DELETE FROM users WHERE is_demo = FALSE`
     await sql`INSERT INTO settings (key, value) VALUES ('admin_reset_done', ${want})
               ON CONFLICT (key) DO UPDATE SET value = ${want}`
