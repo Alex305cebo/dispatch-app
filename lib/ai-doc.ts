@@ -7,6 +7,13 @@
 import { captionKind } from './caption-kind.ts'
 import { geminiKey } from './keys.ts'
 
+/** Чужая служба не должна держать наш ответ: без срока один зависший запрос
+ * превращается в бесконечную загрузку страницы. 45 секунд — потолок, после
+ * которого вызывающий получает отказ и работает без этих данных. */
+async function fetchSoon(url: string, init?: RequestInit): Promise<Response> {
+  return fetch(url, { ...init, signal: AbortSignal.timeout(45000) })
+}
+
 const KINDS = ['pod', 'bol', 'ratecon', 'driverinfo', 'invoice', 'other'] as const
 export type DocClass = (typeof KINDS)[number]
 
@@ -62,7 +69,7 @@ async function askModel(
   mime: string,
 ): Promise<DocClass | null> {
   try {
-    const res = await fetch(
+    const res = await fetchSoon(
       // flash-lite, not flash: on the free tier gemini-2.5-flash allows 20 requests
       // PER DAY, and this classifier plus the rate-con parse spend two of them on
       // every upload — ten documents and the whole feature is dead until midnight.

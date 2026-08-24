@@ -8,6 +8,13 @@ import { getSetting, setSetting } from './settings.ts'
 import { decodeFlexPolyline } from './flexpolyline.ts'
 import { parseHereRoutes, type TollQuote, type TruckSpec } from './tolls.ts'
 
+/** Чужая служба не должна держать наш ответ: без срока один зависший запрос
+ * превращается в бесконечную загрузку страницы. 12 секунд — потолок, после
+ * которого вызывающий получает отказ и работает без этих данных. */
+async function fetchSoon(url: string, init?: RequestInit): Promise<Response> {
+  return fetch(url, { ...init, signal: AbortSignal.timeout(12000) })
+}
+
 /**
  * Жёсткий потолок обращений к HERE за календарный месяц.
  *
@@ -123,7 +130,7 @@ export async function hereTollRoute(
     // Счётчик увеличиваем ДО запроса, а не после: упавший ответ всё равно был
     // обращением, и считать надо по факту вызова, а не по факту удачи.
     await setSetting(monthKey(), String(used + 1))
-    const res = await fetch(`https://router.hereapi.com/v8/routes?${params}`, {
+    const res = await fetchSoon(`https://router.hereapi.com/v8/routes?${params}`, {
       headers: { accept: 'application/json' },
     })
     const json = (await res.json()) as unknown

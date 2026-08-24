@@ -11,6 +11,14 @@ import { sql } from './db'
 import { fmcsaKey } from './keys.ts'
 import { t, type Locale } from './i18n.ts'
 
+/** Чужая служба не должна держать наш ответ: без срока один зависший запрос
+ * превращается в бесконечную загрузку страницы. 8 секунд — потолок, после
+ * которого вызывающий получает отказ и работает без этих данных. */
+async function fetchSoon(url: string, init?: RequestInit): Promise<Response> {
+  return fetch(url, { ...init, signal: AbortSignal.timeout(8000) })
+}
+
+
 export type BrokerFlag = { level: 'block' | 'warn'; text: string }
 export type Authority = 'active' | 'inactive' | 'none' | 'unknown'
 
@@ -81,7 +89,7 @@ const authFrom = (code: any): Authority =>
 
 async function fmcsaGet(path: string, key: string): Promise<any | null> {
   const sep = path.includes('?') ? '&' : '?'
-  const res = await fetch(`https://mobile.fmcsa.dot.gov/qc/services/${path}${sep}webKey=${key}`, {
+  const res = await fetchSoon(`https://mobile.fmcsa.dot.gov/qc/services/${path}${sep}webKey=${key}`, {
     headers: { accept: 'application/json' },
   })
   if (!res.ok) return null

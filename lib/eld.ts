@@ -32,6 +32,13 @@ import { fixPlace } from './place.ts'
 import { segmentTrail, type HistoryLeg } from './trip-history.ts'
 import { t, type Locale } from './i18n.ts'
 
+/** Чужая служба не должна держать наш ответ: без срока один зависший запрос
+ * превращается в бесконечную загрузку страницы. 12 секунд — потолок, после
+ * которого вызывающий получает отказ и работает без этих данных. */
+async function fetchSoon(url: string, init?: RequestInit): Promise<Response> {
+  return fetch(url, { ...init, signal: AbortSignal.timeout(12000) })
+}
+
 // Breadcrumb for idle detection + trip history — fleet_status only holds the latest
 // point, this keeps a trail. Pruned on every write so it never needs a cron.
 //
@@ -225,7 +232,7 @@ async function eldToken(): Promise<string | null> {
     }
   }
 
-  const res = await fetch(`${ELD_BASE}/eld/v2/External/Authorize`, {
+  const res = await fetchSoon(`${ELD_BASE}/eld/v2/External/Authorize`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ userName, password, companyId }),
@@ -300,7 +307,7 @@ async function fuelByUnit(
     const unit = v.vehicleUnit != null ? String(v.vehicleUnit) : null
     if (!unit || !v.vehicleId) continue
     try {
-      const res = await fetch(`${ELD_BASE}/eld/v2/External/Trips/Last/${v.vehicleId}`, {
+      const res = await fetchSoon(`${ELD_BASE}/eld/v2/External/Trips/Last/${v.vehicleId}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       // 403 = the credentials' role does not include trips. Stop asking for the rest
@@ -348,7 +355,7 @@ export async function fleetSnapshot(
   let vehicles: VehicleStatus[] = []
   try {
     // One fleet-wide call — the owner's rule: few requests, human rhythm.
-    const res = await fetch(`${ELD_BASE}/eld/v2/External/VehicleStatuses`, {
+    const res = await fetchSoon(`${ELD_BASE}/eld/v2/External/VehicleStatuses`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (res.status === 401 || res.status === 403) {
@@ -518,7 +525,7 @@ export async function liveShareSnapshot(): Promise<
       let accessToken: string | null = null
       for (const base of SHARE_BASES) {
         try {
-          const r = await fetch(`${base}/authorize?token=${encodeURIComponent(token)}`)
+          const r = await fetchSoon(`${base}/authorize?token=${encodeURIComponent(token)}`)
           if (r.ok) {
             accessToken = ((await r.json()) as any).accessToken ?? null
             if (accessToken) break
@@ -541,7 +548,7 @@ export async function liveShareSnapshot(): Promise<
       let data: any = null
       for (const base of SHARE_BASES) {
         try {
-          const r = await fetch(`${base}/vehicleData`, {
+          const r = await fetchSoon(`${base}/vehicleData`, {
             headers: { Authorization: `Bearer ${accessToken}` },
           })
           if (r.ok) {

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { getLoad, laneAvgRpmFor, listDocs, truckForLoad } from '@/lib/loads'
 import { truckLabel } from '@/lib/map'
@@ -62,12 +63,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const bolDoc = docs.find((d) => d.kind === 'bol')
   const podDoc = docs.find((d) => d.kind === 'pod')
   const fs = truck.number ? fleet.get(truck.number) : undefined
-  const { markers: mapMarkers, routes: mapRoutes, miles: routeMiles, etaMin } = await loadMapData(load, truck, fs, locale)
-  // Часовой пояс ТАМ, ГДЕ ТРАК СЕЙЧАС, — офлайн по координатам GPS (lib/tz.ts).
-  // Диспетчер и водитель почти никогда не в одном поясе, а окна погрузки и
-  // звонки живут по времени водителя; считать разницу в уме на каждом грузе —
-  // ровно тот случай, когда ошибаются на час и опаздывают на приёмку.
-  const driverZone = zoneFor(fs?.lat, fs?.lng)
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -140,60 +135,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </div>
       </section>
 
-      {/* This load's assignment on the map — truck's live GPS, pickup (while still
-          booked), delivery, and the road route between them. */}
-      {mapMarkers.length > 0 && (
-        <section className="panel mt-4 p-4">
-          <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            {t(locale, 'loadDetail.mapHeading')}
-            <Info text={t(locale, 'loadDetail.mapInfo')} />
-            <span className="ml-auto">
-              <SmallRefreshButton />
-            </span>
-          </h2>
-          {/* Три отдельные плитки, а не одна строка «82 mi · ~1ч 34м»: время у
-              водителя, расстояние и срок — разные вопросы, и слитые в строку они
-              читаются как одно число. Плитки переносятся, а не сжимаются: на узком
-              экране лучше два ряда, чем обрезанное время. */}
-          {(driverZone || routeMiles != null || etaMin != null) && (
-            <div className="mb-3 flex flex-wrap gap-2">
-              {driverZone && (
-                <div className="flex-1 basis-[7.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-                  <div className="text-[10px] uppercase tracking-wider text-white/45">
-                    {t(locale, 'loadDetail.driverTime')}
-                  </div>
-                  {/* Высота зафиксирована: первый кадр LocalTime пустой (гидратация),
-                      и без неё плитка подпрыгивала бы при загрузке страницы. */}
-                  <div className="flex min-h-[1.375rem] items-baseline">
-                    <LocalTime zone={driverZone} className="nums text-[15px] font-semibold text-white/85" />
-                  </div>
-                </div>
-              )}
-              {routeMiles != null && (
-                <div className="flex-1 basis-[7.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-                  <div className="text-[10px] uppercase tracking-wider text-white/45">
-                    {t(locale, 'loadDetail.distanceLeft')}
-                  </div>
-                  <div className="nums min-h-[1.375rem] text-[15px] font-semibold text-white/85">
-                    {routeMiles} <span className="text-[11px] font-medium text-white/45">mi</span>
-                  </div>
-                </div>
-              )}
-              {etaMin != null && (
-                <div className="flex-1 basis-[7.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-                  <div className="text-[10px] uppercase tracking-wider text-white/45">
-                    {t(locale, 'loadDetail.etaLeft')}
-                  </div>
-                  <div className="nums min-h-[1.375rem] text-[15px] font-semibold text-white/85">
-                    ~{driveTime(etaMin, locale)}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          <FleetMap markers={mapMarkers} routes={mapRoutes} height="clamp(300px, 42vh, 540px)" distanceMi={routeMiles} />
-        </section>
-      )}
+      {/* Карта грузится отдельно от страницы. Её сборка ждёт чужой маршрутизатор и
+          геокодер: раньше эти секунды держали ВЕСЬ документ, и груз не показывался,
+          пока не ответит бесплатный OSRM. Теперь цифры, документы и расчёт приходят
+          сразу, а карта втекает следом в свою границу. */}
+      <Suspense fallback={<MapSkeleton />}>
+        <LoadMapSection load={load} truck={truck} fs={fs} locale={locale} />
+      </Suspense>
 
       <MissingDocsBanner
         loadId={load.id}
@@ -302,5 +250,95 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <DocList docs={docs} />
       </section>
     </main>
+  )
+}
+
+/** Заглушка на время сборки карты: та же высота, что у настоящей секции, чтобы
+ * страница не прыгала, когда карта приедет. */
+function MapSkeleton() {
+  return <div className="panel mt-4 h-[clamp(360px,48vh,600px)] animate-pulse" />
+}
+
+/**
+ * Карта груза: живой GPS трака, погрузка, выгрузка и дорога между ними.
+ *
+ * Отдельным серверным куском под Suspense — потому что здесь и только здесь
+ * страница ждёт чужие службы: геокодер на адреса и маршрутизатор на дорогу.
+ */
+async function LoadMapSection({
+  load,
+  truck,
+  fs,
+  locale,
+}: {
+  load: Awaited<ReturnType<typeof getLoad>>
+  truck: Parameters<typeof loadMapData>[1]
+  fs: Parameters<typeof loadMapData>[2]
+  locale: Awaited<ReturnType<typeof getLocale>>
+}) {
+  if (!load) return null
+  const { markers: mapMarkers, routes: mapRoutes, miles: routeMiles, etaMin } = await loadMapData(
+    load,
+    truck,
+    fs,
+    locale,
+  )
+  if (mapMarkers.length === 0) return null
+  // Часовой пояс ТАМ, ГДЕ ТРАК СЕЙЧАС, — офлайн по координатам GPS (lib/tz.ts).
+  // Диспетчер и водитель почти никогда не в одном поясе, а окна погрузки и звонки
+  // живут по времени водителя.
+  const driverZone = zoneFor(fs?.lat, fs?.lng)
+
+  return (
+        <section className="panel mt-4 p-4">
+          <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+            {t(locale, 'loadDetail.mapHeading')}
+            <Info text={t(locale, 'loadDetail.mapInfo')} />
+            <span className="ml-auto">
+              <SmallRefreshButton />
+            </span>
+          </h2>
+          {/* Три отдельные плитки, а не одна строка «82 mi · ~1ч 34м»: время у
+              водителя, расстояние и срок — разные вопросы, и слитые в строку они
+              читаются как одно число. Плитки переносятся, а не сжимаются: на узком
+              экране лучше два ряда, чем обрезанное время. */}
+          {(driverZone || routeMiles != null || etaMin != null) && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {driverZone && (
+                <div className="flex-1 basis-[7.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-white/45">
+                    {t(locale, 'loadDetail.driverTime')}
+                  </div>
+                  {/* Высота зафиксирована: первый кадр LocalTime пустой (гидратация),
+                      и без неё плитка подпрыгивала бы при загрузке страницы. */}
+                  <div className="flex min-h-[1.375rem] items-baseline">
+                    <LocalTime zone={driverZone} className="nums text-[15px] font-semibold text-white/85" />
+                  </div>
+                </div>
+              )}
+              {routeMiles != null && (
+                <div className="flex-1 basis-[7.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-white/45">
+                    {t(locale, 'loadDetail.distanceLeft')}
+                  </div>
+                  <div className="nums min-h-[1.375rem] text-[15px] font-semibold text-white/85">
+                    {routeMiles} <span className="text-[11px] font-medium text-white/45">mi</span>
+                  </div>
+                </div>
+              )}
+              {etaMin != null && (
+                <div className="flex-1 basis-[7.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-white/45">
+                    {t(locale, 'loadDetail.etaLeft')}
+                  </div>
+                  <div className="nums min-h-[1.375rem] text-[15px] font-semibold text-white/85">
+                    ~{driveTime(etaMin, locale)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <FleetMap markers={mapMarkers} routes={mapRoutes} height="clamp(300px, 42vh, 540px)" distanceMi={routeMiles} />
+        </section>
   )
 }

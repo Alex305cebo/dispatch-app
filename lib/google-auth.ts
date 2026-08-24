@@ -10,6 +10,13 @@
 
 import 'server-only'
 
+/** Чужая служба не должна держать наш ответ: без срока один зависший запрос
+ * превращается в бесконечную загрузку страницы. 8 секунд — потолок, после
+ * которого вызывающий получает отказ и работает без этих данных. */
+async function fetchSoon(url: string, init?: RequestInit): Promise<Response> {
+  return fetch(url, { ...init, signal: AbortSignal.timeout(8000) })
+}
+
 export type GoogleUser = { sub: string; email: string; name: string }
 
 /**
@@ -29,7 +36,7 @@ export type GoogleUser = { sub: string; email: string; name: string }
 export async function verifyGoogleToken(idToken: string, clientId: string): Promise<GoogleUser | null> {
   if (!idToken || !clientId) return null
   try {
-    const res = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken), {
+    const res = await fetchSoon('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken), {
       cache: 'no-store',
     })
     if (!res.ok) return null

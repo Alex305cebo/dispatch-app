@@ -8,6 +8,25 @@ import { sql } from './db.ts'
 import { cacheCell, haversineMiles } from './geo.ts'
 import { t, type Locale } from './i18n.ts'
 
+/**
+ * Внешний запрос с ЖЁСТКИМ сроком ответа.
+ *
+ * Раньше здесь стоял голый fetch без таймаута — и это была главная причина
+ * «страница грузится вечно». Все службы тут бесплатные и чужие: Nominatim, OSRM,
+ * ipwho, EIA. Когда любая из них подвисает, запрос висит до тех пор, пока его не
+ * оборвёт платформа, а страница груза всё это время не показывает ничего.
+ *
+ * Лучше отдать страницу без мили на карте, чем не отдать страницу. Каждый
+ * вызывающий уже умеет работать с null — маршрут рисуется прямой линией, мили
+ * вводятся руками.
+ */
+const NET_TIMEOUT_MS = 6000
+
+async function fetchSoon(url: string, init?: RequestInit, ms = NET_TIMEOUT_MS): Promise<Response> {
+  return fetch(url, { ...init, signal: AbortSignal.timeout(ms) })
+}
+
+
 type LatLng = { lat: number; lng: number }
 
 /** "City, ST" → coords. Nominatim (1 req/s, UA required), cached forever in settings. */
@@ -20,7 +39,7 @@ async function geocode(place: string): Promise<LatLng | null> {
   }
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(place)}`
-    const res = await fetch(url, { headers: { 'User-Agent': 'DispatchApp/1.0 (fleet tool)' } })
+    const res = await fetchSoon(url, { headers: { 'User-Agent': 'DispatchApp/1.0 (fleet tool)' } })
     if (!res.ok) return null
     const arr = (await res.json()) as { lat: string; lon: string }[]
     if (!arr[0]) return null
@@ -64,7 +83,7 @@ async function geocodeMapbox(address: string): Promise<LatLng | null> {
     const url =
       `https://api.mapbox.com/search/geocode/v6/forward?q=${encodeURIComponent(address)}` +
       `&country=us&limit=1&access_token=${token}`
-    const res = await fetch(url)
+    const res = await fetchSoon(url)
     if (!res.ok) return null
     const j = (await res.json()) as { features?: { geometry?: { coordinates?: [number, number] } }[] }
     const c = j?.features?.[0]?.geometry?.coordinates
@@ -102,7 +121,7 @@ async function geocodeCensus(address: string): Promise<LatLng | null> {
     const url =
       `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress` +
       `?address=${encodeURIComponent(address)}&benchmark=Public_AR_Current&format=json`
-    const res = await fetch(url)
+    const res = await fetchSoon(url)
     if (!res.ok) return null
     const j = (await res.json()) as {
       result?: { addressMatches?: { coordinates?: { x: number; y: number } }[] }
@@ -132,7 +151,7 @@ async function geocodeZip(zip: string): Promise<LatLng | null> {
   }
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&postalcode=${encodeURIComponent(zip)}&country=us`
-    const res = await fetch(url, { headers: { 'User-Agent': 'DispatchApp/1.0 (fleet tool)' } })
+    const res = await fetchSoon(url, { headers: { 'User-Agent': 'DispatchApp/1.0 (fleet tool)' } })
     if (!res.ok) return null
     const arr = (await res.json()) as { lat: string; lon: string }[]
     if (!arr[0]) return null
@@ -259,7 +278,7 @@ async function roadRoute(from: LatLng, to: LatLng, geometry = true): Promise<Roa
       `https://router.project-osrm.org/route/v1/driving/` +
       `${from.lng},${from.lat};${to.lng},${to.lat}` +
       `?overview=${geometry ? 'full' : 'false'}&geometries=geojson`
-    const res = await fetch(url, { headers: { 'User-Agent': 'DispatchApp/1.0 (fleet tool)' } })
+    const res = await fetchSoon(url, { headers: { 'User-Agent': 'DispatchApp/1.0 (fleet tool)' } })
     if (!res.ok) return null
     const data = (await res.json()) as {
       routes?: { distance: number; duration: number; geometry?: { coordinates: [number, number][] } }[]
@@ -344,7 +363,7 @@ export async function routeMiles(
   const key = process.env.ORS_API_KEY
   if (key) {
     try {
-      const res = await fetch('https://api.openrouteservice.org/v2/directions/driving-hgv', {
+      const res = await fetchSoon('https://api.openrouteservice.org/v2/directions/driving-hgv', {
         method: 'POST',
         headers: { Authorization: key, 'content-type': 'application/json' },
         body: JSON.stringify({ coordinates: [[a.lng, a.lat], [b.lng, b.lat]] }),
@@ -403,7 +422,7 @@ export async function ipCity(ip: string | null): Promise<string | null> {
   const hit = await getSetting(key)
   if (hit) return hit || null
   try {
-    const res = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`, {
+    const res = await fetchSoon(`https://ipwho.is/${encodeURIComponent(ip)}`, {
       headers: { 'User-Agent': 'DispatchApp/1.0 (fleet tool)' },
     })
     if (!res.ok) return null
@@ -439,7 +458,7 @@ export async function dieselPrice(
       `https://api.eia.gov/v2/petroleum/pri/gnd/data/?api_key=${key}` +
       `&frequency=weekly&data[0]=value&facets[product][]=EPD2D&facets[duoarea][]=NUS` +
       `&sort[0][column]=period&sort[0][direction]=desc&length=1`
-    const res = await fetch(url)
+    const res = await fetchSoon(url)
     if (!res.ok) return { error: `EIA HTTP ${res.status}` }
     const data = (await res.json()) as { response?: { data?: { period: string; value: number }[] } }
     const row = data.response?.data?.[0]
@@ -473,7 +492,7 @@ export async function zipPlace(zip: string): Promise<string | null> {
   // recognise, which is Auburndale. Nominatim stays as the fallback because it is
   // already used everywhere else here and one dead service must not lose the load.
   try {
-    const res = await fetch(`https://api.zippopotam.us/us/${clean}`)
+    const res = await fetchSoon(`https://api.zippopotam.us/us/${clean}`)
     if (res.ok) {
       const data = (await res.json()) as {
         places?: { 'place name'?: string; 'state abbreviation'?: string }[]
@@ -493,7 +512,7 @@ export async function zipPlace(zip: string): Promise<string | null> {
 
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&postalcode=${clean}&country=us`
-    const res = await fetch(url, { headers: { 'User-Agent': 'DispatchApp/1.0 (fleet tool)' } })
+    const res = await fetchSoon(url, { headers: { 'User-Agent': 'DispatchApp/1.0 (fleet tool)' } })
     if (!res.ok) return null
     const arr = (await res.json()) as { address?: Record<string, string> }[]
     const a = arr[0]?.address
