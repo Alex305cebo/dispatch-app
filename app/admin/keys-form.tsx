@@ -69,20 +69,16 @@ export function KeysForm({
 }) {
   const locale = useLocale()
   const [gemini, setGemini] = useState('')
-  const [fmcsa, setFmcsa] = useState('')
-  const [here, setHere] = useState('')
   const [pref, setPref] = useState(status.modelPref)
   const [pending, start] = useTransition()
 
   function save() {
     start(async () => {
-      const res = await saveKeys({ gemini, fmcsa, here, modelPref: pref })
+      const res = await saveKeys({ gemini, modelPref: pref })
       if (res?.error) notify('error', res.error)
       else {
         notify('ok', t(locale, 'admin.keys.saved'))
         setGemini('')
-        setFmcsa('')
-        setHere('')
       }
     })
   }
@@ -97,22 +93,10 @@ export function KeysForm({
         onChange={setGemini}
         href="https://aistudio.google.com/apikey"
       />
-      <Field
-        label={t(locale, 'admin.keys.fmcsa')}
-        hint={t(locale, 'admin.keys.fmcsaHint')}
-        isSet={status.fmcsa}
-        value={fmcsa}
-        onChange={setFmcsa}
-        href="https://mobile.fmcsa.dot.gov/QCDevsite/"
-      />
-      <Field
-        label={t(locale, 'admin.keys.here')}
-        hint={t(locale, 'admin.keys.hereHint')}
-        isSet={status.here}
-        value={here}
-        onChange={setHere}
-        href="https://platform.here.com/admin/apps"
-      />
+      {/* Проверка брокеров (FMCSA) и платные дороги (HERE) работают на НАШИХ
+          ключах, заданных при установке переменными окружения. Полей для них тут
+          нет намеренно: клиенту нечего заводить и нечего терять — обе службы
+          бесплатны в наших объёмах, и вопрос «а это ещё что?» не возникает. */}
 
       {/* Only meaningful once the key has billing behind it — said plainly in the hint
           rather than hidden, so nobody switches it and then wonders why parsing dies

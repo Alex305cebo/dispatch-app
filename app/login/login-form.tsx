@@ -4,6 +4,7 @@ import { Button } from '@/components/button'
 import { useState, useTransition } from 'react'
 import { bootstrapAdmin, registerRequest, resetWithRecovery, signIn } from './actions'
 import { LOCALE_COOKIE, LOCALES, t, type Locale } from '@/lib/i18n'
+import { GoogleButton } from './google-button'
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -35,6 +36,7 @@ export function LoginForm({
   companyName,
   showDemo,
   demoUrl,
+  googleClientId,
   askLocale,
   initialLocale,
 }: {
@@ -50,6 +52,9 @@ export function LoginForm({
   showDemo: boolean
   /** Адрес отдельной установки-витрины. Указан — кнопка ведёт туда. */
   demoUrl: string
+  /** Client ID Google для этой установки. Пусто — кнопки «Войти через Google» нет,
+   * вход только паролем. */
+  googleClientId: string
   /** No locale cookie yet — greet with the language choice before anything else. */
   askLocale: boolean
   initialLocale: Locale
@@ -407,6 +412,22 @@ export function LoginForm({
               </button>
             )}
           </div>
+        )}
+
+        {(bootstrap || mode === 'signin') && googleClientId && (
+          <>
+            <div className="mt-4 flex items-center gap-3 text-[11px] uppercase tracking-wider text-white/35">
+              <span className="h-px flex-1 bg-white/10" />
+              {t(locale, 'login.google.or')}
+              <span className="h-px flex-1 bg-white/10" />
+            </div>
+            <GoogleButton
+              clientId={googleClientId}
+              locale={locale}
+              onWait={() => switchMode('sent')}
+              onError={setError}
+            />
+          </>
         )}
 
         {!bootstrap && mode === 'signin' && (demoUrl || showDemo) && (

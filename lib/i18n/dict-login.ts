@@ -76,6 +76,8 @@ export const loginDict = {
     ru: 'Соглашаюсь с условиями конфиденциальности: данные компании — грузы, документы, люди — доступны только её сотрудникам и не передаются третьим лицам.',
     en: 'I accept the privacy terms: company data — loads, documents, people — is visible to its staff only and is not shared with third parties.',
   },
+  'login.google.or': { ru: 'или', en: 'or' },
+  'login.google.loading': { ru: 'Загружаю кнопку Google…', en: 'Loading the Google button…' },
   'login.sent.title': { ru: 'Заявка отправлена', en: 'Request sent' },
   'login.sent.text': {
     ru: 'Аккаунт создан и ждёт подтверждения администратором (раздел «Люди»). Как только подтвердит — вход по вашему email и паролю.',
@@ -105,6 +107,14 @@ export const loginDict = {
   'login.error.useSetup': {
     ru: 'Аккаунтов ещё нет — первый создаётся через установку, обновите страницу.',
     en: 'There are no accounts yet — the first one is created through setup; reload the page.',
+  },
+  'login.error.googleOff': {
+    ru: 'Вход через Google на этой установке не настроен.',
+    en: 'Google sign-in is not configured on this installation.',
+  },
+  'login.error.googleFailed': {
+    ru: 'Google не подтвердил вход. Попробуйте ещё раз.',
+    en: 'Google did not confirm the sign-in. Try again.',
   },
   'login.error.badRecovery': {
     ru: 'Email или дата рождения не подходят.',

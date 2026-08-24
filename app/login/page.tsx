@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { sql } from '@/lib/db'
 import { applyAdminReset, ensureSchema, schemaInstalled } from '@/lib/install'
 import { getSettings } from '@/lib/settings'
+import { googleClientId } from '@/lib/google-auth'
 import { LOCALE_COOKIE, resolveLocale, t } from '@/lib/i18n'
 import { LoginForm } from './login-form'
 
@@ -94,6 +95,7 @@ export default async function LoginPage() {
       bootstrap={rows.length === 0}
       companyName={companyName}
       showDemo={showDemo}
+      googleClientId={googleClientId()}
       demoUrl={demoUrl}
       needsSchema={!installed}
       askLocale={!cookie}
