@@ -93,6 +93,37 @@ export async function schemaFileVersion(): Promise<string | null> {
   return /\('schema_version',\s*'([^']+)'\)/.exec(schema)?.[1] ?? null
 }
 
+/**
+ * Аварийный сброс администратора — когда пароль забыт, кода восстановления нет,
+ * а второго админа не существует. Единственный «пароль» здесь — доступ к панели
+ * хостинга: кто может менять переменные окружения, тот и так владеет установкой.
+ *
+ * Как пользоваться: вписать в панели переменную ADMIN_RESET с любым НОВЫМ
+ * значением (например, сегодняшней датой) и открыть /login. Приложение закроет
+ * все сессии, уберёт настоящие аккаунты, и на входе снова появится форма первого
+ * запуска — задать нового администратора и получить код восстановления.
+ *
+ * Одноразово на значение: применённое значение запоминается в settings, и
+ * оставленная в панели переменная НЕ повторяет сброс при каждом деплое. Новый
+ * сброс — новое значение. Траки, грузы и документы не трогаются.
+ */
+export async function applyAdminReset(): Promise<void> {
+  const want = (process.env.ADMIN_RESET ?? '').trim()
+  if (!want) return
+  try {
+    const { sql } = await import('./db.ts')
+    const rows = (await sql`SELECT value FROM settings WHERE key = 'admin_reset_done'`) as { value: string }[]
+    if (rows[0]?.value === want) return
+    await sql`DELETE FROM sessions`
+    await sql`DELETE FROM users WHERE is_demo = FALSE`
+    await sql`INSERT INTO settings (key, value) VALUES ('admin_reset_done', ${want})
+              ON CONFLICT (key) DO UPDATE SET value = ${want}`
+    console.warn('ADMIN_RESET applied:', want)
+  } catch (e) {
+    console.error('applyAdminReset failed', e)
+  }
+}
+
 let ensured: string | null = null
 
 /**
