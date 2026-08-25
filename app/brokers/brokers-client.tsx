@@ -11,6 +11,7 @@ import { BrokerChecklist } from '@/components/broker-checklist'
 import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
+import { usd, usd2 } from '@/lib/fmt'
 
 const input =
   'w-full rounded-xl border border-white/10 bg-ink-950/70 px-3 py-2 text-[14px] text-white outline-none focus:border-haul-500'
@@ -23,6 +24,9 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
   const [data, setData] = useState<BrokerCheck | null>(null)
   const [err, setErr] = useState('')
   const [, start] = useTransition()
+
+  // Сумма долга по всем брокерам сразу: по строкам её пришлось бы складывать глазами.
+  const owedTotal = useMemo(() => ourBrokers.reduce((n, b) => n + b.owed, 0), [ourBrokers])
 
   const [query, setQuery] = useState('')
   const [history, setHistory] = useState<TopBroker | null>(null)
@@ -184,7 +188,14 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
         <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
           {t(locale, 'brokers.dbHeading')}
           <Info text={t(locale, 'brokers.dbInfo')} />
-          <span className="ml-auto rounded-full bg-white/8 px-2 py-0.5 text-[11px] normal-case text-white/60">
+          <Info text={t(locale, 'brokers.moneyInfo')} />
+          {/* Сколько нам должны все брокеры вместе — первое, что спрашивают в пятницу. */}
+          {owedTotal > 0 && (
+            <span className="nums ml-auto rounded-full bg-warn-500/15 px-2 py-0.5 text-[11px] font-medium normal-case text-warn-400">
+              {t(locale, 'brokers.owes').replace('{sum}', usd.format(owedTotal))}
+            </span>
+          )}
+          <span className={`nums rounded-full bg-white/8 px-2 py-0.5 text-[11px] normal-case text-white/60${owedTotal > 0 ? '' : ' ml-auto'}`}>
             {ourBrokers.length}
           </span>
         </h2>
@@ -241,6 +252,31 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                         <span>{t(locale, 'brokers.loadsCount').replace('{n}', String(b.loadCount))}</span>
                         {b.lastLoad && <span>{t(locale, 'brokers.lastLoad').replace('{date}', b.lastLoad)}</span>}
                       </div>
+                      {/* Деньги отдельной строкой: справочник говорит, существует ли
+                          брокер, а работать с ним или нет — решается вот этими цифрами.
+                          Срок оплаты тут фактический, а не обещанный в рейт-коне. */}
+                      {b.loadCount > 0 && (
+                        <div className="nums mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11.5px]">
+                          <span className="text-white/60">
+                            {t(locale, 'brokers.gross').replace('{sum}', usd.format(b.gross))}
+                          </span>
+                          {b.rpm > 0 && (
+                            <span className={b.rpm >= 2 ? 'text-good-400' : b.rpm >= 1.5 ? 'text-white/60' : 'text-warn-400'}>
+                              {t(locale, 'brokers.rpm').replace('{v}', usd2.format(b.rpm))}
+                            </span>
+                          )}
+                          {b.payDays != null && (
+                            <span className={b.payDays <= 30 ? 'text-white/60' : 'text-warn-400'}>
+                              {t(locale, 'brokers.paysIn').replace('{n}', String(b.payDays))}
+                            </span>
+                          )}
+                          {b.owed > 0 && (
+                            <span className="rounded-full bg-warn-500/15 px-2 py-0.5 font-medium text-warn-400">
+                              {t(locale, 'brokers.owes').replace('{sum}', usd.format(b.owed))}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     {!b.mc && b.name && (
                       <button

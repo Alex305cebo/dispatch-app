@@ -114,6 +114,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           ) : (
             <span className="text-xs text-white/45">{t(locale, 'loadDetail.noRateCon')}</span>
           )}
+          {/* Тот же брокер, то же направление, новые даты. Регулярный рейс заводился
+              заново каждую неделю — вместе с перепечатыванием почты брокера и миль. */}
+          <Link
+            href={`/loads/new?repeat=${load.id}`}
+            className="ml-auto rounded-xl border border-white/12 px-3 py-1.5 text-[12.5px] font-medium text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300"
+          >
+            ⟳ {t(locale, 'loads.repeat')}
+          </Link>
         </div>
 
         {/* BOL and POD are one pair — the two halves of a load's paperwork. Sharing the

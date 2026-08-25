@@ -4,6 +4,7 @@
 
 import { sql } from './db'
 import { emailDomain } from './broker-key.ts'
+import { foldMoney, type MoneyRow } from './broker-money.ts'
 
 export type OurBroker = {
   /** Digits-only MC, or null if only a name was ever captured. */
@@ -13,6 +14,17 @@ export type OurBroker = {
   email: string | null
   loadCount: number
   lastLoad: string | null
+  /** Сумма ставок по всем рейсам с этим брокером. */
+  gross: number
+  /** Ставка за милю по всем его рейсам: весь гросс ÷ все мили. Не среднее от
+   * средних — иначе один короткий дорогой рейс задирал бы всю строку. */
+  rpm: number
+  /** Сколько дней РЕАЛЬНО проходит от счёта до денег — среднее по оплаченным
+   * рейсам. Этого числа нет ни в одном справочнике: брокер обещает «30 дней» на
+   * бумаге, а платит как платит, и узнать это можно только по своей истории. */
+  payDays: number | null
+  /** Сколько он должен прямо сейчас: выставлено, но не оплачено. */
+  owed: number
   /** Payment service named on this broker's rate cons (TriumphPay, Comdata…), newest first. */
   payVia: string | null
   /** From the FMCSA cache, when this MC has been checked. */
@@ -44,7 +56,8 @@ function nameFromEmail(email: string | null): string | null {
  * the load itself. That is a data problem, not a grouping one. */
 export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
   const rows = (await sql`
-    SELECT broker_mc, broker_name, broker_phone, broker_email, pay_via, created_at
+    SELECT broker_mc, broker_name, broker_phone, broker_email, pay_via, created_at,
+           rate, loaded_miles, deadhead_miles, invoiced_at, paid_at, status
     FROM loads
     WHERE company_id = ${companyId}
       AND (broker_name IS NOT NULL OR broker_mc IS NOT NULL)
@@ -55,13 +68,29 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
     broker_email: string | null
     pay_via: string | null
     created_at: string
+    rate: number | string
+    loaded_miles: number | string
+    deadhead_miles: number | string
+    invoiced_at: string | null
+    paid_at: string | null
+    status: string
   }[]
 
+  const money: MoneyRow[] = []
   const byKey = new Map<string, OurBroker>()
   for (const r of rows) {
     const mc = digits(r.broker_mc) || null
     const key = mc ?? emailDomain(r.broker_email) ?? (r.broker_name ?? '').toLowerCase().trim()
     if (!key) continue
+    money.push({
+      key,
+      rate: Number(r.rate) || 0,
+      miles: (Number(r.loaded_miles) || 0) + (Number(r.deadhead_miles) || 0),
+      status: r.status,
+      invoicedAt: r.invoiced_at && String(r.invoiced_at),
+      paidAt: r.paid_at && String(r.paid_at),
+    })
+
     const existing = byKey.get(key)
     if (existing) {
       existing.loadCount++
@@ -80,6 +109,10 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
         payVia: r.pay_via,
         loadCount: 1,
         lastLoad: r.created_at ? String(r.created_at).slice(0, 10) : null,
+        gross: 0,
+        rpm: 0,
+        payDays: null,
+        owed: 0,
         authorityStatus: null,
         checkedAt: null,
       })
@@ -117,13 +150,22 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
         payVia: null,
         loadCount: 0,
         lastLoad: null,
+        gross: 0,
+        rpm: 0,
+        payDays: null,
+        owed: 0,
         authorityStatus: c.authority_status,
         checkedAt,
       })
     }
   }
 
-  for (const b of byKey.values()) if (!b.name && b.email) b.name = nameFromEmail(b.email)
+  const byMoney = foldMoney(money)
+  for (const [key, b] of byKey) {
+    if (!b.name && b.email) b.name = nameFromEmail(b.email)
+    const m = byMoney.get(key)
+    if (m) Object.assign(b, m)
+  }
 
   // Brokers with loads first (by count), then checked-only brokers newest first.
   return [...byKey.values()].sort(

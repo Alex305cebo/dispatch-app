@@ -127,6 +127,27 @@ async function LoadsBoard({
     count: weekRows.length,
   }
 
+  // ── Следующая неделя ────────────────────────────────────────────────────────
+  // Итог недели говорит, как прошло. Этот вопрос — другой и задаётся в четверг:
+  // «на следующую неделю у нас вообще что-нибудь есть». Считается строго по дате
+  // пикапа (не по дате заведения): планирование живёт по календарю груза. Заявки
+  // (quoted) не считаются — их ещё не подтвердили, и подставлять их в план значит
+  // считать деньги, которых может не быть.
+  const nextTo = wkTo + 7 * 24 * 60 * 60 * 1000
+  const nextRows = priced.filter(({ load }) => {
+    if (load.status === 'cancelled' || load.status === 'quoted' || !load.pickupDate) return false
+    const ms = Date.parse(`${load.pickupDate}T00:00:00`)
+    return ms >= wkTo && ms < nextTo
+  })
+  // Траки без груза на следующей неделе — то, ради чего это и смотрят. Стоящие в
+  // ремонте и отпуске не в счёт: искать им груз всё равно некому.
+  const busyNext = new Set(nextRows.map((x) => x.truck?.id).filter((id) => id != null))
+  const next = {
+    gross: nextRows.reduce((s, x) => s + x.load.rate, 0),
+    count: nextRows.length,
+    idle: trucks.filter((tr) => !tr.unavailable && !busyNext.has(tr.id)).length,
+  }
+
   // Loads with money or paperwork stuck to them. A quoted load is a draft — nothing
   // is owed and no paperwork is late yet — so it is never flagged.
   const now = Date.now()
@@ -162,7 +183,7 @@ async function LoadsBoard({
         </Button>
       </div>
 
-      {loads.length > 0 && <WeekSummary week={week} locale={locale} />}
+      {loads.length > 0 && <WeekSummary week={week} next={next} locale={locale} />}
       {flagged.length > 0 && <NeedsAttention items={flagged} locale={locale} />}
 
       {/* Вкладки и всё, что они рисуют, — на клиенте: все три вида и любая неделя
@@ -222,12 +243,14 @@ function Tile({ value, label, tone }: { value: string; label: string; tone?: 'go
  * the first thing anyone opening a dispatch board actually wants to know. */
 function WeekSummary({
   week,
+  next,
   locale,
 }: {
   week: { gross: number; net: number; rpm: number; deadheadPct: number; perTruck: number; count: number }
+  next: { gross: number; count: number; idle: number }
   locale: Locale
 }) {
-  if (week.count === 0) {
+  if (week.count === 0 && next.count === 0) {
     return <p className="panel mb-4 px-4 py-3 text-[13px] text-white/45">{t(locale, 'loads.week.empty')}</p>
   }
   return (
@@ -235,6 +258,8 @@ function WeekSummary({
       <h2 className="mb-2 px-1.5 text-2xs font-semibold uppercase tracking-wider text-white/62">
         {t(locale, 'loads.week.title')}
       </h2>
+      {/* Неделя ещё могла не начаться — тогда плиток нет, а план на следующую есть. */}
+      {week.count > 0 && (
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
         <Tile value={usd.format(week.gross)} label={t(locale, 'loads.week.gross')} />
         <Tile
@@ -252,6 +277,30 @@ function WeekSummary({
         />
         <Tile value={usd.format(week.perTruck)} label={t(locale, 'loads.week.perTruck')} />
       </div>
+      )}
+
+      {/* Что уже стоит на следующей неделе. Отдельной строкой, а не шестой плиткой:
+          это не итог, а план, и мерить его теми же цифрами нельзя. */}
+      <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-white/6 px-1.5 pt-2 text-[12px] text-white/55">
+        <span className="text-white/40">{t(locale, 'loads.week.nextTitle')}</span>
+        {next.count === 0 ? (
+          <span className="text-warn-400">{t(locale, 'loads.week.nextEmpty')}</span>
+        ) : (
+          <>
+            <span className="nums font-semibold text-white/85">{usd.format(next.gross)}</span>
+            <span className="nums">
+              {t(locale, 'loads.week.nextCount').replace('{n}', String(next.count))}
+            </span>
+          </>
+        )}
+        {/* Свободные траки — то, ради чего в план и смотрят: неделя начнётся, а им
+            нечего везти. */}
+        {next.idle > 0 && (
+          <span className="nums rounded-full bg-warn-500/15 px-2 py-0.5 font-medium text-warn-400">
+            {t(locale, 'loads.week.nextIdle').replace('{n}', String(next.idle))}
+          </span>
+        )}
+      </p>
     </section>
   )
 }

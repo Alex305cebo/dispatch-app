@@ -85,6 +85,12 @@ export const loadsDict = {
     ru: 'Отсканируй rate con — поля заполнятся сами. Или выбери трак и введи вручную.',
     en: 'Scan a rate con and the fields fill themselves in. Or pick a truck and enter it manually.',
   },
+  'loads.new.repeatTitle': { ru: 'Повторить груз', en: 'Repeat load' },
+  'loads.new.repeatSubtitle': {
+    ru: 'Брокер, маршрут и ставка взяты с прошлого рейса ({broker}). Проверь ставку и поставь новые даты.',
+    en: 'Broker, route and rate come from the previous run ({broker}). Check the rate and set new dates.',
+  },
+  'loads.repeat': { ru: 'Повторить груз', en: 'Repeat load' },
 
   // components/new-load-client.tsx
   'newLoad.needPdfOrPhoto': { ru: 'Нужен PDF или фото rate confirmation.', en: 'A PDF or photo of the rate confirmation is required.' },
@@ -601,6 +607,10 @@ export const loadsDict = {
   'loads.week.rpm': { ru: 'ставка-миля', en: 'per mile' },
   'loads.week.deadhead': { ru: 'deadhead', en: 'deadhead' },
   'loads.week.perTruck': { ru: 'на трак', en: 'per truck' },
+  'loads.week.nextTitle': { ru: 'Следующая неделя:', en: 'Next week:' },
+  'loads.week.nextEmpty': { ru: 'пока пусто', en: 'nothing booked yet' },
+  'loads.week.nextCount': { ru: '· рейсов: {n}', en: '· loads: {n}' },
+  'loads.week.nextIdle': { ru: 'без груза траков: {n}', en: 'trucks with no load: {n}' },
   'loads.week.empty': { ru: 'На этой неделе грузов пока нет', en: 'No loads this week yet' },
   'import.label.payVia': { ru: 'Платит через', en: 'Pays via' },
   'loads.attention.title': { ru: 'Требуют внимания', en: 'Needs attention' },

@@ -14,6 +14,7 @@ import { useRef, useState } from 'react'
 import type { TruckRecord } from '@/lib/map'
 import { extractPdf, looksScanned } from '@/lib/pdf-text'
 import { missingFields, toQrLoad, type RateConFields } from '@/lib/ratecon'
+import type { QrLoad } from '@/lib/qr-load'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
 import { uploadDocument } from '@/app/actions'
 import { notify } from '@/lib/notify'
@@ -27,10 +28,14 @@ export function NewLoadClient({
   trucks,
   placeByTruck,
   defaultTruckId,
+  repeat,
 }: {
   trucks: TruckRecord[]
   placeByTruck?: Record<number, string>
   defaultTruckId?: number
+  /** Заполнение по прошлому рейсу («Повторить груз»). Скан документа его перебивает:
+   * если человек всё-таки принёс рейт-кон, бумага главнее памяти. */
+  repeat?: QrLoad
 }) {
   const locale = useLocale()
   const [fields, setFields] = useState<RateConFields | null>(null)
@@ -192,7 +197,7 @@ export function NewLoadClient({
         trucks={trucks}
         placeByTruck={placeByTruck}
         defaultTruckId={defaultTruckId}
-        initial={fields ? toQrLoad(fields) : undefined}
+        initial={fields ? toQrLoad(fields) : repeat}
         source={fields ? 'qr' : 'manual'}
         needsAttention={fields ? missingFields(fields) : []}
         docId={docId}
