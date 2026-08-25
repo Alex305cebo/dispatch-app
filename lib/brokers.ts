@@ -3,7 +3,7 @@
 // row can carry authority status when it's been checked. SERVER ONLY (queries DB).
 
 import { sql } from './db'
-import { emailDomain } from './broker-key.ts'
+import { emailDomain, foldReps, type BrokerRep } from './broker-key.ts'
 import { foldMoney, type MoneyRow } from './broker-money.ts'
 
 export type OurBroker = {
@@ -29,6 +29,12 @@ export type OurBroker = {
    * груз по отдельности. Деньги приходят одной суммой за несколько рейсов, и раньше
    * на это уходило столько же открытых страниц, сколько рейсов в переводе. */
   unpaid: { id: number; ref: string | null; route: string; rate: number; days: number }[]
+  /** Люди со стороны брокера: кто подписывал рейт-коны и с кем идёт переписка.
+   * У крупного брокера их несколько, и в карточке они лежат под именем компании. */
+  reps: BrokerRep[]
+  /** Название компании из реестра — им подписана карточка, когда оно известно.
+   * В грузе может стоять имя менеджера, а карточка должна называться компанией. */
+  registryName: string | null
   /** Payment service named on this broker's rate cons (TriumphPay, Comdata…), newest first. */
   payVia: string | null
   /** From the FMCSA cache, when this MC has been checked. */
@@ -86,6 +92,9 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
   }[]
 
   const money: MoneyRow[] = []
+  // Люди копятся отдельно и сворачиваются в конце: один и тот же менеджер приходит
+  // столько раз, сколько у него грузов.
+  const repRows = new Map<string, { name: string | null; email: string | null; phone: string | null; at: string | null }[]>()
   const byKey = new Map<string, OurBroker>()
   for (const r of rows) {
     const mc = digits(r.broker_mc) || null
@@ -113,6 +122,15 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
           }
         : null
 
+    const seen = repRows.get(key) ?? []
+    seen.push({
+      name: r.broker_name,
+      email: r.broker_email,
+      phone: r.broker_phone,
+      at: r.created_at ? String(r.created_at).slice(0, 10) : null,
+    })
+    repRows.set(key, seen)
+
     const existing = byKey.get(key)
     if (existing) {
       existing.loadCount++
@@ -137,6 +155,8 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
         payDays: null,
         owed: 0,
         unpaid: unpaidRow ? [unpaidRow] : [],
+        reps: [],
+        registryName: null,
         authorityStatus: null,
         checkedAt: null,
       })
@@ -170,6 +190,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
     if (existing) {
       existing.authorityStatus = c.authority_status
       existing.checkedAt = checkedAt
+      existing.registryName = c.legal_name ?? c.dba_name
       existing.name ??= c.legal_name ?? c.dba_name
       existing.phone ??= c.phone
     } else {
@@ -186,6 +207,8 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
         payDays: null,
         owed: 0,
         unpaid: [],
+        reps: [],
+        registryName: c.legal_name ?? c.dba_name,
         authorityStatus: c.authority_status,
         checkedAt,
       })
@@ -195,6 +218,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
   const byMoney = foldMoney(money)
   for (const [key, b] of byKey) {
     if (!b.name && b.email) b.name = nameFromEmail(b.email)
+    b.reps = foldReps(repRows.get(key) ?? [])
     const m = byMoney.get(key)
     if (m) Object.assign(b, m)
   }

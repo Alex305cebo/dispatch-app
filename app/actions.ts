@@ -140,7 +140,7 @@ export async function updateBrokerInfo(
       AND (
         (${findName} <> '' AND lower(coalesce(broker_name, '')) = ${findName})
         OR (${findName} = '' AND ${findMc} <> ''
-            AND regexp_replace(coalesce(broker_mc, ''), '\D', '', 'g') = ${findMc})
+            AND regexp_replace(coalesce(broker_mc, ''), '[^0-9]', '', 'g') = ${findMc})
       )
     RETURNING id`) as { id: number }[]
 
@@ -231,7 +231,7 @@ export async function brokerContactsFromHistory(
     SELECT broker_email, broker_phone, broker_mc, pay_via FROM loads
     WHERE company_id = ${companyId}
       AND (
-        (${mcDigits} <> '' AND regexp_replace(coalesce(broker_mc, ''), '\D', '', 'g') = ${mcDigits})
+        (${mcDigits} <> '' AND regexp_replace(coalesce(broker_mc, ''), '[^0-9]', '', 'g') = ${mcDigits})
         OR (${key} <> '' AND lower(coalesce(broker_name, '')) = ${key})
       )
     ORDER BY created_at DESC`) as {

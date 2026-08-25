@@ -167,6 +167,8 @@ export const brokersDict = {
   'brokers.factsNoKey': { ru: 'Нужен ключ FMCSA — Админ → Ключи.', en: 'An FMCSA key is required — Admin → Keys.' },
   'brokers.factsAuthority': { ru: 'Authority', en: 'Authority' },
   'brokers.factsCity': { ru: 'Город', en: 'City' },
+  'brokers.reps': { ru: 'представители брокера: {n}', en: 'broker contacts: {n}' },
+  'brokers.repLoads': { ru: 'грузов {n}', en: '{n} loads' },
   'brokers.markPaid': { ru: 'Оплачен', en: 'Paid' },
   'brokers.paidDone': { ru: 'Отмечено оплаченным.', en: 'Marked as paid.' },
   'brokers.waitingDays': { ru: 'ждём {n} дн.', en: 'waiting {n} d.' },

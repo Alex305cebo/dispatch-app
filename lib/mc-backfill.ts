@@ -74,10 +74,13 @@ export async function backfillBrokerMc(
   // такой брокер считается «с MC» и подбор к нему даже не подойдёт.
   const mine = await ownMc()
   if (mine) {
+    // Класс [^0-9], а не \D: в шаблонной строке JS обратная косая съедается ещё до
+    // того, как запрос уйдёт в базу, и условие молча сравнивает «MC626911» с
+    // «626911». Из-за этого свой номер и оставался стоять у брокера.
     await sql`
       UPDATE loads SET broker_mc = NULL
       WHERE company_id = ${companyId}
-        AND regexp_replace(coalesce(broker_mc, ''), '\D', '', 'g') = ${mine}`
+        AND regexp_replace(coalesce(broker_mc, ''), '[^0-9]', '', 'g') = ${mine}`
   }
 
   // Брокеры, у которых MC нет ни на одном грузе. Имя — ключ: именно по нему потом
@@ -190,6 +193,23 @@ export async function backfillBrokerMc(
         WHERE company_id = ${companyId}
           AND lower(trim(broker_name)) = ${r.key}
           AND coalesce(broker_mc, '') = ''`
+
+      // Кладём компанию в тот же кэш, куда пишет проверка по MC. Тогда карточка
+      // подписана названием компании, а не именем менеджера из рейт-кона, и статус
+      // authority виден сразу — без отдельной кнопки «Проверить».
+      const authority = /NOT AUTHORIZED|OUT OF SERVICE/i.test(best.operatingStatus ?? '')
+        ? 'inactive'
+        : /AUTHORIZED/i.test(best.operatingStatus ?? '')
+          ? 'active'
+          : null
+      await sql`
+        INSERT INTO brokers (mc, legal_name, dba_name, dot_number, authority_status, phone, checked_at)
+        VALUES (${found}, ${best.legalName}, ${best.dbaName}, ${best.dot}, ${authority}, ${best.phone}, now())
+        ON CONFLICT (mc) DO UPDATE SET
+          legal_name = EXCLUDED.legal_name, dba_name = EXCLUDED.dba_name,
+          dot_number = EXCLUDED.dot_number,
+          authority_status = coalesce(EXCLUDED.authority_status, brokers.authority_status),
+          phone = coalesce(EXCLUDED.phone, brokers.phone), checked_at = now()`
       out.filled++
       mark('ok')
     } catch {

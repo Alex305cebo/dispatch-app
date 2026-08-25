@@ -236,7 +236,12 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate text-[14px] font-medium">{b.name ?? '—'}</span>
+                        {/* Карточку подписывает КОМПАНИЯ. В грузе стоит тот, кто подписал
+                            рейт-кон, а это менеджер: «Tyler Simpson» вместо C.H. Robinson.
+                            Название из реестра точнее, а люди — ниже, своим списком. */}
+                        <span className="truncate text-[14px] font-medium">
+                          {prettyCompany(b.registryName) ?? b.name ?? '—'}
+                        </span>
                         <span className="shrink-0 rounded-full bg-white/8 px-2 py-0.5 text-[11px] text-white/60">
                           {b.mc ? `MC ${b.mc}` : t(locale, 'brokers.noMc')}
                         </span>
@@ -262,14 +267,16 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                         )}
                       </div>
                       <div className="mt-0.5 flex flex-wrap gap-x-3 text-[12px] text-white/45">
-                        {/* С телефона это одно нажатие вместо «выделить, скопировать,
-                            открыть звонилку, вставить» — а звонят брокеру именно с него. */}
-                        {b.phone && (
+                        {/* Один представитель — показываем прямо здесь: разворачивать
+                            список ради одной строки незачем. Несколько — уходят в
+                            свёрнутый список ниже, иначе шапка карточки превращается в
+                            свалку из пяти почт. */}
+                        {b.reps.length <= 1 && b.phone && (
                           <a href={`tel:${b.phone.replace(/[^+\d]/g, '')}`} className="hover:text-white hover:underline">
                             {b.phone}
                           </a>
                         )}
-                        {b.email && (
+                        {b.reps.length <= 1 && b.email && (
                           <a href={`mailto:${b.email}`} className="truncate hover:text-white hover:underline">
                             {b.email}
                           </a>
@@ -340,6 +347,44 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                       >
                         {t(locale, 'brokers.recheck')}
                       </button>
+                    )}
+
+                    {/* Представители — свёрнуты. Разворачивать нечего, если он один:
+                        такой уже показан строкой выше. */}
+                    {b.reps.length > 1 && (
+                      <details className="w-full">
+                        <summary className="cursor-pointer list-none text-[11.5px] text-white/45 hover:text-white/70">
+                          <span className="text-white/30">▸ </span>
+                          {t(locale, 'brokers.reps').replace('{n}', String(b.reps.length))}
+                        </summary>
+                        <ul className="mt-1 flex flex-col gap-0.5 rounded-lg border border-white/8 bg-ink-950/40 p-1.5">
+                          {b.reps.map((p, i) => (
+                            <li
+                              key={(p.email ?? p.name ?? '') + i}
+                              className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 rounded px-1.5 py-1 text-[12px] hover:bg-white/5"
+                            >
+                              <span className="min-w-0 truncate font-medium text-white/80">{p.name ?? '—'}</span>
+                              {p.email && (
+                                <a href={`mailto:${p.email}`} className="min-w-0 truncate text-white/50 hover:text-white hover:underline">
+                                  {p.email}
+                                </a>
+                              )}
+                              {p.phone && (
+                                <a
+                                  href={`tel:${p.phone.replace(/[^+\d]/g, '')}`}
+                                  className="nums text-white/50 hover:text-white hover:underline"
+                                >
+                                  {p.phone}
+                                </a>
+                              )}
+                              <span className="nums ml-auto shrink-0 text-white/35">
+                                {t(locale, 'brokers.repLoads').replace('{n}', String(p.loads))}
+                                {p.lastAt ? ` \u00b7 ${p.lastAt}` : ''}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
                     )}
 
                     {owedFor === rowKey && b.unpaid.length > 0 && (
@@ -607,4 +652,18 @@ function TopBrokerFacts({ name }: { name: string }) {
       )}
     </div>
   )
+}
+
+
+/** Название из реестра пишут капсом: «CH ROBINSON COMPANY LLC». Читать это в списке
+ * тяжело, поэтому приводим к обычному виду, оставляя заглавными короткие слова —
+ * формы собственности и инициалы («LLC», «CH»), которые иначе превращаются в «Llc». */
+function prettyCompany(name: string | null): string | null {
+  if (!name) return null
+  if (!/[A-Z]{4,}/.test(name)) return name
+  return name
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => (w.length <= 3 && w !== 'inc' ? w.toUpperCase() : w.replace(/^./, (c) => c.toUpperCase())))
+    .join(' ')
 }

@@ -139,3 +139,15 @@ export async function saferSnapshot(dot: string): Promise<SaferCompany | null> {
   )
   return html ? parseSaferSnapshot(html, dot) : null
 }
+
+/** Карточка по номеру MC — тем же запросом, что и по DOT, только другим ключом.
+ * Нужна, когда номер уже известен, а данные компании — ещё нет. */
+export async function saferByMc(mc: string): Promise<SaferCompany | null> {
+  const html = await get(
+    `https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=MC_MX&original_query_param=NAME&query_string=${encodeURIComponent(mc)}`,
+  )
+  if (!html) return null
+  // Номер DOT в ответе свой — вытаскиваем его со страницы, а не подставляем чужой.
+  const dot = /USDOT Number:?\s*<\/th>\s*<td[^>]*>\s*(\d+)/i.exec(html)?.[1] ?? ''
+  return parseSaferSnapshot(html, dot)
+}
