@@ -56,6 +56,8 @@ export const trackingDict = {
     ru: 'Координат пока нет — подключи отслеживание траков в разделе «Трекинг».',
     en: 'No coordinates yet — connect truck tracking in the Tracking section.',
   },
+  'tracking.weekShort': { ru: 'за неделю', en: 'this week' },
+  'tracking.docsShort': { ru: 'документы', en: 'documents' },
   'tracking.mapExpand': { ru: 'Развернуть карту', en: 'Expand the map' },
   'tracking.mapCollapse': { ru: 'Свернуть карту (Esc)', en: 'Collapse the map (Esc)' },
   'tracking.mapLabel': { ru: '🗺 Карта', en: '🗺 Map' },

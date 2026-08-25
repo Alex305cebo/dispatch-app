@@ -11,6 +11,7 @@ import { notify } from '@/lib/notify'
 import { Button } from '@/components/button'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
+import { usd } from '@/lib/fmt'
 
 export type TrackingRow = {
   id: number
@@ -49,13 +50,30 @@ const toneClass = {
 const fuelClass = (v: number) =>
   v <= 15 ? 'text-bad-400' : v <= 30 ? 'text-warn-400' : 'text-white/55'
 
+/** Экономика трака за неделю — вторая половина строки. Раньше жила в отдельной
+ * сетке карточек под этим же списком, и один трак показывался на странице дважды:
+ * сверху «где он», снизу «сколько заработал». Диспетчер решает по обоим числам
+ * сразу, поэтому они стоят в одной строке. */
+export type TruckMoney = {
+  /** Гросс по грузам этой недели. */
+  week: number
+  /** Сколько грузов у трака всего — по нему видно новичка и рабочую лошадь. */
+  loads: number
+  /** Ближайший к истечению документ, если он уже жёлтый или красный. */
+  docWarn: string | null
+}
+
 export function FleetList({
   rows,
   selectedId = null,
+  money,
 }: {
   rows: TrackingRow[]
   /** Truck picked on the map — its card gets a ring so the two views stay tied. */
   selectedId?: number | null
+  /** id трака → деньги и бумаги. Ключом объект, а не Map: так он переживает
+   * пересылку с сервера в браузер без превращений. */
+  money?: Record<number, TruckMoney>
 }) {
   const locale = useLocale()
   // Two lenses on the same rows, not two copies of them: "who can I book right now"
@@ -242,6 +260,33 @@ export function FleetList({
                 </Button>
               )}
               {/* No "История пути" link any more — the card itself goes there. */}
+
+              {/* Деньги недели и бумаги — справа на той же полке. Это вторая половина
+                  того же трака: раньше ради неё была отдельная сетка карточек ниже. */}
+              <span className="ml-auto flex shrink-0 items-center gap-2">
+                {money?.[r.id]?.docWarn && (
+                  <span
+                    title={money[r.id]!.docWarn!}
+                    className="rounded bg-warn-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-warn-400"
+                  >
+                    {t(locale, 'tracking.docsShort')}
+                  </span>
+                )}
+                {money?.[r.id] && (
+                  <span className="text-right leading-tight">
+                    <span
+                      className={`nums block text-[13px] font-bold ${
+                        money[r.id]!.week > 0 ? 'text-good-400' : 'text-white/35'
+                      }`}
+                    >
+                      {money[r.id]!.week > 0 ? usd.format(money[r.id]!.week) : '—'}
+                    </span>
+                    <span className="block text-[9.5px] uppercase tracking-wider text-white/40">
+                      {t(locale, 'tracking.weekShort')}
+                    </span>
+                  </span>
+                )}
+              </span>
             </div>
           </div>
         ))}

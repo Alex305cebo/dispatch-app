@@ -1,7 +1,6 @@
 import { cityOf } from '@/lib/maintenance-core'
-import { Fuel, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/button'
-import { LinkPending } from '@/components/link-pending'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { EldLinks } from '@/components/eld-links'
@@ -16,8 +15,6 @@ import { buildWorkingDays } from '@/lib/heatmap'
 import { getCompany } from '@/lib/invoice'
 import {
   expiries,
-  oilStatus,
-  openTodoCounts,
   truckMetas,
 } from '@/lib/maintenance'
 import { sql } from '@/lib/db'
@@ -26,8 +23,6 @@ import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { placeCity } from '@/lib/place'
 import { t, type Locale } from '@/lib/i18n'
-import { DriverAvatar } from '@/components/driver-avatar'
-import { StatusBadge } from '@/components/status'
 import { Info } from '@/components/info'
 
 export const dynamic = 'force-dynamic'
@@ -38,14 +33,6 @@ type FS = {
   location: string | null
   odometer: number | null
   fuel: number | null
-}
-
-// Same live-status reading as the Обзор fleet cards — one visual language everywhere.
-function driveDot(s: string | null): string {
-  if (!s) return 'bg-white/20'
-  if (/mi\/h|^d$/i.test(s)) return 'bg-good-500'
-  if (/^on$/i.test(s)) return 'bg-haul-500'
-  return 'bg-white/30'
 }
 
 /** «2026-08-17» → «17 авг». Год не пишем: столбец про ближайшие дни. */
@@ -72,11 +59,10 @@ export default async function Page() {
   // вместе с картой. Одно чтение настройки, оно и так кэшируется.
   const shareRaw = await getSetting('eld_share_tokens')
   const shareCount = shareRaw ? (JSON.parse(shareRaw) as string[]).length : 0
-  const [trucks, company, metas, todoCounts, fleetRaw, dispatcherPhone] = await Promise.all([
+  const [trucks, company, metas, fleetRaw, dispatcherPhone] = await Promise.all([
     listTrucks(companyId),
     getCompany(),
     truckMetas(companyId),
-    openTodoCounts(companyId),
     sql`SELECT unit, drive_status, location, odometer, fuel FROM fleet_status`,
     // Свой номер диспетчера — в блок «Driver Info» для брокера.
     user ? getSetting(dispatcherPhoneKey(user.id)) : Promise.resolve(null),
@@ -109,6 +95,19 @@ export default async function Page() {
     }),
   )
 
+  // id трака → деньги и бумаги. Плоский объект, а не Map: так он без потерь
+  // переезжает с сервера в браузер вместе с остальными пропсами списка.
+  const moneyByTruck: Record<number, { week: number; loads: number; docWarn: string | null }> = {}
+  for (const { truck, count, weekGross } of perTruck) {
+    const meta = metas.get(truck.id) ?? null
+    const worst = expiries(meta, locale).find((e) => e.tone !== 'good')
+    moneyByTruck[truck.id] = {
+      week: weekGross,
+      loads: count,
+      docWarn: worst ? worst.label : null,
+    }
+  }
+
   const busy = perTruck.filter((x) => x.current).length
   const unavailable = trucks.filter((t) => t.unavailable).length
   const free = trucks.length - busy - unavailable
@@ -133,6 +132,10 @@ export default async function Page() {
         </Button>
       </div>
 
+      {/* Вторая половина строки списка: деньги за неделю, число грузов и ближайший
+          к истечению документ. Раньше ради них под списком стояла ВТОРАЯ сетка
+          карточек, и один трак показывался на странице дважды. Считает страница —
+          она уже держит и грузы, и паспорта траков. */}
       {/* Живая часть парка — первым делом: карта, счётчики и список «где сейчас».
           Раньше это был отдельный раздел «Трекинг», и один и тот же трак жил на двух
           экранах разными половинами. Своя Suspense-граница, потому что здесь ждут
@@ -141,6 +144,7 @@ export default async function Page() {
       <Suspense fallback={<BoardSkeleton />}>
         <FleetBoard
           locale={locale}
+          money={moneyByTruck}
           // Справочник водителей и календарь загрузки — сразу под картой и
           // счётчиками, ДО списка траков. Оба отвечают на вопросы, которые задают
           // раньше разбора отдельной машины: что сказать брокеру и кто когда
@@ -227,147 +231,6 @@ export default async function Page() {
         </span>
       </div>
 
-      <div className="stagger grid gap-2.5 sm:grid-cols-2">
-        {perTruck.map(({ truck, count, current, weekGross }) => {
-          const fs = truck.number ? byUnit.get(truck.number) : undefined
-          const meta = metas.get(truck.id) ?? null
-          const oil = oilStatus(meta, fs?.odometer ?? null)
-          // The one date closest to biting — same ranking the truck page's expiry
-          // panel uses; green ones stay off the card (healthy is the quiet default).
-          const worstDoc = expiries(meta, locale).find((e) => e.tone !== 'good')
-          const todos = todoCounts.get(truck.id) ?? 0
-          const off = truck.unavailable
-
-          return (
-            <Link
-              key={truck.id}
-              href={`/trucks/${truck.id}`}
-              className={`panel panel-interactive flex min-w-0 flex-col gap-2.5 p-4 ${
-                off ? 'border-warn-400/25' : ''
-              }`}
-            >
-              {/* Identity + money */}
-              <div className="flex items-center gap-3">
-                <div className="relative shrink-0">
-                  <DriverAvatar truckId={truck.id} name={truck.driverName} hasPhoto={metas.get(truck.id)?.hasPhoto ?? false} size={44} locale={locale} />
-                  <span
-                    className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-ink-900 ${driveDot(fs?.drive_status ?? null)}`}
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  {/* Подпись переносится по словам, а не обрезается и не выталкивает
-                      соседей. Раньше на ней стояло shrink-0: с голым номером («2237»)
-                      это всегда помещалось, а с водителем и прицепом строка стала
-                      втрое длиннее и вылезала за край карточки поверх суммы справа.
-                      Обрезать её тоже нельзя — первым бы исчез номер прицепа, ради
-                      которого подпись и собрана. */}
-                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                    {/* Водитель, трак и прицеп одной подписью — та же, что на обзоре
-                        и на странице груза (lib/map.ts truckLabel). */}
-                    <span className="min-w-0 break-words text-[14px] font-semibold leading-snug sm:text-[15px]">
-                      {truckLabel(truck, meta?.trailerNumber)}
-                    </span>
-                    <LinkPending className="text-haul-400" />
-                    {off ? (
-                      <span className="shrink-0 rounded-full bg-warn-400/15 px-2 py-0.5 text-[10.5px] font-semibold text-warn-400">
-                        {unavailableLabel(locale, off)}
-                      </span>
-                    ) : !current ? (
-                      <span className="shrink-0 rounded-full bg-good-500/15 px-2 py-0.5 text-[10.5px] font-semibold text-good-400">
-                        {t(locale, 'trucks.card.available')}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mt-0.5 truncate text-[12px] text-white/60">
-                    {/* Водитель уехал в подпись выше — здесь осталось только место,
-                        иначе имя печаталось бы дважды подряд. */}
-                    📍 {placeCity(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')}
-                  </div>
-                  {/* VIN, once the ELD has reported it (auto-filled — see lib/eld.ts).
-                      Small and muted: it's the truck's legal identity for registration
-                      and compliance, wanted occasionally, never the headline. */}
-                  {meta?.vin && (
-                    <div className="nums mt-0.5 truncate text-[10.5px] tracking-tight text-white/35">
-                      VIN {meta.vin}
-                    </div>
-                  )}
-                </div>
-                <div className="shrink-0 text-right">
-                  <div className={`nums whitespace-nowrap text-[16px] font-bold ${weekGross > 0 ? 'text-good-400' : 'text-white/40'}`}>
-                    {usd.format(weekGross)}
-                  </div>
-                  <div className="text-[9px] uppercase tracking-wider text-white/40">{t(locale, 'trucks.card.perWeek')}</div>
-                </div>
-              </div>
-
-              {/* Current assignment */}
-              {current && (
-                <div className="flex items-center justify-between gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-1.5">
-                  <span className="min-w-0 truncate text-[12px] text-white/75">
-                    {current.origin ?? '—'} → {current.destination ?? '—'}
-                  </span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    <StatusBadge status={current.status} locale={locale} />
-                    <span className="nums text-[12px] font-semibold text-white/80">{usd.format(current.rate)}</span>
-                  </span>
-                </div>
-              )}
-
-              {/* Health chips — only what needs attention; a healthy truck stays clean.
-                  Fuel is the exception and shows at ANY level: "how full is it" is a
-                  dispatch question before it is a problem, and a chip that only appears
-                  when the tank is nearly empty trains you not to look for it. */}
-              {(oil || worstDoc || todos > 0 || count > 0 || fs?.fuel != null) && (
-                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                  {fs?.fuel != null && (
-                    <span
-                      title={t(locale, 'trucks.chip.fuelInfo')}
-                      className={`flex items-center gap-1 rounded-md px-2 py-1 font-medium ${
-                        fs.fuel <= 15
-                          ? 'bg-bad-500/15 text-bad-400'
-                          : fs.fuel <= 30
-                            ? 'bg-warn-400/15 text-warn-400'
-                            : 'bg-white/8 text-white/70'
-                      }`}
-                    >
-                      <Fuel size={11} strokeWidth={2.5} />
-                      <span className="nums">{Math.round(fs.fuel)}%</span>
-                    </span>
-                  )}
-                  {oil && (
-                    <span
-                      className={`nums rounded-full px-2 py-0.5 font-medium ${
-                        oil.tone === 'bad'
-                          ? 'bg-bad-500/15 text-bad-400'
-                          : oil.tone === 'warn'
-                            ? 'bg-warn-400/15 text-warn-400'
-                            : 'bg-white/6 text-white/55'
-                      }`}
-                    >
-                      🛢 {t(locale, 'trucks.card.oilPrefix')} {Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi
-                    </span>
-                  )}
-                  {worstDoc && (
-                    <span
-                      className={`rounded-full px-2 py-0.5 font-medium ${
-                        worstDoc.tone === 'bad' ? 'bg-bad-500/15 text-bad-400' : 'bg-warn-400/15 text-warn-400'
-                      }`}
-                    >
-                      📄 {worstDoc.label} · {worstDoc.daysLeft < 0 ? t(locale, 'trucks.common.overdue') : `${worstDoc.daysLeft} ${t(locale, 'trucks.common.daysSuffix')}`}
-                    </span>
-                  )}
-                  {todos > 0 && (
-                    <span className="rounded-full bg-warn-400/15 px-2 py-0.5 font-medium text-warn-400">
-                      🔧 {t(locale, 'trucks.card.toFix')}: {todos}
-                    </span>
-                  )}
-                  <span className="ml-auto text-white/40">{count} {t(locale, 'trucks.card.loadsCount')}</span>
-                </div>
-              )}
-            </Link>
-          )
-        })}
-      </div>
     </main>
   )
 }

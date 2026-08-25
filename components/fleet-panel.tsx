@@ -8,7 +8,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { FleetMap, type MapMarker, type MapRoute } from '@/components/fleet-map'
-import { FleetList, type TrackingRow } from '@/components/fleet-list'
+import { FleetList, type TrackingRow, type TruckMoney } from '@/components/fleet-list'
 import { RefreshFleetButton } from '@/components/refresh-fleet-button'
 import { Button } from '@/components/button'
 import { useLocale } from '@/components/locale-provider'
@@ -49,6 +49,7 @@ export function FleetPanel({
   updatedText,
   staleMinutes,
   between,
+  money,
 }: {
   markers: MapMarker[]
   routes: MapRoute[]
@@ -62,6 +63,8 @@ export function FleetPanel({
    * задают до разбора отдельного трака: «что сказать брокеру» и «кто когда
    * освободится». За списком карточек их приходилось искать прокруткой. */
   between?: React.ReactNode
+  /** Экономика по траку — вторая половина строки списка. */
+  money?: Record<number, TruckMoney>
 }) {
   const locale = useLocale()
   const [selected, setSelected] = useState<number | null>(null)
@@ -156,7 +159,7 @@ export function FleetPanel({
 
       {between}
 
-      <FleetList rows={rows} selectedId={selected} />
+      <FleetList rows={rows} selectedId={selected} money={money} />
     </>
   )
 }

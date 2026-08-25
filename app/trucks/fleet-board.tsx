@@ -39,7 +39,16 @@ type FS = {
 }
 
 /** Map, fleet counters and the truck list — the part that waits on routing. */
-export async function FleetBoard({ locale, between }: { locale: Locale; between?: React.ReactNode }) {
+export async function FleetBoard({
+  locale,
+  between,
+  money,
+}: {
+  locale: Locale
+  between?: React.ReactNode
+  /** Деньги и бумаги по траку: считает страница, показывает список. */
+  money?: Record<number, import('@/components/fleet-list').TruckMoney>
+}) {
   const companyId = await companyScope()
   // All four are independent, so they go together. The truck list and the share token
   // used to be awaited one after the other before this even started — two round trips
@@ -280,6 +289,7 @@ export async function FleetBoard({ locale, between }: { locale: Locale; between?
       }
       staleMinutes={staleMinutes}
       between={between}
+      money={money}
     />
   )
 }
