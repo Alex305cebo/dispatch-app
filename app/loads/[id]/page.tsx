@@ -75,7 +75,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </h1>
         <p className="mt-1.5 text-[13px] text-white/65">
           {load.source === 'qr' ? t(locale, 'loadDetail.sourceQr') : t(locale, 'loadDetail.sourceManual')}
-          {load.referenceId && ` · Ref ${load.referenceId}`}
+          {/* Это номер груза, который дал брокер, а не «reference» из бумаги: под ним
+              груз ищут, называют по телефону и пишут в счёте. */}
+          {load.referenceId && ` · ${t(locale, 'import.label.referenceId')} ${load.referenceId}`}
         </p>
         {/* Обратный переход на трак был номером в 13px внутри служебной строки — его
             не находили. Теперь такая же кнопка, как маршрут на странице трака. */}

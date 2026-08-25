@@ -194,7 +194,7 @@ export function LoadForm({
               {load.brokerEmail && (
                 <Chip label="Email" value={load.brokerEmail} href={`mailto:${load.brokerEmail}`} />
               )}
-              {load.referenceId && <Chip label="Ref" value={load.referenceId} />}
+              {load.referenceId && <Chip label={tr(locale, 'import.label.referenceId')} value={load.referenceId} />}
               {load.truckLocation && <Chip label={tr(locale, 'loadForm.truckChipLabel')} value={load.truckLocation} />}
             </div>
           )}
