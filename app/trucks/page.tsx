@@ -108,16 +108,33 @@ export default async function Page() {
     }
   }
 
-  const busy = perTruck.filter((x) => x.current).length
+  // «С грузом» и «свободно» считает и показывает панель над картой — здесь остались
+  // только те, кого нельзя грузить: этого числа в плитках нет.
   const unavailable = trucks.filter((t) => t.unavailable).length
-  const free = trucks.length - busy - unavailable
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight">{t(locale, 'trucks.page.title')}</h1>
-          <p className="text-[13px] text-white/65">
+          <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-white/65">
+            {/* Строка стояла отдельной панелью ПОД списком и повторяла плитки над
+                картой: «с грузом» и «свободно» там уже есть. Здесь осталось только
+                то, чего в плитках нет, — деньги парка за неделю и машины, которые
+                нельзя грузить. */}
+            <span className="nums font-semibold text-white/85">
+              {usd.format(perTruck.reduce((sum, x) => sum + x.weekGross, 0))}
+            </span>
+            <span className="flex items-center gap-1">
+              {t(locale, 'trucks.page.weekGross')}
+              <Info text={t(locale, 'trucks.page.weekGrossInfo')} />
+            </span>
+            {unavailable > 0 && (
+              <span className="text-warn-400">
+                · {unavailable} {t(locale, 'trucks.page.unavailable')}
+              </span>
+            )}
+            <span className="text-white/40">·</span>
             {trucks.length} {t(locale, 'trucks.page.inFleet')}
             {company.owner && (
               <>
@@ -208,28 +225,6 @@ export default async function Page() {
           }
         />
       </Suspense>
-
-      {/* Fleet at a glance — the same counters a dispatcher juggles in their head. */}
-      <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-white/8 bg-white/[0.02] px-4 py-3 text-[12.5px]">
-        <span className="flex items-center gap-1.5 text-white/80">
-          <span className="size-2 rounded-full bg-haul-500" /> {busy} {t(locale, 'trucks.page.withLoad')}
-        </span>
-        <span className="flex items-center gap-1.5 text-white/80">
-          <span className="size-2 rounded-full bg-good-500" /> {free} {t(locale, 'trucks.page.free')}
-        </span>
-        {unavailable > 0 && (
-          <span className="flex items-center gap-1.5 text-warn-400">
-            <span className="size-2 rounded-full bg-warn-400" /> {unavailable} {t(locale, 'trucks.page.unavailable')}
-          </span>
-        )}
-        <span className="ml-auto flex items-center gap-1 text-white/45">
-          {t(locale, 'trucks.page.weekGross')}{' '}
-          <span className="nums font-semibold text-white/85">
-            {usd.format(perTruck.reduce((s, x) => s + x.weekGross, 0))}
-          </span>
-          <Info text={t(locale, 'trucks.page.weekGrossInfo')} />
-        </span>
-      </div>
 
     </main>
   )
