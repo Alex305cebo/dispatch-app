@@ -28,6 +28,7 @@ import { haversineMiles } from '@/lib/geo'
 import { nextLoadStatus, GEOFENCE_MI } from '@/lib/load-status'
 import type { DocClass } from '@/lib/ai-doc'
 import { docBelongs, getLoad, loadBelongs, truckBelongs } from '@/lib/loads'
+import { knownBrokerMc } from '@/lib/brokers'
 import type { HistoryLeg } from '@/lib/trip-history'
 import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
 import { dispatcherPhoneKey, getSetting, setSetting } from '@/lib/settings'
@@ -65,6 +66,45 @@ export async function saveDispatcherPhone(phone: string): Promise<{ error: strin
 export async function findBrokerByName(name: string) {
   const { searchByName } = await import('@/lib/fmcsa')
   return searchByName(name, await getLocale())
+}
+
+/**
+ * Найти и проставить MC самому — для брокеров, у которых его нет.
+ *
+ * Почему их так много: MC берётся из рейт-кона, а рейт-кон о нём чаще всего молчит —
+ * брокер печатает своё имя, телефон и номер груза, и всё. Искать каждого руками в
+ * реестре и сверять по одному — это те самые двадцать шесть кликов, которых никто
+ * делать не будет, поэтому список так и стоял пустым.
+ *
+ * Проставляем ТОЛЬКО когда сомнений нет: действующая запись, имя совпало дословно и
+ * она такая одна (lib/broker-match.ts). Всё остальное возвращается как список
+ * кандидатов — там выбирает человек, потому что неверный MC разойдётся по всем
+ * грузам брокера и всплывёт уже в счёте.
+ */
+export async function autoFindMc(
+  name: string,
+): Promise<
+  | { mc: string; updated: number }
+  | { choices: { dot: string; legalName: string; dbaName: string | null; city: string | null; state: string | null; active: boolean }[] }
+  | { error: string }
+> {
+  const locale = await getLocale()
+  const { searchByName } = await import('@/lib/fmcsa')
+  const { pickExact } = await import('@/lib/broker-match')
+
+  const found = await searchByName(name, locale)
+  if ('error' in found) return found
+
+  const one = pickExact(name, found.results)
+  if (!one) return { choices: found.results }
+
+  const checked = await runBrokerCheck('dot', one.dot)
+  if ('error' in checked) return checked
+  if (!checked.mc) return { error: t(locale, 'brokers.mcNotFound') }
+
+  const saved = await assignBrokerMc(name, checked.mc)
+  if ('error' in saved) return saved
+  return { mc: checked.mc, updated: saved.updated }
 }
 
 /**
@@ -388,6 +428,10 @@ export async function createLoad(
     const companyId = await companyScope()
     if (!(await truckBelongs(companyId, load.truckId))) return { error: t(locale, 'actions.truckNotFound') }
     const deadheadMiles = await fillDeadhead(companyId, load.truckId, load.deadheadMiles, load.origin)
+    // MC в документе есть не всегда, но если этот брокер уже возил у нас — он у нас
+    // уже есть. Иначе тот же брокер снова заводится «без MC», и справочник пустеет
+    // ровно там, где по нему и работают.
+    const brokerMc = load.brokerMc || (await knownBrokerMc(companyId, load.brokerName, load.brokerEmail))
     // Auto-credited to whoever's actually signed in and clicking "create" — no
     // manual assignment step, feeds the weekly per-dispatcher report on Финансы.
     const dispatcherId = (await getCurrentUser())?.id ?? null
@@ -399,7 +443,7 @@ export async function createLoad(
                          pickup_address, delivery_address, dispatcher_id, company_id, driver_info, pay_via)
       VALUES (${load.rate}, ${load.loadedMiles}, ${deadheadMiles}, ${load.transitDays},
               ${load.origin}, ${load.destination}, ${load.truckLocation}, ${load.spotRpm},
-              ${load.brokerName}, ${load.brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
+              ${load.brokerName}, ${brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
               ${load.source}, ${load.truckId}, ${load.pickupDate ?? null},
               ${load.deliveryDate ?? null}, ${load.brokerNotes ?? null},
               ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
@@ -512,6 +556,8 @@ export async function createLoadFromRc(
     }
     if (!(loadedMiles > 0)) return { error: t(locale, 'actions.noMilesInRc') }
     const deadheadMiles = await fillDeadhead(companyId, truckId, load.deadheadMiles, load.origin)
+    // Тот же добор MC, что и при ручном заведении: рейт-кон о нём обычно молчит.
+    const brokerMc = load.brokerMc || (await knownBrokerMc(companyId, load.brokerName, load.brokerEmail))
     // Auto-credited to whoever's actually signed in and dropping the RC — no manual
     // assignment step, feeds the weekly per-dispatcher report on Финансы.
     const dispatcherId = (await getCurrentUser())?.id ?? null
@@ -528,7 +574,7 @@ export async function createLoadFromRc(
                          pickup_address, delivery_address, status, dispatcher_id, company_id, driver_info, pay_via)
       VALUES (${load.rate}, ${loadedMiles}, ${deadheadMiles}, ${load.transitDays},
               ${load.origin}, ${load.destination}, ${load.truckLocation}, ${load.spotRpm},
-              ${load.brokerName}, ${load.brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
+              ${load.brokerName}, ${brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
               'qr', ${truckId}, ${load.pickupDate ?? null}, ${load.deliveryDate ?? null},
               ${load.brokerNotes ?? null}, ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
               ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, 'booked', ${dispatcherId}, ${companyId},

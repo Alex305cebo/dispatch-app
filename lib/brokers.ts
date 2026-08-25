@@ -172,3 +172,36 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
     (a, b) => b.loadCount - a.loadCount || (b.checkedAt ?? '').localeCompare(a.checkedAt ?? ''),
   )
 }
+
+/**
+ * MC этого брокера по НАШИМ прошлым грузам — когда в новом документе его нет.
+ *
+ * Рейт-кон печатает MC далеко не всегда: имя, телефон, номер груза — и всё. Но если
+ * этот же брокер уже возил у нас и номер тогда нашёлся (или его проставили руками),
+ * второй раз искать его негде и незачем. Сверяем по имени и по домену почты — тому
+ * же ключу, по которому брокеры группируются в списке.
+ *
+ * Запрос к своей же базе, без похода в реестр: это делается на сохранении груза, и
+ * ждать там чужую службу нельзя.
+ */
+export async function knownBrokerMc(
+  companyId: string,
+  name: string | null,
+  email: string | null,
+): Promise<string | null> {
+  const key = (name ?? '').trim().toLowerCase()
+  const domain = emailDomain(email)
+  if (!key && !domain) return null
+  const rows = (await sql`
+    SELECT broker_mc FROM loads
+    WHERE company_id = ${companyId}
+      AND coalesce(broker_mc, '') <> ''
+      AND (
+        (${key} <> '' AND lower(coalesce(broker_name, '')) = ${key})
+        OR (${domain ?? ''} <> '' AND lower(split_part(coalesce(broker_email, ''), '@', 2)) = ${domain ?? ''})
+      )
+    ORDER BY created_at DESC
+    LIMIT 1`) as { broker_mc: string | null }[]
+  const mc = digits(rows[0]?.broker_mc)
+  return mc || null
+}

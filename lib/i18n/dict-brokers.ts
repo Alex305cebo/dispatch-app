@@ -165,6 +165,12 @@ export const brokersDict = {
   'brokers.findingMc': { ru: 'Ищу…', en: 'Searching…' },
   'brokers.pickCompany': { ru: 'Выберите компанию — MC проставится всем её грузам', en: 'Pick the company — its MC fills in on all its loads' },
   'brokers.mcAssigned': { ru: 'MC {mc} проставлен · грузов: {n}', en: 'MC {mc} set on {n} load(s)' },
+  'brokers.findMcAll': { ru: 'Найти MC всем ({n})', en: 'Find MC for all ({n})' },
+  'brokers.findMcAllBusy': { ru: 'Ищу… {done}/{total} — нажми, чтобы остановить', en: 'Searching… {done}/{total} — click to stop' },
+  'brokers.findMcAllDone': {
+    ru: 'Проставлено: {ok}. Нужен выбор вручную: {manual}. Не найдено: {none}.',
+    en: 'Filled in: {ok}. Need a manual pick: {manual}. Not found: {none}.',
+  },
   'brokers.mcNotFound': { ru: 'У этой компании в FMCSA нет номера MC — только DOT.', en: 'FMCSA lists no MC for that company — only a DOT.' },
   'brokers.noMc': { ru: 'без MC', en: 'no MC' },
   'brokers.payVia': { ru: 'платит через {name}', en: 'pays via {name}' },

@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
-import { assignBrokerMc, findBrokerByName, runBrokerCheck } from '@/app/actions'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { assignBrokerMc, autoFindMc, findBrokerByName, runBrokerCheck } from '@/app/actions'
 import { useRouter } from 'next/navigation'
 import { notify } from '@/lib/notify'
 import type { BrokerCheck } from '@/lib/fmcsa'
@@ -39,6 +39,37 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
     { dot: string; legalName: string; dbaName: string | null; city: string | null; state: string | null; active: boolean }[]
   >([])
   const [mcBusy, setMcBusy] = useState(false)
+
+  // Массовый подбор MC. По одному брокеру за раз — не ради вежливости к реестру, а
+  // потому что каждый ответ надо показать: двадцать шесть параллельных запросов дали
+  // бы минуту тишины и непонятно чем закончились.
+  const [bulk, setBulk] = useState<{ done: number; total: number; ok: number; manual: number; none: number } | null>(null)
+  const stopBulk = useRef(false)
+  const noMc = useMemo(() => ourBrokers.filter((b) => !b.mc && b.name), [ourBrokers])
+
+  async function findMcForAll() {
+    stopBulk.current = false
+    const total = noMc.length
+    let ok = 0, manual = 0, none = 0
+    setBulk({ done: 0, total, ok, manual, none })
+    for (const [i, b] of noMc.entries()) {
+      if (stopBulk.current) break
+      const res = await autoFindMc(b.name!)
+      if ('mc' in res) ok++
+      else if ('choices' in res) manual++
+      else none++
+      setBulk({ done: i + 1, total, ok, manual, none })
+    }
+    notify(
+      'ok',
+      t(locale, 'brokers.findMcAllDone')
+        .replace('{ok}', String(ok))
+        .replace('{manual}', String(manual))
+        .replace('{none}', String(none)),
+    )
+    setBulk(null)
+    router.refresh()
+  }
 
   function findMc(name: string) {
     setMcFor(name)
@@ -189,6 +220,22 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
           {t(locale, 'brokers.dbHeading')}
           <Info text={t(locale, 'brokers.dbInfo')} />
           <Info text={t(locale, 'brokers.moneyInfo')} />
+          {/* MC нет почти ни у кого не по недосмотру: рейт-кон его обычно не печатает.
+              Одна кнопка проходит по всему списку и проставляет те, где реестр отвечает
+              однозначно; спорные остаются человеку — у них своя кнопка в строке. */}
+          {noMc.length > 0 && (
+            <button
+              type="button"
+              onClick={() => (bulk ? (stopBulk.current = true) : findMcForAll())}
+              className="rounded-full border border-haul-500/40 px-2.5 py-0.5 text-[11px] font-medium normal-case text-haul-300 transition-colors hover:border-haul-400 hover:bg-haul-500/10"
+            >
+              {bulk
+                ? t(locale, 'brokers.findMcAllBusy')
+                    .replace('{done}', String(bulk.done))
+                    .replace('{total}', String(bulk.total))
+                : t(locale, 'brokers.findMcAll').replace('{n}', String(noMc.length))}
+            </button>
+          )}
           {/* Сколько нам должны все брокеры вместе — первое, что спрашивают в пятницу. */}
           {owedTotal > 0 && (
             <span className="nums ml-auto rounded-full bg-warn-500/15 px-2 py-0.5 text-[11px] font-medium normal-case text-warn-400">
