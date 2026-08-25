@@ -193,6 +193,18 @@ export async function rateConByLoad(companyId: CompanyId): Promise<Map<number, n
   return new Map(rows.map((r: any) => [r.load_id as number, r.id as number]))
 }
 
+/** Грузы, у которых уже есть POD. Нужен фильтру «нет POD» на странице грузов: без
+ * этой бумаги брокеру не выставить счёт, и такой груз надо видеть отдельно. Один
+ * запрос на всю страницу, а не по документу на груз. */
+export async function podLoadIds(companyId: CompanyId): Promise<number[]> {
+  const rows = await sql`
+    SELECT DISTINCT load_id FROM documents
+    WHERE company_id = ${companyId} AND kind = 'pod' AND load_id IS NOT NULL
+      AND deleted_at IS NULL`
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  return rows.map((r: any) => r.load_id as number)
+}
+
 /** The truck's current live load — newest not-yet-paid/cancelled. For Telegram intake
  * (always companyId 'default' — see lib/tg-intake.ts). */
 export async function activeLoadForTruck(companyId: CompanyId, truckId: number): Promise<LoadRecord | null> {

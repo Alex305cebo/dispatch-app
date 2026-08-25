@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { AlertTriangle, Plus } from 'lucide-react'
 import { Button } from '@/components/button'
-import { listLoads, listTrucks, rateConByLoad } from '@/lib/loads'
+import { listLoads, listTrucks, podLoadIds, rateConByLoad } from '@/lib/loads'
 import { type TruckRecord, type LoadRecord } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { truckPhotoFlags } from '@/lib/maintenance'
@@ -66,11 +66,12 @@ async function LoadsBoard({
   const selectedDay = sp.day ?? null
   const companyId = await companyScope()
   const locale = await getLocale()
-  const [loads, trucks, rateCons, photoIds] = await Promise.all([
+  const [loads, trucks, rateCons, photoIds, podIds] = await Promise.all([
     listLoads(companyId),
     listTrucks(companyId),
     rateConByLoad(companyId),
     truckPhotoFlags(companyId),
+    podLoadIds(companyId),
   ])
   const byId = new Map<number, TruckRecord>(trucks.map((t) => [t.id, t]))
   const fallback = trucks[0]
@@ -169,6 +170,19 @@ async function LoadsBoard({
       <LoadsViews
         loads={loads}
         trucks={trucks}
+        // Чистая, ставка-миля и наличие POD по каждому грузу: по ним работают
+        // фильтры, сортировка и выгрузка. Считается здесь, потому что расчёт требует
+        // экономики трака, а она уже на руках — второй раз её тянуть незачем.
+        metrics={Object.fromEntries(
+          priced.map(({ load, r }) => [
+            load.id,
+            {
+              net: r?.net ?? 0,
+              rpm: r && r.totalMiles > 0 ? load.rate / r.totalMiles : 0,
+              hasPod: podIds.includes(load.id),
+            },
+          ]),
+        )}
         rateConPairs={[...rateCons.entries()]}
         photoTruckIds={[...photoIds]}
         initialView={view}

@@ -22,6 +22,7 @@ import { truckLabel, STATUSES, type TruckRecord, type LoadRecord } from '@/lib/m
 import { calcLoad, type Breakdown } from '@/lib/profit'
 import { usd, usd2, mondayOf, weekLabel, weekStart } from '@/lib/fmt'
 import { StatusBadge, statusLabel } from '@/components/status'
+import { LoadsToolbar, useLoadsFilter, type LoadMetrics } from '@/components/loads-toolbar'
 import { RateConButton } from '@/components/ratecon-button'
 import { DeleteButton } from '@/components/delete-button'
 import { DriverAvatar } from '@/components/driver-avatar'
@@ -41,16 +42,19 @@ const COLUMN_ACCENT: Record<LoadRecord['status'], string> = {
 }
 
 export function LoadsViews({
-  loads,
+  loads: allLoads,
   trucks,
   rateConPairs,
   photoTruckIds,
   initialView,
   initialWeek,
   initialDay,
+  metrics,
 }: {
   loads: LoadRecord[]
   trucks: TruckRecord[]
+  /** id груза → чистая, ставка-миля, есть ли POD. Считает страница. */
+  metrics: Record<number, LoadMetrics>
   /** Map не переживает границу сервер-клиент как есть — передаём парами. */
   rateConPairs: [number, number][]
   photoTruckIds: number[]
@@ -59,6 +63,13 @@ export function LoadsViews({
   initialDay: string | null
 }) {
   const locale = useLocale()
+  // Поиск и фильтры стоят НАД видами и общие для всех трёх: искать груз, а потом
+  // гадать, в какой из вкладок он теперь виден, — это не поиск.
+  const { query, setQuery, filter, setFilter, sort, setSort, result: loads } = useLoadsFilter(
+    allLoads,
+    trucks,
+    metrics,
+  )
   const [view, setView] = useState(initialView)
   const [weekMonday, setWeekMonday] = useState(initialWeek)
   const [selectedDay, setSelectedDay] = useState(initialDay)
@@ -79,7 +90,7 @@ export function LoadsViews({
     .map((truck) => ({ truck, loads: byTruck.get(truck.id) ?? [] }))
     .filter((g) => g.loads.length > 0)
 
-  if (loads.length === 0) {
+  if (allLoads.length === 0) {
     return (
       <Empty
         icon={PackageOpen}
@@ -112,6 +123,28 @@ export function LoadsViews({
           {t(locale, 'loads.page.tabCalendar')}
         </button>
       </div>
+
+      {/* Панель поиска и фильтров — под вкладками, над содержимым: она общая для всех
+          трёх видов, и её место там, где начинается содержимое. */}
+      <LoadsToolbar
+        query={query}
+        setQuery={setQuery}
+        filter={filter}
+        setFilter={setFilter}
+        sort={sort}
+        setSort={setSort}
+        shown={loads.length}
+        total={allLoads.length}
+        rows={loads}
+        trucks={trucks}
+        metrics={metrics}
+      />
+
+      {loads.length === 0 && (
+        <p className="panel p-4 text-center text-[13px] text-white/55">
+          {t(locale, 'loads.filter.nothingFound')}
+        </p>
+      )}
 
       {view === 'board' ? (
         <StatusBoard loads={loads} byId={byId} fallback={fallback} rateCons={rateCons} locale={locale} />
