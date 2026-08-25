@@ -73,17 +73,21 @@ export async function saveDispatcherPhone(phone: string): Promise<{ error: strin
  * Возвращает, сколько проставлено и сколько ещё осталось: по остатку страница решает,
  * звать ли ещё раз.
  */
-export async function fillBrokerMc(): Promise<{ filled: number; left: number }> {
+export async function fillBrokerMc(): Promise<{
+  filled: number
+  left: number
+  reason: 'ok' | 'no_key' | 'nothing_to_do'
+}> {
   const companyId = await companyScope()
   // Демо-парк — выдуманные брокеры: тратить на них обращения к реестру незачем.
-  if (companyId === 'demo') return { filled: 0, left: 0 }
+  if (companyId === 'demo') return { filled: 0, left: 0, reason: 'nothing_to_do' }
   const { backfillBrokerMc } = await import('@/lib/mc-backfill')
   const res = await backfillBrokerMc(companyId)
   if (res.filled > 0) {
     revalidatePath('/brokers')
     revalidatePath('/loads')
   }
-  return { filled: res.filled, left: res.left }
+  return { filled: res.filled, left: res.left, reason: res.reason }
 }
 
 /**

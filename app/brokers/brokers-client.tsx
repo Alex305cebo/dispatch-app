@@ -38,15 +38,33 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
   // нет, партиями по несколько штук и зовёт себя снова, пока есть кого дозаполнять.
   // Кнопки на это нет намеренно: номер компании — не работа диспетчера, он либо есть
   // в документе, либо берётся из реестра, и оба пути к человеку отношения не имеют.
+  // Что сейчас с подбором. Молчаливая фоновая работа — худший вариант из возможных:
+  // когда номера не появляются, с той стороны экрана не отличить «ищу» от «не могу
+  // искать вообще, потому что нет ключа». Поэтому состояние видно строкой в шапке.
+  const [mcState, setMcState] = useState<'idle' | 'working' | 'no_key' | 'done'>('idle')
+
   useEffect(() => {
     let alive = true
     ;(async () => {
       for (let round = 0; round < 8 && alive; round++) {
+        setMcState('working')
         const res = await fillBrokerMc().catch(() => null)
-        if (!alive || !res) return
+        if (!alive) return
+        if (!res) {
+          setMcState('done')
+          return
+        }
+        if (res.reason === 'no_key') {
+          setMcState('no_key')
+          return
+        }
         if (res.filled > 0) router.refresh()
-        if (res.left === 0) return
+        if (res.left === 0) {
+          setMcState('done')
+          return
+        }
       }
+      if (alive) setMcState('done')
     })()
     return () => {
       alive = false
@@ -173,6 +191,16 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
           {t(locale, 'brokers.dbHeading')}
           <Info text={t(locale, 'brokers.dbInfo')} />
           <Info text={t(locale, 'brokers.moneyInfo')} />
+          {/* Подбор MC идёт сам — но сказать об этом надо, иначе «ничего не меняется»
+              и «идёт работа» выглядят одинаково. */}
+          {mcState === 'working' && (
+            <span className="normal-case text-white/35">{t(locale, 'brokers.mcWorking')}</span>
+          )}
+          {mcState === 'no_key' && (
+            <a href="/admin" className="normal-case text-warn-400 hover:underline">
+              {t(locale, 'brokers.mcNoKey')}
+            </a>
+          )}
           {/* Сколько нам должны все брокеры вместе — первое, что спрашивают в пятницу. */}
           {owedTotal > 0 && (
             <span className="nums ml-auto rounded-full bg-warn-500/15 px-2 py-0.5 text-[11px] font-medium normal-case text-warn-400">

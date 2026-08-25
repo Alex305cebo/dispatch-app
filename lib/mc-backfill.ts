@@ -19,7 +19,10 @@ import { pickBest, searchTerms } from './broker-match.ts'
  * ответ, а не ошибка. */
 type Tried = Record<string, { at: string; result: 'ok' | 'ambiguous' | 'none' }>
 
-const STATE_KEY = 'mc_lookup_state'
+// Версия в имени: правила поиска менялись, а старые отметки «не нашлось» переживали
+// правку и месяц не давали попробовать снова уже исправленным запросом. Меняем
+// правила — меняем и ключ, тогда список пробуется заново с чистого листа.
+const STATE_KEY = 'mc_lookup_state_v2'
 /** Через месяц пробуем снова: компания могла получить authority, а имя — уточниться. */
 const RETRY_DAYS = 30
 
@@ -43,7 +46,19 @@ async function ownMc(): Promise<string | null> {
   }
 }
 
-export type BackfillResult = { filled: number; ambiguous: number; none: number; left: number }
+export type BackfillResult = {
+  filled: number
+  /** Реестр ответил, но однозначного совпадения нет — тут нужен человек. */
+  ambiguous: number
+  /** Реестр ответил, что такой компании нет (или у неё нет MC). */
+  none: number
+  /** Реестр не ответил: таймаут, пятисотая. Имя не помечаем — попробуем ещё. */
+  failed: number
+  left: number
+  /** Почему ничего не вышло — чтобы страница могла это СКАЗАТЬ, а не молчать.
+   * 'no_key' — не сохранён webKey FMCSA, без него подбор невозможен в принципе. */
+  reason: 'ok' | 'no_key' | 'nothing_to_do'
+}
 
 /**
  * Подобрать и проставить MC для брокеров без него. Возвращает, сколько сделано и
@@ -84,10 +99,14 @@ export async function backfillBrokerMc(
     return Date.now() - Date.parse(t.at) < RETRY_DAYS * 86400000
   }
   const todo = rows.filter((r) => !fresh(r.key))
-  if (todo.length === 0) return { filled: 0, ambiguous: 0, none: 0, left: 0 }
+  if (todo.length === 0) {
+    return { filled: 0, ambiguous: 0, none: 0, failed: 0, left: 0, reason: 'nothing_to_do' }
+  }
 
   const { searchByName, checkBrokerByDot } = await import('./fmcsa')
-  const out: BackfillResult = { filled: 0, ambiguous: 0, none: 0, left: 0 }
+  const out: BackfillResult = {
+    filled: 0, ambiguous: 0, none: 0, failed: 0, left: 0, reason: 'ok',
+  }
 
   for (const r of todo.slice(0, limit)) {
     const mark = (result: Tried[string]['result']) => {
@@ -112,7 +131,10 @@ export async function backfillBrokerMc(
         best = pickBest(r.name, found.results)
         if (best) break
       }
-      if (noKey) break
+      if (noKey) {
+        out.reason = 'no_key'
+        break
+      }
       if (!best) {
         out.ambiguous++
         mark('ambiguous')
@@ -133,14 +155,15 @@ export async function backfillBrokerMc(
       mark('ok')
     } catch {
       // Одно упавшее имя не должно ронять всю партию: реестр регулярно отвечает
-      // пятисотыми, а остальные брокеры к этому отношения не имеют.
-      out.none++
-      mark('none')
+      // пятисотыми и отваливается по таймауту. Но и отмечать его «не найдено» нельзя
+      // — брокер тут ни при чём, а отметка закрыла бы ему дорогу на месяц.
+      out.failed++
     }
   }
 
   await setSetting(STATE_KEY, JSON.stringify(tried))
-  out.left = Math.max(0, todo.length - limit)
+  // Осталось = ещё не тронутые плюс те, у кого реестр не ответил: к ним вернёмся.
+  out.left = Math.max(0, todo.length - limit) + out.failed
   return out
 }
 

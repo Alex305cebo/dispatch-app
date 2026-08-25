@@ -160,6 +160,8 @@ export const brokersDict = {
     ru: 'Считается по своим рейсам: ставка за милю — весь гросс на все мили, дни оплаты — фактический срок от счёта до денег. Обещанный в рейт-коне срок тут не участвует.',
     en: 'From our own loads: rate per mile is total gross over total miles, pay days is the real gap between invoice and money. The term promised on the rate con is not used here.',
   },
+  'brokers.mcWorking': { ru: 'подбираю MC…', en: 'finding MC numbers…' },
+  'brokers.mcNoKey': { ru: 'MC не подбираются: нужен ключ FMCSA →', en: 'MC lookup off: an FMCSA key is needed →' },
   'brokers.factsLoading': { ru: 'Смотрю в реестре FMCSA…', en: 'Looking it up in FMCSA…' },
   'brokers.factsFailed': { ru: 'Реестр не ответил.', en: 'The registry did not answer.' },
   'brokers.factsNoKey': { ru: 'Нужен ключ FMCSA — Админ → Ключи.', en: 'An FMCSA key is required — Admin → Keys.' },
