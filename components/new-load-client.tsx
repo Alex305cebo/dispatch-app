@@ -2,11 +2,13 @@
 
 import { Button } from '@/components/button'
 // New-load page: a compact "scan rate con" bar on top of the manual form. Drop a
-// PDF/photo → the same pipeline the /import page uses (Gemini reads it) fills the
-// form below. Manual entry still works if you skip the scan.
-// ponytail: the scan orchestration mirrors ImportClient.handle — both lean on the
-// shared lib fns (extractPdf/aiParseRateCon), so the real logic isn't duplicated,
-// only the ~30 lines of glue.
+// PDF/фото → распознавание (Gemini) → заполненная форма ниже. Без скана форма
+// работает как обычная ручная.
+//
+// Это единственный оркестратор разбора в приложении: у страницы импорта была своя
+// копия этих же тридцати строк склейки, и оба экрана делали одно и то же. Копия
+// удалена, адрес /import уводит сюда. Настоящая работа всё так же в общих функциях
+// (extractPdf/aiParseRateCon), здесь только склейка.
 
 import { useRef, useState } from 'react'
 import type { TruckRecord } from '@/lib/map'

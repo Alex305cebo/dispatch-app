@@ -161,7 +161,7 @@ export const loadsDict = {
     en: "An instant draft is assembled right in the browser, then AI checks the document — it reads any broker template and scans. Nothing is made up: whatever isn't in the document stays blank.",
   },
 
-  // app/import/import-client.tsx — LABELS (found-field names)
+  // components/rc-evidence.tsx — подписи прочитанных полей
   'import.label.rate': { ru: 'Ставка', en: 'Rate' },
   'import.label.loadedMiles': { ru: 'Мили', en: 'Miles' },
   'import.label.origin': { ru: 'Откуда', en: 'Origin' },
