@@ -189,3 +189,33 @@ export function chooseCompany(
   if (scored.length > 1 && scored[1]!.score === scored[0]!.score) return null
   return scored[0]!.c
 }
+
+/**
+ * Название компании по домену почты: Tyler.Simpson@chrobinson.com → «C.H. Robinson».
+ *
+ * Рейт-кон подписывает менеджер, и в поле брокера оказывается имя человека. Искать
+ * «Tyler Simpson» в реестре бессмысленно — такой компании нет и не будет. А домен
+ * называет работодателя точно: у брокера корпоративная почта, и она у всех
+ * сотрудников одна.
+ *
+ * Сверяем «chrobinson» со списком крупных брокеров без пробелов и точек — там это
+ * «C.H. Robinson», то есть ровно тот же набор букв. Так домен превращается в имя,
+ * которое реестр уже понимает.
+ */
+export function nameFromDomain(email: string | null, known: string[]): string | null {
+  const domain = emailDomainLabel(email)
+  if (!domain) return null
+  const hit = known.find((n) => compact(n) === domain)
+  return hit ?? null
+}
+
+/** Первое слово домена без www: «ops@mail.chrobinson.com» → «chrobinson». */
+function emailDomainLabel(email: string | null): string | null {
+  const host = (email ?? '').split('@')[1]?.toLowerCase().trim()
+  if (!host || !host.includes('.')) return null
+  const parts = host.split('.').filter((p) => p !== 'www')
+  // Берём часть перед доменом верхнего уровня: chrobinson.com → chrobinson,
+  // ops.tql.co.uk → tql.
+  const label = parts.length > 2 ? parts[parts.length - 3] : parts[0]
+  return label && label.length >= 3 ? label.replace(/[^a-z0-9]/g, '') : null
+}

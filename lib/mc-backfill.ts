@@ -12,7 +12,8 @@
 
 import { sql } from './db'
 import { getSetting, setSetting } from './settings'
-import { chooseCompany, compact, searchTerms, type Candidate } from './broker-match.ts'
+import { chooseCompany, compact, nameFromDomain, searchTerms, type Candidate } from './broker-match.ts'
+import { TOP_BROKERS } from './brokers-top.ts'
 import { saferSearch, saferSnapshot } from './safer.ts'
 
 /** Что вышло с этим именем в прошлый раз. Нужно, чтобы не долбить реестр одним и тем
@@ -123,14 +124,19 @@ export async function backfillBrokerMc(
       // Ищем в SAFER — публичной части реестра, без ключа. У QCMobile, куда ходит
       // проверка брокера, поиск по названию этих компаний просто не находит: ключ
       // есть, запрос уходит, ответ пустой. Проверено на живых именах из наших грузов.
+      // Имя из документа — не всегда имя компании: рейт-кон подписывает менеджер, и
+      // в поле брокера стоит «Tyler Simpson». Домен его почты называет работодателя
+      // точно, поэтому имя по домену идёт наравне с тем, что записано в грузе.
+      const byDomain = nameFromDomain(r.email, TOP_BROKERS.map((b) => b.name))
+      const lookFor = byDomain ?? r.name
       const hits: { dot: string; legalName: string }[] = []
-      for (const term of searchTerms(r.name)) {
+      for (const term of searchTerms(lookFor)) {
         for (const h of await saferSearch(term)) {
           if (!hits.some((x) => x.dot === h.dot)) hits.push(h)
         }
         // Как только по имени нашлось точное совпадение — дальше сокращать запрос
         // незачем, короткий запрос притащит только чужих однофамильцев.
-        if (hits.some((h) => compact(h.legalName) === compact(r.name))) break
+        if (hits.some((h) => compact(h.legalName) === compact(lookFor))) break
       }
       if (hits.length === 0) {
         out.none++
@@ -140,7 +146,7 @@ export async function backfillBrokerMc(
 
       // Карточки берём только у тех, кто по имени вообще похож: каждая — отдельный
       // запрос, а поиск по короткому слову возвращает и «MOLOKAI HIGH SCHOOL».
-      const want = compact(r.name)
+      const want = compact(lookFor)
       const worth = hits
         .filter((h) => {
           const n = compact(h.legalName)
@@ -169,7 +175,7 @@ export async function backfillBrokerMc(
         })
       }
 
-      const best = chooseCompany(r.name, r.phone, cards)
+      const best = chooseCompany(lookFor, r.phone, cards)
       const found = best ? mcByDot.get(best.dot) ?? null : null
       // Свой номер не проставляем никогда: в рейт-коне их два, и перепутать их —
       // самая частая ошибка разбора, повторять её тут незачем.

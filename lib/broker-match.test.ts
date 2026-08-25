@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { normName, pickBest, pickExact, searchTerms, type NameHitLike } from './broker-match.ts'
+import { nameFromDomain, normName, pickBest, pickExact, searchTerms, type NameHitLike } from './broker-match.ts'
 
 const hit = (p: Partial<NameHitLike>): NameHitLike =>
   ({ dot: '1', legalName: 'ALLEN LUND COMPANY, LLC', dbaName: null, active: true, ...p })
@@ -111,4 +111,25 @@ test('короткое имя не размножается лишними ва�
 
 test('пустое имя не даёт запросов', () => {
   assert.deepEqual(searchTerms(''), [])
+})
+
+// nameFromDomain — про случай «Tyler Simpson»: в поле брокера имя менеджера, а
+// компанию называет домен его почты.
+test('домен корпоративной почты называет компанию', () => {
+  const known = ['C.H. Robinson', 'Total Quality Logistics', 'Molo Solutions']
+  assert.equal(nameFromDomain('Tyler.Simpson@chrobinson.com', known), 'C.H. Robinson')
+  assert.equal(nameFromDomain('SIMPTYL@CHRobinson.com', known), 'C.H. Robinson')
+})
+
+test('незнакомый домен не выдаёт себя за компанию', () => {
+  assert.equal(nameFromDomain('kboje@shipcura.com', ['C.H. Robinson']), null)
+})
+
+test('личная почта компанией не считается', () => {
+  assert.equal(nameFromDomain('bob@gmail.com', ['C.H. Robinson']), null)
+})
+
+test('без почты домена нет', () => {
+  assert.equal(nameFromDomain(null, ['C.H. Robinson']), null)
+  assert.equal(nameFromDomain('не-адрес', ['C.H. Robinson']), null)
 })

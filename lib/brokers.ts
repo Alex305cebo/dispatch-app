@@ -157,7 +157,14 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
     phone: string | null
     checked_at: string
   }[]
+  // Проверяли когда-то и свою собственную компанию — в справочник брокеров она
+  // попадать не должна: мы не брокер, и строка «MAYA LOGISTICS INC · НЕ активна»
+  // говорит лишь о том, что у перевозчика нет брокерской authority.
+  const { getCompany } = await import('./invoice')
+  const ownMc = /\bMC\s*#?\s*[:\-]?\s*(\d{5,8})\b/i.exec((await getCompany()).mcdot ?? '')?.[1] ?? null
+
   for (const c of cached) {
+    if (ownMc && c.mc === ownMc) continue
     const checkedAt = c.checked_at ? String(c.checked_at).slice(0, 10) : null
     const existing = byKey.get(c.mc)
     if (existing) {
