@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { normName, pickExact, type NameHitLike } from './broker-match.ts'
+import { normName, pickBest, pickExact, type NameHitLike } from './broker-match.ts'
 
 const hit = (p: Partial<NameHitLike>): NameHitLike =>
   ({ dot: '1', legalName: 'ALLEN LUND COMPANY, LLC', dbaName: null, active: true, ...p })
@@ -52,4 +52,42 @@ test('среди нескольких кандидатов берётся тот
     hit({ dot: '2', legalName: 'LANDSTAR INWAY INC' }),
   ])
   assert.equal(got?.dot, '1')
+})
+
+// pickBest — правило для АВТОМАТИЧЕСКОЙ подстановки: кнопку никто не нажимает,
+// номер должен появляться сам, поэтому вложенные имена тоже засчитываются.
+test('короткое имя из рейт-кона находит полное юридическое', () => {
+  const got = pickBest('Cura Freight', [hit({ dot: '9', legalName: 'CURA FREIGHT SERVICES LLC' })])
+  assert.equal(got?.dot, '9')
+})
+
+test('дословное совпадение сильнее вложенного', () => {
+  const got = pickBest('Landstar Ranger', [
+    hit({ dot: '1', legalName: 'LANDSTAR RANGER SERVICES LLC' }),
+    hit({ dot: '2', legalName: 'LANDSTAR RANGER INC' }),
+  ])
+  assert.equal(got?.dot, '2')
+})
+
+test('два одинаково подходящих — не выбираем наугад', () => {
+  const got = pickBest('Express', [
+    hit({ dot: '1', legalName: 'EXPRESS NORTH LLC' }),
+    hit({ dot: '2', legalName: 'EXPRESS SOUTH LLC' }),
+  ])
+  assert.equal(got, null)
+})
+
+test('чужая компания с другим именем не подставляется', () => {
+  const got = pickBest('Allen Lund Company', [hit({ dot: '3', legalName: 'LUND TRUCKING LLC' })])
+  assert.equal(got, null)
+})
+
+test('недействующие не рассматриваются вовсе', () => {
+  const got = pickBest('Cura Freight', [hit({ dot: '9', legalName: 'CURA FREIGHT LLC', active: false })])
+  assert.equal(got, null)
+})
+
+test('слишком короткое имя не подбирается автоматически', () => {
+  const got = pickBest('CH', [hit({ dot: '1', legalName: 'CH ROBINSON WORLDWIDE INC' })])
+  assert.equal(got, null)
 })

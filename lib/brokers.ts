@@ -25,6 +25,10 @@ export type OurBroker = {
   payDays: number | null
   /** Сколько он должен прямо сейчас: выставлено, но не оплачено. */
   owed: number
+  /** Сами неоплаченные рейсы — чтобы отметить оплату прямо здесь, не заходя в каждый
+   * груз по отдельности. Деньги приходят одной суммой за несколько рейсов, и раньше
+   * на это уходило столько же открытых страниц, сколько рейсов в переводе. */
+  unpaid: { id: number; ref: string | null; route: string; rate: number; days: number }[]
   /** Payment service named on this broker's rate cons (TriumphPay, Comdata…), newest first. */
   payVia: string | null
   /** From the FMCSA cache, when this MC has been checked. */
@@ -56,12 +60,17 @@ function nameFromEmail(email: string | null): string | null {
  * the load itself. That is a data problem, not a grouping one. */
 export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
   const rows = (await sql`
-    SELECT broker_mc, broker_name, broker_phone, broker_email, pay_via, created_at,
+    SELECT id, origin, destination, reference_id,
+           broker_mc, broker_name, broker_phone, broker_email, pay_via, created_at,
            rate, loaded_miles, deadhead_miles, invoiced_at, paid_at, status
     FROM loads
     WHERE company_id = ${companyId}
       AND (broker_name IS NOT NULL OR broker_mc IS NOT NULL)
     ORDER BY created_at DESC`) as {
+    id: number
+    origin: string | null
+    destination: string | null
+    reference_id: string | null
     broker_mc: string | null
     broker_name: string | null
     broker_phone: string | null
@@ -91,9 +100,23 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
       paidAt: r.paid_at && String(r.paid_at),
     })
 
+    // Неоплаченный = счёт выставлен, деньги не пришли. Не выставленный счёт сюда не
+    // попадает: там нечего отмечать оплаченным, там надо выставлять.
+    const unpaidRow =
+      r.status !== 'cancelled' && r.invoiced_at && !r.paid_at
+        ? {
+            id: r.id,
+            ref: r.reference_id,
+            route: `${r.origin ?? '—'} → ${r.destination ?? '—'}`,
+            rate: Number(r.rate) || 0,
+            days: Math.max(0, Math.round((Date.now() - Date.parse(String(r.invoiced_at))) / 86400000)),
+          }
+        : null
+
     const existing = byKey.get(key)
     if (existing) {
       existing.loadCount++
+      if (unpaidRow) existing.unpaid.push(unpaidRow)
       // rows are newest-first, so the first-seen values are already the freshest
       existing.name ??= r.broker_name
       existing.phone ??= r.broker_phone
@@ -113,6 +136,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
         rpm: 0,
         payDays: null,
         owed: 0,
+        unpaid: unpaidRow ? [unpaidRow] : [],
         authorityStatus: null,
         checkedAt: null,
       })
@@ -154,6 +178,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
         rpm: 0,
         payDays: null,
         owed: 0,
+        unpaid: [],
         authorityStatus: c.authority_status,
         checkedAt,
       })

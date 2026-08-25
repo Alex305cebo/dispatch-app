@@ -63,49 +63,84 @@ export async function saveDispatcherPhone(phone: string): Promise<{ error: strin
 
 /** Поиск брокера по названию — когда MC на бумаге не напечатан. Возвращает
  * кандидатов из FMCSA; выбирает человек. */
+/**
+ * Подобрать MC тем брокерам, у кого его нет, — сам, без кнопки.
+ *
+ * Номер компании не работа диспетчера: в рейт-коне его чаще всего нет, а в реестре
+ * он есть, и достать его должно приложение. Зовётся при открытии раздела и с крона
+ * (app/api/eld-poll), партиями — реестр отвечает медленно, а торопиться некуда.
+ *
+ * Возвращает, сколько проставлено и сколько ещё осталось: по остатку страница решает,
+ * звать ли ещё раз.
+ */
+export async function fillBrokerMc(): Promise<{ filled: number; left: number }> {
+  const companyId = await companyScope()
+  // Демо-парк — выдуманные брокеры: тратить на них обращения к реестру незачем.
+  if (companyId === 'demo') return { filled: 0, left: 0 }
+  const { backfillBrokerMc } = await import('@/lib/mc-backfill')
+  const res = await backfillBrokerMc(companyId)
+  if (res.filled > 0) {
+    revalidatePath('/brokers')
+    revalidatePath('/loads')
+  }
+  return { filled: res.filled, left: res.left }
+}
+
+/**
+ * Поправить данные брокера руками — по всем его грузам сразу.
+ *
+ * Ошибиться может и реестр, и разбор документа: не тот MC, телефон рядового
+ * менеджера вместо офиса, почта, на которую счёт не примут. Исправлять это в каждом
+ * грузе по отдельности никто не станет, поэтому правка идёт по всей истории брокера.
+ *
+ * Ищем его по MC, если он есть, иначе по имени: это те же два ключа, по которым
+ * строки и группируются в списке.
+ */
+export async function updateBrokerInfo(
+  find: { mc: string | null; name: string | null },
+  patch: { mc?: string; name?: string; phone?: string; email?: string },
+): Promise<{ updated: number } | { error: string }> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const locale = await getLocale()
+  const companyId = await companyScope()
+
+  const findMc = (find.mc ?? '').replace(/\D/g, '')
+  const findName = (find.name ?? '').trim().toLowerCase()
+  if (!findMc && !findName) return { error: t(locale, 'brokers.editNoTarget') }
+
+  // Пустая строка в поле = «оставить как есть», а не «стереть»: форма показывает все
+  // поля сразу, и очищенное поле почти всегда значит «этого я не знаю», а не «убери».
+  const mc = patch.mc?.replace(/\D/g, '') || null
+  const name = patch.name?.trim() || null
+  const phone = patch.phone?.trim() || null
+  const email = patch.email?.trim() || null
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: t(locale, 'brokers.editBadEmail') }
+  if (!mc && !name && !phone && !email) return { updated: 0 }
+
+  const rows = (await sql`
+    UPDATE loads SET
+      broker_mc = coalesce(${mc}, broker_mc),
+      broker_name = coalesce(${name}, broker_name),
+      broker_phone = coalesce(${phone}, broker_phone),
+      broker_email = coalesce(${email}, broker_email)
+    WHERE company_id = ${companyId}
+      AND (
+        (${findMc} <> '' AND regexp_replace(coalesce(broker_mc, ''), '\D', '', 'g') = ${findMc})
+        OR (${findMc} = '' AND ${findName} <> '' AND lower(coalesce(broker_name, '')) = ${findName})
+      )
+    RETURNING id`) as { id: number }[]
+
+  revalidatePath('/brokers')
+  revalidatePath('/loads')
+  return { updated: rows.length }
+}
+
 export async function findBrokerByName(name: string) {
   const { searchByName } = await import('@/lib/fmcsa')
   return searchByName(name, await getLocale())
 }
 
-/**
- * Найти и проставить MC самому — для брокеров, у которых его нет.
- *
- * Почему их так много: MC берётся из рейт-кона, а рейт-кон о нём чаще всего молчит —
- * брокер печатает своё имя, телефон и номер груза, и всё. Искать каждого руками в
- * реестре и сверять по одному — это те самые двадцать шесть кликов, которых никто
- * делать не будет, поэтому список так и стоял пустым.
- *
- * Проставляем ТОЛЬКО когда сомнений нет: действующая запись, имя совпало дословно и
- * она такая одна (lib/broker-match.ts). Всё остальное возвращается как список
- * кандидатов — там выбирает человек, потому что неверный MC разойдётся по всем
- * грузам брокера и всплывёт уже в счёте.
- */
-export async function autoFindMc(
-  name: string,
-): Promise<
-  | { mc: string; updated: number }
-  | { choices: { dot: string; legalName: string; dbaName: string | null; city: string | null; state: string | null; active: boolean }[] }
-  | { error: string }
-> {
-  const locale = await getLocale()
-  const { searchByName } = await import('@/lib/fmcsa')
-  const { pickExact } = await import('@/lib/broker-match')
-
-  const found = await searchByName(name, locale)
-  if ('error' in found) return found
-
-  const one = pickExact(name, found.results)
-  if (!one) return { choices: found.results }
-
-  const checked = await runBrokerCheck('dot', one.dot)
-  if ('error' in checked) return checked
-  if (!checked.mc) return { error: t(locale, 'brokers.mcNotFound') }
-
-  const saved = await assignBrokerMc(name, checked.mc)
-  if ('error' in saved) return saved
-  return { mc: checked.mc, updated: saved.updated }
-}
 
 /**
  * Контакты этого же брокера с ПРОШЛЫХ грузов: почта для счёта, телефон, MC.
@@ -145,38 +180,6 @@ export async function brokerContactsFromHistory(
   }
 }
 
-/**
- * Проставить найденный MC всем грузам этого брокера.
- *
- * Откуда пустота: MC берётся из рейт-кона, а половина брокеров его там не печатает —
- * JB Hunt, Landstar, MODE и другие обходятся названием и номером груза. Поэтому в
- * справочнике у них стояло «без MC», и проверить авторитетность было нечем.
- *
- * Пишем во ВСЕ грузы этого брокера, у которых номера ещё нет: справочник собирается
- * из грузов, отдельной таблицы брокеров у нас нет, и одна запись «где-то» его бы не
- * наполнила. Существующие номера не трогаем — если в бумаге был свой, он вернее.
- */
-export async function assignBrokerMc(
-  name: string,
-  mc: string,
-): Promise<{ updated: number } | { error: string }> {
-  const ro = await demoReadOnly()
-  if (ro) return ro
-  const locale = await getLocale()
-  const clean = mc.replace(/\D/g, '')
-  const who = name.trim()
-  if (!clean || !who) return { error: t(locale, 'brokers.assignBad') }
-  const companyId = await companyScope()
-  const rows = (await sql`
-    UPDATE loads SET broker_mc = ${clean}
-    WHERE company_id = ${companyId}
-      AND lower(coalesce(broker_name, '')) = ${who.toLowerCase()}
-      AND coalesce(broker_mc, '') = ''
-    RETURNING id`) as { id: number }[]
-  revalidatePath('/brokers')
-  revalidatePath('/loads')
-  return { updated: rows.length }
-}
 
 /** Manual broker lookup from the Brokers page — by MC or DOT number. */
 export async function runBrokerCheck(

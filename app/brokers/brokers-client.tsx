@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
-import { assignBrokerMc, autoFindMc, findBrokerByName, runBrokerCheck } from '@/app/actions'
+import { useEffect, useMemo, useState, useTransition } from 'react'
+import { fillBrokerMc, markPaid, runBrokerCheck, updateBrokerInfo } from '@/app/actions'
 import { useRouter } from 'next/navigation'
 import { notify } from '@/lib/notify'
 import type { BrokerCheck } from '@/lib/fmcsa'
@@ -12,6 +12,7 @@ import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 import { usd, usd2 } from '@/lib/fmt'
+import Link from 'next/link'
 
 const input =
   'w-full rounded-xl border border-white/10 bg-ink-950/70 px-3 py-2 text-[14px] text-white outline-none focus:border-haul-500'
@@ -31,91 +32,43 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
   const [query, setQuery] = useState('')
   const [history, setHistory] = useState<TopBroker | null>(null)
 
-  // Поиск MC по названию — для брокеров, которые не печатают его в рейт-коне.
-  // Таких большинство: MC берётся из бумаги, а бумага о нём часто молчит.
   const router = useRouter()
-  const [mcFor, setMcFor] = useState<string | null>(null)
-  const [mcHits, setMcHits] = useState<
-    { dot: string; legalName: string; dbaName: string | null; city: string | null; state: string | null; active: boolean }[]
-  >([])
-  const [mcBusy, setMcBusy] = useState(false)
 
-  // Массовый подбор MC. По одному брокеру за раз — не ради вежливости к реестру, а
-  // потому что каждый ответ надо показать: двадцать шесть параллельных запросов дали
-  // бы минуту тишины и непонятно чем закончились.
-  const [bulk, setBulk] = useState<{ done: number; total: number; ok: number; manual: number; none: number } | null>(null)
-  const stopBulk = useRef(false)
-  const noMc = useMemo(() => ourBrokers.filter((b) => !b.mc && b.name), [ourBrokers])
-
-  async function findMcForAll() {
-    stopBulk.current = false
-    const total = noMc.length
-    let ok = 0, manual = 0, none = 0
-    setBulk({ done: 0, total, ok, manual, none })
-    for (const [i, b] of noMc.entries()) {
-      if (stopBulk.current) break
-      const res = await autoFindMc(b.name!)
-      if ('mc' in res) ok++
-      else if ('choices' in res) manual++
-      else none++
-      setBulk({ done: i + 1, total, ok, manual, none })
+  // MC подбирается САМ: раздел открыт — приложение молча дозаполняет тех, у кого его
+  // нет, партиями по несколько штук и зовёт себя снова, пока есть кого дозаполнять.
+  // Кнопки на это нет намеренно: номер компании — не работа диспетчера, он либо есть
+  // в документе, либо берётся из реестра, и оба пути к человеку отношения не имеют.
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      for (let round = 0; round < 8 && alive; round++) {
+        const res = await fillBrokerMc().catch(() => null)
+        if (!alive || !res) return
+        if (res.filled > 0) router.refresh()
+        if (res.left === 0) return
+      }
+    })()
+    return () => {
+      alive = false
     }
-    notify(
-      'ok',
-      t(locale, 'brokers.findMcAllDone')
-        .replace('{ok}', String(ok))
-        .replace('{manual}', String(manual))
-        .replace('{none}', String(none)),
-    )
-    setBulk(null)
-    router.refresh()
-  }
+  }, [router])
 
-  function findMc(name: string) {
-    setMcFor(name)
-    setMcHits([])
-    setMcBusy(true)
+  // Раскрытый список неоплаченных рейсов брокера и раскрытая форма правки — по
+  // одному за раз: две открытые карточки в узком списке читаются как одна.
+  const [owedFor, setOwedFor] = useState<string | null>(null)
+  const [editFor, setEditFor] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  function pay(loadId: number) {
+    setBusy(true)
     start(async () => {
-      const res = await findBrokerByName(name)
-      setMcBusy(false)
-      if ('error' in res) {
+      const res = await markPaid(loadId, true)
+      setBusy(false)
+      if (res?.error) {
         notify('error', res.error)
-        setMcFor(null)
         return
       }
-      setMcHits(res.results)
-    })
-  }
-
-  /** Выбрали компанию — достаём её MC по DOT и проставляем всем грузам брокера. */
-  function pickMc(name: string, dot: string) {
-    setMcBusy(true)
-    start(async () => {
-      const found = await runBrokerCheck('dot', dot)
-      if ('error' in found) {
-        setMcBusy(false)
-        notify('error', found.error)
-        return
-      }
-      if (!found.mc) {
-        setMcBusy(false)
-        notify('warn', t(locale, 'brokers.mcNotFound'))
-        return
-      }
-      const saved = await assignBrokerMc(name, found.mc)
-      setMcBusy(false)
-      setMcFor(null)
-      setMcHits([])
-      if ('error' in saved) {
-        notify('error', saved.error)
-        return
-      }
-      notify(
-        'ok',
-        t(locale, 'brokers.mcAssigned')
-          .replace('{mc}', found.mc)
-          .replace('{n}', String(saved.updated)),
-      )
+      notify('ok', t(locale, 'brokers.paidDone'))
       router.refresh()
     })
   }
@@ -220,22 +173,6 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
           {t(locale, 'brokers.dbHeading')}
           <Info text={t(locale, 'brokers.dbInfo')} />
           <Info text={t(locale, 'brokers.moneyInfo')} />
-          {/* MC нет почти ни у кого не по недосмотру: рейт-кон его обычно не печатает.
-              Одна кнопка проходит по всему списку и проставляет те, где реестр отвечает
-              однозначно; спорные остаются человеку — у них своя кнопка в строке. */}
-          {noMc.length > 0 && (
-            <button
-              type="button"
-              onClick={() => (bulk ? (stopBulk.current = true) : findMcForAll())}
-              className="rounded-full border border-haul-500/40 px-2.5 py-0.5 text-[11px] font-medium normal-case text-haul-300 transition-colors hover:border-haul-400 hover:bg-haul-500/10"
-            >
-              {bulk
-                ? t(locale, 'brokers.findMcAllBusy')
-                    .replace('{done}', String(bulk.done))
-                    .replace('{total}', String(bulk.total))
-                : t(locale, 'brokers.findMcAll').replace('{n}', String(noMc.length))}
-            </button>
-          )}
           {/* Сколько нам должны все брокеры вместе — первое, что спрашивают в пятницу. */}
           {owedTotal > 0 && (
             <span className="nums ml-auto rounded-full bg-warn-500/15 px-2 py-0.5 text-[11px] font-medium normal-case text-warn-400">
@@ -261,9 +198,12 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
               <p className="text-[13px] text-white/45">{t(locale, 'brokers.noMatch')}</p>
             ) : (
               <ul className="flex max-h-[22rem] flex-col gap-1.5 overflow-y-auto pr-1">
-                {filtered.map((b) => (
+                {filtered.map((b) => {
+                  // Один ключ на строку: по нему раскрывается и долг, и форма правки.
+                  const rowKey = (b.mc ?? b.name ?? '') + b.loadCount
+                  return (
                   <li
-                    key={(b.mc ?? b.name ?? '') + b.loadCount}
+                    key={rowKey}
                     className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-white/6 px-3 py-2.5"
                   >
                     <div className="min-w-0 flex-1">
@@ -294,9 +234,28 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                         )}
                       </div>
                       <div className="mt-0.5 flex flex-wrap gap-x-3 text-[12px] text-white/45">
-                        {b.phone && <span>{b.phone}</span>}
-                        {b.email && <span className="truncate">{b.email}</span>}
-                        <span>{t(locale, 'brokers.loadsCount').replace('{n}', String(b.loadCount))}</span>
+                        {/* С телефона это одно нажатие вместо «выделить, скопировать,
+                            открыть звонилку, вставить» — а звонят брокеру именно с него. */}
+                        {b.phone && (
+                          <a href={`tel:${b.phone.replace(/[^+\d]/g, '')}`} className="hover:text-white hover:underline">
+                            {b.phone}
+                          </a>
+                        )}
+                        {b.email && (
+                          <a href={`mailto:${b.email}`} className="truncate hover:text-white hover:underline">
+                            {b.email}
+                          </a>
+                        )}
+                        {b.loadCount > 0 && b.name ? (
+                          <Link
+                            href={`/loads?q=${encodeURIComponent(b.name)}`}
+                            className="hover:text-white hover:underline"
+                          >
+                            {t(locale, 'brokers.loadsCount').replace('{n}', String(b.loadCount))}
+                          </Link>
+                        ) : (
+                          <span>{t(locale, 'brokers.loadsCount').replace('{n}', String(b.loadCount))}</span>
+                        )}
                         {b.lastLoad && <span>{t(locale, 'brokers.lastLoad').replace('{date}', b.lastLoad)}</span>}
                       </div>
                       {/* Деньги отдельной строкой: справочник говорит, существует ли
@@ -317,55 +276,34 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                               {t(locale, 'brokers.paysIn').replace('{n}', String(b.payDays))}
                             </span>
                           )}
+                          {/* Долг — кнопка: под ней сами неоплаченные рейсы, и оплата
+                              отмечается там же. Деньги приходят одной суммой за
+                              несколько рейсов, а раньше на это уходило столько же
+                              открытых страниц, сколько рейсов в переводе. */}
                           {b.owed > 0 && (
-                            <span className="rounded-full bg-warn-500/15 px-2 py-0.5 font-medium text-warn-400">
+                            <button
+                              type="button"
+                              onClick={() => setOwedFor(owedFor === rowKey ? null : rowKey)}
+                              className="rounded-full bg-warn-500/15 px-2 py-0.5 font-medium text-warn-400 transition-colors hover:bg-warn-500/25"
+                            >
                               {t(locale, 'brokers.owes').replace('{sum}', usd.format(b.owed))}
-                            </span>
+                              <span className="ml-1 text-warn-400/70">{owedFor === rowKey ? '▾' : '▸'}</span>
+                            </button>
                           )}
                         </div>
                       )}
                     </div>
-                    {!b.mc && b.name && (
-                      <button
-                        type="button"
-                        disabled={mcBusy && mcFor === b.name}
-                        onClick={() => findMc(b.name!)}
-                        className="shrink-0 rounded-lg border border-white/10 px-2.5 py-1 text-[12px] text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300 disabled:opacity-50"
-                      >
-                        {mcBusy && mcFor === b.name
-                          ? t(locale, 'brokers.findingMc')
-                          : t(locale, 'brokers.findMc')}
-                      </button>
-                    )}
-                    {mcFor === b.name && mcHits.length > 0 && (
-                      <div className="w-full rounded-lg border border-white/10 bg-ink-950/60 p-2">
-                        <p className="px-1 pb-1 text-[11px] text-white/45">
-                          {t(locale, 'brokers.pickCompany')}
-                        </p>
-                        {/* Выбирает человек: у крупного брокера в реестре десятки строк,
-                            и наугад проставленный MC разошёлся бы по всем его грузам. */}
-                        <div className="flex flex-col gap-1">
-                          {mcHits.map((h) => (
-                            <button
-                              key={h.dot}
-                              type="button"
-                              disabled={mcBusy}
-                              onClick={() => pickMc(b.name!, h.dot)}
-                              className="rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/8 disabled:opacity-50"
-                            >
-                              <span className="block truncate text-[12.5px] font-medium text-white/85">
-                                {h.legalName}
-                                {h.dbaName ? ` (dba ${h.dbaName})` : ''}
-                              </span>
-                              <span className="block truncate text-[11px] text-white/45">
-                                DOT {h.dot}
-                                {h.city ? ` · ${h.city}, ${h.state ?? ''}` : ''}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    {/* Правка руками: и реестр, и разбор документа ошибаются — не тот
+                        MC, телефон менеджера вместо офиса, почта, на которую счёт не
+                        примут. Правка идёт по всей истории брокера, иначе её пришлось
+                        бы повторять в каждом грузе. */}
+                    <button
+                      type="button"
+                      onClick={() => setEditFor(editFor === rowKey ? null : rowKey)}
+                      className="shrink-0 rounded-lg border border-white/10 px-2.5 py-1 text-[12px] text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300"
+                    >
+                      {editFor === rowKey ? t(locale, 'brokers.editClose') : t(locale, 'brokers.edit')}
+                    </button>
                     {b.mc && (
                       <button
                         type="button"
@@ -375,8 +313,52 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                         {t(locale, 'brokers.recheck')}
                       </button>
                     )}
+
+                    {owedFor === rowKey && b.unpaid.length > 0 && (
+                      <ul className="w-full rounded-lg border border-white/10 bg-ink-950/60 p-2">
+                        {b.unpaid.map((u) => (
+                          <li
+                            key={u.id}
+                            className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-1.5 py-1 hover:bg-white/5"
+                          >
+                            <Link
+                              href={`/loads/${u.id}`}
+                              className="min-w-0 flex-1 truncate text-[12.5px] text-white/80 hover:underline"
+                            >
+                              {u.route}
+                              {u.ref ? ` · ${u.ref}` : ''}
+                            </Link>
+                            <span className="nums text-[12.5px] font-semibold text-white/85">{usd.format(u.rate)}</span>
+                            {/* Сколько ждём денег по ЭТОМУ счёту: 20 дней и 70 — разный
+                                разговор с брокером, а в общей сумме долга это не видно. */}
+                            <span className={`nums text-[11.5px] ${u.days > 30 ? 'text-warn-400' : 'text-white/45'}`}>
+                              {t(locale, 'brokers.waitingDays').replace('{n}', String(u.days))}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => pay(u.id)}
+                              className="rounded-lg border border-good-500/40 px-2 py-0.5 text-[11.5px] font-medium text-good-400 transition-colors hover:bg-good-500/15 disabled:opacity-50"
+                            >
+                              {t(locale, 'brokers.markPaid')}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {editFor === rowKey && (
+                      <BrokerEdit
+                        broker={b}
+                        onDone={() => {
+                          setEditFor(null)
+                          router.refresh()
+                        }}
+                      />
+                    )}
                   </li>
-                ))}
+                  )
+                })}
               </ul>
             )}
           </>
@@ -431,5 +413,96 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
         </div>
       )}
     </>
+  )
+}
+
+/**
+ * Правка данных брокера. Меняет их сразу во ВСЕЙ его истории, а не в одном грузе:
+ * неверный MC или почта, на которую не примут счёт, приезжают из документа один раз,
+ * а мешают потом всегда.
+ *
+ * Пустое поле = «оставить как есть». Форма показывает все четыре поля сразу, и
+ * очищенное поле почти всегда значит «этого я не знаю», а не «сотри то, что было».
+ */
+function BrokerEdit({ broker, onDone }: { broker: OurBroker; onDone: () => void }) {
+  const locale = useLocale()
+  const [mc, setMc] = useState(broker.mc ?? '')
+  const [name, setName] = useState(broker.name ?? '')
+  const [phone, setPhone] = useState(broker.phone ?? '')
+  const [email, setEmail] = useState(broker.email ?? '')
+  const [saving, setSaving] = useState(false)
+
+  const field =
+    'w-full rounded-lg border border-white/10 bg-ink-950/70 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500'
+
+  async function save() {
+    setSaving(true)
+    const res = await updateBrokerInfo(
+      { mc: broker.mc, name: broker.name },
+      { mc, name, phone, email },
+    )
+    setSaving(false)
+    if ('error' in res) {
+      notify('error', res.error)
+      return
+    }
+    notify('ok', t(locale, 'brokers.editSaved').replace('{n}', String(res.updated)))
+    onDone()
+  }
+
+  return (
+    <div className="w-full rounded-lg border border-white/10 bg-ink-950/60 p-2.5">
+      <div className="grid gap-2 sm:grid-cols-2">
+        <label className="block">
+          <span className="mb-0.5 block text-[11px] text-white/45">{t(locale, 'brokers.editName')}</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} className={field} />
+        </label>
+        <label className="block">
+          <span className="mb-0.5 block text-[11px] text-white/45">{t(locale, 'brokers.editMc')}</span>
+          <input
+            value={mc}
+            onChange={(e) => setMc(e.target.value)}
+            inputMode="numeric"
+            placeholder="123456"
+            className={`${field} nums`}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-0.5 block text-[11px] text-white/45">{t(locale, 'brokers.editPhone')}</span>
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} className={field} />
+        </label>
+        <label className="block">
+          <span className="mb-0.5 block text-[11px] text-white/45">{t(locale, 'brokers.editEmail')}</span>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            inputMode="email"
+            className={field}
+          />
+        </label>
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          disabled={saving}
+          onClick={save}
+          className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12.5px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-50"
+        >
+          {saving ? t(locale, 'brokers.editSaving') : t(locale, 'brokers.editSave')}
+        </button>
+        <button
+          type="button"
+          onClick={onDone}
+          className="rounded-lg border border-white/10 px-3 py-1.5 text-[12.5px] text-white/70 transition-colors hover:border-white/25 hover:text-white"
+        >
+          {t(locale, 'brokers.editCancel')}
+        </button>
+        {/* Правка расходится по всем грузам брокера — это стоит сказать заранее, а не
+            показывать числом уже после сохранения. */}
+        <span className="text-[11.5px] text-white/40">
+          {t(locale, 'brokers.editScope').replace('{n}', String(broker.loadCount))}
+        </span>
+      </div>
+    </div>
   )
 }

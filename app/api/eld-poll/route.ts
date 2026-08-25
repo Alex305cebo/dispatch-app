@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { fleetSnapshot, liveShareSnapshot } from '@/lib/eld'
+import { backfillBrokerMc } from '@/lib/mc-backfill'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,8 +15,16 @@ export async function GET(req: NextRequest) {
   if (!secret || given !== secret) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
-  const [share, key] = await Promise.all([liveShareSnapshot(), fleetSnapshot()])
+  // Заодно дозаполняем брокерам MC. Живёт здесь, а не в своём расписании, потому что
+  // внешний планировщик у нас один и настроен на этот адрес: отдельный крон пришлось
+  // бы заводить руками, а это ровно та работа, которой быть не должно. Партия
+  // маленькая — реестр отвечает медленно, и опрос траков ждать не должен.
+  const [share, key, mc] = await Promise.all([
+    liveShareSnapshot(),
+    fleetSnapshot(),
+    backfillBrokerMc('default', 3).catch(() => null),
+  ])
   const anyUpdated =
     ('updated' in share && share.updated > 0) || ('updated' in key && key.updated > 0)
-  return NextResponse.json({ share, key }, { status: anyUpdated ? 200 : 503 })
+  return NextResponse.json({ share, key, mc }, { status: anyUpdated ? 200 : 503 })
 }
