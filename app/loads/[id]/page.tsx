@@ -74,7 +74,16 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           {load.origin ?? '—'} → {load.destination ?? '—'}
         </h1>
         <p className="mt-1.5 text-[13px] text-white/65">
-          {load.source === 'qr' ? t(locale, 'loadDetail.sourceQr') : t(locale, 'loadDetail.sourceManual')}
+          {/* Откуда взялся груз. Раньше здесь стояло «Пришёл с DAT по QR» у ЛЮБОГО
+              груза, заведённого не руками, — в том числе у приехавших рейт-коном в
+              Telegram, которые доски DAT в глаза не видели. Смотрим не на пометку в
+              базе, а на то, что есть на самом деле: если к рейсу приложен рейт-кон,
+              из него он и заведён. */}
+          {rateConDoc
+            ? t(locale, 'loadDetail.sourceRc')
+            : load.source === 'qr'
+              ? t(locale, 'loadDetail.sourceQr')
+              : t(locale, 'loadDetail.sourceManual')}
           {/* Это номер груза, который дал брокер, а не «reference» из бумаги: под ним
               груз ищут, называют по телефону и пишут в счёте. */}
           {load.referenceId && ` · ${t(locale, 'import.label.referenceId')} ${load.referenceId}`}

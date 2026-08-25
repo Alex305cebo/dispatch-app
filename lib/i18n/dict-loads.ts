@@ -123,7 +123,8 @@ export const loadsDict = {
   'newLoad.notReadToast': { ru: 'Не прочитался: {msg}', en: "Couldn't read it: {msg}" },
 
   // app/loads/[id]/page.tsx
-  'loadDetail.sourceQr': { ru: 'Пришёл с DAT по QR', en: 'Came in from DAT via QR' },
+  'loadDetail.sourceRc': { ru: 'Заведён из рейт-кона', en: 'Created from the rate con' },
+  'loadDetail.sourceQr': { ru: 'Пришёл с доски DAT', en: 'Came from the DAT board' },
   'loadDetail.sourceManual': { ru: 'Добавлен вручную', en: 'Added manually' },
   'loadDetail.docsMissingTitle': { ru: 'Не загружены {missing}', en: '{missing} not uploaded' },
   'loadDetail.docsMissingHint': {
