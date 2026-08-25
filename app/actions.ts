@@ -105,6 +105,39 @@ export async function brokerContactsFromHistory(
   }
 }
 
+/**
+ * Проставить найденный MC всем грузам этого брокера.
+ *
+ * Откуда пустота: MC берётся из рейт-кона, а половина брокеров его там не печатает —
+ * JB Hunt, Landstar, MODE и другие обходятся названием и номером груза. Поэтому в
+ * справочнике у них стояло «без MC», и проверить авторитетность было нечем.
+ *
+ * Пишем во ВСЕ грузы этого брокера, у которых номера ещё нет: справочник собирается
+ * из грузов, отдельной таблицы брокеров у нас нет, и одна запись «где-то» его бы не
+ * наполнила. Существующие номера не трогаем — если в бумаге был свой, он вернее.
+ */
+export async function assignBrokerMc(
+  name: string,
+  mc: string,
+): Promise<{ updated: number } | { error: string }> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const locale = await getLocale()
+  const clean = mc.replace(/\D/g, '')
+  const who = name.trim()
+  if (!clean || !who) return { error: t(locale, 'brokers.assignBad') }
+  const companyId = await companyScope()
+  const rows = (await sql`
+    UPDATE loads SET broker_mc = ${clean}
+    WHERE company_id = ${companyId}
+      AND lower(coalesce(broker_name, '')) = ${who.toLowerCase()}
+      AND coalesce(broker_mc, '') = ''
+    RETURNING id`) as { id: number }[]
+  revalidatePath('/brokers')
+  revalidatePath('/loads')
+  return { updated: rows.length }
+}
+
 /** Manual broker lookup from the Brokers page — by MC or DOT number. */
 export async function runBrokerCheck(
   by: 'mc' | 'dot',

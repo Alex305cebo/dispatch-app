@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
-import { runBrokerCheck } from '@/app/actions'
+import { assignBrokerMc, findBrokerByName, runBrokerCheck } from '@/app/actions'
+import { useRouter } from 'next/navigation'
+import { notify } from '@/lib/notify'
 import type { BrokerCheck } from '@/lib/fmcsa'
 import type { OurBroker } from '@/lib/brokers'
 import type { TopBroker } from '@/lib/brokers-top'
@@ -24,6 +26,64 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
 
   const [query, setQuery] = useState('')
   const [history, setHistory] = useState<TopBroker | null>(null)
+
+  // Поиск MC по названию — для брокеров, которые не печатают его в рейт-коне.
+  // Таких большинство: MC берётся из бумаги, а бумага о нём часто молчит.
+  const router = useRouter()
+  const [mcFor, setMcFor] = useState<string | null>(null)
+  const [mcHits, setMcHits] = useState<
+    { dot: string; legalName: string; dbaName: string | null; city: string | null; state: string | null; active: boolean }[]
+  >([])
+  const [mcBusy, setMcBusy] = useState(false)
+
+  function findMc(name: string) {
+    setMcFor(name)
+    setMcHits([])
+    setMcBusy(true)
+    start(async () => {
+      const res = await findBrokerByName(name)
+      setMcBusy(false)
+      if ('error' in res) {
+        notify('error', res.error)
+        setMcFor(null)
+        return
+      }
+      setMcHits(res.results)
+    })
+  }
+
+  /** Выбрали компанию — достаём её MC по DOT и проставляем всем грузам брокера. */
+  function pickMc(name: string, dot: string) {
+    setMcBusy(true)
+    start(async () => {
+      const found = await runBrokerCheck('dot', dot)
+      if ('error' in found) {
+        setMcBusy(false)
+        notify('error', found.error)
+        return
+      }
+      if (!found.mc) {
+        setMcBusy(false)
+        notify('warn', t(locale, 'brokers.mcNotFound'))
+        return
+      }
+      const saved = await assignBrokerMc(name, found.mc)
+      setMcBusy(false)
+      setMcFor(null)
+      setMcHits([])
+      if ('error' in saved) {
+        notify('error', saved.error)
+        return
+      }
+      notify(
+        'ok',
+        t(locale, 'brokers.mcAssigned')
+          .replace('{mc}', found.mc)
+          .replace('{n}', String(saved.updated)),
+      )
+      router.refresh()
+    })
+  }
 
   // Escape closes the history bubble (plus the always-visible ✕ and click-outside).
   useEffect(() => {
@@ -182,6 +242,47 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                         {b.lastLoad && <span>{t(locale, 'brokers.lastLoad').replace('{date}', b.lastLoad)}</span>}
                       </div>
                     </div>
+                    {!b.mc && b.name && (
+                      <button
+                        type="button"
+                        disabled={mcBusy && mcFor === b.name}
+                        onClick={() => findMc(b.name!)}
+                        className="shrink-0 rounded-lg border border-white/10 px-2.5 py-1 text-[12px] text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300 disabled:opacity-50"
+                      >
+                        {mcBusy && mcFor === b.name
+                          ? t(locale, 'brokers.findingMc')
+                          : t(locale, 'brokers.findMc')}
+                      </button>
+                    )}
+                    {mcFor === b.name && mcHits.length > 0 && (
+                      <div className="w-full rounded-lg border border-white/10 bg-ink-950/60 p-2">
+                        <p className="px-1 pb-1 text-[11px] text-white/45">
+                          {t(locale, 'brokers.pickCompany')}
+                        </p>
+                        {/* Выбирает человек: у крупного брокера в реестре десятки строк,
+                            и наугад проставленный MC разошёлся бы по всем его грузам. */}
+                        <div className="flex flex-col gap-1">
+                          {mcHits.map((h) => (
+                            <button
+                              key={h.dot}
+                              type="button"
+                              disabled={mcBusy}
+                              onClick={() => pickMc(b.name!, h.dot)}
+                              className="rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/8 disabled:opacity-50"
+                            >
+                              <span className="block truncate text-[12.5px] font-medium text-white/85">
+                                {h.legalName}
+                                {h.dbaName ? ` (dba ${h.dbaName})` : ''}
+                              </span>
+                              <span className="block truncate text-[11px] text-white/45">
+                                DOT {h.dot}
+                                {h.city ? ` · ${h.city}, ${h.state ?? ''}` : ''}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {b.mc && (
                       <button
                         type="button"
