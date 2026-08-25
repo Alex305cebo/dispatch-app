@@ -12,7 +12,8 @@
 
 import { sql } from './db'
 import { getSetting, setSetting } from './settings'
-import { pickBest, searchTerms } from './broker-match.ts'
+import { chooseCompany, compact, searchTerms, type Candidate } from './broker-match.ts'
+import { saferSearch, saferSnapshot } from './safer.ts'
 
 /** Что вышло с этим именем в прошлый раз. Нужно, чтобы не долбить реестр одним и тем
  * же именем каждые пять минут: у брокера может не быть MC вовсе, и это нормальный
@@ -22,7 +23,7 @@ type Tried = Record<string, { at: string; result: 'ok' | 'ambiguous' | 'none' }>
 // Версия в имени: правила поиска менялись, а старые отметки «не нашлось» переживали
 // правку и месяц не давали попробовать снова уже исправленным запросом. Меняем
 // правила — меняем и ключ, тогда список пробуется заново с чистого листа.
-const STATE_KEY = 'mc_lookup_state_v2'
+const STATE_KEY = 'mc_lookup_state_v3_safer'
 /** Через месяц пробуем снова: компания могла получить authority, а имя — уточниться. */
 const RETRY_DAYS = 30
 
@@ -84,13 +85,20 @@ export async function backfillBrokerMc(
     SELECT lower(trim(broker_name)) AS key,
            max(broker_name) AS name,
            max(broker_email) AS email,
+           max(broker_phone) AS phone,
            count(*) AS loads
     FROM loads
     WHERE company_id = ${companyId}
       AND coalesce(trim(broker_name), '') <> ''
     GROUP BY 1
     HAVING max(coalesce(broker_mc, '')) = ''
-    ORDER BY count(*) DESC`) as { key: string; name: string; email: string | null; loads: number }[]
+    ORDER BY count(*) DESC`) as {
+    key: string
+    name: string
+    email: string | null
+    phone: string | null
+    loads: number
+  }[]
 
   const tried: Tried = JSON.parse((await getSetting(STATE_KEY)) || '{}')
   const fresh = (k: string) => {
@@ -103,7 +111,6 @@ export async function backfillBrokerMc(
     return { filled: 0, ambiguous: 0, none: 0, failed: 0, left: 0, reason: 'nothing_to_do' }
   }
 
-  const { searchByName, checkBrokerByDot } = await import('./fmcsa')
   const out: BackfillResult = {
     filled: 0, ambiguous: 0, none: 0, failed: 0, left: 0, reason: 'ok',
   }
@@ -113,41 +120,67 @@ export async function backfillBrokerMc(
       tried[r.key] = { at: new Date().toISOString(), result }
     }
     try {
-      // Пробуем имя целиком, потом без «LLC/Inc», потом первые два слова: реестр ищет
-      // буквально, и «Molo Solutions, LLC» ему ни о чём не говорит.
-      let best: Awaited<ReturnType<typeof pickBest>> = null
-      let noKey = false
+      // Ищем в SAFER — публичной части реестра, без ключа. У QCMobile, куда ходит
+      // проверка брокера, поиск по названию этих компаний просто не находит: ключ
+      // есть, запрос уходит, ответ пустой. Проверено на живых именах из наших грузов.
+      const hits: { dot: string; legalName: string }[] = []
       for (const term of searchTerms(r.name)) {
-        const found = await searchByName(term)
-        if ('error' in found) {
-          // Ключа нет — реестр вообще недоступен, и отмечать имена «не найдено» нельзя:
-          // иначе месяц не будем пробовать по причине, к брокеру не относящейся.
-          if (found.error === 'no_key') {
-            noKey = true
-            break
-          }
-          continue
+        for (const h of await saferSearch(term)) {
+          if (!hits.some((x) => x.dot === h.dot)) hits.push(h)
         }
-        best = pickBest(r.name, found.results)
-        if (best) break
+        // Как только по имени нашлось точное совпадение — дальше сокращать запрос
+        // незачем, короткий запрос притащит только чужих однофамильцев.
+        if (hits.some((h) => compact(h.legalName) === compact(r.name))) break
       }
-      if (noKey) {
-        out.reason = 'no_key'
-        break
-      }
-      if (!best) {
-        out.ambiguous++
-        mark('ambiguous')
-        continue
-      }
-      const checked = await checkBrokerByDot(best.dot)
-      if ('error' in checked || !checked.mc || checked.mc === mine) {
+      if (hits.length === 0) {
         out.none++
         mark('none')
         continue
       }
+
+      // Карточки берём только у тех, кто по имени вообще похож: каждая — отдельный
+      // запрос, а поиск по короткому слову возвращает и «MOLOKAI HIGH SCHOOL».
+      const want = compact(r.name)
+      const worth = hits
+        .filter((h) => {
+          const n = compact(h.legalName)
+          return n === want || n.startsWith(want)
+        })
+        .slice(0, 4)
+      if (worth.length === 0) {
+        out.ambiguous++
+        mark('ambiguous')
+        continue
+      }
+
+      const cards: Candidate[] = []
+      const mcByDot = new Map<string, string | null>()
+      for (const h of worth) {
+        const snap = await saferSnapshot(h.dot)
+        if (!snap) continue
+        mcByDot.set(h.dot, snap.mc)
+        cards.push({
+          dot: h.dot,
+          legalName: snap.legalName ?? h.legalName,
+          dbaName: snap.dbaName,
+          phone: snap.phone,
+          entityType: snap.entityType,
+          operatingStatus: snap.operatingStatus,
+        })
+      }
+
+      const best = chooseCompany(r.name, r.phone, cards)
+      const found = best ? mcByDot.get(best.dot) ?? null : null
+      // Свой номер не проставляем никогда: в рейт-коне их два, и перепутать их —
+      // самая частая ошибка разбора, повторять её тут незачем.
+      if (!best || !found || found === mine) {
+        out.ambiguous++
+        mark('ambiguous')
+        continue
+      }
+
       await sql`
-        UPDATE loads SET broker_mc = ${checked.mc}
+        UPDATE loads SET broker_mc = ${found}
         WHERE company_id = ${companyId}
           AND lower(trim(broker_name)) = ${r.key}
           AND coalesce(broker_mc, '') = ''`

@@ -27,6 +27,12 @@ export function normName(s: string | null | undefined): string {
     .trim()
 }
 
+
+/** То же имя без пробелов вовсе. В реестре инициалы пишут через пробел («J B HUNT»),
+ * в рейт-коне — слитно с точками («J.B. Hunt»). После обычной нормализации это всё
+ * ещё разные строки, и настоящая компания проигрывает случайной «JB HUNT MOVERS». */
+export const compact = (s: string | null | undefined) => normName(s).replace(/\s+/g, '')
+
 export type NameHitLike = {
   dot: string
   legalName: string
@@ -119,5 +125,67 @@ export function searchTerms(name: string): string[] {
 
   const words = clean.replace(SUFFIX_WORDS, ' ').split(/\s+/).filter(Boolean)
   if (words.length > 2) push(words.slice(0, 2).join(' '))
+
+  // «J.B. Hunt» в реестре записан как «J B HUNT»: поиск там идёт по началу строки, и
+  // слитное «JB HUNT» до него не достаёт — зато достаёт до чужого «JB HUNT MOVERS».
+  const spaced = (name ?? '').replace(/\b([A-Za-z])\.\s*([A-Za-z])\./g, '$1 $2 ')
+  if (spaced !== name) {
+    const c = spaced.replace(/[.,'"`]/g, '').replace(/[\/\-]/g, ' ')
+    push(c.replace(SUFFIX_WORDS, ' '))
+  }
   return terms
+}
+
+/** Кандидат вместе с тем, что о нём известно из карточки реестра. */
+export type Candidate = {
+  dot: string
+  legalName: string
+  dbaName: string | null
+  phone: string | null
+  entityType: string | null
+  operatingStatus: string | null
+}
+
+const last10 = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '').slice(-10)
+
+/**
+ * Выбрать компанию, которой принадлежит этот брокер, — или не выбрать.
+ *
+ * Одного имени мало: в реестре две записи «LANDSTAR RANGER INC» и есть посторонняя
+ * «JB HUNT MOVERS LLC», которая по имени тоже подходит. Поэтому решает сумма
+ * признаков, а главный из них — не имя, а ТЕЛЕФОН: он у нас свой, из рейт-кона, и
+ * совпадение с телефоном в реестре — это уже не догадка.
+ *
+ * Порог намеренно высокий: одного лишь частичного совпадения имени не хватает. Лучше
+ * оставить брокера без номера, чем выставить счёт на чужой MC.
+ */
+export function chooseCompany(
+  name: string,
+  ourPhone: string | null,
+  candidates: Candidate[],
+): Candidate | null {
+  const want = compact(name)
+  if (want.length < 4) return null
+  const phone = last10(ourPhone)
+
+  const scored = candidates
+    .map((c) => {
+      const names = [compact(c.legalName), compact(c.dbaName)].filter(Boolean)
+      let score = 0
+      if (names.includes(want)) score += 3
+      else if (names.some((n) => n.startsWith(want))) score += 1
+      // Телефон из нашего же рейт-кона — самое надёжное, что у нас есть.
+      if (phone && last10(c.phone) === phone) score += 3
+      if (/BROKER/i.test(c.entityType ?? '')) score += 1
+      // Недействующая запись при живой альтернативе проигрывает, но сама по себе не
+      // отбрасывается: у части брокеров authority в SAFER не показана вовсе.
+      if (/NOT AUTHORIZED|OUT OF SERVICE/i.test(c.operatingStatus ?? '')) score -= 1
+      return { c, score }
+    })
+    .filter((x) => x.score >= 3)
+    .sort((a, b) => b.score - a.score)
+
+  if (scored.length === 0) return null
+  if (scored.length > 1 && scored[1]!.score === scored[0]!.score) return null
+  return scored[0]!.c
 }

@@ -162,30 +162,48 @@ export async function topBrokerInfo(name: string): Promise<
   | { error: string }
 > {
   const locale = await getLocale()
-  const { searchByName } = await import('@/lib/fmcsa')
-  const { pickBest, searchTerms } = await import('@/lib/broker-match')
+  const { saferSearch, saferSnapshot } = await import('@/lib/safer')
+  const { chooseCompany, compact, searchTerms } = await import('@/lib/broker-match')
 
+  const hits: { dot: string; legalName: string }[] = []
   for (const term of searchTerms(name)) {
-    const found = await searchByName(term, locale)
-    if ('error' in found) {
-      if (found.error === 'no_key') return { error: 'no_key' }
-      continue
-    }
-    const best = pickBest(name, found.results)
-    if (!best) continue
-    const checked = await checkBrokerByDot(best.dot, {}, locale)
-    if ('error' in checked) return checked
-    return {
-      mc: checked.mc,
-      dot: best.dot,
-      legalName: best.legalName,
-      city: best.city,
-      state: best.state,
-      authority: checked.authorityStatus ?? null,
-      phone: checked.phone ?? null,
-    }
+    for (const h of await saferSearch(term)) if (!hits.some((x) => x.dot === h.dot)) hits.push(h)
+    if (hits.some((h) => compact(h.legalName) === compact(name))) break
   }
-  return { error: t(locale, 'fmcsa.nameNotFound').replace('{name}', name) }
+  const want = compact(name)
+  const worth = hits.filter((h) => compact(h.legalName).startsWith(want)).slice(0, 4)
+
+  const cards = []
+  const snaps = new Map<string, Awaited<ReturnType<typeof saferSnapshot>>>()
+  for (const h of worth) {
+    const snap = await saferSnapshot(h.dot)
+    if (!snap) continue
+    snaps.set(h.dot, snap)
+    cards.push({
+      dot: h.dot,
+      legalName: snap.legalName ?? h.legalName,
+      dbaName: snap.dbaName,
+      phone: snap.phone,
+      entityType: snap.entityType,
+      operatingStatus: snap.operatingStatus,
+    })
+  }
+
+  const best = chooseCompany(name, null, cards)
+  const snap = best ? snaps.get(best.dot) : null
+  if (!best || !snap) return { error: t(locale, 'fmcsa.nameNotFound').replace('{name}', name) }
+
+  // Город и штат в SAFER лежат второй строкой адреса: «CHICAGO, IL 60607».
+  const place = /([A-Za-z .'-]+),\s*([A-Z]{2})\b/.exec(snap.address ?? '')
+  return {
+    mc: snap.mc,
+    dot: best.dot,
+    legalName: snap.legalName ?? best.legalName,
+    city: place?.[1]?.trim() ?? null,
+    state: place?.[2] ?? null,
+    authority: snap.operatingStatus,
+    phone: snap.phone,
+  }
 }
 
 export async function findBrokerByName(name: string) {
