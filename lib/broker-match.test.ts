@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { normName, pickBest, pickExact, type NameHitLike } from './broker-match.ts'
+import { normName, pickBest, pickExact, searchTerms, type NameHitLike } from './broker-match.ts'
 
 const hit = (p: Partial<NameHitLike>): NameHitLike =>
   ({ dot: '1', legalName: 'ALLEN LUND COMPANY, LLC', dbaName: null, active: true, ...p })
@@ -90,4 +90,25 @@ test('недействующие не рассматриваются вовсе'
 test('слишком короткое имя не подбирается автоматически', () => {
   const got = pickBest('CH', [hit({ dot: '1', legalName: 'CH ROBINSON WORLDWIDE INC' })])
   assert.equal(got, null)
+})
+
+// searchTerms — то, чем спрашиваем реестр. Именно здесь всё и ломалось: запрос уходил
+// как «Molo Solutions, LLC», реестр на такое не отвечает, и номер не находился.
+test('запятая и форма собственности не уезжают в запрос', () => {
+  const terms = searchTerms('Molo Solutions, LLC')
+  assert.equal(terms[0], 'Molo Solutions LLC')
+  assert.ok(terms.includes('Molo Solutions'))
+})
+
+test('длинное название сокращается до двух первых слов', () => {
+  const terms = searchTerms('Landstar Ranger Corporate Services Inc')
+  assert.equal(terms[terms.length - 1], 'Landstar Ranger')
+})
+
+test('короткое имя не размножается лишними вариантами', () => {
+  assert.deepEqual(searchTerms('TQL'), ['TQL'])
+})
+
+test('пустое имя не даёт запросов', () => {
+  assert.deepEqual(searchTerms(''), [])
 })

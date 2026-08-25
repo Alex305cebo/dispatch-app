@@ -12,7 +12,7 @@
 
 import { sql } from './db'
 import { getSetting, setSetting } from './settings'
-import { pickBest } from './broker-match.ts'
+import { pickBest, searchTerms } from './broker-match.ts'
 
 /** Что вышло с этим именем в прошлый раз. Нужно, чтобы не долбить реестр одним и тем
  * же именем каждые пять минут: у брокера может не быть MC вовсе, и это нормальный
@@ -22,6 +22,26 @@ type Tried = Record<string, { at: string; result: 'ok' | 'ambiguous' | 'none' }>
 const STATE_KEY = 'mc_lookup_state'
 /** Через месяц пробуем снова: компания могла получить authority, а имя — уточниться. */
 const RETRY_DAYS = 30
+
+
+/**
+ * Наш собственный MC. В рейт-коне их всегда два — брокера и наш, как нанимаемого
+ * перевозчика, — и разбор документа регулярно берёт не тот. Тогда у брокера в базе
+ * оказывается номер Maya Logistics: проверка FMCSA показывает нашу же компанию, а
+ * «MC 626911» стоит у половины брокеров разом.
+ *
+ * Поэтому свой номер здесь — не украшение, а фильтр: такой MC считается отсутствующим
+ * и стирается, чтобы подбор нашёл настоящий.
+ */
+async function ownMc(): Promise<string | null> {
+  try {
+    const { getCompany } = await import('./invoice')
+    const m = /\bMC\s*#?\s*[:\-]?\s*(\d{5,8})\b/i.exec((await getCompany()).mcdot ?? '')
+    return m?.[1] ?? null
+  } catch {
+    return null
+  }
+}
 
 export type BackfillResult = { filled: number; ambiguous: number; none: number; left: number }
 
@@ -33,6 +53,16 @@ export async function backfillBrokerMc(
   companyId: 'default' | 'demo',
   limit = 4,
 ): Promise<BackfillResult> {
+  // Сначала выкидываем свой номер отовсюду, где он записан как брокерский: иначе
+  // такой брокер считается «с MC» и подбор к нему даже не подойдёт.
+  const mine = await ownMc()
+  if (mine) {
+    await sql`
+      UPDATE loads SET broker_mc = NULL
+      WHERE company_id = ${companyId}
+        AND regexp_replace(coalesce(broker_mc, ''), '\D', '', 'g') = ${mine}`
+  }
+
   // Брокеры, у которых MC нет ни на одном грузе. Имя — ключ: именно по нему потом
   // проставляем, и именно им брокер записан в документе.
   const rows = (await sql`
@@ -64,23 +94,32 @@ export async function backfillBrokerMc(
       tried[r.key] = { at: new Date().toISOString(), result }
     }
     try {
-      const found = await searchByName(r.name)
-      if ('error' in found) {
-        // Ключа нет — реестр вообще недоступен, и отмечать имена «не найдено» нельзя:
-        // иначе месяц не будем пробовать по причине, к брокеру не относящейся.
-        if (found.error === 'no_key') break
-        out.none++
-        mark('none')
-        continue
+      // Пробуем имя целиком, потом без «LLC/Inc», потом первые два слова: реестр ищет
+      // буквально, и «Molo Solutions, LLC» ему ни о чём не говорит.
+      let best: Awaited<ReturnType<typeof pickBest>> = null
+      let noKey = false
+      for (const term of searchTerms(r.name)) {
+        const found = await searchByName(term)
+        if ('error' in found) {
+          // Ключа нет — реестр вообще недоступен, и отмечать имена «не найдено» нельзя:
+          // иначе месяц не будем пробовать по причине, к брокеру не относящейся.
+          if (found.error === 'no_key') {
+            noKey = true
+            break
+          }
+          continue
+        }
+        best = pickBest(r.name, found.results)
+        if (best) break
       }
-      const best = pickBest(r.name, found.results)
+      if (noKey) break
       if (!best) {
         out.ambiguous++
         mark('ambiguous')
         continue
       }
       const checked = await checkBrokerByDot(best.dot)
-      if ('error' in checked || !checked.mc) {
+      if ('error' in checked || !checked.mc || checked.mc === mine) {
         out.none++
         mark('none')
         continue

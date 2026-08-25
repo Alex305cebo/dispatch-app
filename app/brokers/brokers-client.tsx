@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
-import { fillBrokerMc, markPaid, runBrokerCheck, updateBrokerInfo } from '@/app/actions'
+import { fillBrokerMc, markPaid, runBrokerCheck, topBrokerInfo, updateBrokerInfo } from '@/app/actions'
 import { useRouter } from 'next/navigation'
 import { notify } from '@/lib/notify'
 import type { BrokerCheck } from '@/lib/fmcsa'
@@ -406,6 +406,10 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
             </button>
             <h3 className="pr-8 text-[17px] font-semibold">{history.name}</h3>
             <p className="mt-0.5 text-[12px] uppercase tracking-wider text-white/40">{history.hq}</p>
+            {/* Реквизиты идут ВЫШЕ истории: история — это «кто они», а работать надо с
+                номером. В самом списке их не хранят намеренно — вписанный руками MC
+                устаревает и врёт, поэтому он тянется из реестра на месте. */}
+            <TopBrokerFacts name={history.name} />
             <p className="mt-3 text-[13.5px] leading-relaxed text-white/75">
               {locale === 'en' ? history.historyEn : history.history}
             </p>
@@ -503,6 +507,76 @@ function BrokerEdit({ broker, onDone }: { broker: OurBroker; onDone: () => void 
           {t(locale, 'brokers.editScope').replace('{n}', String(broker.loadCount))}
         </span>
       </div>
+    </div>
+  )
+}
+
+
+type Facts = Awaited<ReturnType<typeof topBrokerInfo>>
+
+/** Реквизиты компании из реестра: MC, DOT, статус authority, город, телефон. */
+function TopBrokerFacts({ name }: { name: string }) {
+  const locale = useLocale()
+  const [facts, setFacts] = useState<Facts | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    setFacts(null)
+    topBrokerInfo(name)
+      .then((r) => alive && setFacts(r))
+      .catch(() => alive && setFacts({ error: t(locale, 'brokers.factsFailed') }))
+    return () => {
+      alive = false
+    }
+  }, [name, locale])
+
+  if (!facts) {
+    return <p className="mt-2 text-[12px] text-white/35">{t(locale, 'brokers.factsLoading')}</p>
+  }
+  if ('error' in facts) {
+    return (
+      <p className="mt-2 text-[12px] text-white/35">
+        {facts.error === 'no_key' ? t(locale, 'brokers.factsNoKey') : facts.error}
+      </p>
+    )
+  }
+
+  const cell = (label: string, value: string | null) =>
+    value ? (
+      <div className="min-w-0">
+        <div className="text-[10px] uppercase tracking-wider text-white/35">{label}</div>
+        <div className="nums truncate text-[13px] text-white/85">{value}</div>
+      </div>
+    ) : null
+
+  return (
+    <div className="mt-3 rounded-xl border border-white/10 bg-ink-950/60 p-3">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+        {cell('MC', facts.mc)}
+        {cell('DOT', facts.dot)}
+        {cell(
+          t(locale, 'brokers.factsAuthority'),
+          facts.authority
+            ? facts.authority === 'active'
+              ? t(locale, 'brokers.statusActive')
+              : t(locale, 'brokers.statusInactive')
+            : null,
+        )}
+        {cell(t(locale, 'brokers.factsCity'), facts.city ? `${facts.city}, ${facts.state ?? ''}` : null)}
+      </div>
+      {facts.phone && (
+        <a
+          href={`tel:${facts.phone.replace(/[^+\d]/g, '')}`}
+          className="nums mt-2 block text-[13px] text-haul-300 hover:underline"
+        >
+          {facts.phone}
+        </a>
+      )}
+      {/* Юридическое имя отличается от того, под которым брокера знают, и в счёте
+          нужно именно оно. */}
+      {facts.legalName && facts.legalName.toLowerCase() !== name.toLowerCase() && (
+        <p className="mt-1.5 text-[11.5px] text-white/40">{facts.legalName}</p>
+      )}
     </div>
   )
 }

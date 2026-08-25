@@ -105,6 +105,9 @@ export async function updateBrokerInfo(
   const locale = await getLocale()
   const companyId = await companyScope()
 
+  // Имя вперёд MC не случайно. Один и тот же ошибочный номер (обычно НАШ, попавший
+  // из рейт-кона) стоит сразу у нескольких брокеров, и правка «по MC» перекрасила бы
+  // их всех разом. Имя в этом смысле надёжнее: строка в списке — это его имя.
   const findMc = (find.mc ?? '').replace(/\D/g, '')
   const findName = (find.name ?? '').trim().toLowerCase()
   if (!findMc && !findName) return { error: t(locale, 'brokers.editNoTarget') }
@@ -112,6 +115,11 @@ export async function updateBrokerInfo(
   // Пустая строка в поле = «оставить как есть», а не «стереть»: форма показывает все
   // поля сразу, и очищенное поле почти всегда значит «этого я не знаю», а не «убери».
   const mc = patch.mc?.replace(/\D/g, '') || null
+  // Наш собственный номер брокеру не принадлежит: в рейт-коне их два, и путаница
+  // между ними — самая частая ошибка разбора. Молча записать её обратно нельзя.
+  const { getCompany } = await import('@/lib/invoice')
+  const mine = /\bMC\s*#?\s*[:\-]?\s*(\d{5,8})\b/i.exec((await getCompany()).mcdot ?? '')?.[1]
+  if (mc && mine && mc === mine) return { error: t(locale, 'brokers.editOwnMc') }
   const name = patch.name?.trim() || null
   const phone = patch.phone?.trim() || null
   const email = patch.email?.trim() || null
@@ -126,14 +134,54 @@ export async function updateBrokerInfo(
       broker_email = coalesce(${email}, broker_email)
     WHERE company_id = ${companyId}
       AND (
-        (${findMc} <> '' AND regexp_replace(coalesce(broker_mc, ''), '\D', '', 'g') = ${findMc})
-        OR (${findMc} = '' AND ${findName} <> '' AND lower(coalesce(broker_name, '')) = ${findName})
+        (${findName} <> '' AND lower(coalesce(broker_name, '')) = ${findName})
+        OR (${findName} = '' AND ${findMc} <> ''
+            AND regexp_replace(coalesce(broker_mc, ''), '\D', '', 'g') = ${findMc})
       )
     RETURNING id`) as { id: number }[]
 
   revalidatePath('/brokers')
   revalidatePath('/loads')
   return { updated: rows.length }
+}
+
+/**
+ * Реквизиты компании из списка крупнейших брокеров: MC, DOT, статус authority, город.
+ *
+ * В самом списке их нет намеренно — вписанный руками MC устаревает и врёт. Поэтому
+ * достаём из реестра по названию в момент, когда карточку открыли, и тем же правилом
+ * («Molo Solutions, LLC» → «Molo Solutions»), что и автоподбор: у этих компаний имя
+ * в реестре почти всегда длиннее того, под которым их знают.
+ */
+export async function topBrokerInfo(name: string): Promise<
+  | { mc: string | null; dot: string | null; legalName: string; city: string | null; state: string | null; authority: string | null; phone: string | null }
+  | { error: string }
+> {
+  const locale = await getLocale()
+  const { searchByName } = await import('@/lib/fmcsa')
+  const { pickBest, searchTerms } = await import('@/lib/broker-match')
+
+  for (const term of searchTerms(name)) {
+    const found = await searchByName(term, locale)
+    if ('error' in found) {
+      if (found.error === 'no_key') return { error: 'no_key' }
+      continue
+    }
+    const best = pickBest(name, found.results)
+    if (!best) continue
+    const checked = await checkBrokerByDot(best.dot, {}, locale)
+    if ('error' in checked) return checked
+    return {
+      mc: checked.mc,
+      dot: best.dot,
+      legalName: best.legalName,
+      city: best.city,
+      state: best.state,
+      authority: checked.authorityStatus ?? null,
+      phone: checked.phone ?? null,
+    }
+  }
+  return { error: t(locale, 'fmcsa.nameNotFound').replace('{name}', name) }
 }
 
 export async function findBrokerByName(name: string) {

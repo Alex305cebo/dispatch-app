@@ -11,6 +11,8 @@
 /** Формы собственности и мусор пунктуации. «Allen Lund Company» в рейт-коне и
  * «ALLEN LUND COMPANY, INC.» в реестре — одна компания. */
 const SUFFIX = /\b(inc|llc|l\.l\.c|ltd|co|corp|corporation|company|group|holdings|usa|us)\b/g
+/** То же самое для запросов в реестр: там имя ещё не нормализовано. */
+const SUFFIX_WORDS = /\b(inc|llc|ltd|co|corp|corporation|company|group|holdings)\b/gi
 
 export function normName(s: string | null | undefined): string {
   return (s ?? '')
@@ -90,4 +92,32 @@ export function pickBest<T extends NameHitLike>(query: string, hits: T[]): T | n
   // Ничья по весу И по близости имени — значит выбрать не из чего.
   if (second && second.score === best.score && second.len === best.len) return null
   return best.hit
+}
+
+/**
+ * Чем спрашивать реестр про эту компанию — от точного к общему.
+ *
+ * Реестр ищет по названию буквально, а в рейт-коне брокер подписан как ему удобно:
+ * «Molo Solutions, LLC». Запятая и форма собственности до совпадения не доживают, и
+ * запрос возвращает пусто — именно поэтому номера и не появлялись. Поэтому пробуем
+ * по очереди: имя без пунктуации, оно же без «LLC/Inc», и первые два слова
+ * («Landstar Ranger» вместо «Landstar Ranger Corporate Services»).
+ *
+ * Порядок важен: первый ответ, в котором нашёлся однозначный кандидат, и выигрывает,
+ * а чем короче запрос, тем больше в ответе чужих компаний.
+ */
+export function searchTerms(name: string): string[] {
+  const terms: string[] = []
+  const push = (v: string) => {
+    const t = v.replace(/\s+/g, ' ').trim()
+    if (t.length >= 3 && !terms.includes(t)) terms.push(t)
+  }
+
+  const clean = (name ?? '').replace(/[.,'"`]/g, '').replace(/[\/\-]/g, ' ')
+  push(clean)
+  push(clean.replace(SUFFIX_WORDS, ' '))
+
+  const words = clean.replace(SUFFIX_WORDS, ' ').split(/\s+/).filter(Boolean)
+  if (words.length > 2) push(words.slice(0, 2).join(' '))
+  return terms
 }
