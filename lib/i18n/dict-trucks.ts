@@ -175,8 +175,8 @@ export const trucksDict = {
   'trucks.form.dieselFetchedPrefix': { ru: 'Дизель по стране (EIA): $', en: 'National diesel price (EIA): $' },
   'trucks.form.dieselFetchedOn': { ru: ' на ', en: ' as of ' },
   'trucks.form.dieselFailed': { ru: 'Не удалось получить цену дизеля — попробуй позже', en: 'Couldn’t fetch the diesel price — try again later' },
-  'trucks.form.dieselFetching': { ru: 'тяну…', en: 'fetching…' },
-  'trucks.form.dieselCurrent': { ru: 'текущий по стране (EIA)', en: 'national average (EIA)' },
+  'trucks.form.dieselFetching': { ru: 'Обновляю цену…', en: 'Updating price…' },
+  'trucks.form.dieselCurrent': { ru: 'Обновить актуальную цену топлива', en: 'Update to current fuel price' },
   'trucks.form.dieselInfo': {
     ru: 'Подставит актуальную среднюю цену дизеля по США из официальных данных EIA (обновляется еженедельно) — чтобы себестоимость топлива в расчётах была реальной, а не устаревшей.',
     en: 'Fills in the current average US diesel price from official EIA data (updated weekly) — so fuel cost in the calculations stays real, not stale.',
