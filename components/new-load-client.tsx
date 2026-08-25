@@ -16,6 +16,7 @@ import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
 import { uploadDocument } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { LoadForm } from '@/components/load-form'
+import { RcEvidence } from '@/components/rc-evidence'
 import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
@@ -179,6 +180,10 @@ export function NewLoadClient({
           </button>
         </div>
       )}
+
+      {/* Что именно прочитано и из какой строки документа. Переехало со страницы
+          импорта: она делала ровно то же самое, что и этот экран. */}
+      {fields && <RcEvidence fields={fields} />}
 
       <LoadForm
         key={scanKey}

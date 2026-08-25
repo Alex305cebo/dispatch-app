@@ -36,7 +36,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
 
       {/* Rate con recognizer — the fast path, folded into the library. */}
       <Link
-        href="/import"
+        href="/loads/new"
         className="mb-3 flex items-center gap-3 rounded-2xl border border-haul-500/30 bg-haul-500/10 px-4 py-3 transition-colors hover:bg-haul-500/15"
       >
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-haul-500/20 text-[18px]">

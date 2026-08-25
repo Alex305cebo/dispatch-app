@@ -244,8 +244,8 @@ export function UserPanel({
               </MenuTile>
               <MenuTile
                 label={t(locale, 'userPanel.tileImport')}
-                href="/import"
-                active={pathname.startsWith('/import')}
+                href="/loads/new"
+                active={pathname.startsWith('/loads/new')}
                 onNavigate={() => setOpen(false)}
               >
                 <Upload size={15} />
@@ -392,8 +392,8 @@ export function UserPanel({
                 </MenuTile>
                 <MenuTile
                   label={t(locale, 'userPanel.tileImport')}
-                  href="/import"
-                  active={pathname.startsWith('/import')}
+                  href="/loads/new"
+                  active={pathname.startsWith('/loads/new')}
                   onNavigate={() => setOpen(false)}
                 >
                   <Upload size={15} />

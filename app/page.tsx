@@ -534,7 +534,7 @@ export default async function Page() {
             <Button href="/loads/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
               {tr(locale, 'overview.addLoad')}
             </Button>
-            <Button href="/import" variant="secondary">
+            <Button href="/loads/new" variant="secondary">
               {tr(locale, 'overview.rateCon')}
             </Button>
           </div>
