@@ -49,6 +49,7 @@ export function LoadsViews({
   initialView,
   initialWeek,
   initialDay,
+  initialQuery,
   metrics,
 }: {
   loads: LoadRecord[]
@@ -61,6 +62,9 @@ export function LoadsViews({
   initialView: 'driver' | 'board' | 'calendar'
   initialWeek: number
   initialDay: string | null
+  /** Поиск, пришедший в адресе (?q=) — по нему открываются ссылки из свода
+   * направлений. Без этого клик по строке приводил бы к полному списку. */
+  initialQuery: string
 }) {
   const locale = useLocale()
   // Поиск и фильтры стоят НАД видами и общие для всех трёх: искать груз, а потом
@@ -69,6 +73,7 @@ export function LoadsViews({
     allLoads,
     trucks,
     metrics,
+    initialQuery,
   )
   const [view, setView] = useState(initialView)
   const [weekMonday, setWeekMonday] = useState(initialWeek)

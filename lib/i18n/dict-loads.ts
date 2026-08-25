@@ -20,6 +20,16 @@ export const loadsDict = {
   'loads.page.tabByDriver': { ru: 'По водителю', en: 'By driver' },
   'loads.page.tabByStatus': { ru: 'По статусу', en: 'By status' },
   'loads.page.showMore': { ru: 'ещё {n}', en: '{n} more' },
+  'lanes.heading': { ru: 'Направления', en: 'Lanes' },
+  'lanes.info': {
+    ru: 'Одинаковые рейсы сложены вместе: сколько раз возили, средняя ставка, ставка за милю и что осталось чистыми в среднем за рейс. Ставка за милю считается по всем милям направления, а не как среднее от средних, — иначе один короткий дорогой рейс задирал бы всю строку. Отменённые и черновики не в счёт. Это ваши собственные цифры, а не биржевые: биржа говорит, сколько платят по рынку, а тут — сколько заплатили вам и что осталось после топлива, водителя и остального.',
+    en: 'Identical trips folded together: how many times you ran the lane, the average rate, the rate per mile and what was left net on an average trip. Rate per mile is total gross over total miles, not an average of averages — otherwise one short expensive run would lift the whole row. Cancelled loads and drafts are excluded. These are your own numbers, not a market index: the index says what the market pays, this says what you were paid and what survived fuel, the driver and the rest.',
+  },
+  'lanes.lane': { ru: 'Направление', en: 'Lane' },
+  'lanes.trips': { ru: 'Рейсов', en: 'Trips' },
+  'lanes.avgRate': { ru: 'Ср. ставка', en: 'Avg rate' },
+  'lanes.rpm': { ru: '$/миля', en: '$/mi' },
+  'lanes.avgNet': { ru: 'Ср. чистыми', en: 'Avg net' },
   'loads.search.placeholder': {
     ru: 'Маршрут, брокер, номер груза, водитель…',
     en: 'Route, broker, load number, driver…',

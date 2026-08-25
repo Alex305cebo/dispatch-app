@@ -11,6 +11,7 @@ import { t, type Locale, type MsgKey } from '@/lib/i18n'
 import { usd, usd2, mondayOf, weekStart, loadWeekAnchorMs } from '@/lib/fmt'
 import { Info } from '@/components/info'
 import { AttentionList } from '@/components/attention-list'
+import { LaneStats } from '@/components/lane-stats'
 import { LoadsViews } from './loads-views'
 
 export const dynamic = 'force-dynamic'
@@ -24,7 +25,7 @@ export const dynamic = 'force-dynamic'
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; week?: string; day?: string }>
+  searchParams: Promise<{ view?: string; week?: string; day?: string; q?: string }>
 }) {
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -55,7 +56,7 @@ function LoadsSkeleton() {
 async function LoadsBoard({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; week?: string; day?: string }>
+  searchParams: Promise<{ view?: string; week?: string; day?: string; q?: string }>
 }) {
   const sp = await searchParams
   const view = sp.view === 'board' ? 'board' : sp.view === 'calendar' ? 'calendar' : 'driver'
@@ -167,6 +168,13 @@ async function LoadsBoard({
       {/* Вкладки и всё, что они рисуют, — на клиенте: все три вида и любая неделя
           строятся из этой же выборки, новых данных не нужно. Map и Set не переживают
           границу сервер-клиент, поэтому уходят парами и массивом. */}
+      {/* Направления — свод по деньгам под итогом недели: «куда возить выгодно».
+          Считается по тем же расчётам, что уже сделаны выше для каждого груза. */}
+      <LaneStats
+        rows={priced.map(({ load, r }) => ({ load, net: r?.net ?? 0, miles: r?.totalMiles ?? 0 }))}
+        locale={locale}
+      />
+
       <LoadsViews
         loads={loads}
         trucks={trucks}
@@ -188,6 +196,7 @@ async function LoadsBoard({
         initialView={view}
         initialWeek={weekMonday}
         initialDay={selectedDay}
+        initialQuery={sp.q ?? ''}
       />
     </>
   )

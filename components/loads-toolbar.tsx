@@ -58,8 +58,9 @@ export function useLoadsFilter(
   loads: LoadRecord[],
   trucks: TruckRecord[],
   metrics: Record<number, LoadMetrics>,
+  initialQuery = '',
 ) {
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialQuery)
   const [filter, setFilter] = useState<LoadFilter>('all')
   const [sort, setSort] = useState<LoadSort>('newest')
 
