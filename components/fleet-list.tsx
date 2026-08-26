@@ -182,9 +182,9 @@ export function FleetList({
                   <button
                     onClick={() => void copyLocation(r.city!)}
                     title={t(locale, 'tracking.copyLocationTitle')}
-                    className="relative z-10 shrink-0 rounded p-0.5 text-white/30 transition-colors hover:bg-white/10 hover:text-white/80"
+                    className="relative z-10 shrink-0 rounded p-0.5 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
                   >
-                    <Copy size={11} />
+                    <Copy size={12} />
                   </button>
                 )}
               </span>

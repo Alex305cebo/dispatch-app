@@ -33,6 +33,7 @@ import { getCompany } from '@/lib/invoice'
 import { dispatcherPhoneKey, getSetting } from '@/lib/settings'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
+import { CopyPlace } from '@/components/copy-place'
 
 export const dynamic = 'force-dynamic'
 
@@ -158,8 +159,11 @@ export default async function Page({
             {fs?.location && (
               <>
                 <span aria-hidden className="text-white/25">·</span>
+                {/* Место — кнопка: ответ на «где сейчас трак» почти всегда тут же
+                    уходит брокеру, и выделять его мышью по букве незачем.
+                    Копируется короткая форма «город, штат». */}
                 <span className={toneClass[statusTone(fs.driveStatus)]}>
-                  📍 {fs.location}
+                  <CopyPlace text={`📍 ${fs.location}`} copy={cityOf(fs.location) ?? fs.location} />
                   {fs.driveStatus && ` · ${fs.driveStatus}`}
                 </span>
               </>

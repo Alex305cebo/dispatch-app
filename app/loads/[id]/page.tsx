@@ -28,6 +28,8 @@ import { BackButton } from '@/components/back-button'
 import { DriverInfoCard } from '@/components/driver-info-card'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
+import { CopyPlace } from '@/components/copy-place'
+import { placeCity } from '@/lib/place'
 
 export const dynamic = 'force-dynamic'
 
@@ -321,8 +323,23 @@ async function LoadMapSection({
               водителя, расстояние и срок — разные вопросы, и слитые в строку они
               читаются как одно число. Плитки переносятся, а не сжимаются: на узком
               экране лучше два ряда, чем обрезанное время. */}
-          {(driverZone || routeMiles != null || etaMin != null) && (
+          {(driverZone || routeMiles != null || etaMin != null || fs?.location) && (
             <div className="mb-3 flex flex-wrap gap-2">
+              {/* Где сейчас трак — первым: это первое, что спрашивает брокер, и
+                  ответ отсюда тут же уходит ему в чат, поэтому плитка нажимается
+                  и кладёт «город, штат» в буфер. */}
+              {fs?.location && (
+                <div className="flex-1 basis-[11rem] rounded-xl border border-white/10 bg-white/[0.04] px-2 py-2">
+                  <div className="px-1.5 text-[10px] uppercase tracking-wider text-white/45">
+                    {t(locale, 'loadDetail.driverPlace')}
+                  </div>
+                  <CopyPlace
+                    text={placeCity(fs.location) ?? fs.location}
+                    copy={placeCity(fs.location) ?? fs.location}
+                    className="min-h-[1.375rem] text-[15px] font-semibold text-white/85"
+                  />
+                </div>
+              )}
               {driverZone && (
                 <div className="flex-1 basis-[7.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
                   <div className="text-[10px] uppercase tracking-wider text-white/45">

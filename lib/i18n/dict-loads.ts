@@ -135,6 +135,7 @@ export const loadsDict = {
     ru: 'Отметить «Оплачен» без них не выйдет: пакет для счёта брокеру собирается именно из них.',
     en: 'Marking Paid needs them: the broker invoice packet is built from these documents.',
   },
+  'loadDetail.driverPlace': { ru: 'где водитель', en: 'driver location' },
   'loadDetail.driverTime': { ru: 'время у водителя', en: 'driver time' },
   'loadDetail.distanceLeft': { ru: 'осталось ехать', en: 'distance left' },
   'loadDetail.etaLeft': { ru: 'до выгрузки', en: 'to delivery' },
