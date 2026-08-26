@@ -53,6 +53,7 @@ export const docsDict = {
 
   // DocList / DocLibrary
   'docs.list.empty': { ru: 'Документов пока нет.', en: 'No documents yet.' },
+  'docs.library.more': { ru: 'ещё {n}', en: '{n} more' },
   'docs.library.all': { ru: 'Все', en: 'All' },
   'docs.library.empty': { ru: 'Ничего не найдено.', en: 'Nothing found.' },
 

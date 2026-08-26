@@ -26,6 +26,7 @@ import { notify } from '@/lib/notify'
 import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale } from '@/lib/i18n'
+import { ShowMore } from '@/components/collapse'
 
 export function DocUpload({
   truckId,
@@ -268,6 +269,7 @@ function DocRow({
   to,
   onDelete,
   attachTargets,
+  dense,
 }: {
   doc: DocMeta
   showLinks?: boolean
@@ -277,6 +279,10 @@ function DocRow({
   /** The truck's loads, passed only on the truck page — enables the recognise/attach
    * row for a doc that isn't linked to a load yet. */
   attachTargets?: { id: number; label: string }[]
+  /** Библиотека /docs: строка в одну линию вместо трёх. Там ширина полная, а
+   * документов у трака бывает по два десятка — карточка в три строки превращала
+   * список в бесконечную ленту, где не видно и десяти файлов подряд. */
+  dense?: boolean
 }) {
   const locale = useLocale()
   // items-start, and the size/date moved UNDER the filename rather than beside it. In
@@ -284,6 +290,48 @@ function DocRow({
   // was left after a type pill, a size, a date and a delete button — measured at
   // "Certificate of Insurance.pdf" losing 89px to the ellipsis, which is the whole
   // point of a filename.
+  if (dense) {
+    // Одна строка: тип, имя файла, а маршрут, размер и дата — приглушённым хвостом
+    // справа от имени. Всё то же самое, но высота строки вместо высоты карточки.
+    return (
+      <li className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-white/[0.04]">
+        <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${KIND_TONE[doc.kind]}`}>
+          {docKindLabel(doc.kind, locale)}
+        </span>
+        <DocLink
+          docId={doc.id}
+          className="min-w-0 shrink truncate text-left text-[13px] text-white/85 hover:text-haul-400 hover:underline"
+          title={doc.title}
+        >
+          {doc.title}
+        </DocLink>
+        {(from || to) && (
+          <span className="hidden min-w-0 shrink truncate text-[11.5px] text-white/40 sm:block">
+            {from ?? '—'} → {to ?? '—'}
+          </span>
+        )}
+        <span className="nums ml-auto shrink-0 text-[11.5px] text-white/35">{doc.uploadedAt.slice(0, 10)}</span>
+        {showLinks && doc.truckId && (
+          <a href={`/trucks/${doc.truckId}`} className="shrink-0 text-[11px] text-white/45 hover:text-white/85">
+            {t(locale, 'docs.row.truck')}
+          </a>
+        )}
+        {showLinks && doc.loadId && (
+          <a href={`/loads/${doc.loadId}`} className="shrink-0 text-[11px] text-white/45 hover:text-white/85">
+            {t(locale, 'docs.row.load')}
+          </a>
+        )}
+        <button
+          onClick={() => onDelete(doc)}
+          title={t(locale, 'docs.delete.rowTitle')}
+          className="shrink-0 px-1 text-[13px] text-white/35 transition-colors hover:text-bad-400"
+        >
+          ✕
+        </button>
+      </li>
+    )
+  }
+
   return (
     <li className="flex items-start gap-2.5 rounded-lg border border-white/6 px-3 py-2">
       <span
@@ -444,17 +492,25 @@ export function DocLibrary({
                   </span>
                 </button>
                 {open && (
-                  <ul className="flex flex-col gap-1.5 p-2">
-                    {g.rows.map((r) => (
-                      <DocRow
-                        key={r.id}
-                        doc={r}
-                        showLinks
-                        from={r.origin}
-                        to={r.destination}
-                        onDelete={setDel}
-                      />
-                    ))}
+                  <ul className="flex flex-col gap-0.5 p-1.5">
+                    {/* Первые восемь — остальное за одной строкой «ещё N». У трака
+                        бывает по два десятка бумаг, и разворачивать их все сразу
+                        значит хоронить следующий трак под ними. */}
+                    <ShowMore
+                      limit={8}
+                      label={t(locale, 'docs.library.more')}
+                      items={g.rows.map((r) => (
+                        <DocRow
+                          key={r.id}
+                          doc={r}
+                          dense
+                          showLinks
+                          from={r.origin}
+                          to={r.destination}
+                          onDelete={setDel}
+                        />
+                      ))}
+                    />
                   </ul>
                 )}
               </div>
