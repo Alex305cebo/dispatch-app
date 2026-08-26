@@ -157,11 +157,30 @@ export async function updateBrokerInfo(
  * («Molo Solutions, LLC» → «Molo Solutions»), что и автоподбор: у этих компаний имя
  * в реестре почти всегда длиннее того, под которым их знают.
  */
-export async function topBrokerInfo(name: string): Promise<
-  | { mc: string | null; dot: string | null; legalName: string; city: string | null; state: string | null; authority: string | null; phone: string | null }
-  | { error: string }
-> {
+/** Реквизиты компании из реестра — то, что показывает карточка крупного брокера. */
+type TopFacts = {
+  mc: string | null
+  dot: string | null
+  legalName: string
+  city: string | null
+  state: string | null
+  authority: string | null
+  phone: string | null
+}
+
+export async function topBrokerInfo(name: string): Promise<TopFacts | { error: string }> {
   const locale = await getLocale()
+
+  // Реквизиты крупных брокеров не меняются годами, а достаются пятью запросами к
+  // реестру: один поиск и по одному на каждого однофамильца. Держим ответ месяц —
+  // карточка открывается мгновенно и переживает недоступность реестра.
+  const CACHE_KEY = 'top_broker_facts'
+  const MONTH = 30 * 86400000
+  type Cached = { at: string; facts: TopFacts }
+  const store: Record<string, Cached> = JSON.parse((await getSetting(CACHE_KEY)) || '{}')
+  const hit = store[name.toLowerCase()]
+  if (hit && Date.now() - Date.parse(hit.at) < MONTH) return hit.facts
+
   const { saferSearch, saferSnapshot } = await import('@/lib/safer')
   const { chooseCompany, compact, searchTerms } = await import('@/lib/broker-match')
 
@@ -195,7 +214,7 @@ export async function topBrokerInfo(name: string): Promise<
 
   // Город и штат в SAFER лежат второй строкой адреса: «CHICAGO, IL 60607».
   const place = /([A-Za-z .'-]+),\s*([A-Z]{2})\b/.exec(snap.address ?? '')
-  return {
+  const facts: TopFacts = {
     mc: snap.mc,
     dot: best.dot,
     legalName: snap.legalName ?? best.legalName,
@@ -204,6 +223,9 @@ export async function topBrokerInfo(name: string): Promise<
     authority: snap.operatingStatus,
     phone: snap.phone,
   }
+  store[name.toLowerCase()] = { at: new Date().toISOString(), facts }
+  await setSetting(CACHE_KEY, JSON.stringify(store))
+  return facts
 }
 
 export async function findBrokerByName(name: string) {

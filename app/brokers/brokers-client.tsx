@@ -591,6 +591,8 @@ type Facts = Awaited<ReturnType<typeof topBrokerInfo>>
 function TopBrokerFacts({ name }: { name: string }) {
   const locale = useLocale()
   const [facts, setFacts] = useState<Facts | null>(null)
+  // Счётчик попыток — им же и перезапускается загрузка по кнопке «Повторить».
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let alive = true
@@ -601,16 +603,26 @@ function TopBrokerFacts({ name }: { name: string }) {
     return () => {
       alive = false
     }
-  }, [name, locale])
+  }, [name, locale, attempt])
 
   if (!facts) {
     return <p className="mt-2 text-[12px] text-white/35">{t(locale, 'brokers.factsLoading')}</p>
   }
   if ('error' in facts) {
     return (
-      <p className="mt-2 text-[12px] text-white/35">
-        {facts.error === 'no_key' ? t(locale, 'brokers.factsNoKey') : facts.error}
-      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-white/40">
+        <span>{facts.error === 'no_key' ? t(locale, 'brokers.factsNoKey') : facts.error}</span>
+        {/* Сбой почти всегда разовый: реестр не ответил или вкладка стояла открытой
+            со старой сборки. Повтор решает оба случая, и он должен быть под рукой,
+            а не через перезагрузку страницы. */}
+        <button
+          type="button"
+          onClick={() => setAttempt((n) => n + 1)}
+          className="rounded-lg border border-white/12 px-2 py-0.5 font-medium text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300"
+        >
+          {t(locale, 'brokers.factsRetry')}
+        </button>
+      </div>
     )
   }
 

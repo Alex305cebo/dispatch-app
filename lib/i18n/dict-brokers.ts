@@ -162,6 +162,7 @@ export const brokersDict = {
   },
   'brokers.mcWorking': { ru: 'подбираю MC…', en: 'finding MC numbers…' },
   'brokers.mcNoKey': { ru: 'MC не подбираются: нужен ключ FMCSA →', en: 'MC lookup off: an FMCSA key is needed →' },
+  'brokers.factsRetry': { ru: 'Повторить', en: 'Retry' },
   'brokers.factsLoading': { ru: 'Смотрю в реестре FMCSA…', en: 'Looking it up in FMCSA…' },
   'brokers.factsFailed': { ru: 'Реестр не ответил.', en: 'The registry did not answer.' },
   'brokers.factsNoKey': { ru: 'Нужен ключ FMCSA — Админ → Ключи.', en: 'An FMCSA key is required — Admin → Keys.' },
