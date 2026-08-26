@@ -4,14 +4,14 @@
 // actions (call, open load) — plus a client-side filter for "who's free right now".
 
 import { useState } from 'react'
-import { Fuel, Phone, Copy, Package, AlertTriangle } from 'lucide-react'
+import { Fuel, Phone, Package, AlertTriangle } from 'lucide-react'
 import { LocalTime } from '@/components/local-time'
 import Link from 'next/link'
-import { notify } from '@/lib/notify'
 import { Button } from '@/components/button'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 import { usd } from '@/lib/fmt'
+import { CopyPlace } from '@/components/copy-place'
 
 export type TrackingRow = {
   id: number
@@ -88,15 +88,6 @@ export function FleetList({
   const shown = lens === 'free' ? rows.filter(isFree) : lens === 'attention' ? rows.filter(needsAttention) : rows
   const toggle = (next: 'free' | 'attention') => () => setLens((v) => (v === next ? 'all' : next))
 
-  async function copyLocation(city: string) {
-    try {
-      await navigator.clipboard.writeText(city)
-      notify('ok', `${t(locale, 'tracking.addressCopiedPrefix')}${city}`)
-    } catch {
-      notify('warn', t(locale, 'tracking.clipboardDenied'))
-    }
-  }
-
   return (
     <div>
       {(freeCount > 0 || attentionCount > 0) && (
@@ -170,22 +161,20 @@ export function FleetList({
                 whole line of its own for one tiny pill; here it costs nothing and
                 lines up down the column. */}
             <div className="mt-1 flex items-center justify-between gap-2 text-[12px] text-white/55">
-              <span className="flex min-w-0 items-center gap-1">
-                <span className="truncate">{r.city ?? t(locale, 'tracking.noEldData')}</span>
+              <span className="flex min-w-0 items-center gap-1.5">
+                {/* Место — кнопка с рамкой, а не текст с блёклым значком рядом.
+                    Прежний значок в 11 пикселей и на треть прозрачный просто не
+                    находили, а адрес отсюда уходит брокеру по нескольку раз в день. */}
+                {r.city ? (
+                  <CopyPlace text={r.city} size="sm" className="min-w-0 text-[12px] text-white/70" />
+                ) : (
+                  <span className="truncate">{t(locale, 'tracking.noEldData')}</span>
+                )}
                 {r.zone && (
                   <LocalTime
                     zone={r.zone}
                     className="nums shrink-0 text-[11.5px] text-white/40"
                   />
-                )}
-                {r.city && (
-                  <button
-                    onClick={() => void copyLocation(r.city!)}
-                    title={t(locale, 'tracking.copyLocationTitle')}
-                    className="relative z-10 shrink-0 rounded p-0.5 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
-                  >
-                    <Copy size={12} />
-                  </button>
                 )}
               </span>
               {r.fuel !== null && (

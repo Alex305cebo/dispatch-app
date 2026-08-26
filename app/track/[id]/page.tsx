@@ -9,6 +9,7 @@ import { fixPlace } from '@/lib/place'
 import { SmallRefreshButton } from '@/components/small-refresh-button'
 import { t } from '@/lib/i18n'
 import { getLocale } from '@/lib/i18n-server'
+import { CopyPlace } from '@/components/copy-place'
 
 // Public, no login — a link a dispatcher can hand to a broker/customer so they can
 // watch one truck without touching the real app. Only what's needed for that: the
@@ -56,7 +57,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <div className="mx-auto max-w-2xl">
         <h1 className="text-[18px] font-semibold">{t(locale, 'tracking.truckHash')}{row.number ?? '—'}</h1>
         <p className="mt-1 text-[13px] text-white/65">
-          {place ?? t(locale, 'tracking.noData')} · {st.text}
+          {place ? <CopyPlace text={place} size="sm" /> : t(locale, 'tracking.noData')} · {st.text}
           {row.updated_at && (
             <span className="text-white/40"> · {t(locale, 'tracking.updatedPrefix')}{agoText(row.updated_at, locale)}</span>
           )}

@@ -41,6 +41,7 @@ import { buildWorkingDays } from '@/lib/heatmap'
 import { RateConButton } from '@/components/ratecon-button'
 import { DriverAvatar } from '@/components/driver-avatar'
 import { Info } from '@/components/info'
+import { CopyPlace } from '@/components/copy-place'
 
 export const dynamic = 'force-dynamic'
 
@@ -426,11 +427,18 @@ export default async function Page() {
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 truncate text-[12px] text-white/60">
-                    <span className="min-w-0 truncate">
-                      {/* Прицеп уехал в подпись выше (truckLabel), здесь осталось
-                          только место — иначе номер печатался бы дважды подряд. */}
-                      {placeCity(fs?.location ?? null) ?? tr(locale, 'overview.noEldData')}
-                    </span>
+                    {/* Прицеп уехал в подпись выше (truckLabel), здесь осталось
+                        только место — иначе номер печатался бы дважды подряд. Место
+                        копируется: с обзора его и диктуют брокеру чаще всего. */}
+                    {placeCity(fs?.location ?? null) ? (
+                      <CopyPlace
+                        text={placeCity(fs?.location ?? null)!}
+                        size="sm"
+                        className="min-w-0 text-[12px] text-white/70"
+                      />
+                    ) : (
+                      <span className="min-w-0 truncate">{tr(locale, 'overview.noEldData')}</span>
+                    )}
                     {/* Tank level rides with the location line — same glance, and it
                         never has to compete with the week's money on the right. */}
                     {fs?.fuel != null && (

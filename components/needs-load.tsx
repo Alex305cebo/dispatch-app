@@ -4,6 +4,7 @@ import { truckLabel, type TruckRecord } from '@/lib/map'
 import { usd } from '@/lib/fmt'
 import { idleSummary, type IdleTruck } from '@/lib/idle-fleet'
 import { t, type Locale } from '@/lib/i18n'
+import { CopyPlace } from '@/components/copy-place'
 
 /**
  * «Кому искать груз» — карта на месте календаря загрузки.
@@ -74,13 +75,20 @@ export function NeedsLoad({
                   {truckLabel(truck, trailers.get(r.truckId))}
                 </span>
 
-                <span className="min-w-0 truncate text-[12px] text-white/55">
-                  {r.unavailable
-                    ? t(locale, r.unavailable === 'repair' ? 'needsLoad.repair' : 'needsLoad.vacation')
-                    : r.free
-                      ? (r.place ?? t(locale, 'needsLoad.noPlace'))
-                      : `→ ${r.place ?? '—'}`}
-                </span>
+                {/* У стоящего трака место — это ответ брокеру «где он сейчас», и его
+                    копируют. У едущего в этой колонке город ВЫГРУЗКИ, а не место
+                    трака, — там копировать нечего. */}
+                {r.free && !r.unavailable && r.place ? (
+                  <CopyPlace text={r.place} size="sm" className="min-w-0 text-[12px] text-white/70" />
+                ) : (
+                  <span className="min-w-0 truncate text-[12px] text-white/55">
+                    {r.unavailable
+                      ? t(locale, r.unavailable === 'repair' ? 'needsLoad.repair' : 'needsLoad.vacation')
+                      : r.free
+                        ? t(locale, 'needsLoad.noPlace')
+                        : `→ ${r.place ?? '—'}`}
+                  </span>
+                )}
 
                 {/* Правая часть — ответ на «когда». У стоящего это «сколько уже»,
                     у едущего «до какого числа занят». */}
