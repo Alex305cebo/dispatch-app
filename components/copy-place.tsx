@@ -6,12 +6,15 @@
 // брокеру или в карту. Раньше место было простым текстом: выделяли мышью по букве,
 // а на телефоне не выделяли вовсе.
 //
+// Кнопки ПОДПИСАНЫ словами, а не значками. Значок копирования знают не все, значок
+// булавки читается как «просто иконка места», и обе прошлые версии — сначала
+// блёклая иконка, потом плашка без подписи — пользователь не нашёл. Слово находят
+// сразу, и лишние пятьдесят пикселей этого стоят.
+//
 // Что именно кладётся в буфер — не мелочь. Название города Google Maps понимает
 // приблизительно: «Tonopah, NV» показывает центр городка, а трак стоит в двадцати
 // милях от него на трассе. Поэтому при известных координатах копируются ОНИ —
-// «38.6440, -115.6320» вставляется в поиск карт и даёт точку ровно там, где трак.
-// Города хватает для разговора с брокером, координат — для карты, и потому рядом
-// стоит вторая кнопка, которая карту просто открывает.
+// «38.64396, -115.63199» вставляется в поиск карт и даёт точку ровно там, где трак.
 
 import { Copy, MapPin } from 'lucide-react'
 import { notify } from '@/lib/notify'
@@ -64,19 +67,20 @@ export function CopyPlace({
     }
   }
 
-  const pad = size === 'sm' ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
-  const icon = size === 'sm' ? 11 : 12
+  const btn =
+    size === 'sm'
+      ? 'gap-1 px-1.5 py-0.5 text-[11px]'
+      : 'gap-1.5 px-2 py-1 text-[12px]'
+  const icon = size === 'sm' ? 11 : 13
+  const skin =
+    'relative z-10 inline-flex shrink-0 items-center rounded-lg border border-haul-500/35 bg-haul-500/15 font-medium text-haul-300 transition-colors hover:border-haul-400 hover:bg-haul-500/30 hover:text-white'
 
   return (
-    <span className={`inline-flex min-w-0 items-center gap-1 ${className}`}>
-      <button
-        type="button"
-        onClick={run}
-        title={t(locale, hasPoint ? 'tracking.copyCoordsTitle' : 'tracking.copyLocationTitle')}
-        className={`group relative z-10 inline-flex min-w-0 items-center rounded-lg border border-white/12 bg-white/[0.04] text-left transition-colors hover:border-haul-500/50 hover:bg-haul-500/10 ${pad}`}
-      >
-        <span className="min-w-0 truncate">{text}</span>
-        <Copy size={icon} className="shrink-0 text-haul-300/70 transition-colors group-hover:text-haul-300" />
+    <span className={`inline-flex min-w-0 flex-wrap items-center gap-1.5 ${className}`}>
+      <span className="min-w-0 truncate">{text}</span>
+      <button type="button" onClick={run} title={t(locale, hasPoint ? 'tracking.copyCoordsTitle' : 'tracking.copyLocationTitle')} className={`${skin} ${btn}`}>
+        <Copy size={icon} />
+        {t(locale, 'tracking.copyBtn')}
       </button>
       {/* Открыть карту — то, ради чего адрес чаще всего и копировали. Одно нажатие
           вместо «скопировал, открыл карты, вставил». */}
@@ -87,9 +91,10 @@ export function CopyPlace({
           rel="noreferrer"
           onClick={(e) => e.stopPropagation()}
           title={t(locale, 'tracking.openMapsTitle')}
-          className="relative z-10 inline-flex shrink-0 items-center rounded-lg border border-white/12 bg-white/[0.04] p-1 text-haul-300/70 transition-colors hover:border-haul-500/50 hover:bg-haul-500/10 hover:text-haul-300"
+          className={`${skin} ${btn}`}
         >
           <MapPin size={icon} />
+          {t(locale, 'tracking.mapBtn')}
         </a>
       )}
     </span>
