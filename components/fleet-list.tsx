@@ -17,6 +17,10 @@ export type TrackingRow = {
   id: number
   label: string
   city: string | null
+  /** Последний GPS-фикс. Название города Google Maps понимает приблизительно —
+   * координаты дают точку ровно там, где трак. */
+  lat: number | null
+  lng: number | null
   eldSeen: string | null
   statusText: string
   statusTone: 'move' | 'on' | 'rest'
@@ -166,7 +170,12 @@ export function FleetList({
                     Прежний значок в 11 пикселей и на треть прозрачный просто не
                     находили, а адрес отсюда уходит брокеру по нескольку раз в день. */}
                 {r.city ? (
-                  <CopyPlace text={r.city} size="sm" className="min-w-0 text-[12px] text-white/70" />
+                  <CopyPlace
+                    text={r.city}
+                    coords={{ lat: r.lat, lng: r.lng }}
+                    size="sm"
+                    className="min-w-0 text-[12px] text-white/70"
+                  />
                 ) : (
                   <span className="truncate">{t(locale, 'tracking.noEldData')}</span>
                 )}

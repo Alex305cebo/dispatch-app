@@ -57,7 +57,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <div className="mx-auto max-w-2xl">
         <h1 className="text-[18px] font-semibold">{t(locale, 'tracking.truckHash')}{row.number ?? '—'}</h1>
         <p className="mt-1 text-[13px] text-white/65">
-          {place ? <CopyPlace text={place} size="sm" /> : t(locale, 'tracking.noData')} · {st.text}
+          {place ? (
+            <CopyPlace text={place} coords={{ lat: row.lat, lng: row.lng }} size="sm" />
+          ) : (
+            t(locale, 'tracking.noData')
+          )}{' '}
+          · {st.text}
           {row.updated_at && (
             <span className="text-white/40"> · {t(locale, 'tracking.updatedPrefix')}{agoText(row.updated_at, locale)}</span>
           )}

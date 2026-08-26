@@ -433,6 +433,7 @@ export default async function Page() {
                     {placeCity(fs?.location ?? null) ? (
                       <CopyPlace
                         text={placeCity(fs?.location ?? null)!}
+                        coords={{ lat: fs?.lat, lng: fs?.lng }}
                         size="sm"
                         className="min-w-0 text-[12px] text-white/70"
                       />

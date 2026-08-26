@@ -163,7 +163,11 @@ export default async function Page({
                     уходит брокеру, и выделять его мышью по букве незачем.
                     Копируется короткая форма «город, штат». */}
                 <span className={toneClass[statusTone(fs.driveStatus)]}>
-                  <CopyPlace text={`📍 ${fs.location}`} copy={cityOf(fs.location) ?? fs.location} />
+                  <CopyPlace
+                    text={`📍 ${fs.location}`}
+                    copy={cityOf(fs.location) ?? fs.location}
+                    coords={{ lat: fs.lat, lng: fs.lng }}
+                  />
                   {fs.driveStatus && ` · ${fs.driveStatus}`}
                 </span>
               </>

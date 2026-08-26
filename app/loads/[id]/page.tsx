@@ -336,6 +336,7 @@ async function LoadMapSection({
                   <CopyPlace
                     text={placeCity(fs.location) ?? fs.location}
                     copy={placeCity(fs.location) ?? fs.location}
+                    coords={{ lat: fs.lat, lng: fs.lng }}
                     className="min-h-[1.375rem] text-[15px] font-semibold text-white/85"
                   />
                 </div>

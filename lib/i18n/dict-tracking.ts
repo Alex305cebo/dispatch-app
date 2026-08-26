@@ -67,6 +67,8 @@ export const trackingDict = {
   'tracking.legendStopped': { ru: 'стоит', en: 'stopped' },
 
   // components/fleet-list.tsx
+  'tracking.copyCoordsTitle': { ru: 'Скопировать координаты — вставь в Google Maps, точка встанет ровно там, где трак', en: 'Copy coordinates — paste into Google Maps for the exact spot' },
+  'tracking.openMapsTitle': { ru: 'Открыть на карте Google', en: 'Open in Google Maps' },
   'tracking.addressCopiedPrefix': { ru: 'Адрес скопирован: ', en: 'Address copied: ' },
   'tracking.clipboardDenied': {
     ru: 'Браузер не дал буфер — выдели адрес вручную',

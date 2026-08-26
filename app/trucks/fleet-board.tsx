@@ -238,6 +238,10 @@ export async function FleetBoard({
     trackingRows.push({
       id: t.id,
       label: truckLabel(t, trailerByTruck.get(t.id)),
+      // Координаты последнего фикса — чтобы место из строки открывалось на карте
+      // ровно там, где трак, а не в центре ближайшего городка.
+      lat: fs?.lat ?? null,
+      lng: fs?.lng ?? null,
       city: fs?.location ?? null,
       eldSeen: fs?.eld_seen ?? null,
       statusText: st.text,
