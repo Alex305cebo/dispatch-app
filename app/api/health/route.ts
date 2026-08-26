@@ -71,6 +71,10 @@ export async function GET(req: NextRequest) {
       // объём Routing у HERE — 5000/мес, потолок ниже впятеро, и это видно цифрой,
       // а не на слово.
       tolls: { usedThisMonth: hereMonth.used, cap: hereMonth.cap },
+      // Доходит ли сервер до публичного реестра SAFER. Оттуда берутся MC брокеров, и
+      // если хостинг туда не пускает, подбор молча не работает — снаружи это никак
+      // иначе не увидеть, а с рабочей машины запрос уходит и всё выглядит исправным.
+      safer: await saferProbe(),
     })
   } catch (e) {
     // A failure here is almost always "schema never applied" — say so rather than
@@ -79,5 +83,17 @@ export async function GET(req: NextRequest) {
       { db: false, error: e instanceof Error ? e.message : String(e) },
       { status: 503 },
     )
+  }
+}
+
+/** Живая проверка SAFER: ищем компанию, про которую точно известно, что она там есть. */
+async function saferProbe(): Promise<{ ok: boolean; hits: number; ms: number; error?: string }> {
+  const started = Date.now()
+  try {
+    const { saferSearch } = await import('@/lib/safer')
+    const hits = await saferSearch('MOLO SOLUTIONS')
+    return { ok: hits.length > 0, hits: hits.length, ms: Date.now() - started }
+  } catch (e) {
+    return { ok: false, hits: 0, ms: Date.now() - started, error: (e as Error).message }
   }
 }
