@@ -110,6 +110,10 @@ export const overviewDict = {
   'overview.fleetInfo': {
     ru: 'Все траки с живыми данными: где сейчас трак и сколько он заработал за неделю. Кружок слева — статус движения по GPS: зелёный едет, синий on-duty, серый стоит. Нажми на трак — вся его карточка.',
     en: "Every truck with live data: where it is now and what it earned this week. The dot on the left is GPS movement status: green is driving, blue is on-duty, gray is stopped. Click a truck for its full card.",
+    es: 'Todos los camiones con datos en vivo: dónde está cada uno y cuánto ganó esta semana. El círculo de la izquierda es el estado de movimiento por GPS: verde en marcha, azul on-duty, gris parado. Pulsa un camión para ver su ficha entera.',
+    uk: 'Усі траки з живими даними: де зараз трак і скільки він заробив за тиждень. Кружок зліва — статус руху за GPS: зелений їде, синій on-duty, сірий стоїть. Натисни на трак — уся його картка.',
+    ro: 'Toate camioanele cu date live: unde e fiecare acum și cât a câștigat săptămâna asta. Cerculețul din stânga e starea de mișcare după GPS: verde merge, albastru on-duty, gri oprit. Apasă pe un camion pentru fișa lui completă.',
+    kk: 'Тірі деректері бар барлық тракт: тракт қазір қайда және апта ішінде қанша тапты. Сол жақтағы дөңгелек — GPS бойынша қозғалыс күйі: жасыл жүріп келеді, көк on-duty, сұр тұр. Трактты бассаңыз — оның толық картасы.',
   },
   'overview.trackingLink': { ru: 'Весь парк →', en: 'Whole fleet →', es: 'Toda la flota →', uk: 'Увесь парк →', ro: 'Toată flota →', kk: 'Бүкіл парк →' },
   'overview.repair': { ru: '🔧 ремонт', en: '🔧 repair', es: '🔧 taller', uk: '🔧 ремонт', ro: '🔧 service', kk: '🔧 жөндеу' },

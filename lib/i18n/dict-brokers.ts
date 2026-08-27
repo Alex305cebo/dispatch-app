@@ -31,6 +31,10 @@ export const brokersDict = {
   'brokers.noKey': {
     ru: 'Проверка выключена — нужен бесплатный ключ FMCSA. Заведи его на mobile.fmcsa.dot.gov (через Login.gov) и добавь в переменную окружения FMCSA_WEBKEY. После этого проверка заработает сразу.',
     en: 'Checks are off — a free FMCSA key is needed. Get one at mobile.fmcsa.dot.gov (via Login.gov) and set it as the FMCSA_WEBKEY env var. Checks turn on immediately after.',
+    es: 'La verificación está apagada — hace falta una clave gratuita de FMCSA. Sácala en mobile.fmcsa.dot.gov (con Login.gov) y ponla en la variable de entorno FMCSA_WEBKEY. Después funciona al momento.',
+    uk: 'Перевірку вимкнено — потрібен безкоштовний ключ FMCSA. Заведи його на mobile.fmcsa.dot.gov (через Login.gov) і додай у змінну оточення FMCSA_WEBKEY. Після цього перевірка запрацює одразу.',
+    ro: 'Verificarea e oprită — e nevoie de o cheie gratuită FMCSA. Obține-o pe mobile.fmcsa.dot.gov (prin Login.gov) și pune-o în variabila de mediu FMCSA_WEBKEY. După asta funcționează imediat.',
+    kk: 'Тексеру өшірулі — тегін FMCSA кілті керек. Оны mobile.fmcsa.dot.gov сайтынан (Login.gov арқылы) алып, FMCSA_WEBKEY орта айнымалысына қосыңыз. Содан кейін тексеру бірден жұмыс істейді.',
   },
   'brokers.cachedNote': { ru: 'из кэша · проверено {date}', en: 'from cache · checked {date}', es: 'de la caché · verificado {date}', uk: 'з кешу · перевірено {date}', ro: 'din cache · verificat {date}', kk: 'кэштен · тексерілді {date}' },
 
@@ -68,8 +72,8 @@ export const brokersDict = {
   // ── Full checklist: rows ────────────────────────────────────
   'brokers.rowOperating': { ru: 'Статус работы', en: 'Operating status', es: 'Estado operativo', uk: 'Статус роботи', ro: 'Stare operațională', kk: 'Жұмыс күйі' },
   'brokers.rowBrokerAuth': { ru: 'Полномочия брокера', en: 'Broker authority', es: 'Autoridad de bróker', uk: 'Повноваження брокера', ro: 'Autoritate de broker', kk: 'Брокер өкілеттігі' },
-  'brokers.rowCommonAuth': { ru: 'Common carrier authority', en: 'Common carrier authority' },
-  'brokers.rowContractAuth': { ru: 'Contract authority', en: 'Contract authority' },
+  'brokers.rowCommonAuth': { ru: 'Common carrier authority', en: 'Common carrier authority', es: 'Common carrier authority', uk: 'Common carrier authority', ro: 'Common carrier authority', kk: 'Common carrier authority' },
+  'brokers.rowContractAuth': { ru: 'Contract authority', en: 'Contract authority', es: 'Contract authority', uk: 'Contract authority', ro: 'Contract authority', kk: 'Contract authority' },
   'brokers.rowOos': { ru: 'Out of service', en: 'Out of service', es: 'Fuera de servicio', uk: 'Out of service', ro: 'Scos din serviciu', kk: 'Қызметтен шығарылған' },
   'brokers.rowBond': { ru: 'Бонд BMC-84', en: 'BMC-84 bond', es: 'Fianza BMC-84', uk: 'Бонд BMC-84', ro: 'Cauțiune BMC-84', kk: 'BMC-84 бонды' },
   'brokers.rowCargo': { ru: 'Груз. страховка', en: 'Cargo insurance', es: 'Seguro de carga', uk: 'Вантажна страховка', ro: 'Asigurare marfă', kk: 'Жүк сақтандыруы' },
@@ -94,7 +98,7 @@ export const brokersDict = {
   'brokers.notRequired': { ru: 'не требуется', en: 'not required', es: 'no obligatorio', uk: 'не потрібно', ro: 'nu e obligatoriu', kk: 'қажет емес' },
   'brokers.notRated': { ru: 'не оценён', en: 'not rated', es: 'sin calificar', uk: 'не оцінений', ro: 'neevaluat', kk: 'бағаланбаған' },
   'brokers.vsNational': { ru: 'нац. среднее {n}%', en: "nat'l avg {n}%", es: 'media nacional {n}%', uk: 'нац. середнє {n}%', ro: 'media națională {n}%', kk: 'ұлттық орташа {n}%' },
-  'brokers.na': { ru: '—', en: '—' },
+  'brokers.na': { ru: '—', en: '—', es: '—', uk: '—', ro: '—', kk: '—' },
 
   // ── Section explanations (i) ────────────────────────────────
   'brokers.secAuthorityInfo': {
@@ -218,7 +222,7 @@ export const brokersDict = {
   'brokers.factsLoading': { ru: 'Смотрю в реестре FMCSA…', en: 'Looking it up in FMCSA…', es: 'Consultando el registro FMCSA…', uk: 'Дивлюся в реєстрі FMCSA…', ro: 'Se caută în registrul FMCSA…', kk: 'FMCSA тізілімінен қарап жатырмын…' },
   'brokers.factsFailed': { ru: 'Реестр не ответил.', en: 'The registry did not answer.', es: 'El registro no respondió.', uk: 'Реєстр не відповів.', ro: 'Registrul nu a răspuns.', kk: 'Тізілім жауап бермеді.' },
   'brokers.factsNoKey': { ru: 'Нужен ключ FMCSA — Админ → Ключи.', en: 'An FMCSA key is required — Admin → Keys.', es: 'Hace falta una clave FMCSA — Admin → Claves.', uk: 'Потрібен ключ FMCSA — Адмін → Ключі.', ro: 'E nevoie de o cheie FMCSA — Admin → Chei.', kk: 'FMCSA кілті керек — Әкімші → Кілттер.' },
-  'brokers.factsAuthority': { ru: 'Authority', en: 'Authority' },
+  'brokers.factsAuthority': { ru: 'Authority', en: 'Authority', es: 'Authority', uk: 'Authority', ro: 'Authority', kk: 'Authority' },
   'brokers.factsCity': { ru: 'Город', en: 'City', es: 'Ciudad', uk: 'Місто', ro: 'Oraș', kk: 'Қала' },
   'brokers.reps': { ru: 'представители брокера: {n}', en: 'broker contacts: {n}', es: 'contactos del bróker: {n}', uk: 'представники брокера: {n}', ro: 'persoane de contact ale brokerului: {n}', kk: 'брокер өкілдері: {n}' },
   'brokers.repLoads': { ru: 'грузов {n}', en: '{n} loads', es: '{n} cargas', uk: 'вантажів {n}', ro: '{n} curse', kk: '{n} жүк' },

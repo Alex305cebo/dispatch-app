@@ -7,6 +7,10 @@ export const telegramDict = {
   'telegram.page.tooltip': {
     ru: 'Переписка с водителями прямо в приложении через ТВОЙ Telegram-аккаунт (не бот) — водителям ничего ставить и нажимать не нужно. У каждого диспетчера свой аккаунт со своими диалогами. Отметь в настройках, какие чаты показывать, и привяжи их к тракам — фото POD/BOL от водителя ИИ сам прикрепит к грузу.',
     en: 'Message drivers right inside the app through YOUR Telegram account (not a bot) — drivers don\'t install or tap anything. Each dispatcher has their own account with their own chats. Pick which chats to show in settings, and link them to trucks — the AI will attach POD/BOL photos from the driver to the load automatically.',
+    es: 'Chatear con los conductores dentro de la app a través de TU cuenta de Telegram (no un bot) — los conductores no instalan ni pulsan nada. Cada despachador tiene su cuenta con sus conversaciones. Marca en los ajustes qué chats mostrar y vincúlalos a camiones — así las fotos de POD/BOL del conductor las adjunta la IA a la carga.',
+    uk: 'Листування з водіями просто в застосунку через ТВІЙ Telegram-акаунт (не бот) — водіям нічого ставити й натискати не потрібно. У кожного диспетчера свій акаунт зі своїми діалогами. Познач у налаштуваннях, які чати показувати, і прив\'яжи їх до траків — фото POD/BOL від водія ШІ сам прикріпить до вантажу.',
+    ro: 'Discuții cu șoferii direct în aplicație prin CONTUL TĂU de Telegram (nu un bot) — șoferii nu instalează și nu apasă nimic. Fiecare dispecer are contul lui, cu conversațiile lui. Bifează în setări ce chat-uri se afișează și leagă-le de camioane — pozele POD/BOL de la șofer sunt atașate automat de IA la cursă.',
+    kk: 'Жүргізушілермен қолданба ішінде СІЗДІҢ Telegram аккаунтыңыз арқылы хат алысу (бот емес) — жүргізушілерге ештеңе орнатудың, басудың қажеті жоқ. Әр диспетчердің өз аккаунты, өз диалогтары. Баптауларда қай чаттар көрсетілетінін белгілеп, оларды тракттарға байлаңыз — жүргізушінің POD/BOL суреттерін ЖИ өзі жүкке тіркейді.',
   },
   'telegram.page.yourAccount': { ru: 'Твой аккаунт', en: 'Your account', es: 'Tu cuenta', uk: 'Твій акаунт', ro: 'Contul tău', kk: 'Сіздің аккаунт' },
   'telegram.page.noneShownYet': {
@@ -53,6 +57,10 @@ export const telegramDict = {
   'telegram.chat.confirmText': {
     ru: 'Сообщение уйдёт водителю — отменить будет нельзя. Введи свой пароль (тот, которым входишь), чтобы разблокировать отправку на 2 минуты:',
     en: 'This message will go to the driver — it can\'t be unsent. Enter your password (the one you log in with) to unlock sending for 2 minutes:',
+    es: 'El mensaje se irá al conductor — no se podrá cancelar. Escribe tu contraseña (la del acceso) para desbloquear el envío durante 2 minutos:',
+    uk: 'Повідомлення піде водієві — скасувати буде не можна. Введи свій пароль (той, яким входиш), щоб розблокувати надсилання на 2 хвилини:',
+    ro: 'Mesajul pleacă la șofer — nu mai poate fi anulat. Introdu parola ta (cea de autentificare) ca să deblochezi trimiterea pentru 2 minute:',
+    kk: 'Хабарлама жүргізушіге кетеді — оны кері қайтару мүмкін болмайды. Жіберуді 2 минутқа ашу үшін құпия сөзіңізді (кіретініңізді) енгізіңіз:',
   },
   'telegram.chat.passwordPlaceholder': { ru: 'Твой пароль', en: 'Your password', es: 'Tu contraseña', uk: 'Твій пароль', ro: 'Parola ta', kk: 'Құпия сөзіңіз' },
   'telegram.chat.unlock': { ru: 'Разблокировать', en: 'Unlock', es: 'Desbloquear', uk: 'Розблокувати', ro: 'Deblochează', kk: 'Ашу' },
@@ -64,6 +72,10 @@ export const telegramDict = {
   'telegram.settings.explain': {
     ru: 'Отмеченные диалоги видны в списке слева. Всё остальное скрыто. Рядом можно привязать чат к траку — так фото POD/BOL от водителя сами прикрепятся к его грузу.',
     en: 'Checked conversations show up in the list on the left. Everything else is hidden. You can also link a chat to a truck — POD/BOL photos from that driver will then attach to their load automatically.',
+    es: 'Las conversaciones marcadas se ven en la lista de la izquierda. El resto queda oculto. Al lado se puede vincular el chat a un camión — así las fotos de POD/BOL del conductor se adjuntan solas a su carga.',
+    uk: 'Позначені діалоги видно в списку зліва. Усе інше приховано. Поруч можна прив\'язати чат до трака — так фото POD/BOL від водія самі прикріпляться до його вантажу.',
+    ro: 'Conversațiile bifate se văd în lista din stânga. Restul e ascuns. Alături poți lega chatul de un camion — așa pozele POD/BOL de la șofer se atașează singure la cursa lui.',
+    kk: 'Белгіленген диалогтар сол жақтағы тізімде көрінеді. Қалғаны жасырылған. Қасында чатты трактқа байлауға болады — сонда жүргізушінің POD/BOL суреттері оның жүгіне өзі тіркеледі.',
   },
   'telegram.settings.noneVisible': { ru: 'Диалогов не видно на этом аккаунте.', en: 'No conversations visible on this account.', es: 'En esta cuenta no se ven conversaciones.', uk: 'Діалогів не видно на цьому акаунті.', ro: 'Pe acest cont nu se văd conversații.', kk: 'Бұл аккаунтта диалогтар көрінбейді.' },
   'telegram.settings.group': { ru: 'группа', en: 'group', es: 'grupo', uk: 'група', ro: 'grup', kk: 'топ' },
@@ -79,8 +91,8 @@ export const telegramDict = {
   'telegram.setup.introPre': { ru: 'Подключается', en: 'This connects', es: 'Se conecta', uk: 'Підключається', ro: 'Se conectează', kk: 'Қосылады' },
   'telegram.setup.introBold': { ru: 'твой', en: 'your', es: 'tu', uk: 'твій', ro: 'contul tău', kk: 'сіздің' },
   'telegram.setup.introPost': { ru: 'аккаунт — водители ничего не устанавливают и не нажимают.', en: 'account — drivers don\'t install or tap anything.', es: 'cuenta — los conductores no instalan ni pulsan nada.', uk: 'акаунт — водії нічого не встановлюють і не натискають.', ro: '— șoferii nu instalează și nu apasă nimic.', kk: 'аккаунт — жүргізушілер ештеңе орнатпайды және баспайды.' },
-  'telegram.setup.apiHint': { ru: 'api_id/api_hash —', en: 'api_id/api_hash —' },
-  'telegram.setup.apiHintSuffix': { ru: '→ API development tools.', en: '→ API development tools.' },
+  'telegram.setup.apiHint': { ru: 'api_id/api_hash —', en: 'api_id/api_hash —', es: 'api_id/api_hash —', uk: 'api_id/api_hash —', ro: 'api_id/api_hash —', kk: 'api_id/api_hash —' },
+  'telegram.setup.apiHintSuffix': { ru: '→ API development tools.', en: '→ API development tools.', es: '→ API development tools.', uk: '→ API development tools.', ro: '→ API development tools.', kk: '→ API development tools.' },
   'telegram.setup.phonePlaceholder': { ru: 'Телефон (+1...)', en: 'Phone (+1...)', es: 'Teléfono (+1...)', uk: 'Телефон (+1...)', ro: 'Telefon (+1...)', kk: 'Телефон (+1...)' },
   'telegram.setup.sendingCode': { ru: 'Отправляю код…', en: 'Sending code…', es: 'Enviando el código…', uk: 'Надсилаю код…', ro: 'Se trimite codul…', kk: 'Код жіберілуде…' },
   'telegram.setup.getCode': { ru: 'Получить код в Telegram', en: 'Get code in Telegram', es: 'Recibir el código en Telegram', uk: 'Отримати код у Telegram', ro: 'Primește codul în Telegram', kk: 'Telegram-да код алу' },
@@ -129,6 +141,10 @@ export const telegramDict = {
   'telegram.actions.rcSavedNotRead': {
     ru: 'Рейт-кон сохранён в файлах трака, но прочитать его не удалось. Откройте карточку трака и нажмите «Создать груз из рейт-кона».',
     en: 'The rate con is saved in the truck files, but could not be read. Open the truck and press "Create load from rate con".',
+    es: 'El rate con se guardó en los archivos del camión, pero no se pudo leer. Abre la ficha del camión y pulsa «Crear carga desde el rate con».',
+    uk: 'Рейт-кон збережено у файлах трака, але прочитати його не вдалося. Відкрийте картку трака і натисніть «Створити вантаж із рейт-кона».',
+    ro: 'Rate con-ul a fost salvat în fișierele camionului, dar nu a putut fi citit. Deschide fișa camionului și apasă „Creează cursă din rate con”.',
+    kk: 'Рейт-кон тракт файлдарына сақталды, бірақ оны оқу мүмкін болмады. Тракт картасын ашып, «Рейт-коннан жүк құру» түймесін басыңыз.',
   },
   'telegram.attach.toDriverLoad': { ru: '📎 В груз водителя', en: '📎 To driver\'s load', es: '📎 A la carga del conductor', uk: '📎 У вантаж водія', ro: '📎 La cursa șoferului', kk: '📎 Жүргізушінің жүгіне' },
 
@@ -152,6 +168,10 @@ export const telegramDict = {
   'telegram.lib.deliveryHintApp': {
     ru: 'Telegram отправил код СООБЩЕНИЕМ В САМ TELEGRAM — в чат «Telegram» аккаунта с номером {phone}. Не SMS.',
     en: 'Telegram sent the code AS A MESSAGE INSIDE TELEGRAM ITSELF — in the "Telegram" chat of the account with number {phone}. Not SMS.',
+    es: 'Telegram mandó el código COMO MENSAJE DENTRO DE TELEGRAM — al chat «Telegram» de la cuenta con el número {phone}. No por SMS.',
+    uk: 'Telegram надіслав код ПОВІДОМЛЕННЯМ У САМ TELEGRAM — у чат «Telegram» акаунта з номером {phone}. Не SMS.',
+    ro: 'Telegram a trimis codul CA MESAJ ÎN TELEGRAM — în chatul „Telegram” al contului cu numărul {phone}. Nu prin SMS.',
+    kk: 'Telegram кодты TELEGRAM-НЫҢ ӨЗІНЕ ХАБАРЛАМА ретінде жіберді — {phone} нөмірлі аккаунттың «Telegram» чатына. SMS емес.',
   },
   'telegram.lib.deliveryHintSms': { ru: 'Telegram отправил код SMS-кой на {phone}.', en: 'Telegram sent the code by SMS to {phone}.', es: 'Telegram envió el código por SMS al {phone}.', uk: 'Telegram надіслав код SMS-кою на {phone}.', ro: 'Telegram a trimis codul prin SMS la {phone}.', kk: 'Telegram кодты {phone} нөміріне SMS-пен жіберді.' },
 } as const

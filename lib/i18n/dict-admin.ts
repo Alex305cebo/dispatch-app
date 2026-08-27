@@ -16,6 +16,10 @@ export const adminDict = {
   'admin.usersInfo': {
     ru: 'Кто может войти в приложение. У каждого диспетчера под «Права диспетчера» — переключатели доступа к функциям (отчёты, Telegram, финансы и т.д.). Отключить пользователя — сразу гасит все его текущие входы.',
     en: 'Who can sign in to the app. Each dispatcher has "Dispatcher permissions" toggles for feature access (reports, Telegram, finances, etc). Disabling a user immediately kills all of their active sessions.',
+    es: 'Quién puede entrar en la app. Bajo «Permisos del despachador» hay interruptores de acceso a las funciones (informes, Telegram, finanzas, etc.). Desactivar a un usuario cierra al instante todas sus sesiones.',
+    uk: 'Хто може увійти в застосунок. У кожного диспетчера під «Права диспетчера» — перемикачі доступу до функцій (звіти, Telegram, фінанси тощо). Відключити користувача — одразу гасить усі його поточні входи.',
+    ro: 'Cine poate intra în aplicație. Sub „Permisiunile dispecerului” sunt comutatoare de acces la funcții (rapoarte, Telegram, finanțe etc.). Dezactivarea unui utilizator îi închide imediat toate sesiunile.',
+    kk: 'Қолданбаға кім кіре алады. Әр диспетчердің «Диспетчер құқықтары» бөлімінде функцияларға қолжетімділік ауыстырғыштары бар (есептер, Telegram, қаржы және т.б.). Пайдаланушыны өшіру оның барлық ағымдағы кірулерін бірден жабады.',
   },
 
   // Админ → Ключи. Приложение ставится отдельно каждой компании, поэтому у каждой
@@ -24,6 +28,10 @@ export const adminDict = {
   'admin.keysInfo': {
     ru: 'Ключи этой установки к внешним сервисам. Заводятся бесплатно и принадлежат вашей компании: лимиты ваши, счёт ваш. Ключ никогда не показывается обратно — только «задан» или «не задан», заменить можно в любой момент.',
     en: "This installation's own keys to outside services. They are free to obtain and belong to your company: your limits, your bill. A key is never shown back — only 'set' or 'not set' — and can be replaced at any time.",
+    es: 'Las claves de esta instalación a servicios externos. Se sacan gratis y son de tu empresa: los límites y la cuenta son tuyos. La clave nunca se muestra de vuelta — solo «puesta» o «sin poner», y se puede reemplazar cuando quieras.',
+    uk: 'Ключі цієї установки до зовнішніх сервісів. Заводяться безкоштовно і належать вашій компанії: ліміти ваші, рахунок ваш. Ключ ніколи не показується назад — лише «задано» або «не задано», замінити можна будь-коли.',
+    ro: 'Cheile acestei instalări către servicii externe. Se obțin gratuit și aparțin firmei tale: limitele și factura sunt ale tale. Cheia nu se afișează niciodată înapoi — doar „setată” sau „nesetată”, și poate fi înlocuită oricând.',
+    kk: 'Осы орнатудың сыртқы қызметтерге кілттері. Тегін алынады және сіздің компанияңызға тиесілі: шектеулер де, шот та сіздікі. Кілт ешқашан кері көрсетілмейді — тек «берілген» немесе «берілмеген», кез келген уақытта ауыстыруға болады.',
   },
   'admin.keys.set': { ru: 'задан', en: 'set', es: 'puesta', uk: 'задано', ro: 'setată', kk: 'берілген' },
   'admin.keys.notSet': { ru: 'не задан', en: 'not set', es: 'sin poner', uk: 'не задано', ro: 'nesetată', kk: 'берілмеген' },
@@ -33,6 +41,10 @@ export const adminDict = {
   'admin.keys.fromEnv': {
     ru: 'Сейчас работает ключ из переменной окружения хостинга — тот, что задавали при установке. Ключ, введённый здесь, заменит его, но только ПОСЛЕ нажатия «Сохранить».',
     en: 'The key in use right now comes from the hosting environment variable — the one set at install time. A key entered here replaces it, but only AFTER you press Save.',
+    es: 'Ahora funciona la clave de la variable de entorno del hosting — la que se puso al instalar. La clave escrita aquí la sustituirá, pero solo DESPUÉS de pulsar «Guardar».',
+    uk: 'Зараз працює ключ зі змінної оточення хостингу — той, що задавали при встановленні. Ключ, введений тут, замінить його, але лише ПІСЛЯ натискання «Зберегти».',
+    ro: 'Acum funcționează cheia din variabila de mediu a găzduirii — cea pusă la instalare. Cheia introdusă aici o va înlocui, dar doar DUPĂ apăsarea „Salvează”.',
+    kk: 'Қазір хостингтің орта айнымалысындағы кілт жұмыс істейді — орнату кезінде берілгені. Осында енгізілген кілт оны ауыстырады, бірақ тек «Сақтау» басылған СОҢ.',
   },
   'admin.keys.test': { ru: 'Проверить ключ', en: 'Test the key', es: 'Probar la clave', uk: 'Перевірити ключ', ro: 'Testează cheia', kk: 'Кілтті тексеру' },
   'admin.keys.testTyped': { ru: 'проверяю набранный ключ', en: 'testing the typed key', es: 'probando la clave escrita', uk: 'перевіряю набраний ключ', ro: 'testez cheia introdusă', kk: 'терілген кілтті тексеріп жатырмын' },
@@ -45,16 +57,28 @@ export const adminDict = {
   'admin.keys.geminiHint': {
     ru: 'Распознавание rate confirmation и фото документов. Ключ бесплатный, выдаётся сразу на ваш Google-аккаунт. Если позже подключите там оплату, тот же ключ получит платные лимиты — в приложении менять ничего не нужно. Чтобы стереть ключ, введите один дефис.',
     en: 'Rate-confirmation and document-photo recognition. The key is free and issued instantly to your Google account. If you later enable billing there, the same key gets the paid limits — nothing changes in the app. To erase a key, enter a single dash.',
+    es: 'Lectura de rate confirmations y fotos de documentos. La clave es gratis y se emite al momento en tu cuenta de Google. Si luego activas el pago allí, la misma clave pasa a límites de pago — en la app no hay que cambiar nada. Para borrar la clave, escribe un guion.',
+    uk: 'Розпізнавання rate confirmation і фото документів. Ключ безкоштовний, видається одразу на ваш Google-акаунт. Якщо пізніше підключите там оплату, той самий ключ отримає платні ліміти — у застосунку міняти нічого не потрібно. Щоб стерти ключ, введіть один дефіс.',
+    ro: 'Citirea rate confirmation-urilor și a pozelor de documente. Cheia e gratuită și se emite imediat pe contul tău Google. Dacă activezi ulterior plata acolo, aceeași cheie primește limite plătite — în aplicație nu trebuie schimbat nimic. Ca să ștergi cheia, scrie o singură liniuță.',
+    kk: 'Rate confirmation мен құжат суреттерін тану. Кілт тегін, Google аккаунтыңызға бірден беріледі. Кейін онда төлемді қоссаңыз, сол кілт ақылы шектеулерді алады — қолданбада ештеңе өзгертудің қажеті жоқ. Кілтті өшіру үшін бір сызықша енгізіңіз.',
   },
   'admin.keys.fmcsa': { ru: 'Проверка брокеров (FMCSA)', en: 'Broker checks (FMCSA)', es: 'Verificación de brókers (FMCSA)', uk: 'Перевірка брокерів (FMCSA)', ro: 'Verificarea brokerilor (FMCSA)', kk: 'Брокерлерді тексеру (FMCSA)' },
   'admin.keys.fmcsaHint': {
     ru: 'Проверка полномочий и страховки брокера по базе FMCSA. Ключ бесплатный, выдаётся сразу.',
     en: "Broker authority and insurance lookups against the FMCSA database. The key is free and issued instantly.",
+    es: 'Comprobación de la autoridad y el seguro del bróker en la base de FMCSA. La clave es gratis y se emite al momento.',
+    uk: 'Перевірка повноважень і страховки брокера за базою FMCSA. Ключ безкоштовний, видається одразу.',
+    ro: 'Verificarea autorității și a asigurării brokerului în baza FMCSA. Cheia e gratuită și se emite imediat.',
+    kk: 'Брокердің өкілеттігі мен сақтандыруын FMCSA базасынан тексеру. Кілт тегін, бірден беріледі.',
   },
   'admin.keys.here': { ru: 'Ключ HERE (платные дороги)', en: 'HERE key (tolls)', es: 'Clave HERE (peajes)', uk: 'Ключ HERE (платні дороги)', ro: 'Cheie HERE (taxe de drum)', kk: 'HERE кілті (ақылы жолдар)' },
   'admin.keys.hereHint': {
     ru: 'Считает стоимость платных дорог для трака по осям и весу. Бесплатный уровень HERE покрывает парк с запасом; без ключа раздел «Платные дороги» просто скажет, что считать нечем.',
     en: 'Prices toll roads for a truck by axles and weight. HERE’s free tier covers a fleet this size with room to spare; without a key the Tolls section simply says it has nothing to calculate with.',
+    es: 'Calcula el coste de los peajes para el camión por ejes y peso. El nivel gratuito de HERE cubre la flota de sobra; sin clave, la sección «Peajes» simplemente dirá que no hay con qué calcular.',
+    uk: 'Рахує вартість платних доріг для трака за осями і вагою. Безкоштовний рівень HERE покриває парк із запасом; без ключа розділ «Платні дороги» просто скаже, що рахувати нічим.',
+    ro: 'Calculează costul taxelor de drum pentru camion după axe și greutate. Nivelul gratuit HERE acoperă flota cu vârf; fără cheie, secțiunea „Taxe de drum” doar va spune că nu are cu ce calcula.',
+    kk: 'Тракт үшін ақылы жолдардың құнын осьтер мен салмақ бойынша есептейді. HERE тегін деңгейі паркке артығымен жетеді; кілтсіз «Ақылы жолдар» бөлімі есептейтін ештеңе жоқ дейді.',
   },
   'admin.keys.modelPref': { ru: 'Что важнее при распознавании', en: 'Recognition priority', es: 'Qué prima al reconocer', uk: 'Що важливіше при розпізнаванні', ro: 'Ce contează la recunoaștere', kk: 'Тануда не маңыздырақ' },
   'admin.keys.modelSaving': { ru: 'Экономия', en: 'Economy', es: 'Economía', uk: 'Економія', ro: 'Economie', kk: 'Үнемдеу' },
@@ -62,10 +86,18 @@ export const adminDict = {
   'admin.keys.modelSavingHint': {
     ru: 'Сначала пробуется модель с большим суточным лимитом. Это правильный выбор на бесплатном тарифе, где заканчиваются не токены, а количество запросов за день.',
     en: 'The model with the larger daily allowance is tried first. This is the right choice on the free tier, where what runs out is the number of requests per day, not tokens.',
+    es: 'Primero se prueba el modelo con mayor límite diario. Es lo correcto en el plan gratuito, donde lo que se acaba no son los tokens, sino el número de peticiones al día.',
+    uk: 'Спершу пробується модель із більшим добовим лімітом. Це правильний вибір на безкоштовному тарифі, де закінчуються не токени, а кількість запитів за день.',
+    ro: 'Întâi se încearcă modelul cu limita zilnică mai mare. E alegerea corectă pe planul gratuit, unde nu tokenurile se termină, ci numărul de cereri pe zi.',
+    kk: 'Алдымен тәуліктік шегі үлкенірек модель сыналады. Тегін тарифте бұл дұрыс таңдау: онда токен емес, тәуліктік сұраныс саны бітеді.',
   },
   'admin.keys.modelQualityHint': {
     ru: 'Сначала пробуется более сильная модель. Имеет смысл, только если в Google-аккаунте подключена оплата: на бесплатном тарифе её суточный лимит закончится после двух десятков документов.',
     en: 'The stronger model is tried first. Worth choosing only if billing is enabled on the Google account: on the free tier its daily allowance runs out after a couple of dozen documents.',
+    es: 'Primero se prueba el modelo más potente. Solo tiene sentido si la cuenta de Google tiene pago activado: en el plan gratuito su límite diario se agota tras un par de decenas de documentos.',
+    uk: 'Спершу пробується сильніша модель. Має сенс, лише якщо в Google-акаунті підключена оплата: на безкоштовному тарифі її добовий ліміт скінчиться після двох десятків документів.',
+    ro: 'Întâi se încearcă modelul mai puternic. Are sens doar dacă în contul Google e activată plata: pe planul gratuit limita lui zilnică se termină după vreo douăzeci de documente.',
+    kk: 'Алдымен күштірек модель сыналады. Бұл Google аккаунтында төлем қосулы болғанда ғана мәнді: тегін тарифте оның тәуліктік шегі жиырма шақты құжаттан кейін бітеді.',
   },
 
   // Публичное демо — витрине нужно, клиентской копии нет.
@@ -73,6 +105,10 @@ export const adminDict = {
   'admin.demoPublicInfo': {
     ru: 'Кнопка «посмотреть демо без регистрации» на экране входа. Нужна витрине, чтобы клиент увидел приложение с готовыми данными до покупки. В рабочей копии компании её включать не стоит: это дверь, в которую входит кто угодно, а данные демо занимают место в вашей базе.',
     en: 'The "view the demo without signing up" button on the login screen. A showcase install needs it so a prospect can see the app with data before buying. A working company copy should leave it off: it is a door anyone can walk through, and the demo data takes room in your database.',
+    es: 'El botón «ver demo sin registro» en la pantalla de acceso. Sirve al escaparate para que el cliente vea la app con datos listos antes de comprar. En la copia de trabajo de la empresa no conviene activarlo: es una puerta por la que entra cualquiera, y los datos de la demo ocupan sitio en tu base.',
+    uk: 'Кнопка «подивитися демо без реєстрації» на екрані входу. Потрібна вітрині, щоб клієнт побачив застосунок із готовими даними до покупки. У робочій копії компанії вмикати її не варто: це двері, у які заходить будь-хто, а дані демо займають місце у вашій базі.',
+    ro: 'Butonul „vezi demo fără înregistrare” de pe ecranul de autentificare. E util vitrinei, ca să vadă clientul aplicația cu date gata înainte de cumpărare. În copia de lucru a firmei nu merită activat: e o ușă pe care intră oricine, iar datele demo ocupă loc în baza ta.',
+    kk: 'Кіру бетіндегі «тіркелусіз демоны көру» түймесі. Витринаға керек: клиент сатып алғанға дейін дайын деректері бар қолданбаны көреді. Компанияның жұмыс көшірмесінде оны қосудың қажеті жоқ: бұл кез келген адам кіретін есік, ал демо деректері базаңызда орын алады.',
   },
   'admin.demoPublic.currentlyOn': {
     ru: 'Демо включено: на входе есть кнопка, любой может зайти и посмотреть придуманный парк.',
@@ -94,6 +130,10 @@ export const adminDict = {
   'admin.demoPublic.urlHint': {
     ru: 'Если демо живёт отдельной установкой — впишите её адрес, и на экране входа появится кнопка «Посмотреть демо», ведущая туда. Это безопасный вариант для рабочей копии: гость смотрит чужой сервер, ваша база в показе не участвует. Пусто — кнопки не будет (или будет своё демо, если включено выше).',
     en: 'If the demo runs as its own installation, put its address here and the login screen gets a "View the demo" button pointing there. This is the safe option for a working copy: the visitor browses another server and your database is not involved. Blank — no button (or the demo of this install, if enabled above).',
+    es: 'Si la demo vive en otra instalación, escribe su dirección y en la pantalla de acceso aparecerá un botón «Ver demo» que lleva allí. Es la opción segura para la copia de trabajo: el visitante mira otro servidor y tu base no participa. Vacío — no habrá botón (o habrá demo propia, si está activada arriba).',
+    uk: 'Якщо демо живе окремою установкою — впишіть її адресу, і на екрані входу з\'явиться кнопка «Подивитися демо», що веде туди. Це безпечний варіант для робочої копії: гість дивиться чужий сервер, ваша база в показі не бере участі. Порожньо — кнопки не буде (або буде своє демо, якщо ввімкнено вище).',
+    ro: 'Dacă demo-ul stă pe altă instalare — scrie adresa lui și pe ecranul de autentificare apare butonul „Vezi demo” care duce acolo. E varianta sigură pentru copia de lucru: vizitatorul se uită pe alt server, baza ta nu participă. Gol — nu va fi buton (sau va fi demo-ul propriu, dacă e activat mai sus).',
+    kk: 'Демо бөлек орнатуда тұрса — оның мекенжайын жазыңыз, сонда кіру бетінде сонда апаратын «Демоны көру» түймесі пайда болады. Жұмыс көшірмесі үшін қауіпсіз нұсқа: қонақ бөгде серверді көреді, сіздің базаңыз көрсетілімге қатыспайды. Бос болса — түйме болмайды (немесе жоғарыда қосулы болса, өз демоңыз болады).',
   },
   'admin.demoPublic.badUrl': {
     ru: 'Адрес должен начинаться с https:// и быть целым — например https://demo.dispatch4you.pro',
@@ -112,6 +152,10 @@ export const adminDict = {
   'admin.openAccessInfo': {
     ru: 'Временно убрать вход для всех — например, чтобы кто-то посмотрел живые данные без своего аккаунта. Эта панель всегда остаётся под входом, чтобы можно было выключить обратно.',
     en: 'Temporarily remove the login requirement for everyone — e.g. so someone can view live data without their own account. This panel always stays behind login, so it can always be switched back off.',
+    es: 'Quitar temporalmente el acceso con contraseña para todos — por ejemplo, para que alguien vea datos reales sin cuenta propia. Este panel siempre queda tras el login, para poder desactivarlo de vuelta.',
+    uk: 'Тимчасово прибрати вхід для всіх — наприклад, щоб хтось подивився живі дані без свого акаунта. Ця панель завжди залишається під входом, щоб можна було вимкнути назад.',
+    ro: 'Scoate temporar autentificarea pentru toți — de exemplu, ca cineva să vadă date reale fără cont propriu. Acest panou rămâne mereu în spatele autentificării, ca să poți dezactiva înapoi.',
+    kk: 'Барлығы үшін кіруді уақытша алып тастау — мысалы, біреу өз аккаунтынсыз тірі деректерді көрсін. Бұл панель әрқашан кірудің артында қалады, кері өшіре алу үшін.',
   },
 
   'admin.companyHeading': { ru: 'Настройки компании', en: 'Company settings', es: 'Ajustes de la empresa', uk: 'Налаштування компанії', ro: 'Setările firmei', kk: 'Компания баптаулары' },
@@ -128,16 +172,28 @@ export const adminDict = {
   'admin.upNextInfo': {
     ru: 'Реально можно построить, но нужны детали от тебя, прежде чем начинать — без них это просто макет, а не рабочая функция.',
     en: "Genuinely buildable, but needs details from you before starting — without them it's just a mockup, not a working feature.",
+    es: 'Se puede construir de verdad, pero hacen falta detalles tuyos antes de empezar — sin ellos es solo una maqueta, no una función que trabaje.',
+    uk: 'Реально можна побудувати, але потрібні деталі від тебе, перш ніж починати — без них це просто макет, а не робоча функція.',
+    ro: 'Chiar se poate construi, dar e nevoie de detalii de la tine înainte de a începe — fără ele e doar o machetă, nu o funcție care merge.',
+    kk: 'Шынымен жасауға болады, бірақ бастамас бұрын сізден мәліметтер керек — онсыз бұл жұмыс істейтін функция емес, жай макет.',
   },
   'admin.factoringTitle': { ru: 'Факторинг в 1 клик', en: 'One-click factoring', es: 'Factoring en 1 clic', uk: 'Факторинг в 1 клік', ro: 'Factoring într-un clic', kk: '1 басумен факторинг' },
   'admin.factoringDesc': {
     ru: 'Автоматическая отправка собранного инвойса твоей факторинговой компании. Нужно от тебя: с какой компанией работаешь (Apex Capital, Triumph, RTS и т.п.) и доступ к их API/порталу — обычно выдают клиенту по запросу.',
     en: 'Automatically send the assembled invoice to your factoring company. Needed from you: which company you work with (Apex Capital, Triumph, RTS, etc) and access to their API/portal — usually issued to clients on request.',
+    es: 'Envío automático de la factura armada a tu empresa de factoring. Hace falta de ti: con qué empresa trabajas (Apex Capital, Triumph, RTS, etc.) y acceso a su API o portal — suelen dárselo al cliente si lo pide.',
+    uk: 'Автоматичне надсилання зібраного інвойса твоїй факторинговій компанії. Потрібно від тебе: з якою компанією працюєш (Apex Capital, Triumph, RTS тощо) і доступ до їхнього API/порталу — зазвичай видають клієнту на запит.',
+    ro: 'Trimiterea automată a facturii construite către firma ta de factoring. E nevoie de la tine: cu ce firmă lucrezi (Apex Capital, Triumph, RTS etc.) și acces la API-ul/portalul lor — de obicei se dă clientului la cerere.',
+    kk: 'Жиналған инвойсты факторинг компанияңызға автоматты жіберу. Сізден керегі: қай компаниямен жұмыс істейтініңіз (Apex Capital, Triumph, RTS және т.б.) және олардың API/порталына қолжетімділік — әдетте клиентке сұрау бойынша береді.',
   },
   'admin.iftaTitle': { ru: 'IFTA-отчёт в 1 клик', en: 'One-click IFTA report', es: 'Informe IFTA en 1 clic', uk: 'IFTA-звіт в 1 клік', ro: 'Raport IFTA într-un clic', kk: '1 басумен IFTA есебі' },
   'admin.iftaDesc': {
     ru: 'Автоматический расчёт квартального топливного налога по штатам. Нужно от тебя: базовый штат регистрации IFTA и источник миль/топлива по штатам (ELD, если провайдер их отдаёт, или квитанции вручную).',
     en: 'Automatic calculation of the quarterly fuel tax by state. Needed from you: your IFTA base registration state and a source for miles/fuel by state (ELD if your provider exposes it, or manual receipts).',
+    es: 'Cálculo automático del impuesto trimestral de combustible por estados. Hace falta de ti: el estado base de registro IFTA y la fuente de millas/combustible por estado (el ELD, si el proveedor los da, o los recibos a mano).',
+    uk: 'Автоматичний розрахунок квартального паливного податку за штатами. Потрібно від тебе: базовий штат реєстрації IFTA і джерело миль/пального по штатах (ELD, якщо провайдер їх віддає, або квитанції вручну).',
+    ro: 'Calculul automat al taxei trimestriale pe combustibil pe state. E nevoie de la tine: statul de bază al înregistrării IFTA și sursa milelor/combustibilului pe state (ELD-ul, dacă furnizorul le dă, sau bonurile manual).',
+    kk: 'Штаттар бойынша тоқсандық жанармай салығын автоматты есептеу. Сізден керегі: IFTA тіркеуінің базалық штаты және штаттар бойынша миль/жанармай көзі (провайдер берсе — ELD, болмаса түбіртектер қолмен).',
   },
 
   'admin.journalHeading': { ru: 'Журнал действий', en: 'Activity log', es: 'Registro de acciones', uk: 'Журнал дій', ro: 'Jurnal de acțiuni', kk: 'Әрекеттер журналы' },
@@ -293,6 +349,10 @@ export const adminDict = {
   'admin.logins.geminiInfo': {
     ru: 'Сколько токенов приложение потратило на распознавание rate con. Это наш счётчик — считает с момента добавления. Полный и точный расход (и лимиты) — в консоли поставщика ИИ (aistudio.google.com) по твоему API-ключу.',
     en: 'How many tokens the app has spent recognizing rate cons. This is our own counter, tracking since it was added. The full, exact spend (and limits) is in the AI provider console (aistudio.google.com) under your API key.',
+    es: 'Cuántos tokens gastó la app leyendo rate cons. Es nuestro contador — cuenta desde que se añadió. El gasto completo y exacto (y los límites) está en la consola del proveedor de IA (aistudio.google.com) con tu clave API.',
+    uk: 'Скільки токенів застосунок витратив на розпізнавання rate con. Це наш лічильник — рахує з моменту додавання. Повна і точна витрата (і ліміти) — у консолі постачальника ШІ (aistudio.google.com) за твоїм API-ключем.',
+    ro: 'Câte tokenuri a consumat aplicația citind rate con-uri. E contorul nostru — numără de la momentul adăugării. Consumul complet și exact (și limitele) sunt în consola furnizorului de IA (aistudio.google.com) cu cheia ta API.',
+    kk: 'Қолданба rate con тануға қанша токен жұмсады. Бұл біздің есептегіш — қосылған сәттен санайды. Толық әрі нақты шығын (және шектеулер) — ЖИ жеткізушісінің консолінде (aistudio.google.com), сіздің API кілтіңіз бойынша.',
   },
   'admin.logins.tokens': { ru: 'токенов', en: 'tokens', es: 'tokens', uk: 'токенів', ro: 'tokenuri', kk: 'токен' },
   'admin.logins.calls': { ru: 'запросов', en: 'requests', es: 'peticiones', uk: 'запитів', ro: 'cereri', kk: 'сұраныс' },
