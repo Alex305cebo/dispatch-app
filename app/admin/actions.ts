@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { sql } from '@/lib/db'
 import { humanError } from '@/lib/msg'
 import { hashPassword } from '@/lib/auth'
-import { getCurrentUser } from '@/lib/session'
+import { companyScope, demoReadOnly, getCurrentUser } from '@/lib/session'
 import { deleteSetting, getSetting, getSettings, setSetting } from '@/lib/settings'
 import { aiModelPref, fmcsaKey, geminiKey, hereKey } from '@/lib/keys'
 import { CAPABILITIES, type CapabilityKey } from '@/lib/capabilities'
@@ -31,6 +31,11 @@ export type AdminUser = {
   pendingSince: string | null
   /** Effective feature access, for dispatchers only (admins have everything). */
   capabilities: Record<CapabilityKey, boolean> | null
+  /** Траки, закреплённые за этим человеком. Пусто — он ни за одну машину не отвечает. */
+  trucks: { id: number; label: string }[]
+  /** Сколько грузов он завёл за последние 30 дней — единственная цифра, по которой
+   * видно, работает диспетчер или просто числится. */
+  loads30: number
 }
 
 export async function listUsers(): Promise<AdminUser[]> {
@@ -50,6 +55,26 @@ export async function listUsers(): Promise<AdminUser[]> {
     disabled_at: string | null
     pending_since: string | null
   }[]
+  // Закреплённые машины и выработка — двумя запросами на всех, а не по запросу на
+  // каждого: пользователей десяток, но плодить N+1 в админке незачем.
+  const companyId = await companyScope()
+  const [truckRows, loadRows] = await Promise.all([
+    sql`SELECT id, number, name, driver_name, dispatcher_id FROM trucks
+        WHERE company_id = ${companyId} AND dispatcher_id IS NOT NULL`,
+    sql`SELECT dispatcher_id, count(*)::int AS n FROM loads
+        WHERE company_id = ${companyId} AND dispatcher_id IS NOT NULL
+          AND created_at > now() - interval '30 days'
+        GROUP BY dispatcher_id`,
+  ])
+  const trucksBy = new Map<number, { id: number; label: string }[]>()
+  for (const t of truckRows as { id: number; number: string | null; name: string; driver_name: string | null; dispatcher_id: number }[]) {
+    const label = [t.number ?? t.name, t.driver_name].filter(Boolean).join(' · ')
+    trucksBy.set(t.dispatcher_id, [...(trucksBy.get(t.dispatcher_id) ?? []), { id: t.id, label }])
+  }
+  const loadsBy = new Map<number, number>(
+    (loadRows as { dispatcher_id: number; n: number }[]).map((r) => [r.dispatcher_id, r.n]),
+  )
+
   return Promise.all(
     rows.map(async (r) => ({
       id: r.id,
@@ -60,8 +85,57 @@ export async function listUsers(): Promise<AdminUser[]> {
       disabledAt: r.disabled_at,
       pendingSince: r.pending_since,
       capabilities: r.role === 'dispatcher' ? await capabilitiesFor(r.id) : null,
+      trucks: trucksBy.get(r.id) ?? [],
+      loads30: loadsBy.get(r.id) ?? 0,
     })),
   )
+}
+
+/** Весь парк с тем, за кем каждая машина закреплена, — для списка выбора в админке. */
+export async function listFleetForAssign(): Promise<
+  { id: number; label: string; dispatcherId: number | null }[]
+> {
+  await assertAdmin()
+  const rows = (await sql`
+    SELECT id, number, name, driver_name, dispatcher_id FROM trucks
+    WHERE company_id = ${await companyScope()}
+    ORDER BY number NULLS LAST, id`) as {
+    id: number
+    number: string | null
+    name: string
+    driver_name: string | null
+    dispatcher_id: number | null
+  }[]
+  return rows.map((t) => ({
+    id: t.id,
+    label: [t.number ?? t.name, t.driver_name].filter(Boolean).join(' · '),
+    dispatcherId: t.dispatcher_id,
+  }))
+}
+
+/**
+ * Закрепить трак за диспетчером или снять закрепление (userId = null).
+ *
+ * Закрепление одно: трак переходит от прежнего диспетчера к новому молча, без
+ * «сначала отвяжи». Двух ответственных за одну машину не бывает — это и есть та
+ * ситуация, ради которой закрепление вводится.
+ */
+export async function setTruckDispatcher(
+  truckId: number,
+  userId: number | null,
+): Promise<{ error: string } | void> {
+  await assertAdmin()
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const companyId = await companyScope()
+  if (userId !== null) {
+    const ok = (await sql`SELECT 1 FROM users WHERE id = ${userId} AND is_demo = FALSE`) as unknown[]
+    if (ok.length === 0) return { error: t(await getLocale(), 'admin.assign.noUser') }
+  }
+  await sql`UPDATE trucks SET dispatcher_id = ${userId}
+            WHERE id = ${truckId} AND company_id = ${companyId}`
+  revalidatePath('/admin')
+  revalidatePath('/trucks')
 }
 
 /** Toggle one dispatcher's access to one capability. Admins have everything, so this

@@ -407,7 +407,7 @@ ALTER TABLE loads ADD COLUMN IF NOT EXISTS driver_info TEXT;
 -- BUMP THIS whenever a column is added above. Nothing gates on the value — the app must
 -- never refuse to start over a version mismatch, because a hard stop is worse than the
 -- missing-column error it would be preventing.
-INSERT INTO settings (key, value) VALUES ('schema_version', '2026-08-22')
+INSERT INTO settings (key, value) VALUES ('schema_version', '2026-08-27')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- Через кого брокер платит перевозчикам (TriumphPay, Comdata, RTS…), если рейт-кон
@@ -426,3 +426,9 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS recovery_hash TEXT;
 -- Самостоятельная заявка с экрана входа: аккаунт есть, но до подтверждения
 -- администратором внутрь не пускает. Подтвердили — колонка обнуляется.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_since TIMESTAMPTZ;
+
+-- Закреплённый за траком диспетчер. Один трак — один ответственный: иначе на вопрос
+-- «кто ведёт 1705» отвечают «вроде бы Мартин», а машина простаивает, пока каждый
+-- думает, что ею занят другой. У трака может не быть диспетчера (NULL) — так и было
+-- до этой колонки, и это законное состояние, а не ошибка.
+ALTER TABLE trucks ADD COLUMN IF NOT EXISTS dispatcher_id INTEGER REFERENCES users(id) ON DELETE SET NULL;

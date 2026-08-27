@@ -78,6 +78,8 @@ export const trucksDict = {
   'trucks.detail.trailer': { ru: 'Трейлер', en: 'Trailer' },
   'trucks.detail.noDriver': { ru: 'Без водителя', en: 'No driver' },
   'trucks.detail.noPhone': { ru: '☎ не указан', en: '☎ not set' },
+  'trucks.detail.dispatcherPick': { ru: 'Ведёт диспетчер', en: 'Dispatcher' },
+  'trucks.detail.dispatcher': { ru: 'Ведёт диспетчер: {name}', en: 'Dispatcher: {name}' },
   'trucks.detail.plateLabel': { ru: 'Номер', en: 'Plate' },
   'trucks.detail.truckAlt': { ru: 'Трак', en: 'Truck' },
   'trucks.chip.weekRate': { ru: 'Рейт за неделю', en: 'Week rate' },

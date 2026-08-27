@@ -8,11 +8,13 @@ import {
   rejectUser,
   resetUserPassword,
   setDispatcherCapability,
+  setTruckDispatcher,
   setUserDisabled,
   setUserRole,
   type AdminUser,
 } from './actions'
 import { CAPABILITIES, capabilityMeta } from '@/lib/capabilities'
+import { Info } from '@/components/info'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
@@ -20,7 +22,17 @@ import { t } from '@/lib/i18n'
 const input =
   'w-full rounded-lg border border-white/10 bg-ink-950/70 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500'
 
-export function UserList({ users, currentUserId }: { users: AdminUser[]; currentUserId: number }) {
+export function UserList({
+  users,
+  currentUserId,
+  fleet,
+}: {
+  users: AdminUser[]
+  currentUserId: number
+  /** Весь парк с текущим закреплением — чтобы в строке диспетчера было видно не
+   * только его машины, но и чужие, которые можно забрать. */
+  fleet: { id: number; label: string; dispatcherId: number | null }[]
+}) {
   const locale = useLocale()
   const ROLE_LABEL = { admin: t(locale, 'userPanel.roleAdmin'), dispatcher: t(locale, 'userPanel.roleDispatcher') }
   const capMeta = capabilityMeta(locale)
@@ -46,6 +58,14 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
       setPassword('')
       setRole('dispatcher')
       setAdding(false)
+    })
+  }
+
+  function assign(truckId: number, userId: number | null) {
+    start(async () => {
+      const res = await setTruckDispatcher(truckId, userId)
+      if (res?.error) notify('error', res.error)
+      else notify('ok', t(locale, 'admin.assign.saved'))
     })
   }
 
@@ -184,6 +204,69 @@ export function UserList({ users, currentUserId }: { users: AdminUser[]; current
                 {t(locale, 'admin.users.save')}
               </Button>
             </div>
+          )}
+
+          {/* Кто за что отвечает — прямо в строке, без разворачивания: это первое, за
+              чем сюда заходят, и прятать его под «подробнее» значит не показать вовсе. */}
+          {!u.pendingSince && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11.5px]">
+              {u.trucks.length > 0 ? (
+                u.trucks.map((tr) => (
+                  <span key={tr.id} className="rounded-full bg-haul-500/15 px-2 py-0.5 font-medium text-haul-300">
+                    {tr.label}
+                  </span>
+                ))
+              ) : (
+                <span className="text-white/35">{t(locale, 'admin.assign.none')}</span>
+              )}
+              {u.loads30 > 0 && (
+                <span className="nums ml-auto text-white/40">
+                  {t(locale, 'admin.assign.loads30').replace('{n}', String(u.loads30))}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Закрепление траков. Список весь, с пометкой, у кого машина сейчас, —
+              иначе непонятно, свободна она или её надо забирать. */}
+          {!u.pendingSince && fleet.length > 0 && (
+            <details className="group mt-2.5 border-t border-white/6 pt-2.5">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium text-white/70 transition-colors hover:text-white/95">
+                <span className="text-[12px] leading-none text-white/40 transition-transform duration-200 group-open:rotate-90">
+                  ▸
+                </span>
+                {t(locale, 'admin.assign.heading')}
+                <Info text={t(locale, 'admin.assign.info')} />
+              </summary>
+              <div className="mt-2 flex flex-col gap-1">
+                {fleet.map((tr) => {
+                  const mine = tr.dispatcherId === u.id
+                  const owner = users.find((x) => x.id === tr.dispatcherId)
+                  return (
+                    <label
+                      key={tr.id}
+                      className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-white/6 bg-white/[0.015] px-3 py-1.5 select-none"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={mine}
+                        disabled={pending}
+                        onChange={() => assign(tr.id, mine ? null : u.id)}
+                        className="size-4 shrink-0 accent-good-500"
+                      />
+                      <span className="min-w-0 flex-1 truncate text-[13px]">{tr.label}</span>
+                      <span className="shrink-0 text-[11px] text-white/40">
+                        {tr.dispatcherId === null
+                          ? t(locale, 'admin.assign.free')
+                          : mine
+                            ? ''
+                            : t(locale, 'admin.assign.takenBy').replace('{name}', owner?.name ?? '—')}
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+            </details>
           )}
 
           {/* Per-dispatcher feature access. Admins have everything, so no toggles for

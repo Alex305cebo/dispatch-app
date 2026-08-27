@@ -164,6 +164,17 @@ export const adminDict = {
   'admin.users.accessEnabled': { ru: 'Доступ включён', en: 'Access enabled' },
   'admin.users.accessDisabled': { ru: 'Доступ отключён', en: 'Access disabled' },
   'admin.users.save': { ru: 'Сохранить', en: 'Save' },
+  'admin.assign.noUser': { ru: 'Такого пользователя нет.', en: 'No such user.' },
+  'admin.assign.heading': { ru: 'Закреплённые траки', en: 'Assigned trucks' },
+  'admin.assign.none': { ru: 'ни одного трака', en: 'no trucks' },
+  'admin.assign.free': { ru: 'без диспетчера', en: 'unassigned' },
+  'admin.assign.takenBy': { ru: 'у {name}', en: 'with {name}' },
+  'admin.assign.saved': { ru: 'Закрепление изменено.', en: 'Assignment updated.' },
+  'admin.assign.loads30': { ru: 'грузов за 30 дней: {n}', en: 'loads in 30 days: {n}' },
+  'admin.assign.info': {
+    ru: 'Один трак — один ответственный диспетчер. Иначе на вопрос «кто ведёт 1705» отвечают «вроде бы Мартин», а машина простаивает, пока каждый думает, что ею занят другой. Трак переходит к новому диспетчеру сразу, отвязывать у прежнего не нужно.',
+    en: 'One truck, one responsible dispatcher. Otherwise "who runs 1705?" gets answered with "Martin, probably", and the truck sits idle while each assumes the other has it. Assigning a truck moves it; no need to unassign it first.',
+  },
   'admin.users.dispatcherPerms': { ru: 'Права диспетчера', en: 'Dispatcher permissions' },
   'admin.users.passwordReset': {
     ru: 'Пароль сброшен — прежние сессии этого пользователя завершены',

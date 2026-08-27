@@ -6,7 +6,7 @@ import { CompanyForm } from '@/components/invoice-actions'
 import { Info } from '@/components/info'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
-import { getDemoConfig, getKeyStatus, getOpenAccess, listUsers } from './actions'
+import { getDemoConfig, getKeyStatus, getOpenAccess, listFleetForAssign, listUsers } from './actions'
 import { UserList } from './user-list'
 import { OpenAccessToggle } from './open-access-toggle'
 import { KeysForm } from './keys-form'
@@ -21,12 +21,13 @@ export default async function AdminPage() {
   if (!user || user.role !== 'admin') redirect('/')
   const locale = await getLocale()
 
-  const [users, company, openAccess, keys, demo] = await Promise.all([
+  const [users, company, openAccess, keys, demo, fleet] = await Promise.all([
     listUsers(),
     getCompany(),
     getOpenAccess(),
     getKeyStatus(),
     getDemoConfig(),
+    listFleetForAssign(),
   ])
 
   return (
@@ -39,7 +40,7 @@ export default async function AdminPage() {
           {t(locale, 'admin.usersHeading')}
           <Info text={t(locale, 'admin.usersInfo')} />
         </h2>
-        <UserList users={users} currentUserId={user.id} />
+        <UserList users={users} currentUserId={user.id} fleet={fleet} />
       </section>
 
       <section className="panel mt-4 p-5" data-tour="keys">

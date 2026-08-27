@@ -2,6 +2,7 @@ import { cityOf } from '@/lib/maintenance-core'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { BackButton } from '@/components/back-button'
+import { sql } from '@/lib/db'
 import { getTruck, listDocs, listLoads, rateConByLoad } from '@/lib/loads'
 import { currentLoadsByTruck, truckLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
@@ -27,6 +28,7 @@ import { RateConButton } from '@/components/ratecon-button'
 import { TripHistoryPanel } from '@/components/trip-history-panel'
 import { SmallRefreshButton } from '@/components/small-refresh-button'
 import { TruckAvailability } from '@/components/truck-availability'
+import { TruckDispatcher } from '@/components/truck-dispatcher'
 import { Info } from '@/components/info'
 import { companyScope, getCurrentUser } from '@/lib/session'
 import { getCompany } from '@/lib/invoice'
@@ -58,6 +60,21 @@ export default async function Page({
   const locale = await getLocale()
   const truck = await getTruck(companyId, Number(id))
   if (!truck) notFound()
+
+  // Закреплённый диспетчер — одной строкой из своей же таблицы: колонка на траке,
+  // имя в users. Отдельного модуля это не стоит.
+  const [dispatcherRow, staffRows] = await Promise.all([
+    sql`SELECT t.dispatcher_id, u.name FROM trucks t LEFT JOIN users u ON u.id = t.dispatcher_id
+        WHERE t.id = ${truck.id} AND t.company_id = ${companyId}`,
+    // Кого вообще можно поставить: живые сотрудники, без демо-аккаунта и без
+    // отключённых — предлагать закрепить машину за уволенным незачем.
+    sql`SELECT id, name, role FROM users
+        WHERE is_demo = FALSE AND disabled_at IS NULL AND pending_since IS NULL
+        ORDER BY role, name`,
+  ])
+  const dispatcherId = (dispatcherRow as { dispatcher_id: number | null }[])[0]?.dispatcher_id ?? null
+  const dispatcherName = (dispatcherRow as { name: string | null }[])[0]?.name ?? null
+  const staff = staffRows as { id: number; name: string; role: 'admin' | 'dispatcher' }[]
 
   const requestedHours = Number((await searchParams).history)
   const historyWindow =
@@ -181,6 +198,20 @@ export default async function Page({
                 .join(' · ')}
             </p>
           )}
+          {/* Кто ведёт эту машину. Закрепление живёт в админке, а нужно оно здесь: на
+              странице трака и спрашивают «кто им занимается». */}
+          {user?.role === 'admin' ? (
+            <div className="mt-2">
+              <TruckDispatcher truckId={truck.id} current={dispatcherId} users={staff} />
+            </div>
+          ) : (
+            dispatcherName && (
+              <p className="mt-1.5 text-[11px] text-white/45">
+                {t(locale, 'trucks.detail.dispatcher').replace('{name}', dispatcherName)}
+              </p>
+            )
+          )}
+
           {/* Manual availability — dims the truck across the app and pulls it out of
               the "free" counters until it's flipped back. */}
           <div className="mt-2.5">
