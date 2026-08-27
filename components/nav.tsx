@@ -433,7 +433,6 @@ export function Nav({
             onExpandDock={expandDock}
             showTelegram={showTelegram}
             showFinances={showFinances}
-            localeControl={<LocaleToggle />}
             themeControl={<ThemeToggle />}
             journalControl={
               user.role === 'admin' ? <JournalLink pathname={pathname} locale={locale} /> : undefined

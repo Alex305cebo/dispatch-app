@@ -26,6 +26,7 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
+  Check,
   ChevronRight,
   DollarSign,
   Globe,
@@ -41,6 +42,7 @@ import {
   Truck as TruckIcon,
   Users,
 } from 'lucide-react'
+import { LOCALES, type Locale } from '@/lib/i18n'
 import { changeMyPassword, setRecoveryBirthday } from '@/app/account/actions'
 import { signOut } from '@/app/login/actions'
 import { notify } from '@/lib/notify'
@@ -154,6 +156,10 @@ export function UserPanel({
   const [pwOpen, setPwOpen] = useState(false)
   const [pw, setPw] = useState('')
   const [bdayOpen, setBdayOpen] = useState(false)
+  // Список языков раскрывается ВНУТРИ меню, а не всплывает над ним: у панели
+  // меню есть overflow, и любой absolute-слой внутри неё просто срезается — именно
+  // поэтому выбор языка «не открывался», хотя открывался.
+  const [langOpen, setLangOpen] = useState(false)
   const [bday, setBday] = useState('')
   const [pending, start] = useTransition()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -188,6 +194,15 @@ export function UserPanel({
     setOpen((v) => !v)
   }
 
+  function chooseLocale(next: Locale) {
+    setLangOpen(false)
+    if (next === locale) return
+    document.cookie = `locale=${next}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`
+    // Мягкое обновление: серверные компоненты перечитают куку и отрисуются заново,
+    // а прокрутка, открытые секции и введённое в формах останутся на месте.
+    router.refresh()
+  }
+
   function savePassword() {
     start(async () => {
       const res = await changeMyPassword(pw)
@@ -207,6 +222,7 @@ export function UserPanel({
     })
   }
 
+  const current = LOCALES.find((l) => l.code === locale) ?? LOCALES[0]!
   const close = () => setOpen(false)
 
   return (
@@ -293,12 +309,37 @@ export function UserPanel({
 
             {/* 4. Настройки. У переключателей значение видно справа, не нажимая. */}
             <Group title={t(locale, 'userPanel.quickSettings')}>
-              {localeControl && (
-                <ControlRow
-                  icon={<Globe size={15} />}
-                  label={t(locale, 'userPanel.tileLang')}
-                  control={localeControl}
-                />
+              {/* Язык — обычная строка меню: справа текущий язык, по нажатию
+                  разворачивается список. Ничего не всплывает, поэтому нечему и
+                  срезаться. */}
+              <Row
+                icon={<Globe size={15} />}
+                label={t(locale, 'userPanel.tileLang')}
+                right={
+                  <span className="flex items-center gap-1">
+                    <span className="font-semibold text-white/70">{current.short}</span>
+                    <ChevronRight size={14} className={`transition-transform ${langOpen ? 'rotate-90' : ''}`} />
+                  </span>
+                }
+                onClick={() => setLangOpen((v) => !v)}
+              />
+              {langOpen && (
+                <div className="mb-1 ml-2 flex flex-col border-l border-white/10 pl-2">
+                  {LOCALES.map((l) => (
+                    <button
+                      key={l.code}
+                      type="button"
+                      onClick={() => chooseLocale(l.code)}
+                      className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-white/8 ${
+                        l.code === locale ? 'text-haul-300' : 'text-white/75'
+                      }`}
+                    >
+                      <span className="w-7 shrink-0 text-[10.5px] font-bold uppercase text-white/40">{l.short}</span>
+                      <span className="min-w-0 flex-1 truncate">{l.native}</span>
+                      {l.code === locale && <Check size={14} className="shrink-0" />}
+                    </button>
+                  ))}
+                </div>
               )}
               {themeControl && (
                 <ControlRow

@@ -543,7 +543,7 @@ export async function createLoad(
               ${load.deliveryDate ?? null}, ${load.brokerNotes ?? null},
               ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
               ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, ${dispatcherId}, ${companyId},
-              ${driverInfo ?? null}, ${load.payVia ?? null})
+              ${await driverInfoWithCities(driverInfo)}, ${load.payVia ?? null})
       RETURNING id`
     id = (rows[0] as { id: number }).id
     if (docId && (await docBelongs(companyId, docId))) {
@@ -599,6 +599,29 @@ async function fillCitiesFromZip(load: QrLoad): Promise<QrLoad> {
     })(),
   ])
   return { ...load, origin: load.origin ?? o, destination: load.destination ?? d }
+}
+
+
+/**
+ * Дописать город и штат в тексте для водителя там, где рейт-кон напечатал один
+ * индекс. «157 Starpointe Boulevard / 15021» — это не адрес: по нему не доехать и
+ * его не вбить в навигатор. Индекс называет ровно одно место, поэтому город берётся
+ * из него; сам индекс остаётся, чтобы сверять с бумагой.
+ */
+async function driverInfoWithCities(text: string | null | undefined): Promise<string | null> {
+  if (!text) return text ?? null
+  const { lonelyZips, withCities } = await import('@/lib/driver-info-zip')
+  const zips = lonelyZips(text)
+  if (zips.length === 0) return text
+  const { zipPlace } = await import('@/lib/geo-routing')
+  const places: Record<string, string> = {}
+  await Promise.all(
+    zips.map(async (z) => {
+      const p = await zipPlace(z).catch(() => null)
+      if (p) places[z] = p
+    }),
+  )
+  return withCities(text, places)
 }
 
 async function withoutOwnMc(load: QrLoad): Promise<QrLoad> {
@@ -673,7 +696,7 @@ export async function createLoadFromRc(
               'qr', ${truckId}, ${load.pickupDate ?? null}, ${load.deliveryDate ?? null},
               ${load.brokerNotes ?? null}, ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
               ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, 'booked', ${dispatcherId}, ${companyId},
-              ${driverInfo ?? null}, ${load.payVia ?? null})
+              ${await driverInfoWithCities(driverInfo)}, ${load.payVia ?? null})
       RETURNING id`
     const loadId = (rows[0] as { id: number }).id
     if (docId && (await docBelongs(companyId, docId)))
