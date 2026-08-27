@@ -234,21 +234,20 @@ export function LoginForm({
             <h1 className="text-[15px] font-semibold leading-tight">{companyName || 'Dispatch'}</h1>
             <p className="text-[12px] text-white/65">{title}</p>
           </div>
-          {/* Language picker — first thing on the very first screen. */}
-          <div className="ml-auto flex overflow-hidden rounded-lg border border-white/10 text-[12px] font-semibold">
+          {/* Выбор языка — первое, что видно на первом же экране. Языков пять, в ряд
+              кнопками они уже не влезают, поэтому список: он же показывает текущий. */}
+          <select
+            value={locale}
+            onChange={(e) => chooseLocale(e.target.value as Locale)}
+            aria-label="Language"
+            className="ml-auto rounded-lg border border-white/10 bg-ink-950/70 px-2 py-1 text-[12px] font-semibold text-white/80 outline-none focus:border-haul-500"
+          >
             {LOCALES.map((l) => (
-              <button
-                key={l}
-                type="button"
-                onClick={() => chooseLocale(l)}
-                className={`px-2.5 py-1 transition-colors ${
-                  locale === l ? 'bg-haul-500 text-white' : 'text-white/55 hover:text-white/85'
-                }`}
-              >
-                {l === 'ru' ? 'РУ' : 'EN'}
-              </button>
+              <option key={l.code} value={l.code}>
+                {l.native}
+              </option>
             ))}
-          </div>
+          </select>
         </div>
 
         {bootstrap && (

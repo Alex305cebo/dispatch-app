@@ -8,7 +8,7 @@ import { Notifier } from '@/components/notifier'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { LocaleToggle } from '@/components/locale-toggle'
 import { autoRefreshFleet } from '@/app/actions'
-import { UserPanel, TileSlot } from '@/components/user-panel'
+import { UserPanel } from '@/components/user-panel'
 import type { CurrentUser } from '@/lib/session'
 import { useLocale } from '@/components/locale-provider'
 import { t, type MsgKey } from '@/lib/i18n'
@@ -433,19 +433,12 @@ export function Nav({
             onExpandDock={expandDock}
             showTelegram={showTelegram}
             showFinances={showFinances}
-          >
-            <TileSlot label={t(locale, 'userPanel.tileLang')}>
-              <LocaleToggle />
-            </TileSlot>
-            {user.role === 'admin' && (
-              <TileSlot label={t(locale, 'userPanel.tileJournal')}>
-                <JournalLink pathname={pathname} locale={locale} />
-              </TileSlot>
-            )}
-            <TileSlot label={t(locale, 'userPanel.tileTheme')}>
-              <ThemeToggle />
-            </TileSlot>
-          </UserPanel>
+            localeControl={<LocaleToggle />}
+            themeControl={<ThemeToggle />}
+            journalControl={
+              user.role === 'admin' ? <JournalLink pathname={pathname} locale={locale} /> : undefined
+            }
+          />
         )}
         <Notifier collapsed={!dockExpanded} />
       </div>

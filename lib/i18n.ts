@@ -20,13 +20,25 @@ import { brokersDict } from './i18n/dict-brokers.ts'
 import { tollsDict } from './i18n/dict-tolls.ts'
 import { tourDict } from './i18n/dict-tour.ts'
 
-export type Locale = 'ru' | 'en'
-export const LOCALES: Locale[] = ['en', 'ru']
+export type Locale = 'en' | 'ru' | 'es' | 'uk' | 'ro'
+
+/** Языки интерфейса и как они называются НА СЕБЕ. Список на родном языке — правило
+ * любого нормального переключателя: человек ищет «Español», а не «Spanish», потому
+ * что английского он может и не знать — ради этого переключатель и открывают. */
+export const LOCALES: { code: Locale; native: string; short: string }[] = [
+  { code: 'en', native: 'English', short: 'EN' },
+  { code: 'ru', native: 'Русский', short: 'RU' },
+  { code: 'es', native: 'Español', short: 'ES' },
+  { code: 'uk', native: 'Українська', short: 'UK' },
+  { code: 'ro', native: 'Română', short: 'RO' },
+]
 export const LOCALE_COOKIE = 'locale'
 
-/** Cookie value → Locale, defaulting to English. Russian only when explicitly chosen. */
+const CODES = new Set(LOCALES.map((l) => l.code))
+
+/** Cookie value → Locale, defaulting to English. */
 export function resolveLocale(v: string | undefined | null): Locale {
-  return v === 'ru' ? 'ru' : 'en'
+  return v && CODES.has(v as Locale) ? (v as Locale) : 'en'
 }
 
 const DICT = {
@@ -49,9 +61,20 @@ const DICT = {
 
 export type MsgKey = keyof typeof DICT
 
-/** key → {ru,en} lookup. Falls back to the key itself if somehow missing, so a typo
- * shows up as an ugly-but-visible string instead of a crash. */
+/**
+ * key → строка на нужном языке.
+ *
+ * Языков пять, а переведено не всё и не сразу: испанский, украинский и румынский
+ * добавляются по разделам. Отсутствующий перевод падает на АНГЛИЙСКИЙ, а не на ключ,
+ * — иначе на непереведённом экране пользователь увидел бы «loads.page.title» вместо
+ * слов. Английский тут не «язык по умолчанию из вежливости», а язык отрасли: все
+ * рейт-коны, биржи и брокеры всё равно на нём.
+ *
+ * Совсем отсутствующий ключ отдаётся как есть — уродливо, зато заметно, и опечатка
+ * не превращается в пустое место на экране.
+ */
 export function t(locale: Locale, key: MsgKey): string {
-  const entry: { ru: string; en: string } | undefined = (DICT as Record<string, { ru: string; en: string }>)[key]
-  return entry ? entry[locale] : key
+  const entry = (DICT as Record<string, Partial<Record<Locale, string>>>)[key]
+  if (!entry) return key
+  return entry[locale] ?? entry.en ?? key
 }

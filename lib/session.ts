@@ -10,6 +10,8 @@ import { DELETE_WORD } from './delete-word.ts'
 export type CurrentUser = {
   id: number
   name: string
+  /** Под каким входом сидим — показывается в меню аккаунта. */
+  email: string
   role: 'admin' | 'dispatcher'
   companyId: 'default' | 'demo'
   isDemo: boolean
@@ -69,6 +71,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   return {
     id: Number(id),
     name: rawName ? decodeURIComponent(rawName) : '',
+    email: decodeURIComponent(h.get('x-user-email') ?? ''),
     role: role === 'admin' ? 'admin' : 'dispatcher',
     companyId,
     isDemo: companyId === 'demo',

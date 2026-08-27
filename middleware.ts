@@ -12,6 +12,7 @@ export async function middleware(req: NextRequest) {
   const headers = new Headers(req.headers)
   headers.delete('x-user-id')
   headers.delete('x-user-name')
+  headers.delete('x-user-email')
   headers.delete('x-user-role')
   headers.delete('x-company-id')
 
@@ -91,6 +92,9 @@ export async function middleware(req: NextRequest) {
   // lib/session.ts decodes it back on the read side.
   headers.set('x-user-id', String(user.id))
   headers.set('x-user-name', encodeURIComponent(user.name))
+  // Почта — для меню аккаунта: под чьим входом сидишь, видно сразу. Кодируется по
+  // той же причине, что и имя: в заголовок нельзя класть не-Latin1.
+  headers.set('x-user-email', encodeURIComponent(user.email))
   headers.set('x-user-role', user.role)
   headers.set('x-company-id', user.companyId)
   return NextResponse.next({ request: { headers } })
