@@ -59,14 +59,28 @@ export default async function Page() {
   // вместе с картой. Одно чтение настройки, оно и так кэшируется.
   const shareRaw = await getSetting('eld_share_tokens')
   const shareCount = shareRaw ? (JSON.parse(shareRaw) as string[]).length : 0
-  const [trucks, company, metas, fleetRaw, dispatcherPhone] = await Promise.all([
+  const [trucks, company, metas, fleetRaw, dispatcherPhone, dispRows] = await Promise.all([
     listTrucks(companyId),
     getCompany(),
     truckMetas(companyId),
     sql`SELECT unit, drive_status, location, odometer, fuel FROM fleet_status`,
     // Свой номер диспетчера — в блок «Driver Info» для брокера.
     user ? getSetting(dispatcherPhoneKey(user.id)) : Promise.resolve(null),
+    // Кто закреплён за каждым траком. Раньше в блоке для брокера у ВСЕХ водителей
+    // стоял тот, кто открыл страницу, — а траки распределены между диспетчерами.
+    // Телефон берём из настроек того же человека одним запросом, а не по одному.
+    sql`SELECT t.id, u.name, s.value AS phone
+        FROM trucks t
+        JOIN users u ON u.id = t.dispatcher_id
+        LEFT JOIN settings s ON s.key = 'disp_phone:' || u.id::text
+        WHERE t.company_id = ${companyId}`,
   ])
+  const dispByTruck = new Map(
+    (dispRows as { id: number; name: string; phone: string | null }[]).map((r) => [
+      r.id,
+      { name: r.name, phone: r.phone ?? '' },
+    ]),
+  )
   const byUnit = new Map((fleetRaw as FS[]).map((f) => [f.unit, f]))
 
   // Per-truck loads in parallel — the whole point is strict separation, so each
@@ -181,8 +195,11 @@ export default async function Page() {
         dispatcherPhone={dispatcherPhone ?? ''}
         drivers={trucks.map((truck) => {
           const meta = metas.get(truck.id)
+          const disp = dispByTruck.get(truck.id)
           return {
             truckId: truck.id,
+            dispatcherName: disp?.name ?? null,
+            dispatcherPhone: disp?.phone ?? null,
             driverName: truck.driverName,
             driverPhone: meta?.driverPhone ?? null,
             truckNumber: truck.number,

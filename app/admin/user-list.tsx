@@ -10,6 +10,7 @@ import {
   setDispatcherCapability,
   setTruckDispatcher,
   setUserDisabled,
+  setUserPhone,
   setUserRole,
   type AdminUser,
 } from './actions'
@@ -42,6 +43,8 @@ export function UserList({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<'admin' | 'dispatcher'>('dispatcher')
+  const [phoneFor, setPhoneFor] = useState<number | null>(null)
+  const [phoneVal, setPhoneVal] = useState('')
   const [resetFor, setResetFor] = useState<number | null>(null)
   const [resetPw, setResetPw] = useState('')
 
@@ -91,6 +94,18 @@ export function UserList({
     start(async () => {
       const res = await setUserRole(u.id, next)
       if (res?.error) notify('error', res.error)
+    })
+  }
+
+  function savePhone(userId: number) {
+    start(async () => {
+      const res = await setUserPhone(userId, phoneVal)
+      if (res?.error) {
+        notify('error', res.error)
+        return
+      }
+      notify('ok', t(locale, 'drivers.phoneSaved'))
+      setPhoneFor(null)
     })
   }
 
@@ -218,6 +233,33 @@ export function UserList({
                 ))
               ) : (
                 <span className="text-white/35">{t(locale, 'admin.assign.none')}</span>
+              )}
+              {/* Номер диспетчера — здесь же: он уходит брокеру в блоке водителя по
+                  всем закреплённым тракам, а вписать его самому может только сам
+                  человек со своей страницы «Траки». */}
+              {phoneFor === u.id ? (
+                <>
+                  <input
+                    value={phoneVal}
+                    onChange={(e) => setPhoneVal(e.target.value)}
+                    placeholder="786 461 4739"
+                    className={`${input} nums max-w-[10rem]`}
+                  />
+                  <Button variant="primary" size="sm" disabled={pending} onClick={() => savePhone(u.id)}>
+                    {t(locale, 'admin.users.save')}
+                  </Button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhoneFor(u.id)
+                    setPhoneVal(u.phone)
+                  }}
+                  className="nums rounded-full border border-white/10 px-2 py-0.5 text-white/55 transition-colors hover:border-white/25 hover:text-white/85"
+                >
+                  {u.phone || t(locale, 'drivers.noPhone')}
+                </button>
               )}
               {u.loads30 > 0 && (
                 <span className="nums ml-auto text-white/40">

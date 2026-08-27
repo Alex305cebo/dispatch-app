@@ -95,7 +95,11 @@ export default async function Page({
       rateConByLoad(companyId),
       truck.number ? tripHistory(truck.number, historyWindow.hours) : Promise.resolve([]),
       getCompany(),
-      user ? getSetting(dispatcherPhoneKey(user.id)) : Promise.resolve(null),
+      // Номер того, кто закреплён за траком, а не того, кто открыл страницу:
+      // траки распределены между диспетчерами, и брокеру нужен человек по машине.
+      dispatcherId || user
+        ? getSetting(dispatcherPhoneKey(dispatcherId ?? user!.id))
+        : Promise.resolve(null),
     ])
   const fs = truck.number ? fleet.get(truck.number) : undefined
 
@@ -337,7 +341,7 @@ export default async function Page({
               mc: company.mcdot.replace(/^MC[\s#-]*/i, ''),
               companyName: company.name,
               companyEmail: company.email,
-              dispatcherName: user?.name ?? '',
+              dispatcherName: dispatcherName ?? user?.name ?? '',
               dispatcherPhone: dispatcherPhone ?? '',
             }}
             embedded

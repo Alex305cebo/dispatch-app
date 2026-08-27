@@ -33,6 +33,10 @@ export interface DriverEntry {
   truckNumber: string | null
   trailerNumber: string | null
   vin: string | null
+  /** Диспетчер, закреплённый за ЭТИМ траком, и его номер. Пусто — значит трак
+   * никому не назначен, и в блок идёт тот, кто открыл страницу. */
+  dispatcherName?: string | null
+  dispatcherPhone?: string | null
 }
 
 export function DriverDirectory({
@@ -92,8 +96,7 @@ export function DriverDirectory({
               хранить, а в блок он обязан попасть — брокер перезванивает человеку,
               а не на общий номер компании. */}
           <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-white/6 px-3 py-2 text-[12px]">
-            <span className="text-white/50">{t(locale, 'drivers.dispatcher')}</span>
-            <span className="font-medium text-white/85">{dispatcherName || '—'}</span>
+            <span className="text-white/50">{t(locale, 'drivers.myPhone')}</span>
             {editPhone ? (
               <>
                 <input
@@ -154,6 +157,11 @@ export function DriverDirectory({
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
                       {d.driverName || t(locale, 'drivers.noName')}
                     </span>
+                    {d.dispatcherName && (
+                      <span className="hidden shrink-0 text-[11px] text-white/40 sm:inline">
+                        {d.dispatcherName}
+                      </span>
+                    )}
                     <span className="nums shrink-0 text-[12px] text-white/45">
                       {d.truckNumber ? `TRK-${d.truckNumber}` : '—'}
                       {d.trailerNumber ? ` · TRL-${d.trailerNumber}` : ''}
@@ -228,8 +236,8 @@ export function infoBlock(
     `MC - ${dash(co.mc)}`,
     `Company Name - ${dash(co.companyName)}`,
     `Email - ${dash(co.companyEmail)}`,
-    `Dispatcher - ${dash(co.dispatcherName)}`,
-    `Dispatcher Number - ${tel(co.dispatcherPhone)}`,
+    `Dispatcher - ${dash(d.dispatcherName || co.dispatcherName)}`,
+    `Dispatcher Number - ${tel(d.dispatcherName ? d.dispatcherPhone : co.dispatcherPhone)}`,
   ].join('\n')
 }
 

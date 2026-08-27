@@ -59,6 +59,7 @@ export const trucksDict = {
   'drivers.copy': { ru: 'Скопировать', en: 'Copy', es: 'Copiar', uk: 'Скопіювати', ro: 'Copiază', kk: 'Көшіру' },
   'drivers.copied': { ru: 'Скопировано — можно отправлять брокеру', en: 'Copied — ready to send', es: 'Copiado — listo para mandar al bróker', uk: 'Скопійовано — можна надсилати брокеру', ro: 'Copiat — gata de trimis brokerului', kk: 'Көшірілді — брокерге жіберуге болады' },
   'drivers.dispatcher': { ru: 'Диспетчер:', en: 'Dispatcher:', es: 'Despachador:', uk: 'Диспетчер:', ro: 'Dispecer:', kk: 'Диспетчер:' },
+  'drivers.myPhone': { ru: 'Мой номер:', en: 'My number:', es: 'Mi número:', uk: 'Мій номер:', ro: 'Numărul meu:', kk: 'Менің нөмірім:' },
   'drivers.noPhone': { ru: 'номер не указан', en: 'no number set', es: 'sin número', uk: 'номер не вказано', ro: 'fără număr', kk: 'нөмір көрсетілмеген' },
   'drivers.editPhone': { ru: 'изменить', en: 'edit', es: 'editar', uk: 'змінити', ro: 'modifică', kk: 'өзгерту' },
   'drivers.save': { ru: 'Сохранить', en: 'Save', es: 'Guardar', uk: 'Зберегти', ro: 'Salvează', kk: 'Сақтау' },

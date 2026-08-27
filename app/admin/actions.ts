@@ -5,7 +5,7 @@ import { sql } from '@/lib/db'
 import { humanError } from '@/lib/msg'
 import { hashPassword } from '@/lib/auth'
 import { companyScope, demoReadOnly, getCurrentUser } from '@/lib/session'
-import { deleteSetting, getSetting, getSettings, setSetting } from '@/lib/settings'
+import { deleteSetting, dispatcherPhoneKey, getSetting, getSettings, setSetting } from '@/lib/settings'
 import { aiModelPref, fmcsaKey, geminiKey, hereKey } from '@/lib/keys'
 import { CAPABILITIES, type CapabilityKey } from '@/lib/capabilities'
 import { capabilitiesFor, setUserCapability } from '@/lib/capabilities-server'
@@ -33,6 +33,10 @@ export type AdminUser = {
   capabilities: Record<CapabilityKey, boolean> | null
   /** Траки, закреплённые за этим человеком. Пусто — он ни за одну машину не отвечает. */
   trucks: { id: number; label: string }[]
+  /** Личный номер: он уходит брокеру в блоке «Driver Info» по закреплённым за ним
+   * тракам. Свой номер человек вписывает сам на «Траках», чужой правит админ —
+   * иначе у диспетчера без своего входа номер взять негде. */
+  phone: string
   /** Сколько грузов он завёл за последние 30 дней — единственная цифра, по которой
    * видно, работает диспетчер или просто числится. */
   loads30: number
@@ -71,6 +75,7 @@ export async function listUsers(): Promise<AdminUser[]> {
     const label = [t.number ?? t.name, t.driver_name].filter(Boolean).join(' · ')
     trucksBy.set(t.dispatcher_id, [...(trucksBy.get(t.dispatcher_id) ?? []), { id: t.id, label }])
   }
+  const phones = await getSettings(rows.map((r) => dispatcherPhoneKey(r.id)))
   const loadsBy = new Map<number, number>(
     (loadRows as { dispatcher_id: number; n: number }[]).map((r) => [r.dispatcher_id, r.n]),
   )
@@ -85,10 +90,30 @@ export async function listUsers(): Promise<AdminUser[]> {
       disabledAt: r.disabled_at,
       pendingSince: r.pending_since,
       capabilities: r.role === 'dispatcher' ? await capabilitiesFor(r.id) : null,
+      phone: phones.get(dispatcherPhoneKey(r.id)) ?? '',
       trucks: trucksBy.get(r.id) ?? [],
       loads30: loadsBy.get(r.id) ?? 0,
     })),
   )
+}
+
+/**
+ * Записать личный номер диспетчера. Пустая строка — стереть: номер, которого нет,
+ * лучше пустой строки в блоке для брокера.
+ */
+export async function setUserPhone(
+  userId: number,
+  phone: string,
+): Promise<{ error: string } | void> {
+  await assertAdmin()
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const key = dispatcherPhoneKey(userId)
+  const clean = phone.trim().slice(0, 40)
+  if (clean) await setSetting(key, clean)
+  else await deleteSetting(key)
+  revalidatePath('/admin')
+  revalidatePath('/trucks')
 }
 
 /** Весь парк с тем, за кем каждая машина закреплена, — для списка выбора в админке. */
