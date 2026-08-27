@@ -20,7 +20,7 @@ import { brokersDict } from './i18n/dict-brokers.ts'
 import { tollsDict } from './i18n/dict-tolls.ts'
 import { tourDict } from './i18n/dict-tour.ts'
 
-export type Locale = 'en' | 'ru' | 'es' | 'uk' | 'ro'
+export type Locale = 'en' | 'ru' | 'es' | 'uk' | 'ro' | 'kk'
 
 /** Языки интерфейса и как они называются НА СЕБЕ. Список на родном языке — правило
  * любого нормального переключателя: человек ищет «Español», а не «Spanish», потому
@@ -31,6 +31,7 @@ export const LOCALES: { code: Locale; native: string; short: string }[] = [
   { code: 'es', native: 'Español', short: 'ES' },
   { code: 'uk', native: 'Українська', short: 'UK' },
   { code: 'ro', native: 'Română', short: 'RO' },
+  { code: 'kk', native: 'Қазақша', short: 'KK' },
 ]
 export const LOCALE_COOKIE = 'locale'
 
