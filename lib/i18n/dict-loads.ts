@@ -202,6 +202,8 @@ export const loadsDict = {
   'loadDetail.offRoute': { ru: 'в стороне от маршрута', en: 'off the route', es: 'fuera de ruta', uk: 'осторонь маршруту', ro: 'în afara rutei', kk: 'маршруттан тыс' },
   'loadDetail.fuelFor': { ru: 'топлива примерно на', en: 'fuel for roughly', es: 'combustible para', uk: 'палива приблизно на', ro: 'combustibil pentru', kk: 'жанармай шамамен' },
   'loadDetail.fuelShort': { ru: 'нужна заправка в пути', en: 'refuel needed en route', es: 'repostaje necesario', uk: 'потрібна заправка в дорозі', ro: 'alimentare pe traseu', kk: 'жолда жанармай құю керек' },
+  'loadDetail.mapDriven': { ru: 'пройдено {p}% · осталось {n} mi', en: '{p}% done · {n} mi left', es: '{p}% hecho · quedan {n} mi', uk: 'пройдено {p}% · лишилося {n} mi', ro: '{p}% parcurs · {n} mi rămase', kk: '{p}% жүрілді · {n} mi қалды' },
+  'loadDetail.mapToPickup': { ru: 'до пикапа {n} mi', en: '{n} mi to pickup', es: '{n} mi a la recogida', uk: 'до пікапу {n} mi', ro: '{n} mi până la preluare', kk: 'пикапқа дейін {n} mi' },
   'loadDetail.progressLine': { ru: 'пройдено {p}% · осталось {left} из {total} mi', en: '{p}% done · {left} of {total} mi left', es: '{p}% recorrido · quedan {left} de {total} mi', uk: 'пройдено {p}% · лишилося {left} з {total} mi', ro: '{p}% parcurs · rămân {left} din {total} mi', kk: '{p}% жүрілді · {total} mi ішінен {left} қалды' },
   'loadDetail.etaLeft': { ru: 'до выгрузки', en: 'to delivery', es: 'hasta la descarga', uk: 'до вивантаження', ro: 'până la descărcare', kk: 'түсіруге дейін' },
   'loadDetail.trailerShort': { ru: 'прицеп', en: 'trailer', es: 'remolque', uk: 'причіп', ro: 'remorcă', kk: 'тіркеме' },

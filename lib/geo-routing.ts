@@ -193,11 +193,14 @@ export async function cityCoordsBest(
     // Best first: Mapbox (rooftop-accurate, free tier) when a token is configured.
     const mb = await geocodeMapbox(address)
     if (trust(mb)) return mb
-    const exact = await geocode(address)
-    if (trust(exact)) return exact
-    // Nominatim has no entry for most warehouse/industrial addresses; Census usually does.
+    // Census РАНЬШЕ свободного поиска Nominatim. Census сверяет номер дома и отвечает
+    // только точным попаданием; Nominatim молча роняет номер и «находит» ближайшую
+    // похожую улицу — проверено: «5201 Fairfield Road, Pine Bluff» он ставил на
+    // Paper Mill Road в двух милях, и пин пикапа стоял не у того дока.
     const census = await geocodeCensus(address)
     if (trust(census)) return census
+    const exact = await geocode(address)
+    if (trust(exact)) return exact
     const zip = extractZip(address)
     if (zip) {
       const byZip = await geocodeZip(zip)

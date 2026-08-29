@@ -22,6 +22,26 @@ export function statusTone(s: string | null): 'move' | 'on' | 'rest' {
   return 'rest'
 }
 
+
+/** Строка назначения для плашки: «окно 08:00–16:00», «к 08:00» или «весь день
+ * (FCFS)». Рейт-коны печатают окно как два штампа с датами — в сыром виде на
+ * плашке это читалось как мусор «08/29/2026 00:01 08/29/2026 23:59». */
+export function apptText(time: string | null | undefined, locale: Locale): string | null {
+  const times = [...(time ?? '').matchAll(/(\d{1,2}):(\d{2})/g)].map(
+    (m) => Number(m[1]) * 60 + Number(m[2]),
+  )
+  if (!times.length) return null
+  const fmt = (v: number) =>
+    `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}`
+  if (times.length >= 2) {
+    const [a, b] = [times[0]!, times[times.length - 1]!]
+    // Окно на весь день — это «приезжай когда угодно», печатать 00:01–23:59 незачем.
+    if (b - a >= 23 * 60) return t(locale, 'tracking.apptAllDay')
+    return t(locale, 'tracking.apptWindow').replace('{a}', fmt(a)).replace('{b}', fmt(b))
+  }
+  return t(locale, 'tracking.apptBy').replace('{t}', fmt(times[0]!))
+}
+
 export type LoadMapData = {
   markers: MapMarker[]
   routes: MapRoute[]
@@ -44,6 +64,8 @@ export type LoadMapData = {
     idleMin: number | null
     /** Насколько трак в стороне от прямого маршрута пикап→выгрузка (мили). */
     offRouteMi: number | null
+    /** Мили до пикапа, пока груз ещё booked, — вторая строка бейджа на карте. */
+    toPickupMi: number | null
   }
 }
 
@@ -73,7 +95,7 @@ export async function loadMapData(
   let etaText: string | null = null
   let miles: number | null = null
   let etaMin: number | null = null
-  const live: LoadMapData['live'] = { realEtaMin: null, slackMin: null, idleMin: null, offRouteMi: null }
+  const live: LoadMapData['live'] = { realEtaMin: null, slackMin: null, idleMin: null, offRouteMi: null, toPickupMi: null }
 
   // Prefer the RC's exact street address over the bare city — pins the real dock,
   // not just the city center. Falls back to ZIP then city if OSM can't resolve that
@@ -100,7 +122,9 @@ export async function loadMapData(
         lat: pickup.lat,
         lng: pickup.lng,
         label: `${t(locale, 'tracking.pickupPrefix')}${load.origin}`,
-        sub: [load.pickupTime || (load.pickupDate ? load.pickupDate.slice(0, 10) : null)].filter(Boolean).join('\n'),
+        sub: [load.pickupDate ? load.pickupDate.slice(0, 10) : null, apptText(load.pickupTime, locale)]
+          .filter(Boolean)
+          .join('\n'),
         kind: 'pickup',
         href: `/loads/${load.id}`,
       })
@@ -188,7 +212,7 @@ export async function loadMapData(
       lat: pickup.lat,
       lng: pickup.lng,
       label: `${t(locale, 'tracking.pickupPrefix')}${load.origin}`,
-      sub: [load.pickupTime || (load.pickupDate ? load.pickupDate.slice(0, 10) : null)]
+      sub: [load.pickupDate ? load.pickupDate.slice(0, 10) : null, apptText(load.pickupTime, locale)]
         .filter(Boolean)
         .join('\n'),
       kind: 'pickup',
@@ -199,6 +223,7 @@ export async function loadMapData(
   if (legToDelivery && load) {
     const routeMiles = (legToPickup?.miles ?? 0) + legToDelivery.miles
     miles = routeMiles
+    live.toPickupMi = legToPickup?.miles ?? null
     const routeEtaMin = (legToPickup?.etaMin ?? 0) + legToDelivery.etaMin
     etaMin = routeEtaMin
     // Честный срок: за рулём + ночёвки, против даты и времени выгрузки в её поясе.

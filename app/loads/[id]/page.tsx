@@ -478,7 +478,21 @@ async function LoadMapSection({
               </div>
             )
           })()}
-          <FleetMap markers={mapMarkers} routes={mapRoutes} height="clamp(300px, 42vh, 540px)" distanceMi={routeMiles} />
+          <FleetMap
+            markers={mapMarkers}
+            routes={mapRoutes}
+            height="clamp(300px, 42vh, 540px)"
+            distanceMi={routeMiles}
+            subNote={
+              load.status === 'in_transit' && routeMiles != null && load.loadedMiles > 0 && routeMiles <= load.loadedMiles * 1.25
+                ? t(locale, 'loadDetail.mapDriven')
+                    .replace('{p}', String(Math.min(100, Math.max(0, Math.round((1 - routeMiles / load.loadedMiles) * 100)))))
+                    .replace('{n}', String(Math.round(routeMiles)))
+                : load.status === 'booked' && live.toPickupMi != null && live.toPickupMi > 0
+                  ? t(locale, 'loadDetail.mapToPickup').replace('{n}', String(Math.round(live.toPickupMi)))
+                  : null
+            }
+          />
         </section>
   )
 }

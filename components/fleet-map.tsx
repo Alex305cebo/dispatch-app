@@ -228,26 +228,33 @@ const esc = (s: string) =>
 // Compact popup — tight type scale, no wasted margin. Leaflet's own chrome
 // (wrapper bg, tip, close button, maxWidth) is styled/sized in globals.css.
 function popupHtml(m: MapMarker, openLabel: string): string {
+  // Каждая строка — иконка в свою колонку + текст: раньше всё лепилось сплошным
+  // столбцом одинакового серого, и адрес не отличался от даты. Ширина плавает от
+  // содержимого до потолка из globals.css — плашка не распирает узкий экран.
+  const row = (icon: string, text: string, color = '#c7cdd8', weight = 500) =>
+    `<div style="display:flex;gap:6px;align-items:baseline;margin-top:3px">` +
+    `<span style="width:13px;flex:none;text-align:center;opacity:.8">${icon}</span>` +
+    `<span style="color:${color};font-weight:${weight};min-width:0">${esc(text)}</span></div>`
+
+  const kindIcon = m.kind === 'pickup' ? '📦' : m.kind === 'dest' ? '🏁' : '📍'
   const lines = (m.sub ?? '')
     .split('\n')
     .filter(Boolean)
-    .map((l) => `<div style="color:#9aa3b2">${esc(l)}</div>`)
+    .map((l, i) => row(i === 0 ? kindIcon : '', l))
     .join('')
-  const eta = m.eta
-    ? `<div style="color:${DEST};font-weight:600;margin-top:3px">🎯 ${esc(m.eta)}</div>`
-    : ''
+  const eta = m.eta ? row('🎯', m.eta, DEST, 600) : ''
   // Считается в момент открытия плашки (bindTooltip получает функцию), а не при
   // создании маркера: карта живёт открытой минутами, и вшитое время успело бы соврать.
   const local = m.zone ? zoneTime(m.zone, new Date()) : null
-  const clock = local ? `<div style="color:#fff;opacity:.75">🕒 ${esc(local)}</div>` : ''
+  const clock = local ? row('🕒', local, '#ffffff') : ''
   // The arrow: a clear "open the card" affordance. The tooltip is made interactive
   // and the whole plaque navigates (see the marker loop), so this doubles as the hint
   // and the visible click target.
   const open = m.href
-    ? `<div style="display:flex;align-items:center;gap:4px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.12);color:${DEST};font-weight:700">${esc(openLabel)} <span style="font-size:13px">→</span></div>`
+    ? `<div style="display:flex;align-items:center;gap:4px;margin-top:7px;padding-top:6px;border-top:1px solid rgba(255,255,255,.12);color:${DEST};font-weight:700">${esc(openLabel)} <span style="font-size:13px">→</span></div>`
     : ''
-  return `<div style="font:500 10.5px/1.4 system-ui,sans-serif">
-    <div style="font-weight:700;font-size:11.5px;color:#fff;margin-bottom:2px">${esc(m.label)}</div>
+  return `<div style="font:500 11px/1.45 system-ui,sans-serif;min-width:130px">
+    <div style="font-weight:700;font-size:12px;color:#fff;letter-spacing:.01em">${esc(m.label)}</div>
     ${clock}${lines}${eta}${open}
   </div>`
 }
@@ -385,6 +392,7 @@ export function FleetMap({
   routes = [],
   height = 'clamp(340px, 46vh, 620px)',
   distanceMi = null,
+  subNote = null,
   onSelect,
   onRoute,
   focus = null,
@@ -398,6 +406,8 @@ export function FleetMap({
   height?: number | string
   /** Total road miles of the drawn route — shown big, over the map, when provided. */
   distanceMi?: number | null
+  /** Вторая строка бейджа расстояния — «пройдено 38% · осталось 702 mi». */
+  subNote?: string | null
   /** Fires with a truck's id when its pin is clicked, and with null when the click
    * lands on empty map (Leaflet doesn't propagate marker clicks to the map). */
   onSelect?: (truckId: number | null) => void
@@ -435,6 +445,20 @@ export function FleetMap({
   // сбрасывала зум, который человек только что выставил. Первый показ по-прежнему
   // вмещает весь маршрут; дальше вид неприкосновенен.
   const viewRef = useRef<{ center: [number, number]; zoom: number } | null>(null)
+  // Слой хвоста и его видимость. Ref, а не завязка эффекта на state: переключение
+  // не должно пересобирать карту — только снять/надеть группу точек.
+  const trailRef = useRef<import('leaflet').LayerGroup | null>(null)
+  const [trailOn, setTrailOn] = useState(true)
+  const trailOnRef = useRef(trailOn)
+  trailOnRef.current = trailOn
+
+  useEffect(() => {
+    const map = mapRef.current
+    const grp = trailRef.current
+    if (!map || !grp) return
+    if (trailOn) grp.addTo(map)
+    else map.removeLayer(grp)
+  }, [trailOn])
 
   // Builds the map from scratch — only when markers/routes actually change, never
   // on a satellite toggle. Rebuilding on every toggle was what reset the view.
@@ -498,12 +522,24 @@ export function FleetMap({
       // is a solid line following roads; the straight-line fallback is dashed.
       for (const r of routes) {
         const road = r.coords && r.coords.length > 1
-        // Хвост пути: тонкая серая линия там, где трак УЖЕ проехал. Не мишень для
-        // щелчков и не участвует в границах — карта строится по работе (трак,
-        // пикап, выгрузка), а не по вчерашней дороге.
+        // Хвост пути: ОТДЕЛЬНЫЕ точки-пинги, не линия. Крошки идут раз в ~5 минут,
+        // и соединять их отрезками значит рисовать дороги, которых нет, — линия
+        // резала поля напрямую и читалась как «маршрут мимо дорог». Слой копится в
+        // группе, которую прячет кнопка «Путь».
         if (r.tone === 'trail') {
-          if (road)
-            L.polyline(r.coords!, { color: '#7c8496', weight: 2.5, opacity: 0.5, dashArray: '1 6' }).addTo(map!)
+          if (road) {
+            const dots = r.coords!.map((c, i) =>
+              L.circleMarker(c, {
+                radius: i === 0 ? 0 : 3,
+                stroke: false,
+                fillColor: '#7c8496',
+                fillOpacity: 0.55,
+                interactive: false,
+              }),
+            )
+            trailRef.current = L.layerGroup(dots)
+            if (trailOnRef.current) trailRef.current.addTo(map!)
+          }
           continue
         }
         const free = r.tone === 'free'
@@ -622,6 +658,7 @@ export function FleetMap({
       map?.remove()
       mapRef.current = null
       tileRef.current = null
+      trailRef.current = null
     }
   }, [markers, routes, expanded])
 
@@ -673,14 +710,31 @@ export function FleetMap({
       <div ref={ref} className="h-full w-full" />
       {/* Total route distance, big and unmissable, over the map itself. */}
       {distanceMi != null && distanceMi > 0 && (
-        <div className="pointer-events-none absolute left-1/2 top-2.5 z-[1000] -translate-x-1/2 rounded-full border border-white/15 bg-ink-950/85 px-3.5 py-1.5 backdrop-blur">
+        <div className="pointer-events-none absolute left-1/2 top-2.5 z-[1000] -translate-x-1/2 rounded-full border border-white/15 bg-ink-950/85 px-3.5 py-1.5 text-center backdrop-blur">
           <span className="nums text-[17px] font-bold leading-none text-white">
             {Math.round(distanceMi).toLocaleString('en-US')}
           </span>
           <span className="ml-1 text-[12px] font-medium text-white/60">mi</span>
+          {/* Сколько уже позади — второй строкой того же бейджа: раньше на самой
+              карте виден был только общий остаток. Строку готовит страница —
+              карта не знает ни статуса груза, ни его миль. */}
+          {subNote && <div className="nums mt-0.5 text-[10.5px] font-medium leading-tight text-white/65">{subNote}</div>}
         </div>
       )}
       <div className="absolute right-2.5 top-2.5 z-[1000] flex items-center gap-1.5">
+        {routes.some((r) => r.tone === 'trail') && (
+          <button
+            type="button"
+            onClick={() => setTrailOn((v) => !v)}
+            className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold backdrop-blur transition-colors ${
+              trailOn
+                ? 'border-white/25 bg-ink-950/85 text-white'
+                : 'border-white/15 bg-ink-950/60 text-white/45 hover:text-white/70'
+            }`}
+          >
+            {t(locale, 'tracking.trailLabel')}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setSatellite((v) => !v)}
