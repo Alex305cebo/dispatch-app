@@ -647,6 +647,12 @@ export function FleetMap({
       // a lower zoom, so this only tightens the single/clustered case.
       if (viewRef.current) map.setView(viewRef.current.center, viewRef.current.zoom, { animate: false })
       else map.fitBounds(bounds.pad(0.2), { maxZoom: 13 })
+      // Пересобранная карта наследует размер канваса от ПРОШЛОЙ вёрстки: если между
+      // живыми обновлениями что-то сдвинуло ширину (панель, скроллбар, окно), GL-слой
+      // рисует не тот кадр и подложка выглядит пустой. Кадр спустя — честный замер.
+      requestAnimationFrame(() => {
+        if (!disposed) map?.invalidateSize()
+      })
     })()
 
     return () => {
