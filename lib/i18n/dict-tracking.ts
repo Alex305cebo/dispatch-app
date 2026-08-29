@@ -102,6 +102,7 @@ export const trackingDict = {
   'tracking.apptAllDay': { ru: 'окно: весь день (FCFS)', en: 'window: all day (FCFS)', es: 'ventana: todo el día (FCFS)', uk: 'вікно: весь день (FCFS)', ro: 'fereastră: toată ziua (FCFS)', kk: 'терезе: күні бойы (FCFS)' },
   'tracking.apptWindow': { ru: 'окно {a}–{b}', en: 'window {a}–{b}', es: 'ventana {a}–{b}', uk: 'вікно {a}–{b}', ro: 'fereastră {a}–{b}', kk: 'терезе {a}–{b}' },
   'tracking.apptBy': { ru: 'к {t}', en: 'by {t}', es: 'a las {t}', uk: 'до {t}', ro: 'până la {t}', kk: '{t}-ге дейін' },
+  'tracking.fitAll': { ru: 'Показать весь маршрут и трак', en: 'Fit the whole route and truck', es: 'Encuadrar ruta y camión', uk: 'Показати весь маршрут і трак', ro: 'Încadrează ruta și camionul', kk: 'Бүкіл маршрут пен тракты көрсету' },
   'tracking.trailLabel': { ru: 'След 12ч', en: 'Trail 12h', es: 'Rastro 12h', uk: 'Слід 12г', ro: 'Urmă 12h', kk: 'Із 12с' },
   'tracking.trailTitle': { ru: 'Янтарные точки — GPS-отметки, где трак был последние 12 часов', en: 'Amber dots — GPS pings from the last 12 hours', es: 'Puntos ámbar: posiciones GPS de las últimas 12 horas', uk: 'Янтарні точки — GPS-відмітки за останні 12 годин', ro: 'Puncte chihlimbar — poziții GPS din ultimele 12 ore', kk: 'Янтарь нүктелер — соңғы 12 сағаттағы GPS белгілері' },
   'tracking.toDeliveryLabel': { ru: 'До выгрузки · ', en: 'To delivery · ', es: 'Hasta la entrega · ', uk: 'До вивантаження · ', ro: 'Până la livrare · ', kk: 'Түсіруге дейін · ' },

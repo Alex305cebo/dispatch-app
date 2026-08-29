@@ -446,6 +446,10 @@ export function FleetMap({
   // каждый maplibre-слой — новый WebGL-контекст, браузер держит ~16, и через
   // восемь минут открытой страницы подложка гасла молча и навсегда.
   const overlayRef = useRef<import('leaflet').LayerGroup | null>(null)
+  // Границы последней отрисовки — для кнопки «показать всё». Вид после первого
+  // fitBounds не трогается (иначе живое обновление сбрасывало бы зум), поэтому
+  // заблудившемуся в глубоком зуме нужен явный путь назад к траку и маршруту.
+  const boundsRef = useRef<import('leaflet').LatLngBounds | null>(null)
   // Слой хвоста и его видимость. Ref, а не завязка эффекта на state: переключение
   // не должно пересобирать карту — только снять/надеть группу точек.
   const trailRef = useRef<import('leaflet').LayerGroup | null>(null)
@@ -661,6 +665,7 @@ export function FleetMap({
       // that OSM labels the interstates, highways and towns around it (street names come
       // in as you zoom further). A fleet spread across states still fits its own bounds at
       // a lower zoom, so this only tightens the single/clustered case.
+      boundsRef.current = bounds
       if (firstBuild) map.fitBounds(bounds.pad(0.2), { maxZoom: 13 })
     })()
 
@@ -742,6 +747,24 @@ export function FleetMap({
         </div>
       )}
       <div className="absolute right-2.5 top-2.5 z-[1000] flex items-center gap-1.5">
+        {/* «Показать всё»: вписать трак и маршрут обратно в кадр. Иконка-прицел,
+            без слов — на телефоне ряд кнопок и так впритык. */}
+        <button
+          type="button"
+          onClick={() => {
+            const m = mapRef.current
+            const b = boundsRef.current
+            if (m && b && b.isValid()) m.fitBounds(b.pad(0.2), { maxZoom: 13 })
+          }}
+          title={t(locale, 'tracking.fitAll')}
+          aria-label={t(locale, 'tracking.fitAll')}
+          className="flex size-[30px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 text-white/85 backdrop-blur transition-colors hover:bg-ink-900"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4" aria-hidden>
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+          </svg>
+        </button>
         {routes.some((r) => r.tone === 'trail') && (
           <button
             type="button"
