@@ -4,7 +4,7 @@
 // "live"/auto-poll treatment (that one polls every 30s on its own — fine for the one
 // /tracking page, too much GPS-vendor traffic to repeat on every truck page opened).
 
-import { useTransition } from 'react'
+import { useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { refreshFleetStatus } from '@/app/actions'
 import { notify } from '@/lib/notify'
@@ -29,10 +29,23 @@ export function SmallRefreshButton({
    * значит отдать постороннему расход нашего лимита у вендора. Позицию всё равно
    * обновляет автоопрос из приложения — здесь показываем свежайшее, что уже в базе. */
   local = false,
-}: { local?: boolean } = {}) {
+  /** Перечитывать страницу самому раз в столько миллисекунд (пока вкладка видима).
+   * Для публичной /track/[id]: брокер держит её открытой и ждёт, что точка поедет, —
+   * без этого она ехала только после ручного нажатия. Опроса вендора здесь нет,
+   * читается то, что кроны уже положили в базу. */
+  autoMs,
+}: { local?: boolean; autoMs?: number } = {}) {
   const locale = useLocale()
   const router = useRouter()
   const [pending, start] = useTransition()
+
+  useEffect(() => {
+    if (!autoMs) return
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') router.refresh()
+    }, autoMs)
+    return () => clearInterval(id)
+  }, [autoMs, router])
 
   function refresh(e: React.MouseEvent) {
     e.preventDefault()

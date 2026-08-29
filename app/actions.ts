@@ -313,12 +313,23 @@ export async function saveEldShareLinks(
 
 /** Manual "Обновить" on /tracking — same two sources the 5-min cron polls, on demand. */
 export async function refreshFleetStatus(): Promise<{ updated: number; errors: string[] }> {
+  // Живой режим карт опрашивает это каждые ~30 с С КАЖДОЙ открытой вкладки. Интервал
+  // серверный и один на всех: первая вкладка реально идёт к вендору, остальные получают
+  // «без изменений» и просто перечитывают базу — вендор видит один опрос, сколько бы
+  // карт ни было открыто.
+  const MIN_POLL_MS = 20_000
+  const lastPoll = await getSetting('fleet_poll_at')
+  if (lastPoll && Date.now() - Number(lastPoll) < MIN_POLL_MS) return { updated: 0, errors: [] }
+  await setSetting('fleet_poll_at', String(Date.now()))
   const { fleetSnapshot, liveShareSnapshot } = await import('@/lib/eld')
   const [share, key] = await Promise.all([liveShareSnapshot(), fleetSnapshot()])
   // 'no_key' just means the paid vendor API isn't hooked up — expected when the fleet
   // runs on Live Share links only, not worth surfacing as an error every click.
+  // 'no_links' — Live Share просто не настроен (парк идёт через API вендора). Это
+  // состояние, а не поломка, и показывать его жёлтой плашкой при каждом обновлении
+  // карты нельзя — ровно как 'no_key' у соседнего источника.
   const errors = [
-    ...('error' in share ? [share.error] : share.errors),
+    ...('error' in share ? (share.error === 'no_links' ? [] : [share.error]) : share.errors),
     ...('error' in key && key.error !== 'no_key' ? [key.error] : []),
   ]
   const updated = ('updated' in share ? share.updated : 0) + ('updated' in key ? key.updated : 0)

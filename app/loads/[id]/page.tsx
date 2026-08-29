@@ -14,7 +14,7 @@ import { loadMapData } from '@/lib/load-map'
 import { FleetMap } from '@/components/fleet-map'
 import { LocalTime } from '@/components/local-time'
 import { zoneFor } from '@/lib/tz'
-import { SmallRefreshButton } from '@/components/small-refresh-button'
+import { RefreshFleetButton } from '@/components/refresh-fleet-button'
 import { Analysis } from '@/components/analysis'
 import { LoadEditNumbers } from '@/components/load-edit-numbers'
 import { BrokerNotes } from '@/components/broker-notes'
@@ -316,7 +316,14 @@ async function LoadMapSection({
             {t(locale, 'loadDetail.mapHeading')}
             <Info text={t(locale, 'loadDetail.mapInfo')} />
             <span className="ml-auto">
-              <SmallRefreshButton />
+              {/* Тот же живой режим, что на /tracking: сам подтягивает GPS при
+                  открытии устаревшей страницы и перечитывает её каждые полминуты.
+                  Карта, которую надо обновлять рукой, — это не трекинг. */}
+              <RefreshFleetButton
+                staleMinutes={
+                  fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null
+                }
+              />
             </span>
           </h2>
           {/* Три отдельные плитки, а не одна строка «82 mi · ~1ч 34м»: время у

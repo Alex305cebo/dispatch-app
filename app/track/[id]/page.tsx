@@ -70,7 +70,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
         <div className="mt-4">
           <div className="mb-2 flex justify-end">
-            <SmallRefreshButton local />
+            <SmallRefreshButton local autoMs={60_000} />
           </div>
           {hasFix ? (
             <FleetMap markers={markers} routes={[]} />

@@ -26,7 +26,7 @@ import { OrphanRateCons } from '@/components/orphan-ratecons'
 import { DocList, DocUpload } from '@/components/docs'
 import { RateConButton } from '@/components/ratecon-button'
 import { TripHistoryPanel } from '@/components/trip-history-panel'
-import { SmallRefreshButton } from '@/components/small-refresh-button'
+import { RefreshFleetButton } from '@/components/refresh-fleet-button'
 import { TruckAvailability } from '@/components/truck-availability'
 import { TruckDispatcher } from '@/components/truck-dispatcher'
 import { Info } from '@/components/info'
@@ -399,7 +399,11 @@ export default async function Page({
               {t(locale, 'trucks.detail.onMap')}
               <Info text={t(locale, 'trucks.detail.onMapInfo')} />
             </h2>
-            <SmallRefreshButton />
+            <RefreshFleetButton
+              staleMinutes={
+                fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null
+              }
+            />
           </div>
           <FleetMap markers={mapMarkers} routes={mapRoutes} height="clamp(320px, 46vh, 600px)" distanceMi={routeMiles} />
         </section>
