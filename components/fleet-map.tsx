@@ -730,8 +730,10 @@ export function FleetMap({
           dynamically mounted tree in this build, see the comment there. */}
       <div ref={ref} className="h-full w-full" />
       {/* Total route distance, big and unmissable, over the map itself. */}
+      {/* На телефоне бейдж по центру наезжал на кнопки справа (от «1 821 mi»
+          оставалась одна «1») — там он спускается под ряд кнопок. */}
       {distanceMi != null && distanceMi > 0 && (
-        <div className="pointer-events-none absolute left-1/2 top-2.5 z-[1000] -translate-x-1/2 rounded-full border border-white/15 bg-ink-950/85 px-3.5 py-1.5 text-center backdrop-blur">
+        <div className="pointer-events-none absolute left-1/2 top-12 z-[1000] -translate-x-1/2 rounded-full border border-white/15 bg-ink-950/85 px-3.5 py-1.5 text-center backdrop-blur sm:top-2.5">
           <span className="nums text-[17px] font-bold leading-none text-white">
             {Math.round(distanceMi).toLocaleString('en-US')}
           </span>
