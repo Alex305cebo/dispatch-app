@@ -430,6 +430,11 @@ export function FleetMap({
   routeRef.current = onRoute
   const mapRef = useRef<import('leaflet').Map | null>(null)
   const tileRef = useRef<import('leaflet').TileLayer | null>(null)
+  // Куда и как смотрел диспетчер. Живой режим перечитывает страницу каждые полминуты,
+  // и карта пересобирается с нуля — без этого каждая пересборка делала fitBounds и
+  // сбрасывала зум, который человек только что выставил. Первый показ по-прежнему
+  // вмещает весь маршрут; дальше вид неприкосновенен.
+  const viewRef = useRef<{ center: [number, number]; zoom: number } | null>(null)
 
   // Builds the map from scratch — only when markers/routes actually change, never
   // on a satellite toggle. Rebuilding on every toggle was what reset the view.
@@ -604,11 +609,16 @@ export function FleetMap({
       // that OSM labels the interstates, highways and towns around it (street names come
       // in as you zoom further). A fleet spread across states still fits its own bounds at
       // a lower zoom, so this only tightens the single/clustered case.
-      map.fitBounds(bounds.pad(0.2), { maxZoom: 13 })
+      if (viewRef.current) map.setView(viewRef.current.center, viewRef.current.zoom, { animate: false })
+      else map.fitBounds(bounds.pad(0.2), { maxZoom: 13 })
     })()
 
     return () => {
       disposed = true
+      if (mapRef.current) {
+        const c = mapRef.current.getCenter()
+        viewRef.current = { center: [c.lat, c.lng], zoom: mapRef.current.getZoom() }
+      }
       map?.remove()
       mapRef.current = null
       tileRef.current = null
