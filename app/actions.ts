@@ -208,7 +208,22 @@ export async function topBrokerInfo(name: string): Promise<TopFacts | { error: s
     })
   }
 
-  const best = chooseCompany(name, null, cards)
+  let best = chooseCompany(name, null, cards)
+  if (!best && cards.length > 1) {
+    // В реестре несколько компаний с ЭТИМ ЖЕ именем (у Nolan Transportation Group
+    // их две: настоящая из Атланты и однофамилец 2023 года из Коннектикута).
+    // Для автозаписи MC в грузы ничья отдаётся человеку, но здесь — справочная
+    // карточка, и у нас есть чем выбрать: штат штаб-квартиры из нашего же
+    // списка топ-брокеров. Совпал ровно один — он и есть.
+    const { TOP_BROKERS } = await import('@/lib/brokers-top')
+    const hq = TOP_BROKERS.find((b) => compact(b.name) === compact(name))?.hq
+    if (hq) {
+      const inState = cards.filter((c) =>
+        new RegExp(`,\s*${hq}`).test(snaps.get(c.dot)?.address ?? ''),
+      )
+      if (inState.length === 1) best = inState[0]!
+    }
+  }
   const snap = best ? snaps.get(best.dot) : null
   if (!best || !snap) return { error: t(locale, 'fmcsa.nameNotFound').replace('{name}', name) }
 

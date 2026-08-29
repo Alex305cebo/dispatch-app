@@ -450,6 +450,14 @@ export function FleetMap({
   // fitBounds не трогается (иначе живое обновление сбрасывало бы зум), поэтому
   // заблудившемуся в глубоком зуме нужен явный путь назад к траку и маршруту.
   const boundsRef = useRef<import('leaflet').LatLngBounds | null>(null)
+  // Карта могла построиться в контейнере НУЛЕВОГО размера (свёрнутая секция,
+  // скрытая вкладка): Leaflet замеряет контейнер один раз, и такая карта навсегда
+  // остаётся пустой — тайлы не рисуются, метки за кадром. Пока пересборка шла
+  // каждые полминуты, это маскировалось; теперь карта строится однажды, и за
+  // размером следит ResizeObserver: контейнер ожил — пересчитать, а если первый
+  // fitBounds пришёлся на нулевой размер, повторить его по-настоящему.
+  const pendingFitRef = useRef(false)
+  const roRef = useRef<ResizeObserver | null>(null)
   // Слой хвоста и его видимость. Ref, а не завязка эффекта на state: переключение
   // не должно пересобирать карту — только снять/надеть группу точек.
   const trailRef = useRef<import('leaflet').LayerGroup | null>(null)
@@ -527,6 +535,17 @@ export function FleetMap({
         // click up to the map, so this only ever fires for clicks that missed a pin.
         map.on('click', () => selectRef.current?.(null))
         overlayRef.current = L.layerGroup().addTo(map)
+        const el = ref.current
+        roRef.current = new ResizeObserver(() => {
+          const m = mapRef.current
+          if (!m || !el.isConnected) return
+          m.invalidateSize()
+          if (pendingFitRef.current && el.clientWidth > 0 && boundsRef.current?.isValid()) {
+            m.fitBounds(boundsRef.current.pad(0.2), { maxZoom: 13 })
+            pendingFitRef.current = false
+          }
+        })
+        roRef.current.observe(el)
       }
       const group = overlayRef.current!
       group.clearLayers()
@@ -666,7 +685,12 @@ export function FleetMap({
       // in as you zoom further). A fleet spread across states still fits its own bounds at
       // a lower zoom, so this only tightens the single/clustered case.
       boundsRef.current = bounds
-      if (firstBuild) map.fitBounds(bounds.pad(0.2), { maxZoom: 13 })
+      if (firstBuild) {
+        map.fitBounds(bounds.pad(0.2), { maxZoom: 13 })
+        // Вписали в невидимый контейнер — вид мусорный; повторим при первом
+        // настоящем размере (сработает ResizeObserver выше).
+        pendingFitRef.current = !ref.current || ref.current.clientWidth === 0 || ref.current.clientHeight === 0
+      }
     })()
 
     return () => {
@@ -678,6 +702,8 @@ export function FleetMap({
   // обновление данных (см. overlayRef выше — почему это принципиально).
   useEffect(
     () => () => {
+      roRef.current?.disconnect()
+      roRef.current = null
       mapRef.current?.remove()
       mapRef.current = null
       tileRef.current = null
