@@ -471,24 +471,23 @@ export function FleetMap({
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
-    const id = requestAnimationFrame(() => map.invalidateSize())
+    const id = requestAnimationFrame(() => {
+      map.invalidateSize()
+      // Выросшую карту — в кадр: без прокрутки разворот на телефоне происходил
+      // «где-то ниже», и казалось, что кнопка не сработала.
+      if (expanded) ref.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    })
     return () => cancelAnimationFrame(id)
   }, [expanded])
 
-  // Esc закрывает — привычный выход из окна поверх страницы. Заодно придерживаем
-  // прокрутку страницы под ним: колесо должно двигать карту, а не текст за ней.
+  // Esc сворачивает — привычный выход из развёрнутого вида.
   useEffect(() => {
     if (!expanded) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setExpanded(false)
     }
     window.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prev
-    }
+    return () => window.removeEventListener('keydown', onKey)
   }, [expanded])
 
   useEffect(() => {
@@ -716,14 +715,12 @@ export function FleetMap({
 
   const content = (
     <div
-      className={
-        expanded
-          ? // Почти во весь экран, но с полями: видно, что это окно поверх страницы,
-            // и есть куда нажать, чтобы закрыть.
-            'fleet-map panel fixed inset-2 z-[1500] overflow-hidden sm:inset-4 lg:inset-6'
-          : 'fleet-map panel relative z-0 overflow-hidden'
-      }
-      style={expanded ? undefined : { height }}
+      // «Развернуть» растит карту НА МЕСТЕ, а не окном поверх страницы: у каждого
+      // .panel стоит backdrop-filter, который по спецификации делает предка
+      // контейнером для fixed — «окно во весь экран» прибивалось к собственной
+      // секции, и на телефоне кнопка выглядела неработающей.
+      className="fleet-map panel relative z-0 overflow-hidden"
+      style={{ height: expanded ? 'min(88dvh, 56rem)' : height }}
     >
       {/* Leaflet's own chrome (container bg, popup theme) is styled in globals.css
           under .fleet-map — Tailwind's arbitrary `[&_...]` variants don't reach this
