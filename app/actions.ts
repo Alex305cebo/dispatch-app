@@ -183,14 +183,48 @@ export async function topBrokerInfo(name: string): Promise<TopFacts | { error: s
 
   const { saferSearch, saferSnapshot } = await import('@/lib/safer')
   const { chooseCompany, compact, searchTerms } = await import('@/lib/broker-match')
+  const { TOP_BROKERS } = await import('@/lib/brokers-top')
+
+  // Некоторые бренды в реестре записаны иначе («MODE Global» = MODE TRANSPORTATION
+  // LLC) — ищем под реестровым именем из справочника, показываем под брендовым.
+  const known = TOP_BROKERS.find((b) => compact(b.name) === compact(name))
+  const lookup = known?.alias ?? name
+
+  // Выверенный вручную DOT — без поиска вовсе: у крупных брендов в реестре
+  // однофамильцы, и правило имени между ними бессильно.
+  if (known?.dot) {
+    const snap0 = await saferSnapshot(known.dot)
+    if (snap0) {
+      const p = /([A-Za-z .'-]+),\s*([A-Z]{2})\s+\d{5}/.exec(snap0.address ?? '')
+      const facts: TopFacts = {
+        mc: snap0.mc ?? known.mc ?? null,
+        dot: known.dot,
+        legalName: snap0.legalName ?? name,
+        city: p?.[1]?.trim() ?? null,
+        state: p?.[2] ?? null,
+        authority: snap0.operatingStatus,
+        phone: snap0.phone,
+      }
+      store[name.toLowerCase()] = { at: new Date().toISOString(), facts }
+      await setSetting(CACHE_KEY, JSON.stringify(store))
+      return facts
+    }
+  }
 
   const hits: { dot: string; legalName: string }[] = []
-  for (const term of searchTerms(name)) {
+  for (const term of searchTerms(lookup)) {
     for (const h of await saferSearch(term)) if (!hits.some((x) => x.dot === h.dot)) hits.push(h)
-    if (hits.some((h) => compact(h.legalName) === compact(name))) break
+    if (hits.some((h) => compact(h.legalName) === compact(lookup))) break
   }
-  const want = compact(name)
-  const worth = hits.filter((h) => compact(h.legalName).startsWith(want)).slice(0, 4)
+  const want = compact(lookup)
+  // Префикс в ОБЕ стороны: у нас «J.B. Hunt Transport Services», в реестре
+  // «J.B. HUNT TRANSPORT INC» — короче нашего, и односторонний startsWith его терял.
+  const worth = hits
+    .filter((h) => {
+      const c = compact(h.legalName)
+      return c.startsWith(want) || want.startsWith(c)
+    })
+    .slice(0, 8)
 
   const cards = []
   const snaps = new Map<string, Awaited<ReturnType<typeof saferSnapshot>>>()
@@ -208,21 +242,24 @@ export async function topBrokerInfo(name: string): Promise<TopFacts | { error: s
     })
   }
 
-  let best = chooseCompany(name, null, cards)
-  if (!best && cards.length > 1) {
-    // В реестре несколько компаний с ЭТИМ ЖЕ именем (у Nolan Transportation Group
-    // их две: настоящая из Атланты и однофамилец 2023 года из Коннектикута).
-    // Для автозаписи MC в грузы ничья отдаётся человеку, но здесь — справочная
-    // карточка, и у нас есть чем выбрать: штат штаб-квартиры из нашего же
-    // списка топ-брокеров. Совпал ровно один — он и есть.
-    const { TOP_BROKERS } = await import('@/lib/brokers-top')
-    const hq = TOP_BROKERS.find((b) => compact(b.name) === compact(name))?.hq
-    if (hq) {
-      const inState = cards.filter((c) =>
-        new RegExp(`,\s*${hq}`).test(snaps.get(c.dot)?.address ?? ''),
-      )
-      if (inState.length === 1) best = inState[0]!
+  let best = chooseCompany(lookup, null, cards)
+  if (!best && cards.length > 0) {
+    // В реестре несколько компаний с этим именем (у Nolan Transportation Group две:
+    // настоящая из Атланты и однофамилец 2023 года из Коннектикута). Для автозаписи
+    // MC в грузы такая ничья отдаётся человеку, но здесь справочная карточка
+    // ИЗВЕСТНОГО брокера — выбираем сами, сужая шаг за шагом: штат штаб-квартиры из
+    // нашего справочника → брокерский авторитет → дословное имя → старейший DOT
+    // (однофамильцы-подражатели регистрируются недавно, номера у них большие).
+    let pool = cards
+    if (known?.hq) {
+      const st = pool.filter((c) => (snaps.get(c.dot)?.address ?? '').includes(`, ${known.hq} `))
+      if (st.length > 0) pool = st
     }
+    const brokers = pool.filter((c) => (c.entityType ?? '').toUpperCase().includes('BROKER'))
+    if (brokers.length > 0) pool = brokers
+    const exact = pool.filter((c) => compact(c.legalName) === want)
+    if (exact.length > 0) pool = exact
+    best = pool.slice().sort((a, b) => Number(a.dot) - Number(b.dot))[0] ?? null
   }
   const snap = best ? snaps.get(best.dot) : null
   if (!best || !snap) return { error: t(locale, 'fmcsa.nameNotFound').replace('{name}', name) }

@@ -95,18 +95,41 @@ function after(lines: string[], label: string): string | null {
   return next && !next.endsWith(':') ? next : null
 }
 
+/** Значение из НЕСКОЛЬКИХ строк после подписи — до следующей подписи-«...:». */
+function afterBlock(lines: string[], label: string): string | null {
+  const i = lines.findIndex((l) => l.toLowerCase().startsWith(label.toLowerCase()))
+  if (i < 0) return null
+  const parts: string[] = []
+  const own = lines[i]!.slice(label.length).replace(/^[:\s]+/, '').trim()
+  if (own) parts.push(own)
+  for (let j = i + 1; j <= i + 3 && j < lines.length; j++) {
+    const l = lines[j]!.trim()
+    if (!l || l.endsWith(':')) break
+    parts.push(l)
+  }
+  return parts.length ? parts.join(', ') : null
+}
+
 export function parseSaferSnapshot(html: string, dot: string): SaferCompany | null {
   const lines = textLines(html)
   if (lines.length === 0) return null
 
   // «MC-23783» — номер может стоять с префиксом MC/MX/FF; берём именно MC.
   const mcLine = after(lines, 'MC/MX/FF Number(s):')
-  const mc = /MC-?(\d{3,8})/i.exec(mcLine ?? '')?.[1] ?? null
+  // Запасной ход: у части записей (RXO, England Logistics) номер лежит не в
+  // строке под подписью, а дальше по странице — берём первый MC-… откуда угодно.
+  const mc =
+    /MC-?(\d{3,8})/i.exec(mcLine ?? '')?.[1] ??
+    /MC-(\d{3,8})/.exec(lines.join(' '))?.[1] ??
+    null
 
   const legalName = after(lines, 'Legal Name:')
   const dba = after(lines, 'DBA Name:')
   const phone = after(lines, 'Phone:')
-  const address = after(lines, 'Physical Address:')
+  // Адрес двухстрочный: улица, под ней «ATLANTA, GA 30346-2304». after() берёт
+  // одну строку — город со штатом терялись, а по штату выбирается компания среди
+  // однофамильцев. Собираем строки до следующей подписи (максимум три).
+  const address = afterBlock(lines, 'Physical Address:')
   const entityType = after(lines, 'Entity Type:')
   const operatingStatus = after(lines, 'Operating Status:')
 
