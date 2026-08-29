@@ -651,9 +651,17 @@ export function FleetMap({
 
     return () => {
       disposed = true
-      if (mapRef.current) {
-        const c = mapRef.current.getCenter()
-        viewRef.current = { center: [c.lat, c.lng], zoom: mapRef.current.getZoom() }
+      // getCenter() БРОСАЕТ («Set map center and zoom first»), если сборка ещё не
+      // дошла до fitBounds — а она асинхронная и ждёт стиль тайлов по сети. Живое
+      // обновление, попавшее в это окно, роняло cleanup, а с ним и всю карту:
+      // ни пинов, ни маршрута. Не успели запомнить вид — оставляем прежний.
+      try {
+        if (mapRef.current) {
+          const c = mapRef.current.getCenter()
+          viewRef.current = { center: [c.lat, c.lng], zoom: mapRef.current.getZoom() }
+        }
+      } catch {
+        /* вид ещё не выставлен */
       }
       map?.remove()
       mapRef.current = null
