@@ -440,11 +440,12 @@ export function FleetMap({
   routeRef.current = onRoute
   const mapRef = useRef<import('leaflet').Map | null>(null)
   const tileRef = useRef<import('leaflet').TileLayer | null>(null)
-  // Куда и как смотрел диспетчер. Живой режим перечитывает страницу каждые полминуты,
-  // и карта пересобирается с нуля — без этого каждая пересборка делала fitBounds и
-  // сбрасывала зум, который человек только что выставил. Первый показ по-прежнему
-  // вмещает весь маршрут; дальше вид неприкосновенен.
-  const viewRef = useRef<{ center: [number, number]; zoom: number } | null>(null)
+  // Группа всех слоёв данных (маршруты, маркеры). Живой режим приносит свежие
+  // props каждые полминуты — перерисовывается ТОЛЬКО эта группа, а карта, тайлы и
+  // вид (зум, позиция) живут. Пересборка карты на каждый тик не просто мигала:
+  // каждый maplibre-слой — новый WebGL-контекст, браузер держит ~16, и через
+  // восемь минут открытой страницы подложка гасла молча и навсегда.
+  const overlayRef = useRef<import('leaflet').LayerGroup | null>(null)
   // Слой хвоста и его видимость. Ref, а не завязка эффекта на state: переключение
   // не должно пересобирать карту — только снять/надеть группу точек.
   const trailRef = useRef<import('leaflet').LayerGroup | null>(null)
@@ -501,21 +502,35 @@ export function FleetMap({
     let disposed = false
     // Dynamic import: leaflet touches window at module load, so it must never run
     // during SSR.
-    let map: import('leaflet').Map | undefined
     void (async () => {
       const L = (await import('leaflet')).default
       await import('leaflet/dist/leaflet.css' as string).catch(() => {})
       if (disposed || !ref.current) return
 
-      // Attribution control off at the owner's request (no on-map watermark). NOTE: the
-      // tile sources (OpenFreeMap/OpenMapTiles/OSM data, MapTiler, Esri) technically require
-      // a visible credit under their terms — this drops it deliberately.
-      // minZoom 3 / maxZoom 19: без границ колесо уводило либо в серую сетку «Map data not
-      // yet available» (спутник кончается раньше, чем зум), либо на весь глобус, где траки
-      // сливались в одну точку. 3 ≈ вся страна целиком, 19 ≈ номера домов.
-      map = L.map(ref.current, { zoomControl: true, attributionControl: false, minZoom: 3, maxZoom: 19 })
-      mapRef.current = map
-      tileRef.current = (await buildBaseLayer(L, satelliteRef.current)).addTo(map)
+      let map = mapRef.current
+      const firstBuild = !map
+      if (!map) {
+        // Attribution control off at the owner's request (no on-map watermark). NOTE: the
+        // tile sources (OpenFreeMap/OpenMapTiles/OSM data, MapTiler, Esri) technically require
+        // a visible credit under their terms — this drops it deliberately.
+        // minZoom 3 / maxZoom 19: без границ колесо уводило либо в серую сетку «Map data not
+        // yet available» (спутник кончается раньше, чем зум), либо на весь глобус, где траки
+        // сливались в одну точку. 3 ≈ вся страна целиком, 19 ≈ номера домов.
+        map = L.map(ref.current, { zoomControl: true, attributionControl: false, minZoom: 3, maxZoom: 19 })
+        mapRef.current = map
+        tileRef.current = (await buildBaseLayer(L, satelliteRef.current)).addTo(map)
+        if (disposed) return
+        // Empty map = "show me the whole fleet again". Leaflet doesn't bubble a marker
+        // click up to the map, so this only ever fires for clicks that missed a pin.
+        map.on('click', () => selectRef.current?.(null))
+        overlayRef.current = L.layerGroup().addTo(map)
+      }
+      const group = overlayRef.current!
+      group.clearLayers()
+      if (trailRef.current) {
+        map.removeLayer(trailRef.current)
+        trailRef.current = null
+      }
 
       const bounds = L.latLngBounds([])
       // Draw route lines first so markers sit on top. A real road route (coords)
@@ -548,7 +563,7 @@ export function FleetMap({
           weight: free ? 3 : road ? 4 : 2,
           opacity: free ? 0.75 : road ? 0.85 : 0.7,
           dashArray: free ? '7 6' : road ? undefined : '6 7',
-        }).addTo(map!)
+        }).addTo(group)
 
         if (r.id && road) {
           // Невыбранный маршрут можно выбрать щелчком прямо по нему. Тонкая линия
@@ -556,7 +571,7 @@ export function FleetMap({
           // поэтому поверх кладётся широкая прозрачная: она ловит щелчок, а видно
           // по-прежнему тонкую.
           const id = r.id
-          const hit = L.polyline(r.coords!, { color: '#000', weight: 18, opacity: 0 }).addTo(map!)
+          const hit = L.polyline(r.coords!, { color: '#000', weight: 18, opacity: 0 }).addTo(group)
           for (const target of [line, hit]) {
             target.on('click', (e: { originalEvent?: Event }) => {
               // Иначе щелчок дойдёт до карты и та поймёт его как «снять выбор».
@@ -575,11 +590,8 @@ export function FleetMap({
 
         if (road) for (const c of r.coords!) bounds.extend(c)
       }
-      // Empty map = "show me the whole fleet again". Leaflet doesn't bubble a marker
-      // click up to the map, so this only ever fires for clicks that missed a pin.
-      map.on('click', () => selectRef.current?.(null))
       for (const m of markers) {
-        const marker = L.marker([m.lat, m.lng], { icon: icon(L, m) }).addTo(map!)
+        const marker = L.marker([m.lat, m.lng], { icon: icon(L, m) }).addTo(group)
         // Its own listener, not folded into the handlers below: Leaflet keeps a list
         // per event, and this has to fire for a truck pin whether or not it has an href.
         if (m.truckId != null) {
@@ -645,36 +657,26 @@ export function FleetMap({
       // that OSM labels the interstates, highways and towns around it (street names come
       // in as you zoom further). A fleet spread across states still fits its own bounds at
       // a lower zoom, so this only tightens the single/clustered case.
-      if (viewRef.current) map.setView(viewRef.current.center, viewRef.current.zoom, { animate: false })
-      else map.fitBounds(bounds.pad(0.2), { maxZoom: 13 })
-      // Пересобранная карта наследует размер канваса от ПРОШЛОЙ вёрстки: если между
-      // живыми обновлениями что-то сдвинуло ширину (панель, скроллбар, окно), GL-слой
-      // рисует не тот кадр и подложка выглядит пустой. Кадр спустя — честный замер.
-      requestAnimationFrame(() => {
-        if (!disposed) map?.invalidateSize()
-      })
+      if (firstBuild) map.fitBounds(bounds.pad(0.2), { maxZoom: 13 })
     })()
 
     return () => {
       disposed = true
-      // getCenter() БРОСАЕТ («Set map center and zoom first»), если сборка ещё не
-      // дошла до fitBounds — а она асинхронная и ждёт стиль тайлов по сети. Живое
-      // обновление, попавшее в это окно, роняло cleanup, а с ним и всю карту:
-      // ни пинов, ни маршрута. Не успели запомнить вид — оставляем прежний.
-      try {
-        if (mapRef.current) {
-          const c = mapRef.current.getCenter()
-          viewRef.current = { center: [c.lat, c.lng], zoom: mapRef.current.getZoom() }
-        }
-      } catch {
-        /* вид ещё не выставлен */
-      }
-      map?.remove()
+    }
+  }, [markers, routes])
+
+  // Карта сносится ОДИН раз — при размонтировании компонента, а не на каждое
+  // обновление данных (см. overlayRef выше — почему это принципиально).
+  useEffect(
+    () => () => {
+      mapRef.current?.remove()
       mapRef.current = null
       tileRef.current = null
+      overlayRef.current = null
       trailRef.current = null
-    }
-  }, [markers, routes, expanded])
+    },
+    [],
+  )
 
   // Swaps just the tile layer in place on a satellite toggle — no fitBounds, no
   // rebuild, so whatever the dispatcher panned/zoomed to survives the switch.
