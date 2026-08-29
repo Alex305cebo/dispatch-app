@@ -543,12 +543,17 @@ export function FleetMap({
         // группе, которую прячет кнопка «Путь».
         if (r.tone === 'trail') {
           if (road) {
+            // Янтарь с белой обводкой: серые точки сливались и с дорогами
+            // подложки, и с маршрутом. Янтарь на карте не занят — маршрут
+            // фиолетовый, трак в движении зелёный.
             const dots = r.coords!.map((c, i) =>
               L.circleMarker(c, {
-                radius: i === 0 ? 0 : 3,
-                stroke: false,
-                fillColor: '#7c8496',
-                fillOpacity: 0.55,
+                radius: i === 0 ? 0 : 3.5,
+                stroke: true,
+                color: '#ffffff',
+                weight: 1.5,
+                fillColor: '#f59e0b',
+                fillOpacity: 0.9,
                 interactive: false,
               }),
             )
@@ -742,12 +747,14 @@ export function FleetMap({
           <button
             type="button"
             onClick={() => setTrailOn((v) => !v)}
+            title={t(locale, 'tracking.trailTitle')}
             className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold backdrop-blur transition-colors ${
               trailOn
                 ? 'border-white/25 bg-ink-950/85 text-white'
                 : 'border-white/15 bg-ink-950/60 text-white/45 hover:text-white/70'
             }`}
           >
+            <span className="mr-1 inline-block size-2 rounded-full border border-white bg-[#f59e0b] align-[-1px]" />
             {t(locale, 'tracking.trailLabel')}
           </button>
         )}
