@@ -102,6 +102,27 @@ export async function idleSince(unit: string, lat: number, lng: number): Promise
 }
 
 /**
+ * Всё, что карта хочет знать из хлебных крошек, ОДНОЙ читкой трейла: сам хвост
+ * пути за 12 часов (для серой линии за траком), простой и курс. Раньше карта
+ * звала headingOf, а хвоста не было вовсе — рисовать его отдельным запросом по
+ * той же таблице было бы вторым сканом ради тех же строк.
+ */
+export async function liveTrail(
+  unit: string,
+  lat: number,
+  lng: number,
+): Promise<{ coords: [number, number][]; idleAt: Date | null; heading: number | null }> {
+  const trail = await recentTrail(unit)
+  return {
+    // Хвост тянется ОТ текущей точки назад — свежая позиция из fleet_status может
+    // быть моложе последней крошки, без неё линия обрывалась бы, не дойдя до трака.
+    coords: [[lat, lng], ...trail.map((r) => [r.lat, r.lng] as [number, number])],
+    idleAt: idleSinceIn(trail, lat, lng),
+    heading: headingIn(trail, lat, lng),
+  }
+}
+
+/**
  * Compass heading (0-360) the truck is moving in, from its recent breadcrumb — points
  * the map's moving-truck arrow the right way instead of a fixed "up". Walks back until
  * it finds a point far enough away to give a real direction (skips GPS jitter); null

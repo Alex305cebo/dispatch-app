@@ -47,7 +47,7 @@ export type MapRoute = {
   /** Раздел платных дорог рисует на одной карте два маршрута сразу. Одним цветом
    * они читаются как один путь с петлёй, поэтому объезд идёт серым пунктиром, а
    * платный — сплошной линией акцента. */
-  tone?: 'toll' | 'free'
+  tone?: 'toll' | 'free' | 'trail'
   /** Ключ варианта. Есть — по линии можно щёлкнуть и выбрать её (см. onRoute). */
   id?: string
 }
@@ -493,6 +493,14 @@ export function FleetMap({
       // is a solid line following roads; the straight-line fallback is dashed.
       for (const r of routes) {
         const road = r.coords && r.coords.length > 1
+        // Хвост пути: тонкая серая линия там, где трак УЖЕ проехал. Не мишень для
+        // щелчков и не участвует в границах — карта строится по работе (трак,
+        // пикап, выгрузка), а не по вчерашней дороге.
+        if (r.tone === 'trail') {
+          if (road)
+            L.polyline(r.coords!, { color: '#7c8496', weight: 2.5, opacity: 0.5, dashArray: '1 6' }).addTo(map!)
+          continue
+        }
         const free = r.tone === 'free'
         const line = L.polyline(road ? r.coords! : [r.from, r.to], {
           color: free ? '#8b93a5' : DEST,

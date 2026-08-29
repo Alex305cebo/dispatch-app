@@ -2,8 +2,8 @@ import { notFound } from 'next/navigation'
 import { sql } from '@/lib/db'
 import { eldStatus } from '@/lib/map'
 import { agoText } from '@/lib/fmt'
-import { idleSince } from '@/lib/eld'
-import { FleetMap, type MapMarker } from '@/components/fleet-map'
+import { liveTrail } from '@/lib/eld'
+import { FleetMap, type MapMarker, type MapRoute } from '@/components/fleet-map'
 import { zoneFor } from '@/lib/tz'
 import { fixPlace } from '@/lib/place'
 import { SmallRefreshButton } from '@/components/small-refresh-button'
@@ -32,9 +32,16 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const place = fixPlace(row.location, row.lat, row.lng)
 
   const hasFix = row.lat !== null && row.lng !== null
-  const idleAt =
-    hasFix && row.number ? await idleSince(row.number, row.lat!, row.lng!).catch(() => null) : null
+  // Одна читка хлебных крошек даёт и простой, и хвост пути за 12 часов — брокер
+  // видит не голую точку, а то, что трак действительно едет.
+  const trail =
+    hasFix && row.number ? await liveTrail(row.number, row.lat!, row.lng!).catch(() => null) : null
+  const idleAt = trail?.idleAt ?? null
   const idleHours = idleAt ? Math.floor((Date.now() - idleAt.getTime()) / 3_600_000) : null
+  const routes: MapRoute[] =
+    trail && trail.coords.length > 2
+      ? [{ from: trail.coords[0]!, to: trail.coords[trail.coords.length - 1]!, coords: trail.coords, tone: 'trail' }]
+      : []
   const st = eldStatus(row.drive_status, idleHours)
   const markers: MapMarker[] = hasFix
     ? [
@@ -73,7 +80,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             <SmallRefreshButton local autoMs={60_000} />
           </div>
           {hasFix ? (
-            <FleetMap markers={markers} routes={[]} />
+            <FleetMap markers={markers} routes={routes} />
           ) : (
             <p className="panel p-6 text-center text-[13px] text-white/55">{t(locale, 'tracking.noCoordsYet')}</p>
           )}

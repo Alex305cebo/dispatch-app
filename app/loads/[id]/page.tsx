@@ -298,7 +298,7 @@ async function LoadMapSection({
   locale: Awaited<ReturnType<typeof getLocale>>
 }) {
   if (!load) return null
-  const { markers: mapMarkers, routes: mapRoutes, miles: routeMiles, etaMin } = await loadMapData(
+  const { markers: mapMarkers, routes: mapRoutes, miles: routeMiles, etaMin, live } = await loadMapData(
     load,
     truck,
     fs,
@@ -378,10 +378,106 @@ async function LoadMapSection({
                   <div className="nums min-h-[1.375rem] text-[15px] font-semibold text-white/85">
                     ~{driveTime(etaMin, locale)}
                   </div>
+                  {/* Чистый драйв — крупно, а реальный путь с ночёвками 11/10 —
+                      подписью: раньше диспетчер пересчитывал это в голове. */}
+                  {live.realEtaMin != null && live.realEtaMin > etaMin && (
+                    <div className="nums mt-0.5 text-[11px] text-white/45">
+                      {t(locale, 'loadDetail.withRest').replace('{t}', driveTime(live.realEtaMin, locale))}
+                    </div>
+                  )}
                 </div>
               )}
+              {/* Успевает ли к сроку — главный вопрос, на который карта раньше не
+                  отвечала: честный путь с ночёвками против даты и времени выгрузки. */}
+              {live.slackMin != null && (
+                <div
+                  className={`flex-1 basis-[9rem] rounded-xl border px-3 py-2 ${
+                    live.slackMin >= 0
+                      ? 'border-good-500/25 bg-good-500/[0.06]'
+                      : 'border-bad-500/30 bg-bad-500/[0.07]'
+                  }`}
+                >
+                  <div className="text-[10px] uppercase tracking-wider text-white/45">
+                    {t(locale, 'loadDetail.deadline')}
+                  </div>
+                  <div
+                    className={`nums min-h-[1.375rem] text-[14px] font-semibold ${
+                      live.slackMin >= 0 ? 'text-good-400' : 'text-bad-400'
+                    }`}
+                  >
+                    {t(locale, live.slackMin >= 0 ? 'loadDetail.slackOk' : 'loadDetail.slackLate').replace(
+                      '{t}',
+                      driveTime(Math.abs(live.slackMin), locale),
+                    )}
+                  </div>
+                </div>
+              )}
+              {/* Стоит 2+ часа не у пикапа и не у выгрузки: поломка, сон или
+                  детеншн не там — повод позвонить, пока не позвонил брокер. */}
+              {live.idleMin != null && live.idleMin >= 120 && (
+                <div className="flex-1 basis-[8rem] rounded-xl border border-warn-500/30 bg-warn-500/[0.07] px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-white/45">
+                    {t(locale, 'loadDetail.idleWarn')}
+                  </div>
+                  <div className="nums min-h-[1.375rem] text-[14px] font-semibold text-warn-400">
+                    {driveTime(live.idleMin, locale)}
+                  </div>
+                </div>
+              )}
+              {live.offRouteMi != null && (
+                <div className="flex-1 basis-[8rem] rounded-xl border border-warn-500/30 bg-warn-500/[0.07] px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wider text-white/45">
+                    {t(locale, 'loadDetail.offRoute')}
+                  </div>
+                  <div className="nums min-h-[1.375rem] text-[14px] font-semibold text-warn-400">
+                    ~{live.offRouteMi} mi
+                  </div>
+                </div>
+              )}
+              {/* Хватит ли топлива до выгрузки. Объём бака не телеметрия — 250
+                  галлонов стандартной пары баков, поэтому «примерно». */}
+              {fs?.fuel != null && truck.mpg > 0 && routeMiles != null && (() => {
+                const rangeMi = Math.round(((fs.fuel / 100) * 250 * truck.mpg) / 10) * 10
+                const short = rangeMi < routeMiles
+                return (
+                  <div
+                    className={`flex-1 basis-[8rem] rounded-xl border px-3 py-2 ${
+                      short ? 'border-warn-500/30 bg-warn-500/[0.07]' : 'border-white/10 bg-white/[0.04]'
+                    }`}
+                  >
+                    <div className="text-[10px] uppercase tracking-wider text-white/45">
+                      {t(locale, 'loadDetail.fuelFor')}
+                    </div>
+                    <div className={`nums min-h-[1.375rem] text-[15px] font-semibold ${short ? 'text-warn-400' : 'text-white/85'}`}>
+                      ~{rangeMi.toLocaleString('en-US')} <span className="text-[11px] font-medium text-white/45">mi</span>
+                    </div>
+                    {short && (
+                      <div className="mt-0.5 text-[11px] text-warn-400/85">{t(locale, 'loadDetail.fuelShort')}</div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )}
+          {/* Прогресс рейса: сколько загруженных миль уже позади. Только когда груз
+              в пути — до пикапа делить ещё нечего; и не при крюке в четверть пути,
+              когда «осталось» больше всей дистанции и полоска бы врала. */}
+          {load.status === 'in_transit' && routeMiles != null && load.loadedMiles > 0 && routeMiles <= load.loadedMiles * 1.25 && (() => {
+            const pct = Math.min(100, Math.max(0, Math.round((1 - routeMiles / load.loadedMiles) * 100)))
+            return (
+              <div className="mb-3">
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
+                  <div className="h-full rounded-full bg-haul-500" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="nums mt-1 text-[11px] text-white/50">
+                  {t(locale, 'loadDetail.progressLine')
+                    .replace('{p}', String(pct))
+                    .replace('{left}', String(Math.round(routeMiles)))
+                    .replace('{total}', String(Math.round(load.loadedMiles)))}
+                </div>
+              </div>
+            )
+          })()}
           <FleetMap markers={mapMarkers} routes={mapRoutes} height="clamp(300px, 42vh, 540px)" distanceMi={routeMiles} />
         </section>
   )

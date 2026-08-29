@@ -65,3 +65,22 @@ export function bearing(a: LatLng, b: LatLng): number {
   const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng)
   return (toDeg(Math.atan2(y, x)) + 360) % 360
 }
+
+/**
+ * Насколько точка в стороне от ломаной маршрута, в милях.
+ *
+ * Минимум по ВЕРШИНАМ, без проекции на отрезки: полилиния OSRM плотная (точки
+ * через сотни футов), и на траковых масштабах разница с честной проекцией — шум.
+ * Каждая десятая вершина: у маршрута через полстраны их до ~18 тысяч, а огрубление
+ * шага до долей мили погоды в ответе «ушёл ли на 25+ миль» не делает.
+ */
+export function distToPathMiles(pt: LatLng, path: [number, number][]): number | null {
+  if (!path.length) return null
+  let best = Infinity
+  const step = path.length > 1000 ? 10 : 1
+  for (let i = 0; i < path.length; i += step) {
+    const d = haversineMiles(pt, { lat: path[i]![0], lng: path[i]![1] })
+    if (d < best) best = d
+  }
+  return best
+}

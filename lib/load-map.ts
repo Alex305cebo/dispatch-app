@@ -6,7 +6,9 @@
 import type { LoadRecord, TruckRecord } from './map'
 import type { FleetStatus } from './maintenance-core'
 import { cityCoordsBest, deliveryInfoBest } from './geo-routing'
-import { headingOf } from './eld'
+import { liveTrail } from './eld'
+import { tripEta } from './trip-eta'
+import { distToPathMiles, haversineMiles } from './geo'
 import { driveTime } from './fmt'
 import { zoneFor } from './tz'
 import { t, type Locale } from './i18n.ts'
@@ -30,6 +32,19 @@ export type LoadMapData = {
    * строка «82 mi · ~1ч 34м до delivery», и разложить её на отдельные плитки без
    * разбора текста было нельзя. Форматирует уже вызывающий, под своё место. */
   etaMin: number | null
+  /** Живые сигналы активного рейса — то, что диспетчер иначе считает в голове.
+   * Null-поля значат «сигнала нет», а не «всё плохо»: без даты доставки нет
+   * запаса, без хлебных крошек нет простоя. */
+  live: {
+    /** Минуты РЕАЛЬНОГО пути: за рулём + ночёвки по правилу 11/10. */
+    realEtaMin: number | null
+    /** Запас до срока выгрузки (минуты); минус — опоздание. */
+    slackMin: number | null
+    /** Сколько уже стоит на месте (минуты) НЕ у пикапа и не у выгрузки. */
+    idleMin: number | null
+    /** Насколько трак в стороне от прямого маршрута пикап→выгрузка (мили). */
+    offRouteMi: number | null
+  }
 }
 
 /** How old an ELD fix may be before we stop presenting it as "where the truck is now".
@@ -58,6 +73,7 @@ export async function loadMapData(
   let etaText: string | null = null
   let miles: number | null = null
   let etaMin: number | null = null
+  const live: LoadMapData['live'] = { realEtaMin: null, slackMin: null, idleMin: null, offRouteMi: null }
 
   // Prefer the RC's exact street address over the bare city — pins the real dock,
   // not just the city center. Falls back to ZIP then city if OSM can't resolve that
@@ -104,9 +120,9 @@ export async function loadMapData(
       routes.push({ from: [pickup.lat, pickup.lng], to: [dest.lat, dest.lng], coords: leg?.coords })
       miles = leg?.miles ?? (load.loadedMiles > 0 ? load.loadedMiles : null)
     }
-    return { markers, routes, etaText, miles, etaMin }
+    return { markers, routes, etaText, miles, etaMin, live }
   }
-  if (noGps) return { markers, routes, etaText, miles, etaMin }
+  if (noGps) return { markers, routes, etaText, miles, etaMin, live }
 
   // Age of the fix itself, not of our last poll — a stale pin is greyed out and says so
   // instead of pretending the truck is standing there right now.
@@ -114,7 +130,21 @@ export async function loadMapData(
   const gpsAge = Number.isNaN(seenMs) ? null : Math.max(0, Date.now() - seenMs)
   const stale = gpsAge !== null && gpsAge > STALE_GPS_MS
 
-  const heading = truck.number ? await headingOf(truck.number, lat, lng).catch(() => null) : null
+  const trail = truck.number
+    ? await liveTrail(truck.number, lat, lng).catch(() => null)
+    : null
+  const heading = trail?.heading ?? null
+  // Хвост пути за 12 часов — серой линией ЗА траком: видно, ехал ли ночью, где
+  // стоял и не крутится ли на месте. Первым в списке, чтобы дорога рисовалась
+  // поверх него.
+  if (trail && trail.coords.length > 2) {
+    routes.push({
+      from: trail.coords[0]!,
+      to: trail.coords[trail.coords.length - 1]!,
+      coords: trail.coords,
+      tone: 'trail',
+    })
+  }
   const truckM: MapMarker = {
     lat,
     lng,
@@ -171,6 +201,16 @@ export async function loadMapData(
     miles = routeMiles
     const routeEtaMin = (legToPickup?.etaMin ?? 0) + legToDelivery.etaMin
     etaMin = routeEtaMin
+    // Честный срок: за рулём + ночёвки, против даты и времени выгрузки в её поясе.
+    const eta = tripEta(
+      routeEtaMin,
+      Date.now(),
+      load.deliveryDate,
+      load.deliveryTime,
+      zoneFor(legToDelivery.lat, legToDelivery.lng),
+    )
+    live.realEtaMin = eta.realMin
+    live.slackMin = eta.slackMin
     etaText = `${routeMiles} mi · ~${driveTime(routeEtaMin, locale)}${t(locale, 'tracking.toDelivery')}`
     truckM.eta = etaText
     if (legToPickup && pickup) {
@@ -193,6 +233,25 @@ export async function loadMapData(
     })
   }
 
+  // Простой: стоит — но не у пикапа и не у выгрузки, там стоять положено.
+  if (trail?.idleAt && load) {
+    const nearStop = [pickup, legToDelivery]
+      .filter((p): p is NonNullable<typeof p> => p != null)
+      .some((p) => haversineMiles({ lat, lng }, { lat: p.lat, lng: p.lng }) < 5)
+    if (!nearStop) live.idleMin = Math.round((Date.now() - trail.idleAt.getTime()) / 60_000)
+  }
+
+  // Уход с маршрута — только когда груз уже везётся: расстояние до плановой линии
+  // пикап→выгрузка. Пока трак едет НА пикап, сравнивать его не с чем.
+  if (load?.status === 'in_transit' && pickup) {
+    const planned = await deliveryInfoBest(pickup, load.deliveryAddress, load.destination).catch(() => null)
+    if (planned?.coords?.length) {
+      const off = distToPathMiles({ lat, lng }, planned.coords)
+      // 25 миль: объезды, заправки и весовые дальше от трассы не уводят.
+      if (off !== null && off > 25) live.offRouteMi = Math.round(off)
+    }
+  }
+
   markers.push(truckM)
-  return { markers, routes, etaText, miles, etaMin }
+  return { markers, routes, etaText, miles, etaMin, live }
 }

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { haversineMiles, deadheadEstimate, bearing, type LatLng } from './geo.ts'
+import { distToPathMiles, haversineMiles, deadheadEstimate, bearing, type LatLng } from './geo.ts'
 
 const CHICAGO: LatLng = { lat: 41.8781, lng: -87.6298 }
 const DALLAS: LatLng = { lat: 32.7767, lng: -96.797 }
@@ -48,4 +48,14 @@ test('bearing points north/east/south/west correctly', () => {
 test('bearing to yourself is defined, not NaN', () => {
   const p: LatLng = { lat: 35, lng: -85 }
   assert.equal(Number.isNaN(bearing(p, p)), false)
+})
+
+test('distToPathMiles: на маршруте — ноль, в стороне — расстояние до него', () => {
+  // Отрезок трассы I-40 западнее Мемфиса, примерно по 35-й широте
+  const path: [number, number][] = [[35.15, -90.05], [35.15, -90.55], [35.15, -91.05]]
+  assert.ok(distToPathMiles({ lat: 35.15, lng: -90.55 }, path)! < 1)
+  // Точка на полградуса южнее — ~35 миль от линии
+  const off = distToPathMiles({ lat: 34.65, lng: -90.55 }, path)!
+  assert.ok(off > 30 && off < 40, `вышло ${off}`)
+  assert.equal(distToPathMiles({ lat: 0, lng: 0 }, []), null)
 })
