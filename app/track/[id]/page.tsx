@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import { sql } from '@/lib/db'
 import { eldStatus } from '@/lib/map'
 import { agoText } from '@/lib/fmt'
-import { liveTrail } from '@/lib/eld'
+import { liveTrail, trailLabels } from '@/lib/eld'
 import { FleetMap, type MapMarker, type MapRoute } from '@/components/fleet-map'
 import { zoneFor } from '@/lib/tz'
 import { fixPlace } from '@/lib/place'
@@ -40,7 +40,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const idleHours = idleAt ? Math.floor((Date.now() - idleAt.getTime()) / 3_600_000) : null
   const routes: MapRoute[] =
     trail && trail.coords.length > 2
-      ? [{ from: trail.coords[0]!, to: trail.coords[trail.coords.length - 1]!, coords: trail.coords, tone: 'trail' }]
+      ? [{ from: trail.coords[0]!, to: trail.coords[trail.coords.length - 1]!, coords: trail.coords, labels: trailLabels(trail.coords, trail.ats, locale), tone: 'trail' }]
       : []
   const st = eldStatus(row.drive_status, idleHours)
   const markers: MapMarker[] = hasFix

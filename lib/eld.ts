@@ -30,6 +30,10 @@ import { getSetting, setSetting } from './settings.ts'
 import { haversineMiles, bearing } from './geo.ts'
 import { fixPlace } from './place.ts'
 import { segmentTrail, type HistoryLeg } from './trip-history.ts'
+import { zoneFor as zoneForRaw } from './tz.ts'
+import { agoText } from './fmt.ts'
+
+const zoneForPoint = (c: [number, number]) => zoneForRaw(c[0], c[1])
 import { t, type Locale } from './i18n.ts'
 
 /** Чужая служба не должна держать наш ответ: без срока один зависший запрос
@@ -111,15 +115,52 @@ export async function liveTrail(
   unit: string,
   lat: number,
   lng: number,
-): Promise<{ coords: [number, number][]; idleAt: Date | null; heading: number | null }> {
+): Promise<{
+  coords: [number, number][]
+  /** Время каждой крошки, тем же порядком; у текущей позиции (первой) — null. */
+  ats: (string | null)[]
+  idleAt: Date | null
+  heading: number | null
+}> {
   const trail = await recentTrail(unit)
   return {
     // Хвост тянется ОТ текущей точки назад — свежая позиция из fleet_status может
     // быть моложе последней крошки, без неё линия обрывалась бы, не дойдя до трака.
     coords: [[lat, lng], ...trail.map((r) => [r.lat, r.lng] as [number, number])],
+    ats: [null, ...trail.map((r) => r.at)],
     idleAt: idleSinceIn(trail, lat, lng),
     heading: headingIn(trail, lat, lng),
   }
+}
+
+/**
+ * Подписи к точкам хвоста — «14:32 · 3 ч назад», временем ВОДИТЕЛЯ. Строятся на
+ * сервере: пояс считается по координатам без сети (lib/tz), а клиенту остаётся
+ * только показать строку при наведении.
+ */
+export function trailLabels(
+  coords: [number, number][],
+  ats: (string | null)[],
+  locale: Locale,
+): (string | null)[] {
+  const zone = coords[0] ? zoneForPoint(coords[0]) : null
+  return ats.map((at, i) => {
+    if (!at) return null
+    const c = coords[i]
+    const z = zone ?? (c ? zoneForPoint(c) : null)
+    let clock = ''
+    try {
+      clock = new Date(at).toLocaleTimeString(locale === 'ru' ? 'ru-RU' : 'en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        ...(z ? { timeZone: z } : {}),
+      })
+    } catch {
+      clock = ''
+    }
+    const ago = agoText(at, locale)
+    return clock ? `${clock} · ${ago}` : ago
+  })
 }
 
 /**

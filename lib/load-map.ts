@@ -6,7 +6,7 @@
 import type { LoadRecord, TruckRecord } from './map'
 import type { FleetStatus } from './maintenance-core'
 import { cityCoordsBest, deliveryInfoBest } from './geo-routing'
-import { liveTrail } from './eld'
+import { liveTrail, trailLabels } from './eld'
 import { tripEta } from './trip-eta'
 import { distToPathMiles, haversineMiles } from './geo'
 import { driveTime } from './fmt'
@@ -166,6 +166,7 @@ export async function loadMapData(
       from: trail.coords[0]!,
       to: trail.coords[trail.coords.length - 1]!,
       coords: trail.coords,
+      labels: trailLabels(trail.coords, trail.ats, locale),
       tone: 'trail',
     })
   }

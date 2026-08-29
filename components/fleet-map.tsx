@@ -44,6 +44,8 @@ export type MapRoute = {
   from: [number, number]
   to: [number, number]
   coords?: [number, number][] // road polyline; when absent we draw a straight line
+  /** Подписи к точкам хвоста («14:32 · 3 ч назад»), тем же порядком, что coords. */
+  labels?: (string | null)[]
   /** Раздел платных дорог рисует на одной карте два маршрута сразу. Одним цветом
    * они читаются как один путь с петлёй, поэтому объезд идёт серым пунктиром, а
    * платный — сплошной линией акцента. */
@@ -568,17 +570,22 @@ export function FleetMap({
             // Янтарь с белой обводкой: серые точки сливались и с дорогами
             // подложки, и с маршрутом. Янтарь на карте не занят — маршрут
             // фиолетовый, трак в движении зелёный.
-            const dots = r.coords!.map((c, i) =>
-              L.circleMarker(c, {
+            const dots = r.coords!.map((c, i) => {
+              const label = r.labels?.[i] ?? null
+              const dot = L.circleMarker(c, {
                 radius: i === 0 ? 0 : 3.5,
                 stroke: true,
                 color: '#ffffff',
                 weight: 1.5,
                 fillColor: '#f59e0b',
                 fillOpacity: 0.9,
-                interactive: false,
-              }),
-            )
+                // Точка с подписью ловит наведение и тап; немым остаётся только
+                // нулевой маркер текущей позиции.
+                interactive: label !== null,
+              })
+              if (label) dot.bindTooltip(label, { direction: 'top', offset: [0, -6], opacity: 1 })
+              return dot
+            })
             trailRef.current = L.layerGroup(dots)
             if (trailOnRef.current) trailRef.current.addTo(map!)
           }
