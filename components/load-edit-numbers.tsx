@@ -133,48 +133,84 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
   if (!editing) {
     return (
       <>
-        {/* Две колонки вместо столбика из двенадцати строк — тот же объём занимает
-            вдвое меньше высоты. Брокер, MC, телефон и даты рисуются ВСЕГДА, даже
-            пустыми: раньше строки просто не было, и «в рейт-коне нет MC» было не
-            отличить от «поле есть, но мы его не показали» — а заодно не видно, что
-            надо дописать руками. */}
-        <dl className="grid grid-cols-1 gap-x-8 gap-y-2 text-[13px] sm:grid-cols-2">
-          <Row label={t(locale, 'loadEdit.rate')} value={usd.format(load.rate)} />
-          <Row label={t(locale, 'loadEdit.loadedMiles')} value={String(load.loadedMiles)} />
-          <Row label={t(locale, 'loadEdit.deadheadMiles')} value={`${load.deadheadMiles} mi`} />
-          <Row label={t(locale, 'loadEdit.transitDays')} value={String(load.transitDays)} />
-          <Row
-            label={t(locale, 'loadEdit.spotRate')}
-            value={load.spotRpm ? `${usd2.format(load.spotRpm)}/mi` : '—'}
-            // Биржевого фида у нас нет, и вечный прочерк ни о чём не говорит. Вместо
-            // него — единственная честная опора: сколько мы сами брали на этом
-            // направлении раньше.
-            hint={
-              load.spotRpm
-                ? undefined
-                : load.laneAvgRpm
-                  ? `${t(locale, 'loadEdit.ourLaneAvg')} ${usd2.format(load.laneAvgRpm)}/mi`
-                  : t(locale, 'loadEdit.noMarketData')
-            }
-          />
-          <Row label={t(locale, 'loadEdit.brokerName')} value={load.brokerName ?? '—'} />
-          <Row label={t(locale, 'loadEdit.brokerMc')} value={load.brokerMc ?? '—'} />
-          <Row
-            label={t(locale, 'loadEdit.phone')}
-            value={load.brokerPhone ?? '—'}
-            href={load.brokerPhone ? `tel:${load.brokerPhone}` : undefined}
-          />
-          <Row
-            label={t(locale, 'loadEdit.invoiceTo')}
-            value={load.brokerEmail ?? '—'}
-            href={load.brokerEmail ? `mailto:${load.brokerEmail}` : undefined}
-          />
-          {/* Окно из рейт-кона («8/14/2026 09:00-13:00») информативнее голой даты —
-              диспетчеру нужен именно интервал, поэтому оно идёт первым. */}
-          <Row label={t(locale, 'loadEdit.pickup')} value={load.pickupTime || load.pickupDate || '—'} />
-          <Row label={t(locale, 'loadEdit.delivery')} value={load.deliveryTime || load.deliveryDate || '—'} />
-          {load.truckLocation && <Row label={t(locale, 'loadEdit.truckWasAt')} value={load.truckLocation} />}
-        </dl>
+        {/* Четыре смысловых блока вместо одной перемешанной сетки: раньше «Ставка»
+            соседствовала с милями, телефон с пикапом, и глаз собирал ответ по всей
+            карточке. Теперь деньги — к деньгам, брокер — к брокеру. Пустые поля
+            рисуются прочерком: «в рейт-коне нет MC» видно, а не спрятано. */}
+        <div className="grid gap-3 text-[13px] sm:grid-cols-2">
+          <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
+            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+              {t(locale, 'loadEdit.groupMoney')}
+            </div>
+            <dl className="grid gap-y-2">
+              <Row label={t(locale, 'loadEdit.rate')} value={usd.format(load.rate)} />
+              {/* Ставку за милю раньше считали в голове — а это первая цифра,
+                  по которой решают, хорош ли груз. */}
+              <Row
+                label={t(locale, 'loadEdit.perMile')}
+                value={load.loadedMiles > 0 ? `${usd2.format(load.rate / load.loadedMiles)}/mi` : '—'}
+              />
+              <Row
+                label={t(locale, 'loadEdit.spotRate')}
+                value={load.spotRpm ? `${usd2.format(load.spotRpm)}/mi` : '—'}
+                // Биржевого фида у нас нет, и вечный прочерк ни о чём не говорит. Вместо
+                // него — единственная честная опора: сколько мы сами брали на этом
+                // направлении раньше.
+                hint={
+                  load.spotRpm
+                    ? undefined
+                    : load.laneAvgRpm
+                      ? `${t(locale, 'loadEdit.ourLaneAvg')} ${usd2.format(load.laneAvgRpm)}/mi`
+                      : t(locale, 'loadEdit.noMarketData')
+                }
+              />
+            </dl>
+          </div>
+
+          <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
+            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+              {t(locale, 'loadEdit.groupTrip')}
+            </div>
+            <dl className="grid gap-y-2">
+              <Row label={t(locale, 'loadEdit.loadedMiles')} value={`${load.loadedMiles} mi`} />
+              <Row label={t(locale, 'loadEdit.deadheadMiles')} value={`${load.deadheadMiles} mi`} />
+              <Row label={t(locale, 'loadEdit.transitDays')} value={String(load.transitDays)} />
+              {load.truckLocation && <Row label={t(locale, 'loadEdit.truckWasAt')} value={load.truckLocation} />}
+            </dl>
+          </div>
+
+          <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
+            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+              {t(locale, 'loadEdit.groupBroker')}
+            </div>
+            <dl className="grid gap-y-2">
+              <Row label={t(locale, 'loadEdit.brokerName')} value={load.brokerName ?? '—'} />
+              <Row label={t(locale, 'loadEdit.brokerMc')} value={load.brokerMc ?? '—'} />
+              <Row
+                label={t(locale, 'loadEdit.phone')}
+                value={load.brokerPhone ?? '—'}
+                href={load.brokerPhone ? `tel:${load.brokerPhone}` : undefined}
+              />
+              <Row
+                label={t(locale, 'loadEdit.invoiceTo')}
+                value={load.brokerEmail ?? '—'}
+                href={load.brokerEmail ? `mailto:${load.brokerEmail}` : undefined}
+              />
+            </dl>
+          </div>
+
+          <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
+            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+              {t(locale, 'loadEdit.groupDates')}
+            </div>
+            <dl className="grid gap-y-2">
+              {/* Окно из рейт-кона («8/14/2026 09:00-13:00») информативнее голой
+                  даты — диспетчеру нужен именно интервал. */}
+              <Row label={t(locale, 'loadEdit.pickup')} value={load.pickupTime || load.pickupDate || '—'} />
+              <Row label={t(locale, 'loadEdit.delivery')} value={load.deliveryTime || load.deliveryDate || '—'} />
+            </dl>
+          </div>
+        </div>
         <button
           onClick={() => setEditing(true)}
           className="mt-3 rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-medium text-white/70 transition-colors hover:border-white/25 hover:text-white"

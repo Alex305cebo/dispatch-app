@@ -229,6 +229,11 @@ export const loadsDict = {
     ro: 'Unde e camionul acum și încotro trebuie să meargă cu această cursă: încărcarea (cât timp marfa nu e luată) și livrarea, cu traseul pe șosele între ele.',
     kk: 'Тракт қазір қайда және осы жүкпен қайда баруы керек: тиеу (жүк алынбағанша) және жеткізу, олардың арасындағы жол маршруты.',
   },
+  'loadEdit.groupMoney': { ru: 'Деньги', en: 'Money', es: 'Dinero', uk: 'Гроші', ro: 'Bani', kk: 'Ақша' },
+  'loadEdit.groupTrip': { ru: 'Путь', en: 'Trip', es: 'Trayecto', uk: 'Шлях', ro: 'Traseu', kk: 'Жол' },
+  'loadEdit.groupBroker': { ru: 'Брокер', en: 'Broker', es: 'Bróker', uk: 'Брокер', ro: 'Broker', kk: 'Брокер' },
+  'loadEdit.groupDates': { ru: 'Сроки', en: 'Schedule', es: 'Plazos', uk: 'Строки', ro: 'Termene', kk: 'Мерзімдер' },
+  'loadEdit.perMile': { ru: 'За милю', en: 'Per mile', es: 'Por milla', uk: 'За милю', ro: 'Pe milă', kk: 'Миля үшін' },
   'loadDetail.detailsHeading': { ru: 'Детали', en: 'Details', es: 'Detalles', uk: 'Деталі', ro: 'Detalii', kk: 'Мәліметтер' },
   'loadDetail.truckCostsHeading': { ru: 'Расходы трака — из чего считаются строки выше', en: 'Truck costs — what the numbers above are calculated from', es: 'Gastos del camión — de dónde salen las cifras de arriba', uk: 'Витрати трака — з чого рахуються рядки вище', ro: 'Cheltuielile camionului — de unde vin cifrele de mai sus', kk: 'Тракт шығындары — жоғарыдағы жолдар неден есептеледі' },
   'loadDetail.truckCostsInfo': {
