@@ -172,7 +172,7 @@ export default async function Page() {
           Раньше это был отдельный раздел «Трекинг», и один и тот же трак жил на двух
           экранах разными половинами. Своя Suspense-граница, потому что здесь ждут
           геокодирование и маршрутизатор: шапка и всё, что ниже, показываются сразу. */}
-      <EldLinks count={shareCount} samsaraOn={samsaraOn} />
+      <EldLinks count={shareCount + (samsaraOn ? 1 : 0)} />
       <Suspense fallback={<BoardSkeleton />}>
         <FleetBoard
           locale={locale}
