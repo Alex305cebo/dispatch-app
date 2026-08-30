@@ -59,6 +59,7 @@ export default async function Page() {
   // вместе с картой. Одно чтение настройки, оно и так кэшируется.
   const shareRaw = await getSetting('eld_share_tokens')
   const shareCount = shareRaw ? (JSON.parse(shareRaw) as string[]).length : 0
+  const samsaraOn = (await (await import('@/lib/eld-samsara')).samsaraToken()) !== ''
   const [trucks, company, metas, fleetRaw, dispatcherPhone, dispRows] = await Promise.all([
     listTrucks(companyId),
     getCompany(),
@@ -171,7 +172,7 @@ export default async function Page() {
           Раньше это был отдельный раздел «Трекинг», и один и тот же трак жил на двух
           экранах разными половинами. Своя Suspense-граница, потому что здесь ждут
           геокодирование и маршрутизатор: шапка и всё, что ниже, показываются сразу. */}
-      <EldLinks count={shareCount} />
+      <EldLinks count={shareCount} samsaraOn={samsaraOn} />
       <Suspense fallback={<BoardSkeleton />}>
         <FleetBoard
           locale={locale}

@@ -116,6 +116,37 @@ export const trackingDict = {
   // components/eld-links.tsx
   'tracking.trackingHeader': { ru: 'Отслеживание траков', en: 'Truck tracking', es: 'Rastreo de camiones', uk: 'Відстеження траків', ro: 'Urmărirea camioanelor', kk: 'Тракттарды бақылау' },
   'tracking.connectedSuffix': { ru: '· подключено ', en: '· connected ', es: '· conectados ', uk: '· підключено ', ro: '· conectate ', kk: '· қосылған ' },
+  // Samsara подключается токеном API: её публичная ссылка — страница-приложение,
+  // данные она берёт закрытым GraphQL, читать который с сервера нечем.
+  'tracking.samsaraTitle': { ru: 'Samsara', en: 'Samsara', es: 'Samsara', uk: 'Samsara', ro: 'Samsara', kk: 'Samsara' },
+  'tracking.samsaraOn': { ru: '· подключена', en: '· connected', es: '· conectada', uk: '· підключена', ro: '· conectată', kk: '· қосылған' },
+  'tracking.samsaraInfo': {
+    ru: 'Samsara → Settings → API tokens → создать токен с правом «Read Vehicle Statistics» и вставить сюда. Ссылка вида cloud.samsara.com/…/fleet/viewer/… не подойдёт: это страница, а не данные. Траки сопоставляются по названию машины в Samsara — оно должно совпадать с номером трака здесь.',
+    en: 'Samsara → Settings → API tokens → create a token with the "Read Vehicle Statistics" scope and paste it here. A cloud.samsara.com/…/fleet/viewer/… link will not do: that is a page, not data. Trucks are matched by the vehicle name in Samsara — it must equal the truck number here.',
+    es: 'Samsara → Settings → API tokens → crea un token con el permiso «Read Vehicle Statistics» y pégalo aquí. Un enlace cloud.samsara.com/…/fleet/viewer/… no sirve: eso es una página, no datos. Los camiones se emparejan por el nombre del vehículo en Samsara — debe coincidir con el número del camión aquí.',
+    uk: 'Samsara → Settings → API tokens → створити токен із правом «Read Vehicle Statistics» і вставити сюди. Посилання виду cloud.samsara.com/…/fleet/viewer/… не підійде: це сторінка, а не дані. Траки зіставляються за назвою машини в Samsara — вона має збігатися з номером трака тут.',
+    ro: 'Samsara → Settings → API tokens → creează un token cu dreptul „Read Vehicle Statistics” și lipește-l aici. Un link de forma cloud.samsara.com/…/fleet/viewer/… nu merge: acela e o pagină, nu date. Camioanele se potrivesc după numele vehiculului din Samsara — trebuie să fie identic cu numărul camionului de aici.',
+    kk: 'Samsara → Settings → API tokens → «Read Vehicle Statistics» құқығы бар токен жасап, осында қойыңыз. cloud.samsara.com/…/fleet/viewer/… түріндегі сілтеме жарамайды: ол — бет, дерек емес. Тракттар Samsara-дағы көлік атауы бойынша сәйкестендіріледі — ол осындағы тракт нөмірімен бірдей болуы керек.',
+  },
+  'tracking.samsaraPlaceholder': { ru: 'Токен API Samsara', en: 'Samsara API token', es: 'Token de API de Samsara', uk: 'Токен API Samsara', ro: 'Token API Samsara', kk: 'Samsara API токені' },
+  'tracking.samsaraReplace': { ru: 'Заменить токен', en: 'Replace the token', es: 'Reemplazar el token', uk: 'Замінити токен', ro: 'Înlocuiește tokenul', kk: 'Токенді ауыстыру' },
+  'tracking.err.samsaraLink': {
+    ru: 'Это ссылка Samsara — в поле для ссылок она не работает. Ниже есть отдельное поле «Samsara»: вставьте туда токен API (Settings → API tokens, право «Read Vehicle Statistics»).',
+    en: 'That is a Samsara link — it does not work in the links box. There is a separate "Samsara" field below: paste an API token there (Settings → API tokens, "Read Vehicle Statistics" scope).',
+    es: 'Ese es un enlace de Samsara — no funciona en el campo de enlaces. Más abajo hay un campo «Samsara»: pega ahí un token de API (Settings → API tokens, permiso «Read Vehicle Statistics»).',
+    uk: 'Це посилання Samsara — у полі для посилань воно не працює. Нижче є окреме поле «Samsara»: вставте туди токен API (Settings → API tokens, право «Read Vehicle Statistics»).',
+    ro: 'Acesta e un link Samsara — în câmpul pentru linkuri nu funcționează. Mai jos există un câmp separat „Samsara”: lipește acolo un token API (Settings → API tokens, dreptul „Read Vehicle Statistics”).',
+    kk: 'Бұл — Samsara сілтемесі, сілтемелер өрісінде ол жұмыс істемейді. Төменде бөлек «Samsara» өрісі бар: API токенін сонда қойыңыз (Settings → API tokens, «Read Vehicle Statistics» құқығы).',
+  },
+  'tracking.err.samsaraToken': {
+    ru: 'Samsara не приняла токен. Проверьте, что он скопирован целиком и у него есть право «Read Vehicle Statistics».',
+    en: 'Samsara rejected the token. Check that it was copied in full and has the "Read Vehicle Statistics" scope.',
+    es: 'Samsara rechazó el token. Comprueba que se copió entero y que tiene el permiso «Read Vehicle Statistics».',
+    uk: 'Samsara не прийняла токен. Перевірте, що його скопійовано повністю і що він має право «Read Vehicle Statistics».',
+    ro: 'Samsara a respins tokenul. Verifică dacă a fost copiat integral și dacă are dreptul „Read Vehicle Statistics”.',
+    kk: 'Samsara токенді қабылдамады. Оның толық көшірілгенін және «Read Vehicle Statistics» құқығы бар екенін тексеріңіз.',
+  },
+  'tracking.updatedTrucks': { ru: 'Обновлено траков: ', en: 'Trucks updated: ', es: 'Camiones actualizados: ', uk: 'Оновлено траків: ', ro: 'Camioane actualizate: ', kk: 'Жаңартылған тракттар: ' },
   'tracking.eldLinksInfo': {
     ru: 'Вставь ссылки отслеживания траков — по одной на строку. Координаты и скорость обновляются сами.',
     en: 'Paste truck tracking links — one per line. Coordinates and speed update on their own.',

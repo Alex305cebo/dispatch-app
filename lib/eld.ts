@@ -53,7 +53,7 @@ async function fetchSoon(url: string, init?: RequestInit): Promise<Response> {
 // yet — this is here so the data EXISTS when it does. Cost at ~288 pings per truck per
 // day: a few hundred thousand rows and a handful of megabytes for a small fleet. `location` is whatever description string the ELD already gave us for this
 // ping — free to keep, and it's what lets a stop leg say "Knoxville, TN" later.
-async function logPosition(
+export async function logPosition(
   unit: string,
   lat: number | null,
   lng: number | null,
