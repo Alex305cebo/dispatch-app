@@ -13,7 +13,8 @@ import { t } from '@/lib/i18n'
 const input =
   'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none transition-all placeholder:text-white/45 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
 
-export function TgSetup() {  const locale = useLocale()
+export function TgSetup() {
+  const locale = useLocale()
   const [pending, start] = useTransition()
   const [step, setStep] = useState<'creds' | 'code' | '2fa'>('creds')
   const [apiId, setApiId] = useState('')
@@ -58,18 +59,36 @@ export function TgSetup() {  const locale = useLocale()
 
       {step === 'creds' && (
         <div className="mt-3 flex flex-col gap-2">
-          <p className="text-[11px] leading-snug text-white/50">
-            {t(locale, 'telegram.setup.apiHint')}{' '}
-            <a
-              href="https://my.telegram.org"
-              target="_blank"
-              rel="noreferrer"
-              className="text-haul-400 hover:underline"
-            >
-              my.telegram.org
-            </a>{' '}
-            {t(locale, 'telegram.setup.apiHintSuffix')}
-          </p>
+          {/* Пошагово и с успокоением: страница входа Telegram называется
+              «Delete Account or Manage Apps», и люди боялись, что вход удалит
+              аккаунт. Инструкция говорит прямо: не удалит, удаление — отдельная
+              кнопка, которую никто не трогает. */}
+          <details className="group rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2" open>
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium text-white/75">
+              <span className="text-[11px] text-white/40 transition-transform group-open:rotate-90">▸</span>
+              {t(locale, 'telegram.setup.guideTitle')}
+            </summary>
+            <ol className="mt-2 flex list-decimal flex-col gap-1.5 pl-4 text-[11.5px] leading-snug text-white/60">
+              <li>
+                <a
+                  href="https://my.telegram.org"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-haul-400 hover:underline"
+                >
+                  my.telegram.org
+                </a>{' '}
+                — {t(locale, 'telegram.setup.step1')}
+              </li>
+              <li className="text-warn-400/90">{t(locale, 'telegram.setup.step2')}</li>
+              <li>{t(locale, 'telegram.setup.step3')}</li>
+              <li>{t(locale, 'telegram.setup.step4')}</li>
+              <li>{t(locale, 'telegram.setup.step5')}</li>
+            </ol>
+            <p className="mt-2 rounded-lg border border-warn-400/25 bg-warn-400/[0.06] px-2.5 py-1.5 text-[11px] leading-snug text-warn-400">
+              🔒 {t(locale, 'telegram.setup.safeNote')}
+            </p>
+          </details>
           <div className="grid grid-cols-2 gap-2">
             <input value={apiId} onChange={(e) => setApiId(e.target.value)} placeholder="api_id" className={input} inputMode="numeric" />
             <input value={apiHash} onChange={(e) => setApiHash(e.target.value)} placeholder="api_hash" className={input} />
