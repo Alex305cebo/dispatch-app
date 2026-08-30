@@ -68,18 +68,22 @@ export function TgSetup() {
               <span className="text-[11px] text-white/40 transition-transform group-open:rotate-90">▸</span>
               {t(locale, 'telegram.setup.guideTitle')}
             </summary>
+            {/* Сайт Telegram — заметной кнопкой, а не словом в тексте шага:
+                это единственное внешнее действие всей инструкции. */}
+            <a
+              href="https://my.telegram.org"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-xl border border-haul-500/40 bg-haul-500/15 px-4 py-2.5 text-[13px] font-semibold text-haul-300 transition-colors hover:border-haul-400/70 hover:bg-haul-500/25 hover:text-haul-200"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" className="size-4" aria-hidden>
+                <path d="M21.9 4.6 18.9 19c-.2 1-.8 1.2-1.7.8l-4.6-3.4-2.2 2.1c-.3.3-.5.5-.9.5l.3-4.7 8.5-7.7c.4-.3-.1-.5-.6-.2L7.2 13.1 2.7 11.7c-1-.3-1-1 .2-1.4l17.6-6.8c.8-.3 1.6.2 1.4 1.1z" />
+              </svg>
+              {t(locale, 'telegram.setup.openSite')}
+              <span className="text-[12px] opacity-70">↗</span>
+            </a>
             <ol className="mt-2 flex list-decimal flex-col gap-1.5 pl-4 text-[11.5px] leading-snug text-white/60">
-              <li>
-                <a
-                  href="https://my.telegram.org"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-haul-400 hover:underline"
-                >
-                  my.telegram.org
-                </a>{' '}
-                — {t(locale, 'telegram.setup.step1')}
-              </li>
+              <li>{t(locale, 'telegram.setup.step1')}</li>
               <li className="text-warn-400/90">{t(locale, 'telegram.setup.step2')}</li>
               <li>{t(locale, 'telegram.setup.step3')}</li>
               <li>{t(locale, 'telegram.setup.step4')}</li>
