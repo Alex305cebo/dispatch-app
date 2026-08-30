@@ -142,17 +142,26 @@ export function CompanyForm({ initial }: { initial: Company }) {
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <input value={c.name} onChange={f('name')} placeholder={t(locale, 'finances.form.name')} className={input} />
-      <input value={c.owner} onChange={f('owner')} placeholder={t(locale, 'finances.form.owner')} className={input} />
-      <input value={c.mcdot} onChange={f('mcdot')} placeholder={t(locale, 'finances.form.mcdot')} className={input} />
-      <input
-        value={c.address}
-        onChange={f('address')}
-        placeholder={t(locale, 'finances.form.address')}
-        className={input}
-      />
-      <input value={c.phone} onChange={f('phone')} placeholder={t(locale, 'finances.form.phone')} className={input} />
-      <input value={c.email} onChange={f('email')} placeholder={t(locale, 'finances.form.email')} className={input} />
+      {/* Подпись НАД каждым полем, а не только плейсхолдер: заполненная форма
+          превращалась в шесть безымянных значений — где MC, где телефон, где
+          владелец, приходилось угадывать по формату. */}
+      {(
+        [
+          ['name', 'finances.form.name'],
+          ['mcdot', 'finances.form.mcdot'],
+          ['owner', 'finances.form.owner'],
+          ['phone', 'finances.form.phone'],
+          ['email', 'finances.form.email'],
+          ['address', 'finances.form.address'],
+        ] as const
+      ).map(([k, key]) => (
+        <label key={k}>
+          <span className="mb-1 block text-[11px] uppercase tracking-wider text-white/55">
+            {t(locale, key)}
+          </span>
+          <input value={c[k]} onChange={f(k)} className={input} />
+        </label>
+      ))}
       <label className="sm:col-span-2">
         <span className="mb-1 block text-[11px] uppercase tracking-wider text-white/55">
           {t(locale, 'finances.form.remitTo')}
