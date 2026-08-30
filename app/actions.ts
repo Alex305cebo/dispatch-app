@@ -354,6 +354,12 @@ export async function saveEldShareLinks(
 ): Promise<{ saved: number; updated: number; errors: string[] } | { error: string }> {
   const { parseShareTokens, liveShareSnapshot } = await import('@/lib/eld')
   const { setSetting } = await import('@/lib/settings')
+  // Ссылка Samsara сюда не годится, и молчать об этом нельзя: она уходила в ZigZag,
+  // тот отвечал отказом, и человек видел «ошибки: 1» без единой подсказки, что
+  // делать. Проверено вживую на cloud.samsara.com/o/…/fleet/viewer/…
+  if (/samsara\.com/i.test(text)) {
+    return { error: t(await getLocale(), 'tracking.err.samsaraLink') }
+  }
   const tokens = parseShareTokens(text)
   await setSetting('eld_share_tokens', JSON.stringify(tokens))
   const snap = await liveShareSnapshot()
@@ -363,7 +369,30 @@ export async function saveEldShareLinks(
   return { saved: tokens.length, updated: snap.updated, errors: snap.errors }
 }
 
-/** Manual "Обновить" on /tracking — same two sources the 5-min cron polls, on demand. */
+/**
+ * Токен Samsara: сохранить и сразу подтянуть парк, чтобы владелец увидел результат
+ * не через пять минут, а по нажатию кнопки.
+ */
+export async function saveSamsaraToken(
+  token: string,
+): Promise<{ updated: number; errors: string[] } | { error: string }> {
+  const { setSetting, deleteSetting } = await import('@/lib/settings')
+  const clean = token.trim()
+  if (!clean) {
+    await deleteSetting('samsara_token')
+    revalidatePath('/tracking')
+    return { updated: 0, errors: [] }
+  }
+  await setSetting('samsara_token', clean)
+  const { samsaraSnapshot } = await import('@/lib/eld-samsara')
+  const snap = await samsaraSnapshot()
+  revalidatePath('/tracking')
+  revalidatePath('/', 'layout')
+  if ('error' in snap) return { error: snap.error }
+  return snap
+}
+
+/** Manual "Обновить" on /tracking — те же источники, что опрашивает крон, по кнопке. */
 export async function refreshFleetStatus(): Promise<{ updated: number; errors: string[] }> {
   // Живой режим карт опрашивает это каждые ~30 с С КАЖДОЙ открытой вкладки. Интервал
   // серверный и один на всех: первая вкладка реально идёт к вендору, остальные получают
@@ -374,17 +403,23 @@ export async function refreshFleetStatus(): Promise<{ updated: number; errors: s
   if (lastPoll && Date.now() - Number(lastPoll) < MIN_POLL_MS) return { updated: 0, errors: [] }
   await setSetting('fleet_poll_at', String(Date.now()))
   const { fleetSnapshot, liveShareSnapshot } = await import('@/lib/eld')
-  const [share, key] = await Promise.all([liveShareSnapshot(), fleetSnapshot()])
+  const { samsaraSnapshot } = await import('@/lib/eld-samsara')
+  const [share, key, sam] = await Promise.all([liveShareSnapshot(), fleetSnapshot(), samsaraSnapshot()])
   // 'no_key' just means the paid vendor API isn't hooked up — expected when the fleet
   // runs on Live Share links only, not worth surfacing as an error every click.
-  // 'no_links' — Live Share просто не настроен (парк идёт через API вендора). Это
-  // состояние, а не поломка, и показывать его жёлтой плашкой при каждом обновлении
-  // карты нельзя — ровно как 'no_key' у соседнего источника.
+  // 'no_links'/'no_key'/'no_token' — источник просто не подключён (у парка обычно
+  // один ELD из трёх). Это состояние, а не поломка, и показывать его жёлтой плашкой
+  // при каждом обновлении карты нельзя — приучает не читать сообщения вовсе.
+  const quiet = new Set(['no_key', 'no_links', 'no_token', 'bad_links'])
   const errors = [
-    ...('error' in share ? (share.error === 'no_links' ? [] : [share.error]) : share.errors),
-    ...('error' in key && key.error !== 'no_key' ? [key.error] : []),
+    ...('error' in share ? (quiet.has(share.error) ? [] : [share.error]) : share.errors),
+    ...('error' in key ? (quiet.has(key.error) ? [] : [key.error]) : []),
+    ...('error' in sam ? (quiet.has(sam.error) ? [] : [sam.error]) : sam.errors),
   ]
-  const updated = ('updated' in share ? share.updated : 0) + ('updated' in key ? key.updated : 0)
+  const updated =
+    ('updated' in share ? share.updated : 0) +
+    ('updated' in key ? key.updated : 0) +
+    ('updated' in sam ? sam.updated : 0)
   revalidatePath('/tracking')
   revalidatePath('/', 'layout')
   return { updated, errors }
