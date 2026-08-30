@@ -88,6 +88,11 @@ export function TgSetup() {
             <p className="mt-2 rounded-lg border border-warn-400/25 bg-warn-400/[0.06] px-2.5 py-1.5 text-[11px] leading-snug text-warn-400">
               🔒 {t(locale, 'telegram.setup.safeNote')}
             </p>
+            {/* Сессия хранится под ключом tg_session:{userId} (lib/telegram.ts) —
+                приватность не обещание, а устройство хранения. */}
+            <p className="mt-1.5 rounded-lg border border-good-500/20 bg-good-500/[0.05] px-2.5 py-1.5 text-[11px] leading-snug text-good-400/90">
+              👤 {t(locale, 'telegram.setup.privateNote')}
+            </p>
           </details>
           <div className="grid grid-cols-2 gap-2">
             <input value={apiId} onChange={(e) => setApiId(e.target.value)} placeholder="api_id" className={input} inputMode="numeric" />
