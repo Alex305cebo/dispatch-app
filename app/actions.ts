@@ -349,48 +349,70 @@ export async function fetchDiesel() {
  * Owner pastes their ZigZag "Live Share" links (one per truck) — we keep the tokens
  * and immediately pull GPS from them. No vendor key needed. GPS only, no HOS.
  */
-export async function saveEldShareLinks(
+/**
+ * Подключение отслеживания одним полем: человек вставляет то, что у него есть, —
+ * ссылку на трак или токен API, — а разбираемся мы.
+ *
+ * Два поля («ссылки» и «токен Samsara») были честной картиной наших внутренностей
+ * и бесполезной для владельца: у парка ОДИН ELD, и половина экрана всегда была
+ * чужой. Спросили прямо — «первый раздел кажется бессмысленным», и это правда.
+ *
+ * Как определяем, что вставили:
+ * • ссылка ZigZag (zigzageld.com или любой ?token=) → путь Live Share;
+ * • ссылка cloud.samsara.com/…/fleet/viewer/… → объясняем, что это страница, а не
+ *   данные, и просим токен (проверено вживую: за ссылкой закрытый GraphQL);
+ * • одна строка без пробелов и косых — токен. Чей именно, гадать не надо:
+ *   пробуем как Samsara, и если она его не приняла — сохраняем как ссылку ZigZag.
+ *   Лишний запрос при сохранении дешевле, чем выпадающий список, в котором
+ *   ошибаются.
+ */
+export async function saveTracking(
   text: string,
 ): Promise<{ saved: number; updated: number; errors: string[] } | { error: string }> {
+  const locale = await getLocale()
   const { parseShareTokens, liveShareSnapshot } = await import('@/lib/eld')
   const { setSetting } = await import('@/lib/settings')
-  // Ссылка Samsara сюда не годится, и молчать об этом нельзя: она уходила в ZigZag,
-  // тот отвечал отказом, и человек видел «ошибки: 1» без единой подсказки, что
-  // делать. Проверено вживую на cloud.samsara.com/o/…/fleet/viewer/…
-  if (/samsara\.com/i.test(text)) {
-    return { error: t(await getLocale(), 'tracking.err.samsaraLink') }
+  const raw = text.trim()
+  if (!raw) return { error: t(locale, 'tracking.err.empty') }
+
+  if (/samsara\.com/i.test(raw)) return { error: t(locale, 'tracking.err.samsaraLink') }
+
+  const lines = raw.split(/\s+/).filter(Boolean)
+  const looksLikeToken = lines.length === 1 && !lines[0]!.includes('/') && lines[0]!.length >= 20
+
+  if (looksLikeToken) {
+    const { samsaraSnapshot } = await import('@/lib/eld-samsara')
+    await setSetting('samsara_token', lines[0]!)
+    const snap = await samsaraSnapshot()
+    if (!('error' in snap)) {
+      revalidatePath('/trucks')
+      revalidatePath('/', 'layout')
+      return { saved: 1, updated: snap.updated, errors: snap.errors }
+    }
+    // Samsara не приняла — значит это не её токен. Убираем за собой и пробуем как
+    // ссылку ZigZag: у той токен тоже бывает голым.
+    const { deleteSetting } = await import('@/lib/settings')
+    await deleteSetting('samsara_token')
   }
-  const tokens = parseShareTokens(text)
+
+  const tokens = parseShareTokens(raw)
   await setSetting('eld_share_tokens', JSON.stringify(tokens))
   const snap = await liveShareSnapshot()
-  revalidatePath('/tracking')
+  revalidatePath('/trucks')
   revalidatePath('/', 'layout')
   if ('error' in snap) return { saved: tokens.length, updated: 0, errors: [snap.error] }
   return { saved: tokens.length, updated: snap.updated, errors: snap.errors }
 }
 
-/**
- * Токен Samsara: сохранить и сразу подтянуть парк, чтобы владелец увидел результат
- * не через пять минут, а по нажатию кнопки.
- */
-export async function saveSamsaraToken(
-  token: string,
-): Promise<{ updated: number; errors: string[] } | { error: string }> {
-  const { setSetting, deleteSetting } = await import('@/lib/settings')
-  const clean = token.trim()
-  if (!clean) {
-    await deleteSetting('samsara_token')
-    revalidatePath('/tracking')
-    return { updated: 0, errors: [] }
-  }
-  await setSetting('samsara_token', clean)
-  const { samsaraSnapshot } = await import('@/lib/eld-samsara')
-  const snap = await samsaraSnapshot()
-  revalidatePath('/tracking')
+/** Отключить отслеживание: убрать и ссылки, и токен. */
+export async function clearTracking(): Promise<void> {
+  const { deleteSetting } = await import('@/lib/settings')
+  await deleteSetting('eld_share_tokens')
+  await deleteSetting('samsara_token')
+  revalidatePath('/trucks')
   revalidatePath('/', 'layout')
-  if ('error' in snap) return { error: snap.error }
-  return snap
 }
+
 
 /** Manual "Обновить" on /tracking — те же источники, что опрашивает крон, по кнопке. */
 export async function refreshFleetStatus(): Promise<{ updated: number; errors: string[] }> {
