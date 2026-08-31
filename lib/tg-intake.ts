@@ -163,7 +163,8 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
 }
 
 /**
- * Chase missing PODs: loads delivered ≥45 min ago, not invoiced, no POD attached,
+ * Chase missing PODs: loads delivered ≥45 min ago (but no older than 7 days —
+ * connecting Telegram must not blast reminders about ancient loads), not invoiced, no POD attached,
  * whose truck has a driver phone reachable from ANY connected account → one nudge
  * (once, tracked per load), sent from whichever account has that driver's chat.
  */
@@ -178,6 +179,10 @@ export async function remindMissingPods(): Promise<{ nudged: number } | { error:
     LEFT JOIN truck_meta m ON m.truck_id = t.id
     WHERE l.company_id = ${REAL} AND l.status = 'delivered' AND l.invoiced_at IS NULL
       AND l.created_at < now() - interval '45 minutes'
+      -- Не старше недели: при ПОДКЛЮЧЕНИИ Telegram иначе выстреливала пачка
+      -- напоминаний по давно закрытым в реальности грузам (наблюдалось: три
+      -- сообщения водителям за минуту по августовским грузам).
+      AND l.created_at > now() - interval '7 days'
       AND m.driver_phone IS NOT NULL
       AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.load_id = l.id AND d.kind = 'pod')`) as any[]
   if (rows.length === 0) return { nudged: 0 }
