@@ -980,11 +980,15 @@ const MAX_DOC_BYTES = 8 * 1024 * 1024
 /** Vision-classify an uploaded document (base64) into a doc kind before deciding what to do
  * with it — so a BOL dropped on the truck card is filed as a BOL, not force-labelled a rate
  * con. Degrades to 'other' with no AI key; never throws. */
-export async function classifyDoc(
-  base64: string,
-  mime: string,
-  filename?: string,
-): Promise<DocClass | null> {
+export async function classifyDoc(file: File): Promise<DocClass | null> {
+  // Аргумент — ФАЙЛ, а не base64-строка. Строкой это ломалось на настоящих
+  // рейт-конах: сериализатор сервер-экшенов Next режет длинную строку на вложенные
+  // массивы и на ~мегабайте падает с «Maximum array nesting exceeded», а наружу
+  // это выходило пугающим «An error occurred in the Server Components render».
+  // File едет через FormData как поток — ограничение снимается вместе с причиной.
+  const base64 = Buffer.from(await file.arrayBuffer()).toString('base64')
+  const mime = file.type || 'application/pdf'
+  const filename = file.name
   const { classifyDocument } = await import('@/lib/ai-doc')
   // null — «определить не удалось» (ключ мёртв, кончился дневной лимит). Наверх это
   // уходит как есть: раньше здесь стояло 'other', и файл получал ярлык «Другое», хотя

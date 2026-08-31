@@ -89,7 +89,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       // Text first (free), then classifyDoc — which tries the filename before it spends
       // a request on the model. Scans and photos have no text, so they still go to AI.
       const cls =
-        (hasText ? docKindFromText(text) : null) ?? (await classifyDoc(base64, mime, file.name))
+        (hasText ? docKindFromText(text) : null) ?? (await classifyDoc(file))
       if (cls !== 'ratecon') {
         setStage(t(locale, 'rcDrop.stageSaving'))
         const fd = new FormData()
