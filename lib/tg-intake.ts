@@ -12,7 +12,6 @@ import {
   tgChatIdByPhone,
   tgChatTruckMap,
   tgInboundMedia,
-  tgSend,
 } from './telegram.ts'
 import { activeLoadForTruck } from './loads.ts'
 import { classifyDocument, type DocClass } from './ai-doc.ts'
@@ -133,19 +132,11 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
             // own — the invoice is generated FROM the POD, so once it lands there's no
             // manual step.
             if (kind === 'pod' && target) await autoInvoiceIfReady(REAL, target.id)
-            // Acknowledge like a human dispatcher would — but only when the DRIVER sent
-            // it; acking your own posted rate con would be talking to yourself.
-            if (!m.mine) {
-              const ack =
-                kind === 'pod'
-                  ? 'POD получил, спасибо 👍'
-                  : kind === 'bol'
-                    ? 'BOL получил, спасибо'
-                    : kind === 'driverinfo'
-                      ? 'Инфо по грузу получил, приложил 👍'
-                      : 'Рейткон получил, оформляю груз 👍'
-              await tgSend(uid, m.chatId, ack).catch(() => {})
-            }
+            // Автоответа водителю здесь НЕТ и быть не должно. Раньше на каждый
+            // присланный файл уходила квитанция («POD получил, спасибо 👍») от
+            // имени диспетчера. Правило владельца: приложение не пишет в Telegram
+            // само — ни при каких условиях. Всё, что уходит наружу, набирает
+            // человек в чате портала (tgSendMessage).
           }
         }
       } catch {
@@ -163,54 +154,15 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
 }
 
 /**
- * Chase missing PODs: loads delivered ≥45 min ago (but no older than 7 days —
- * connecting Telegram must not blast reminders about ancient loads), not invoiced, no POD attached,
- * whose truck has a driver phone reachable from ANY connected account → one nudge
- * (once, tracked per load), sent from whichever account has that driver's chat.
+ * Догонялка POD удалена НАМЕРЕННО (август 2026).
+ *
+ * Она сама писала водителям «Скинь фото POD — надо выставить счёт»: по разу на
+ * груз, из аккаунта того диспетчера, у кого водитель есть в чатах. При первом же
+ * подключении Telegram это выстрелило пачкой сообщений по грузам месячной
+ * давности. Владелец правило задал прямо: НИКАКИХ автоматических сообщений,
+ * пока он не попросит конкретно.
+ *
+ * Что видно вместо неё, без единого сообщения: «Доставлено, счёт не выставлен»
+ * на странице Финансы — тот же список, только читает его диспетчер, а решает,
+ * писать ли водителю, человек.
  */
-export async function remindMissingPods(): Promise<{ nudged: number } | { error: string }> {
-  const uids = await connectedTgUserIds()
-  if (uids.length === 0) return { error: 'not_connected' }
-
-  const rows = (await sql`
-    SELECT l.id, l.origin, l.destination, t.number, m.driver_phone
-    FROM loads l
-    JOIN trucks t ON t.id = l.truck_id
-    LEFT JOIN truck_meta m ON m.truck_id = t.id
-    WHERE l.company_id = ${REAL} AND l.status = 'delivered' AND l.invoiced_at IS NULL
-      AND l.created_at < now() - interval '45 minutes'
-      -- Не старше недели: при ПОДКЛЮЧЕНИИ Telegram иначе выстреливала пачка
-      -- напоминаний по давно закрытым в реальности грузам (наблюдалось: три
-      -- сообщения водителям за минуту по августовским грузам).
-      AND l.created_at > now() - interval '7 days'
-      AND m.driver_phone IS NOT NULL
-      AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.load_id = l.id AND d.kind = 'pod')`) as any[]
-  if (rows.length === 0) return { nudged: 0 }
-
-  const notified: number[] = JSON.parse((await getSetting('pod_nudged')) ?? '[]')
-  const set = new Set(notified)
-
-  // phone(last10) → { uid, chatId } across every connected account, so a nudge goes
-  // out from whichever dispatcher actually has that driver in their chats.
-  const reach = new Map<string, { uid: number; chatId: string }>()
-  for (const uid of uids) {
-    const byPhone = await tgChatIdByPhone(uid)
-    for (const [phone10, chatId] of byPhone) if (!reach.has(phone10)) reach.set(phone10, { uid, chatId })
-  }
-
-  let nudged = 0
-  for (const r of rows) {
-    if (set.has(r.id)) continue
-    const hit = reach.get(digits(r.driver_phone).slice(-10))
-    if (!hit) continue
-    await tgSend(
-      hit.uid,
-      hit.chatId,
-      `Скинь, пожалуйста, фото POD по грузу ${r.origin ?? ''} → ${r.destination ?? ''} — надо выставить счёт.`,
-    ).catch(() => {})
-    set.add(r.id)
-    nudged++
-  }
-  await setSetting('pod_nudged', JSON.stringify([...set].slice(-200)))
-  return { nudged }
-}

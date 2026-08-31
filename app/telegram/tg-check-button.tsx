@@ -22,8 +22,7 @@ export function TgCheckButton() {
               'ok',
               t(locale, 'telegram.check.result')
                 .replace('{attached}', String(res.attached))
-                .replace('{skipped}', String(res.skipped))
-                .replace('{nudged}', String(res.nudged)),
+                .replace('{skipped}', String(res.skipped)),
             )
           }
         })

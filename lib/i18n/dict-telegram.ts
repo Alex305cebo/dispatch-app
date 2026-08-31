@@ -165,7 +165,7 @@ export const telegramDict = {
   'telegram.disconnect.cancel': { ru: 'Отмена', en: 'Cancel', es: 'Cancelar', uk: 'Скасувати', ro: 'Anulează', kk: 'Болдырмау' },
 
   // app/telegram/tg-check-button.tsx
-  'telegram.check.result': { ru: 'Прикреплено: {attached} · пропущено: {skipped} · напоминаний: {nudged}', en: 'Attached: {attached} · skipped: {skipped} · reminders: {nudged}', es: 'Adjuntados: {attached} · omitidos: {skipped} · recordatorios: {nudged}', uk: 'Прикріплено: {attached} · пропущено: {skipped} · нагадувань: {nudged}', ro: 'Atașate: {attached} · omise: {skipped} · memento-uri: {nudged}', kk: 'Тіркелді: {attached} · өткізілді: {skipped} · еске салулар: {nudged}' },
+  'telegram.check.result': { ru: 'Прикреплено: {attached} · пропущено: {skipped}', en: 'Attached: {attached} · skipped: {skipped}', es: 'Adjuntados: {attached} · omitidos: {skipped}', uk: 'Прикріплено: {attached} · пропущено: {skipped}', ro: 'Atașate: {attached} · omise: {skipped}', kk: 'Тіркелді: {attached} · өткізілді: {skipped}' },
   'telegram.check.checking': { ru: 'Проверяю…', en: 'Checking…', es: 'Comprobando…', uk: 'Перевіряю…', ro: 'Se verifică…', kk: 'Тексерілуде…' },
   'telegram.check.checkNow': { ru: 'Проверить документы сейчас', en: 'Check documents now', es: 'Comprobar documentos ahora', uk: 'Перевірити документи зараз', ro: 'Verifică documentele acum', kk: 'Құжаттарды қазір тексеру' },
 

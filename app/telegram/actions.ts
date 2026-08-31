@@ -12,7 +12,7 @@ import {
   tgMessages,
   type TgMsg,
 } from '@/lib/telegram'
-import { intakeDriverMedia, remindMissingPods, resolveTruckForChat } from '@/lib/tg-intake'
+import { intakeDriverMedia, resolveTruckForChat } from '@/lib/tg-intake'
 import { activeLoadForTruck } from '@/lib/loads'
 import { createLoadFromRc } from '@/app/actions'
 import { classifyDocument, type DocClass } from '@/lib/ai-doc'
@@ -84,20 +84,17 @@ export async function tgConfirmLogin(
  * across ALL connected accounts (sending acks/nudges from other people's Telegram),
  * so it MUST be gated — the automated path is already CRON_SECRET-protected; this
  * manual convenience needs at least a permitted Telegram user behind it. */
-export async function tgCheckNow(): Promise<
-  { attached: number; skipped: number; nudged: number } | { error: string }
-> {
+export async function tgCheckNow(): Promise<{ attached: number; skipped: number } | { error: string }> {
   try {
     await requireTgUser()
   } catch (e) {
     return { error: msg(e) }
   }
-  const [intake, reminders] = await Promise.all([intakeDriverMedia(), remindMissingPods()])
+  const intake = await intakeDriverMedia()
   if ('error' in intake) return { error: intake.error }
-  if ('error' in reminders) return { error: reminders.error }
   revalidatePath('/telegram')
   revalidatePath('/loads')
-  return { attached: intake.attached, skipped: intake.skipped, nudged: reminders.nudged }
+  return { attached: intake.attached, skipped: intake.skipped }
 }
 
 /** Disconnect MY account — drops my session so the connect form comes back up. */
