@@ -24,6 +24,8 @@ export type LoadDetails = {
   brokerPhone: string | null
   brokerEmail: string | null
   truckLocation: string | null
+  pickupAddress: string | null
+  deliveryAddress: string | null
   pickupDate: string | null
   deliveryDate: string | null
   /** Окно из рейт-кона («8/14/2026 09:00-13:00»), если оно было прочитано. */
@@ -207,7 +209,11 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
               {/* Окно из рейт-кона («8/14/2026 09:00-13:00») информативнее голой
                   даты — диспетчеру нужен именно интервал. */}
               <Row label={t(locale, 'loadEdit.pickup')} value={load.pickupTime || load.pickupDate || '—'} />
+              {/* Полный адрес из рейт-кона — прямо под окном: раньше за ним
+                  ходили в сам документ или на карту. */}
+              {load.pickupAddress && <Addr text={load.pickupAddress} />}
               <Row label={t(locale, 'loadEdit.delivery')} value={load.deliveryTime || load.deliveryDate || '—'} />
+              {load.deliveryAddress && <Addr text={load.deliveryAddress} />}
             </dl>
           </div>
         </div>
@@ -328,6 +334,15 @@ function Field({
         className={input}
       />
     </label>
+  )
+}
+
+/** Адрес точки — своей строкой под окном: инлайном с датой он не читался. */
+function Addr({ text }: { text: string }) {
+  return (
+    <div className="-mt-1 border-b border-white/[0.06] pb-1.5 pl-3 text-[12px] leading-snug text-white/55">
+      📍 {text}
+    </div>
   )
 }
 

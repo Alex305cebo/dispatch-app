@@ -200,6 +200,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             brokerPhone: load.brokerPhone,
             brokerEmail: load.brokerEmail,
             truckLocation: load.truckLocation,
+            pickupAddress: load.pickupAddress,
+            deliveryAddress: load.deliveryAddress,
             pickupDate: load.pickupDate,
             deliveryDate: load.deliveryDate,
             pickupTime: load.pickupTime,
