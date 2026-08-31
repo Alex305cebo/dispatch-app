@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mondayOf, weekLabel, normalizeApptTime, shortName } from './fmt.ts'
+import { weekAnchorOf, weekLabel, normalizeApptTime, shortName } from './fmt.ts'
 
 // Relative to Date.now() rather than hardcoded ISO strings — a fixed UTC timestamp
 // can land on a different local calendar day depending on the machine's timezone,
@@ -16,38 +16,45 @@ test('shortName keeps the first name and initials the surname', () => {
   assert.equal(shortName(null), '')
 })
 
-test('mondayOf always lands on a Monday', () => {
+test('расчётная неделя всегда начинается в ПЯТНИЦУ (зарплата с пятницы по пятницу)', () => {
   for (let offset = 0; offset < 14; offset++) {
-    assert.equal(new Date(mondayOf(Date.now() + offset * DAY)).getDay(), 1, `offset ${offset} days`)
+    assert.equal(new Date(weekAnchorOf(Date.now() + offset * DAY)).getDay(), 5, `offset ${offset} days`)
   }
 })
 
-test('every day in the same calendar week maps to the same Monday', () => {
-  const monday = mondayOf(Date.now())
+test('все семь дней недели ложатся в одну и ту же пятницу', () => {
+  const friday = weekAnchorOf(Date.now())
   for (let i = 0; i < 7; i++) {
-    assert.equal(mondayOf(monday + i * DAY), monday, `day ${i} of the week`)
+    assert.equal(weekAnchorOf(friday + i * DAY), friday, `day ${i} of the week`)
   }
 })
 
-test('a Monday midnight maps to itself (idempotent)', () => {
-  const monday = mondayOf(Date.now())
-  assert.equal(mondayOf(monday), monday)
+test('полночь пятницы отображается сама в себя', () => {
+  const friday = weekAnchorOf(Date.now())
+  assert.equal(weekAnchorOf(friday), friday)
 })
 
-test('the week before and the week after are both 7 days away', () => {
-  const monday = mondayOf(Date.now())
-  assert.equal(mondayOf(monday - DAY), monday - 7 * DAY)
-  assert.equal(mondayOf(monday + 7 * DAY + DAY), monday + 7 * DAY)
+test('соседние недели ровно в семи днях', () => {
+  const friday = weekAnchorOf(Date.now())
+  assert.equal(weekAnchorOf(friday - DAY), friday - 7 * DAY)
+  assert.equal(weekAnchorOf(friday + 7 * DAY + DAY), friday + 7 * DAY)
+})
+
+test('четверг — ещё прошлая неделя, пятница — уже новая', () => {
+  const friday = weekAnchorOf(Date.now())
+  const thursday = friday + 6 * DAY + 12 * 60 * 60 * 1000 // четверг, полдень
+  assert.equal(weekAnchorOf(thursday), friday)
+  assert.equal(weekAnchorOf(friday + 7 * DAY), friday + 7 * DAY)
 })
 
 test('weekLabel returns a non-empty label with a year', () => {
-  const label = weekLabel(mondayOf(Date.now()), 'en')
+  const label = weekLabel(weekAnchorOf(Date.now()), 'en')
   assert.ok(label.length > 0)
   assert.match(label, /\d{4}/)
 })
 
 test('weekLabel works in both locales', () => {
-  const monday = mondayOf(Date.now())
+  const monday = weekAnchorOf(Date.now())
   assert.ok(weekLabel(monday, 'ru').length > 0)
   assert.ok(weekLabel(monday, 'en').length > 0)
 })

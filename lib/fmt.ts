@@ -33,26 +33,36 @@ export function driveTime(min: number, locale: Locale): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
 
-/** Midnight of the Monday on/before the given time — the start of ITS calendar week.
- * Shared by weekStart() (now) and anything bucketing PAST timestamps into weeks
- * (e.g. the per-dispatcher weekly report), so "which week" is computed one way. */
-export function mondayOf(ms: number): number {
+/**
+ * Начало расчётной недели, в которую попадает момент.
+ *
+ * Неделя тут не календарная, а ЗАРПЛАТНАЯ: в Maya Logistics и водителям, и
+ * диспетчерам считают с пятницы по пятницу. Раньше всё считалось от понедельника,
+ * и недельные суммы в приложении не сходились с тем, что реально выплачивается, —
+ * груз, увезённый в субботу, попадал в другую неделю, чем его же оплата.
+ *
+ * Один этот якорь задаёт неделю во всём приложении (обзор, траки, грузы, финансы),
+ * чтобы «за неделю» везде значило одно и то же.
+ */
+const PAY_WEEK_DAY = 5 // пятница (getDay: Вс=0 … Пт=5)
+
+export function weekAnchorOf(ms: number): number {
   const d = new Date(ms)
-  const sinceMonday = (d.getDay() + 6) % 7 // Mon=0, Tue=1, ..., Sun=6
+  const since = (d.getDay() - PAY_WEEK_DAY + 7) % 7
   d.setHours(0, 0, 0, 0)
-  d.setDate(d.getDate() - sinceMonday)
+  d.setDate(d.getDate() - since)
   return d.getTime()
 }
 
-/** Midnight of this week's Monday — "за неделю" stats reset on the calendar week,
- * not a rolling 7 days from whenever the page happens to load. */
+/** Полночь пятницы текущей расчётной недели — «за неделю» отсчитывается от неё,
+ * а не скользящими семью днями от момента открытия страницы. */
 export function weekStart(): number {
-  return mondayOf(Date.now())
+  return weekAnchorOf(Date.now())
 }
 
-/** This week as a half-open range [Monday, next Monday). The upper bound matters: a
- * load pre-booked for next week must NOT count toward this week's figures, and the old
- * "created_at >= Monday" check had no ceiling. */
+/** Неделя как полуоткрытый промежуток [пятница, следующая пятница). Верхняя граница
+ * важна: груз, забронированный на следующую неделю, не должен попадать в текущие
+ * цифры. */
 export function weekBounds(): { start: number; end: number } {
   const start = weekStart()
   return { start, end: start + 7 * 24 * 60 * 60 * 1000 }
@@ -73,9 +83,9 @@ export function loadWeekAnchorMs(pickupDate: string | null, createdAt: string): 
 
 /** "21–27 июля 2026" (ru) / "Jul 21–27, 2026" (en) for a week starting at the given
  * Monday timestamp — each locale in its own natural date order, not a shared format. */
-export function weekLabel(mondayMs: number, locale: Locale): string {
-  const start = new Date(mondayMs)
-  const end = new Date(mondayMs + 6 * 24 * 60 * 60 * 1000)
+export function weekLabel(weekStartMs: number, locale: Locale): string {
+  const start = new Date(weekStartMs)
+  const end = new Date(weekStartMs + 6 * 24 * 60 * 60 * 1000)
   const sameMonth = start.getMonth() === end.getMonth()
   const day = (d: Date) => d.getDate()
   if (locale === 'ru') {

@@ -13,7 +13,7 @@ import {
 import type { LoadRecord } from '@/lib/map'
 import { getCompany } from '@/lib/invoice'
 import { calcLoad, type Breakdown } from '@/lib/profit'
-import { usd, mondayOf, weekLabel, weekStart } from '@/lib/fmt'
+import { usd, weekAnchorOf, weekLabel, weekStart } from '@/lib/fmt'
 import { truckLabel, type TruckRecord } from '@/lib/map'
 import { redirect } from 'next/navigation'
 import { companyScope, getCurrentUser } from '@/lib/session'
@@ -481,7 +481,7 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
     // load's real miles. Raw miles don't need calcLoad to be valid.
     const miles = load.loadedMiles + load.deadheadMiles
 
-    const weekMs = mondayOf(new Date(load.createdAt).getTime())
+    const weekMs = weekAnchorOf(new Date(load.createdAt).getTime())
     let week = weeks.get(weekMs)
     if (!week) {
       week = { weekStartMs: weekMs, dispatchers: new Map(), gross: 0, net: 0 }
@@ -540,6 +540,8 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
   return (
     <div className="flex flex-col gap-3">
       {openAccessWarning}
+      {/* Период расчёта назван прямо: под ним суммы к выплате. */}
+      <p className="text-[11.5px] text-white/45">{t(locale, 'finances.payWeekNote')}</p>
       {sortedWeeks.map((week) => (
         <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[13px] font-semibold">
@@ -634,7 +636,7 @@ async function ByDriver({ companyId, locale }: { companyId: 'default' | 'demo'; 
     }
     const miles = load.loadedMiles + load.deadheadMiles
 
-    const weekMs = mondayOf(new Date(load.createdAt).getTime())
+    const weekMs = weekAnchorOf(new Date(load.createdAt).getTime())
     let week = weeks.get(weekMs)
     if (!week) {
       week = { weekStartMs: weekMs, trucks: new Map(), pay: 0 }
@@ -660,6 +662,8 @@ async function ByDriver({ companyId, locale }: { companyId: 'default' | 'demo'; 
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Период расчёта назван прямо: под ним суммы к выплате. */}
+      <p className="text-[11.5px] text-white/45">{t(locale, 'finances.payWeekNote')}</p>
       {sortedWeeks.map((week) => (
         <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[13px] font-semibold">

@@ -8,7 +8,7 @@ import { truckPhotoFlags } from '@/lib/maintenance'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
-import { usd, usd2, mondayOf, weekStart, loadWeekAnchorMs } from '@/lib/fmt'
+import { usd, usd2, weekAnchorOf, weekStart, loadWeekAnchorMs } from '@/lib/fmt'
 import { Info } from '@/components/info'
 import { AttentionList } from '@/components/attention-list'
 import { LaneStats } from '@/components/lane-stats'
@@ -63,7 +63,7 @@ async function LoadsBoard({
   // Snapped to Monday even if the URL was hand-edited to a mid-week date — a
   // calendar link can never land on a broken, non-Monday week.
   const parsedWeek = sp.week ? Date.parse(`${sp.week}T00:00:00`) : NaN
-  const weekMonday = Number.isNaN(parsedWeek) ? weekStart() : mondayOf(parsedWeek)
+  const weekMonday = Number.isNaN(parsedWeek) ? weekStart() : weekAnchorOf(parsedWeek)
   const selectedDay = sp.day ?? null
   const companyId = await companyScope()
   const locale = await getLocale()

@@ -1,6 +1,7 @@
 // Finances domain: app/invoices/**, invoice-actions, lib/invoice.ts.
 
 export const financesDict = {
+  'finances.payWeekNote': { ru: 'Неделя расчёта — с пятницы по пятницу', en: 'Pay week runs Friday to Friday', es: 'La semana de pago va de viernes a viernes', uk: 'Розрахунковий тиждень — з п’ятниці по п’ятницю', ro: 'Săptămâna de plată e de vineri până vineri', kk: 'Есептік апта — жұмадан жұмаға' },
   'finances.title': { ru: 'Финансы', en: 'Finances', es: 'Finanzas', uk: 'Фінанси', ro: 'Finanțe', kk: 'Қаржы' },
   'finances.info.main': {
     ru: 'Не оплачено — выставленные, но ещё не оплаченные счета, по возрасту долга. Оплачено — уже пришедшие деньги, с разбивкой прибыли по каждому грузу.',
