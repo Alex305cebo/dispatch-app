@@ -422,7 +422,17 @@ export function FleetMap({
   focus?: { lat: number; lng: number } | null
 }) {
   const locale = useLocale()
-  const ref = useRef<HTMLDivElement>(null)
+  // Узел, в котором живёт Leaflet. Создаётся ОДИН раз и кочует между обычным местом
+  // на странице и окном-порталом. React при переносе поддерева пересоздаёт свои узлы:
+  // карта оставалась в выброшенном узле, окно открывалось пустым, а после закрытия
+  // ломалась и врезка — mapRef указывал на снесённую карту, а пересборки не было
+  // (данные-то не менялись). Поэтому узел наш, а React владеет только «гнездом».
+  const hostRef = useRef<HTMLDivElement | null>(null)
+  if (typeof document !== 'undefined' && !hostRef.current) {
+    hostRef.current = document.createElement('div')
+    hostRef.current.className = 'h-full w-full'
+  }
+  const ref = hostRef
   const [satellite, setSatellite] = useState(false)
   const [expanded, setExpanded] = useState(false)
   // Read inside the map-build effect without making `satellite` one of its deps —
@@ -487,9 +497,8 @@ export function FleetMap({
     if (!map) return
     const id = requestAnimationFrame(() => {
       map.invalidateSize()
-      // Выросшую карту — в кадр: без прокрутки разворот на телефоне происходил
-      // «где-то ниже», и казалось, что кнопка не сработала.
-      if (expanded) ref.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+      ;(tileRef.current as any)?.getMaplibreMap?.()?.resize?.()
     })
     return () => cancelAnimationFrame(id)
   }, [expanded])
@@ -542,6 +551,12 @@ export function FleetMap({
           const m = mapRef.current
           if (!m || !el.isConnected) return
           m.invalidateSize()
+          // GL-слой держит СВОЙ канвас и на invalidateSize не реагирует: после
+          // разворота в окно тайлы оставались нарисованными по старому размеру и
+          // не доходили до края. Один общий пересчёт на любое изменение размера —
+          // разворот, сворачивание, поворот телефона, изменение окна.
+          /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+          ;(tileRef.current as any)?.getMaplibreMap?.()?.resize?.()
           if (pendingFitRef.current && el.clientWidth > 0 && boundsRef.current?.isValid()) {
             m.fitBounds(boundsRef.current.pad(0.2), { maxZoom: 13 })
             pendingFitRef.current = false
@@ -757,13 +772,33 @@ export function FleetMap({
       // .panel стоит backdrop-filter, который по спецификации делает предка
       // контейнером для fixed — «окно во весь экран» прибивалось к собственной
       // секции, и на телефоне кнопка выглядела неработающей.
-      className="fleet-map panel relative z-0 overflow-hidden"
-      style={{ height: expanded ? 'min(88dvh, 56rem)' : height }}
+      className={
+        expanded
+          ? // Окно поверх страницы: карточка карты становится модальным окном с полями,
+            // чтобы было видно затемнение вокруг и куда нажать для выхода.
+            'fleet-map panel fixed inset-2 z-[1500] overflow-hidden sm:inset-4 lg:inset-8'
+          : 'fleet-map panel relative z-0 overflow-hidden'
+      }
+      style={expanded ? undefined : { height }}
     >
       {/* Leaflet's own chrome (container bg, popup theme) is styled in globals.css
           under .fleet-map — Tailwind's arbitrary `[&_...]` variants don't reach this
           dynamically mounted tree in this build, see the comment there. */}
-      <div ref={ref} className="h-full w-full" />
+      <div
+        className="h-full w-full"
+        ref={(slot) => {
+          const host = hostRef.current
+          if (!slot || !host || host.parentElement === slot) return
+          slot.appendChild(host)
+          // Размер контейнера сменился (врезка ↔ окно): Leaflet меряет его один раз,
+          // а GL-слой держит свой канвас — без пересчёта окно остаётся пустым.
+          requestAnimationFrame(() => {
+            mapRef.current?.invalidateSize()
+            /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+            ;(tileRef.current as any)?.getMaplibreMap?.()?.resize?.()
+          })
+        }}
+      />
       {/* Total route distance, big and unmissable, over the map itself. */}
       {/* На телефоне бейдж по центру наезжал на кнопки справа (от «1 821 mi»
           оставалась одна «1») — там он спускается под ряд кнопок. */}
@@ -857,6 +892,7 @@ export function FleetMap({
   )
 
   if (!expanded) return content
+
 
   // Через портал в <body>, а не просто position: fixed на месте.
   //
