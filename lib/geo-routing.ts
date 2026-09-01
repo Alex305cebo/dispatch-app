@@ -363,10 +363,12 @@ export async function routeMiles(
   // индексу. Один Nominatim подводил ровно там, где это дороже всего — на сервере
   // хостинга его ответы бывают пустыми, и груз из рейт-кона без пробега отказывались
   // создавать, хотя оба города в документе названы.
-  const [a, b] = await Promise.all([
-    cityCoordsBest(null, origin),
-    cityCoordsBest(null, destination),
-  ])
+  // ПОСЛЕДОВАТЕЛЬНО, не Promise.all: у бесплатного Nominatim правило «не больше
+  // одного запроса в секунду с адреса», и два одновременных иногда получают отказ.
+  // Отказ означал «города не найдены» → груз из рейт-кона без пробега не создавался,
+  // причём через раз — что и выглядело как случайная поломка.
+  const a = await cityCoordsBest(null, origin)
+  const b = await cityCoordsBest(null, destination)
   if (!a || !b) return { error: t(locale, 'tracking.geoNoCoords') }
 
   // Truck-legal routing when a key exists; fall through to free OSRM on any failure.
