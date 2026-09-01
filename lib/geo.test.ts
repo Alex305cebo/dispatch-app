@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { distToPathMiles, haversineMiles, deadheadEstimate, bearing, type LatLng } from './geo.ts'
+import { distToPathMiles, haversineMiles, simplifyPath, deadheadEstimate, bearing, type LatLng } from './geo.ts'
 
 const CHICAGO: LatLng = { lat: 41.8781, lng: -87.6298 }
 const DALLAS: LatLng = { lat: 32.7767, lng: -96.797 }
@@ -58,4 +58,40 @@ test('distToPathMiles: на маршруте — ноль, в стороне —
   const off = distToPathMiles({ lat: 34.65, lng: -90.55 }, path)!
   assert.ok(off > 30 && off < 40, `вышло ${off}`)
   assert.equal(distToPathMiles({ lat: 0, lng: 0 }, []), null)
+})
+
+test('simplifyPath: прямая из ста точек схлопывается в две, изгиб остаётся', () => {
+  const straight: [number, number][] = Array.from({ length: 100 }, (_, i) => [35, -90 + i * 0.01])
+  assert.deepEqual(simplifyPath(straight), [straight[0], straight[99]])
+  // Угол: в середине точка уходит на полградуса (~35 миль) — её нельзя выбросить
+  const bent: [number, number][] = [[35, -90], [35.5, -89.5], [35, -89]]
+  assert.equal(simplifyPath(bent).length, 3)
+  // Совсем короткое не трогаем
+  assert.deepEqual(simplifyPath([[1, 2]]), [[1, 2]])
+})
+
+test('simplifyPath: точки ложатся на прежнюю дорогу — ничто не отходит дальше допуска', () => {
+  // Дуга из 400 точек; после прореживания каждая исходная точка не дальше ~0.03 мили
+  const arc: [number, number][] = Array.from({ length: 400 }, (_, i) => {
+    const t = (i / 399) * Math.PI
+    return [35 + Math.sin(t) * 0.5, -90 + Math.cos(t) * 0.5]
+  })
+  const thin = simplifyPath(arc, 0.02)
+  assert.ok(thin.length < 80, `осталось ${thin.length}`)
+  // Расстояние до ОТРЕЗКА (в градусах, 1° ≈ 69 миль): distToPathMiles меряет до
+  // вершин, а после прореживания вершины стоят за десятки миль друг от друга.
+  const segDist = (p: [number, number]) => {
+    let best = Infinity
+    for (let i = 1; i < thin.length; i++) {
+      const [ax, ay] = thin[i - 1]!, [bx, by] = thin[i]!
+      const dx = bx - ax, dy = by - ay
+      const t = Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / (dx * dx + dy * dy)))
+      best = Math.min(best, Math.hypot(p[0] - (ax + t * dx), p[1] - (ay + t * dy)))
+    }
+    return best * 69
+  }
+  for (const p of arc) {
+    const d = segDist(p)
+    assert.ok(d < 0.05, `точка ушла на ${d.toFixed(3)} миль`)
+  }
 })

@@ -16,7 +16,10 @@ const STALE_MINUTES = 10
  * ~1-2min real GPS ping rate from the trucks themselves, without hammering the
  * third-party Live Share endpoints (7 trucks × 2 requests ≈ 14 req/30s, only while
  * this tab is open and visible — paused in a background tab). */
-const POLL_MS = 30_000
+// 60, не 30: каждый тик — это полный серверный рендер страницы с картой (маршрут,
+// погода, история пути) на КАЖДУЮ открытую вкладку. Трак за минуту проезжает милю —
+// на карте страны это меньше пикселя, а нагрузка на сервер и базу — вдвое.
+const POLL_MS = 60_000
 
 /** Pulls fresh GPS from Live Share (+ vendor API if configured) right now, instead
  * of waiting for the external cron — which only runs against a deployed URL, so on

@@ -101,6 +101,9 @@ export const adminDict = {
   },
 
   // Публичное демо — витрине нужно, клиентской копии нет.
+  'admin.errorsHeading': { ru: 'Последние сбои страниц', en: 'Recent page errors', es: 'Errores recientes', uk: 'Останні збої сторінок', ro: 'Erori recente', kk: 'Соңғы қателер' },
+  'admin.errorsInfo': { ru: 'Сюда попадает каждое падение страницы у любого пользователя: путь, текст и код (digest). Раньше это было видно только в консоли браузера у того, у кого упало. Пусто — значит за последнее время ничего не падало.', en: 'Every page crash from any user lands here: path, message and digest. Empty means nothing crashed recently.', es: 'Cada caída de página de cualquier usuario llega aquí: ruta, texto y código. Vacío = nada se cayó.', uk: 'Сюди потрапляє кожне падіння сторінки в будь-кого: шлях, текст і код. Порожньо — нічого не падало.', ro: 'Fiecare cădere de pagină ajunge aici: cale, mesaj și cod. Gol = nimic nu a căzut.', kk: 'Кез келген пайдаланушыдағы бет қатесі осында түседі: жол, мәтін, код. Бос болса — қате болмаған.' },
+  'admin.errorsNone': { ru: 'Сбоев не было.', en: 'No errors recorded.', es: 'Sin errores.', uk: 'Збоїв не було.', ro: 'Fără erori.', kk: 'Қателер жоқ.' },
   'admin.demoPublicHeading': { ru: 'Публичное демо', en: 'Public demo', es: 'Demo pública', uk: 'Публічне демо', ro: 'Demo public', kk: 'Ашық демо' },
   'admin.demoPublicInfo': {
     ru: 'Кнопка «посмотреть демо без регистрации» на экране входа. Нужна витрине, чтобы клиент увидел приложение с готовыми данными до покупки. В рабочей копии компании её включать не стоит: это дверь, в которую входит кто угодно, а данные демо занимают место в вашей базе.',

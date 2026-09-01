@@ -16,6 +16,7 @@ import Link from 'next/link'
 import { Button } from '@/components/button'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
+import { logClientError } from '@/app/actions'
 
 export default function Error({
   error,
@@ -30,6 +31,14 @@ export default function Error({
     // В консоль — с меткой digest: по ней ошибку видно в логах сервера, а без неё
     // сообщение на боевом сервере скрыто (Next намеренно не отдаёт текст наружу).
     console.error('page error', error.digest ?? '', error)
+    // И на сервер: логов хостинга у нас нет, а без записи «стало чаще ломаться»
+    // остаётся ощущением, которое не проверить. Пишем путь, текст и digest.
+    void logClientError({
+      path: typeof location !== 'undefined' ? location.pathname : '',
+      message: error.message || String(error),
+      digest: error.digest,
+      agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+    })
   }, [error])
 
   return (

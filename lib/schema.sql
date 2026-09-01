@@ -407,7 +407,23 @@ ALTER TABLE loads ADD COLUMN IF NOT EXISTS driver_info TEXT;
 -- BUMP THIS whenever a column is added above. Nothing gates on the value — the app must
 -- never refuse to start over a version mismatch, because a hard stop is worse than the
 -- missing-column error it would be preventing.
-INSERT INTO settings (key, value) VALUES ('schema_version', '2026-08-27')
+-- Журнал сбоев страниц. До него единственным следом упавшей страницы был digest в
+-- консоли браузера у того, у кого упало, — на сервере хостинга логи недоступны.
+-- Клиентская граница ошибок (app/error.tsx) пишет сюда путь, текст и digest;
+-- последние записи видны в Админке. Не журнал всего подряд — только падения.
+CREATE TABLE IF NOT EXISTS app_errors (
+  id         SERIAL PRIMARY KEY,
+  at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  company_id TEXT NOT NULL DEFAULT 'default',
+  user_id    INTEGER,
+  path       TEXT,
+  message    TEXT,
+  digest     TEXT,
+  agent      TEXT
+);
+CREATE INDEX IF NOT EXISTS app_errors_at ON app_errors(at DESC);
+
+INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-01')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- Через кого брокер платит перевозчикам (TriumphPay, Comdata, RTS…), если рейт-кон

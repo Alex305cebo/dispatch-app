@@ -5,7 +5,7 @@
 
 import { getSetting, setSetting } from './settings.ts'
 import { sql } from './db.ts'
-import { cacheCell, haversineMiles } from './geo.ts'
+import { cacheCell, haversineMiles, simplifyPath } from './geo.ts'
 import { t, type Locale } from './i18n.ts'
 
 /**
@@ -265,7 +265,12 @@ async function roadRoute(from: LatLng, to: LatLng, geometry = true): Promise<Roa
   if (hit) {
     try {
       const c = JSON.parse(hit) as { at: number; path: RoadPath }
-      if (Date.now() - c.at < ROUTE_TTL_MS) return c.path
+      // Старые записи лежат с полной геометрией — прореживаем на выходе, чтобы
+      // страница не тащила 600 КБ, пока кэш не обновился сам.
+      if (Date.now() - c.at < ROUTE_TTL_MS)
+        return c.path.coords && c.path.coords.length > 2000
+          ? { ...c.path, coords: simplifyPath(c.path.coords) }
+          : c.path
     } catch {
       // fall through and re-fetch
     }
@@ -295,7 +300,11 @@ async function roadRoute(from: LatLng, to: LatLng, geometry = true): Promise<Roa
     const path: RoadPath = {
       miles: Math.round(r.distance * 0.000621371),
       minutes: Math.round(r.duration / 60),
-      ...(coords?.length ? { coords: coords.map(([lng, lat]) => [lat, lng] as [number, number]) } : {}),
+      // Прореживаем ДО записи в кэш: полная геометрия OSRM на длинном рейсе — это
+      // 17 000 точек и 600 КБ на строку settings (см. simplifyPath).
+      ...(coords?.length
+        ? { coords: simplifyPath(coords.map(([lng, lat]) => [lat, lng] as [number, number])) }
+        : {}),
     }
     await setSetting(key, JSON.stringify({ at: Date.now(), path }))
     // ponytail: sweep on ~1 write in 20 rather than every write — a cache miss already

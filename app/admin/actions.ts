@@ -42,6 +42,20 @@ export type AdminUser = {
   loads30: number
 }
 
+/** Последние падения страниц — из app_errors. Для админки. */
+export async function listRecentErrors(limit = 30): Promise<
+  { id: number; at: string; path: string | null; message: string | null; digest: string | null; user: string | null }[]
+> {
+  await assertAdmin()
+  const companyId = await companyScope()
+  const rows = (await sql`
+    SELECT e.id, e.at, e.path, e.message, e.digest, u.name AS user
+    FROM app_errors e LEFT JOIN users u ON u.id = e.user_id
+    WHERE e.company_id = ${companyId}
+    ORDER BY e.at DESC LIMIT ${limit}`) as any[]
+  return rows.map((r) => ({ ...r, at: new Date(r.at).toISOString() }))
+}
+
 export async function listUsers(): Promise<AdminUser[]> {
   await assertAdmin()
   // The seeded public-demo account (lib/demo.ts) is a real row in this table so

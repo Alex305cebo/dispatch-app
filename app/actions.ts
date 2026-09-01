@@ -1881,3 +1881,27 @@ export async function saveLoadTolls(
   revalidatePath('/')
   revalidatePath('/invoices')
 }
+
+/**
+ * Записать падение страницы в журнал (см. app_errors в schema.sql). Зовётся из
+ * границы ошибок app/error.tsx. Никогда не бросает: сбой при записи о сбое — это
+ * последнее, что должно сломать экран человеку.
+ */
+export async function logClientError(input: {
+  path: string
+  message: string
+  digest?: string
+  agent?: string
+}): Promise<void> {
+  try {
+    const user = await getCurrentUser().catch(() => null)
+    const companyId = await companyScope().catch(() => 'default' as const)
+    await sql`INSERT INTO app_errors (company_id, user_id, path, message, digest, agent)
+              VALUES (${companyId}, ${user?.id ?? null}, ${input.path.slice(0, 300)},
+                      ${input.message.slice(0, 2000)}, ${input.digest ?? null}, ${(input.agent ?? '').slice(0, 300)})`
+    // Журнал — не помойка: держим последние 500.
+    await sql`DELETE FROM app_errors WHERE id < (SELECT COALESCE(MAX(id), 0) - 500 FROM app_errors)`
+  } catch {
+    /* см. выше */
+  }
+}

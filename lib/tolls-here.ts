@@ -6,6 +6,7 @@ import 'server-only'
 import { hereKey } from './keys.ts'
 import { getSetting, setSetting } from './settings.ts'
 import { decodeFlexPolyline } from './flexpolyline.ts'
+import { simplifyPath } from './geo.ts'
 import { parseHereRoutes, type TollQuote, type TruckSpec } from './tolls.ts'
 
 /** Чужая служба не должна держать наш ответ: без срока один зависший запрос
@@ -145,8 +146,11 @@ export async function hereTollRoute(
     // Пустой ответ — не ошибка сети, а «маршрута нет»: между точками может не быть
     // дороги, законной для трака заданной высоты и веса.
     if (quotes.length === 0) return { error: 'no_route' }
-    await setSetting(cacheKey, JSON.stringify({ at: Date.now(), quotes }))
-    return quotes
+    // Полилинии — прореженные: 25 записей этого кэша весили 15 МБ и целиком ехали
+    // из базы на каждый показ раздела толлов (см. simplifyPath в lib/geo).
+    const slim = quotes.map((q) => ({ ...q, coords: simplifyPath(q.coords) }))
+    await setSetting(cacheKey, JSON.stringify({ at: Date.now(), quotes: slim }))
+    return slim
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'network error' }
   }

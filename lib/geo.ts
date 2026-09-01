@@ -84,3 +84,54 @@ export function distToPathMiles(pt: LatLng, path: [number, number][]): number | 
   }
   return best
 }
+
+/**
+ * Проредить ломаную маршрута, не отрывая её от дороги (Дуглас–Пекер).
+ *
+ * OSRM отдаёт КАЖДУЮ точку геометрии: рейс через полстраны — это 17 000 точек и
+ * ~600 КБ JSON. Такой кусок ехал в базу (одна строка settings), обратно из базы на
+ * каждый рендер страницы и в HTML страницы каждому телефону — страница «Траки»
+ * весила 650 КБ. При допуске в ~30 м ломаная визуально та же (на любом зуме, где
+ * виден маршрут целиком), а точек в 10–20 раз меньше.
+ *
+ * Допуск — в милях, чтобы читалось предметно; внутри переводится в градусы грубо
+ * (1° ≈ 69 миль), для отсева точек этого достаточно.
+ */
+export function simplifyPath(path: [number, number][], toleranceMi = 0.02): [number, number][] {
+  if (path.length <= 2) return path
+  const tol = toleranceMi / 69
+  const keep = new Uint8Array(path.length)
+  keep[0] = 1
+  keep[path.length - 1] = 1
+  const stack: [number, number][] = [[0, path.length - 1]]
+  while (stack.length) {
+    const [a, b] = stack.pop()!
+    const [ax, ay] = path[a]!
+    const [bx, by] = path[b]!
+    const dx = bx - ax
+    const dy = by - ay
+    const len2 = dx * dx + dy * dy
+    let worst = -1
+    let worstD = tol
+    for (let i = a + 1; i < b; i++) {
+      const [px, py] = path[i]!
+      let d: number
+      if (len2 === 0) d = Math.hypot(px - ax, py - ay)
+      else {
+        const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2))
+        d = Math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+      }
+      if (d > worstD) {
+        worstD = d
+        worst = i
+      }
+    }
+    if (worst >= 0) {
+      keep[worst] = 1
+      stack.push([a, worst], [worst, b])
+    }
+  }
+  const out: [number, number][] = []
+  for (let i = 0; i < path.length; i++) if (keep[i]) out.push(path[i]!)
+  return out
+}

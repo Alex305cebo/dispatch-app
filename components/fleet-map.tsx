@@ -157,8 +157,27 @@ const POI_MIN_ZOOM = 15
 /** Builds the base layer for the requested mode: vector street map, or the raster
  * satellite/hybrid. Falls back to raster street tiles if MapLibre can't load for any
  * reason, so the map never comes up blank. */
+/** Телефон и планшет: без WebGL. Векторный слой — это мегабайт JS maplibre и свой
+ * GL-контекст на каждую карту; именно на телефонах карта «гасла», «зависала» и
+ * пустела. Растровые тайлы рисуются самим Leaflet, весят ноль скриптов и не знают
+ * ни контекстов, ни их лимитов. Ценой — крупнее подписи и нет своих правок стиля,
+ * что на экране в ладонь неотличимо. Десктоп остаётся на векторе. */
+function preferRaster(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    if (window.matchMedia('(pointer: coarse)').matches) return true
+    if (window.innerWidth < 768) return true
+    const c = document.createElement('canvas')
+    if (!(c.getContext('webgl2') || c.getContext('webgl'))) return true
+  } catch {
+    return true
+  }
+  return false
+}
+
 async function buildBaseLayer(L: any, sat: boolean): Promise<any> {
   if (sat) return L.tileLayer(SATELLITE_TILES, tileOpts(true))
+  if (preferRaster()) return L.tileLayer(STREET_TILES, tileOpts(false))
   try {
     const maplibregl = (await import('maplibre-gl')).default
     // The Leaflet bridge reads maplibre-gl off the global, it doesn't import it itself.
