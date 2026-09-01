@@ -359,7 +359,14 @@ export async function routeMiles(
   destination: string,
   locale: Locale = 'ru',
 ): Promise<{ miles: number } | { error: string }> {
-  const [a, b] = await Promise.all([geocode(origin), geocode(destination)])
+  // cityCoordsBest, а не голый geocode: у него за спиной ещё Census и поиск по
+  // индексу. Один Nominatim подводил ровно там, где это дороже всего — на сервере
+  // хостинга его ответы бывают пустыми, и груз из рейт-кона без пробега отказывались
+  // создавать, хотя оба города в документе названы.
+  const [a, b] = await Promise.all([
+    cityCoordsBest(null, origin),
+    cityCoordsBest(null, destination),
+  ])
   if (!a || !b) return { error: t(locale, 'tracking.geoNoCoords') }
 
   // Truck-legal routing when a key exists; fall through to free OSRM on any failure.
@@ -384,6 +391,12 @@ export async function routeMiles(
   // Free path — OSRM demo, real driving miles, no key. Miles only, no polyline.
   const road = await roadRoute(a, b, false)
   if (road) return { miles: road.miles }
+  // Маршрутизатор не ответил, но обе точки известны — считаем по прямой с надбавкой
+  // на извилистость дорог (эмпирические +15 % для магистральных рейсов по США).
+  // Приблизительный пробег лучше отказа: без числа груз вообще не заводится, а
+  // диспетчер всё равно правит мили руками, когда видит их на карточке.
+  const straight = haversineMiles(a, b)
+  if (straight > 0) return { miles: Math.round(straight * 1.15) }
   return { error: t(locale, 'tracking.geoNoRoute') }
 }
 

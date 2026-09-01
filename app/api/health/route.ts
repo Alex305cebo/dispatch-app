@@ -75,6 +75,10 @@ export async function GET(req: NextRequest) {
       // если хостинг туда не пускает, подбор молча не работает — снаружи это никак
       // иначе не увидеть, а с рабочей машины запрос уходит и всё выглядит исправным.
       safer: await saferProbe(),
+      // Доходит ли сервер до геокодера и маршрутизатора. Именно на этом молча
+      // ломалось создание груза из рейт-кона без пробега: города в документе есть,
+      // а мили посчитать нечем — и увидеть причину снаружи было нельзя.
+      geo: await geoProbe(),
     })
   } catch (e) {
     // A failure here is almost always "schema never applied" — say so rather than
@@ -83,6 +87,20 @@ export async function GET(req: NextRequest) {
       { db: false, error: e instanceof Error ? e.message : String(e) },
       { status: 503 },
     )
+  }
+}
+
+/** Живая проверка гео: считаем мили между двумя заведомо известными городами. */
+async function geoProbe(): Promise<{ ok: boolean; miles?: number; ms: number; error?: string }> {
+  const started = Date.now()
+  try {
+    const { routeMiles } = await import('@/lib/geo-routing')
+    const r = await routeMiles('Kansas City, KS', 'Pasadena, TX')
+    return 'miles' in r
+      ? { ok: true, miles: r.miles, ms: Date.now() - started }
+      : { ok: false, ms: Date.now() - started, error: r.error }
+  } catch (e) {
+    return { ok: false, ms: Date.now() - started, error: e instanceof Error ? e.message : String(e) }
   }
 }
 
