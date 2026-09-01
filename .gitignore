@@ -7,3 +7,8 @@ next-env.d.ts
 .DS_Store
 graphify-out/
 .claude/settings.local.json
+
+# Отладочные заглушки резолвера (server-only) — локальные, в репозиторий не идут
+hook.mjs
+hook-impl.mjs
+probe.ts
