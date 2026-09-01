@@ -36,11 +36,20 @@ jobs:
           stamp=$(date -u +%Y-%m-%d)
           # -Fc = compressed custom format, the one pg_restore wants.
           /usr/lib/postgresql/18/bin/pg_dump "$DATABASE_URL" -Fc -f "dispatch-$stamp.dump"
-          ls -lh "dispatch-$stamp.dump"
+          # Второй экземпляр — обычный SQL (gzip): восстанавливается без pg_restore,
+          # хоть через psql, хоть из SQL-редактора Neon, и читается глазами. Для
+          # локального recovery-комплекта это важнее компактности.
+          /usr/lib/postgresql/18/bin/pg_dump "$DATABASE_URL" -Fp | gzip -9 > "dispatch-$stamp.sql.gz"
+          ls -lh "dispatch-$stamp.dump" "dispatch-$stamp.sql.gz"
 
       - name: Upload backup artifact
         uses: actions/upload-artifact@v4
         with:
           name: db-backup
-          path: dispatch-*.dump
+          path: |
+            dispatch-*.dump
+            dispatch-*.sql.gz
+          # 90 дней — потолок GitHub; по умолчанию было бы столько же, но пусть
+          # это будет сказано явно, а не подразумеваться.
+          retention-days: 90
           retention-days: 30
