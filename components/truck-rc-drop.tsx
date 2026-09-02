@@ -15,8 +15,7 @@ import { formatDriverInfo, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
 import { rcWarnings, type RcWarning } from '@/lib/rc-warnings'
 import { createLoadFromRc, uploadDocument } from '@/app/actions'
-import type { DocClass } from '@/lib/ai-doc'
-import { docKindLabel } from '@/lib/docs'
+import { docKindFromText } from '@/lib/caption-kind'
 import { staleBuildMessage } from '@/components/build-watch'
 import { notify } from '@/lib/notify'
 import { BrokerCheckPanel } from '@/components/broker-check'
@@ -48,7 +47,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
   const [, startCopy] = useTransition()
   const inputRef = useRef<HTMLInputElement>(null)
   // Kept so "Повторить" can re-run the same file without asking to re-pick it.
-  const [lastFile, setLastFile] = useState<File | undefined>(undefined)
+  const [lastFiles, setLastFiles] = useState<File[]>([])
 
   // A scanned rate con through Gemini really can take 60-90s. Without a visible,
   // ticking sign of life the page looks frozen — and a reload mid-flight loses the
@@ -60,62 +59,60 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
     return () => clearInterval(id)
   }, [busy])
 
-  async function handle(file: File | undefined) {
-    if (!file) return
-    setLastFile(file)
+  /** Брокеры (TQL и не только) присылают рейт-кон и Driver Info ОТДЕЛЬНЫМИ файлами.
+   * Сюда можно бросить оба сразу: рейт-кон создаёт груз, лист водителя ложится к
+   * этому же грузу как «Driver Info». Лист узнаётся по тексту — у него нет ставки. */
+  async function handle(picked: FileList | File[] | undefined) {
+    const list = Array.from(picked ?? [])
+    if (!list.length) return
+    setLastFiles(list)
     setError(null)
     setBusy(true)
     setStage(t(locale, 'rcDrop.stageReading'))
     setRes(null)
     try {
-      const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
-      const isImage = file.type.startsWith('image/')
-      if (!isPdf && !isImage) throw new Error(t(locale, 'newLoad.needPdfOrPhoto'))
+      const texts = new Map<File, string>()
+      const companions: File[] = []
+      const rcs: File[] = []
+      for (const f of list) {
+        const isPdf = f.name.toLowerCase().endsWith('.pdf') || f.type === 'application/pdf'
+        const isImage = f.type.startsWith('image/')
+        if (!isPdf && !isImage) throw new Error(t(locale, 'newLoad.needPdfOrPhoto'))
+        const txt = isPdf ? (await extractPdf(f)).text : ''
+        texts.set(f, txt)
+        if (txt && docKindFromText(txt) === 'driverinfo') companions.push(f)
+        else rcs.push(f)
+      }
 
-      const mime = isImage ? file.type : 'application/pdf'
-      const base64 = await fileToBase64(file)
-
-      // Pull the text FIRST. A rate con needs it a step later anyway, and having it up
-      // here lets the document name itself: these papers print "RATE CONFIRMATION" or
-      // "Bill of Lading" across the top, so for a text PDF the answer is already on
-      // hand and the vision call is a wasted request. On the free Gemini tier the
-      // daily allowance is counted in REQUESTS, not tokens — 20/day on flash — so the
-      // call we don't make is worth more than the one we make cheaply.
-      let text = ''
-      if (isPdf) text = (await extractPdf(file)).text
-      const hasText = isPdf && !looksScanned(text)
-
-      // 0) What IS this? Only a real rate con creates a load; a BOL/POD/invoice is just
-      // filed on the truck with its correct kind, not force-labelled "ratecon".
-      // Text first (free), then classifyDoc — which tries the filename before it spends
-      // a request on the model. Scans and photos have no text, so they still go to AI.
-      // Эта зона — ДЛЯ РЕЙТ-КОНОВ, и угадывать тип здесь вредно: угадывание уже
-      // подшивало настоящие рейт-коны как «Driver Info» без груза. Правило
-      // владельца: тип документа называет он сам — в панели «Документы». Здесь всё
-      // идёт как рейт-кон; не прочитался как рейт-кон — останется документом с
-      // кнопкой «Создать груз», а не превратится во что-то другое.
-      const cls: DocClass = 'ratecon'
-      if (cls !== 'ratecon') {
-        setStage(t(locale, 'rcDrop.stageSaving'))
+      async function fileDoc(f: File, kind: string, loadId?: number) {
         const fd = new FormData()
-        fd.append('file', file)
-        // Тип не определён — кладём как «Другое», но НЕ выдаём это за распознавание:
-        // ниже об этом говорится прямо, чтобы ярлык не принимали за прочитанный тип.
-        fd.append('kind', cls ?? 'other')
+        fd.append('file', f)
+        fd.append('kind', kind)
         fd.append('truckId', String(truckId))
+        if (loadId) fd.append('loadId', String(loadId))
         const up = await uploadDocument(fd)
         if ('error' in up) throw new Error(up.error)
-        notify(
-          cls ? 'ok' : 'warn',
-          cls
-            ? t(locale, 'rcDrop.savedAsKind').replace('{kind}', docKindLabel(cls, locale))
-            : t(locale, 'rcDrop.savedUnknownKind'),
-          file.name,
-        )
+        return up.id
+      }
+
+      // Только лист водителя, без рейт-кона — подшиваем на трак, груз не создаём.
+      if (!rcs.length) {
+        setStage(t(locale, 'rcDrop.stageSaving'))
+        for (const f of companions) await fileDoc(f, 'driverinfo')
+        notify('ok', t(locale, 'rcDrop.companionOnly'), companions.map((f) => f.name).join(', '))
         return
       }
 
-      // 1) text was already extracted above, before the type was decided
+      const file = rcs[0]!
+      // Второй и следующие рейт-коны за раз — просто документы с кнопкой «Создать груз».
+      for (const extra of rcs.slice(1)) await fileDoc(extra, 'ratecon')
+
+      const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
+      const isImage = file.type.startsWith('image/')
+      const mime = isImage ? file.type : 'application/pdf'
+      const base64 = await fileToBase64(file)
+      const text = texts.get(file) ?? ''
+      const hasText = isPdf && !looksScanned(text)
 
       // 2) save the RC as a document on this truck
       setStage(t(locale, 'rcDrop.stageSaving'))
@@ -151,6 +148,8 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       setStage(t(locale, 'rcDrop.stageCreating'))
       const made = await createLoadFromRc(truckId, toQrLoad(ai.fields), docId, formatDriverInfo(ai.fields))
       if ('error' in made) throw new Error(made.error)
+      for (const f of companions) await fileDoc(f, 'driverinfo', made.loadId)
+      if (companions.length) notify('ok', t(locale, 'rcDrop.companionSaved'), companions.map((f) => f.name).join(', '))
 
       setRes({
         loadId: made.loadId,
@@ -269,7 +268,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       onDrop={(e) => {
         e.preventDefault()
         setDrag(false)
-        handle(e.dataTransfer.files[0])
+        handle(e.dataTransfer.files)
       }}
       animate={{ scale: drag ? 1.01 : 1 }}
       className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-4 py-6 text-center transition-colors ${
@@ -280,8 +279,9 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
         ref={inputRef}
         type="file"
         accept="application/pdf,.pdf,image/*"
+        multiple
         className="hidden"
-        onChange={(e) => handle(e.target.files?.[0])}
+        onChange={(e) => handle(e.target.files ?? undefined)}
       />
       {busy ? (
         <>
@@ -296,6 +296,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
         <>
           <span className="text-[14px] font-medium">{t(locale, 'rcDrop.dropCta')}</span>
           <span className="mt-0.5 text-[12px] text-white/55">{t(locale, 'rcDrop.dropSubtext')}</span>
+          <span className="mt-0.5 text-[11.5px] text-white/45">{t(locale, 'rcDrop.withDriverInfo')}</span>
         </>
       )}
       {error && (
@@ -305,7 +306,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
-              handle(lastFile)
+              handle(lastFiles)
             }}>
             {t(locale, 'import.retryScan')}
           </Button>
