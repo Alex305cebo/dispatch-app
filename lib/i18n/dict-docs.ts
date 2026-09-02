@@ -1,6 +1,8 @@
 // Documents domain: app/docs/**, docs.tsx, doc-viewer.tsx, lib/docs.ts.
 
 export const docsDict = {
+  'docs.kind.changeTitle': { ru: 'Изменить тип файла', en: 'Change file type', es: 'Cambiar tipo de archivo', uk: 'Змінити тип файлу', ro: 'Schimbă tipul fișierului', kk: 'Файл түрін өзгерту' },
+  'docs.kind.changed': { ru: 'Тип файла изменён', en: 'File type changed', es: 'Tipo de archivo cambiado', uk: 'Тип файлу змінено', ro: 'Tipul fișierului a fost schimbat', kk: 'Файл түрі өзгертілді' },
   'docs.unattached.recognize': { ru: 'Распознать → груз', en: 'Recognise → load', es: 'Leer → carga', uk: 'Розпізнати → вантаж', ro: 'Citește → cursă', kk: 'Тану → жүк' },
   'docs.unattached.working': { ru: 'Читаю…', en: 'Reading…', es: 'Leyendo…', uk: 'Читаю…', ro: 'Se citește…', kk: 'Оқып жатырмын…' },
   'docs.unattached.attachTo': { ru: 'Прикрепить к грузу…', en: 'Attach to load…', es: 'Adjuntar a una carga…', uk: 'Прикріпити до вантажу…', ro: 'Atașează la o cursă…', kk: 'Жүкке тіркеу…' },

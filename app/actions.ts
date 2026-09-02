@@ -13,6 +13,7 @@
 // «Обновить», опросы по таймеру, выход из аккаунта и смена языка (там меняется кука,
 // а не данные).
 
+import { DOC_KINDS } from '@/lib/docs'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
@@ -922,12 +923,35 @@ export async function setStatus(id: number, status: LoadStatus): Promise<{ error
 /** Truck identity (number + driver) plus its economics — everything a truck is. */
 export type TruckInput = TruckSettings & { number: string; driverName: string }
 
+/** Пустое поле формы приходит как NaN, а Postgres его молча ПРИНИМАЕТ в numeric —
+ * и дальше каждый расчёт по траку показывает «$NaN». Граница доверия — здесь:
+ * всё нечисловое становится нулём. */
+function finiteTruck(t: TruckInput): TruckInput {
+  const n = (v: number) => (Number.isFinite(v) ? v : 0)
+  return {
+    ...t,
+    mpg: n(t.mpg),
+    fuelPricePerGallon: n(t.fuelPricePerGallon),
+    truckPaymentPerDay: n(t.truckPaymentPerDay),
+    insurancePerDay: n(t.insurancePerDay),
+    eldPermitsPerDay: n(t.eldPermitsPerDay),
+    maintenanceCostPerMile: n(t.maintenanceCostPerMile),
+    factoringPercent: n(t.factoringPercent),
+    dispatchPercent: n(t.dispatchPercent),
+    driverPay:
+      t.driverPay.mode === 'cpm'
+        ? { mode: 'cpm', centsPerMile: n(t.driverPay.centsPerMile) }
+        : { mode: 'percent', percentOfGross: n(t.driverPay.percentOfGross) },
+  }
+}
+
 export async function saveTruck(
   id: number,
   t: TruckInput,
 ): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
+  t = finiteTruck(t)
   const denied = await assertCan('edit_trucks')
   if (denied) return denied
   const cpm = t.driverPay.mode === 'cpm' ? t.driverPay.centsPerMile : null
@@ -1036,6 +1060,23 @@ export async function uploadDocument(
     return { id: (rows[0] as { id: number }).id }
   } catch (e) {
     return { error: humanError(e, locale) }
+  }
+}
+
+/** Тип документа называет человек: «BOL» на самом деле оказался фото груза, страница
+ * POD ушла как «Прочее». Меняем подпись, файл на месте. */
+export async function setDocumentKind(docId: number, kind: string): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  if (!(kind in DOC_KINDS)) return { error: 'bad kind' }
+  const companyId = await companyScope()
+  if (!(await docBelongs(companyId, docId))) return
+  const rows = await sql`UPDATE documents SET kind = ${kind} WHERE id = ${docId} RETURNING load_id`
+  const loadId = (rows[0] as { load_id: number | null } | undefined)?.load_id
+  revalidatePath('/docs')
+  if (loadId) {
+    revalidatePath(`/loads/${loadId}`)
+    if (kind === 'pod') await autoInvoiceIfReady(companyId, loadId)
   }
 }
 
@@ -1611,6 +1652,7 @@ export async function saveTruckMeta(
 export async function addTruck(t: TruckInput): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
+  t = finiteTruck(t)
   const cpm = t.driverPay.mode === 'cpm' ? t.driverPay.centsPerMile : null
   const pct = t.driverPay.mode === 'percent' ? t.driverPay.percentOfGross : null
   let id: number

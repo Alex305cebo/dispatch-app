@@ -18,6 +18,7 @@ import {
   deleteDocument,
   purgeDocument,
   restoreDocument,
+  setDocumentKind,
   uploadDocument,
 } from '@/app/actions'
 import { DeleteButton } from '@/components/delete-button'
@@ -282,6 +283,41 @@ function UnattachedActions({
   )
 }
 
+/** Подпись типа — выпадающий список прямо на месте бейджа: «BOL» оказался фото
+ * груза, страница POD легла как «Прочее» — меняется на месте, файл не трогаем. */
+function KindPicker({ doc, small }: { doc: DocMeta; small?: boolean }) {
+  const locale = useLocale()
+  const router = useRouter()
+  const [pending, start] = useTransition()
+  return (
+    <select
+      value={doc.kind}
+      disabled={pending}
+      title={t(locale, 'docs.kind.changeTitle')}
+      onChange={(e) => {
+        const kind = e.target.value as DocKind
+        start(async () => {
+          const res = await setDocumentKind(doc.id, kind)
+          if (res && 'error' in res) notify('error', res.error)
+          else {
+            notify('ok', t(locale, 'docs.kind.changed'), docKindLabel(kind, locale))
+            router.refresh()
+          }
+        })
+      }}
+      className={`shrink-0 cursor-pointer appearance-none border-0 font-medium outline-none disabled:opacity-50 ${KIND_TONE[doc.kind]} ${
+        small ? 'rounded px-1.5 py-0.5 text-[10px]' : 'mt-0.5 rounded-full px-2 py-0.5 text-2xs'
+      }`}
+    >
+      {(Object.keys(DOC_KINDS) as DocKind[]).map((k) => (
+        <option key={k} value={k} className="bg-ink-900 text-white">
+          {docKindLabel(k, locale)}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 /** One document line. Reused by the flat list and the grouped library. */
 function DocRow({
   doc,
@@ -316,9 +352,7 @@ function DocRow({
     // справа от имени. Всё то же самое, но высота строки вместо высоты карточки.
     return (
       <li className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-white/[0.04]">
-        <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${KIND_TONE[doc.kind]}`}>
-          {docKindLabel(doc.kind, locale)}
-        </span>
+        <KindPicker doc={doc} small />
         <DocLink
           docId={doc.id}
           className="min-w-0 shrink truncate text-left text-[13px] text-white/85 hover:text-haul-400 hover:underline"
@@ -355,11 +389,7 @@ function DocRow({
 
   return (
     <li className="flex items-start gap-2.5 rounded-lg border border-white/6 px-3 py-2">
-      <span
-        className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-2xs font-medium ${KIND_TONE[doc.kind]}`}
-      >
-        {docKindLabel(doc.kind, locale)}
-      </span>
+      <KindPicker doc={doc} />
       <div className="min-w-0 flex-1">
         {/* Окном поверх страницы, а не отдельной страницей — см. doc-link.tsx. */}
         <DocLink

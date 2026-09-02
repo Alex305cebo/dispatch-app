@@ -426,7 +426,7 @@ CREATE TABLE IF NOT EXISTS app_errors (
 );
 CREATE INDEX IF NOT EXISTS app_errors_at ON app_errors(at DESC);
 
-INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-03')
+INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-04')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- Через кого брокер платит перевозчикам (TriumphPay, Comdata, RTS…), если рейт-кон
@@ -451,3 +451,15 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_since TIMESTAMPTZ;
 -- думает, что ею занят другой. У трака может не быть диспетчера (NULL) — так и было
 -- до этой колонки, и это законное состояние, а не ошибка.
 ALTER TABLE trucks ADD COLUMN IF NOT EXISTS dispatcher_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+
+-- Пустое поле формы трака когда-то уезжало в базу как NaN (numeric его принимает),
+-- и весь трак считал «$NaN». Форма больше так не делает; старые строки чиним тут.
+UPDATE trucks SET fixed_cost_per_day = 0 WHERE fixed_cost_per_day = 'NaN';
+UPDATE trucks SET maintenance_cost_per_mile = 0 WHERE maintenance_cost_per_mile = 'NaN';
+UPDATE trucks SET mpg = 6.5 WHERE mpg = 'NaN' OR mpg <= 0;
+UPDATE trucks SET fuel_price_per_gallon = 0 WHERE fuel_price_per_gallon = 'NaN';
+UPDATE trucks SET truck_payment_per_day = 0 WHERE truck_payment_per_day = 'NaN';
+UPDATE trucks SET insurance_per_day = 0 WHERE insurance_per_day = 'NaN';
+UPDATE trucks SET eld_permits_per_day = 0 WHERE eld_permits_per_day = 'NaN';
+UPDATE trucks SET factoring_percent = 0 WHERE factoring_percent = 'NaN';
+UPDATE trucks SET dispatch_percent = 0 WHERE dispatch_percent = 'NaN';
