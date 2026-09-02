@@ -121,7 +121,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             }`}
           >
             <RevealGuard />
-            <BuildWatch />
+            <BuildWatch mine={process.env.BUILD_STAMP ?? ''} />
             {children}
           </div>
           {/* Fixed overlay — outside the padded content wrapper so it isn't offset by

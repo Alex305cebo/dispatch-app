@@ -20,12 +20,15 @@ import { t } from '@/lib/i18n'
  * Если человек ничего не печатает — перезагружаем сразу, набранное терять нечего;
  * если печатает — говорим и ждём момента, когда вкладку снова откроют.
  */
-const MINE = process.env.BUILD_STAMP ?? ''
 const EVERY_MS = 60_000
 
-export function BuildWatch() {
+/** Метку сборки передаёт СЕРВЕРНЫЙ layout пропом: в клиентский чанк
+ * process.env.BUILD_STAMP не вшивается (проверено на боевой сборке — в чанке
+ * её не было, и сторож был слеп). На сервере переменная есть всегда. */
+export function BuildWatch({ mine }: { mine: string }) {
   const locale = useLocale()
   useEffect(() => {
+    const MINE = mine
     if (!MINE) return
     let stale = false
     let told = false
@@ -67,7 +70,7 @@ export function BuildWatch() {
       clearInterval(id)
       document.removeEventListener('visibilitychange', onVis)
     }
-  }, [locale])
+  }, [locale, mine])
   return null
 }
 
