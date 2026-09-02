@@ -55,25 +55,32 @@ export function DocButton({
     )
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+    // BOL и POD — многостраничные: несколько файлов за раз, каждый подшивается
+    // под тем же типом. Грузим по очереди, отчитываемся один раз.
+    const list = Array.from(e.target.files ?? [])
     e.target.value = '' // let the same file be re-picked after an error
-    if (!file) return
+    if (!list.length) return
     start(async () => {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('kind', kind)
-      fd.append('loadId', String(loadId))
-      const res = await uploadDocument(fd)
-      if (res && 'error' in res) notify('error', res.error)
-      else {
-        notify('ok', t(locale, 'loadDetail.docUploaded').replace('{label}', label))
+      let saved = 0
+      let firstError: string | null = null
+      for (const file of list) {
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('kind', kind)
+        fd.append('loadId', String(loadId))
+        const res = await uploadDocument(fd)
+        if (res && 'error' in res) firstError ??= res.error
+        else saved++
       }
+      if (saved)
+        notify('ok', t(locale, 'loadDetail.docUploaded').replace('{label}', saved > 1 ? `${saved} × ${label}` : label))
+      if (firstError) notify('error', firstError)
     })
   }
 
   return (
     <>
-      <input ref={inputRef} type="file" accept="application/pdf,image/*" className="hidden" onChange={onFile} />
+      <input ref={inputRef} type="file" accept="application/pdf,image/*" multiple className="hidden" onChange={onFile} />
       <button
         type="button"
         disabled={pending}
