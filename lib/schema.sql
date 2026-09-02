@@ -308,8 +308,11 @@ ALTER TABLE loads ADD COLUMN IF NOT EXISTS payment_terms_days INTEGER NOT NULL D
 
 -- The generated invoice PDF is stored as a document — widen the kind check.
 ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_kind_check;
+-- 'driverinfo' — лист «Driver Information» (стопы, окна, требования, без ставки):
+-- классификатор его отличает от рейт-кона давно, а ограничение не знало — и
+-- загрузка такого файла падала на «violates check constraint documents_kind_check».
 ALTER TABLE documents ADD CONSTRAINT documents_kind_check
-  CHECK (kind IN ('ratecon','bol','pod','invoice','insurance','registration','repair','other'));
+  CHECK (kind IN ('ratecon','bol','pod','driverinfo','invoice','insurance','registration','repair','other'));
 
 -- Soft delete: "deleting" a document moves it to the trash instead of erasing it —
 -- only deleting again FROM the trash is unrecoverable.
@@ -423,7 +426,7 @@ CREATE TABLE IF NOT EXISTS app_errors (
 );
 CREATE INDEX IF NOT EXISTS app_errors_at ON app_errors(at DESC);
 
-INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-01')
+INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-02')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- Через кого брокер платит перевозчикам (TriumphPay, Comdata, RTS…), если рейт-кон
