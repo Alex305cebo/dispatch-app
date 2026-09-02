@@ -100,6 +100,7 @@ export const docsDict = {
   'docs.kind.insurance': { ru: 'Страховка', en: 'Insurance', es: 'Seguro', uk: 'Страховка', ro: 'Asigurare', kk: 'Сақтандыру' },
   'docs.kind.registration': { ru: 'Регистрация', en: 'Registration', es: 'Registro', uk: 'Реєстрація', ro: 'Înmatriculare', kk: 'Тіркеу' },
   'docs.kind.repair': { ru: 'Чек за ремонт', en: 'Repair receipt', es: 'Recibo de taller', uk: 'Чек за ремонт', ro: 'Bon de service', kk: 'Жөндеу чегі' },
+  'docs.kind.photo': { ru: 'Фото груза', en: 'Cargo photo', es: 'Foto de la carga', uk: 'Фото вантажу', ro: 'Poză marfă', kk: 'Жүк фотосы' },
   'docs.kind.other': { ru: 'Другое', en: 'Other', es: 'Otro', uk: 'Інше', ro: 'Altul', kk: 'Басқа' },
 
   // components/doc-viewer.tsx

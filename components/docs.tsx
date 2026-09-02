@@ -49,25 +49,34 @@ export function DocUpload({
   const [pickTruck, setPickTruck] = useState<string>('')
   const fileRef = useRef<HTMLInputElement>(null)
 
-  function send(file: File | undefined) {
-    if (!file) return
-    const fd = new FormData()
-    fd.append('file', file)
-    fd.append('kind', kind)
-    if (truckId) fd.append('truckId', String(truckId))
-    if (loadId) fd.append('loadId', String(loadId))
-    if (!truckId && pickTruck) fd.append('truckId', pickTruck)
+  // Несколько файлов за раз: многостраничный BOL/POD снимают по странице, фото
+  // груза — серией. Тип один на всю пачку — тот, что выбран рядом; никакого
+  // угадывания: что это за файл, называет человек.
+  function send(list: FileList | null) {
+    const files = Array.from(list ?? [])
+    if (files.length === 0) return
     start(async () => {
-      try {
-        const res = await uploadDocument(fd)
-        if ('error' in res) notify('error', res.error)
-        else {
-          notify('ok', t(locale, 'docs.upload.saved'), file.name)
-          if (fileRef.current) fileRef.current.value = ''
+      let saved = 0
+      for (const file of files) {
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('kind', kind)
+        if (truckId) fd.append('truckId', String(truckId))
+        if (loadId) fd.append('loadId', String(loadId))
+        if (!truckId && pickTruck) fd.append('truckId', pickTruck)
+        try {
+          const res = await uploadDocument(fd)
+          if ('error' in res) notify('error', `${file.name}: ${res.error}`)
+          else saved++
+        } catch (e) {
+          // Экшен отверг вкладку после деплоя — сказать по-человечески, а не молчать.
+          notify('error', staleBuildMessage(e instanceof Error ? e.message : String(e), locale))
+          break
         }
-      } catch (e) {
-        // Экшен отверг вкладку после деплоя — сказать по-человечески, а не молчать.
-        notify('error', staleBuildMessage(e instanceof Error ? e.message : String(e), locale))
+      }
+      if (saved > 0) {
+        notify('ok', t(locale, 'docs.upload.saved'), saved === 1 ? files[0]!.name : `${saved} × ${docKindLabel(kind, locale)}`)
+        if (fileRef.current) fileRef.current.value = ''
       }
     })
   }
@@ -104,9 +113,10 @@ export function DocUpload({
           ref={fileRef}
           type="file"
           accept="application/pdf,image/*"
+          multiple
           className="hidden"
           disabled={pending}
-          onChange={(e) => send(e.target.files?.[0])}
+          onChange={(e) => send(e.target.files)}
         />
       </label>
       <span className="text-[11px] text-white/45">{t(locale, 'docs.upload.hint')}</span>
@@ -123,6 +133,7 @@ const KIND_TONE: Record<DocKind, string> = {
   invoice: 'bg-haul-500/15 text-haul-400',
   insurance: 'bg-warn-400/15 text-warn-400',
   registration: 'bg-warn-400/15 text-warn-400',
+  photo: 'bg-good-500/10 text-good-300',
   repair: 'bg-amber-400/15 text-amber-300',
   other: 'bg-white/8 text-white/60',
 }

@@ -18,6 +18,8 @@ export const DOC_KINDS = {
   insurance: 'Страховка',
   registration: 'Регистрация',
   repair: 'Чек за ремонт',
+  // Фото груза: погрузка, пломба, повреждения — сколько угодно снимков на груз.
+  photo: 'Фото груза',
   other: 'Другое',
 } as const
 export type DocKind = keyof typeof DOC_KINDS
@@ -32,6 +34,7 @@ export function docKindLabel(kind: DocKind, locale: Locale): string {
     case 'insurance': return t(locale, 'docs.kind.insurance')
     case 'registration': return t(locale, 'docs.kind.registration')
     case 'repair': return t(locale, 'docs.kind.repair')
+    case 'photo': return t(locale, 'docs.kind.photo')
     case 'other': return t(locale, 'docs.kind.other')
   }
 }

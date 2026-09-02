@@ -14,8 +14,8 @@ import { extractPdf, looksScanned } from '@/lib/pdf-text'
 import { formatDriverInfo, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
 import { rcWarnings, type RcWarning } from '@/lib/rc-warnings'
-import { classifyDoc, createLoadFromRc, uploadDocument } from '@/app/actions'
-import { docKindFromText } from '@/lib/caption-kind'
+import { createLoadFromRc, uploadDocument } from '@/app/actions'
+import type { DocClass } from '@/lib/ai-doc'
 import { docKindLabel } from '@/lib/docs'
 import { staleBuildMessage } from '@/components/build-watch'
 import { notify } from '@/lib/notify'
@@ -89,8 +89,12 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       // filed on the truck with its correct kind, not force-labelled "ratecon".
       // Text first (free), then classifyDoc — which tries the filename before it spends
       // a request on the model. Scans and photos have no text, so they still go to AI.
-      const cls =
-        (hasText ? docKindFromText(text) : null) ?? (await classifyDoc(file))
+      // Эта зона — ДЛЯ РЕЙТ-КОНОВ, и угадывать тип здесь вредно: угадывание уже
+      // подшивало настоящие рейт-коны как «Driver Info» без груза. Правило
+      // владельца: тип документа называет он сам — в панели «Документы». Здесь всё
+      // идёт как рейт-кон; не прочитался как рейт-кон — останется документом с
+      // кнопкой «Создать груз», а не превратится во что-то другое.
+      const cls: DocClass = 'ratecon'
       if (cls !== 'ratecon') {
         setStage(t(locale, 'rcDrop.stageSaving'))
         const fd = new FormData()

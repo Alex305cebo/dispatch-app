@@ -60,11 +60,19 @@ const DRIVERINFO_TEXT = /\bdriver\s*\/?\s*carrier\s+information\s+sheet\b|\bdriv
  * proper answer from vision; this only skips the request when the paper has already
  * answered in its own heading.
  */
+/** Сумма денег в тексте: «$2,050», «$ 2050.00», «USD 2,050», «Rate: 2050.00». */
+const MONEY_TEXT = /(?:\$|\bUSD\b)\s?\d{2,3}(?:,\d{3})*(?:\.\d{2})?|\b(?:rate|total|linehaul|carrier\s+pay)\b[^\n$]{0,20}\d{3,6}(?:\.\d{2})?/i
+
 export function docKindFromText(text: string): DocClass | null {
   const t = (text ?? '').trim()
   if (t.length < 40) return null // too little to be a document's own text
-  // Лист водителя проверяется ПЕРВЫМ: он часто ссылается на рейт-кон словами
-  // «rate confirmation», и по одному этому упоминанию его приняли бы за рейт-кон.
+  // Что решает — ДЕНЬГИ. Рейт-кон всегда называет ставку ($2,050 / Rate: $…), лист
+  // водителя по определению её не содержит. У TQL сам рейт-кон включает раздел
+  // «Carrier Information Sheet», и слепая проверка листа раньше рейт-кона делала из
+  // настоящего рейт-кона «Driver Info» — груз не создавался. А лист водителя может
+  // упомянуть «see the rate confirmation» без единой суммы — и он остаётся листом.
+  const money = MONEY_TEXT.test(t)
+  if (RATECON_TEXT.test(t) && money) return 'ratecon'
   if (DRIVERINFO_TEXT.test(t)) return 'driverinfo'
   return RATECON_TEXT.test(t) ? 'ratecon' : null
 }

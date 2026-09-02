@@ -106,3 +106,10 @@ test('упоминание рейт-кона внутри листа водит�
     'Pickup: Summerville SC. Delivery: Romeoville IL. Trailer: 53 ft van.'
   assert.equal(docKindFromText(t), 'driverinfo')
 })
+
+test('рейт-кон TQL с разделом Carrier Information Sheet — всё равно рейт-кон: в нём есть ставка', () => {
+  const tqlRc =
+    'TQL CARRIER RATE CONFIRMATION PO# 38072427 CARRIER INFORMATION SHEET Carrier: Maya Logistics ' +
+    'Pickup: Nashville TN Delivery: Chicago IL Rate: $2,050.00 Total Rate $2,050.00 Trailer: 53 ft van'
+  assert.equal(docKindFromText(tqlRc), 'ratecon')
+})
