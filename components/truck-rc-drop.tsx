@@ -17,6 +17,7 @@ import { rcWarnings, type RcWarning } from '@/lib/rc-warnings'
 import { classifyDoc, createLoadFromRc, uploadDocument } from '@/app/actions'
 import { docKindFromText } from '@/lib/caption-kind'
 import { docKindLabel } from '@/lib/docs'
+import { staleBuildMessage } from '@/components/build-watch'
 import { notify } from '@/lib/notify'
 import { BrokerCheckPanel } from '@/components/broker-check'
 import { useLocale } from '@/components/locale-provider'
@@ -156,7 +157,9 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       })
       notify('ok', t(locale, 'rcDrop.createdToast'), file.name)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
+      // Устаревшая после деплоя вкладка отвечает «unexpected response» — человеку
+      // это ни о чём; говорим, что делать (см. components/build-watch.tsx).
+      const msg = staleBuildMessage(e instanceof Error ? e.message : String(e), locale)
       setError(msg)
       notify('error', t(locale, 'newLoad.notReadToast').replace('{msg}', msg))
     } finally {

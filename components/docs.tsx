@@ -23,6 +23,7 @@ import {
 import { DeleteButton } from '@/components/delete-button'
 import { DOC_KINDS, docKindLabel, fmtSize, type DocKind, type DocLibRow, type DocMeta } from '@/lib/docs'
 import { notify } from '@/lib/notify'
+import { staleBuildMessage } from '@/components/build-watch'
 import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale } from '@/lib/i18n'
@@ -57,11 +58,16 @@ export function DocUpload({
     if (loadId) fd.append('loadId', String(loadId))
     if (!truckId && pickTruck) fd.append('truckId', pickTruck)
     start(async () => {
-      const res = await uploadDocument(fd)
-      if ('error' in res) notify('error', res.error)
-      else {
-        notify('ok', t(locale, 'docs.upload.saved'), file.name)
-        if (fileRef.current) fileRef.current.value = ''
+      try {
+        const res = await uploadDocument(fd)
+        if ('error' in res) notify('error', res.error)
+        else {
+          notify('ok', t(locale, 'docs.upload.saved'), file.name)
+          if (fileRef.current) fileRef.current.value = ''
+        }
+      } catch (e) {
+        // Экшен отверг вкладку после деплоя — сказать по-человечески, а не молчать.
+        notify('error', staleBuildMessage(e instanceof Error ? e.message : String(e), locale))
       }
     })
   }
@@ -214,10 +220,14 @@ function UnattachedActions({
 
   function recognize() {
     start(async () => {
-      const res = await createLoadFromExistingRc(docId, truckId)
-      if ('error' in res) notify('error', res.error)
-      else {
-        notify('ok', t(locale, 'docs.unattached.recognizedToast'))
+      try {
+        const res = await createLoadFromExistingRc(docId, truckId)
+        if ('error' in res) notify('error', res.error)
+        else {
+          notify('ok', t(locale, 'docs.unattached.recognizedToast'))
+        }
+      } catch (e) {
+        notify('error', staleBuildMessage(e instanceof Error ? e.message : String(e), locale))
       }
     })
   }

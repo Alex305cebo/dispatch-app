@@ -11,6 +11,7 @@ export const commonDict = {
   'status.paid': { ru: 'Оплачен', en: 'Paid', es: 'Pagado', uk: 'Оплачено', ro: 'Plătit', kk: 'Төленді' },
   'status.cancelled': { ru: 'Отменён', en: 'Cancelled', es: 'Cancelado', uk: 'Скасовано', ro: 'Anulat', kk: 'Бас тартылды' },
 
+  'common.staleBuild': { ru: 'Вышло обновление приложения — обнови страницу (Ctrl+F5) и повтори действие.', en: 'The app was updated — refresh the page (Ctrl+F5) and try again.', es: 'La app se actualizó — recarga la página (Ctrl+F5) y repite la acción.', uk: 'Вийшло оновлення застосунку — онови сторінку (Ctrl+F5) і повтори дію.', ro: 'Aplicația s-a actualizat — reîncarcă pagina (Ctrl+F5) și repetă acțiunea.', kk: 'Қосымша жаңарды — бетті жаңартып (Ctrl+F5), әрекетті қайталаңыз.' },
   'common.save': { ru: 'Сохранить', en: 'Save', es: 'Guardar', uk: 'Зберегти', ro: 'Salvează', kk: 'Сақтау' },
   'common.saving': { ru: 'Сохраняю…', en: 'Saving…', es: 'Guardando…', uk: 'Зберігаю…', ro: 'Se salvează…', kk: 'Сақталуда…' },
   'common.cancel': { ru: 'Отмена', en: 'Cancel', es: 'Cancelar', uk: 'Скасувати', ro: 'Anulează', kk: 'Болдырмау' },
