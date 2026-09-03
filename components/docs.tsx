@@ -226,7 +226,8 @@ function UnattachedActions({
   // "Recognise" only for kinds that could actually BE a rate con: an explicit ratecon,
   // or an 'other' that a Telegram classifier may have misread. Offering it on a clearly
   // typed insurance/registration/POD would just be noise — those only get "attach".
-  const canRecognize = kind === 'ratecon' || kind === 'other'
+  // Лист водителя тоже: у TQL в нём всё, кроме ставки, — груз из него нужен.
+  const canRecognize = kind === 'ratecon' || kind === 'other' || kind === 'driverinfo'
   const router = useRouter()
   const [pending, start] = useTransition()
 

@@ -95,17 +95,14 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
         return up.id
       }
 
-      // Только лист водителя, без рейт-кона — подшиваем на трак, груз не создаём.
-      if (!rcs.length) {
-        setStage(t(locale, 'rcDrop.stageSaving'))
-        for (const f of companions) await fileDoc(f, 'driverinfo')
-        notify('ok', t(locale, 'rcDrop.companionOnly'), companions.map((f) => f.name).join(', '))
-        return
-      }
-
-      const file = rcs[0]!
-      // Второй и следующие рейт-коны за раз — просто документы с кнопкой «Создать груз».
-      for (const extra of rcs.slice(1)) await fileDoc(extra, 'ratecon')
+      // Груз создаёт ПЕРВЫЙ файл: рейт-кон, если он есть, иначе лист водителя — в нём
+      // есть всё, кроме ставки (TQL присылает их отдельно), и груз без ставки лучше,
+      // чем груз, которого нет: ставка впишется из рейт-кона позже, предупреждение
+      // «ставка не распозналась» об этом скажет. Остальные файлы ложатся к этому грузу.
+      const ordered = [...rcs, ...companions]
+      const file = ordered[0]!
+      const sourceKind = companions.includes(file) ? 'driverinfo' : 'ratecon'
+      const rest = ordered.slice(1)
 
       const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
       const isImage = file.type.startsWith('image/')
@@ -118,7 +115,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       setStage(t(locale, 'rcDrop.stageSaving'))
       const fd = new FormData()
       fd.append('file', file)
-      fd.append('kind', 'ratecon')
+      fd.append('kind', sourceKind)
       fd.append('truckId', String(truckId))
       const up = await uploadDocument(fd)
       const docId = 'id' in up ? up.id : undefined
@@ -148,8 +145,8 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       setStage(t(locale, 'rcDrop.stageCreating'))
       const made = await createLoadFromRc(truckId, toQrLoad(ai.fields), docId, formatDriverInfo(ai.fields))
       if ('error' in made) throw new Error(made.error)
-      for (const f of companions) await fileDoc(f, 'driverinfo', made.loadId)
-      if (companions.length) notify('ok', t(locale, 'rcDrop.companionSaved'), companions.map((f) => f.name).join(', '))
+      for (const f of rest) await fileDoc(f, companions.includes(f) ? 'driverinfo' : 'ratecon', made.loadId)
+      if (rest.length) notify('ok', t(locale, 'rcDrop.companionSaved'), rest.map((f) => f.name).join(', '))
 
       setRes({
         loadId: made.loadId,
