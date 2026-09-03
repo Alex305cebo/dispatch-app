@@ -13,7 +13,6 @@ import { Empty } from '@/components/empty'
 import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  attachDocumentToLoad,
   createLoadFromExistingRc,
   deleteDocument,
   purgeDocument,
@@ -244,12 +243,6 @@ function UnattachedActions({
       }
     })
   }
-  function attach(loadId: number) {
-    start(async () => {
-      await attachDocumentToLoad(docId, loadId)
-      notify('ok', t(locale, 'docs.unattached.attachedToast'))
-    })
-  }
 
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -262,23 +255,6 @@ function UnattachedActions({
         >
           {pending ? t(locale, 'docs.unattached.working') : t(locale, 'docs.unattached.recognize')}
         </button>
-      )}
-      {loads.length > 0 && (
-        <select
-          disabled={pending}
-          defaultValue=""
-          onChange={(e) => e.target.value && attach(Number(e.target.value))}
-          className="max-w-[160px] rounded-md border border-white/10 bg-ink-900/80 px-1.5 py-1 text-2xs text-white/75 outline-none disabled:opacity-50"
-        >
-          <option value="" disabled>
-            {t(locale, 'docs.unattached.attachTo')}
-          </option>
-          {loads.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.label}
-            </option>
-          ))}
-        </select>
       )}
     </div>
   )
@@ -306,8 +282,8 @@ function KindPicker({ doc, small }: { doc: DocMeta; small?: boolean }) {
           }
         })
       }}
-      className={`shrink-0 cursor-pointer appearance-none border-0 font-medium outline-none disabled:opacity-50 ${KIND_TONE[doc.kind]} ${
-        small ? 'rounded px-1.5 py-0.5 text-[10px]' : 'mt-0.5 rounded-full px-2 py-0.5 text-2xs'
+      className={`shrink-0 cursor-pointer rounded-md border border-white/15 font-medium outline-none hover:border-white/35 disabled:opacity-50 ${KIND_TONE[doc.kind]} ${
+        small ? 'px-1 py-0.5 text-[10px]' : 'mt-0.5 px-1.5 py-1 text-2xs'
       }`}
     >
       {(Object.keys(DOC_KINDS) as DocKind[]).map((k) => (
