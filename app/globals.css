@@ -88,12 +88,15 @@
     -webkit-tap-highlight-color: transparent;
     /* Nothing in this app legitimately needs to scroll sideways — a safety net for
        any card/row that overflows its container on a narrow phone instead of that
-       overflow becoming a visible, scrollable strip that clips content. */
-    overflow-x: hidden;
+       overflow becoming a visible, scrollable strip that clips content.
+       `clip`, а не `hidden`: hidden делает body контейнером прокрутки, и любой
+       position: sticky внутри (полоса «Трак ⇄ Груз») цепляется за body, который
+       сам не прокручивается, — то есть не липнет вовсе. clip только обрезает. */
+    overflow-x: clip;
   }
 
   body {
-    overflow-x: hidden;
+    overflow-x: clip;
     /* Surface + foreground come from vars, NOT `@apply bg-ink-950 text-white`: in
        Tailwind v4 an `@apply` of a theme colour inside a static layer bakes the
        LITERAL value at build time, so the [data-theme] override never reaches it —
