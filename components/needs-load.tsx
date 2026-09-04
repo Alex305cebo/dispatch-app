@@ -71,7 +71,9 @@ export function NeedsLoad({
                       : 'border-white/8 hover:border-white/20'
                 }`}
               >
-                <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
+                {/* На телефоне имя занимает всю строку, место и срок — под ним: в один ряд
+                    от «Jordan L. TRK-DEMO-317» оставалось «Jordan L. …». */}
+                <span className="min-w-0 basis-full truncate text-[13px] font-medium sm:flex-1 sm:basis-auto">
                   {truckLabel(truck, trailers.get(r.truckId))}
                 </span>
 

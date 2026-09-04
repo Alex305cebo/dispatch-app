@@ -611,14 +611,16 @@ function LoadRow({
         className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-3"
       >
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-[13.5px] font-medium">
+          {/* На телефоне статус переносится ПОД маршрут, к милям: рядом с ним города
+              резались до «Atlanta, GA → Pho…», а именно они тут главное. */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="min-w-0 basis-full truncate text-[13.5px] font-medium sm:basis-auto">
               {load.origin ?? '—'} → {load.destination ?? '—'}
             </span>
             <StatusBadge status={load.status} locale={locale} />
-          </div>
-          <div className="nums mt-0.5 truncate text-[11.5px] text-white/60">
-            {Math.round(r.totalMiles)} mi · {usd2.format(r.allInRpm)}/mi
+            <span className="nums text-[11.5px] text-white/60">
+              {Math.round(r.totalMiles)} mi · {usd2.format(r.allInRpm)}/mi
+            </span>
           </div>
         </div>
         {/* Inline pair on the phone (rate then loaded miles, reading left to right),

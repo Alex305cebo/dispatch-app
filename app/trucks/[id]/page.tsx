@@ -179,7 +179,7 @@ export default async function Page({
               </>
             )}
             <span className="font-medium text-white/85">{truck.driverName || t(locale, 'trucks.detail.noDriver')}</span>
-            <span aria-hidden className="text-white/25">·</span>
+            <span aria-hidden className="hidden text-white/25 sm:inline">·</span>
             {/* Driver contact — the number a dispatcher actually needs at hand. */}
             {meta?.driverPhone ? (
               <a
@@ -191,23 +191,23 @@ export default async function Page({
             ) : (
               <span className="text-white/40">{t(locale, 'trucks.detail.noPhone')}</span>
             )}
-            {fs?.location && (
-              <>
-                <span aria-hidden className="text-white/25">·</span>
-                {/* Место — кнопка: ответ на «где сейчас трак» почти всегда тут же
-                    уходит брокеру, и выделять его мышью по букве незачем.
-                    Копируется короткая форма «город, штат». */}
-                <span className={toneClass[statusTone(fs.driveStatus)]}>
-                  <CopyPlace
-                    text={`📍 ${fs.location}`}
-                    copy={cityOf(fs.location) ?? fs.location}
-                    coords={{ lat: fs.lat, lng: fs.lng }}
-                  />
-                  {fs.driveStatus && ` · ${fs.driveStatus}`}
-                </span>
-              </>
-            )}
           </div>
+          {fs?.location && (
+            /* Место — своей строкой под именем и телефоном: в общем ряду на телефоне
+               кнопки «Копировать» и «Карта» уезжали на разные строки, а статус «ON»
+               оставался один посреди пустоты. Место — кнопка: ответ на «где сейчас
+               трак» почти всегда тут же уходит брокеру. Копируется «город, штат». */
+            <div className={`mt-2 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-[13px] ${toneClass[statusTone(fs.driveStatus)]}`}>
+              <CopyPlace
+                text={`📍 ${fs.location}`}
+                copy={cityOf(fs.location) ?? fs.location}
+                coords={{ lat: fs.lat, lng: fs.lng }}
+                size="sm"
+                className="justify-center"
+              />
+              {fs.driveStatus && <span className="font-semibold">· {fs.driveStatus}</span>}
+            </div>
+          )}
 
           {(meta?.vin || meta?.plate) && (
             <p className="mt-1.5 text-[11px] text-white/45">
@@ -240,7 +240,7 @@ export default async function Page({
         <img
           src="/truck.png"
           alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
-          className="mx-auto my-1 w-full max-w-3xl drop-shadow-2xl"
+          className="mx-auto my-1 w-2/3 max-w-3xl drop-shadow-2xl sm:w-full"
         />
 
         {/* Info ring — the truck's numbers at a glance. */}
@@ -407,7 +407,7 @@ export default async function Page({
           the same line, and the lists inside them are capped and scroll — so whichever
           side has more rows, the block stays the same compact height. */}
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <section className="panel flex flex-col p-4">
+        <section className="panel flex min-w-0 flex-col p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white/62">
               {t(locale, 'trucks.detail.loadsHeading')}{active > 0 && ` · ${active} ${t(locale, 'trucks.detail.inProgress')}`}
@@ -467,7 +467,7 @@ export default async function Page({
           )}
         </section>
 
-        <section className="panel flex flex-col p-4">
+        <section className="panel flex min-w-0 flex-col p-4">
           <div className="mb-2">
             <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
               {t(locale, 'trucks.detail.documents')}

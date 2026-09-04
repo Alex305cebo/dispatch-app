@@ -417,7 +417,7 @@ export default async function Page() {
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5 truncate text-[12px] text-white/60">
+                  <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-white/60">
                     {/* Прицеп уехал в подпись выше (truckLabel), здесь осталось
                         только место — иначе номер печатался бы дважды подряд. Место
                         копируется: с обзора его и диктуют брокеру чаще всего. */}
