@@ -240,7 +240,7 @@ export default async function Page({
         <img
           src="/truck.png"
           alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
-          className="mx-auto my-1 w-2/3 max-w-3xl drop-shadow-2xl sm:w-full"
+          className="mx-auto my-1 w-2/3 max-w-xl drop-shadow-2xl sm:w-full"
         />
 
         {/* Info ring — the truck's numbers at a glance. */}
