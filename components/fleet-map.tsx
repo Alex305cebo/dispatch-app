@@ -18,6 +18,7 @@ import { useRouter } from 'next/navigation'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 import { zoneTime } from '@/lib/fmt'
+import { US_STATES } from '@/lib/us-states'
 
 export type MapMarker = {
   lat: number
@@ -162,6 +163,26 @@ const POI_MIN_ZOOM = 15
  * пустела. Растровые тайлы рисуются самим Leaflet, весят ноль скриптов и не знают
  * ни контекстов, ни их лимитов. Ценой — крупнее подписи и нет своих правок стиля,
  * что на экране в ладонь неотличимо. Десктоп остаётся на векторе. */
+/** Подписи штатов поверх любой подложки. У векторных стилей и спутника названий
+ * штатов на масштабе страны нет — только города, и «где сейчас трак» приходилось
+ * угадывать по Denver и Omaha. Код штата на дальнем зуме, полное имя ближе,
+ * на городском зуме прячутся (см. .fleet-map [data-z] в globals.css). */
+function buildStateLabels(L: typeof import('leaflet')) {
+  return L.layerGroup(
+    US_STATES.map(([code, name, lat, lng]) =>
+      L.marker([lat, lng], {
+        interactive: false,
+        keyboard: false,
+        icon: L.divIcon({
+          className: 'state-label',
+          html: `<span class="st-abbr">${code}</span><span class="st-name">${name}</span>`,
+          iconSize: [0, 0],
+        }),
+      }),
+    ),
+  )
+}
+
 function preferRaster(): boolean {
   if (typeof window === 'undefined') return false
   try {
@@ -560,11 +581,20 @@ export function FleetMap({
         map = L.map(ref.current, { zoomControl: true, attributionControl: false, minZoom: 3, maxZoom: 19 })
         mapRef.current = map
         tileRef.current = (await buildBaseLayer(L, satelliteRef.current)).addTo(map)
+        map.getContainer().classList.toggle('is-satellite', satelliteRef.current)
         if (disposed) return
         // Empty map = "show me the whole fleet again". Leaflet doesn't bubble a marker
         // click up to the map, so this only ever fires for clicks that missed a pin.
         map.on('click', () => selectRef.current?.(null))
         overlayRef.current = L.layerGroup().addTo(map)
+        buildStateLabels(L).addTo(map)
+        // Зум → атрибут на контейнере; CSS решает, код или имя показывать и когда прятать.
+        const zoomTag = () => {
+          const z = map!.getZoom()
+          map!.getContainer().dataset.z = z < 5 ? 'far' : z < 9 ? 'mid' : 'near'
+        }
+        zoomTag()
+        map.on('zoomend', zoomTag)
         const el = ref.current
         roRef.current = new ResizeObserver(() => {
           const m = mapRef.current
@@ -774,6 +804,7 @@ export function FleetMap({
       setTimeout(dropOld, 2500)
       next.addTo(map)
       tileRef.current = next
+      map.getContainer().classList.toggle('is-satellite', satellite)
     })()
   }, [satellite])
 

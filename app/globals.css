@@ -337,6 +337,36 @@
    beats it on specificity instead of reaching for !important. (Tailwind's `[&_...]`
    arbitrary variants were tried first and never generated a rule at all in this
    build — plain CSS instead.) */
+/* Подписи штатов (fleet-map.tsx, buildStateLabels): код на дальнем зуме, имя на
+   среднем, ничего на городском — там свои названия улиц и штат уже ясен. */
+.fleet-map .state-label {
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  font-family: var(--font-sans, system-ui), sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(70, 60, 120, 0.72);
+  text-shadow:
+    0 0 3px rgba(255, 255, 255, 0.95),
+    0 0 6px rgba(255, 255, 255, 0.9);
+}
+.fleet-map .state-label .st-abbr { font-size: 11px; }
+.fleet-map .state-label .st-name { font-size: 12.5px; letter-spacing: 0.08em; }
+.fleet-map .leaflet-container[data-z='far'] .st-name,
+.fleet-map .leaflet-container[data-z='mid'] .st-abbr,
+.fleet-map .leaflet-container[data-z='near'] .state-label {
+  display: none;
+}
+/* На спутнике фон тёмный — светлая подпись с тёмным ореолом. */
+.fleet-map .leaflet-container.is-satellite .state-label {
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow:
+    0 0 3px rgba(0, 0, 0, 0.9),
+    0 0 6px rgba(0, 0, 0, 0.8);
+}
+
 .fleet-map .leaflet-container {
   background: var(--color-ink-900);
 }
