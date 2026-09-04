@@ -183,19 +183,11 @@ async function LoadsBoard({
         </Button>
       </div>
 
-      {loads.length > 0 && <WeekSummary week={week} next={next} locale={locale} />}
       {flagged.length > 0 && <NeedsAttention items={flagged} locale={locale} />}
 
       {/* Вкладки и всё, что они рисуют, — на клиенте: все три вида и любая неделя
           строятся из этой же выборки, новых данных не нужно. Map и Set не переживают
           границу сервер-клиент, поэтому уходят парами и массивом. */}
-      {/* Направления — свод по деньгам под итогом недели: «куда возить выгодно».
-          Считается по тем же расчётам, что уже сделаны выше для каждого груза. */}
-      <LaneStats
-        rows={priced.map(({ load, r }) => ({ load, net: r?.net ?? 0, miles: r?.totalMiles ?? 0 }))}
-        locale={locale}
-      />
-
       <LoadsViews
         loads={loads}
         trucks={trucks}
@@ -219,6 +211,22 @@ async function LoadsBoard({
         initialDay={selectedDay}
         initialQuery={sp.q ?? ''}
       />
+
+      {/* Сводки — ПОД списком: итог недели и направления смотрят раз в день и раз в
+          неделю, а список с поиском — каждый час. Раньше список начинался с четвёртого
+          блока, под тремя сводками. */}
+      {loads.length > 0 && (
+        <div className="mt-4">
+          <WeekSummary week={week} next={next} locale={locale} />
+        </div>
+      )}
+      {/* Направления — свод по деньгам под итогом недели, в самом низу: «куда возить выгодно».
+          Считается по тем же расчётам, что уже сделаны выше для каждого груза. */}
+      <LaneStats
+        rows={priced.map(({ load, r }) => ({ load, net: r?.net ?? 0, miles: r?.totalMiles ?? 0 }))}
+        locale={locale}
+      />
+
     </>
   )
 }
