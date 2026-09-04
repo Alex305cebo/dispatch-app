@@ -21,8 +21,10 @@ export function PairBar({
   load: { id: number; label: string; sub?: string | null } | null
   locale: Locale
 }) {
+  // На телефоне — одна строка на половину: короткая подпись, мелкие отступы. Три
+  // строки «ОТКРЫТЬ КАРТОЧКУ ТРАКА →» на 180px ширины съедали пол-экрана.
   const base =
-    'flex min-w-0 flex-1 items-center gap-2.5 rounded-xl border px-3 py-2 text-[13px] transition-colors'
+    'flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-2 py-1 text-[12.5px] transition-colors sm:gap-2.5 sm:rounded-xl sm:px-3 sm:py-2 sm:text-[13px]'
   const active = `${base} border-haul-500/50 bg-haul-500/[0.14] text-white`
   const link = `${base} border-white/12 bg-ink-900/70 text-white/85 hover:border-haul-400/60 hover:bg-haul-500/10 hover:text-white`
   const empty = `${base} border-white/8 text-white/40`
@@ -34,20 +36,26 @@ export function PairBar({
     current === 'truck' ? t(locale, 'pair.hereTruck') : truck ? t(locale, 'pair.openTruck') : t(locale, 'pair.truck')
   const loadCap =
     current === 'load' ? t(locale, 'pair.hereLoad') : load ? t(locale, 'pair.openLoad') : t(locale, 'pair.load')
+  const here = t(locale, 'pair.here')
+  const truckShort = current === 'truck' ? `${t(locale, 'pair.truck')} · ${here}` : `${t(locale, 'pair.truck')} →`
+  const loadShort = current === 'load' ? `${t(locale, 'pair.load')} · ${here}` : `${t(locale, 'pair.load')} →`
+  const cap = 'block truncate text-[10px] font-medium uppercase tracking-wider text-white/60 sm:text-[11px]'
   const truckInner = (
     <>
-      <Truck size={18} strokeWidth={2.2} className="shrink-0 text-haul-400" />
+      <Truck strokeWidth={2.2} className="size-4 shrink-0 text-haul-400 sm:size-[18px]" />
       <span className="min-w-0">
-        <span className="block text-[11px] font-medium uppercase tracking-wider text-white/60">{truckCap}</span>
+        <span className={`${cap} sm:hidden`}>{truckShort}</span>
+        <span className={`${cap} hidden sm:block`}>{truckCap}</span>
         <span className="block truncate font-semibold">{truck?.label ?? t(locale, 'pair.noTruck')}</span>
       </span>
     </>
   )
   const loadInner = (
     <>
-      <Package size={18} strokeWidth={2.2} className="shrink-0 text-good-400" />
+      <Package strokeWidth={2.2} className="size-4 shrink-0 text-good-400 sm:size-[18px]" />
       <span className="min-w-0">
-        <span className="block text-[11px] font-medium uppercase tracking-wider text-white/60">
+        <span className={`${cap} sm:hidden`}>{loadShort}</span>
+        <span className={`${cap} hidden sm:block`}>
           {loadCap}
           {load?.sub ? ` · ${load.sub}` : ''}
         </span>
@@ -57,7 +65,7 @@ export function PairBar({
   )
 
   return (
-    <div className="sticky top-2 z-30 mt-3 flex gap-2 rounded-2xl border border-white/8 bg-ink-950/85 p-1.5 backdrop-blur">
+    <div className="sticky top-1 z-30 mt-2 flex gap-1.5 rounded-xl border border-white/8 bg-ink-950/85 p-1 backdrop-blur sm:top-2 sm:mt-3 sm:gap-2 sm:rounded-2xl sm:p-1.5">
       {current === 'truck' ? (
         <div className={active} aria-current="page">{truckInner}</div>
       ) : truck ? (
@@ -65,7 +73,7 @@ export function PairBar({
       ) : (
         <div className={empty}>{truckInner}</div>
       )}
-      <span className="self-center text-white/30">⇄</span>
+      <span className="hidden self-center text-white/30 sm:inline">⇄</span>
       {current === 'load' ? (
         <div className={active} aria-current="page">{loadInner}</div>
       ) : load ? (

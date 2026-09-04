@@ -10,6 +10,7 @@ export const commonDict = {
   'pair.hereLoad': { ru: 'Ты на карточке груза', en: 'You are on the load card', es: 'Estás en la ficha de la carga', uk: 'Ти на картці вантажу', ro: 'Ești pe fișa cursei', kk: 'Сен жүк карточкасындасың' },
   'pair.openTruck': { ru: 'Открыть карточку трака →', en: 'Open the truck card →', es: 'Abrir la ficha del camión →', uk: 'Відкрити картку трака →', ro: 'Deschide fișa camionului →', kk: 'Трак карточкасын ашу →' },
   'pair.openLoad': { ru: 'Открыть карточку груза →', en: 'Open the load card →', es: 'Abrir la ficha de la carga →', uk: 'Відкрити картку вантажу →', ro: 'Deschide fișa cursei →', kk: 'Жүк карточкасын ашу →' },
+  'pair.here': { ru: 'ты здесь', en: 'you are here', es: 'estás aquí', uk: 'ти тут', ro: 'ești aici', kk: 'сен осындасың' },
   'pair.noTruck': { ru: 'Трак не назначен', en: 'No truck assigned', es: 'Sin camión asignado', uk: 'Трак не призначено', ro: 'Niciun camion alocat', kk: 'Трак тағайындалмаған' },
   'pair.noLoad': { ru: 'У трака сейчас нет груза', en: 'No load right now', es: 'Sin carga ahora', uk: 'Зараз без вантажу', ro: 'Fără cursă acum', kk: 'Қазір жүк жоқ' },
   'status.quoted': { ru: 'Букинг', en: 'Quoted', es: 'Cotizado', uk: 'Букінг', ro: 'Cotat', kk: 'Брондау' },
