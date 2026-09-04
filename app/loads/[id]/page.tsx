@@ -127,30 +127,26 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             podId={podDoc?.id ?? null}
           />
         </div>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
+        {/* Бумаги груза одной сеткой: rate con, BOL, POD — три кнопки одного размера,
+            на телефоне 2×2 (четвёртая клетка — «Повторить груз»), на широком экране
+            в один ряд. Раньше rate con и «Повторить» стояли своим рядом с разными
+            размерами, BOL/POD — другим, и на телефоне это читалось как россыпь. */}
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
           {rateConDoc ? (
             <RateConButton docId={rateConDoc.id} />
           ) : (
-            <span className="text-xs text-white/45">{t(locale, 'loadDetail.noRateCon')}</span>
+            <span className="col-span-2 text-xs text-white/45 sm:col-auto">{t(locale, 'loadDetail.noRateCon')}</span>
           )}
+          <DocButton label="BOL" kind="bol" docId={bolDoc?.id ?? null} loadId={load.id} />
+          <DocButton label="POD" kind="pod" docId={podDoc?.id ?? null} loadId={load.id} />
           {/* Тот же брокер, то же направление, новые даты. Регулярный рейс заводился
               заново каждую неделю — вместе с перепечатыванием почты брокера и миль. */}
           <Link
             href={`/loads/new?repeat=${load.id}`}
-            className="ml-auto rounded-xl border border-white/12 px-3 py-1.5 text-[12.5px] font-medium text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300"
+            className="inline-flex items-center justify-center rounded-xl border border-white/12 px-3 py-2 text-[12.5px] font-medium text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300 sm:ml-auto"
           >
             ⟳ {t(locale, 'loads.repeat')}
           </Link>
-        </div>
-
-        {/* BOL and POD are one pair — the two halves of a load's paperwork. Sharing the
-            row above, the rate-con sentence ate the full width on a phone and pushed
-            each button onto a line of its own, so they read as unrelated and wasted two
-            rows. Their own 2-up grid keeps them together and equal-width on a phone,
-            and they fall back to sitting inline once there is room. */}
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
-          <DocButton label="BOL" kind="bol" docId={bolDoc?.id ?? null} loadId={load.id} />
-          <DocButton label="POD" kind="pod" docId={podDoc?.id ?? null} loadId={load.id} />
         </div>
 
         <div className="mt-5 border-t border-white/8 pt-5">
@@ -335,15 +331,18 @@ async function LoadMapSection({
               {/* Где сейчас трак — первым: это первое, что спрашивает брокер, и
                   ответ отсюда тут же уходит ему в чат, поэтому плитка нажимается
                   и кладёт «город, штат» в буфер. */}
+              {/* На телефоне — во всю ширину: город и две кнопки в одну строку, а не
+                  столбиком из трёх строк в узкой плитке. */}
               {fs?.location && (
-                <div className="flex-1 basis-[11rem] rounded-xl border border-white/10 bg-white/[0.04] px-2 py-2">
-                  <div className="px-1.5 text-[10px] uppercase tracking-wider text-white/45">
+                <div className="basis-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 sm:flex-1 sm:basis-[11rem]">
+                  <div className="text-[10px] uppercase tracking-wider text-white/45">
                     {t(locale, 'loadDetail.driverPlace')}
                   </div>
                   <CopyPlace
                     text={placeCity(fs.location) ?? fs.location}
                     copy={placeCity(fs.location) ?? fs.location}
                     coords={{ lat: fs.lat, lng: fs.lng }}
+                    size="sm"
                     className="min-h-[1.375rem] text-[15px] font-semibold text-white/85"
                   />
                 </div>
