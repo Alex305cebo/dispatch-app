@@ -328,11 +328,13 @@ function DocRow({
     // Одна строка: тип, имя файла, а маршрут, размер и дата — приглушённым хвостом
     // справа от имени. Всё то же самое, но высота строки вместо высоты карточки.
     return (
-      <li className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-white/[0.04]">
+      // На телефоне — две строки: имя файла целиком сверху, тип, дата и крестик снизу.
+      // В одну строку на 375px имени оставалась одна буква.
+      <li className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-2 py-1.5 hover:bg-white/[0.04] sm:flex-nowrap sm:py-1">
         <KindPicker doc={doc} small />
         <DocLink
           docId={doc.id}
-          className="min-w-0 shrink truncate text-left text-[13px] text-white/85 hover:text-haul-400 hover:underline"
+          className="order-first basis-full truncate text-left text-[13px] text-white/85 hover:text-haul-400 hover:underline sm:order-none sm:min-w-0 sm:shrink sm:basis-auto"
           title={doc.title}
         >
           {doc.title}
