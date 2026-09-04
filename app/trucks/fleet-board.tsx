@@ -42,10 +42,12 @@ type FS = {
 export async function FleetBoard({
   locale,
   between,
+  after,
   money,
 }: {
   locale: Locale
   between?: React.ReactNode
+  after?: React.ReactNode
   /** Деньги и бумаги по траку: считает страница, показывает список. */
   money?: Record<number, import('@/components/fleet-list').TruckMoney>
 }) {
@@ -293,6 +295,7 @@ export async function FleetBoard({
       }
       staleMinutes={staleMinutes}
       between={between}
+      after={after}
       money={money}
     />
   )

@@ -1,12 +1,10 @@
-import { cityOf } from '@/lib/maintenance-core'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/button'
-import Link from 'next/link'
 import { Suspense } from 'react'
 import { EldLinks } from '@/components/eld-links'
 import { BoardSkeleton, FleetBoard } from './fleet-board'
 import { listLoads, listTrucks } from '@/lib/loads'
-import { currentLoadsByTruck, truckLabel } from '@/lib/map'
+import { currentLoadsByTruck } from '@/lib/map'
 import { FleetHeatmap } from '@/components/fleet-heatmap'
 import { DriverDirectory } from '@/components/driver-directory'
 import { dispatcherPhoneKey, getSetting } from '@/lib/settings'
@@ -172,15 +170,12 @@ export default async function Page() {
           Раньше это был отдельный раздел «Трекинг», и один и тот же трак жил на двух
           экранах разными половинами. Своя Suspense-граница, потому что здесь ждут
           геокодирование и маршрутизатор: шапка и всё, что ниже, показываются сразу. */}
-      <EldLinks count={shareCount + (samsaraOn ? 1 : 0)} />
       <Suspense fallback={<BoardSkeleton />}>
         <FleetBoard
           locale={locale}
           money={moneyByTruck}
-          // Справочник водителей и календарь загрузки — сразу под картой и
-          // счётчиками, ДО списка траков. Оба отвечают на вопросы, которые задают
-          // раньше разбора отдельной машины: что сказать брокеру и кто когда
-          // освободится. Под списком карточек их приходилось искать прокруткой.
+          // Справочник водителей — сразу под картой и счётчиками, ДО списка
+          // траков: эти шесть полей брокер спрашивает в каждом звонке.
           between={
             <>
       {/* Справочник водителей — первым делом на странице. Эти шесть полей брокер
@@ -210,6 +205,12 @@ export default async function Page() {
         })}
       />
 
+            </>
+          }
+          // Под карточками: календарь загрузки на 14 дней — взгляд раз в неделю,
+          // а подключение ELD — раз в жизни трака. Карточки «где сейчас» — каждый час.
+          after={
+            <>
       <div className="mb-4">
         <FleetHeatmap
           rows={perTruck.map(({ truck, working, current }) => {
@@ -239,6 +240,7 @@ export default async function Page() {
           })}
         />
       </div>
+              <EldLinks count={shareCount + (samsaraOn ? 1 : 0)} />
             </>
           }
         />

@@ -49,6 +49,7 @@ export function FleetPanel({
   updatedText,
   staleMinutes,
   between,
+  after,
   money,
 }: {
   markers: MapMarker[]
@@ -63,6 +64,8 @@ export function FleetPanel({
    * задают до разбора отдельного трака: «что сказать брокеру» и «кто когда
    * освободится». За списком карточек их приходилось искать прокруткой. */
   between?: React.ReactNode
+  /** Под списком траков: недельная аналитика и настройки. */
+  after?: React.ReactNode
   /** Экономика по траку — вторая половина строки списка. */
   money?: Record<number, TruckMoney>
 }) {
@@ -160,6 +163,8 @@ export function FleetPanel({
       {between}
 
       <FleetList rows={rows} selectedId={selected} money={money} />
+
+      {after}
     </>
   )
 }
