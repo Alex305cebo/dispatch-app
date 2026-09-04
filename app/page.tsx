@@ -251,14 +251,14 @@ export default async function Page() {
             <Info text={tr(locale, 'overview.awaitingPaymentInfo')} />
           </p>
           <p className="mt-1 text-base text-white/80">
-            <Link href="/invoices" className="nums font-semibold hover:underline">
+            <Link href="/invoices?tab=unpaid" className="nums font-semibold hover:underline">
               {usd.format(unpaidTotal)}
             </Link>
             {overdueTotal > 0 && (
               <span className="text-bad-400">
                 {' '}
                 — {tr(locale, 'overview.ofWhichOverdue')}{' '}
-                <Link href="/invoices" className="nums font-semibold hover:underline">
+                <Link href="/invoices?tab=unpaid" className="nums font-semibold hover:underline">
                   {usd.format(overdueTotal)}
                 </Link>{' '}
                 ({overdue.length})
