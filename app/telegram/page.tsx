@@ -153,8 +153,7 @@ export default async function Page({
         </div>
       </header>
 
-      <TgChatSettings dialogs={allDialogs} shown={[...shown]} chatTruck={chatTruck} trucks={trucks} />
-
+      {/* Ошибка — первой: сломанное подключение важнее любых настроек. */}
       {error && <p className="panel mb-4 p-4 text-[13px] text-bad-400">{error}</p>}
 
       <div className="grid gap-3 md:grid-cols-[minmax(240px,1fr)_2fr]">
@@ -219,6 +218,13 @@ export default async function Page({
             </>
           )}
         </div>
+      </div>
+
+      {/* Какие чаты показывать — под перепиской: настраивают один раз при подключении,
+          а диалоги открывают каждый день. Пока список пуст — это единственное, что
+          здесь нужно, и на первом входе он и так почти наверху. */}
+      <div className="mt-3">
+        <TgChatSettings dialogs={allDialogs} shown={[...shown]} chatTruck={chatTruck} trucks={trucks} />
       </div>
     </main>
   )

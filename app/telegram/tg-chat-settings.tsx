@@ -54,7 +54,7 @@ export function TgChatSettings({
   }
 
   return (
-    <details className="panel mb-3 p-4">
+    <details className="panel p-4" open={shown.length === 0}>
       <summary className="cursor-pointer text-[13px] font-semibold text-white/85">
         {t(locale, 'telegram.settings.summary')}
         <span className="ml-2 text-[12px] font-normal text-white/50">
