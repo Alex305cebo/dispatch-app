@@ -22,7 +22,6 @@ import {
 } from '@/app/actions'
 import { expiries, type MaintenanceRecord, type TruckMeta, type TruckTodo } from '@/lib/maintenance-core'
 import { Field, TextField } from '@/components/ui'
-import { DocUpload } from '@/components/docs'
 import { DeleteButton } from '@/components/delete-button'
 import { Info } from '@/components/info'
 import { notify } from '@/lib/notify'
@@ -406,12 +405,6 @@ export function TruckCare({
           <Button variant="primary" size="sm" onClick={() => setShowMaint((v) => !v)}>
             {showMaint ? t(locale, 'trucks.care.hide') : t(locale, 'trucks.care.addRecord')}
           </Button>
-        </div>
-
-        {/* Receipt/paperwork for a repair — lands in the truck's own Documents
-            section AND the shared /docs library, same as any other document. */}
-        <div className="mt-3">
-          <DocUpload truckId={truckId} defaultKind="repair" />
         </div>
 
         {showMaint && (

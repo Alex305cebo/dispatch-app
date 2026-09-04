@@ -154,6 +154,8 @@ export const trucksDict = {
     kk: 'Бұл тракт дәл қазір қайда бара жатыр: белсенді жүктің маршруты, пикап қашан және delivery қашан. Мөлшерлеме, брокер және ерекше шарттар туралы толық ақпарат — бір басуда, жүк бетінде.',
   },
   'trucks.detail.pickup': { ru: 'Пикап', en: 'Pickup', es: 'Recogida', uk: 'Пікап', ro: 'Încărcare', kk: 'Тиеу' },
+  'trucks.detail.delivery': { ru: 'Выгрузка', en: 'Delivery', es: 'Entrega', uk: 'Вивантаження', ro: 'Livrare', kk: 'Жеткізу' },
+  'trucks.detail.driverHeading': { ru: 'Водитель · CDL, медкарта, фото', en: 'Driver · CDL, med card, photo', es: 'Conductor · CDL, tarjeta médica, foto', uk: 'Водій · CDL, медкарта, фото', ro: 'Șofer · CDL, fișă medicală, poză', kk: 'Жүргізуші · CDL, медкарта, фото' },
   'trucks.detail.rate': { ru: 'Ставка', en: 'Rate', es: 'Tarifa', uk: 'Ставка', ro: 'Tarif', kk: 'Мөлшерлеме' },
   'trucks.detail.noActiveLoad': { ru: 'Груза сейчас нет — трак свободен.', en: 'No load right now — truck is free.', es: 'Ahora no hay carga — el camión está libre.', uk: 'Вантажу зараз немає — трак вільний.', ro: 'Acum nu e nicio cursă — camionul e liber.', kk: 'Қазір жүк жоқ — тракт бос.' },
   'trucks.detail.idleAt': {

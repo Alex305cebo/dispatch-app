@@ -291,7 +291,7 @@ export default async function Page({
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-wider text-white/45">Delivery</dt>
+                  <dt className="text-[10px] uppercase tracking-wider text-white/45">{t(locale, 'trucks.detail.delivery')}</dt>
                   <dd className="font-medium text-white/85">
                     {activeLoad.deliveryTime || activeLoad.deliveryDate?.slice(0, 10) || '—'}
                   </dd>
@@ -316,31 +316,6 @@ export default async function Page({
           )}
         </div>
 
-        {/* ===== Driver: name, phone, licence dates — merged into the same card ===== */}
-        <div className="mt-4 border-t border-white/8 pt-4">
-          <DriverCard
-            truckId={truck.id}
-            name={truck.driverName}
-            phone={meta?.driverPhone ?? null}
-            cdlExpiry={meta?.cdlExpiry ?? null}
-            medcardExpiry={meta?.medcardExpiry ?? null}
-            hasPhoto={meta?.hasPhoto ?? false}
-            truckNumber={truck.number}
-            trailerNumber={meta?.trailerNumber ?? null}
-            vin={meta?.vin ?? null}
-            broker={{
-              // MC печатается без приставки: в блоке для брокера строка уже
-              // начинается с «MC - », и «MC - MC 626911» читалось бы как ошибка.
-              mc: company.mcdot.replace(/^MC[\s#-]*/i, ''),
-              companyName: company.name,
-              companyEmail: company.email,
-              dispatcherName: dispatcherName ?? user?.name ?? '',
-              dispatcherPhone: dispatcherPhone ?? '',
-            }}
-            embedded
-            locale={locale}
-          />
-        </div>
       </section>
 
       {/* Незакрытый ремонт — прямо над картой, а не строкой в самом низу страницы: раньше
@@ -384,41 +359,9 @@ export default async function Page({
         </a>
       )}
 
-      {/* ===== Map: where the truck sits + where delivery is ===== */}
-      {mapMarkers.length > 0 && (
-        <section className="panel mt-4 p-4">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-              {t(locale, 'trucks.detail.onMap')}
-              <Info text={t(locale, 'trucks.detail.onMapInfo')} />
-            </h2>
-            <RefreshFleetButton
-              staleMinutes={
-                fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null
-              }
-            />
-          </div>
-          <FleetMap markers={mapMarkers} routes={mapRoutes} height="clamp(320px, 46vh, 600px)" distanceMi={routeMiles} />
-        </section>
-      )}
-
-      {/* ===== Trip history: drive legs + stops, long rests called out ===== */}
-      {/* The window switch is client-side now — see components/trip-history-panel.tsx.
-          ?history= is still honoured for the initial render so existing links keep
-          working, it just isn't how the buttons change the window any more. */}
-      <TripHistoryPanel
-        truckId={truck.id}
-        windows={HISTORY_WINDOWS}
-        initialHours={historyWindow.hours}
-        initialLegs={history}
-        // Города погрузок и выгрузок этого трака — по ним стоянка в истории
-        // распознаётся как детеншен. Грузы уже загружены выше, нового запроса нет.
-        stops={loads.flatMap((l) => [
-          ...(l.origin ? [{ city: l.origin, kind: 'pickup' as const, day: l.pickupDate }] : []),
-          ...(l.destination ? [{ city: l.destination, kind: 'delivery' as const, day: l.deliveryDate }] : []),
-        ])}
-      />
-
+      {/* Порядок — по частоте: рейт-кон и документы прилетают каждый час, карта —
+          взгляд в течение дня, водитель и история пути — раз в неделю, ремонт и
+          экономика — раз в месяц. ===== */}
       {/* ===== RC drop — the fastest path: paperwork in, load out ===== */}
       <section className="panel mt-4 p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
@@ -534,6 +477,77 @@ export default async function Page({
           </div>
         </section>
       </div>
+
+      {/* ===== Map: where the truck sits + where delivery is ===== */}
+      {mapMarkers.length > 0 && (
+        <section className="panel mt-4 p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+              {t(locale, 'trucks.detail.onMap')}
+              <Info text={t(locale, 'trucks.detail.onMapInfo')} />
+            </h2>
+            <RefreshFleetButton
+              staleMinutes={
+                fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null
+              }
+            />
+          </div>
+          <FleetMap markers={mapMarkers} routes={mapRoutes} height="clamp(320px, 46vh, 600px)" distanceMi={routeMiles} />
+        </section>
+      )}
+
+      {/* ===== Водитель — свёрнут: CDL, медкарта, фото меняются раз в год. Что нужно
+           брокеру ежечасно (имя, телефон, трак/трейлер), уже в шапке и в
+           «Данных водителей» на списке траков. ===== */}
+      <details className="group panel mt-4 p-4">
+        <summary className="-m-1 flex cursor-pointer list-none items-center gap-1.5 rounded-lg p-1 text-[11px] font-semibold uppercase tracking-wider text-white/62 transition-colors hover:bg-white/[0.03] hover:text-white/90">
+          <span className="text-[13px] leading-none text-white/40 transition-transform duration-200 group-open:rotate-90">
+            ▸
+          </span>
+          {t(locale, 'trucks.detail.driverHeading')}
+        </summary>
+        <div className="mt-3">
+          <DriverCard
+            truckId={truck.id}
+            name={truck.driverName}
+            phone={meta?.driverPhone ?? null}
+            cdlExpiry={meta?.cdlExpiry ?? null}
+            medcardExpiry={meta?.medcardExpiry ?? null}
+            hasPhoto={meta?.hasPhoto ?? false}
+            truckNumber={truck.number}
+            trailerNumber={meta?.trailerNumber ?? null}
+            vin={meta?.vin ?? null}
+            broker={{
+              // MC печатается без приставки: в блоке для брокера строка уже
+              // начинается с «MC - », и «MC - MC 626911» читалось бы как ошибка.
+              mc: company.mcdot.replace(/^MC[\s#-]*/i, ''),
+              companyName: company.name,
+              companyEmail: company.email,
+              dispatcherName: dispatcherName ?? user?.name ?? '',
+              dispatcherPhone: dispatcherPhone ?? '',
+            }}
+            embedded
+            locale={locale}
+          />
+        </div>
+      </details>
+
+      {/* ===== Trip history: drive legs + stops, long rests called out ===== */}
+      {/* The window switch is client-side now — see components/trip-history-panel.tsx.
+          ?history= is still honoured for the initial render so existing links keep
+          working, it just isn't how the buttons change the window any more. */}
+      <TripHistoryPanel
+        truckId={truck.id}
+        windows={HISTORY_WINDOWS}
+        initialHours={historyWindow.hours}
+        initialLegs={history}
+        // Города погрузок и выгрузок этого трака — по ним стоянка в истории
+        // распознаётся как детеншен. Грузы уже загружены выше, нового запроса нет.
+        stops={loads.flatMap((l) => [
+          ...(l.origin ? [{ city: l.origin, kind: 'pickup' as const, day: l.pickupDate }] : []),
+          ...(l.destination ? [{ city: l.destination, kind: 'delivery' as const, day: l.deliveryDate }] : []),
+        ])}
+      />
 
       {/* ===== Care: oil, to-fix, compliance dates, service log =====
            id="care" is the target of the document-deadline links on the dashboard.
