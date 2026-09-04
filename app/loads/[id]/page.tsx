@@ -23,7 +23,6 @@ import { DocList, DocUpload } from '@/components/docs'
 import { InvoiceBox } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
 import { DocButton } from '@/components/doc-button'
-import { MissingDocsBanner } from '@/components/missing-docs-banner'
 import { BackButton } from '@/components/back-button'
 import { DriverInfoCard } from '@/components/driver-info-card'
 import { Info } from '@/components/info'
@@ -156,24 +155,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </div>
       </section>
 
-      {/* Карта грузится отдельно от страницы. Её сборка ждёт чужой маршрутизатор и
-          геокодер: раньше эти секунды держали ВЕСЬ документ, и груз не показывался,
-          пока не ответит бесплатный OSRM. Теперь цифры, документы и расчёт приходят
-          сразу, а карта втекает следом в свою границу. */}
-      <Suspense fallback={<MapSkeleton />}>
-        <LoadMapSection load={load} truck={truck} fs={fs} locale={locale} />
-      </Suspense>
-
-      <MissingDocsBanner
-        loadId={load.id}
-        status={load.status}
-        bolId={bolDoc?.id ?? null}
-        podId={podDoc?.id ?? null}
-        locale={locale}
-      />
-
-      {/* Broker's must-read instructions — below the map, above the load's own
-          details, expanded by default while unread so it can't be missed. */}
+      {/* Важное от брокера — СРАЗУ под шапкой, над картой: обязательное к прочтению
+          не должно уезжать под большой блок, который грузится отдельно. */}
       <div className="mt-4">
         <BrokerNotes
           loadId={load.id}
@@ -182,6 +165,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           hasRc={!!rateConDoc}
         />
       </div>
+
+      {/* Карта грузится отдельно от страницы. Её сборка ждёт чужой маршрутизатор и
+          геокодер: раньше эти секунды держали ВЕСЬ документ, и груз не показывался,
+          пока не ответит бесплатный OSRM. Теперь цифры, документы и расчёт приходят
+          сразу, а карта втекает следом в свою границу. */}
+      <Suspense fallback={<MapSkeleton />}>
+        <LoadMapSection load={load} truck={truck} fs={fs} locale={locale} />
+      </Suspense>
 
       <section className="panel mt-4 p-5">
         <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-white/62">
@@ -209,6 +200,37 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             laneAvgRpm,
           }}
         />
+      </section>
+
+      <section className="panel mt-4 p-5">
+        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          {t(locale, 'loadDetail.docsHeading')}
+          <Info text={t(locale, 'loadDetail.docsInfo')} />
+        </h2>
+        <DocUpload loadId={load.id} />
+        <DocList docs={docs} />
+      </section>
+
+      <section className="panel mt-4 p-5">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+            {t(locale, 'loadDetail.invoiceHeading')}
+            <Info text={t(locale, 'loadDetail.invoiceInfo')} />
+          </h2>
+          {load.paidAt && (
+            <span className="rounded-full bg-good-500/15 px-2 py-0.5 text-[11px] font-medium text-good-400">
+              {t(locale, 'loadDetail.paidOn').replace('{date}', load.paidAt.slice(0, 10))}
+            </span>
+          )}
+        </div>
+        <InvoiceBox
+          loadId={load.id}
+          invoiceNumber={load.invoiceNumber}
+          invoiceDocId={invoiceDoc?.id ?? null}
+          paid={!!load.paidAt}
+          companyReady={!!(company.name && company.mcdot)}
+        />
+        <p className="mt-2 text-[12px] text-white/50">{t(locale, 'loadDetail.invoicePackageNote')}</p>
       </section>
 
       {/* Copyable "send to driver" text, saved when the rate con was read — hidden
@@ -241,37 +263,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           />
         </div>
       </details>
-
-      <section className="panel mt-4 p-5">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            {t(locale, 'loadDetail.invoiceHeading')}
-            <Info text={t(locale, 'loadDetail.invoiceInfo')} />
-          </h2>
-          {load.paidAt && (
-            <span className="rounded-full bg-good-500/15 px-2 py-0.5 text-[11px] font-medium text-good-400">
-              {t(locale, 'loadDetail.paidOn').replace('{date}', load.paidAt.slice(0, 10))}
-            </span>
-          )}
-        </div>
-        <InvoiceBox
-          loadId={load.id}
-          invoiceNumber={load.invoiceNumber}
-          invoiceDocId={invoiceDoc?.id ?? null}
-          paid={!!load.paidAt}
-          companyReady={!!(company.name && company.mcdot)}
-        />
-        <p className="mt-2 text-[12px] text-white/50">{t(locale, 'loadDetail.invoicePackageNote')}</p>
-      </section>
-
-      <section className="panel mt-4 p-5">
-        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          {t(locale, 'loadDetail.docsHeading')}
-          <Info text={t(locale, 'loadDetail.docsInfo')} />
-        </h2>
-        <DocUpload loadId={load.id} />
-        <DocList docs={docs} />
-      </section>
     </main>
   )
 }
