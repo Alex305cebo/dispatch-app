@@ -852,16 +852,23 @@ export function FleetMap({
       {/* Total route distance, big and unmissable, over the map itself. */}
       {/* На телефоне бейдж по центру наезжал на кнопки справа (от «1 821 mi»
           оставалась одна «1») — там он спускается под ряд кнопок. */}
+      {/* На телефоне — одной строкой в правом нижнем углу, чтобы не закрывать
+          середину карты; на широком экране — сверху по центру, как было. */}
       {distanceMi != null && distanceMi > 0 && (
-        <div className="pointer-events-none absolute left-1/2 top-12 z-[1000] -translate-x-1/2 rounded-full border border-white/15 bg-ink-950/85 px-3.5 py-1.5 text-center backdrop-blur sm:top-2.5">
-          <span className="nums text-[17px] font-bold leading-none text-white">
+        <div className="pointer-events-none absolute bottom-2.5 right-2.5 z-[1000] rounded-full border border-white/15 bg-ink-950/85 px-3 py-1 text-center backdrop-blur sm:bottom-auto sm:left-1/2 sm:right-auto sm:top-2.5 sm:-translate-x-1/2 sm:px-3.5 sm:py-1.5">
+          <span className="nums text-[14px] font-bold leading-none text-white sm:text-[17px]">
             {Math.round(distanceMi).toLocaleString('en-US')}
           </span>
-          <span className="ml-1 text-[12px] font-medium text-white/60">mi</span>
-          {/* Сколько уже позади — второй строкой того же бейджа: раньше на самой
-              карте виден был только общий остаток. Строку готовит страница —
-              карта не знает ни статуса груза, ни его миль. */}
-          {subNote && <div className="nums mt-0.5 text-[10.5px] font-medium leading-tight text-white/65">{subNote}</div>}
+          <span className="ml-1 text-[11px] font-medium text-white/60 sm:text-[12px]">mi</span>
+          {/* Сколько уже позади — на телефоне в той же строке, на широком экране
+              второй строкой. Строку готовит страница — карта не знает ни статуса
+              груза, ни его миль. */}
+          {subNote && (
+            <>
+              <span className="nums text-[11px] font-medium text-white/65 sm:hidden"> · {subNote}</span>
+              <div className="nums mt-0.5 hidden text-[10.5px] font-medium leading-tight text-white/65 sm:block">{subNote}</div>
+            </>
+          )}
         </div>
       )}
       <div className="absolute right-2.5 top-2.5 z-[1000] flex items-center gap-1.5">
@@ -888,22 +895,30 @@ export function FleetMap({
             type="button"
             onClick={() => setTrailOn((v) => !v)}
             title={t(locale, 'tracking.trailTitle')}
-            className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold backdrop-blur transition-colors ${
+            className={`flex h-[30px] items-center justify-center rounded-lg border px-2 text-[11px] font-semibold backdrop-blur transition-colors sm:px-2.5 ${
               trailOn
                 ? 'border-white/25 bg-ink-950/85 text-white'
                 : 'border-white/15 bg-ink-950/60 text-white/45 hover:text-white/70'
             }`}
           >
-            <span className="mr-1 inline-block size-2 rounded-full border border-white bg-[#f59e0b] align-[-1px]" />
-            {t(locale, 'tracking.trailLabel')}
+            <span className="inline-block size-2.5 rounded-full border border-white bg-[#f59e0b] sm:mr-1 sm:size-2 sm:align-[-1px]" />
+            {/* Слово — только на широком экране; на телефоне хватает точки. */}
+            <span className="hidden sm:inline">{t(locale, 'tracking.trailLabel')}</span>
           </button>
         )}
         <button
           type="button"
           onClick={() => setSatellite((v) => !v)}
-          className="rounded-lg border border-white/15 bg-ink-950/85 px-2.5 py-1.5 text-[11px] font-semibold text-white/85 backdrop-blur transition-colors hover:bg-ink-900"
+          title={satellite ? t(locale, 'tracking.mapLabel') : t(locale, 'tracking.satelliteLabel')}
+          aria-label={satellite ? t(locale, 'tracking.mapLabel') : t(locale, 'tracking.satelliteLabel')}
+          className="flex h-[30px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 px-2 text-[11px] font-semibold text-white/85 backdrop-blur transition-colors hover:bg-ink-900 sm:px-2.5"
         >
-          {satellite ? t(locale, 'tracking.mapLabel') : t(locale, 'tracking.satelliteLabel')}
+          {/* На телефоне — иконка слоёв, на широком экране — слово. */}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 sm:hidden" aria-hidden>
+            <path d="M12 3l9 5-9 5-9-5 9-5z" />
+            <path d="M3 13l9 5 9-5" />
+          </svg>
+          <span className="hidden sm:inline">{satellite ? t(locale, 'tracking.mapLabel') : t(locale, 'tracking.satelliteLabel')}</span>
         </button>
         {/* Развернуть/свернуть. На врезке высотой 280 px маршрут через полстраны —
             это линия в три пикселя; чтобы разглядеть съезды и площадки, карту надо

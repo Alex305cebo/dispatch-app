@@ -370,6 +370,14 @@
     0 0 6px rgba(0, 0, 0, 0.8);
 }
 
+/* На телефоне кнопки «+/−» не нужны — карту масштабируют щипком, а они занимали
+   угол, в который на маленькой карте и так не помещалось ничего. */
+@media (max-width: 639px) {
+  .fleet-map .leaflet-control-zoom {
+    display: none;
+  }
+}
+
 .fleet-map .leaflet-container {
   background: var(--color-ink-900);
 }
