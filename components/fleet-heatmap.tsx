@@ -126,7 +126,7 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
           <Info text={t(locale, 'trucks.heatmap.info')} />
         </h2>
         <div className="flex items-center gap-3">
-          <span className="hidden items-center gap-2.5 text-2xs text-white/45 sm:flex">
+          <span className="hidden items-center gap-2.5 text-[11.5px] text-white/60 sm:flex">
             <span className="flex items-center gap-1">
               <span className="size-2 rounded-full bg-good-400" />
               {t(locale, 'trucks.heatmap.pickup')}
@@ -167,7 +167,7 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
 
       {/* Plain-words caption for the two right-hand numbers — the Info tooltip repeats it,
           but this stays visible so "42% / $5,140" never reads as a mystery. */}
-      <p className="mb-2.5 max-w-2xl text-2xs leading-relaxed text-white/40">
+      <p className="mb-2.5 max-w-2xl text-[11.5px] leading-relaxed text-white/55">
         {t(locale, 'trucks.heatmap.axisNote')}
       </p>
 
@@ -189,11 +189,16 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                 earned += l.rate
               }
           return (
-            <div key={r.id} className="flex items-center gap-1.5 py-px">
-              <span className="w-16 shrink-0 truncate leading-tight sm:w-24">
-                <span className="block truncate text-2xs text-white/65">{r.label}</span>
-                {r.sub && <span className="block truncate text-[9.5px] text-white/40">{r.sub}</span>}
-              </span>
+            <div key={r.id} className="flex items-center gap-1.5 py-0.5">
+              {/* Имя — ссылка на трак; шрифт крупнее и ярче: 10px на 40% серого не
+                  читались вовсе. */}
+              <Link
+                href={`/trucks/${r.id}`}
+                className="w-20 shrink-0 truncate leading-tight hover:underline sm:w-28"
+              >
+                <span className="block truncate text-[12px] font-medium text-white/90">{r.label}</span>
+                {r.sub && <span className="block truncate text-[10.5px] text-white/60">{r.sub}</span>}
+              </Link>
               <div className="flex min-w-0 flex-1 gap-1">
                 {cols.map((c, i) => {
                   const key = colKeys[i]!
@@ -201,6 +206,33 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                   const dl = loads?.[0]
                   // A day is the pickup, the delivery, a driving day in between, or idle.
                   const role: TripRole = !dl ? 'idle' : dl.isPickup ? 'pickup' : dl.isDelivery ? 'delivery' : 'transit'
+                  const cellCls = `flex h-5 min-w-0 max-w-7 flex-1 items-center justify-center rounded-[3px] transition-colors hover:bg-white/10 ${
+                    weekend[i] ? 'bg-haul-500/[0.13]' : ''
+                  }`
+                  // Клетка с грузом — ссылка на груз, пустая — просто клетка.
+                  if (dl)
+                    return (
+                      <Link
+                        key={key}
+                        href={`/loads/${dl.id}`}
+                        onMouseEnter={(e) => {
+                          cancelClose()
+                          const box = e.currentTarget.getBoundingClientRect()
+                          setHover({
+                            x: box.left + box.width / 2,
+                            top: box.top,
+                            bottom: box.bottom,
+                            label: r.sub ? `${r.label} · ${r.sub}` : r.label,
+                            day: key,
+                            loads: loads ?? [],
+                          })
+                        }}
+                        onMouseLeave={scheduleClose}
+                        className={cellCls}
+                      >
+                        <TripMark role={role} />
+                      </Link>
+                    )
                   return (
                     <span
                       key={key}
@@ -217,9 +249,7 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                         })
                       }}
                       onMouseLeave={scheduleClose}
-                      className={`flex h-4 min-w-0 max-w-7 flex-1 items-center justify-center rounded-[3px] transition-colors hover:bg-white/10 ${
-                        weekend[i] ? 'bg-haul-500/[0.13]' : ''
-                      }`}
+                      className={cellCls}
                     >
                       <TripMark role={role} />
                     </span>
@@ -230,11 +260,11 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                   следует ни одного действия: он не говорит ни где трак, ни когда он
                   освободится, — а именно это нужно, чтобы искать ему груз. На их месте
                   два факта: место и срок. Скрыты на телефоне, как и полоса до них. */}
-              <span className="ml-2 hidden w-32 shrink-0 truncate text-2xs text-white/55 sm:block lg:w-40">
+              <span className="ml-2 hidden w-32 shrink-0 truncate text-[12px] text-white/75 sm:block lg:w-44">
                 {r.place ?? '—'}
               </span>
               <span
-                className={`ml-2 hidden w-20 shrink-0 truncate text-right text-2xs font-semibold sm:block ${
+                className={`ml-2 hidden w-24 shrink-0 truncate text-right text-[12px] font-semibold sm:block ${
                   r.when?.tone === 'busy'
                     ? 'text-good-400'
                     : r.when?.tone === 'off'
@@ -244,7 +274,7 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
               >
                 {r.when?.text ?? ''}
               </span>
-              <span className="nums w-12 shrink-0 text-right text-[10px] text-white/45 sm:w-16 sm:text-2xs">
+              <span className="nums w-14 shrink-0 text-right text-[11px] text-white/70 sm:w-16 sm:text-[12px]">
                 {earned > 0 ? usd.format(earned) : '—'}
               </span>
             </div>
@@ -255,24 +285,24 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
         {/* Геометрия оси обязана повторять геометрию строк символ в символ, иначе
             числа разъезжаются с клетками, над которыми они стоят. */}
         <div className="mt-1 flex items-center gap-1.5">
-          <span className="w-16 shrink-0 truncate text-2xs font-medium capitalize text-white/45 sm:w-24">
+          <span className="w-20 shrink-0 truncate text-[11px] font-medium capitalize text-white/55 sm:w-28">
             {monthLabel}
           </span>
           <div className="flex min-w-0 flex-1 gap-1">
             {cols.map((c, i) => (
               <span
                 key={i}
-                className={`nums min-w-0 max-w-7 flex-1 text-center text-[8.5px] font-semibold leading-none ${
-                  weekend[i] ? 'text-haul-300/80' : 'font-normal text-white/30'
+                className={`nums min-w-0 max-w-7 flex-1 text-center text-[10px] font-semibold leading-none ${
+                  weekend[i] ? 'text-haul-300' : 'font-normal text-white/50'
                 }`}
               >
                 {c.getDate()}
               </span>
             ))}
           </div>
-          <span className="ml-2 hidden w-32 shrink-0 sm:block lg:w-40" />
-          <span className="ml-2 hidden w-20 shrink-0 sm:block" />
-          <span className="w-12 shrink-0 sm:w-16" />
+          <span className="ml-2 hidden w-32 shrink-0 sm:block lg:w-44" />
+          <span className="ml-2 hidden w-24 shrink-0 sm:block" />
+          <span className="w-14 shrink-0 sm:w-16" />
         </div>
       </div>
 
