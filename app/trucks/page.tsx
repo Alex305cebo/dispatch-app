@@ -205,12 +205,6 @@ export default async function Page() {
         })}
       />
 
-            </>
-          }
-          // Под карточками: календарь загрузки на 14 дней — взгляд раз в неделю,
-          // а подключение ELD — раз в жизни трака. Карточки «где сейчас» — каждый час.
-          after={
-            <>
       <div className="mb-4">
         <FleetHeatmap
           rows={perTruck.map(({ truck, working, current }) => {
@@ -240,6 +234,11 @@ export default async function Page() {
           })}
         />
       </div>
+            </>
+          }
+          // Под карточками: подключение ELD — раз в жизни трака.
+          after={
+            <>
               <EldLinks count={shareCount + (samsaraOn ? 1 : 0)} />
             </>
           }
