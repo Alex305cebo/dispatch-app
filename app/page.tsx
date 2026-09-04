@@ -1,4 +1,3 @@
-import { cityOf } from '@/lib/maintenance-core'
 import {
   CalendarClock,
   DollarSign,
@@ -315,46 +314,13 @@ export default async function Page() {
         </div>
       )}
 
-      {/* Список дел стоит ПЕРЕД календарём: «что делать сегодня» важнее, чем «как
-          отработали две недели». Календарь смотрит назад и остаётся ниже — он два
-          разных вопроса, и ни один не отменяет другой, но порядок чтения решает. */}
+      {/* Список дел — сразу под плитками: «что делать сегодня» важнее всего. */}
       <NeedsLoad
         rows={idleFleet(trucks, live, placeByTruck)}
         trucks={byId}
         trailers={trailers}
         locale={locale}
       />
-
-      {/* Календарь загрузки за 14 дней — как парк отработал прошлые две недели. */}
-      {trucks.length > 0 && live.length > 0 && (
-        <div className="mb-4">
-          <FleetHeatmap
-            rows={trucks.map((t) => {
-              const cur = currentByTruck.get(t.id)
-              return {
-                id: t.id,
-                label: t.number?.trim() || t.name,
-                sub: shortName(t.driverName),
-                working: buildWorkingDays(live.filter((l) => l.truckId === t.id)),
-                // Те же два правых столбца, что и на /trucks: куда едет либо где
-                // стоит, и когда освободится. Иначе на обзоре они стояли бы пустыми.
-                place: cur
-                  ? `→ ${cur.destination ?? '—'}`
-                  : (placeCity((t.number ? byUnit.get(t.number)?.location : null) ?? null) ??
-                     tr(locale, 'overview.noEldData')),
-                when: t.unavailable
-                  ? {
-                      text: tr(locale, t.unavailable === 'repair' ? 'overview.repair' : 'overview.onVacation'),
-                      tone: 'off' as const,
-                    }
-                  : cur
-                    ? { text: tr(locale, 'trucks.heatmap.onLoad'), tone: 'busy' as const }
-                    : { text: tr(locale, 'trucks.heatmap.free'), tone: 'free' as const },
-              }
-            })}
-          />
-        </div>
-      )}
 
       {/* Fleet at a glance — driver + last-known ELD status, straight from the trucks. */}
       <div className="mb-2 mt-2 flex items-center justify-between">
@@ -539,6 +505,38 @@ export default async function Page() {
           </div>
         </div>
       )}
+      {/* Календарь загрузки за 14 дней — в самом низу: взгляд назад раз в неделю,
+          а карточки парка и последние грузы выше — то, что смотрят каждый час. */}
+      {trucks.length > 0 && live.length > 0 && (
+        <div className="mt-4">
+          <FleetHeatmap
+            rows={trucks.map((t) => {
+              const cur = currentByTruck.get(t.id)
+              return {
+                id: t.id,
+                label: t.number?.trim() || t.name,
+                sub: shortName(t.driverName),
+                working: buildWorkingDays(live.filter((l) => l.truckId === t.id)),
+                // Те же два правых столбца, что и на /trucks: куда едет либо где
+                // стоит, и когда освободится. Иначе на обзоре они стояли бы пустыми.
+                place: cur
+                  ? `→ ${cur.destination ?? '—'}`
+                  : (placeCity((t.number ? byUnit.get(t.number)?.location : null) ?? null) ??
+                     tr(locale, 'overview.noEldData')),
+                when: t.unavailable
+                  ? {
+                      text: tr(locale, t.unavailable === 'repair' ? 'overview.repair' : 'overview.onVacation'),
+                      tone: 'off' as const,
+                    }
+                  : cur
+                    ? { text: tr(locale, 'trucks.heatmap.onLoad'), tone: 'busy' as const }
+                    : { text: tr(locale, 'trucks.heatmap.free'), tone: 'free' as const },
+              }
+            })}
+          />
+        </div>
+      )}
+
     </main>
   )
 }
