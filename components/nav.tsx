@@ -440,6 +440,9 @@ export function Nav({
           />
         )}
         <Notifier collapsed={!dockExpanded} />
+        {/* Сюда components/tour.tsx подселяет кнопку «Как это работает» — она
+            принадлежит ряду аккаунта, а не плавает над страницей. */}
+        <span id="tour-launcher-slot" className="contents" />
       </div>
     </nav>
   )

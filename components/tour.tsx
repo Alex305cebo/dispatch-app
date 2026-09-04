@@ -129,19 +129,48 @@ export function Tour({
   if (!open) {
     const left = steps.filter((s) => !s.done).length
     if (persist === 'local' && left === 0) return null
+    // Живёт в ряду аккаунта рядом с колокольчиком (слот в components/nav.tsx),
+    // круглой кнопкой «?» — как остальные иконки ряда. Плавающая плашка справа
+    // внизу висела над контентом и была «не пойми чья». Слота нет (страница без
+    // навигации) — прежний запасной вариант у правого края.
+    const slot = document.getElementById('tour-launcher-slot')
+    const label = t(locale, 'tour.launcher')
     return createPortal(
-      <button
-        onClick={() => setOpen(true)}
-        className="panel fixed bottom-28 right-4 z-[190] flex items-center gap-2 rounded-full px-3.5 py-2 text-[12.5px] font-medium shadow-lg md:bottom-6"
-      >
-        {persist === 'local' && (
-          <span className="flex size-5 items-center justify-center rounded-full bg-haul-500 text-[11px] font-bold text-white">
-            {left}
-          </span>
-        )}
-        {t(locale, 'tour.launcher')}
-      </button>,
-      document.body,
+      slot ? (
+        <span className="relative">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            title={label}
+            aria-label={label}
+            className="nav-icon-btn flex size-9 items-center justify-center rounded-full border border-white/10 hover:border-white/25"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" className="size-[18px]" aria-hidden>
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" />
+              <path d="M12 17h.01" />
+            </svg>
+          </button>
+          {persist === 'local' && (
+            <span className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-haul-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-ink-950">
+              {left}
+            </span>
+          )}
+        </span>
+      ) : (
+        <button
+          onClick={() => setOpen(true)}
+          className="panel fixed bottom-28 right-4 z-[190] flex items-center gap-2 rounded-full px-3.5 py-2 text-[12.5px] font-medium shadow-lg md:bottom-6"
+        >
+          {persist === 'local' && (
+            <span className="flex size-5 items-center justify-center rounded-full bg-haul-500 text-[11px] font-bold text-white">
+              {left}
+            </span>
+          )}
+          {label}
+        </button>
+      ),
+      slot ?? document.body,
     )
   }
 
@@ -220,7 +249,7 @@ export function Tour({
           // Снимок настоящего экрана. Нет файла (снимок ещё не снят) — картинка
           // молча исчезает, карточка сужается, текст остаётся.
           <img
-            src={`/guide/${step.image}.jpg`}
+            src={`/guide/${locale}/${step.image}.jpg`}
             alt=""
             onError={() => setImgOk(false)}
             className="mt-3 w-full rounded-lg border border-white/10"
