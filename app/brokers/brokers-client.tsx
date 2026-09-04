@@ -136,57 +136,10 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
 
   return (
     <>
-      {/* ── Check form ─────────────────────────────────────── */}
-      <section className="panel p-5">
-        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          {t(locale, 'brokers.checkHeading')}
-          <Info text={t(locale, 'brokers.checkInfo')} />
-        </h2>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex overflow-hidden rounded-xl border border-white/10">
-            {(['mc', 'dot'] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setBy(k)}
-                className={`px-3 py-2 text-[13px] font-medium transition-colors ${
-                  by === k ? 'bg-haul-500 text-white' : 'text-white/60 hover:text-white/85'
-                }`}
-              >
-                {t(locale, k === 'mc' ? 'brokers.byMc' : 'brokers.byDot')}
-              </button>
-            ))}
-          </div>
-          <input
-            value={value}
-            inputMode="numeric"
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && check(by, value)}
-            placeholder={t(locale, by === 'mc' ? 'brokers.mcPlaceholder' : 'brokers.dotPlaceholder')}
-            className={`${input} max-w-[240px] flex-1`}
-          />
-          <button
-            type="button"
-            onClick={() => check(by, value)}
-            disabled={state === 'loading' || !value.trim()}
-            className="rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-50"
-          >
-            {state === 'loading' ? t(locale, 'brokers.checking') : t(locale, 'brokers.checkButton')}
-          </button>
-        </div>
-
-        {state === 'nokey' && (
-          <p className="mt-3 rounded-lg bg-warn-400/10 px-3 py-2 text-[12.5px] leading-relaxed text-warn-400">
-            {t(locale, 'brokers.noKey')}
-          </p>
-        )}
-        {state === 'error' && <p className="mt-3 text-[13px] text-bad-400">{err}</p>}
-        {state === 'done' && data && <BrokerChecklist check={data} />}
-      </section>
-
+      {/* Порядок — по частоте: свой список с поиском и долгами открывают каждый день,
+          проверку по FMCSA — при новом брокере, справочник — изредка. */}
       {/* ── Our brokers ────────────────────────────────────── */}
-      <section className="panel mt-4 p-5">
+      <section className="panel p-5">
         <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
           {t(locale, 'brokers.dbHeading')}
           <Info text={t(locale, 'brokers.dbInfo')} />
@@ -197,9 +150,7 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
             <span className="normal-case text-white/35">{t(locale, 'brokers.mcWorking')}</span>
           )}
           {mcState === 'no_key' && (
-            <a href="/admin" className="normal-case text-warn-400 hover:underline">
-              {t(locale, 'brokers.mcNoKey')}
-            </a>
+            <span className="normal-case text-warn-400">{t(locale, 'brokers.mcNoKey')}</span>
           )}
           {/* Сколько нам должны все брокеры вместе — первое, что спрашивают в пятницу. */}
           {owedTotal > 0 && (
@@ -225,7 +176,7 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
             {filtered.length === 0 ? (
               <p className="text-[13px] text-white/45">{t(locale, 'brokers.noMatch')}</p>
             ) : (
-              <ul className="flex max-h-[22rem] flex-col gap-1.5 overflow-y-auto pr-1">
+              <ul className="flex flex-col gap-1.5">
                 {filtered.map((b) => {
                   // Один ключ на строку: по нему раскрывается и долг, и форма правки.
                   const rowKey = (b.mc ?? b.name ?? '') + b.loadCount
@@ -436,6 +387,55 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
             )}
           </>
         )}
+      </section>
+
+      {/* ── Check form ─────────────────────────────────────── */}
+      <section className="panel mt-4 p-5">
+        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          {t(locale, 'brokers.checkHeading')}
+          <Info text={t(locale, 'brokers.checkInfo')} />
+        </h2>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex overflow-hidden rounded-xl border border-white/10">
+            {(['mc', 'dot'] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setBy(k)}
+                className={`px-3 py-2 text-[13px] font-medium transition-colors ${
+                  by === k ? 'bg-haul-500 text-white' : 'text-white/60 hover:text-white/85'
+                }`}
+              >
+                {t(locale, k === 'mc' ? 'brokers.byMc' : 'brokers.byDot')}
+              </button>
+            ))}
+          </div>
+          <input
+            value={value}
+            inputMode="numeric"
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && check(by, value)}
+            placeholder={t(locale, by === 'mc' ? 'brokers.mcPlaceholder' : 'brokers.dotPlaceholder')}
+            className={`${input} max-w-[240px] flex-1`}
+          />
+          <button
+            type="button"
+            onClick={() => check(by, value)}
+            disabled={state === 'loading' || !value.trim()}
+            className="rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 disabled:opacity-50"
+          >
+            {state === 'loading' ? t(locale, 'brokers.checking') : t(locale, 'brokers.checkButton')}
+          </button>
+        </div>
+
+        {state === 'nokey' && (
+          <p className="mt-3 rounded-lg bg-warn-400/10 px-3 py-2 text-[12.5px] leading-relaxed text-warn-400">
+            {t(locale, 'brokers.noKey')}
+          </p>
+        )}
+        {state === 'error' && <p className="mt-3 text-[13px] text-bad-400">{err}</p>}
+        {state === 'done' && data && <BrokerChecklist check={data} />}
       </section>
 
       {/* ── Largest brokers (reference) ────────────────────── */}

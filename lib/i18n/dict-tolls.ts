@@ -55,12 +55,12 @@ export const tollsDict = {
   },
 
   'tolls.noKey': {
-    ru: 'Ключ HERE не задан. Админ → Ключи → «Ключ HERE (платные дороги)».',
-    en: 'No HERE key set. Admin → Keys → “HERE key (tolls)”.',
-    es: 'No hay clave de HERE. Admin → Claves → «Clave HERE (peajes)».',
-    uk: 'Ключ HERE не задано. Адмін → Ключі → «Ключ HERE (платні дороги)».',
-    ro: 'Cheia HERE nu e setată. Admin → Chei → „Cheie HERE (taxe de drum)”.',
-    kk: 'HERE кілті берілмеген. Әкімші → Кілттер → «HERE кілті (ақылы жолдар)».',
+    ru: 'Ключ HERE не задан на сервере (переменная HERE_API_KEY) — платные дороги не считаются.',
+    en: 'No HERE key on the server (HERE_API_KEY env var) — tolls cannot be calculated.',
+    es: 'No hay clave HERE en el servidor (variable HERE_API_KEY): los peajes no se calculan.',
+    uk: 'Ключ HERE не задано на сервері (змінна HERE_API_KEY) — платні дороги не рахуються.',
+    ro: 'Cheia HERE nu e setată pe server (variabila HERE_API_KEY) — taxele de drum nu se calculează.',
+    kk: 'Серверде HERE кілті жоқ (HERE_API_KEY айнымалысы) — ақылы жолдар есептелмейді.',
   },
   'tolls.capReached': {
     ru: 'Исчерпан месячный лимит обращений — он стоит нарочно, чтобы бесплатный тариф нельзя было превысить. Обнулится первого числа.',
