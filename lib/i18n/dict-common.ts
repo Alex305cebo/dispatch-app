@@ -6,8 +6,12 @@
 export const commonDict = {
   'pair.truck': { ru: 'Трак', en: 'Truck', es: 'Camión', uk: 'Трак', ro: 'Camion', kk: 'Трак' },
   'pair.load': { ru: 'Груз', en: 'Load', es: 'Carga', uk: 'Вантаж', ro: 'Cursă', kk: 'Жүк' },
+  'pair.hereTruck': { ru: 'Ты на карточке трака', en: 'You are on the truck card', es: 'Estás en la ficha del camión', uk: 'Ти на картці трака', ro: 'Ești pe fișa camionului', kk: 'Сен трак карточкасындасың' },
+  'pair.hereLoad': { ru: 'Ты на карточке груза', en: 'You are on the load card', es: 'Estás en la ficha de la carga', uk: 'Ти на картці вантажу', ro: 'Ești pe fișa cursei', kk: 'Сен жүк карточкасындасың' },
+  'pair.openTruck': { ru: 'Открыть карточку трака →', en: 'Open the truck card →', es: 'Abrir la ficha del camión →', uk: 'Відкрити картку трака →', ro: 'Deschide fișa camionului →', kk: 'Трак карточкасын ашу →' },
+  'pair.openLoad': { ru: 'Открыть карточку груза →', en: 'Open the load card →', es: 'Abrir la ficha de la carga →', uk: 'Відкрити картку вантажу →', ro: 'Deschide fișa cursei →', kk: 'Жүк карточкасын ашу →' },
   'pair.noTruck': { ru: 'Трак не назначен', en: 'No truck assigned', es: 'Sin camión asignado', uk: 'Трак не призначено', ro: 'Niciun camion alocat', kk: 'Трак тағайындалмаған' },
-  'pair.noLoad': { ru: 'Сейчас без груза', en: 'No load right now', es: 'Sin carga ahora', uk: 'Зараз без вантажу', ro: 'Fără cursă acum', kk: 'Қазір жүк жоқ' },
+  'pair.noLoad': { ru: 'У трака сейчас нет груза', en: 'No load right now', es: 'Sin carga ahora', uk: 'Зараз без вантажу', ro: 'Fără cursă acum', kk: 'Қазір жүк жоқ' },
   'status.quoted': { ru: 'Букинг', en: 'Quoted', es: 'Cotizado', uk: 'Букінг', ro: 'Cotat', kk: 'Брондау' },
   'status.booked': { ru: 'Загрузка', en: 'Booked', es: 'Reservado', uk: 'Завантаження', ro: 'Rezervat', kk: 'Тиеу' },
   'status.in_transit': { ru: 'В пути', en: 'In transit', es: 'En tránsito', uk: 'У дорозі', ro: 'În tranzit', kk: 'Жолда' },

@@ -27,21 +27,28 @@ export function PairBar({
   const link = `${base} border-white/12 bg-ink-900/70 text-white/85 hover:border-haul-400/60 hover:bg-haul-500/10 hover:text-white`
   const empty = `${base} border-white/8 text-white/40`
 
+  // Подпись говорит прямо, что это и что случится по клику: «Ты на карточке трака» /
+  // «Открыть карточку груза →». Голые «Трак» и «Груз» читались как заголовки, а не
+  // как переключатель.
+  const truckCap =
+    current === 'truck' ? t(locale, 'pair.hereTruck') : truck ? t(locale, 'pair.openTruck') : t(locale, 'pair.truck')
+  const loadCap =
+    current === 'load' ? t(locale, 'pair.hereLoad') : load ? t(locale, 'pair.openLoad') : t(locale, 'pair.load')
   const truckInner = (
     <>
-      <Truck size={17} strokeWidth={2.2} className="shrink-0 text-haul-400" />
+      <Truck size={18} strokeWidth={2.2} className="shrink-0 text-haul-400" />
       <span className="min-w-0">
-        <span className="block text-[10px] uppercase tracking-wider text-white/50">{t(locale, 'pair.truck')}</span>
+        <span className="block text-[11px] font-medium uppercase tracking-wider text-white/60">{truckCap}</span>
         <span className="block truncate font-semibold">{truck?.label ?? t(locale, 'pair.noTruck')}</span>
       </span>
     </>
   )
   const loadInner = (
     <>
-      <Package size={17} strokeWidth={2.2} className="shrink-0 text-good-400" />
+      <Package size={18} strokeWidth={2.2} className="shrink-0 text-good-400" />
       <span className="min-w-0">
-        <span className="block text-[10px] uppercase tracking-wider text-white/50">
-          {t(locale, 'pair.load')}
+        <span className="block text-[11px] font-medium uppercase tracking-wider text-white/60">
+          {loadCap}
           {load?.sub ? ` · ${load.sub}` : ''}
         </span>
         <span className="block truncate font-semibold">{load?.label ?? t(locale, 'pair.noLoad')}</span>
