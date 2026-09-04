@@ -33,9 +33,19 @@ export default async function AdminPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <h1 className="text-xl font-bold tracking-tight">{t(locale, 'admin.title')}</h1>
-      <p className="mb-6 text-[13px] text-white/65">{t(locale, 'admin.subtitle')}</p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">{t(locale, 'admin.title')}</h1>
+          <p className="text-[13px] text-white/65">{t(locale, 'admin.subtitle')}</p>
+        </div>
+        <Link href="/logins" className="rounded-lg border border-white/10 px-3 py-1.5 text-[12.5px] font-medium text-white/80 hover:border-white/25">
+          {t(locale, 'admin.journalHeading')} {t(locale, 'admin.journalOpen')}
+        </Link>
+      </div>
 
+      {/* Порядок — по частоте: пользователей и права трогают каждую неделю, реквизиты
+          и ключи — при настройке, доступ/демо — раз в жизни, сбои — когда что-то
+          сломалось. Ссылка на журнал — в шапке, отдельной пустой секции она не стоит. */}
       <section className="panel p-5" data-tour="users">
         <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
           {t(locale, 'admin.usersHeading')}
@@ -43,7 +53,13 @@ export default async function AdminPage() {
         </h2>
         <UserList users={users} currentUserId={user.id} fleet={fleet} />
       </section>
-
+      <section id="company" className="scroll-mt-4 panel mt-4 p-5" data-tour="company">
+        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          {t(locale, 'admin.companyHeading')}
+          <Info text={t(locale, 'admin.companyInfo')} />
+        </h2>
+        <CompanyForm initial={company} />
+      </section>
       <section className="panel mt-4 p-5" data-tour="keys">
         <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
           {t(locale, 'admin.keysHeading')}
@@ -51,7 +67,6 @@ export default async function AdminPage() {
         </h2>
         <KeysForm status={keys} />
       </section>
-
       <section className="panel mt-4 p-5">
         <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
           {t(locale, 'admin.openAccessHeading')}
@@ -59,7 +74,13 @@ export default async function AdminPage() {
         </h2>
         <OpenAccessToggle enabled={openAccess} />
       </section>
-
+      <section className="panel mt-4 p-5">
+        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          {t(locale, 'admin.demoPublicHeading')}
+          <Info text={t(locale, 'admin.demoPublicInfo')} />
+        </h2>
+        <DemoToggle enabled={demo.enabled} url={demo.url} />
+      </section>
       <section className="panel mt-4 p-5">
         <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
           {t(locale, 'admin.errorsHeading')}
@@ -82,61 +103,6 @@ export default async function AdminPage() {
             ))}
           </ul>
         )}
-      </section>
-
-      <section className="panel mt-4 p-5">
-        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          {t(locale, 'admin.demoPublicHeading')}
-          <Info text={t(locale, 'admin.demoPublicInfo')} />
-        </h2>
-        <DemoToggle enabled={demo.enabled} url={demo.url} />
-      </section>
-
-      <section id="company" className="scroll-mt-4 panel mt-4 p-5" data-tour="company">
-        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          {t(locale, 'admin.companyHeading')}
-          <Info text={t(locale, 'admin.companyInfo')} />
-        </h2>
-        <CompanyForm initial={company} />
-      </section>
-
-      <section className="panel mt-4 p-5">
-        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-          {t(locale, 'admin.upNextHeading')}
-          <Info text={t(locale, 'admin.upNextInfo')} />
-        </h2>
-        <div className="flex flex-col gap-2.5">
-          <div className="rounded-lg border border-white/6 bg-white/[0.015] p-3">
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] font-medium">{t(locale, 'admin.factoringTitle')}</span>
-              <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white/55">
-                {t(locale, 'nav.soon')}
-              </span>
-            </div>
-            <p className="mt-1 text-[12px] leading-relaxed text-white/60">{t(locale, 'admin.factoringDesc')}</p>
-          </div>
-          <div className="rounded-lg border border-white/6 bg-white/[0.015] p-3">
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] font-medium">{t(locale, 'admin.iftaTitle')}</span>
-              <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white/55">
-                {t(locale, 'nav.soon')}
-              </span>
-            </div>
-            <p className="mt-1 text-[12px] leading-relaxed text-white/60">{t(locale, 'admin.iftaDesc')}</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="panel mt-4 p-5">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            {t(locale, 'admin.journalHeading')}
-            <Info text={t(locale, 'admin.journalInfo')} />
-          </h2>
-          <Link href="/logins" className="text-[12px] text-haul-400 hover:underline">
-            {t(locale, 'admin.journalOpen')}
-          </Link>
-        </div>
       </section>
     </main>
   )
