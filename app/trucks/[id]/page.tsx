@@ -119,7 +119,6 @@ export default async function Page({
     return ms >= weekBegin && ms < weekEnd
   })
   const weekGross = weekRows.reduce((s, x) => s + x.load.rate, 0)
-  const totalNet = weekRows.reduce((s, x) => s + x.r.net, 0)
   const weekMiles = weekRows.reduce((s, x) => s + x.r.totalMiles, 0)
   const avgRpm = weekMiles > 0 ? weekRows.reduce((s, x) => s + x.r.gross, 0) / weekMiles : 0
   const openTodos = todos.filter((t) => !t.doneAt).length
@@ -238,12 +237,6 @@ export default async function Page({
             value={usd.format(weekGross)}
             tone={weekGross > 0 ? 'good' : undefined}
             info={t(locale, 'trucks.chip.weekRateInfo')}
-          />
-          <Chip
-            label={t(locale, 'trucks.chip.net')}
-            value={usd.format(totalNet)}
-            tone={totalNet >= 0 ? 'good' : 'bad'}
-            info={t(locale, 'trucks.chip.netInfo')}
           />
           <Chip
             label={t(locale, 'trucks.chip.rpm')}
@@ -503,11 +496,7 @@ export default async function Page({
                     </div>
                     <div className="mt-1 flex items-baseline justify-between gap-2">
                       <span className="nums min-w-0 truncate text-sm text-white/60">
-                        {t(locale, 'trucks.detail.netLower')}{' '}
-                        <span className={r.net >= 0 ? 'text-good-400/90' : 'text-bad-400/90'}>
-                          {usd.format(r.net)}
-                        </span>{' '}
-                        · {usd2.format(r.allInRpm)}/mi
+                        {Math.round(r.totalMiles)} mi · {usd2.format(r.allInRpm)}/mi
                       </span>
                       {/* Headline is the load's actual RATE, never net — the owner reads
                           these cards as "what this load is worth". Net is the small line. */}

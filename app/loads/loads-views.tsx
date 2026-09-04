@@ -260,7 +260,6 @@ function StatusBoard({
                         board about loads, and the driver is one click away. */}
                     <span className="min-w-0 truncate text-xs text-white/55">
                       {truck ? (truck.number?.trim() || truck.name) : '—'}
-                      {r && ` · ${t(locale, 'loads.page.net')} ${usd.format(r.net)}`}
                     </span>
                     <span className="shrink-0 whitespace-nowrap">
                       <span className="nums text-base font-bold">{usd.format(load.rate)}</span>
@@ -495,12 +494,6 @@ function Calendar({
                       {truck && <span className="text-white/45">{truckLabel(truck)}</span>}
                       {r && (
                         <>
-                          <span>
-                            {t(locale, 'loads.page.net')}{' '}
-                            <span className={`font-semibold ${r.net >= 0 ? 'text-good-400' : 'text-bad-400'}`}>
-                              {usd.format(r.net)}
-                            </span>
-                          </span>
                           <span>{Math.round(r.totalMiles)} mi</span>
                           <span>{usd2.format(r.allInRpm)}/mi</span>
                         </>
@@ -622,11 +615,7 @@ function LoadRow({
             <StatusBadge status={load.status} locale={locale} />
           </div>
           <div className="nums mt-0.5 truncate text-[11.5px] text-white/60">
-            {t(locale, 'loads.page.net')}{' '}
-            <span className={r.net >= 0 ? 'text-good-400/90' : 'text-bad-400/90'}>
-              {usd.format(r.net)}
-            </span>{' '}
-            · {Math.round(r.totalMiles)} mi · {usd2.format(r.allInRpm)}/mi
+            {Math.round(r.totalMiles)} mi · {usd2.format(r.allInRpm)}/mi
           </div>
         </div>
         {/* Inline pair on the phone (rate then loaded miles, reading left to right),

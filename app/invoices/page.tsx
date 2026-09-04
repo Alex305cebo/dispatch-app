@@ -354,7 +354,6 @@ async function Paid({
   })
 
   const totalGross = rows.reduce((s, x) => s + x.load.rate, 0)
-  const totalNet = rows.reduce((s, x) => s + (x.r?.net ?? 0), 0)
   const totalMiles = rows.reduce((s, x) => s + (x.r?.totalMiles ?? 0), 0)
   const avgRpm = totalMiles > 0 ? rows.reduce((s, x) => s + (x.r ? x.r.gross : 0), 0) / totalMiles : 0
 
@@ -362,7 +361,6 @@ async function Paid({
     <>
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label={t(locale, 'finances.stat.paidTotal')} value={usd.format(totalGross)} />
-        <Stat label={t(locale, 'finances.stat.net')} value={usd.format(totalNet)} />
         <Stat label={t(locale, 'finances.stat.loadsCount')} value={String(rows.length)} />
         <Stat label={t(locale, 'finances.stat.avgRpm')} value={totalMiles > 0 ? `$${avgRpm.toFixed(2)}/mi` : '—'} />
       </div>
@@ -398,8 +396,7 @@ async function Paid({
                   {r ? (
                     <>
                       {' '}
-                      · {t(locale, 'finances.netInline')} {usd.format(r.net)} · {r.allInRpm.toFixed(2)} $/mi ·{' '}
-                      {r.totalMiles} mi
+                      · {r.allInRpm.toFixed(2)} $/mi · {r.totalMiles} mi
                     </>
                   ) : null}
                 </div>
@@ -547,7 +544,7 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[13px] font-semibold">
             <span className="capitalize">{weekLabel(week.weekStartMs, locale)}</span>
             <span className="nums shrink-0 text-[12.5px] font-normal text-white/60">
-              {usd.format(week.gross)} · {t(locale, 'finances.netInline')} {usd.format(week.net)}
+              {usd.format(week.gross)}
             </span>
           </summary>
 
@@ -559,7 +556,7 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
                   <div className="flex items-center justify-between gap-3 text-[13px] font-semibold text-haul-300">
                     <span>{disp.name}</span>
                     <span className="nums shrink-0 text-[12px] font-normal text-white/60">
-                      {usd.format(disp.gross)} · {t(locale, 'finances.netInline')} {usd.format(disp.net)}
+                      {usd.format(disp.gross)}
                     </span>
                   </div>
 
@@ -572,7 +569,7 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
                             <span>{drv.label}</span>
                             <span className="nums shrink-0 text-[11.5px] font-normal text-white/60">
                               {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(drv.loads.length))} ·{' '}
-                              {usd.format(drv.gross)} · {t(locale, 'finances.netInline')} {usd.format(drv.net)} ·{' '}
+                              {usd.format(drv.gross)} ·{' '}
                               {Math.round(drv.miles)} mi
                             </span>
                           </div>

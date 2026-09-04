@@ -111,25 +111,11 @@ export function Analysis({
         <Money value={r.gross} />
       </div>
 
-      {notConfigured ? (
+      {notConfigured && (
         <p className="mt-1.5 rounded-xl border border-warn-400/30 bg-warn-500/[0.08] px-3 py-2 text-[13px] leading-relaxed text-warn-400">
           {t(locale, 'analysis.notConfigured')}
         </p>
-      ) : (
-        <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">
-          {t(locale, 'analysis.net')}{' '}
-          <span className={`nums font-semibold ${good ? 'text-good-400' : 'text-bad-400'}`}>
-            {usd.format(r.net)}
-          </span>
-          {t(locale, 'analysis.marginLine').replace('{pct}', r.marginPercent.toFixed(0))}
-          <span className="nums text-white/85">{usd.format(r.breakEvenRate)}</span>
-          {t(locale, 'analysis.belowLoss')}
-        </p>
       )}
-
-      {/* Always visible, not behind the disclosure below: this is the one picture that
-          answers "is this load worth taking", and it was buried. */}
-      <RateSplit r={r} locale={locale} />
 
       {vsSpot !== null && (
         <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">
@@ -148,6 +134,23 @@ export function Analysis({
           <span className="text-haul-400 transition-transform group-open:rotate-90">▸</span>
           {t(locale, 'analysis.clickToSeeExpenses')}
         </summary>
+        {/* «Чистыми», маржа и полоса расходов — ЗДЕСЬ, а не под ставкой. Диспетчер и
+            бухгалтер путались, какая из двух цифр — цена груза: главная — ставка из
+            рейт-кона, всё с вычетом расходов открывается по желанию. */}
+        {!notConfigured && (
+          <>
+            <p className="mt-3 text-[13px] leading-relaxed text-white/70">
+              {t(locale, 'analysis.net')}{' '}
+              <span className={`nums font-semibold ${good ? 'text-good-400' : 'text-bad-400'}`}>
+                {usd.format(r.net)}
+              </span>
+              {t(locale, 'analysis.marginLine').replace('{pct}', r.marginPercent.toFixed(0))}
+              <span className="nums text-white/85">{usd.format(r.breakEvenRate)}</span>
+              {t(locale, 'analysis.belowLoss')}
+            </p>
+            <RateSplit r={r} locale={locale} />
+          </>
+        )}
 
         <div className="mt-4 grid grid-cols-3 gap-2">
           {[

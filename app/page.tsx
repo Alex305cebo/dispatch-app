@@ -113,7 +113,6 @@ export default async function Page() {
     const truck = (load.truckId !== null ? byId.get(load.truckId) : undefined) ?? fallback
     return truck ? [{ load, truck, r: calcLoad(load, truck) }] : []
   })
-  const totalNet = rows.reduce((s, x) => s + x.r.net, 0)
   const totalGross = rows.reduce((s, x) => s + x.r.gross, 0)
   const totalMiles = rows.reduce((s, x) => s + x.r.totalMiles, 0)
   const avgRpm = totalMiles > 0 ? rows.reduce((s, x) => s + x.r.gross, 0) / totalMiles : 0
@@ -285,12 +284,7 @@ export default async function Page() {
             accent="haul"
             label={tr(locale, 'overview.rateTotal')}
             value={usd.format(totalGross)}
-            sub={tr(locale, 'overview.rateTotalSub').replace('{v}', usd.format(totalNet))}
-            subTone={totalNet >= 0 ? 'good' : 'bad'}
             info={tr(locale, 'overview.rateTotalInfo')}
-            /* Share of the gross that survives as profit — the one ratio an owner
-               actually watches, and the reason this tile is the widest. */
-            meter={totalGross > 0 ? Math.max(0, Math.min(1, totalNet / totalGross)) : 0}
           />
           <Stat
             href="/trucks"
@@ -510,11 +504,7 @@ export default async function Page() {
                       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                         <StatusBadge status={load.status} locale={locale} />
                         <span className="nums min-w-0 text-[12px] text-white/65">
-                          <span className="text-white/45">{truckLabel(truck)}</span> · {tr(locale, 'overview.net')}{' '}
-                          <span className={r.net >= 0 ? 'text-good-400/90' : 'text-bad-400/90'}>
-                            {usd.format(r.net)}
-                          </span>{' '}
-                          · {usd2.format(r.allInRpm)}/mi
+                          <span className="text-white/45">{truckLabel(truck)}</span> · {usd2.format(r.allInRpm)}/mi
                         </span>
                       </div>
                     </div>

@@ -260,13 +260,8 @@ function WeekSummary({
       </h2>
       {/* Неделя ещё могла не начаться — тогда плиток нет, а план на следующую есть. */}
       {week.count > 0 && (
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
         <Tile value={usd.format(week.gross)} label={t(locale, 'loads.week.gross')} />
-        <Tile
-          value={usd.format(week.net)}
-          label={t(locale, 'loads.week.net')}
-          tone={week.net >= 0 ? 'good' : 'bad'}
-        />
         <Tile value={`${usd2.format(week.rpm)}/mi`} label={t(locale, 'loads.week.rpm')} />
         {/* Amber past 20%: the industry runs 15–20% empty, so above that this stopped
             being background cost and became something to route around. */}
