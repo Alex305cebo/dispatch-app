@@ -92,7 +92,7 @@ export default async function AdminPage() {
         <DemoToggle enabled={demo.enabled} url={demo.url} />
       </section>
 
-      <section className="panel mt-4 p-5" data-tour="company">
+      <section id="company" className="scroll-mt-4 panel mt-4 p-5" data-tour="company">
         <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
           {t(locale, 'admin.companyHeading')}
           <Info text={t(locale, 'admin.companyInfo')} />

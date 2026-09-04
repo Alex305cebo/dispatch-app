@@ -11,9 +11,8 @@ import {
   type Receivable,
 } from '@/lib/loads'
 import type { LoadRecord } from '@/lib/map'
-import { getCompany } from '@/lib/invoice'
 import { calcLoad, type Breakdown } from '@/lib/profit'
-import { usd, weekAnchorOf, weekLabel, weekStart } from '@/lib/fmt'
+import { usd, usd2, weekAnchorOf, weekLabel, weekStart } from '@/lib/fmt'
 import { truckLabel, type TruckRecord } from '@/lib/map'
 import { redirect } from 'next/navigation'
 import { companyScope, getCurrentUser } from '@/lib/session'
@@ -21,7 +20,7 @@ import { getLocale } from '@/lib/i18n-server'
 import { t, type Locale } from '@/lib/i18n'
 import { getSetting } from '@/lib/settings'
 import { can } from '@/lib/capabilities-server'
-import { CompanyForm, PaidToggle } from '@/components/invoice-actions'
+import { PaidToggle } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
 import { Info } from '@/components/info'
 import { CircleCheckBig, Wallet } from 'lucide-react'
@@ -32,6 +31,7 @@ export const dynamic = 'force-dynamic'
 
 function tabDescription(locale: Locale): Record<string, string> {
   return {
+    weeks: t(locale, 'finances.tabDesc.weeks'),
     unpaid: t(locale, 'finances.tabDesc.unpaid'),
     paid: t(locale, 'finances.tabDesc.paid'),
     dispatchers: t(locale, 'finances.tabDesc.dispatchers'),
@@ -47,17 +47,22 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   // view. A user without it who lands on ?tab=dispatchers falls back to "unpaid".
   const canReport = await can(user, 'dispatcher_report')
   const tabParam = (await searchParams).tab
+  // «Недели» — по умолчанию: владельца в первую очередь интересует, сколько парк
+  // привёз за неделю (гросс) и из чего это сложилось. Оплачено/не оплачено — вопрос
+  // бухгалтера, он идёт за ним отдельной вкладкой.
   const tab =
     tabParam === 'paid'
       ? 'paid'
-      : tabParam === 'drivers'
-        ? 'drivers'
-        : tabParam === 'dispatchers' && canReport
-          ? 'dispatchers'
-          : 'unpaid'
+      : tabParam === 'unpaid'
+        ? 'unpaid'
+        : tabParam === 'drivers'
+          ? 'drivers'
+          : tabParam === 'dispatchers' && canReport
+            ? 'dispatchers'
+            : 'weeks'
   const companyId = await companyScope()
   const locale = await getLocale()
-  const [company, rateCons] = await Promise.all([getCompany(), rateConByLoad(companyId)])
+  const rateCons = await rateConByLoad(companyId)
 
   return (
     <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -76,13 +81,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         <p className="text-[13px] text-white/65">{tabDescription(locale)[tab]}</p>
       </header>
 
-      <div className="mb-5 flex gap-1.5 border-b border-white/8">
+      <div className="mb-5 flex flex-wrap gap-1.5 border-b border-white/8">
+        <Tab href="/invoices" active={tab === 'weeks'}>
+          {t(locale, 'finances.tab.weeks')}
+        </Tab>
         {canReport && (
           <Tab href="/invoices?tab=dispatchers" active={tab === 'dispatchers'}>
             {t(locale, 'finances.tab.dispatchers')}
           </Tab>
         )}
-        <Tab href="/invoices" active={tab === 'unpaid'}>
+        <Tab href="/invoices?tab=unpaid" active={tab === 'unpaid'}>
           {t(locale, 'finances.tab.unpaid')}
         </Tab>
         <Tab href="/invoices?tab=paid" active={tab === 'paid'}>
@@ -93,7 +101,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         </Tab>
       </div>
 
-      {tab === 'unpaid' ? (
+      {tab === 'weeks' ? (
+        <ByWeek companyId={companyId} rateCons={rateCons} locale={locale} />
+      ) : tab === 'unpaid' ? (
         <Unpaid companyId={companyId} rateCons={rateCons} locale={locale} />
       ) : tab === 'paid' ? (
         <Paid companyId={companyId} rateCons={rateCons} locale={locale} />
@@ -103,36 +113,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         <ByDispatcher companyId={companyId} locale={locale} />
       )}
 
-      <details className="group panel mt-6 p-4" open={!company.name}>
-        <summary className="-m-1 flex cursor-pointer list-none items-center gap-1.5 rounded-lg p-1 text-[11px] font-semibold uppercase tracking-wider text-white/62 transition-colors hover:bg-white/[0.03] hover:text-white/90">
-          <span className="text-[13px] leading-none text-white/40 transition-transform duration-200 group-open:rotate-90">
-            ▸
-          </span>
-          {t(locale, 'finances.company.heading')}{' '}
-          {company.name ? `· ${company.name}` : `· ${t(locale, 'finances.company.notFilled')}`}
-          <span className="ml-1.5 inline-block align-middle">
-            <Info text={t(locale, 'finances.company.info')} />
-          </span>
-        </summary>
-        <div className="mt-4">
-          <CompanyForm initial={company} />
-        </div>
-      </details>
-
-      {/* IFTA — prototype/coming-soon. It needs full per-state GPS mileage history,
-          which we only keep for 7 days today, so this is a placeholder that sets the
-          expectation without ever showing a fake number. */}
-      <div className="mt-4 rounded-xl border border-dashed border-white/12 bg-white/[0.02] p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[13px] font-semibold text-white/80">{t(locale, 'finances.ifta.title')}</span>
-          <span className="rounded-full bg-haul-500/15 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-haul-400">
-            {t(locale, 'finances.ifta.soon')}
-          </span>
-        </div>
-        <p className="mt-1.5 max-w-2xl text-[12.5px] leading-relaxed text-white/55">
-          {t(locale, 'finances.ifta.body')}
-        </p>
-      </div>
+      {/* Реквизиты компании — в Админе (одно место, а не два); IFTA-заглушка убрана. */}
     </main>
   )
 }
@@ -359,7 +340,7 @@ async function Paid({
 
   return (
     <>
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-5 grid grid-cols-3 gap-3">
         <Stat label={t(locale, 'finances.stat.paidTotal')} value={usd.format(totalGross)} />
         <Stat label={t(locale, 'finances.stat.loadsCount')} value={String(rows.length)} />
         <Stat label={t(locale, 'finances.stat.avgRpm')} value={totalMiles > 0 ? `$${avgRpm.toFixed(2)}/mi` : '—'} />
@@ -595,6 +576,117 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
                         </div>
                       ))}
                   </div>
+                </div>
+              ))}
+          </div>
+        </details>
+      ))}
+    </div>
+  )
+}
+
+type GrossWeek = {
+  weekStartMs: number
+  trucks: Map<number, { label: string; loads: LoadRecord[]; gross: number; miles: number }>
+  gross: number
+  miles: number
+  count: number
+}
+
+/** Гросс по неделям — то, что владелец смотрит первым: сколько парк привёз за неделю
+ * (ставки из рейт-конов, без вычетов) и из чего это сложилось — по тракам и грузам.
+ * Неделя — с пятницы по пятницу, как и зарплата; груз ложится в неделю пикапа. */
+async function ByWeek({
+  companyId,
+  rateCons,
+  locale,
+}: {
+  companyId: 'default' | 'demo'
+  rateCons: Map<number, number>
+  locale: Locale
+}) {
+  const [loads, trucks] = await Promise.all([listLoads(companyId), listTrucks(companyId)])
+  const byTruckId = new Map<number, TruckRecord>(trucks.map((t) => [t.id, t]))
+  const committed = loads.filter((l) => l.status !== 'quoted' && l.status !== 'cancelled')
+
+  const weeks = new Map<number, GrossWeek>()
+  for (const load of committed) {
+    const weekMs = weekAnchorOf(new Date(load.pickupDate ?? load.createdAt).getTime())
+    let week = weeks.get(weekMs)
+    if (!week) {
+      week = { weekStartMs: weekMs, trucks: new Map(), gross: 0, miles: 0, count: 0 }
+      weeks.set(weekMs, week)
+    }
+    const truck = load.truckId !== null ? byTruckId.get(load.truckId) : undefined
+    const key = truck?.id ?? 0
+    let row = week.trucks.get(key)
+    if (!row) {
+      row = { label: truck ? truckLabel(truck) : t(locale, 'finances.noTruck'), loads: [], gross: 0, miles: 0 }
+      week.trucks.set(key, row)
+    }
+    const miles = load.loadedMiles + load.deadheadMiles
+    row.loads.push(load)
+    row.gross += load.rate
+    row.miles += miles
+    week.gross += load.rate
+    week.miles += miles
+    week.count += 1
+  }
+
+  const sortedWeeks = [...weeks.values()].sort((a, b) => b.weekStartMs - a.weekStartMs)
+  const thisWeek = weekStart()
+  if (sortedWeeks.length === 0) {
+    return <p className="panel p-6 text-[13px] text-white/60">{t(locale, 'finances.noLoads')}</p>
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[11.5px] text-white/45">{t(locale, 'finances.payWeekNote')}</p>
+      {sortedWeeks.map((week) => (
+        <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[13px] font-semibold">
+            <span className="capitalize">{weekLabel(week.weekStartMs, locale)}</span>
+            <span className="nums shrink-0 text-right">
+              <span className="text-[15px] text-good-400">{usd.format(week.gross)}</span>
+              <span className="ml-2 text-[11.5px] font-normal text-white/50">
+                {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(week.count))} · {Math.round(week.miles)} mi
+                {week.miles > 0 && ` · ${usd2.format(week.gross / week.miles)}/mi`}
+              </span>
+            </span>
+          </summary>
+
+          <div className="mt-3 flex flex-col gap-2">
+            {[...week.trucks.values()]
+              .sort((a, b) => b.gross - a.gross)
+              .map((row) => (
+                <div key={row.label} className="rounded-lg border border-white/6 bg-white/[0.015] p-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[12.5px] font-medium">
+                    <span className="text-haul-300">{row.label}</span>
+                    <span className="nums shrink-0 text-[11.5px] font-normal text-white/60">
+                      {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(row.loads.length))} ·{' '}
+                      {Math.round(row.miles)} mi · <span className="font-semibold text-white/85">{usd.format(row.gross)}</span>
+                    </span>
+                  </div>
+                  <ul className="mt-1.5 flex flex-col gap-1">
+                    {row.loads.map((load) => (
+                      <li key={load.id} className="flex items-center gap-2">
+                        <Link
+                          href={`/loads/${load.id}`}
+                          className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md px-2 py-1 text-[11.5px] text-white/60 transition-colors hover:bg-white/5 hover:text-white/85"
+                        >
+                          <span className="min-w-0 truncate">
+                            {load.referenceId ? `#${load.referenceId} · ` : ''}
+                            {load.origin ?? '—'} → {load.destination ?? '—'}
+                            {load.brokerName ? ` · ${load.brokerName}` : ''}
+                          </span>
+                          <span className="nums shrink-0">
+                            {Math.round(load.loadedMiles + load.deadheadMiles)} mi · {usd.format(load.rate)}
+                          </span>
+                        </Link>
+                        {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ))}
           </div>

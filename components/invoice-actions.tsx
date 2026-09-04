@@ -63,7 +63,7 @@ export function InvoiceBox({
           {t(locale, 'finances.gate.body2')}
         </p>
         <Link
-          href="/invoices"
+          href="/admin#company"
           className="mt-2.5 inline-block rounded-lg bg-warn-400 px-3.5 py-1.5 text-[12px] font-semibold text-ink-950 transition-colors hover:bg-warn-300"
         >
           {t(locale, 'finances.gate.cta')}

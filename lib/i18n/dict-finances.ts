@@ -61,6 +61,9 @@ export const financesDict = {
     kk: 'Жүргізушілер жалақысы апта бойынша: жүктер, миль және әрқайсысының мөлшерлемесі — төленетін қорытынды.',
   },
 
+  'finances.tab.weeks': { ru: 'Недели', en: 'Weeks', es: 'Semanas', uk: 'Тижні', ro: 'Săptămâni', kk: 'Апталар' },
+  'finances.tabDesc.weeks': { ru: 'Сколько парк привёз за неделю — гросс по ставкам из рейт-конов, по тракам и грузам.', en: 'What the fleet brought in each week — gross from the rate cons, by truck and by load.', es: 'Lo que la flota generó cada semana: bruto según los rate con, por camión y por carga.', uk: 'Скільки парк привіз за тиждень — грос за ставками з рейт-конів, по траках і вантажах.', ro: 'Cât a adus flota pe săptămână — brut din rate con-uri, pe camion și pe cursă.', kk: 'Парк аптасына қанша әкелді — rate con бойынша жалпы сома, трак және жүк бойынша.' },
+  'finances.noTruck': { ru: 'Без трака', en: 'No truck', es: 'Sin camión', uk: 'Без трака', ro: 'Fără camion', kk: 'Трак жоқ' },
   'finances.tab.dispatchers': { ru: 'По диспетчерам', en: 'By dispatcher', es: 'Por despachador', uk: 'За диспетчерами', ro: 'După dispecer', kk: 'Диспетчерлер бойынша' },
   'finances.tab.unpaid': { ru: 'Не оплачено', en: 'Unpaid', es: 'Sin pagar', uk: 'Не оплачено', ro: 'Neplătit', kk: 'Төленбеген' },
   'finances.tab.paid': { ru: 'Оплачено', en: 'Paid', es: 'Pagado', uk: 'Оплачено', ro: 'Plătit', kk: 'Төленген' },
@@ -220,12 +223,12 @@ export const financesDict = {
 
   // lib/invoice.ts
   'finances.err.noCompany': {
-    ru: 'Сначала заполни данные своей компании: раздел «Оплаты» → блок «Данные компании для инвойса».',
-    en: 'First fill in your company details: "Finances" section → "Company details for invoicing" block.',
-    es: 'Primero rellena los datos de tu empresa: sección «Finanzas» → bloque «Datos de la empresa para facturar».',
-    uk: 'Спершу заповни дані своєї компанії: розділ «Фінанси» → блок «Дані компанії для інвойса».',
-    ro: 'Mai întâi completează datele firmei: secțiunea „Finanțe” → blocul „Datele companiei pentru facturare”.',
-    kk: 'Алдымен компания деректерін толтырыңыз: «Қаржы» бөлімі → «Инвойс үшін компания деректері» блогы.',
+    ru: 'Сначала заполни данные своей компании: Админ → «Настройки компании».',
+    en: 'First fill in your company details: Admin → "Company settings".',
+    es: 'Primero rellena los datos de tu empresa: Admin → «Ajustes de la empresa».',
+    uk: 'Спершу заповни дані своєї компанії: Адмін → «Налаштування компанії».',
+    ro: 'Mai întâi completează datele firmei: Admin → „Setările companiei”.',
+    kk: 'Алдымен компания деректерін толтырыңыз: Әкімші → «Компания баптаулары».',
   },
   'finances.err.noPod': {
     ru: 'Нет POD у этого груза — брокер не заплатит без него. Загрузи POD и повтори.',
