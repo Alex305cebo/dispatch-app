@@ -1,6 +1,6 @@
 import { Info } from '@/components/info'
 import { TollsClient } from './tolls-client'
-import { TollMoney } from './toll-money'
+import { TollMissing, TollMoney } from './toll-money'
 import { TollGuide } from './toll-guide'
 import { tollSpend, type TollLoad } from '@/lib/toll-spend'
 import { hereKey } from '@/lib/keys'
@@ -75,6 +75,7 @@ export default async function TollsPage() {
       </h1>
       <p className="mb-5 text-[13px] text-white/65">{t(locale, 'tolls.subtitle')}</p>
 
+      <TollMissing spend={spend} locale={locale} />
       <TollsClient
         hasKey={key !== ''}
         used={usage.used}
