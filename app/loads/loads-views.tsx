@@ -22,7 +22,7 @@ import { truckLabel, STATUSES, type TruckRecord, type LoadRecord } from '@/lib/m
 import { calcLoad, type Breakdown } from '@/lib/profit'
 import { usd, usd2, weekAnchorOf, weekLabel, weekStart } from '@/lib/fmt'
 import { StatusBadge, statusLabel } from '@/components/status'
-import { LoadsToolbar, useLoadsFilter, type LoadMetrics } from '@/components/loads-toolbar'
+import { LoadsToolbar, useLoadsFilter, type LoadMetrics, activeRank } from '@/components/loads-toolbar'
 import { RateConButton } from '@/components/ratecon-button'
 import { DeleteButton } from '@/components/delete-button'
 import { DriverAvatar } from '@/components/driver-avatar'
@@ -91,9 +91,12 @@ export function LoadsViews({
     if (!byTruck.has(truck.id)) byTruck.set(truck.id, [])
     byTruck.get(truck.id)!.push(l)
   }
+  // Траки с активным грузом — первыми: в пути, потом забукированные, потом те, у
+  // кого сейчас ничего нет.
   const groups = trucks
     .map((truck) => ({ truck, loads: byTruck.get(truck.id) ?? [] }))
     .filter((g) => g.loads.length > 0)
+    .sort((a, b) => Math.min(...a.loads.map((l) => activeRank(l.status))) - Math.min(...b.loads.map((l) => activeRank(l.status))))
 
   if (allLoads.length === 0) {
     return (

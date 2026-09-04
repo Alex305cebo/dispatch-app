@@ -54,6 +54,11 @@ const SORTS: { key: LoadSort; label: MsgKey }[] = [
 
 export type LoadMetrics = { net: number; rpm: number; hasPod: boolean }
 
+/** 0 — в пути, 1 — забукирован, 2 — всё остальное. */
+export function activeRank(status: string): number {
+  return status === 'in_transit' ? 0 : status === 'booked' ? 1 : 2
+}
+
 export function useLoadsFilter(
   loads: LoadRecord[],
   trucks: TruckRecord[],
@@ -100,7 +105,10 @@ export function useLoadsFilter(
         return (metrics[b.id]?.net ?? 0) - (metrics[a.id]?.net ?? 0)
       })
     }
-    return out
+    // Активные — всегда сверху, при любой сортировке и любом фильтре: в пути, потом
+    // забукированные, потом остальные. Сортировка стабильная, внутри группы порядок
+    // выбранной сортировки сохраняется.
+    return [...out].sort((a, b) => activeRank(a.status) - activeRank(b.status))
   }, [loads, byId, metrics, query, filter, sort])
 
   return { query, setQuery, filter, setFilter, sort, setSort, result }
