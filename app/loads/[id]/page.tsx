@@ -24,6 +24,7 @@ import { InvoiceBox } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
 import { DocButton } from '@/components/doc-button'
 import { BackButton } from '@/components/back-button'
+import { PairBar } from '@/components/pair-bar'
 import { DriverInfoCard } from '@/components/driver-info-card'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
@@ -68,6 +69,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <BackButton href="/loads" label={t(locale, 'loads.page.title')} />
+      <PairBar
+        current="load"
+        truck={{ id: truck.id, label: truckLabel(truck, truckMeta?.trailerNumber) }}
+        load={{ id: load.id, label: `${load.origin ?? '—'} → ${load.destination ?? '—'}` }}
+        locale={locale}
+      />
 
       {/* ===== HERO: route, truck, status and the rate — one card, not four loose pieces ===== */}
       <section className="relative mt-3 overflow-hidden rounded-3xl border border-white/8 bg-gradient-to-b from-ink-800/80 to-ink-950 p-5 sm:p-8">

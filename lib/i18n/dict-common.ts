@@ -4,6 +4,10 @@
 // unrelated areas, to avoid five different modules each redefining "Cancel".
 
 export const commonDict = {
+  'pair.truck': { ru: 'Трак', en: 'Truck', es: 'Camión', uk: 'Трак', ro: 'Camion', kk: 'Трак' },
+  'pair.load': { ru: 'Груз', en: 'Load', es: 'Carga', uk: 'Вантаж', ro: 'Cursă', kk: 'Жүк' },
+  'pair.noTruck': { ru: 'Трак не назначен', en: 'No truck assigned', es: 'Sin camión asignado', uk: 'Трак не призначено', ro: 'Niciun camion alocat', kk: 'Трак тағайындалмаған' },
+  'pair.noLoad': { ru: 'Сейчас без груза', en: 'No load right now', es: 'Sin carga ahora', uk: 'Зараз без вантажу', ro: 'Fără cursă acum', kk: 'Қазір жүк жоқ' },
   'status.quoted': { ru: 'Букинг', en: 'Quoted', es: 'Cotizado', uk: 'Букінг', ro: 'Cotat', kk: 'Брондау' },
   'status.booked': { ru: 'Загрузка', en: 'Booked', es: 'Reservado', uk: 'Завантаження', ro: 'Rezervat', kk: 'Тиеу' },
   'status.in_transit': { ru: 'В пути', en: 'In transit', es: 'En tránsito', uk: 'У дорозі', ro: 'În tranzit', kk: 'Жолда' },

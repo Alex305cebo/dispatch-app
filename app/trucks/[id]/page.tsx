@@ -2,6 +2,7 @@ import { cityOf } from '@/lib/maintenance-core'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { BackButton } from '@/components/back-button'
+import { PairBar } from '@/components/pair-bar'
 import { sql } from '@/lib/db'
 import { getTruck, listDocs, listLoads, rateConByLoad } from '@/lib/loads'
 import { currentLoadsByTruck, truckLabel } from '@/lib/map'
@@ -17,7 +18,7 @@ import { tripHistory } from '@/lib/eld'
 import { loadMapData, statusTone } from '@/lib/load-map'
 import { usd, usd2, weekBounds, loadWeekAnchorMs } from '@/lib/fmt'
 import { FleetMap } from '@/components/fleet-map'
-import { StatusBadge } from '@/components/status'
+import { StatusBadge, statusLabel } from '@/components/status'
 import { TruckForm } from '@/components/truck-form'
 import { TruckCare } from '@/components/truck-care'
 import { DriverCard } from '@/components/driver-card'
@@ -147,6 +148,20 @@ export default async function Page({
   return (
     <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-10">
       <BackButton href="/trucks" label={t(locale, 'trucks.detail.backAll')} />
+      <PairBar
+        current="truck"
+        truck={{ id: truck.id, label: truckLabel(truck, meta?.trailerNumber) }}
+        load={
+          activeLoad
+            ? {
+                id: activeLoad.id,
+                label: `${activeLoad.origin ?? '—'} → ${activeLoad.destination ?? '—'}`,
+                sub: statusLabel(locale, activeLoad.status),
+              }
+            : null
+        }
+        locale={locale}
+      />
 
       {/* ===== HERO: the truck in the centre, key info around it ===== */}
       <section className="relative mt-3 overflow-hidden rounded-3xl border border-white/8 bg-gradient-to-b from-ink-800/80 to-ink-950 px-4 pt-5 pb-4 sm:px-8">
