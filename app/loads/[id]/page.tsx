@@ -293,16 +293,6 @@ async function LoadMapSection({
           <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
             {t(locale, 'loadDetail.mapHeading')}
             <Info text={t(locale, 'loadDetail.mapInfo')} />
-            <span className="ml-auto">
-              {/* Тот же живой режим, что на /tracking: сам подтягивает GPS при
-                  открытии устаревшей страницы и перечитывает её каждые полминуты.
-                  Карта, которую надо обновлять рукой, — это не трекинг. */}
-              <RefreshFleetButton
-                staleMinutes={
-                  fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null
-                }
-              />
-            </span>
           </h2>
           {/* Три отдельные плитки, а не одна строка «82 mi · ~1ч 34м»: время у
               водителя, расстояние и срок — разные вопросы, и слитые в строку они
@@ -459,6 +449,17 @@ async function LoadMapSection({
               </div>
             )
           })()}
+          {/* «LIVE · Обновить» — вплотную к карте, а не в заголовке секции: между ними
+              стоят плитки, и с телефона кнопка оказывалась на экран выше того, что
+              обновляет. Тот же живой режим, что на /tracking: сам подтягивает GPS при
+              открытии устаревшей страницы и перечитывает её каждые полминуты. */}
+          <div className="mb-2 flex justify-end">
+            <RefreshFleetButton
+              staleMinutes={
+                fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null
+              }
+            />
+          </div>
           <FleetMap
             markers={mapMarkers}
             routes={mapRoutes}
