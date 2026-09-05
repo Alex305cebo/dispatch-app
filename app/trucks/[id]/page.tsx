@@ -1,6 +1,7 @@
 import { cityOf } from '@/lib/maintenance-core'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { headers } from 'next/headers'
 import { BackButton } from '@/components/back-button'
 import { PairBar } from '@/components/pair-bar'
 import { DriverLinkButton } from '@/components/driver-link-button'
@@ -106,6 +107,18 @@ export default async function Page({
   const fs = truck.number ? fleet.get(truck.number) : undefined
   // Когда водитель последний раз открывал свою страницу — видно, что ссылка живая.
   const driverSeen = await getSetting(`driver_seen:${truck.id}`)
+  // Адрес страницы водителя готов сразу — тогда кнопки «отправить в Telegram или
+  // SMS» видны без лишнего нажатия. В демо ссылку не выдаём.
+  const driverLink =
+    companyId === 'demo'
+      ? null
+      : await (async () => {
+          const { driverTokenFor } = await import('@/lib/driver-link')
+          const h = await headers()
+          const host = h.get('x-forwarded-host') ?? h.get('host') ?? ''
+          const proto = h.get('x-forwarded-proto') ?? 'https'
+          return host ? `${proto}://${host}/d/${await driverTokenFor(truck.id)}` : null
+        })()
 
   const live = loads.filter((l) => l.status !== 'cancelled')
   const rows = live.map((l) => ({ load: l, r: calcLoad(l, truck) }))
@@ -235,8 +248,7 @@ export default async function Page({
 
           {/* Manual availability — dims the truck across the app and pulls it out of
               the "free" counters until it's flipped back. */}
-          <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2">
-            <DriverLinkButton truckId={truck.id} driverPhone={meta?.driverPhone ?? null} seenAt={driverSeen} />
+          <div className="mt-2.5">
             <TruckAvailability truckId={truck.id} current={truck.unavailable} locale={locale} />
           </div>
         </div>
@@ -286,7 +298,9 @@ export default async function Page({
           </h2>
           {activeLoad ? (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              {/* Статус — ВПЛОТНУЮ к маршруту. justify-between отбрасывал его к правому
+                  краю, и посреди строки зияла пустая полоса в пол-экрана. */}
+              <div className="flex flex-wrap items-center gap-2">
                 {/* Кнопка, а не текст-ссылка: маршрут — единственный переход с трака на
                     его груз, и подчёркиванием при наведении он себя не выдавал. */}
                 <Link
@@ -301,6 +315,12 @@ export default async function Page({
                   </span>
                 </Link>
                 <StatusBadge status={activeLoad.status} locale={locale} />
+                {activeLoad.referenceId && (
+                  <span className="nums text-[12px] text-white/45">#{activeLoad.referenceId}</span>
+                )}
+                {activeLoad.brokerName && (
+                  <span className="truncate text-[12px] text-white/45">· {activeLoad.brokerName}</span>
+                )}
               </div>
               <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] sm:grid-cols-3">
                 <div>
@@ -332,6 +352,11 @@ export default async function Page({
                 {t(locale, 'trucks.detail.addLoad')}
               </Link>
             </div>
+          )}
+          {/* Страница водителя — заметным блоком, а не значком в углу: пока водитель
+              ссылку не открывал, блок подсвечен и зовёт её отправить. */}
+          {driverLink && (
+            <DriverLinkButton url={driverLink} driverPhone={meta?.driverPhone ?? null} seenAt={driverSeen} />
           )}
         </div>
 

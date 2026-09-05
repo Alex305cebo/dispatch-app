@@ -1,78 +1,100 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { Smartphone } from 'lucide-react'
-import { getDriverLink } from '@/app/actions'
+import { useState } from 'react'
+import { Check, Copy, Smartphone } from 'lucide-react'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 import { agoText } from '@/lib/fmt'
-import { Info } from '@/components/info'
 
 /**
- * «Ссылка водителю» на карточке трака. Нажал — ссылка в буфере и раскрыты кнопки
- * «Отправить в WhatsApp / Telegram / SMS» с готовым текстом ПО-АНГЛИЙСКИ: водители
- * говорят на разных языках, а английский понимают все, и сама страница у них
- * откроется по-английски. Рядом — когда водитель последний раз её открывал.
+ * Страница водителя — своим блоком на карточке трака, а не мелкой кнопкой в углу.
+ *
+ * Громкость зависит от состояния: пока водитель ни разу не открывал ссылку, блок
+ * подсвечен и зовёт отправить её; открывал — тихая строка «открывал N назад».
+ * Ссылка готова сразу (считает страница), поэтому кнопки отправки видны без
+ * лишнего нажатия. Текст сообщения — ПО-АНГЛИЙСКИ: водители говорят на разных
+ * языках, английский понимают все, и сама страница откроется у них по-английски.
  */
-export function DriverLinkButton({ truckId, driverPhone, seenAt }: { truckId: number; driverPhone: string | null; seenAt: string | null }) {
+export function DriverLinkButton({
+  url,
+  driverPhone,
+  seenAt,
+}: {
+  url: string
+  driverPhone: string | null
+  seenAt: string | null
+}) {
   const locale = useLocale()
-  const [pending, start] = useTransition()
-  const [url, setUrl] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const fresh = !seenAt
 
-  const text = (u: string) =>
-    `Hi! This is your load page: ${u}\nOpen it on your phone and keep it. Tap "Arrived", "Loaded", "Delivered" and send BOL/POD photos there — no need to call. It works without any app.`
-  const digits = (driverPhone ?? '').replace(/\D/g, '')
-  const wa = (u: string) => `https://wa.me/${digits ? (digits.length === 10 ? '1' + digits : digits) : ''}?text=${encodeURIComponent(text(u))}`
-  const tg = (u: string) => `https://t.me/share/url?url=${encodeURIComponent(u)}&text=${encodeURIComponent(text(u).replace(u, '').trim())}`
-  const sms = (u: string) => `sms:${driverPhone ?? ''}?&body=${encodeURIComponent(text(u))}`
+  const text = `Hi! This is your load page: ${url}\nOpen it on your phone and save it. Tap "Arrived", "Loaded", "Delivered" and send BOL/POD photos there — no need to call. Works without any app.`
+  // Telegram и SMS. Больше ничего: водители компании сидят в Telegram.
+  const share = [
+    {
+      name: 'Telegram',
+      href: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent('Your load page — tap Arrived / Loaded / Delivered and send BOL/POD photos. No app needed.')}`,
+      cls: 'bg-[#2AABEE]/15 text-[#2AABEE] hover:bg-[#2AABEE]/25',
+    },
+    ...(driverPhone ? [{ name: 'SMS', href: `sms:${driverPhone}?&body=${encodeURIComponent(text)}`, cls: 'bg-white/10 text-white/85 hover:bg-white/20' }] : []),
+  ]
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+      notify('ok', t(locale, 'driver.link.copied'), url)
+    } catch {
+      window.prompt(t(locale, 'driver.link.button'), url)
+    }
+  }
 
   return (
-    <span className="inline-flex flex-wrap items-center justify-center gap-1.5">
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() =>
-          start(async () => {
-            const r = await getDriverLink(truckId)
-            if ('error' in r) {
-              notify('warn', r.error === 'demo' ? t(locale, 'actions.demoReadOnly') : r.error)
-              return
-            }
-            setUrl(r.url)
-            try {
-              await navigator.clipboard.writeText(r.url)
-              notify('ok', t(locale, 'driver.link.copied'), r.url)
-            } catch {
-              window.prompt(t(locale, 'driver.link.button'), r.url)
-            }
-          })
-        }
-        className="inline-flex items-center gap-1.5 rounded-full border border-haul-500/40 bg-haul-500/[0.08] px-3 py-1 text-[12.5px] font-medium text-white/90 hover:border-haul-400 hover:bg-haul-500/15 disabled:opacity-60"
-      >
-        <Smartphone size={13} strokeWidth={2.2} />
-        {t(locale, 'driver.link.button')}
-      </button>
-      <Info text={t(locale, 'driver.link.info')} />
-      {url && (
-        <span className="inline-flex items-center gap-1 text-[12px] text-white/60">
-          {t(locale, 'driver.link.share')}
-          <a href={wa(url)} target="_blank" rel="noreferrer" className="rounded-full bg-[#25D366]/15 px-2.5 py-0.5 font-semibold text-[#25D366]">
-            WhatsApp
-          </a>
-          <a href={tg(url)} target="_blank" rel="noreferrer" className="rounded-full bg-[#2AABEE]/15 px-2.5 py-0.5 font-semibold text-[#2AABEE]">
-            Telegram
-          </a>
-          {driverPhone && (
-            <a href={sms(url)} className="rounded-full bg-white/10 px-2.5 py-0.5 font-semibold text-white/80">
-              SMS
-            </a>
-          )}
+    <div
+      className={`mt-3 rounded-2xl border p-3 text-left ${
+        fresh ? 'border-haul-500/45 bg-haul-500/[0.10]' : 'border-white/10 bg-white/[0.03]'
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Smartphone size={16} strokeWidth={2.2} className={fresh ? 'text-haul-300' : 'text-white/55'} />
+        <span className="text-[13.5px] font-semibold">{t(locale, 'driver.link.title')}</span>
+        <span className={`nums ml-auto text-[11.5px] ${fresh ? 'text-haul-300' : 'text-good-400/80'}`}>
+          {seenAt ? t(locale, 'driver.link.seen').replace('{ago}', agoText(seenAt, locale)) : t(locale, 'driver.link.neverSeen')}
         </span>
-      )}
-      <span className="text-[11px] text-white/45">
-        {seenAt ? t(locale, 'driver.link.seen').replace('{ago}', agoText(seenAt, locale)) : t(locale, 'driver.link.neverSeen')}
-      </span>
-    </span>
+      </div>
+      <p className="mt-1 text-[12.5px] leading-relaxed text-white/60">{t(locale, 'driver.link.info')}</p>
+      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+        <span className="mr-0.5 text-[11.5px] uppercase tracking-wider text-white/45">{t(locale, 'driver.link.share')}</span>
+        {share.map((s) => (
+          <a
+            key={s.name}
+            href={s.href}
+            target="_blank"
+            rel="noreferrer"
+            className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${s.cls}`}
+          >
+            {s.name}
+          </a>
+        ))}
+        <button
+          type="button"
+          onClick={copy}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-[12.5px] font-medium text-white/80 hover:border-white/35"
+        >
+          {copied ? <Check size={13} strokeWidth={2.5} className="text-good-400" /> : <Copy size={13} strokeWidth={2.2} />}
+          {t(locale, copied ? 'driver.link.copiedShort' : 'driver.link.copy')}
+        </button>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-lg px-2.5 py-1.5 text-[12.5px] text-white/50 underline-offset-2 hover:text-white/80 hover:underline"
+        >
+          {t(locale, 'driver.link.preview')}
+        </a>
+      </div>
+    </div>
   )
 }
