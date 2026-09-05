@@ -14,6 +14,7 @@ import { tourSteps } from '@/lib/tour'
 import { t } from '@/lib/i18n'
 import { RevealGuard } from '@/components/reveal-guard'
 import { BuildWatch } from '@/components/build-watch'
+import { AlertWatch } from '@/components/alert-watch'
 import './globals.css'
 
 // Apply the saved theme before first paint — no flash of the wrong colours.
@@ -123,6 +124,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           >
             <RevealGuard />
             <BuildWatch mine={process.env.BUILD_STAMP ?? ''} />
+            <AlertWatch enabled={!!user && !user.isDemo} />
             {children}
           </div>
           {/* Fixed overlay — outside the padded content wrapper so it isn't offset by

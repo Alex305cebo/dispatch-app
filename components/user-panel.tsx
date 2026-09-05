@@ -49,6 +49,7 @@ import { notify } from '@/lib/notify'
 import type { CurrentUser } from '@/lib/session'
 import { useLocale } from '@/components/locale-provider'
 import { shortName } from '@/lib/fmt'
+import { AlertToggle } from '@/components/alert-watch'
 import { t } from '@/lib/i18n'
 
 function initialsOf(name: string): string {
@@ -349,6 +350,8 @@ export function UserPanel({
                   control={themeControl}
                 />
               )}
+              {/* Уведомления браузера — разрешение спрашивается только отсюда. */}
+              <AlertToggle />
               <Row
                 icon={<KeyRound size={15} />}
                 label={t(locale, 'userPanel.tilePassword')}
