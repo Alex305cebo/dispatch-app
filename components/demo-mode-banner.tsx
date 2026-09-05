@@ -9,7 +9,7 @@ import { getLocale } from '@/lib/i18n-server'
 export async function DemoModeBanner() {
   const locale = await getLocale()
   return (
-    <div className="fixed inset-x-0 top-0 z-40 flex items-center justify-center gap-2 bg-haul-500 px-3 py-1.5 text-center text-[12px] font-medium text-white md:pl-52">
+    <div className="fixed inset-x-0 top-0 z-40 flex h-9 items-center justify-center gap-2 overflow-hidden whitespace-nowrap bg-haul-500 px-3 text-center text-[12px] font-medium text-white md:pl-52">
       🧪 {t(locale, 'demo.banner')}
       <Link href="/login" className="underline underline-offset-2 hover:no-underline">
         {t(locale, 'demo.signIn')}

@@ -65,7 +65,7 @@ export function PairBar({
   )
 
   return (
-    <div className="sticky top-1 z-30 mt-2 flex gap-1.5 rounded-xl border border-white/8 bg-ink-950/85 p-1 backdrop-blur sm:top-2 sm:mt-3 sm:gap-2 sm:rounded-2xl sm:p-1.5">
+    <div className="sticky top-[3.25rem] z-30 mt-2 flex gap-1.5 rounded-xl border border-white/8 bg-ink-950/85 p-1 backdrop-blur md:top-2 sm:mt-3 sm:gap-2 sm:rounded-2xl sm:p-1.5">
       {current === 'truck' ? (
         <div className={active} aria-current="page">{truckInner}</div>
       ) : truck ? (

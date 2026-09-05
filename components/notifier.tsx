@@ -59,11 +59,11 @@ export function Notifier({ collapsed = false }: { collapsed?: boolean }) {
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
             // Opaque: this floats over page content, and the translucent .panel fill
             // let cards show through. The var keeps it correct in both themes.
-            style={{ transformOrigin: 'bottom center', background: 'var(--color-ink-800)' }}
+            style={{ transformOrigin: 'top right', background: 'var(--color-ink-800)' }}
             // Phone: the bell sits at the right edge, so open leftwards (right-0) or the
             // panel runs off screen. Desktop: the bell is in the narrow sidebar, so open
             // rightwards (left-0) out over the page.
-            className="panel absolute bottom-12 right-0 z-[60] max-h-[60vh] w-[min(20rem,calc(100vw-2rem))] overflow-hidden md:left-0 md:right-auto"
+            className="panel absolute right-0 z-[60] max-h-[60vh] w-[min(20rem,calc(100vw-2rem))] overflow-hidden max-md:top-12 md:bottom-12 md:left-0 md:right-auto"
           >
             <div className="flex items-center justify-between border-b border-white/8 px-3 py-2">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-white/65">

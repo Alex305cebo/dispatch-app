@@ -399,16 +399,22 @@ export function Nav({
           meant the account menu, Журнал and even the logout button were completely
           unreachable below the md breakpoint (reported live: "the block disappeared,
           can't do anything"). Admin/logout now live inside UserPanel's own popover. */}
+      {/* На телефоне это ВЕРХНЯЯ панель приложения: название компании слева, «?»,
+          колокольчик и аватар справа, свой фон и нижняя граница — как у любого
+          мобильного приложения. Раньше ряд без фона висел над вкладками поверх
+          текста страницы. На десктопе — низ сайдбара, как и было. */}
       <div
-        className="nav-account-row order-first mb-1.5 flex items-center justify-end px-1 pb-1 md:order-none md:mt-auto md:justify-start md:px-0 md:pb-0"
+        className={`nav-account-row flex items-center gap-1.5 max-md:fixed max-md:inset-x-0 max-md:z-50 max-md:h-12 max-md:border-b max-md:border-white/8 max-md:bg-ink-950/85 max-md:px-3 max-md:backdrop-blur-xl md:mt-auto md:justify-start ${
+          user?.isDemo ? 'max-md:top-9' : 'max-md:top-0'
+        }`}
         // Bubbles up from any button inside (locale/bell/journal/theme, and the
         // avatar's own reveal tap) — any interaction in the row restarts the
         // 5-second idle countdown, not just the tap that first opened it.
         onClickCapture={bumpDockTimer}
       >
-        {/* На телефоне — только аватар, колокольчик и «?»: язык, журнал и тема
-            живут в меню аккаунта, как и на десктопе. Четыре лишних кружка поверх
-            контента читались как беспорядок. */}
+        {/* Название компании — только на телефоне (на десктопе оно в шапке сайдбара).
+            Кнопки справа: mr-auto у названия отжимает их к правому краю. */}
+        <span className="mr-auto min-w-0 truncate text-[15px] font-semibold md:hidden">{brand}</span>
         {/* Avatar first, bell to its RIGHT: the account button is the anchor of this
             row — it is what opens the menu — and an anchor belongs at the end of the
             group it owns, not buried mid-row. */}

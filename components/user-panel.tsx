@@ -222,7 +222,8 @@ export function UserPanel({
   const close = () => setOpen(false)
 
   return (
-    <div className="relative" ref={panelRef}>
+    // На телефоне аватар — крайний справа в верхней панели, как принято.
+    <div className="relative max-md:order-last" ref={panelRef}>
       <button
         onClick={onAvatarClick}
         title={user.name}
@@ -237,7 +238,7 @@ export function UserPanel({
       {open && (
         // Позиционируется от ЭКРАНА, а не от аватара: аватар стоит посреди рельса,
         // и панель шириной 18rem вылезала бы то за левый край, то за правый.
-        <div className="user-menu fixed inset-x-3 bottom-24 z-[55] mx-auto max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-ink-900 shadow-2xl md:bottom-16 md:left-3 md:right-auto md:mx-0 md:w-[18rem] md:max-w-none">
+        <div className="user-menu fixed inset-x-3 top-14 z-[55] mx-auto max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-ink-900 shadow-2xl md:bottom-16 md:left-3 md:right-auto md:top-auto md:mx-0 md:w-[18rem] md:max-w-none">
           {/* 1. Кто ты. Меню аккаунта начинается с аккаунта. */}
           <div className="flex items-center gap-3 border-b border-white/8 px-3 py-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-haul-500 to-good-500 text-[13px] font-semibold text-white">
