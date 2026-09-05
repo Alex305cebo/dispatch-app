@@ -868,10 +868,13 @@
   .nav-account-row > * {
     flex: none;
   }
-  /* Таблетка с именем — во всю ширину сайдбара своей строкой; колокольчик и «?»
-     строкой ниже. Иначе с длинным именем ряд ломался посреди. */
+  /* Таблетка с именем, колокольчик и «?» — в один ряд. Имя при нужде обрезается,
+     а не уводит кнопки на строку ниже. */
+  .nav-account-row {
+    flex-wrap: nowrap;
+  }
   .nav-account-row > .relative:has(> .nav-avatar-btn) {
-    flex: 1 1 100%;
+    flex: 0 1 auto;
     min-width: 0;
   }
   .nav-account-row .nav-avatar-btn {
