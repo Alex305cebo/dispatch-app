@@ -31,52 +31,35 @@ export function LaneStats({ rows, locale }: { rows: PricedLoad[]; locale: Locale
         <span className="nums ml-auto normal-case text-white/35">{all.length}</span>
       </summary>
 
-      <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[34rem] border-collapse text-[12.5px]">
-          <thead>
-            <tr className="text-left text-[10px] uppercase tracking-wider text-white/40">
-              <th className="pb-1.5 pr-3 font-medium">{t(locale, 'lanes.lane')}</th>
-              <th className="pb-1.5 pr-3 text-right font-medium">{t(locale, 'lanes.trips')}</th>
-              <th className="pb-1.5 pr-3 text-right font-medium">{t(locale, 'lanes.avgRate')}</th>
-              <th className="pb-1.5 pr-3 text-right font-medium">{t(locale, 'lanes.rpm')}</th>
-              <th className="pb-1.5 text-right font-medium">{t(locale, 'lanes.avgNet')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((l) => (
-              <tr key={l.key} className="border-t border-white/6">
-                <td className="max-w-[16rem] truncate py-1.5 pr-3 text-white/85">
-                  {/* Клик уводит в поиск по этому направлению — оттуда видно сами рейсы,
-                      из которых сложилась строка. Цифра без возможности её раскрыть
-                      заставляет верить на слово. */}
-                  <Link
-                    href={`/loads?q=${encodeURIComponent(l.origin)}`}
-                    className="hover:text-white hover:underline"
-                  >
-                    {l.origin} → {l.destination}
-                  </Link>
-                </td>
-                <td className="nums py-1.5 pr-3 text-right text-white/60">{l.loads}</td>
-                <td className="nums py-1.5 pr-3 text-right text-white/85">{usd.format(l.avgRate)}</td>
-                <td
-                  className={`nums py-1.5 pr-3 text-right ${
-                    l.rpm >= 2 ? 'text-good-400' : l.rpm >= 1.5 ? 'text-white/85' : 'text-warn-400'
-                  }`}
-                >
-                  {usd2.format(l.rpm)}
-                </td>
-                <td
-                  className={`nums py-1.5 text-right font-semibold ${
-                    l.avgNet > 0 ? 'text-good-400' : 'text-bad-400'
-                  }`}
-                >
-                  {usd.format(l.avgNet)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* Список, а не таблица: таблица на телефоне уезжала в горизонтальную прокрутку и
+          прятала и начало маршрута, и $/милю. Маршрут — своей строкой, цифры под ним;
+          на широком экране цифры встают справа в ту же строку. «Ср. чистыми» убрано —
+          главная цифра везде ставка. */}
+      <ul className="mt-3 flex flex-col">
+        {shown.map((l) => (
+          <li key={l.key} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-t border-white/6 py-2 text-[12.5px]">
+            {/* Клик уводит в поиск по этому направлению — оттуда видно сами рейсы,
+                из которых сложилась строка. */}
+            <Link
+              href={`/loads?q=${encodeURIComponent(l.origin)}`}
+              className="min-w-0 basis-full text-[13px] font-medium text-white/85 hover:text-white hover:underline sm:flex-1 sm:basis-auto sm:truncate"
+            >
+              {l.origin} → {l.destination}
+            </Link>
+            <span className="nums flex shrink-0 items-baseline gap-x-3 text-white/60">
+              <span>{t(locale, 'lanes.tripsInline').replace('{n}', String(l.loads))}</span>
+              <span className="text-white/85">{usd.format(l.avgRate)}</span>
+              <span
+                className={`font-semibold ${
+                  l.rpm >= 2 ? 'text-good-400' : l.rpm >= 1.5 ? 'text-white/85' : 'text-warn-400'
+                }`}
+              >
+                {usd2.format(l.rpm)}/mi
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
     </details>
   )
 }

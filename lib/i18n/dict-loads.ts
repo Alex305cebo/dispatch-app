@@ -37,6 +37,7 @@ export const loadsDict = {
   'lanes.trips': { ru: 'Рейсов', en: 'Trips', es: 'Viajes', uk: 'Рейсів', ro: 'Curse', kk: 'Рейстер' },
   'lanes.avgRate': { ru: 'Ср. ставка', en: 'Avg rate', es: 'Tarifa media', uk: 'Сер. ставка', ro: 'Tarif mediu', kk: 'Орт. мөлшерлеме' },
   'lanes.rpm': { ru: '$/миля', en: '$/mi', es: '$/milla', uk: '$/миля', ro: '$/milă', kk: '$/миль' },
+  'lanes.tripsInline': { ru: '{n} рейс(ов)', en: '{n} trip(s)', es: '{n} viaje(s)', uk: '{n} рейс(ів)', ro: '{n} curse', kk: '{n} рейс' },
   'lanes.avgNet': { ru: 'Ср. чистыми', en: 'Avg net', es: 'Neto medio', uk: 'Сер. чистими', ro: 'Net mediu', kk: 'Орт. таза' },
   'loads.search.placeholder': {
     ru: 'Маршрут, брокер, номер груза, водитель…',
