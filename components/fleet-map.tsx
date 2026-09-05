@@ -294,8 +294,10 @@ function popupHtml(m: MapMarker, openLabel: string): string {
   // The arrow: a clear "open the card" affordance. The tooltip is made interactive
   // and the whole plaque navigates (see the marker loop), so this doubles as the hint
   // and the visible click target.
+  // «Открыть →» — как кнопка, с фоном и по центру: на телефоне это единственная
+  // подсказка, что плашка нажимается.
   const open = m.href
-    ? `<div style="display:flex;align-items:center;gap:4px;margin-top:7px;padding-top:6px;border-top:1px solid rgba(128,128,128,.3);color:${DEST};font-weight:700">${esc(openLabel)} <span style="font-size:13px">→</span></div>`
+    ? `<div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:8px;padding:6px 10px;border-radius:8px;background:rgba(155,142,255,.16);color:${DEST};font-weight:700;font-size:12px">${esc(openLabel)} <span style="font-size:13px">→</span></div>`
     : ''
   return `<div style="font:500 11px/1.45 system-ui,sans-serif;min-width:130px">
     <div style="font-weight:700;font-size:12.5px;letter-spacing:.01em">${esc(m.label)}</div>
@@ -716,7 +718,14 @@ export function FleetMap({
           // link (wired below, on tooltipopen) navigates. Also opens the tooltip
           // explicitly: touch devices have no hover, so a tap is the only way a
           // phone user ever sees the plaque (and its link) at all.
+          // На телефоне наведения нет: первый тап по пину открывает плашку, второй —
+          // карточку. Иначе тап по пину лишь закрывал и открывал плашку, и было не
+          // понять, нажалось ли вообще.
           marker.on('click', () => {
+            if (marker.isTooltipOpen() && window.matchMedia('(pointer: coarse)').matches) {
+              go()
+              return
+            }
             map!.flyTo([m.lat, m.lng], Math.max(map!.getZoom(), POI_MIN_ZOOM), { duration: 0.6 })
             marker.openTooltip()
           })
@@ -744,6 +753,17 @@ export function FleetMap({
               ev.stopPropagation()
               go()
             })
+            // Тап по плашке на телефоне: Leaflet успевает закрыть плашку по touchend
+            // раньше, чем придёт click, и переход не срабатывал. Ловим сам touchend.
+            el.addEventListener(
+              'touchend',
+              (ev) => {
+                ev.preventDefault()
+                ev.stopPropagation()
+                go()
+              },
+              { passive: false },
+            )
           })
         } else {
           // Plain address pins with no card behind them keep the focus-in zoom.
