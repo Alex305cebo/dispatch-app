@@ -589,7 +589,15 @@ export function FleetMap({
         if (disposed) return
         // Empty map = "show me the whole fleet again". Leaflet doesn't bubble a marker
         // click up to the map, so this only ever fires for clicks that missed a pin.
-        map.on('click', () => selectRef.current?.(null))
+        map.on('click', () => {
+          selectRef.current?.(null)
+          // Тап по карте мимо пина закрывает открытые плашки (на телефоне они
+          // сами не закрываются — см. scheduleClose у маркера).
+          map!.eachLayer((l) => {
+            const mk = l as import('leaflet').Marker
+            if (typeof mk.isTooltipOpen === 'function' && mk.isTooltipOpen()) mk.closeTooltip()
+          })
+        })
         overlayRef.current = L.layerGroup().addTo(map)
         buildStateLabels(L).addTo(map)
         // Зум → атрибут на контейнере; CSS решает, код или имя показывать и когда прятать.
@@ -734,7 +742,12 @@ export function FleetMap({
           // instant close and keep the plaque open while the cursor is over EITHER
           // the marker or the plaque, closing on a short delay once it leaves both.
           let closeT: ReturnType<typeof setTimeout> | undefined
+          // На телефоне после тапа браузер шлёт эмуляцию mouseout — и плашка исчезала
+          // через 160 мс, раньше, чем её успевали прочитать. Там она закрывается
+          // только тапом по карте мимо пина (см. map.on('click') ниже).
+          const coarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
           const scheduleClose = () => {
+            if (coarse) return
             closeT = setTimeout(() => marker.closeTooltip(), 160)
           }
           const keepOpen = () => {
