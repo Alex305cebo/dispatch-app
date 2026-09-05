@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { Notifier } from '@/components/notifier'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { LocaleToggle } from '@/components/locale-toggle'
 import { autoRefreshFleet } from '@/app/actions'
 import { UserPanel } from '@/components/user-panel'
 import type { CurrentUser } from '@/lib/session'
@@ -407,22 +406,9 @@ export function Nav({
         // 5-second idle countdown, not just the tap that first opened it.
         onClickCapture={bumpDockTimer}
       >
-        {/* Phone keeps all four out where the thumb is. Desktop shows only the bell —
-            it is the one control that reports something (alert tints) rather than just
-            offering a switch — and folds language, journal and theme into the account
-            menu, which is where this class of app puts them. `contents` so the wrapper
-            adds no box of its own; `md:hidden` then removes the group wholesale. */}
-        <span className="contents md:hidden">
-          <LocaleToggle collapsed={!dockExpanded} />
-          {/* Журнал — только администратору: страница показывает входы всех
-              сотрудников с IP, городом и устройством. Сама страница тоже это
-              проверяет (app/logins/page.tsx), здесь просто не предлагаем то, что
-              всё равно закрыто. */}
-          {user?.role === 'admin' && (
-            <JournalLink pathname={pathname} locale={locale} collapsed={!dockExpanded} />
-          )}
-          <ThemeToggle collapsed={!dockExpanded} />
-        </span>
+        {/* На телефоне — только аватар, колокольчик и «?»: язык, журнал и тема
+            живут в меню аккаунта, как и на десктопе. Четыре лишних кружка поверх
+            контента читались как беспорядок. */}
         {/* Avatar first, bell to its RIGHT: the account button is the anchor of this
             row — it is what opens the menu — and an anchor belongs at the end of the
             group it owns, not buried mid-row. */}
@@ -439,7 +425,7 @@ export function Nav({
             }
           />
         )}
-        <Notifier collapsed={!dockExpanded} />
+        <Notifier collapsed={false} />
         {/* Сюда components/tour.tsx подселяет кнопку «Как это работает» — она
             принадлежит ряду аккаунта, а не плавает над страницей. */}
         <span id="tour-launcher-slot" className="contents" />
