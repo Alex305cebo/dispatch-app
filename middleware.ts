@@ -37,6 +37,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next({ request: { headers } })
   }
 
+  // Страница водителя и её обработчик — по токену в адресе, без сессии
+  // (app/d/[token], app/api/driver/[token]). Серверные экшены там так же запрещены.
+  if ((req.nextUrl.pathname.startsWith('/d/') || req.nextUrl.pathname.startsWith('/api/driver/')) && !isAction) {
+    return NextResponse.next({ request: { headers } })
+  }
+
   // The session FIRST, and the open-access flag only if there isn't one. This ordering
   // is not a preference:
   //
@@ -59,7 +65,7 @@ export async function middleware(req: NextRequest) {
   if (!user) {
     // Действие без сессии на публичном адресе — отказ, а не переход на /login:
     // переход отдал бы 200 со страницей входа, и вызывающий счёл бы, что сработало.
-    if (isAction && (req.nextUrl.pathname.startsWith('/track/') || req.nextUrl.pathname.startsWith('/demo'))) {
+    if (isAction && (req.nextUrl.pathname.startsWith('/track/') || req.nextUrl.pathname.startsWith('/demo') || req.nextUrl.pathname.startsWith('/d/'))) {
       return new NextResponse('Unauthorized', { status: 401 })
     }
     // Open-access mode (admin-panel switch, app/admin/actions.ts): the whole app works

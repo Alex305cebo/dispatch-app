@@ -1080,6 +1080,19 @@ export async function setDocumentKind(docId: number, kind: string): Promise<{ er
   }
 }
 
+/** Постоянная ссылка на страницу водителя этого трака (lib/driver-link.ts). */
+export async function getDriverLink(truckId: number): Promise<{ url: string } | { error: string }> {
+  const companyId = await companyScope()
+  if (companyId === 'demo') return { error: 'demo' }
+  if (!(await truckBelongs(companyId, truckId))) return { error: 'truck' }
+  const { driverTokenFor } = await import('@/lib/driver-link')
+  const token = await driverTokenFor(truckId)
+  const h = await headers()
+  const host = h.get('x-forwarded-host') ?? h.get('host') ?? ''
+  const proto = h.get('x-forwarded-proto') ?? 'https'
+  return { url: `${proto}://${host}/d/${token}` }
+}
+
 export async function attachDocumentToLoad(docId: number, loadId: number): Promise<void> {
   const ro = await demoReadOnly()
   if (ro) return

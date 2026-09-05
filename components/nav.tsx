@@ -127,6 +127,8 @@ export function Nav({
   urgentDocs: number
 }) {
   const pathname = usePathname()
+  // Страница водителя (/d/<token>) — без навигации: у водителя нет доступа к приложению.
+  const driverPage = pathname.startsWith('/d/')
   const router = useRouter()
   const locale = useLocale()
   const brand = brandName(companyName)
@@ -257,6 +259,8 @@ export function Nav({
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
+
+  if (driverPage) return null
 
   return (
     <nav

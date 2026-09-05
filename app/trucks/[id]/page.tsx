@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { BackButton } from '@/components/back-button'
 import { PairBar } from '@/components/pair-bar'
+import { DriverLinkButton } from '@/components/driver-link-button'
 import { sql } from '@/lib/db'
 import { getTruck, listDocs, listLoads, rateConByLoad } from '@/lib/loads'
 import { currentLoadsByTruck, truckLabel } from '@/lib/map'
@@ -232,7 +233,8 @@ export default async function Page({
 
           {/* Manual availability — dims the truck across the app and pulls it out of
               the "free" counters until it's flipped back. */}
-          <div className="mt-2.5">
+          <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2">
+            <DriverLinkButton truckId={truck.id} />
             <TruckAvailability truckId={truck.id} current={truck.unavailable} locale={locale} />
           </div>
         </div>
