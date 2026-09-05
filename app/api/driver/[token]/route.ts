@@ -5,6 +5,7 @@ import { truckByDriverToken } from '@/lib/driver-link'
 import { listLoads } from '@/lib/loads'
 import { currentLoadsByTruck } from '@/lib/map'
 import { autoInvoiceIfReady } from '@/lib/invoice'
+import { addLoadEvent } from '@/lib/load-events'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,9 +14,9 @@ const MAX_BYTES = 8 * 1024 * 1024
 /**
  * Действия со страницы водителя (app/d/[token]). Не серверный экшен, а обычный
  * POST с токеном в адресе: у водителя нет сессии, а экшены берут личность из неё.
- * Токен — единственный ключ, и он даёт ровно два права на ОДИН трак: сменить статус
- * его текущего груза (забукирован → в пути → доставлен) и подшить к нему фото.
- * Ни ставок, ни других траков, ни удаления.
+ * Токен — единственный ключ, и он даёт права только на ОДИН трак: отметить шаг
+ * рейса (приехал / загрузился / приехал / выгрузился), написать диспетчеру и
+ * подшить фото к своему грузу. Ни ставок, ни других траков, ни удаления.
  */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ token: string }> }) {
   const { token } = await ctx.params
@@ -29,6 +30,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
   const fd = await req.formData()
   const action = String(fd.get('action') || '')
 
+  // «Приехал на погрузку» / «Приехал на выгрузку» — только отметка времени, статус
+  // не меняется. Это время и есть доказательство детеншена.
+  if (action === 'arrived') {
+    if (!load) return NextResponse.json({ error: 'no load' }, { status: 409 })
+    const kind = load.status === 'booked' ? 'arrived_pickup' : load.status === 'in_transit' ? 'arrived_delivery' : null
+    if (!kind) return NextResponse.json({ error: 'bad state' }, { status: 409 })
+    await addLoadEvent(truck.companyId, load.id, truck.id, kind)
+    revalidate(truck.id, load.id)
+    return NextResponse.json({ ok: true })
+  }
+
   if (action === 'status') {
     if (!load) return NextResponse.json({ error: 'no load' }, { status: 409 })
     const to = String(fd.get('to') || '')
@@ -36,8 +48,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
     const ok = (load.status === 'booked' && to === 'in_transit') || (load.status === 'in_transit' && to === 'delivered')
     if (!ok) return NextResponse.json({ error: 'bad transition' }, { status: 409 })
     await sql`UPDATE loads SET status = ${to} WHERE id = ${load.id} AND company_id = ${truck.companyId}`
+    await addLoadEvent(truck.companyId, load.id, truck.id, to === 'in_transit' ? 'loaded' : 'delivered')
     revalidate(truck.id, load.id)
     return NextResponse.json({ ok: true, status: to })
+  }
+
+  // Сообщение диспетчеру: сломался, задержка, вопрос. Водитель пишет сам — это не
+  // автоматическое сообщение. Диспетчер видит его на грузе и в уведомлениях.
+  if (action === 'note') {
+    const text = String(fd.get('text') || '').trim().slice(0, 500)
+    if (!text) return NextResponse.json({ error: 'empty' }, { status: 400 })
+    await addLoadEvent(truck.companyId, load?.id ?? null, truck.id, 'note', text)
+    revalidate(truck.id, load?.id ?? null)
+    return NextResponse.json({ ok: true })
   }
 
   if (action === 'photo') {
@@ -58,6 +81,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
                 ${file.type || 'application/octet-stream'}, ${file.size}, decode(${hex}, 'hex'), ${truck.companyId})`
       saved++
     }
+    if (saved) await addLoadEvent(truck.companyId, load?.id ?? null, truck.id, 'photo', `${kind.toUpperCase()} × ${saved}`)
     if (load && kind === 'pod') await autoInvoiceIfReady(truck.companyId, load.id)
     revalidate(truck.id, load?.id ?? null)
     return NextResponse.json({ ok: true, saved })

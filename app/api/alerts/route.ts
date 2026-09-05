@@ -6,6 +6,7 @@ import { t } from '@/lib/i18n'
 import { fleetExpiryAlerts } from '@/lib/maintenance'
 import { listLoads, listReceivables } from '@/lib/loads'
 import { can } from '@/lib/capabilities-server'
+import { recentDriverNotes } from '@/lib/load-events'
 
 export const dynamic = 'force-dynamic'
 
@@ -83,6 +84,16 @@ export async function GET() {
       if (!hasPod.has(l.id) && Number.isFinite(since) && now - since > 36 * 3_600_000)
         items.push({ id: `pod:${l.id}`, kind: 'warn', text: t(locale, 'alerts.noPod').replace('{route}', `${l.origin ?? '—'} → ${l.destination ?? '—'}`), href: `/loads/${l.id}` })
     }
+  }
+
+  // Сообщения водителей со страницы /d/: «задерживаюсь», «поломка», «жду на складе».
+  for (const n of await recentDriverNotes(companyId)) {
+    items.push({
+      id: `dnote:${n.id}`,
+      kind: 'warn',
+      text: t(locale, 'alerts.driverNote').replace('{truck}', n.truckNumber ?? '').replace('{text}', n.note ?? ''),
+      href: n.loadId ? `/loads/${n.loadId}` : n.truckId ? `/trucks/${n.truckId}` : '/',
+    })
   }
 
   return NextResponse.json({ items })

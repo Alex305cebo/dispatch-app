@@ -8,13 +8,21 @@ import type { BackhaulBroker } from '@/lib/backhaul'
  * выгрузку. Свои брокеры, что уже давали грузы из этого штата: телефон одним
  * нажатием, средняя ставка и как платят. */
 export function BackhaulList({ state, brokers, locale }: { state: string; brokers: BackhaulBroker[]; locale: Locale }) {
-  if (!brokers.length) return null
   return (
     <section className="panel mt-4 p-4">
       <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
         {t(locale, 'backhaul.heading').replace('{state}', state)}
         <Info text={t(locale, 'backhaul.info')} />
       </h2>
+      {/* Пусто — сказать прямо, почему, и не прятать секцию: иначе её не находят. */}
+      {!brokers.length && (
+        <p className="text-[13px] text-white/55">
+          {t(locale, 'backhaul.empty').replace('{state}', state)}{' '}
+          <Link href="/brokers" className="text-haul-300 hover:underline">
+            {t(locale, 'backhaul.allBrokers')}
+          </Link>
+        </p>
+      )}
       <ul className="flex flex-col gap-1.5">
         {brokers.map((b) => (
           <li key={b.key} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-white/8 px-3 py-2">

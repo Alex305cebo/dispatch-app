@@ -104,6 +104,8 @@ export default async function Page({
         : Promise.resolve(null),
     ])
   const fs = truck.number ? fleet.get(truck.number) : undefined
+  // Когда водитель последний раз открывал свою страницу — видно, что ссылка живая.
+  const driverSeen = await getSetting(`driver_seen:${truck.id}`)
 
   const live = loads.filter((l) => l.status !== 'cancelled')
   const rows = live.map((l) => ({ load: l, r: calcLoad(l, truck) }))
@@ -234,7 +236,7 @@ export default async function Page({
           {/* Manual availability — dims the truck across the app and pulls it out of
               the "free" counters until it's flipped back. */}
           <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2">
-            <DriverLinkButton truckId={truck.id} />
+            <DriverLinkButton truckId={truck.id} driverPhone={meta?.driverPhone ?? null} seenAt={driverSeen} />
             <TruckAvailability truckId={truck.id} current={truck.unavailable} locale={locale} />
           </div>
         </div>

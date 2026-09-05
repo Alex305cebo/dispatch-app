@@ -31,6 +31,8 @@ import { BackhaulList } from '@/components/backhaul-list'
 import { backhaulBrokers } from '@/lib/backhaul'
 import { brokerGradeFor } from '@/lib/brokers'
 import { fuelPlan } from '@/lib/fuel-plan'
+import { listLoadEvents } from '@/lib/load-events'
+import { DriverTimeline } from '@/components/driver-timeline'
 import { DriverInfoCard } from '@/components/driver-info-card'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
@@ -61,11 +63,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   // Обратный груз ищут, пока трак едет: список «кому звонить» нужен только
   // забукированному и едущему грузу, доставленному он ни к чему.
   const wantBackhaul = load.status === 'booked' || load.status === 'in_transit'
-  const [truckMeta, laneAvgRpm, backhaul, brokerGrade] = await Promise.all([
+  const [truckMeta, laneAvgRpm, backhaul, brokerGrade, driverEvents] = await Promise.all([
     getTruckMeta(truck.id),
     laneAvgRpmFor(companyId, load.origin, load.destination, load.id),
     wantBackhaul ? backhaulBrokers(companyId, load.destination) : Promise.resolve(null),
     brokerGradeFor(companyId, load.brokerMc, load.brokerEmail, load.brokerName),
+    listLoadEvents(companyId, load.id),
   ])
 
   // Never throws: the DB CHECKs mirror calcLoad's throw conditions, so every stored
@@ -167,7 +170,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           пока не ответит бесплатный OSRM. Теперь цифры, документы и расчёт приходят
           сразу, а карта втекает следом в свою границу. */}
       <Suspense fallback={<MapSkeleton />}>
-        <LoadMapSection load={load} truck={truck} fs={fs} locale={locale} />
+        <LoadMapSection
+          load={load}
+          truck={truck}
+          fs={fs}
+          locale={locale}
+          arrivedAt={
+            [...driverEvents].reverse().find((e) => e.kind === (load.status === 'in_transit' ? 'arrived_delivery' : 'arrived_pickup'))?.at ?? null
+          }
+        />
       </Suspense>
 
       {/* Медленный плательщик — сказать до того, как груз взят и повезён: по своей
@@ -180,6 +191,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             {brokerGrade.payDays != null && ` · ${t(locale, 'brokers.paysIn').replace('{n}', String(brokerGrade.payDays))}`}
           </span>
         </div>
+      )}
+
+      {/* Хронология от водителя — сразу под шапкой: это ответ на «где он и что
+          делает» без звонка. Пусто — подсказка, откуда взять ссылку. */}
+      {load.status !== 'cancelled' && (
+        <DriverTimeline events={driverEvents} locale={locale} truckId={truck.id} />
       )}
 
       {backhaul && <BackhaulList state={backhaul.state} brokers={backhaul.brokers} locale={locale} />}
@@ -303,11 +320,14 @@ async function LoadMapSection({
   truck,
   fs,
   locale,
+  arrivedAt,
 }: {
   load: Awaited<ReturnType<typeof getLoad>>
   truck: Parameters<typeof loadMapData>[1]
   fs: Parameters<typeof loadMapData>[2]
   locale: Awaited<ReturnType<typeof getLocale>>
+  /** Водитель нажал «Приехал» — время детеншена берём от него, а не по GPS. */
+  arrivedAt: string | null
 }) {
   if (!load) return null
   const { rate: detentionRate, free: detentionFree } = await detentionTerms()
@@ -428,8 +448,8 @@ async function LoadMapSection({
               {live.detention && live.detention.min >= 30 && (
                 <DetentionTile
                   at={live.detention.at}
-                  sinceIso={live.detention.sinceIso}
-                  min={live.detention.min}
+                  sinceIso={arrivedAt ?? live.detention.sinceIso}
+                  min={arrivedAt ? Math.max(live.detention.min, Math.round((Date.now() - Date.parse(arrivedAt)) / 60_000)) : live.detention.min}
                   rateHr={detentionRate}
                   freeHr={detentionFree}
                   ref={load.referenceId}

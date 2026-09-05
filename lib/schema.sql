@@ -426,7 +426,7 @@ CREATE TABLE IF NOT EXISTS app_errors (
 );
 CREATE INDEX IF NOT EXISTS app_errors_at ON app_errors(at DESC);
 
-INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-04')
+INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-06')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- Через кого брокер платит перевозчикам (TriumphPay, Comdata, RTS…), если рейт-кон
@@ -463,3 +463,18 @@ UPDATE trucks SET insurance_per_day = 0 WHERE insurance_per_day = 'NaN';
 UPDATE trucks SET eld_permits_per_day = 0 WHERE eld_permits_per_day = 'NaN';
 UPDATE trucks SET factoring_percent = 0 WHERE factoring_percent = 'NaN';
 UPDATE trucks SET dispatch_percent = 0 WHERE dispatch_percent = 'NaN';
+
+-- Хронология рейса от водителя (страница /d/<token>): приехал на погрузку,
+-- загрузился, приехал на выгрузку, выгрузился, сообщение диспетчеру, фото.
+-- Время «приехал» — доказательство детеншена, которое раньше никто не записывал.
+CREATE TABLE IF NOT EXISTS load_events (
+  id          SERIAL PRIMARY KEY,
+  company_id  TEXT NOT NULL DEFAULT 'default',
+  load_id     INTEGER REFERENCES loads(id) ON DELETE CASCADE,
+  truck_id    INTEGER REFERENCES trucks(id) ON DELETE SET NULL,
+  kind        TEXT NOT NULL,
+  note        TEXT,
+  at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS load_events_load ON load_events(load_id);
+CREATE INDEX IF NOT EXISTS load_events_at ON load_events(company_id, at DESC);
