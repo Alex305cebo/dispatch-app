@@ -34,7 +34,7 @@ export function DriverTimeline({ events, locale, truckId }: { events: LoadEvent[
       </h2>
       {events.length === 0 ? (
         <Empty
-          compact
+          row
           icon={Smartphone}
           title={t(locale, 'driver.timeline.noneTitle')}
           text={t(locale, 'driver.timeline.none')}

@@ -13,6 +13,7 @@ export function Empty({
   text,
   action,
   compact,
+  row,
 }: {
   icon: LucideIcon
   title: string
@@ -21,7 +22,28 @@ export function Empty({
   action?: { href: string; label: string; icon?: React.ReactNode }
   /** Inside an already-bordered panel or a narrow column — drops the frame and padding. */
   compact?: boolean
+  /** Строкой: иконка, текст и кнопка в один ряд. Для пустой секции ВНУТРИ страницы,
+   * где столбик по центру занимает пол-экрана ради одной фразы. */
+  row?: boolean
 }) {
+  if (row) {
+    return (
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-white/[0.05] text-white/30 ring-1 ring-white/8">
+          <Icon size={16} strokeWidth={1.75} />
+        </span>
+        <div className="min-w-0 flex-1 basis-[14rem]">
+          <p className="text-[13px] font-semibold text-white/85">{title}</p>
+          {text && <p className="text-[12.5px] leading-snug text-white/50">{text}</p>}
+        </div>
+        {action && (
+          <Button href={action.href} variant="secondary" size="sm" icon={action.icon} className="shrink-0">
+            {action.label}
+          </Button>
+        )}
+      </div>
+    )
+  }
   return (
     <div
       className={

@@ -19,7 +19,7 @@ export function BackhaulList({ state, brokers, locale }: { state: string; broker
       {/* Пусто — сказать прямо, почему, и не прятать секцию: иначе её не находят. */}
       {!brokers.length && (
         <Empty
-          compact
+          row
           icon={PhoneCall}
           title={t(locale, 'backhaul.emptyTitle').replace('{state}', state)}
           text={t(locale, 'backhaul.empty')}
