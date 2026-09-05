@@ -66,6 +66,9 @@ export type LoadMapData = {
     offRouteMi: number | null
     /** Мили до пикапа, пока груз ещё booked, — вторая строка бейджа на карте. */
     toPickupMi: number | null
+    /** Стоит У пикапа или у выгрузки: с какого момента и сколько минут. Это и есть
+     * детеншен — время, которое брокер должен оплатить сверх бесплатных часов. */
+    detention: { at: 'pickup' | 'delivery'; sinceIso: string; min: number } | null
   }
 }
 
@@ -95,7 +98,7 @@ export async function loadMapData(
   let etaText: string | null = null
   let miles: number | null = null
   let etaMin: number | null = null
-  const live: LoadMapData['live'] = { realEtaMin: null, slackMin: null, idleMin: null, offRouteMi: null, toPickupMi: null }
+  const live: LoadMapData['live'] = { realEtaMin: null, slackMin: null, idleMin: null, offRouteMi: null, toPickupMi: null, detention: null }
 
   // Prefer the RC's exact street address over the bare city — pins the real dock,
   // not just the city center. Falls back to ZIP then city if OSM can't resolve that
@@ -261,10 +264,15 @@ export async function loadMapData(
 
   // Простой: стоит — но не у пикапа и не у выгрузки, там стоять положено.
   if (trail?.idleAt && load) {
-    const nearStop = [pickup, legToDelivery]
-      .filter((p): p is NonNullable<typeof p> => p != null)
-      .some((p) => haversineMiles({ lat, lng }, { lat: p.lat, lng: p.lng }) < 5)
-    if (!nearStop) live.idleMin = Math.round((Date.now() - trail.idleAt.getTime()) / 60_000)
+    const min = Math.round((Date.now() - trail.idleAt.getTime()) / 60_000)
+    const atPickup = pickup != null && haversineMiles({ lat, lng }, { lat: pickup.lat, lng: pickup.lng }) < 5
+    const atDelivery =
+      legToDelivery != null && haversineMiles({ lat, lng }, { lat: legToDelivery.lat, lng: legToDelivery.lng }) < 5
+    if (atPickup || atDelivery) {
+      // Стоит у склада: это детеншен, а не простой. Считаем с момента остановки.
+      // У забукированного груза стоянка у пикапа — погрузка; у едущего у выгрузки — выгрузка.
+      live.detention = { at: atDelivery && load.status === 'in_transit' ? 'delivery' : 'pickup', sinceIso: trail.idleAt.toISOString(), min }
+    } else live.idleMin = min
   }
 
   // Уход с маршрута — только когда груз уже везётся: расстояние до плановой линии

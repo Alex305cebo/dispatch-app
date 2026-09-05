@@ -25,6 +25,8 @@ import { RateConButton } from '@/components/ratecon-button'
 import { DocButton } from '@/components/doc-button'
 import { BackButton } from '@/components/back-button'
 import { PairBar } from '@/components/pair-bar'
+import { DetentionTile } from '@/components/detention-tile'
+import { getSettings } from '@/lib/settings'
 import { BackhaulList } from '@/components/backhaul-list'
 import { backhaulBrokers } from '@/lib/backhaul'
 import { DriverInfoCard } from '@/components/driver-info-card'
@@ -272,6 +274,15 @@ function MapSkeleton() {
  * Отдельным серверным куском под Suspense — потому что здесь и только здесь
  * страница ждёт чужие службы: геокодер на адреса и маршрутизатор на дорогу.
  */
+/** Условия детеншена компании: settings detention_rate_hr / detention_free_hr,
+ * по умолчанию $35 в час после 2 бесплатных — так пишут в большинстве рейт-конов. */
+async function detentionTerms(): Promise<{ rate: number; free: number }> {
+  const s = await getSettings(['detention_rate_hr', 'detention_free_hr'])
+  const rate = Number(s.get('detention_rate_hr'))
+  const free = Number(s.get('detention_free_hr'))
+  return { rate: Number.isFinite(rate) && rate > 0 ? rate : 35, free: Number.isFinite(free) && free >= 0 ? free : 2 }
+}
+
 async function LoadMapSection({
   load,
   truck,
@@ -284,6 +295,7 @@ async function LoadMapSection({
   locale: Awaited<ReturnType<typeof getLocale>>
 }) {
   if (!load) return null
+  const { rate: detentionRate, free: detentionFree } = await detentionTerms()
   const { markers: mapMarkers, routes: mapRoutes, miles: routeMiles, etaMin, live } = await loadMapData(
     load,
     truck,
@@ -390,6 +402,20 @@ async function LoadMapSection({
                     )}
                   </div>
                 </div>
+              )}
+              {/* Стоит у склада 30+ минут — детеншен: время, сумма по условиям и
+                  письмо брокеру в буфер. Отправка только руками. */}
+              {live.detention && live.detention.min >= 30 && (
+                <DetentionTile
+                  at={live.detention.at}
+                  sinceIso={live.detention.sinceIso}
+                  min={live.detention.min}
+                  rateHr={detentionRate}
+                  freeHr={detentionFree}
+                  ref={load.referenceId}
+                  route={`${load.origin ?? '—'} → ${load.destination ?? '—'}`}
+                  truck={truckLabel(truck)}
+                />
               )}
               {/* Стоит 2+ часа не у пикапа и не у выгрузки: поломка, сон или
                   детеншн не там — повод позвонить, пока не позвонил брокер. */}
