@@ -554,36 +554,18 @@
    whole thing off the rail. The gradient fill stays underneath all of it, so the
    colour reads as seen THROUGH the material rather than painted on top. */
 .nav-avatar-btn {
-  /* Плоский современный аватар (как у Linear/Stripe): ровный градиент одного
-     оттенка, тонкое двойное кольцо с зазором, мягкая тень. Прежний «стеклянный
-     шар» с бликами и внутренними тенями выглядел как кнопка из 2010-х. */
-  position: relative;
-  background: linear-gradient(135deg, var(--color-haul-400) 0%, var(--color-haul-600) 100%);
-  letter-spacing: 0.03em;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+  /* Просто: ровная таблетка с именем, как у остальных кнопок ряда. Ни градиента,
+     ни колец, ни теней — владелец попросил именно так. */
+  background: rgba(128, 128, 128, 0.14);
+  border: 1px solid rgba(128, 128, 128, 0.25);
   transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
-  box-shadow:
-    0 0 0 2px var(--color-ink-950),
-    0 0 0 3.5px rgba(155, 142, 255, 0.45),
-    0 4px 12px -4px rgba(0, 0, 0, 0.5);
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
-.nav-avatar-btn:hover {
-  transform: translateY(-1px);
-  box-shadow:
-    0 0 0 2px var(--color-ink-950),
-    0 0 0 3.5px rgba(155, 142, 255, 0.85),
-    0 6px 14px -4px rgba(0, 0, 0, 0.55);
-}
-.nav-avatar-btn:active {
-  transform: scale(0.96);
-}
+.nav-avatar-btn:hover,
 .nav-avatar-btn[aria-expanded='true'] {
-  box-shadow:
-    0 0 0 2px var(--color-ink-950),
-    0 0 0 3.5px var(--color-haul-400),
-    0 6px 14px -4px rgba(0, 0, 0, 0.55);
+  background: rgba(128, 128, 128, 0.24);
+  border-color: rgba(128, 128, 128, 0.45);
 }
 /* Свёрнутый рельс сайдбара: остаётся один кружок с инициалами. */
 .nav-collapsed .nav-avatar-btn {
@@ -597,12 +579,6 @@
 }
 .nav-collapsed .nav-avatar-btn .nav-avatar-initials {
   display: inline;
-}
-:root[data-theme='light'] .nav-avatar-btn {
-  box-shadow:
-    0 0 0 2px #ffffff,
-    0 0 0 3.5px rgba(124, 108, 255, 0.5),
-    0 4px 12px -4px rgba(15, 23, 42, 0.25);
 }
 /* The desktop override that used to sit here stripped every shadow back to a 1px ring,
    which is exactly why the avatar read as a flat coloured circle in the sidebar. The

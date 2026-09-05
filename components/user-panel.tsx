@@ -231,11 +231,11 @@ export function UserPanel({
         aria-label={user.name}
         aria-expanded={open}
         data-tour="avatar"
-        className="nav-avatar-btn flex h-9 max-w-[11rem] shrink-0 items-center justify-center rounded-full px-3.5 text-white"
+        className="nav-avatar-btn flex h-9 max-w-[11rem] shrink-0 items-center justify-center rounded-full px-3.5 text-white/90"
       >
         {/* Просто «Alex C.» — имя и первая буква фамилии. Без кружка с инициалами:
             имя само говорит, кто вошёл. В свёрнутом рельсе остаются инициалы. */}
-        <span className="nav-avatar-name min-w-0 truncate text-[13px] font-semibold">{shortName(user.name)}</span>
+        <span className="nav-avatar-name min-w-0 truncate text-[13px] font-medium">{shortName(user.name)}</span>
         <span className="nav-avatar-initials hidden text-[12px] font-semibold">{initialsOf(user.name)}</span>
       </button>
 
