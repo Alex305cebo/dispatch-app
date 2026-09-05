@@ -83,6 +83,41 @@
 }
 
 @layer base {
+  /* Визуальная отдача на любом нажатии. Почти все переходы на сайте выглядели
+     мёртвыми: ни подсветки при наведении, ни отклика при нажатии. Одно правило на
+     всё: ссылки и кнопки чуть светлеют под курсором и слегка сжимаются при нажатии.
+     Элементы со своими эффектами это не ломает — их правила специфичнее. */
+  a[href],
+  button,
+  [role='button'],
+  summary {
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease,
+      opacity 0.15s ease,
+      transform 0.1s ease,
+      filter 0.15s ease;
+  }
+  a[href]:hover,
+  [role='button']:hover,
+  summary:hover {
+    filter: brightness(1.12);
+  }
+  a[href]:active,
+  button:not(:disabled):active,
+  [role='button']:active {
+    transform: scale(0.985);
+  }
+  a[href]:focus-visible,
+  button:focus-visible,
+  [role='button']:focus-visible,
+  summary:focus-visible {
+    outline: 2px solid var(--color-haul-400);
+    outline-offset: 2px;
+  }
+
   html {
     color-scheme: dark;
     -webkit-tap-highlight-color: transparent;

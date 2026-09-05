@@ -268,8 +268,8 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
         handle(e.dataTransfer.files)
       }}
       animate={{ scale: drag ? 1.01 : 1 }}
-      className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-4 py-6 text-center transition-colors ${
-        drag ? 'border-haul-500/60 bg-haul-500/10' : 'border-white/15 hover:border-white/30'
+      className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-6 text-center transition-colors ${
+        drag ? 'border-haul-400 bg-haul-500/15' : 'border-haul-500/40 bg-haul-500/[0.05] hover:border-haul-400/80 hover:bg-haul-500/10'
       }`}
     >
       <input
@@ -291,9 +291,26 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
         </>
       ) : (
         <>
-          <span className="text-[14px] font-medium">{t(locale, 'rcDrop.dropCta')}</span>
-          <span className="mt-0.5 text-[12px] text-white/55">{t(locale, 'rcDrop.dropSubtext')}</span>
-          <span className="mt-0.5 text-[11.5px] text-white/45">{t(locale, 'rcDrop.withDriverInfo')}</span>
+          {/* Что это и что произойдёт — словами и одной большой кнопкой. Раньше зона
+              была пунктирным прямоугольником с текстом, и было не понять, куда
+              нажимать и что случится. */}
+          <span className="flex size-12 items-center justify-center rounded-full bg-haul-500/15 text-haul-300">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-6" aria-hidden>
+              <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+              <path d="M14 3v5h5" />
+              <path d="M12 18v-6" />
+              <path d="M9 15l3-3 3 3" />
+            </svg>
+          </span>
+          <span className="mt-3 text-[15px] font-semibold">{t(locale, 'rcDrop.title')}</span>
+          <span className="mt-1 max-w-md text-[12.5px] leading-relaxed text-white/60">{t(locale, 'rcDrop.explain')}</span>
+          <span className="mt-4 inline-flex items-center gap-2 rounded-xl bg-haul-500 px-5 py-2.5 text-[14px] font-semibold text-white shadow-lg shadow-haul-500/25 transition-transform hover:bg-haul-400 active:scale-[0.98]">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="size-4" aria-hidden>
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            {t(locale, 'rcDrop.chooseFile')}
+          </span>
+          <span className="mt-2.5 text-[11.5px] text-white/45">{t(locale, 'rcDrop.orDrop')}</span>
         </>
       )}
       {error && (
