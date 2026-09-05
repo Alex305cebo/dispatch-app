@@ -230,9 +230,14 @@ export function UserPanel({
         aria-label={user.name}
         aria-expanded={open}
         data-tour="avatar"
-        className="nav-avatar-btn flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-haul-500 to-good-500 text-[12px] font-semibold text-white"
+        className="nav-avatar-btn flex h-9 max-w-[11rem] shrink-0 items-center gap-2 rounded-full pl-1 pr-3 text-left text-white"
       >
-        {initialsOf(user.name)}
+        {/* Таблетка: кружок с инициалами и полное имя. Одни инициалы не говорят,
+            кто вошёл, — а это первое, что проверяют на общем компьютере диспетчерской. */}
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/20 text-[11px] font-semibold">
+          {initialsOf(user.name)}
+        </span>
+        <span className="nav-avatar-name min-w-0 truncate text-[13px] font-semibold">{user.name}</span>
       </button>
 
       {open && (
@@ -241,7 +246,7 @@ export function UserPanel({
         <div className="user-menu fixed inset-x-3 top-14 z-[55] mx-auto max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-ink-900 shadow-2xl md:bottom-16 md:left-3 md:right-auto md:top-auto md:mx-0 md:w-[18rem] md:max-w-none">
           {/* 1. Кто ты. Меню аккаунта начинается с аккаунта. */}
           <div className="flex items-center gap-3 border-b border-white/8 px-3 py-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-haul-500 to-good-500 text-[13px] font-semibold text-white">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-haul-400 to-haul-600 text-[13px] font-semibold text-white">
               {initialsOf(user.name)}
             </span>
             <span className="min-w-0 flex-1">
