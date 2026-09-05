@@ -414,9 +414,16 @@
      from Ashland, VA" whole and lets the box grow to the widest line — instead of
      the default squeezing every word onto its own line. */
   white-space: nowrap;
+  /* На телефоне плашка не шире экрана: длинные строки переносятся. */
+  max-width: min(280px, calc(100vw - 48px));
   /* Leaflet tooltips default to pointer-events:none; ours carry a clickable
      "Открыть →" arrow (fleet-map.tsx), so the box must receive clicks/hover. */
   pointer-events: auto;
+}
+@media (max-width: 639px) {
+  .fleet-map .leaflet-tooltip {
+    white-space: normal;
+  }
 }
 .fleet-map .leaflet-tooltip-top:before {
   border-top-color: var(--color-ink-900);

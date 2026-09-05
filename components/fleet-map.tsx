@@ -273,10 +273,12 @@ function popupHtml(m: MapMarker, openLabel: string): string {
   // Каждая строка — иконка в свою колонку + текст: раньше всё лепилось сплошным
   // столбцом одинакового серого, и адрес не отличался от даты. Ширина плавает от
   // содержимого до потолка из globals.css — плашка не распирает узкий экран.
-  const row = (icon: string, text: string, color = '#c7cdd8', weight = 500) =>
+  // Цвета — от темы (currentColor из .leaflet-tooltip в globals.css), а не вшитые
+  // белые: на светлой теме плашка белая, и белый текст в ней был невидим.
+  const row = (icon: string, text: string, color = 'inherit', weight = 500, opacity = 0.8) =>
     `<div style="display:flex;gap:6px;align-items:baseline;margin-top:3px">` +
     `<span style="width:13px;flex:none;text-align:center;opacity:.8">${icon}</span>` +
-    `<span style="color:${color};font-weight:${weight};min-width:0">${esc(text)}</span></div>`
+    `<span style="color:${color};opacity:${opacity};font-weight:${weight};min-width:0">${esc(text)}</span></div>`
 
   const kindIcon = m.kind === 'pickup' ? '📦' : m.kind === 'dest' ? '🏁' : '📍'
   const lines = (m.sub ?? '')
@@ -284,19 +286,19 @@ function popupHtml(m: MapMarker, openLabel: string): string {
     .filter(Boolean)
     .map((l, i) => row(i === 0 ? kindIcon : '', l))
     .join('')
-  const eta = m.eta ? row('🎯', m.eta, DEST, 600) : ''
+  const eta = m.eta ? row('🎯', m.eta, DEST, 600, 1) : ''
   // Считается в момент открытия плашки (bindTooltip получает функцию), а не при
   // создании маркера: карта живёт открытой минутами, и вшитое время успело бы соврать.
   const local = m.zone ? zoneTime(m.zone, new Date()) : null
-  const clock = local ? row('🕒', local, '#ffffff') : ''
+  const clock = local ? row('🕒', local, 'inherit', 600, 1) : ''
   // The arrow: a clear "open the card" affordance. The tooltip is made interactive
   // and the whole plaque navigates (see the marker loop), so this doubles as the hint
   // and the visible click target.
   const open = m.href
-    ? `<div style="display:flex;align-items:center;gap:4px;margin-top:7px;padding-top:6px;border-top:1px solid rgba(255,255,255,.12);color:${DEST};font-weight:700">${esc(openLabel)} <span style="font-size:13px">→</span></div>`
+    ? `<div style="display:flex;align-items:center;gap:4px;margin-top:7px;padding-top:6px;border-top:1px solid rgba(128,128,128,.3);color:${DEST};font-weight:700">${esc(openLabel)} <span style="font-size:13px">→</span></div>`
     : ''
   return `<div style="font:500 11px/1.45 system-ui,sans-serif;min-width:130px">
-    <div style="font-weight:700;font-size:12px;color:#fff;letter-spacing:.01em">${esc(m.label)}</div>
+    <div style="font-weight:700;font-size:12.5px;letter-spacing:.01em">${esc(m.label)}</div>
     ${clock}${lines}${eta}${open}
   </div>`
 }
