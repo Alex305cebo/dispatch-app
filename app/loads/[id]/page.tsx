@@ -9,7 +9,7 @@ import { fleetStatusByUnit, getTruckMeta } from '@/lib/maintenance'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
-import { driveTime } from '@/lib/fmt'
+import { driveTime, usd } from '@/lib/fmt'
 import { loadMapData } from '@/lib/load-map'
 import { FleetMap } from '@/components/fleet-map'
 import { LocalTime } from '@/components/local-time'
@@ -30,6 +30,7 @@ import { getSettings } from '@/lib/settings'
 import { BackhaulList } from '@/components/backhaul-list'
 import { backhaulBrokers } from '@/lib/backhaul'
 import { brokerGradeFor } from '@/lib/brokers'
+import { fuelPlan } from '@/lib/fuel-plan'
 import { DriverInfoCard } from '@/components/driver-info-card'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
@@ -317,6 +318,11 @@ async function LoadMapSection({
     locale,
   )
   if (mapMarkers.length === 0) return null
+  // План заправок по плановой линии маршрута (не по следу): цены EIA по регионам.
+  // Только пока груз везётся или забукирован — доставленному он ни к чему.
+  const planned = mapRoutes.find((r) => r.tone !== 'trail' && r.coords && r.coords.length > 1)?.coords
+  const fuel =
+    planned && (load.status === 'booked' || load.status === 'in_transit') ? await fuelPlan(planned).catch(() => null) : null
   // Часовой пояс ТАМ, ГДЕ ТРАК СЕЙЧАС, — офлайн по координатам GPS (lib/tz.ts).
   // Диспетчер и водитель почти никогда не в одном поясе, а окна погрузки и звонки
   // живут по времени водителя.
@@ -476,6 +482,39 @@ async function LoadMapSection({
                   </div>
                 )
               })()}
+            </div>
+          )}
+          {/* Дизель по пути: цена в каждом штате маршрута и где заливать полный бак. */}
+          {fuel && fuel.stops.length >= 2 && (
+            <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+              <div className="flex flex-wrap items-baseline gap-x-2 text-[10px] uppercase tracking-wider text-white/45">
+                {t(locale, 'fuel.heading')}
+                <span className="normal-case tracking-normal">· EIA {fuel.asOf}</span>
+              </div>
+              <div className="nums mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px]">
+                {fuel.stops.map((st, i) => (
+                  <span key={`${st.state}-${i}`} className="flex items-center gap-1.5">
+                    {i > 0 && <span className="text-white/30">→</span>}
+                    <span
+                      className={`rounded-md px-1.5 py-0.5 font-semibold ${
+                        st.state === fuel.cheapest.state
+                          ? 'bg-good-500/15 text-good-400'
+                          : st.state === fuel.priciest.state
+                            ? 'bg-bad-500/15 text-bad-400'
+                            : 'bg-white/6 text-white/80'
+                      }`}
+                      title={st.region ?? st.state}
+                    >
+                      {st.state} ${st.price.toFixed(2)}
+                    </span>
+                  </span>
+                ))}
+              </div>
+              {fuel.tankSavings >= 20 && (
+                <div className="mt-1 text-[12px] text-white/65">
+                  {t(locale, 'fuel.advice').replace('{state}', fuel.cheapest.state).replace('{save}', usd.format(Math.round(fuel.tankSavings)))}
+                </div>
+              )}
             </div>
           )}
           {/* Прогресс рейса: сколько загруженных миль уже позади. Только когда груз
