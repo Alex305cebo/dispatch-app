@@ -25,6 +25,8 @@ import { RateConButton } from '@/components/ratecon-button'
 import { DocButton } from '@/components/doc-button'
 import { BackButton } from '@/components/back-button'
 import { PairBar } from '@/components/pair-bar'
+import { BackhaulList } from '@/components/backhaul-list'
+import { backhaulBrokers } from '@/lib/backhaul'
 import { DriverInfoCard } from '@/components/driver-info-card'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
@@ -52,9 +54,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   ])
   // Прицеп для кнопки трака + наш средний $/милю по этому направлению. Оба нужны
   // только для показа, поэтому идут вторым параллельным заходом, уже зная truck.id.
-  const [truckMeta, laneAvgRpm] = await Promise.all([
+  // Обратный груз ищут, пока трак едет: список «кому звонить» нужен только
+  // забукированному и едущему грузу, доставленному он ни к чему.
+  const wantBackhaul = load.status === 'booked' || load.status === 'in_transit'
+  const [truckMeta, laneAvgRpm, backhaul] = await Promise.all([
     getTruckMeta(truck.id),
     laneAvgRpmFor(companyId, load.origin, load.destination, load.id),
+    wantBackhaul ? backhaulBrokers(companyId, load.destination) : Promise.resolve(null),
   ])
 
   // Never throws: the DB CHECKs mirror calcLoad's throw conditions, so every stored
@@ -158,6 +164,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <Suspense fallback={<MapSkeleton />}>
         <LoadMapSection load={load} truck={truck} fs={fs} locale={locale} />
       </Suspense>
+
+      {backhaul && <BackhaulList state={backhaul.state} brokers={backhaul.brokers} locale={locale} />}
 
       <section className="panel mt-4 p-5">
         <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-white/62">
