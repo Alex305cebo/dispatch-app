@@ -652,6 +652,13 @@ async function ByWeek({
                 {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(week.count))} · {Math.round(week.miles)} mi
                 {week.miles > 0 && ` · ${usd2.format(week.gross / week.miles)}/mi`}
               </span>
+              {/* Неделя одним файлом для бухгалтера: грузы, мили, ставки, счета, зарплата. */}
+              <a
+                href={`/api/export/week?start=${week.weekStartMs}`}
+                className="ml-2 rounded-md border border-white/12 px-2 py-0.5 text-[11px] font-medium text-white/70 hover:border-white/30 hover:text-white"
+              >
+                CSV
+              </a>
             </span>
           </summary>
 
