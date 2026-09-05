@@ -30,21 +30,43 @@ export type BrokerMoney = {
   payDays: number | null
   /** Выставлено и не оплачено — то, что он должен сейчас. */
   owed: number
+  /** Сколько счетов оплачено — на скольких рейсах основан payDays. */
+  paidCount: number
+  /** Сколько раз платил дольше 45 дней, плюс неоплаченные, висящие дольше 45. */
+  lateCount: number
+  /** Оценка плательщика: good ≤30 дн. без просрочек, ok ≤45, slow — дольше или с
+   * просрочками, null — истории оплат нет. По ней предупреждаем на новом грузе. */
+  payGrade: 'good' | 'ok' | 'slow' | null
+}
+
+export const LATE_DAYS = 45
+
+export function payGradeOf(payDays: number | null, lateCount: number): BrokerMoney['payGrade'] {
+  if (payDays === null && lateCount === 0) return null
+  if (lateCount > 0 || (payDays ?? 0) > LATE_DAYS) return 'slow'
+  return (payDays ?? 0) <= 30 ? 'good' : 'ok'
 }
 
 const DAY = 86400000
 
 export function foldMoney(rows: MoneyRow[]): Map<string, BrokerMoney> {
   const acc = new Map<string, BrokerMoney & { miles: number; daysSum: number; daysN: number }>()
+  const now = Date.now()
 
   for (const r of rows) {
     // Отменённые в деньги не идут: по ним никто не ехал, не платил и не должен.
     if (r.status === 'cancelled') continue
     const cur =
-      acc.get(r.key) ?? { gross: 0, rpm: 0, payDays: null, owed: 0, miles: 0, daysSum: 0, daysN: 0 }
+      acc.get(r.key) ?? {
+        gross: 0, rpm: 0, payDays: null, owed: 0, paidCount: 0, lateCount: 0, payGrade: null, miles: 0, daysSum: 0, daysN: 0,
+      }
     cur.gross += r.rate
     cur.miles += r.miles
-    if (r.invoicedAt && !r.paidAt) cur.owed += r.rate
+    if (r.invoicedAt && !r.paidAt) {
+      cur.owed += r.rate
+      // Висит дольше 45 дней — уже просрочка, даже если ещё заплатит.
+      if ((now - Date.parse(r.invoicedAt)) / DAY > LATE_DAYS) cur.lateCount += 1
+    }
     if (r.invoicedAt && r.paidAt) {
       const days = (Date.parse(r.paidAt) - Date.parse(r.invoicedAt)) / DAY
       // Отрицательное = оплата раньше счёта (быстрая оплата, дата счёта проставлена
@@ -52,6 +74,7 @@ export function foldMoney(rows: MoneyRow[]): Map<string, BrokerMoney> {
       if (Number.isFinite(days)) {
         cur.daysSum += Math.max(0, days)
         cur.daysN += 1
+        if (days > LATE_DAYS) cur.lateCount += 1
       }
     }
     acc.set(r.key, cur)
@@ -59,11 +82,15 @@ export function foldMoney(rows: MoneyRow[]): Map<string, BrokerMoney> {
 
   const out = new Map<string, BrokerMoney>()
   for (const [key, a] of acc) {
+    const payDays = a.daysN > 0 ? Math.round(a.daysSum / a.daysN) : null
     out.set(key, {
       gross: a.gross,
       rpm: a.miles > 0 ? a.gross / a.miles : 0,
-      payDays: a.daysN > 0 ? Math.round(a.daysSum / a.daysN) : null,
+      payDays,
       owed: a.owed,
+      paidCount: a.daysN,
+      lateCount: a.lateCount,
+      payGrade: payGradeOf(payDays, a.lateCount),
     })
   }
   return out

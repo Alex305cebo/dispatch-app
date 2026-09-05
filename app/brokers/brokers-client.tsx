@@ -262,6 +262,22 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                               {t(locale, 'brokers.paysIn').replace('{n}', String(b.payDays))}
                             </span>
                           )}
+                          {/* Оценка плательщика: по своей истории счетов — как платит
+                              на самом деле, а не что обещает в рейт-коне. */}
+                          {b.payGrade && (
+                            <span
+                              className={`rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold ${
+                                b.payGrade === 'good'
+                                  ? 'bg-good-500/15 text-good-400'
+                                  : b.payGrade === 'ok'
+                                    ? 'bg-white/8 text-white/70'
+                                    : 'bg-bad-500/15 text-bad-400'
+                              }`}
+                              title={t(locale, 'brokers.grade.info').replace('{n}', String(b.paidCount)).replace('{late}', String(b.lateCount))}
+                            >
+                              {t(locale, `brokers.grade.${b.payGrade}`)}
+                            </span>
+                          )}
                           {/* Долг — кнопка: под ней сами неоплаченные рейсы, и оплата
                               отмечается там же. Деньги приходят одной суммой за
                               несколько рейсов, а раньше на это уходило столько же

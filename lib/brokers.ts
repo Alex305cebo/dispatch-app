@@ -25,6 +25,9 @@ export type OurBroker = {
   payDays: number | null
   /** Сколько он должен прямо сейчас: выставлено, но не оплачено. */
   owed: number
+  paidCount: number
+  lateCount: number
+  payGrade: 'good' | 'ok' | 'slow' | null
   /** Сами неоплаченные рейсы — чтобы отметить оплату прямо здесь, не заходя в каждый
    * груз по отдельности. Деньги приходят одной суммой за несколько рейсов, и раньше
    * на это уходило столько же открытых страниц, сколько рейсов в переводе. */
@@ -154,6 +157,9 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
         rpm: 0,
         payDays: null,
         owed: 0,
+        paidCount: 0,
+        lateCount: 0,
+        payGrade: null,
         unpaid: unpaidRow ? [unpaidRow] : [],
         reps: [],
         registryName: null,
@@ -206,6 +212,9 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
         rpm: 0,
         payDays: null,
         owed: 0,
+        paidCount: 0,
+        lateCount: 0,
+        payGrade: null,
         unpaid: [],
         reps: [],
         registryName: c.legal_name ?? c.dba_name,
@@ -260,4 +269,20 @@ export async function knownBrokerMc(
     LIMIT 1`) as { broker_mc: string | null }[]
   const mc = digits(rows[0]?.broker_mc)
   return mc || null
+}
+
+/** Оценка плательщика для брокера конкретного груза — по MC, домену почты или имени,
+ * тем же ключом, что группирует список. Для предупреждения на странице груза. */
+export async function brokerGradeFor(
+  companyId: string,
+  mc: string | null,
+  email: string | null,
+  name: string | null,
+): Promise<{ payGrade: 'good' | 'ok' | 'slow'; payDays: number | null; lateCount: number; paidCount: number } | null> {
+  const key = digits(mc) || emailDomain(email) || (name ?? '').toLowerCase().trim()
+  if (!key) return null
+  const all = await listOurBrokers(companyId)
+  const b = all.find((x) => (x.mc ?? '') === key) ?? all.find((x) => (x.name ?? '').toLowerCase().trim() === key)
+  if (!b || !b.payGrade) return null
+  return { payGrade: b.payGrade, payDays: b.payDays, lateCount: b.lateCount, paidCount: b.paidCount }
 }

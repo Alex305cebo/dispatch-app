@@ -29,6 +29,7 @@ import { DetentionTile } from '@/components/detention-tile'
 import { getSettings } from '@/lib/settings'
 import { BackhaulList } from '@/components/backhaul-list'
 import { backhaulBrokers } from '@/lib/backhaul'
+import { brokerGradeFor } from '@/lib/brokers'
 import { DriverInfoCard } from '@/components/driver-info-card'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
@@ -59,10 +60,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   // Обратный груз ищут, пока трак едет: список «кому звонить» нужен только
   // забукированному и едущему грузу, доставленному он ни к чему.
   const wantBackhaul = load.status === 'booked' || load.status === 'in_transit'
-  const [truckMeta, laneAvgRpm, backhaul] = await Promise.all([
+  const [truckMeta, laneAvgRpm, backhaul, brokerGrade] = await Promise.all([
     getTruckMeta(truck.id),
     laneAvgRpmFor(companyId, load.origin, load.destination, load.id),
     wantBackhaul ? backhaulBrokers(companyId, load.destination) : Promise.resolve(null),
+    brokerGradeFor(companyId, load.brokerMc, load.brokerEmail, load.brokerName),
   ])
 
   // Never throws: the DB CHECKs mirror calcLoad's throw conditions, so every stored
@@ -166,6 +168,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <Suspense fallback={<MapSkeleton />}>
         <LoadMapSection load={load} truck={truck} fs={fs} locale={locale} />
       </Suspense>
+
+      {/* Медленный плательщик — сказать до того, как груз взят и повезён: по своей
+          истории он платит дольше 45 дней или уже просрочивал. */}
+      {brokerGrade?.payGrade === 'slow' && load.status !== 'paid' && load.status !== 'cancelled' && (
+        <div className="mt-4 rounded-xl border border-bad-500/30 bg-bad-500/[0.08] px-4 py-3 text-[13px]">
+          <span className="font-semibold text-bad-400">{t(locale, 'brokers.grade.slowWarn')}</span>{' '}
+          <span className="text-white/75">
+            {t(locale, 'brokers.grade.info').replace('{n}', String(brokerGrade.paidCount)).replace('{late}', String(brokerGrade.lateCount))}
+            {brokerGrade.payDays != null && ` · ${t(locale, 'brokers.paysIn').replace('{n}', String(brokerGrade.payDays))}`}
+          </span>
+        </div>
+      )}
 
       {backhaul && <BackhaulList state={backhaul.state} brokers={backhaul.brokers} locale={locale} />}
 
