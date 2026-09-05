@@ -48,6 +48,7 @@ import { signOut } from '@/app/login/actions'
 import { notify } from '@/lib/notify'
 import type { CurrentUser } from '@/lib/session'
 import { useLocale } from '@/components/locale-provider'
+import { shortName } from '@/lib/fmt'
 import { t } from '@/lib/i18n'
 
 function initialsOf(name: string): string {
@@ -230,14 +231,12 @@ export function UserPanel({
         aria-label={user.name}
         aria-expanded={open}
         data-tour="avatar"
-        className="nav-avatar-btn flex h-9 max-w-[11rem] shrink-0 items-center gap-2 rounded-full pl-1 pr-3 text-left text-white"
+        className="nav-avatar-btn flex h-9 max-w-[11rem] shrink-0 items-center justify-center rounded-full px-3.5 text-white"
       >
-        {/* Таблетка: кружок с инициалами и полное имя. Одни инициалы не говорят,
-            кто вошёл, — а это первое, что проверяют на общем компьютере диспетчерской. */}
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/20 text-[11px] font-semibold">
-          {initialsOf(user.name)}
-        </span>
-        <span className="nav-avatar-name min-w-0 truncate text-[13px] font-semibold">{user.name}</span>
+        {/* Просто «Alex C.» — имя и первая буква фамилии. Без кружка с инициалами:
+            имя само говорит, кто вошёл. В свёрнутом рельсе остаются инициалы. */}
+        <span className="nav-avatar-name min-w-0 truncate text-[13px] font-semibold">{shortName(user.name)}</span>
+        <span className="nav-avatar-initials hidden text-[12px] font-semibold">{initialsOf(user.name)}</span>
       </button>
 
       {open && (

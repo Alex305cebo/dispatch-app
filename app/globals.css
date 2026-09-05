@@ -595,6 +595,9 @@
 .nav-collapsed .nav-avatar-btn .nav-avatar-name {
   display: none;
 }
+.nav-collapsed .nav-avatar-btn .nav-avatar-initials {
+  display: inline;
+}
 :root[data-theme='light'] .nav-avatar-btn {
   box-shadow:
     0 0 0 2px #ffffff,
