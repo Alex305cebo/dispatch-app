@@ -1,4 +1,5 @@
-import Link from 'next/link'
+import { Send, Smartphone } from 'lucide-react'
+import { Empty } from '@/components/empty'
 import { Info } from '@/components/info'
 import { t, type Locale } from '@/lib/i18n'
 import type { LoadEvent } from '@/lib/load-events'
@@ -32,12 +33,17 @@ export function DriverTimeline({ events, locale, truckId }: { events: LoadEvent[
         <Info text={t(locale, 'driver.timeline.info')} />
       </h2>
       {events.length === 0 ? (
-        <p className="text-[13px] text-white/55">
-          {t(locale, 'driver.timeline.none')}{' '}
-          <Link href={`/trucks/${truckId}`} className="text-haul-300 hover:underline">
-            →
-          </Link>
-        </p>
+        <Empty
+          compact
+          icon={Smartphone}
+          title={t(locale, 'driver.timeline.noneTitle')}
+          text={t(locale, 'driver.timeline.none')}
+          action={{
+            href: `/trucks/${truckId}`,
+            label: t(locale, 'driver.timeline.noneCta'),
+            icon: <Send size={14} strokeWidth={2.2} />,
+          }}
+        />
       ) : (
         <ol className="flex flex-col gap-1.5">
           {events.map((e, i) => {

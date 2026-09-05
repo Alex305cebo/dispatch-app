@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { ArrowRight, PhoneCall } from 'lucide-react'
+import { Empty } from '@/components/empty'
 import { Info } from '@/components/info'
 import { usd, usd2 } from '@/lib/fmt'
 import { t, type Locale } from '@/lib/i18n'
@@ -16,12 +18,17 @@ export function BackhaulList({ state, brokers, locale }: { state: string; broker
       </h2>
       {/* Пусто — сказать прямо, почему, и не прятать секцию: иначе её не находят. */}
       {!brokers.length && (
-        <p className="text-[13px] text-white/55">
-          {t(locale, 'backhaul.empty').replace('{state}', state)}{' '}
-          <Link href="/brokers" className="text-haul-300 hover:underline">
-            {t(locale, 'backhaul.allBrokers')}
-          </Link>
-        </p>
+        <Empty
+          compact
+          icon={PhoneCall}
+          title={t(locale, 'backhaul.emptyTitle').replace('{state}', state)}
+          text={t(locale, 'backhaul.empty')}
+          action={{
+            href: '/brokers',
+            label: t(locale, 'backhaul.allBrokers'),
+            icon: <ArrowRight size={14} strokeWidth={2.2} />,
+          }}
+        />
       )}
       <ul className="flex flex-col gap-1.5">
         {brokers.map((b) => (
