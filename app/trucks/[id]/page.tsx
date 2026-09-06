@@ -424,6 +424,23 @@ export default async function Page({
         </section>
       )}
 
+      {/* ===== Trip history: drive legs + stops, long rests called out ===== */}
+      {/* The window switch is client-side now — see components/trip-history-panel.tsx.
+          ?history= is still honoured for the initial render so existing links keep
+          working, it just isn't how the buttons change the window any more. */}
+      <TripHistoryPanel
+        truckId={truck.id}
+        windows={HISTORY_WINDOWS}
+        initialHours={historyWindow.hours}
+        initialLegs={history}
+        // Города погрузок и выгрузок этого трака — по ним стоянка в истории
+        // распознаётся как детеншен. Грузы уже загружены выше, нового запроса нет.
+        stops={loads.flatMap((l) => [
+          ...(l.origin ? [{ city: l.origin, kind: 'pickup' as const, day: l.pickupDate }] : []),
+          ...(l.destination ? [{ city: l.destination, kind: 'delivery' as const, day: l.deliveryDate }] : []),
+        ])}
+      />
+
       {/* ===== RC drop — the fastest path: paperwork in, load out ===== */}
       <section className="panel mt-4 p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
@@ -575,23 +592,6 @@ export default async function Page({
           />
         </div>
       </details>
-
-      {/* ===== Trip history: drive legs + stops, long rests called out ===== */}
-      {/* The window switch is client-side now — see components/trip-history-panel.tsx.
-          ?history= is still honoured for the initial render so existing links keep
-          working, it just isn't how the buttons change the window any more. */}
-      <TripHistoryPanel
-        truckId={truck.id}
-        windows={HISTORY_WINDOWS}
-        initialHours={historyWindow.hours}
-        initialLegs={history}
-        // Города погрузок и выгрузок этого трака — по ним стоянка в истории
-        // распознаётся как детеншен. Грузы уже загружены выше, нового запроса нет.
-        stops={loads.flatMap((l) => [
-          ...(l.origin ? [{ city: l.origin, kind: 'pickup' as const, day: l.pickupDate }] : []),
-          ...(l.destination ? [{ city: l.destination, kind: 'delivery' as const, day: l.deliveryDate }] : []),
-        ])}
-      />
 
       {/* ===== Care: oil, to-fix, compliance dates, service log =====
            id="care" is the target of the document-deadline links on the dashboard.
