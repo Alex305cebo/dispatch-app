@@ -5,6 +5,7 @@
 // instead, so this file never pulls a server-only API into a client bundle.
 
 import { commonDict } from './i18n/dict-common.ts'
+import { weatherDict } from './i18n/dict-weather.ts'
 import { navDict } from './i18n/dict-nav.ts'
 import { loginDict } from './i18n/dict-login.ts'
 import { actionsDict } from './i18n/dict-actions.ts'
@@ -43,6 +44,7 @@ export function resolveLocale(v: string | undefined | null): Locale {
 }
 
 const DICT = {
+  ...weatherDict,
   ...commonDict,
   ...navDict,
   ...loginDict,

@@ -9,6 +9,7 @@ import { LocalTime } from '@/components/local-time'
 import Link from 'next/link'
 import { Button } from '@/components/button'
 import { useLocale } from '@/components/locale-provider'
+import { WEATHER_ICON, weatherKind, weatherTone } from '@/lib/weather-label'
 import { t } from '@/lib/i18n'
 import { usd } from '@/lib/fmt'
 import { CopyPlace } from '@/components/copy-place'
@@ -200,14 +201,25 @@ export function FleetList({
             {/* Exceptions only — a card with nothing wrong shows no strip at all. */}
             {(r.weather || r.idleHours !== null) && (
               <div className="mt-1.5 flex flex-wrap gap-1">
-                {r.weather && (
-                  <span
-                    title={r.weather.headline}
-                    className="rounded bg-bad-500/15 px-1.5 py-0.5 text-[10.5px] font-medium text-bad-400"
-                  >
-                    ⚠ {r.weather.event}
-                  </span>
-                )}
+                {r.weather && (() => {
+                  // Сырое «Extreme Heat Warning» красным пугало и ничего не объясняло.
+                  // Короткий понятный ярлык, значок по типу и подсказка о том, чем это
+                  // грозит траку; красный только там, где рейс реально встаёт.
+                  const kind = weatherKind(r.weather.event)
+                  const bad = weatherTone(kind) === 'bad'
+                  return (
+                    <span
+                      title={`${t(locale, `wx.${kind}.hint` as Parameters<typeof t>[1])}
+
+${r.weather.event} · ${t(locale, 'wx.source')}`}
+                      className={`rounded px-1.5 py-0.5 text-[10.5px] font-medium ${
+                        bad ? 'bg-bad-500/15 text-bad-400' : 'bg-warn-400/15 text-warn-400'
+                      }`}
+                    >
+                      {WEATHER_ICON[kind]} {t(locale, `wx.${kind}` as Parameters<typeof t>[1])}
+                    </span>
+                  )
+                })()}
                 {r.idleHours !== null && (
                   <span className="rounded bg-warn-400/15 px-1.5 py-0.5 text-[10.5px] font-medium text-warn-400">
                     {t(locale, 'tracking.idlePrefix')}
