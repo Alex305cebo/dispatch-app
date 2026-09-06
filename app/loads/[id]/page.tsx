@@ -196,7 +196,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       {/* Хронология от водителя — сразу под шапкой: это ответ на «где он и что
           делает» без звонка. Пусто — подсказка, откуда взять ссылку. */}
       {load.status !== 'cancelled' && (
-        <DriverTimeline events={driverEvents} locale={locale} truckId={truck.id} />
+        <DriverTimeline events={driverEvents} locale={locale} truckId={truck.id} loadId={load.id} />
       )}
 
       {backhaul && <BackhaulList state={backhaul.state} brokers={backhaul.brokers} locale={locale} />}

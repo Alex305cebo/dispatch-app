@@ -1065,6 +1065,48 @@ export async function uploadDocument(
 
 /** Тип документа называет человек: «BOL» на самом деле оказался фото груза, страница
  * POD ушла как «Прочее». Меняем подпись, файл на месте. */
+/** Отметки водителя правит диспетчер: водитель мог нажать кнопку не вовремя или
+ * забыть нажать вовсе, а от этих времён считается детеншен. */
+export async function removeLoadEvent(id: number): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const companyId = await companyScope()
+  const { deleteLoadEvent } = await import('@/lib/load-events')
+  const loadId = await deleteLoadEvent(companyId, id)
+  if (loadId) revalidatePath(`/loads/${loadId}`)
+}
+
+export async function setLoadEventTime(id: number, atIso: string): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const when = new Date(atIso)
+  if (Number.isNaN(when.getTime())) return { error: 'bad date' }
+  const companyId = await companyScope()
+  const { updateLoadEventAt } = await import('@/lib/load-events')
+  const loadId = await updateLoadEventAt(companyId, id, when.toISOString())
+  if (loadId) revalidatePath(`/loads/${loadId}`)
+}
+
+export async function addLoadEventManual(
+  loadId: number,
+  kind: string,
+  atIso: string,
+  note?: string,
+): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const allowed = ['arrived_pickup', 'loaded', 'arrived_delivery', 'delivered', 'note']
+  if (!allowed.includes(kind)) return { error: 'bad kind' }
+  const when = new Date(atIso)
+  if (Number.isNaN(when.getTime())) return { error: 'bad date' }
+  const companyId = await companyScope()
+  if (!(await loadBelongs(companyId, loadId))) return { error: 'load' }
+  const rows = (await sql`SELECT truck_id FROM loads WHERE id = ${loadId}`) as { truck_id: number | null }[]
+  await sql`INSERT INTO load_events (company_id, load_id, truck_id, kind, note, at)
+            VALUES (${companyId}, ${loadId}, ${rows[0]?.truck_id ?? null}, ${kind}, ${note?.trim() || null}, ${when.toISOString()})`
+  revalidatePath(`/loads/${loadId}`)
+}
+
 export async function setDocumentKind(docId: number, kind: string): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro

@@ -44,3 +44,16 @@ export async function recentDriverNotes(companyId: 'default' | 'demo'): Promise<
     ORDER BY e.at DESC LIMIT 20`) as { id: number; load_id: number | null; truck_id: number | null; kind: LoadEventKind; note: string | null; at: string; number: string | null }[]
   return rows.map((r) => ({ id: r.id, loadId: r.load_id, truckId: r.truck_id, kind: r.kind, note: r.note, at: String(r.at), truckNumber: r.number }))
 }
+
+/** Убрать ошибочную отметку. Возвращает груз, чтобы вызывающий обновил страницу. */
+export async function deleteLoadEvent(companyId: 'default' | 'demo', id: number): Promise<number | null> {
+  const rows = (await sql`DELETE FROM load_events WHERE id = ${id} AND company_id = ${companyId} RETURNING load_id`) as { load_id: number | null }[]
+  return rows[0]?.load_id ?? null
+}
+
+/** Поправить время отметки: от него считается детеншен, и нажатая на час раньше
+ * кнопка «Приехал» завышает сумму в письме брокеру. */
+export async function updateLoadEventAt(companyId: 'default' | 'demo', id: number, atIso: string): Promise<number | null> {
+  const rows = (await sql`UPDATE load_events SET at = ${atIso} WHERE id = ${id} AND company_id = ${companyId} RETURNING load_id`) as { load_id: number | null }[]
+  return rows[0]?.load_id ?? null
+}
