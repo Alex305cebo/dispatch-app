@@ -403,9 +403,27 @@ export default async function Page({
         </a>
       )}
 
-      {/* Порядок — по частоте: рейт-кон и документы прилетают каждый час, карта —
-          взгляд в течение дня, водитель и история пути — раз в неделю, ремонт и
-          экономика — раз в месяц. ===== */}
+      {/* Порядок — по частоте: карта отвечает на «где он сейчас» одним взглядом и
+          стоит первой; рейт-кон и документы прилетают каждый час; водитель и история
+          пути — раз в неделю; ремонт и экономика — раз в месяц. ===== */}
+      {/* ===== Map: where the truck sits + where delivery is ===== */}
+      {mapMarkers.length > 0 && (
+        <section className="panel mt-4 p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+              {t(locale, 'trucks.detail.onMap')}
+              <Info text={t(locale, 'trucks.detail.onMapInfo')} />
+            </h2>
+            <RefreshFleetButton
+              staleMinutes={
+                fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null
+              }
+            />
+          </div>
+          <FleetMap markers={mapMarkers} routes={mapRoutes} height="clamp(320px, 46vh, 600px)" distanceMi={routeMiles} />
+        </section>
+      )}
+
       {/* ===== RC drop — the fastest path: paperwork in, load out ===== */}
       <section className="panel mt-4 p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
@@ -521,24 +539,6 @@ export default async function Page({
           </div>
         </section>
       </div>
-
-      {/* ===== Map: where the truck sits + where delivery is ===== */}
-      {mapMarkers.length > 0 && (
-        <section className="panel mt-4 p-4">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-              {t(locale, 'trucks.detail.onMap')}
-              <Info text={t(locale, 'trucks.detail.onMapInfo')} />
-            </h2>
-            <RefreshFleetButton
-              staleMinutes={
-                fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null
-              }
-            />
-          </div>
-          <FleetMap markers={mapMarkers} routes={mapRoutes} height="clamp(320px, 46vh, 600px)" distanceMi={routeMiles} />
-        </section>
-      )}
 
       {/* ===== Водитель — свёрнут: CDL, медкарта, фото меняются раз в год. Что нужно
            брокеру ежечасно (имя, телефон, трак/трейлер), уже в шапке и в
