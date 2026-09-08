@@ -703,23 +703,15 @@ const onlyDigits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, ''
  * Only ever FILLS a gap: a city the reader did give us is never overwritten, because it
  * came from the document itself and the ZIP lookup is an inference. */
 async function fillCitiesFromZip(load: QrLoad): Promise<QrLoad> {
-  if (load.origin && load.destination) return load
-  const zipOf = (address: string | null | undefined): string | null => {
-    const all = (address ?? '').match(/\b\d{5}\b/g)
-    return all?.[all.length - 1] ?? null
-  }
+  // Индекс проверяет город ВСЕГДА, а не только когда города нет: брокеры печатают
+  // «Ninety Six, NC» при индексе Южной Каролины и «Macadonia» вместо Macedonia.
+  // Индекс называет ровно одно место — при расхождении верим ему (lib/city-fix.ts).
+  const { zipOf, pickCity } = await import('@/lib/city-fix')
   const { zipPlace } = await import('@/lib/geo-routing')
-  const [o, d] = await Promise.all([
-    load.origin ? null : (async () => {
-      const z = zipOf(load.pickupAddress)
-      return z ? await zipPlace(z) : null
-    })(),
-    load.destination ? null : (async () => {
-      const z = zipOf(load.deliveryAddress)
-      return z ? await zipPlace(z) : null
-    })(),
-  ])
-  return { ...load, origin: load.origin ?? o, destination: load.destination ?? d }
+  const oz = zipOf(load.pickupAddress)
+  const dz = zipOf(load.deliveryAddress)
+  const [o, d] = await Promise.all([oz ? zipPlace(oz) : null, dz ? zipPlace(dz) : null])
+  return { ...load, origin: pickCity(load.origin, o), destination: pickCity(load.destination, d) }
 }
 
 
@@ -788,12 +780,24 @@ export async function createLoadFromRc(
     // (same OSRM routing the map uses). Every RC path funnels through here, so this
     // one guard covers the truck-page drop, /import and the new-load scanner alike.
     let loadedMiles = load.loadedMiles
+    let milesEstimated = false
     if (!(loadedMiles > 0) && load.origin && load.destination) {
       const { routeMiles } = await import('@/lib/geo-routing')
-      const r = await routeMiles(load.origin, load.destination)
-      if ('miles' in r) loadedMiles = r.miles
+      const r = await routeMiles(load.origin, load.destination, locale, {
+        origin: load.pickupAddress,
+        destination: load.deliveryAddress,
+      })
+      if ('miles' in r) {
+        loadedMiles = r.miles
+        milesEstimated = !!r.estimated
+      }
     }
-    if (!(loadedMiles > 0)) return { error: t(locale, 'actions.noMilesInRc') }
+    // Пробег не найден вовсе — груз всё равно создаём, с пометкой: диспетчер впишет
+    // мили в «Деталях». Отказ означал потерянный рейс и звонок «ничего не работает».
+    if (!(loadedMiles > 0)) {
+      loadedMiles = 1
+      milesEstimated = true
+    }
     const deadheadMiles = await fillDeadhead(companyId, truckId, load.deadheadMiles, load.origin)
     // Тот же добор MC, что и при ручном заведении: рейт-кон о нём обычно молчит.
     const brokerMc = load.brokerMc || (await knownBrokerMc(companyId, load.brokerName, load.brokerEmail))
@@ -810,14 +814,14 @@ export async function createLoadFromRc(
                          destination, truck_location, spot_rpm, broker_name, broker_mc, broker_email,
                          broker_phone, reference_id, source, truck_id, pickup_date,
                          delivery_date, broker_notes, pickup_time, delivery_time,
-                         pickup_address, delivery_address, status, dispatcher_id, company_id, driver_info, pay_via)
+                         pickup_address, delivery_address, status, dispatcher_id, company_id, driver_info, pay_via, miles_estimated)
       VALUES (${load.rate}, ${loadedMiles}, ${deadheadMiles}, ${load.transitDays},
               ${load.origin}, ${load.destination}, ${load.truckLocation}, ${load.spotRpm},
               ${load.brokerName}, ${brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
               'qr', ${truckId}, ${load.pickupDate ?? null}, ${load.deliveryDate ?? null},
               ${load.brokerNotes ?? null}, ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
               ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, 'booked', ${dispatcherId}, ${companyId},
-              ${await driverInfoWithCities(driverInfo)}, ${load.payVia ?? null})
+              ${await driverInfoWithCities(driverInfo)}, ${load.payVia ?? null}, ${milesEstimated})
       RETURNING id`
     const loadId = (rows[0] as { id: number }).id
     if (docId && (await docBelongs(companyId, docId)))
@@ -1288,7 +1292,7 @@ export async function updateLoadDetails(
   if (p.spotRpm != null && !(p.spotRpm >= 0)) return { error: t(locale, 'actions.spotRateNegative') }
   try {
     await sql`UPDATE loads SET
-      rate = ${p.rate}, loaded_miles = ${p.loadedMiles}, deadhead_miles = ${p.deadheadMiles},
+      rate = ${p.rate}, loaded_miles = ${p.loadedMiles}, deadhead_miles = ${p.deadheadMiles}, miles_estimated = false,
       transit_days = ${p.transitDays}, spot_rpm = ${p.spotRpm},
       broker_name = ${p.brokerName || null},
       broker_mc = ${p.brokerMc || null}, broker_phone = ${p.brokerPhone || null},

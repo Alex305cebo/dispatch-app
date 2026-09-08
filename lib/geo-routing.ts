@@ -184,8 +184,14 @@ export async function cityCoordsBest(
   address: string | null | undefined,
   city: string | null | undefined,
 ): Promise<LatLng | null> {
-  // The city is the sanity reference for every address hit below (and the last resort).
-  const cityPt = city ? await geocode(city) : null
+  // Опора для проверки адресных попаданий — ИНДЕКС из адреса, если он есть, и только
+  // потом город. Город на рейт-коне бывает с опечаткой или не в том штате («Ninety
+  // Six, NC» при индексе 29666 в Южной Каролине), а индекс называет ровно одно место.
+  // Раньше опорой был город: при опечатке он не находился вовсе, а найденный по
+  // индексу верный адрес отбраковывался как «слишком далеко от города».
+  const zip = address ? extractZip(address) : null
+  const zipPt = zip ? await geocodeZip(zip) : null
+  const cityPt = zipPt ?? (city ? await geocode(city) : null)
   const trust = (p: LatLng | null): p is LatLng =>
     !!p && (!cityPt || haversineMiles(p, cityPt) <= MAX_ADDR_DRIFT_MI)
 
@@ -201,13 +207,32 @@ export async function cityCoordsBest(
     if (trust(census)) return census
     const exact = await geocode(address)
     if (trust(exact)) return exact
-    const zip = extractZip(address)
-    if (zip) {
-      const byZip = await geocodeZip(zip)
-      if (trust(byZip)) return byZip
-    }
   }
   return cityPt
+}
+
+/**
+ * Координаты города «во что бы то ни стало» — для пробега, когда точный адрес не
+ * нашёлся. Сначала как написано, затем без штата (штат на бумаге бывает не тот),
+ * затем центр штата. Последнее — грубая оценка, и вызывающий об этом узнаёт.
+ */
+export async function cityCoordsLoose(city: string | null | undefined): Promise<{ pt: LatLng; rough: boolean } | null> {
+  const c = (city ?? '').trim()
+  if (!c) return null
+  const exact = await geocode(c)
+  if (exact) return { pt: exact, rough: false }
+  const noState = c.replace(/,\s*[A-Za-z]{2}\s*$/, '').trim()
+  if (noState && noState !== c) {
+    const byName = await geocode(noState)
+    if (byName) return { pt: byName, rough: false }
+  }
+  const st = /,\s*([A-Za-z]{2})\s*$/.exec(c)?.[1]?.toUpperCase()
+  if (st) {
+    const { US_STATES } = await import('./us-states.ts')
+    const row = US_STATES.find((r) => r[0] === st)
+    if (row) return { pt: { lat: row[2], lng: row[3] }, rough: true }
+  }
+  return null
 }
 
 type RoadPath = { miles: number; minutes: number; coords?: [number, number][] }
@@ -367,7 +392,9 @@ export async function routeMiles(
   origin: string,
   destination: string,
   locale: Locale = 'ru',
-): Promise<{ miles: number } | { error: string }> {
+  /** Полные адреса с индексами, если есть: индекс надёжнее названия города. */
+  addr: { origin?: string | null; destination?: string | null } = {},
+): Promise<{ miles: number; estimated?: boolean } | { error: string }> {
   // cityCoordsBest, а не голый geocode: у него за спиной ещё Census и поиск по
   // индексу. Один Nominatim подводил ровно там, где это дороже всего — на сервере
   // хостинга его ответы бывают пустыми, и груз из рейт-кона без пробега отказывались
@@ -376,9 +403,21 @@ export async function routeMiles(
   // одного запроса в секунду с адреса», и два одновременных иногда получают отказ.
   // Отказ означал «города не найдены» → груз из рейт-кона без пробега не создавался,
   // причём через раз — что и выглядело как случайная поломка.
-  const a = await cityCoordsBest(null, origin)
-  const b = await cityCoordsBest(null, destination)
+  // Адрес с индексом → город как написан → город без штата → центр штата. Отказ
+  // только когда не известен даже штат: груз без пробега лучше груза, которого нет.
+  let estimated = false
+  const find = async (address: string | null | undefined, city: string) => {
+    const best = await cityCoordsBest(address ?? null, city)
+    if (best) return best
+    const loose = await cityCoordsLoose(city)
+    if (loose?.rough) estimated = true
+    return loose?.pt ?? null
+  }
+  const a = await find(addr.origin, origin)
+  const b = await find(addr.destination, destination)
   if (!a || !b) return { error: t(locale, 'tracking.geoNoCoords') }
+  // Центр штата вместо города — дорогу не считаем, только прямую с надбавкой.
+  if (estimated) return { miles: Math.max(1, Math.round(haversineMiles(a, b) * 1.15)), estimated: true }
 
   // Truck-legal routing when a key exists; fall through to free OSRM on any failure.
   const key = process.env.ORS_API_KEY

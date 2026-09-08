@@ -181,6 +181,16 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         />
       </Suspense>
 
+      {/* Мили оценены приблизительно: в рейт-коне город с опечаткой, точный адрес не
+          нашёлся. Груз создан, но пробег надо вписать руками — иначе $/милю и зарплата
+          по нему врут. */}
+      {load.milesEstimated && (
+        <div className="mt-4 rounded-xl border border-warn-400/35 bg-warn-500/[0.08] px-4 py-3 text-[13px]">
+          <span className="font-semibold text-warn-400">{t(locale, 'loadDetail.milesEstimated')}</span>{' '}
+          <span className="text-white/75">{t(locale, 'loadDetail.milesEstimatedHint')}</span>
+        </div>
+      )}
+
       {/* Медленный плательщик — сказать до того, как груз взят и повезён: по своей
           истории он платит дольше 45 дней или уже просрочивал. */}
       {brokerGrade?.payGrade === 'slow' && load.status !== 'paid' && load.status !== 'cancelled' && (

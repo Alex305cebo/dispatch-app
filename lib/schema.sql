@@ -426,7 +426,7 @@ CREATE TABLE IF NOT EXISTS app_errors (
 );
 CREATE INDEX IF NOT EXISTS app_errors_at ON app_errors(at DESC);
 
-INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-06')
+INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-08')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- Через кого брокер платит перевозчикам (TriumphPay, Comdata, RTS…), если рейт-кон
@@ -478,3 +478,8 @@ CREATE TABLE IF NOT EXISTS load_events (
 );
 CREATE INDEX IF NOT EXISTS load_events_load ON load_events(load_id);
 CREATE INDEX IF NOT EXISTS load_events_at ON load_events(company_id, at DESC);
+
+-- Мили в грузе из рейт-кона оценены приблизительно (город с опечаткой, найден только
+-- штат) или не найдены вовсе. Диспетчер видит пометку и вписывает точные; правка
+-- миль в «Деталях» снимает флаг.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS miles_estimated BOOLEAN NOT NULL DEFAULT false;

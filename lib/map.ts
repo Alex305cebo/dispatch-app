@@ -27,6 +27,8 @@ export type LoadRecord = Load & {
   origin: string | null
   destination: string | null
   truckLocation: string | null
+  /** Мили оценены приблизительно или не найдены (город в рейт-коне с опечаткой) — см. schema.sql. */
+  milesEstimated: boolean
   spotRpm: number | null
   brokerName: string | null
   brokerMc: string | null
@@ -142,6 +144,7 @@ export function eldStatus(
 }
 
 export type LoadRow = {
+  miles_estimated?: boolean
   id: number
   truck_id: number | null
   status: string
@@ -209,6 +212,7 @@ export function rowToLoad(r: LoadRow): LoadRecord {
     status: r.status as LoadStatus,
     rate: r.rate,
     loadedMiles: r.loaded_miles,
+    milesEstimated: r.miles_estimated === true,
     deadheadMiles: r.deadhead_miles,
     transitDays: r.transit_days,
     origin: r.origin,

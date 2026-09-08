@@ -163,6 +163,7 @@ async function LoadsBoard({
       reasons.push({ key: 'loads.attention.uninvoiced', bad: false })
     }
     if (!rateCons.has(load.id)) reasons.push({ key: 'loads.attention.noRc', bad: false })
+    if (load.milesEstimated) reasons.push({ key: 'loads.attention.milesEstimated', bad: true })
     if (reasons.length) flagged.push({ load, reasons })
   }
   // Money-losing and overdue first: those are the ones that cost something today.
