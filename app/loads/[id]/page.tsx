@@ -357,6 +357,17 @@ async function LoadMapSection({
   // Диспетчер и водитель почти никогда не в одном поясе, а окна погрузки и звонки
   // живут по времени водителя.
   const driverZone = zoneFor(fs?.lat, fs?.lng)
+  // Детеншен: по GPS (трак стоит у склада) ИЛИ по отметке водителя «Приехал» —
+  // трекер после обновления начинает отсчёт заново, а водитель нажал час назад.
+  const sinceDriver = arrivedAt ? Math.round((Date.now() - Date.parse(arrivedAt)) / 60_000) : null
+  const detention =
+    sinceDriver != null && sinceDriver >= 0
+      ? {
+          at: load.status === 'in_transit' ? ('delivery' as const) : ('pickup' as const),
+          sinceIso: arrivedAt as string,
+          min: Math.max(sinceDriver, live.detention?.min ?? 0),
+        }
+      : live.detention
 
   return (
         <section className="panel mt-4 p-4">
@@ -455,11 +466,11 @@ async function LoadMapSection({
               )}
               {/* Стоит у склада 30+ минут — детеншен: время, сумма по условиям и
                   письмо брокеру в буфер. Отправка только руками. */}
-              {live.detention && live.detention.min >= 30 && (
+              {detention && detention.min >= 30 && (
                 <DetentionTile
-                  at={live.detention.at}
-                  sinceIso={arrivedAt ?? live.detention.sinceIso}
-                  min={arrivedAt ? Math.max(live.detention.min, Math.round((Date.now() - Date.parse(arrivedAt)) / 60_000)) : live.detention.min}
+                  at={detention.at}
+                  sinceIso={detention.sinceIso}
+                  min={detention.min}
                   rateHr={detentionRate}
                   freeHr={detentionFree}
                   refId={load.referenceId}
