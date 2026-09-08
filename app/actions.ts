@@ -765,7 +765,7 @@ async function findLoadByReference(companyId: string, truckId: number, ref: stri
   const key = (ref ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase()
   if (key.length < 5) return null
   const rows = (await sql`
-    SELECT id, truck_id, origin, destination, rate, loaded_miles, miles_estimated, pickup_address, delivery_address,
+    SELECT id, truck_id, origin, destination, rate, loaded_miles, deadhead_miles, miles_estimated, pickup_address, delivery_address,
            pickup_time, delivery_time, pickup_date, delivery_date, broker_name, broker_mc,
            broker_phone, broker_email, broker_notes, driver_info, pay_via
     FROM loads
@@ -781,6 +781,7 @@ async function findLoadByReference(companyId: string, truckId: number, ref: stri
     destination: string | null
     rate: number
     loaded_miles: number
+    deadhead_miles: number
     miles_estimated: boolean
     pickup_address: string | null
     delivery_address: string | null
@@ -845,19 +846,44 @@ export async function createLoadFromRc(
       const brokerMc = nz(twin.broker_mc) ?? nz(load.brokerMc) ?? null
       const notes = nz(twin.broker_notes) ?? (nz(load.brokerNotes) ? (filled.push('notes'), load.brokerNotes) : null)
       const info = nz(twin.driver_info) ?? (nz(driverInfo) ? (filled.push('driverInfo'), await driverInfoWithCities(driverInfo)) : null)
-      // Мили: у первого груза они могли быть оценены по опечатке — точные из второго
-      // файла лучше; иначе оставляем как есть.
-      const miles = twin.miles_estimated && load.loadedMiles > 0 ? (filled.push('miles'), load.loadedMiles) : twin.loaded_miles
       // Город: у файла с индексом (лист водителя) он выверен по индексу, у первого
       // файла мог остаться с опечаткой брокера («Anahiem») — заменяем.
       const { zipOf } = await import('@/lib/city-fix')
       const origin = zipOf(load.pickupAddress) && nz(load.origin) ? load.origin : twin.origin
       const destination = zipOf(load.deliveryAddress) && nz(load.destination) ? load.destination : twin.destination
-      if (origin !== twin.origin || destination !== twin.destination) filled.push('cities')
+      const citiesChanged = origin !== twin.origin || destination !== twin.destination
+      if (citiesChanged) filled.push('cities')
+      // Мили. У первого груза они могли быть посчитаны по опечатке («Anahiem» → точка
+      // в Оклахоме → 1075 mi вместо 290) и при этом НЕ помечены как оценка: геокодер
+      // «нашёл». Поэтому пересчитываем всякий раз, когда второй файл улучшил вводные —
+      // исправил город или принёс адреса с индексами; иначе оставляем как есть.
+      let miles = twin.loaded_miles
+      let milesEstimated = twin.miles_estimated
+      // Файл с индексами обоих складов — лучший источник маршрута; повторный сброс
+      // такого файла чинит мили и у уже сшитого груза.
+      const hasZips = !!(zipOf(load.pickupAddress) && zipOf(load.deliveryAddress))
+      if (load.loadedMiles > 0 && (twin.miles_estimated || citiesChanged)) {
+        miles = load.loadedMiles
+        milesEstimated = false
+        filled.push('miles')
+      } else if ((citiesChanged || hasZips || twin.miles_estimated) && origin && destination) {
+        const { routeMiles } = await import('@/lib/geo-routing')
+        const r = await routeMiles(origin, destination, locale, {
+          origin: pickupAddress ?? load.pickupAddress,
+          destination: deliveryAddress ?? load.deliveryAddress,
+        })
+        if ('miles' in r && r.miles > 0 && r.miles !== twin.loaded_miles && (!r.estimated || twin.miles_estimated)) {
+          miles = r.miles
+          milesEstimated = !!r.estimated
+          filled.push('miles')
+        }
+      }
+      // Порожний пробег считался до старого (неверного) пикапа — тоже заново.
+      const deadhead = filled.includes('miles') ? await fillDeadhead(companyId, truckId, 0, origin) : twin.deadhead_miles
       await sql`
         UPDATE loads SET
           origin = ${origin}, destination = ${destination},
-          rate = ${rate}, loaded_miles = ${miles}, miles_estimated = ${twin.miles_estimated && !filled.includes('miles')},
+          rate = ${rate}, loaded_miles = ${miles}, miles_estimated = ${milesEstimated}, deadhead_miles = ${deadhead},
           pickup_address = ${pickupAddress}, delivery_address = ${deliveryAddress},
           pickup_time = COALESCE(pickup_time, ${load.pickupTime ?? null}),
           delivery_time = COALESCE(delivery_time, ${load.deliveryTime ?? null}),
