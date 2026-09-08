@@ -28,6 +28,11 @@ type Result = {
   warnings: RcWarning[]
   docId?: number
   fileName: string
+  /** Второй файл той же пары — груз дополнен, а не создан заново. */
+  merged?: boolean
+  filled?: string[]
+  /** Чего ещё нет: подсказка «загрузи второй файл». */
+  missing?: 'rate' | 'driverinfo' | null
 }
 
 const WTONE = {
@@ -154,8 +159,11 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
         warnings: rcWarnings(ai.fields, text, locale),
         docId,
         fileName: file.name,
+        merged: made.merged,
+        filled: made.filled,
+        missing: made.missing,
       })
-      notify('ok', t(locale, 'rcDrop.createdToast'), file.name)
+      notify('ok', t(locale, made.merged ? 'rcDrop.mergedToast' : 'rcDrop.createdToast'), file.name)
     } catch (e) {
       // Устаревшая после деплоя вкладка отвечает «unexpected response» — человеку
       // это ни о чём; говорим, что делать (см. components/build-watch.tsx).
@@ -190,6 +198,35 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
           </div>
         </div>
 
+        {/* Пара файлов TQL: второй дополнил первый — говорим, что именно; одного не
+            хватает — зовём загрузить второй прямо отсюда, груз при этом уже создан. */}
+        {res.merged && (
+          <p className="rounded-lg bg-good-500/10 px-3 py-2 text-[12.5px] text-good-300">
+            {t(locale, 'rcDrop.mergedBadge')}
+            {res.filled && res.filled.length > 0 && (
+              <> · {t(locale, 'rcDrop.mergedFilled')}: {res.filled.map((f) => t(locale, `rcDrop.f.${f}` as Parameters<typeof t>[1])).join(', ')}</>
+            )}
+          </p>
+        )}
+        {res.missing && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-warn-400/30 bg-warn-500/[0.08] px-3 py-2 text-[12.5px]">
+            <span className="text-warn-300">{t(locale, res.missing === 'rate' ? 'rcDrop.needRate' : 'rcDrop.needSheet')}</span>
+            <input
+              type="file"
+              accept="application/pdf,.pdf,image/*"
+              multiple
+              className="hidden"
+              id={`rc-second-${truckId}`}
+              onChange={(e) => handle(e.target.files ?? undefined)}
+            />
+            <label
+              htmlFor={`rc-second-${truckId}`}
+              className="cursor-pointer rounded-lg bg-warn-400/20 px-3 py-1 font-semibold text-warn-200 hover:bg-warn-400/30"
+            >
+              {t(locale, 'rcDrop.uploadSecond')}
+            </label>
+          </div>
+        )}
         {/* The rate con itself: view it, or save a copy to the computer. It's already
             stored on the server with the load; this is a local copy. */}
         {res.docId && (

@@ -7,6 +7,7 @@ import { getSetting, setSetting } from './settings.ts'
 import { sql } from './db.ts'
 import { cacheCell, haversineMiles, simplifyPath } from './geo.ts'
 import { t, type Locale } from './i18n.ts'
+import { stateOf } from './us-state.ts'
 
 /**
  * Внешний запрос с ЖЁСТКИМ сроком ответа.
@@ -51,9 +52,31 @@ async function geocode(place: string): Promise<LatLng | null> {
   }
 }
 
+/**
+ * Город с проверкой штата. «Anahiem, CA» (опечатка брокера) свободный поиск
+ * сопоставил с чем-то в Оклахоме, и пин пикапа встал за тысячу миль от склада.
+ * Точка обязана лежать в штате, который написан после запятой; иначе она не
+ * считается найденной — лучше без пина, чем с пином не в том штате. Второй шанс —
+ * Mapbox: он терпим к опечаткам и сам находит Anaheim. Проверка применяется и к
+ * кэшу, поэтому уже закэшированные ошибки тоже отбраковываются.
+ */
+async function cityGeocodeChecked(city: string): Promise<LatLng | null> {
+  const st = /,\s*([A-Za-z]{2})\s*$/.exec(city.trim())?.[1]?.toUpperCase() ?? null
+  const inState = (p: LatLng) => {
+    if (!st) return true
+    const s = stateOf(p.lat, p.lng)
+    return s === null || s === st
+  }
+  const free = await geocode(city)
+  if (free && inState(free)) return free
+  const fuzzy = await geocodeMapbox(city)
+  if (fuzzy && inState(fuzzy)) return fuzzy
+  return null
+}
+
 /** "City, ST" → coords, for placing a marker with no route needed (e.g. a pickup pin). */
 export async function cityCoords(place: string): Promise<LatLng | null> {
-  return geocode(place)
+  return cityGeocodeChecked(place)
 }
 
 /** Last 5-digit run in a US address string — "160 Smith Farms Pkwy, Greer, SC 29651" → "29651". */
@@ -191,7 +214,7 @@ export async function cityCoordsBest(
   // индексу верный адрес отбраковывался как «слишком далеко от города».
   const zip = address ? extractZip(address) : null
   const zipPt = zip ? await geocodeZip(zip) : null
-  const cityPt = zipPt ?? (city ? await geocode(city) : null)
+  const cityPt = zipPt ?? (city ? await cityGeocodeChecked(city) : null)
   const trust = (p: LatLng | null): p is LatLng =>
     !!p && (!cityPt || haversineMiles(p, cityPt) <= MAX_ADDR_DRIFT_MI)
 
@@ -219,14 +242,15 @@ export async function cityCoordsBest(
 export async function cityCoordsLoose(city: string | null | undefined): Promise<{ pt: LatLng; rough: boolean } | null> {
   const c = (city ?? '').trim()
   if (!c) return null
-  const exact = await geocode(c)
+  const exact = await cityGeocodeChecked(c)
   if (exact) return { pt: exact, rough: false }
+  const st = /,\s*([A-Za-z]{2})\s*$/.exec(c)?.[1]?.toUpperCase()
   const noState = c.replace(/,\s*[A-Za-z]{2}\s*$/, '').trim()
   if (noState && noState !== c) {
+    // Без штата, но точка всё равно должна попасть в штат с бумаги.
     const byName = await geocode(noState)
-    if (byName) return { pt: byName, rough: false }
+    if (byName && (!st || stateOf(byName.lat, byName.lng) === st)) return { pt: byName, rough: false }
   }
-  const st = /,\s*([A-Za-z]{2})\s*$/.exec(c)?.[1]?.toUpperCase()
   if (st) {
     const { US_STATES } = await import('./us-states.ts')
     const row = US_STATES.find((r) => r[0] === st)

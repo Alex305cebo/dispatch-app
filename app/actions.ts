@@ -744,6 +744,61 @@ async function withoutOwnMc(load: QrLoad): Promise<QrLoad> {
   return mine && onlyDigits(load.brokerMc) === mine ? { ...load, brokerMc: null } : load
 }
 
+/** Что вернул разбор рейт-кона: новый груз или дополненный существующий. */
+export type RcCreateResult = {
+  loadId: number
+  /** Груз с таким номером уже был (второй файл той же пары) — данные дополнены. */
+  merged?: boolean
+  /** Что именно дополнили: 'rate' | 'addresses' | 'contacts' | 'driverInfo' | 'notes' | 'miles'. */
+  filled?: string[]
+  /** Чего в грузе всё ещё нет — подсказка «загрузи второй файл». */
+  missing?: 'rate' | 'driverinfo' | null
+}
+
+/**
+ * Груз с тем же номером брокера, созданный недавно: TQL и другие присылают рейт-кон
+ * и Driver Info ОТДЕЛЬНЫМИ файлами с одним PO#, и второй файл должен дополнять
+ * первый, а не плодить дубль. Свой трак — в приоритете, но груз мог завести и
+ * коллега на другой карточке.
+ */
+async function findLoadByReference(companyId: string, truckId: number, ref: string | null | undefined) {
+  const key = (ref ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase()
+  if (key.length < 5) return null
+  const rows = (await sql`
+    SELECT id, truck_id, origin, destination, rate, loaded_miles, miles_estimated, pickup_address, delivery_address,
+           pickup_time, delivery_time, pickup_date, delivery_date, broker_name, broker_mc,
+           broker_phone, broker_email, broker_notes, driver_info, pay_via
+    FROM loads
+    WHERE company_id = ${companyId}
+      AND status NOT IN ('cancelled', 'paid')
+      AND created_at > now() - interval '45 days'
+      AND upper(regexp_replace(COALESCE(reference_id, ''), '[^0-9A-Za-z]', '', 'g')) = ${key}
+    ORDER BY (truck_id = ${truckId}) DESC, created_at DESC
+    LIMIT 1`) as {
+    id: number
+    truck_id: number | null
+    origin: string | null
+    destination: string | null
+    rate: number
+    loaded_miles: number
+    miles_estimated: boolean
+    pickup_address: string | null
+    delivery_address: string | null
+    pickup_time: string | null
+    delivery_time: string | null
+    pickup_date: string | null
+    delivery_date: string | null
+    broker_name: string | null
+    broker_mc: string | null
+    broker_phone: string | null
+    broker_email: string | null
+    broker_notes: string | null
+    driver_info: string | null
+    pay_via: string | null
+  }[]
+  return rows[0] ?? null
+}
+
 export async function createLoadFromRc(
   truckId: number,
   load: QrLoad,
@@ -752,7 +807,7 @@ export async function createLoadFromRc(
    * `load` — stored so it can be re-copied from the load page later, not just once
    * in the browser session right after the RC was read. */
   driverInfo?: string,
-): Promise<{ loadId: number } | { error: string }> {
+): Promise<RcCreateResult | { error: string }> {
   const ro = await demoReadOnly()
   if (ro) return ro
   const locale = await getLocale()
@@ -774,6 +829,58 @@ export async function createLoadFromRc(
     // "33823", city empty). A US ZIP names exactly one place, so recover the city from
     // it rather than throwing away a document that was read correctly otherwise.
     load = await fillCitiesFromZip(load)
+
+    // Второй файл той же пары (тот же PO#) — дополняем уже созданный груз тем, чего в
+    // нём нет: ставкой из рейт-кона, адресами и контактами из листа водителя.
+    const twin = await findLoadByReference(companyId, truckId, load.referenceId)
+    if (twin) {
+      const filled: string[] = []
+      const nz = (v: string | null | undefined) => (v && v.trim() ? v : null)
+      const rate = twin.rate > 0 ? twin.rate : load.rate > 0 ? (filled.push('rate'), load.rate) : twin.rate
+      const pickupAddress = nz(twin.pickup_address) ?? (nz(load.pickupAddress) ? (filled.push('addresses'), load.pickupAddress) : null)
+      const deliveryAddress = nz(twin.delivery_address) ?? nz(load.deliveryAddress) ?? null
+      const brokerPhone = nz(twin.broker_phone) ?? (nz(load.brokerPhone) ? (filled.push('contacts'), load.brokerPhone) : null)
+      const brokerEmail = nz(twin.broker_email) ?? nz(load.brokerEmail) ?? null
+      const brokerName = nz(twin.broker_name) ?? nz(load.brokerName) ?? null
+      const brokerMc = nz(twin.broker_mc) ?? nz(load.brokerMc) ?? null
+      const notes = nz(twin.broker_notes) ?? (nz(load.brokerNotes) ? (filled.push('notes'), load.brokerNotes) : null)
+      const info = nz(twin.driver_info) ?? (nz(driverInfo) ? (filled.push('driverInfo'), await driverInfoWithCities(driverInfo)) : null)
+      // Мили: у первого груза они могли быть оценены по опечатке — точные из второго
+      // файла лучше; иначе оставляем как есть.
+      const miles = twin.miles_estimated && load.loadedMiles > 0 ? (filled.push('miles'), load.loadedMiles) : twin.loaded_miles
+      // Город: у файла с индексом (лист водителя) он выверен по индексу, у первого
+      // файла мог остаться с опечаткой брокера («Anahiem») — заменяем.
+      const { zipOf } = await import('@/lib/city-fix')
+      const origin = zipOf(load.pickupAddress) && nz(load.origin) ? load.origin : twin.origin
+      const destination = zipOf(load.deliveryAddress) && nz(load.destination) ? load.destination : twin.destination
+      if (origin !== twin.origin || destination !== twin.destination) filled.push('cities')
+      await sql`
+        UPDATE loads SET
+          origin = ${origin}, destination = ${destination},
+          rate = ${rate}, loaded_miles = ${miles}, miles_estimated = ${twin.miles_estimated && !filled.includes('miles')},
+          pickup_address = ${pickupAddress}, delivery_address = ${deliveryAddress},
+          pickup_time = COALESCE(pickup_time, ${load.pickupTime ?? null}),
+          delivery_time = COALESCE(delivery_time, ${load.deliveryTime ?? null}),
+          pickup_date = COALESCE(pickup_date, ${load.pickupDate ?? null}),
+          delivery_date = COALESCE(delivery_date, ${load.deliveryDate ?? null}),
+          broker_name = ${brokerName}, broker_mc = ${brokerMc}, broker_phone = ${brokerPhone}, broker_email = ${brokerEmail},
+          broker_notes = ${notes}, driver_info = ${info}, pay_via = COALESCE(pay_via, ${load.payVia ?? null})
+        WHERE id = ${twin.id} AND company_id = ${companyId}`
+      // Файл — к этому же грузу, со своим типом (лист водителя остаётся листом).
+      if (docId && (await docBelongs(companyId, docId)))
+        await sql`UPDATE documents SET load_id = ${twin.id} WHERE id = ${docId} AND load_id IS NULL`
+      revalidatePath(`/loads/${twin.id}`)
+      revalidatePath(`/trucks/${truckId}`)
+      revalidatePath('/loads')
+      revalidatePath('/')
+      return {
+        loadId: twin.id,
+        merged: true,
+        filled,
+        missing: rate > 0 ? (pickupAddress || deliveryAddress ? null : 'driverinfo') : 'rate',
+      }
+    }
+
     // Plenty of real rate cons never print a mileage figure. loads.loaded_miles has
     // CHECK (> 0), so those used to die on a raw constraint violation — the load
     // silently never appeared. Fall back to actual road miles between the two cities
@@ -827,11 +934,18 @@ export async function createLoadFromRc(
     if (docId && (await docBelongs(companyId, docId)))
       // kind='ratecon' too: if this doc was recognised out of a misclassified Telegram
       // file, label it correctly now that we know what it is.
-      await sql`UPDATE documents SET load_id = ${loadId}, kind = 'ratecon' WHERE id = ${docId} AND load_id IS NULL`
+      // «Другое» из Telegram становится рейт-коном; лист водителя своим типом и остаётся.
+      await sql`UPDATE documents SET load_id = ${loadId}, kind = CASE WHEN kind = 'other' THEN 'ratecon' ELSE kind END
+                WHERE id = ${docId} AND load_id IS NULL`
     revalidatePath(`/trucks/${truckId}`)
     revalidatePath('/loads')
     revalidatePath('/')
-    return { loadId }
+    return {
+      loadId,
+      // Чего не хватает: без ставки — это был лист водителя, нужен рейт-кон; без адресов
+      // складов — это был рейт-кон, пригодится Driver Info.
+      missing: load.rate > 0 ? (load.pickupAddress || load.deliveryAddress ? null : 'driverinfo') : 'rate',
+    }
   } catch (e) {
     return { error: humanError(e, locale) }
   }
