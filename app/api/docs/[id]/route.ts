@@ -26,10 +26,7 @@ const INLINE_OK = new Set([
   'image/heif',
   'text/plain',
 ])
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const rows = await sql`
     SELECT title, mime, encode(data, 'base64') AS b64 FROM documents
@@ -38,8 +35,34 @@ export async function GET(
   if (!doc) return new NextResponse('Not found', { status: 404 })
 
   // ?download=1 → force a save-to-computer; otherwise open inline in the browser tab.
-  const download = new URL(_req.url).searchParams.has('download')
+  const q = new URL(_req.url).searchParams
+  const download = q.has('download')
   const mime = (doc.mime || '').split(';')[0]!.trim().toLowerCase()
+
+  // ?thumb=1 → миниатюра для списка документов: фото груза по 200 КБ, а в списке
+  // их десяток — на телефоне это секунды. Ужимаем до 160px на сервере (sharp уже в
+  // проекте) и отдаём как JPEG; не картинка или не вышло — 404, список покажет иконку.
+  if (q.has('thumb')) {
+    if (!mime.startsWith('image/')) return new NextResponse('Not an image', { status: 404 })
+    try {
+      const sharp = (await import('sharp')).default
+      const out = await sharp(Buffer.from(doc.b64, 'base64'))
+        .rotate()
+        .resize(160, 160, { fit: 'cover' })
+        .jpeg({ quality: 70 })
+        .toBuffer()
+      return new NextResponse(new Uint8Array(out), {
+        headers: {
+          'content-type': 'image/jpeg',
+          'cache-control': 'private, max-age=86400',
+          'x-content-type-options': 'nosniff',
+          'content-security-policy': "default-src 'none'; sandbox",
+        },
+      })
+    } catch {
+      return new NextResponse('Thumb failed', { status: 404 })
+    }
+  }
   const inline = !download && INLINE_OK.has(mime)
   return new NextResponse(Buffer.from(doc.b64, 'base64'), {
     headers: {
@@ -51,7 +74,8 @@ export async function GET(
       'x-content-type-options': 'nosniff',
       // Даже если что-то из списка окажется исполняемым, выполнять ему будет нечего:
       // ни скриптов, ни запросов наружу, ни встраивания в чужую страницу.
-      'content-security-policy': "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; object-src 'none'; sandbox",
+      'content-security-policy':
+        "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; object-src 'none'; sandbox",
     },
   })
 }

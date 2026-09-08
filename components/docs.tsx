@@ -75,14 +75,17 @@ export function DocUpload({
         }
       }
       if (saved > 0) {
-        notify('ok', t(locale, 'docs.upload.saved'), saved === 1 ? files[0]!.name : `${saved} × ${docKindLabel(kind, locale)}`)
+        notify(
+          'ok',
+          t(locale, 'docs.upload.saved'),
+          saved === 1 ? files[0]!.name : `${saved} × ${docKindLabel(kind, locale)}`,
+        )
         if (fileRef.current) fileRef.current.value = ''
       }
     })
   }
 
-  const select =
-    'rounded-xl border border-white/8 bg-ink-900/80 px-2.5 py-2 text-[13px] text-white outline-none'
+  const select = 'rounded-xl border border-white/8 bg-ink-900/80 px-2.5 py-2 text-[13px] text-white outline-none'
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -194,8 +197,7 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
           <Button variant="ghost" onClick={onClose}>
             {t(locale, 'docs.delete.cancel')}
           </Button>
-          <Button variant="danger" disabled={pending || word !== DELETE_WORD}
-            onClick={submit}>
+          <Button variant="danger" disabled={pending || word !== DELETE_WORD} onClick={submit}>
             {pending ? t(locale, 'docs.delete.deleting') : t(locale, 'docs.delete.confirm')}
           </Button>
         </div>
@@ -332,6 +334,7 @@ function DocRow({
       // В одну строку на 375px имени оставалась одна буква.
       <li className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-2 py-1.5 hover:bg-white/[0.04] sm:flex-nowrap sm:py-1">
         <KindPicker doc={doc} small />
+        <Thumb doc={doc} size={7} />
         <DocLink
           docId={doc.id}
           className="order-first basis-full truncate text-left text-[13px] text-white/85 hover:text-haul-400 hover:underline sm:order-none sm:min-w-0 sm:shrink sm:basis-auto"
@@ -369,6 +372,7 @@ function DocRow({
   return (
     <li className="flex items-start gap-2.5 rounded-lg border border-white/6 px-3 py-2">
       <KindPicker doc={doc} />
+      <Thumb doc={doc} size={11} />
       <div className="min-w-0 flex-1">
         {/* Окном поверх страницы, а не отдельной страницей — см. doc-link.tsx. */}
         <DocLink
@@ -387,22 +391,22 @@ function DocRow({
           {fmtSize(doc.sizeBytes)} · {doc.uploadedAt.slice(0, 10)}
         </span>
         {doc.loadId === null && doc.truckId && attachTargets && (
-          <UnattachedActions docId={doc.id} kind={doc.kind} truckId={doc.truckId} loads={attachTargets} locale={locale} />
+          <UnattachedActions
+            docId={doc.id}
+            kind={doc.kind}
+            truckId={doc.truckId}
+            loads={attachTargets}
+            locale={locale}
+          />
         )}
       </div>
       {showLinks && doc.truckId && (
-        <a
-          href={`/trucks/${doc.truckId}`}
-          className="shrink-0 text-[11px] text-white/55 hover:text-white/85"
-        >
+        <a href={`/trucks/${doc.truckId}`} className="shrink-0 text-[11px] text-white/55 hover:text-white/85">
           {t(locale, 'docs.row.truck')}
         </a>
       )}
       {showLinks && doc.loadId && (
-        <a
-          href={`/loads/${doc.loadId}`}
-          className="shrink-0 text-[11px] text-white/55 hover:text-white/85"
-        >
+        <a href={`/loads/${doc.loadId}`} className="shrink-0 text-[11px] text-white/55 hover:text-white/85">
           {t(locale, 'docs.row.load')}
         </a>
       )}
@@ -414,6 +418,30 @@ function DocRow({
         ✕
       </button>
     </li>
+  )
+}
+
+/** Миниатюра фото в строке документа: видно, что за снимок, не открывая. Только для
+ * картинок; PDF и прочее остаются без неё. Нажатие открывает оригинал, как имя файла.
+ * Не загрузилась (HEIC, битый файл) — прячется, строка остаётся как была. */
+function Thumb({ doc, size }: { doc: DocMeta; size: 7 | 11 }) {
+  const [broken, setBroken] = useState(false)
+  if (!doc.mime?.startsWith('image/') || broken) return null
+  const box = size === 7 ? 'h-7 w-7 rounded-md' : 'h-11 w-11 rounded-lg'
+  return (
+    <DocLink
+      docId={doc.id}
+      className={`${box} shrink-0 overflow-hidden border border-white/10 bg-white/[0.04]`}
+      title={doc.title}
+    >
+      <img
+        src={`/api/docs/${doc.id}?thumb=1`}
+        alt=""
+        loading="lazy"
+        onError={() => setBroken(true)}
+        className="h-full w-full object-cover"
+      />
+    </DocLink>
   )
 }
 
@@ -431,8 +459,7 @@ export function DocList({
 }) {
   const locale = useLocale()
   const [del, setDel] = useState<DocMeta | null>(null)
-  if (docs.length === 0)
-    return <Empty compact icon={FileX2} title={t(locale, 'docs.list.empty')} />
+  if (docs.length === 0) return <Empty compact icon={FileX2} title={t(locale, 'docs.list.empty')} />
   return (
     <>
       <ul className="mt-3 flex flex-col gap-1.5">
@@ -485,9 +512,7 @@ export function DocLibrary({
             key={k}
             onClick={() => setKind(k)}
             className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
-              kind === k
-                ? 'bg-haul-500 text-white'
-                : 'bg-white/6 text-white/60 hover:bg-white/10 hover:text-white/85'
+              kind === k ? 'bg-haul-500 text-white' : 'bg-white/6 text-white/60 hover:bg-white/10 hover:text-white/85'
             }`}
           >
             {k === 'all' ? t(locale, 'docs.library.all') : docKindLabel(k, locale)}
@@ -590,12 +615,7 @@ export function DocTrash({ rows }: { rows: DocLibRow[] }) {
           >
             {t(locale, 'docs.trash.restore')}
           </button>
-          <DeleteButton
-            action={purgeDocument}
-            id={d.id}
-            title={d.title}
-            note={t(locale, 'docs.trash.purgeNote')}
-          />
+          <DeleteButton action={purgeDocument} id={d.id} title={d.title} note={t(locale, 'docs.trash.purgeNote')} />
         </li>
       ))}
     </ul>
