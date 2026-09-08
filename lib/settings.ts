@@ -38,3 +38,18 @@ export async function deleteSetting(key: string): Promise<void> {
 export function dispatcherPhoneKey(userId: number): string {
   return `disp_phone:${userId}`
 }
+
+/** Условия детеншена компании: settings detention_rate_hr / detention_free_hr,
+ * по умолчанию $35 в час после 2 бесплатных — так пишут в большинстве рейт-конов. */
+export async function detentionTerms(): Promise<{
+  rate: number
+  free: number
+}> {
+  const s = await getSettings(['detention_rate_hr', 'detention_free_hr'])
+  const rate = Number(s.get('detention_rate_hr'))
+  const free = Number(s.get('detention_free_hr'))
+  return {
+    rate: Number.isFinite(rate) && rate > 0 ? rate : 35,
+    free: Number.isFinite(free) && free >= 0 ? free : 2,
+  }
+}

@@ -26,6 +26,12 @@ export type LoadDetails = {
   truckLocation: string | null
   pickupAddress: string | null
   deliveryAddress: string | null
+  /** Название склада (shipper/consignee) из текста водителю — см. lib/driver-info-zip stopNames. */
+  pickupName?: string | null
+  deliveryName?: string | null
+  /** Города пунктов — в запрос карте, когда в адресе только улица и индекс. */
+  origin?: string | null
+  destination?: string | null
   pickupDate: string | null
   deliveryDate: string | null
   /** Окно из рейт-кона («8/14/2026 09:00-13:00»), если оно было прочитано. */
@@ -55,13 +61,19 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
     pickupDate: load.pickupDate ?? '',
     deliveryDate: load.deliveryDate ?? '',
   })
-  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setF({ ...f, [k]: e.target.value })
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value })
 
   // Поиск MC по названию. MC печатают не все брокеры, а без него ни проверить
   // контору, ни выставить счёт; название на бумаге есть всегда.
   const [hits, setHits] = useState<
-    { dot: string; legalName: string; dbaName: string | null; city: string | null; state: string | null; active: boolean }[]
+    {
+      dot: string
+      legalName: string
+      dbaName: string | null
+      city: string | null
+      state: string | null
+      active: boolean
+    }[]
   >([])
   const [lookup, startLookup] = useTransition()
 
@@ -85,7 +97,11 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
         notify('error', res.error)
         return
       }
-      setF((prev) => ({ ...prev, brokerMc: res.mc ?? prev.brokerMc, brokerName: legalName || prev.brokerName }))
+      setF((prev) => ({
+        ...prev,
+        brokerMc: res.mc ?? prev.brokerMc,
+        brokerName: legalName || prev.brokerName,
+      }))
       setHits([])
       if (!res.mc) notify('warn', t(locale, 'loadEdit.noMcForCompany'))
     })
@@ -211,9 +227,11 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
               <Row label={t(locale, 'loadEdit.pickup')} value={load.pickupTime || load.pickupDate || '—'} />
               {/* Полный адрес из рейт-кона — прямо под окном: раньше за ним
                   ходили в сам документ или на карту. */}
-              {load.pickupAddress && <Addr text={load.pickupAddress} />}
+              {load.pickupAddress && <Addr text={load.pickupAddress} name={load.pickupName} city={load.origin} />}
               <Row label={t(locale, 'loadEdit.delivery')} value={load.deliveryTime || load.deliveryDate || '—'} />
-              {load.deliveryAddress && <Addr text={load.deliveryAddress} />}
+              {load.deliveryAddress && (
+                <Addr text={load.deliveryAddress} name={load.deliveryName} city={load.destination} />
+              )}
             </dl>
           </div>
         </div>
@@ -284,11 +302,15 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label={t(locale, 'loadEdit.pickup')} value={f.pickupDate} onChange={set('pickupDate')} type="date" />
-        <Field label={t(locale, 'loadEdit.delivery')} value={f.deliveryDate} onChange={set('deliveryDate')} type="date" />
+        <Field
+          label={t(locale, 'loadEdit.delivery')}
+          value={f.deliveryDate}
+          onChange={set('deliveryDate')}
+          type="date"
+        />
       </div>
       <div className="flex gap-2">
-        <Button variant="primary" disabled={pending}
-          onClick={save}>
+        <Button variant="primary" disabled={pending} onClick={save}>
           {pending ? t(locale, 'loadEdit.saving') : t(locale, 'loadEdit.save')}
         </Button>
         <button
@@ -337,11 +359,24 @@ function Field({
   )
 }
 
-/** Адрес точки — своей строкой под окном: инлайном с датой он не читался. */
-function Addr({ text }: { text: string }) {
+/** Адрес точки — своей строкой под окном: инлайном с датой он не читался.
+ * Название склада жирнее адреса: у ворот водитель ищет вывеску, а не номер дома.
+ * Нажатие открывает точку в Google Maps в новой вкладке: запрос — название плюс
+ * адрес плюс город, так карта попадает в нужные ворота, а не в центр индекса. */
+function Addr({ text, name, city }: { text: string; name?: string | null; city?: string | null }) {
+  const q = [name, text, /[A-Za-z]{2,},\s*[A-Z]{2}\b/.test(text) ? null : city].filter(Boolean).join(', ')
   return (
     <div className="-mt-1 border-b border-white/[0.06] pb-1.5 pl-3 text-[12px] leading-snug text-white/55">
-      📍 {text}
+      <a
+        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-block underline-offset-2 hover:text-white hover:underline"
+        title="Google Maps"
+      >
+        📍 {name && <span className="font-semibold text-white/80">{name} · </span>}
+        {text}
+      </a>
     </div>
   )
 }

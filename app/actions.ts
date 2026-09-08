@@ -39,10 +39,7 @@ import type { CapabilityKey } from '@/lib/capabilities'
 import { t } from '@/lib/i18n'
 import { getLocale } from '@/lib/i18n-server'
 
-export async function vetBroker(
-  mc: string,
-  ctx: RcContext,
-): Promise<BrokerCheck | { error: string }> {
+export async function vetBroker(mc: string, ctx: RcContext): Promise<BrokerCheck | { error: string }> {
   return checkBroker(mc, ctx, await getLocale())
 }
 
@@ -286,7 +283,6 @@ export async function findBrokerByName(name: string) {
   return searchByName(name, await getLocale())
 }
 
-
 /**
  * Контакты этого же брокера с ПРОШЛЫХ грузов: почта для счёта, телефон, MC.
  *
@@ -297,7 +293,12 @@ export async function findBrokerByName(name: string) {
 export async function brokerContactsFromHistory(
   name: string | null,
   mc: string | null,
-): Promise<{ email: string | null; phone: string | null; mc: string | null; payVia: string | null }> {
+): Promise<{
+  email: string | null
+  phone: string | null
+  mc: string | null
+  payVia: string | null
+}> {
   const companyId = await companyScope()
   const key = (name ?? '').trim().toLowerCase()
   const mcDigits = (mc ?? '').replace(/\D/g, '')
@@ -315,7 +316,7 @@ export async function brokerContactsFromHistory(
     broker_mc: string | null
     pay_via: string | null
   }[]
-  const first = <T,>(pick: (r: (typeof rows)[number]) => T | null): T | null =>
+  const first = <T>(pick: (r: (typeof rows)[number]) => T | null): T | null =>
     rows.map(pick).find((v) => v != null && String(v).trim() !== '') ?? null
   return {
     email: first((r) => r.broker_email),
@@ -325,12 +326,8 @@ export async function brokerContactsFromHistory(
   }
 }
 
-
 /** Manual broker lookup from the Brokers page — by MC or DOT number. */
-export async function runBrokerCheck(
-  by: 'mc' | 'dot',
-  value: string,
-): Promise<BrokerCheck | { error: string }> {
+export async function runBrokerCheck(by: 'mc' | 'dot', value: string): Promise<BrokerCheck | { error: string }> {
   const locale = await getLocale()
   return by === 'dot' ? checkBrokerByDot(value, {}, locale) : checkBroker(value, {}, locale)
 }
@@ -414,9 +411,11 @@ export async function clearTracking(): Promise<void> {
   revalidatePath('/', 'layout')
 }
 
-
 /** Manual "Обновить" on /tracking — те же источники, что опрашивает крон, по кнопке. */
-export async function refreshFleetStatus(): Promise<{ updated: number; errors: string[] }> {
+export async function refreshFleetStatus(): Promise<{
+  updated: number
+  errors: string[]
+}> {
   // Живой режим карт опрашивает это каждые ~30 с С КАЖДОЙ открытой вкладки. Интервал
   // серверный и один на всех: первая вкладка реально идёт к вендору, остальные получают
   // «без изменений» и просто перечитывают базу — вендор видит один опрос, сколько бы
@@ -620,7 +619,10 @@ async function fillDeadhead(
   const rows = (await sql`
     SELECT fs.lat, fs.lng FROM trucks t
     LEFT JOIN fleet_status fs ON fs.unit = t.number
-    WHERE t.id = ${truckId} AND t.company_id = ${companyId}`) as { lat: number | null; lng: number | null }[]
+    WHERE t.id = ${truckId} AND t.company_id = ${companyId}`) as {
+    lat: number | null
+    lng: number | null
+  }[]
   const t = rows[0]
   if (t?.lat == null || t?.lng == null) return deadheadMiles
   const { deliveryInfo } = await import('@/lib/geo-routing')
@@ -711,9 +713,12 @@ async function fillCitiesFromZip(load: QrLoad): Promise<QrLoad> {
   const oz = zipOf(load.pickupAddress)
   const dz = zipOf(load.deliveryAddress)
   const [o, d] = await Promise.all([oz ? zipPlace(oz) : null, dz ? zipPlace(dz) : null])
-  return { ...load, origin: pickCity(load.origin, o), destination: pickCity(load.destination, d) }
+  return {
+    ...load,
+    origin: pickCity(load.origin, o),
+    destination: pickCity(load.destination, d),
+  }
 }
-
 
 /**
  * Дописать город и штат в тексте для водителя там, где рейт-кон напечатал один
@@ -838,14 +843,23 @@ export async function createLoadFromRc(
       const filled: string[] = []
       const nz = (v: string | null | undefined) => (v && v.trim() ? v : null)
       const rate = twin.rate > 0 ? twin.rate : load.rate > 0 ? (filled.push('rate'), load.rate) : twin.rate
-      const pickupAddress = nz(twin.pickup_address) ?? (nz(load.pickupAddress) ? (filled.push('addresses'), load.pickupAddress) : null)
+      const pickupAddress =
+        nz(twin.pickup_address) ?? (nz(load.pickupAddress) ? (filled.push('addresses'), load.pickupAddress) : null)
       const deliveryAddress = nz(twin.delivery_address) ?? nz(load.deliveryAddress) ?? null
-      const brokerPhone = nz(twin.broker_phone) ?? (nz(load.brokerPhone) ? (filled.push('contacts'), load.brokerPhone) : null)
+      const brokerPhone =
+        nz(twin.broker_phone) ?? (nz(load.brokerPhone) ? (filled.push('contacts'), load.brokerPhone) : null)
       const brokerEmail = nz(twin.broker_email) ?? nz(load.brokerEmail) ?? null
       const brokerName = nz(twin.broker_name) ?? nz(load.brokerName) ?? null
       const brokerMc = nz(twin.broker_mc) ?? nz(load.brokerMc) ?? null
       const notes = nz(twin.broker_notes) ?? (nz(load.brokerNotes) ? (filled.push('notes'), load.brokerNotes) : null)
-      const info = nz(twin.driver_info) ?? (nz(driverInfo) ? (filled.push('driverInfo'), await driverInfoWithCities(driverInfo)) : null)
+      // Текст водителю: побеждает тот, где есть улицы и названия складов (лист
+      // водителя), даже если у груза уже был текст из рейт-кона с одним «Город, ST».
+      const { hasStreets } = await import('@/lib/driver-info-zip')
+      const info =
+        nz(driverInfo) && hasStreets(driverInfo) && !hasStreets(twin.driver_info)
+          ? (filled.push('driverInfo'), await driverInfoWithCities(driverInfo))
+          : (nz(twin.driver_info) ??
+            (nz(driverInfo) ? (filled.push('driverInfo'), await driverInfoWithCities(driverInfo)) : null))
       // Город: у файла с индексом (лист водителя) он выверен по индексу, у первого
       // файла мог остаться с опечаткой брокера («Anahiem») — заменяем.
       const { zipOf } = await import('@/lib/city-fix')
@@ -879,7 +893,9 @@ export async function createLoadFromRc(
         }
       }
       // Порожний пробег считался до старого (неверного) пикапа — тоже заново.
-      const deadhead = filled.includes('miles') ? await fillDeadhead(companyId, truckId, 0, origin) : twin.deadhead_miles
+      const deadhead = filled.includes('miles')
+        ? await fillDeadhead(companyId, truckId, 0, origin)
+        : twin.deadhead_miles
       await sql`
         UPDATE loads SET
           origin = ${origin}, destination = ${destination},
@@ -1048,7 +1064,9 @@ export async function setStatus(id: number, status: LoadStatus): Promise<{ error
     const d = await deliveryDocs(id)
     if (!d.bol || !d.pod) {
       const missing = [!d.bol ? 'BOL' : null, !d.pod ? 'POD' : null].filter(Boolean).join(' + ')
-      return { error: t(await getLocale(), 'actions.paidNeedsDocs').replace('{missing}', missing) }
+      return {
+        error: t(await getLocale(), 'actions.paidNeedsDocs').replace('{missing}', missing),
+      }
     }
   }
   await sql`
@@ -1089,10 +1107,7 @@ function finiteTruck(t: TruckInput): TruckInput {
   }
 }
 
-export async function saveTruck(
-  id: number,
-  t: TruckInput,
-): Promise<{ error: string } | void> {
+export async function saveTruck(id: number, t: TruckInput): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
   t = finiteTruck(t)
@@ -1136,7 +1151,8 @@ export async function setTruckAvailability(
   if (ro) return ro
   const denied = await assertCan('edit_trucks')
   if (denied) return denied
-  if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(await getLocale(), 'actions.truckNotFound') }
+  if (!(await truckBelongs(await companyScope(), truckId)))
+    return { error: t(await getLocale(), 'actions.truckNotFound') }
   await sql`UPDATE trucks SET unavailable = ${status === 'active' ? null : status} WHERE id = ${truckId}`
   revalidatePath('/', 'layout')
 }
@@ -1168,9 +1184,7 @@ export async function classifyDoc(file: File): Promise<DocClass | null> {
  * FormData: file, kind, title?, truckId?, loadId?, maintenanceId?. Returns the new
  * id so the RC import can attach the document to the load it creates a moment later.
  */
-export async function uploadDocument(
-  fd: FormData,
-): Promise<{ id: number } | { error: string }> {
+export async function uploadDocument(fd: FormData): Promise<{ id: number } | { error: string }> {
   const ro = await demoReadOnly()
   if (ro) return ro
   const locale = await getLocale()
@@ -1245,7 +1259,9 @@ export async function addLoadEventManual(
   if (Number.isNaN(when.getTime())) return { error: 'bad date' }
   const companyId = await companyScope()
   if (!(await loadBelongs(companyId, loadId))) return { error: 'load' }
-  const rows = (await sql`SELECT truck_id FROM loads WHERE id = ${loadId}`) as { truck_id: number | null }[]
+  const rows = (await sql`SELECT truck_id FROM loads WHERE id = ${loadId}`) as {
+    truck_id: number | null
+  }[]
   await sql`INSERT INTO load_events (company_id, load_id, truck_id, kind, note, at)
             VALUES (${companyId}, ${loadId}, ${rows[0]?.truck_id ?? null}, ${kind}, ${note?.trim() || null}, ${when.toISOString()})`
   revalidatePath(`/loads/${loadId}`)
@@ -1418,10 +1434,7 @@ export type LoadDetailsPatch = {
   deliveryDate: string | null
 }
 
-export async function updateLoadDetails(
-  loadId: number,
-  p: LoadDetailsPatch,
-): Promise<{ error: string } | void> {
+export async function updateLoadDetails(loadId: number, p: LoadDetailsPatch): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
   const locale = await getLocale()
@@ -1448,10 +1461,7 @@ export async function updateLoadDetails(
 }
 
 /** Save the broker's special-instructions text (the "must read" block). */
-export async function setBrokerNotes(
-  loadId: number,
-  notes: string,
-): Promise<{ error: string } | void> {
+export async function setBrokerNotes(loadId: number, notes: string): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
   try {
@@ -1475,7 +1485,9 @@ export async function translateBrokerNotes(
   if ('error' in res)
     return {
       error:
-        res.error === 'no_key' ? t(locale, 'actions.aiUnavailable') : `${t(locale, 'actions.translateFailed')} ${res.error}`,
+        res.error === 'no_key'
+          ? t(locale, 'actions.aiUnavailable')
+          : `${t(locale, 'actions.translateFailed')} ${res.error}`,
     }
   return res
 }
@@ -1501,9 +1513,7 @@ export async function markNotesRead(loadId: number): Promise<void> {
  * path uses (app/actions.ts createLoadFromRc), so a load created before those fields
  * existed catches up to one created after, field for field.
  */
-export async function parseRcForNotes(
-  loadId: number,
-): Promise<{ error: string } | { ok: true; found: boolean }> {
+export async function parseRcForNotes(loadId: number): Promise<{ error: string } | { ok: true; found: boolean }> {
   const ro = await demoReadOnly()
   if (ro) return ro
   const companyId = await companyScope()
@@ -1523,7 +1533,9 @@ export async function parseRcForNotes(
   if ('error' in res)
     return {
       error:
-        res.error === 'no_key' ? t(locale, 'actions.aiUnavailable') : `${t(locale, 'actions.recognizeFailed')} ${res.error}`,
+        res.error === 'no_key'
+          ? t(locale, 'actions.aiUnavailable')
+          : `${t(locale, 'actions.recognizeFailed')} ${res.error}`,
     }
 
   const { aiToFields } = await import('@/lib/ratecon-ai-contract')
@@ -1606,10 +1618,7 @@ export type MaintenanceInput = {
   doneAt: string // YYYY-MM-DD
 }
 
-export async function addMaintenance(
-  truckId: number,
-  m: MaintenanceInput,
-): Promise<{ error: string } | void> {
+export async function addMaintenance(truckId: number, m: MaintenanceInput): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
   const locale = await getLocale()
@@ -1646,7 +1655,9 @@ export async function deleteMaintenance(
   if (!(await truckBelongs(check.user.companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }
 
   const rows = (await sql`
-    SELECT title FROM truck_maintenance WHERE id = ${id} AND truck_id = ${truckId}`) as { title: string }[]
+    SELECT title FROM truck_maintenance WHERE id = ${id} AND truck_id = ${truckId}`) as {
+    title: string
+  }[]
   if (!rows[0]) return { error: t(locale, 'actions.entryNotFound') }
 
   await sql`DELETE FROM truck_maintenance WHERE id = ${id}`
@@ -1684,11 +1695,7 @@ export async function toggleTodo(id: number, truckId: number): Promise<void> {
   revalidatePath(`/trucks/${truckId}`)
 }
 
-export async function deleteTodo(
-  id: number,
-  truckId: number,
-  confirm: string,
-): Promise<{ error: string } | void> {
+export async function deleteTodo(id: number, truckId: number, confirm: string): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
   const locale = await getLocale()
@@ -1697,7 +1704,9 @@ export async function deleteTodo(
   const who = check.user.name || t(locale, 'actions.dispatcherFallback')
   if (!(await truckBelongs(check.user.companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }
 
-  const rows = (await sql`SELECT title FROM truck_todos WHERE id = ${id} AND truck_id = ${truckId}`) as { title: string }[]
+  const rows = (await sql`SELECT title FROM truck_todos WHERE id = ${id} AND truck_id = ${truckId}`) as {
+    title: string
+  }[]
   if (!rows[0]) return { error: t(locale, 'actions.entryNotFound') }
 
   await sql`DELETE FROM truck_todos WHERE id = ${id}`
@@ -1782,10 +1791,7 @@ export async function saveDriverInfo(
 const MAX_PHOTO_BYTES = 4 * 1024 * 1024
 
 /** FormData: file. Stored on truck_meta, served by /api/driver-photo/[truckId]. */
-export async function saveDriverPhoto(
-  truckId: number,
-  fd: FormData,
-): Promise<{ error: string } | void> {
+export async function saveDriverPhoto(truckId: number, fd: FormData): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
   const locale = await getLocale()
@@ -1811,10 +1817,7 @@ export async function saveDriverPhoto(
   revalidatePath('/', 'layout')
 }
 
-export async function saveTruckMeta(
-  truckId: number,
-  m: TruckMetaInput,
-): Promise<{ error: string } | void> {
+export async function saveTruckMeta(truckId: number, m: TruckMetaInput): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
   const locale = await getLocale()
@@ -1888,7 +1891,9 @@ export async function truckTripHistory(
   // Only the three windows the UI offers — an arbitrary number here would let a caller
   // ask for a year of points, and the table is pruned to 7 days anyway (lib/eld.ts).
   if (![24, 72, 168].includes(hours)) return { error: t(locale, 'actions.truckNotFound') }
-  const rows = (await sql`SELECT number FROM trucks WHERE id = ${truckId}`) as { number: string | null }[]
+  const rows = (await sql`SELECT number FROM trucks WHERE id = ${truckId}`) as {
+    number: string | null
+  }[]
   const unit = rows[0]?.number
   if (!unit) return { legs: [] }
   const { tripHistory } = await import('@/lib/eld')
@@ -2007,9 +2012,7 @@ export async function checkTolls(input: {
   // Объезд запрашиваем, только если платные вообще есть: иначе второе обращение
   // ушло бы из месячной квоты за заранее известный ответ.
   const anyTolls = main.some((q) => q.total > 0)
-  const avoid = anyTolls
-    ? await hereTollRoute(a, b, spec, { avoidTolls: true, via, departure: dep })
-    : null
+  const avoid = anyTolls ? await hereTollRoute(a, b, spec, { avoidTolls: true, via, departure: dep }) : null
   const avoidQuotes = avoid && !('error' in avoid) ? avoid : []
 
   // Цена мили — у ТОГО трака, которым поедут. Разные машины в парке жгут
@@ -2020,7 +2023,10 @@ export async function checkTolls(input: {
 
   const options = rankOptions(
     [
-      ...main.map((quote, i) => ({ quote, source: (i === 0 ? 'main' : 'alt') as 'main' | 'alt' })),
+      ...main.map((quote, i) => ({
+        quote,
+        source: (i === 0 ? 'main' : 'alt') as 'main' | 'alt',
+      })),
       ...avoidQuotes.map((quote) => ({ quote, source: 'avoid' as const })),
     ],
     costPerMile,
@@ -2053,8 +2059,15 @@ export async function tollLoadChoices(): Promise<{ id: number; label: string }[]
     SELECT id, origin, destination FROM loads
     WHERE company_id = ${companyId} AND status IN ('quoted', 'booked', 'in_transit')
       AND origin IS NOT NULL AND destination IS NOT NULL
-    ORDER BY created_at DESC LIMIT 30`) as { id: number; origin: string; destination: string }[]
-  return rows.map((r) => ({ id: r.id, label: `${r.origin} → ${r.destination}` }))
+    ORDER BY created_at DESC LIMIT 30`) as {
+    id: number
+    origin: string
+    destination: string
+  }[]
+  return rows.map((r) => ({
+    id: r.id,
+    label: `${r.origin} → ${r.destination}`,
+  }))
 }
 
 /**
@@ -2081,7 +2094,10 @@ export async function tollsFromDocument(
 
   const b64 = Buffer.from(await file.arrayBuffer()).toString('base64')
   const { geminiExtract } = await import('@/lib/ratecon-gemini')
-  const res = await geminiExtract({ pdfBase64: b64, mime: file.type || 'image/jpeg' })
+  const res = await geminiExtract({
+    pdfBase64: b64,
+    mime: file.type || 'image/jpeg',
+  })
   if ('error' in res)
     return {
       error:
@@ -2106,10 +2122,7 @@ export async function tollsFromDocument(
  * и «на посмотреть», под ещё не взятый груз, и молча менять чистую по чужому
  * грузу от одного взгляда на карту нельзя.
  */
-export async function saveLoadTolls(
-  loadId: number,
-  tolls: number,
-): Promise<{ error: string } | void> {
+export async function saveLoadTolls(loadId: number, tolls: number): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
   const locale = await getLocale()

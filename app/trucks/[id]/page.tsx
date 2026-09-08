@@ -9,13 +9,7 @@ import { sql } from '@/lib/db'
 import { getTruck, listDocs, listLoads, rateConByLoad } from '@/lib/loads'
 import { currentLoadsByTruck, truckLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
-import {
-  fleetStatusByUnit,
-  getTruckMeta,
-  listMaintenance,
-  listTodos,
-  oilStatus,
-} from '@/lib/maintenance'
+import { fleetStatusByUnit, getTruckMeta, listMaintenance, listTodos, oilStatus } from '@/lib/maintenance'
 import { tripHistory } from '@/lib/eld'
 import { loadMapData, statusTone } from '@/lib/load-map'
 import { usd, usd2, weekBounds, loadWeekAnchorMs } from '@/lib/fmt'
@@ -35,7 +29,10 @@ import { TruckDispatcher } from '@/components/truck-dispatcher'
 import { Info } from '@/components/info'
 import { companyScope, getCurrentUser } from '@/lib/session'
 import { getCompany } from '@/lib/invoice'
-import { dispatcherPhoneKey, getSetting } from '@/lib/settings'
+import { dispatcherPhoneKey, getSetting, detentionTerms } from '@/lib/settings'
+import { stopWindow } from '@/lib/detention'
+import { listLoadEvents } from '@/lib/load-events'
+import { DetentionTile } from '@/components/detention-tile'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { CopyPlace } from '@/components/copy-place'
@@ -77,33 +74,33 @@ export default async function Page({
   ])
   const dispatcherId = (dispatcherRow as { dispatcher_id: number | null }[])[0]?.dispatcher_id ?? null
   const dispatcherName = (dispatcherRow as { name: string | null }[])[0]?.name ?? null
-  const staff = staffRows as { id: number; name: string; role: 'admin' | 'dispatcher' }[]
+  const staff = staffRows as {
+    id: number
+    name: string
+    role: 'admin' | 'dispatcher'
+  }[]
 
   const requestedHours = Number((await searchParams).history)
-  const historyWindow =
-    HISTORY_WINDOWS.find((w) => w.hours === requestedHours) ?? HISTORY_WINDOWS[0]
+  const historyWindow = HISTORY_WINDOWS.find((w) => w.hours === requestedHours) ?? HISTORY_WINDOWS[0]
 
   // Компания, диспетчер и его телефон — для готового блока «Driver Info», который
   // диспетчер копирует брокеру прямо из карточки водителя. Оба запроса кэшированы и
   // идут в общей пачке, отдельного захода в базу это не стоит.
   const user = await getCurrentUser()
-  const [loads, meta, records, todos, fleet, docs, rateCons, history, company, dispatcherPhone] =
-    await Promise.all([
-      listLoads(companyId, { truckId: truck.id }),
-      getTruckMeta(truck.id),
-      listMaintenance(truck.id),
-      listTodos(truck.id),
-      fleetStatusByUnit(),
-      listDocs(companyId, { truckId: truck.id }),
-      rateConByLoad(companyId),
-      truck.number ? tripHistory(truck.number, historyWindow.hours) : Promise.resolve([]),
-      getCompany(),
-      // Номер того, кто закреплён за траком, а не того, кто открыл страницу:
-      // траки распределены между диспетчерами, и брокеру нужен человек по машине.
-      dispatcherId || user
-        ? getSetting(dispatcherPhoneKey(dispatcherId ?? user!.id))
-        : Promise.resolve(null),
-    ])
+  const [loads, meta, records, todos, fleet, docs, rateCons, history, company, dispatcherPhone] = await Promise.all([
+    listLoads(companyId, { truckId: truck.id }),
+    getTruckMeta(truck.id),
+    listMaintenance(truck.id),
+    listTodos(truck.id),
+    fleetStatusByUnit(),
+    listDocs(companyId, { truckId: truck.id }),
+    rateConByLoad(companyId),
+    truck.number ? tripHistory(truck.number, historyWindow.hours) : Promise.resolve([]),
+    getCompany(),
+    // Номер того, кто закреплён за траком, а не того, кто открыл страницу:
+    // траки распределены между диспетчерами, и брокеру нужен человек по машине.
+    dispatcherId || user ? getSetting(dispatcherPhoneKey(dispatcherId ?? user!.id)) : Promise.resolve(null),
+  ])
   const fs = truck.number ? fleet.get(truck.number) : undefined
   // Когда водитель последний раз открывал свою страницу — видно, что ссылка живая.
   const driverSeen = await getSetting(`driver_seen:${truck.id}`)
@@ -154,6 +151,9 @@ export default async function Page({
   // Map: the truck where it sits (ELD GPS) plus a delivery pin at its active load's
   // destination city, with rough miles + drive time to it.
   const { markers: mapMarkers, routes: mapRoutes, miles: routeMiles } = await loadMapData(activeLoad, truck, fs, locale)
+  // Стоянка у склада по отметкам водителя — как на карточке груза, над картой.
+  const stop = activeLoad ? stopWindow(await listLoadEvents(companyId, activeLoad.id)) : null
+  const terms = stop && stop.min >= 30 ? await detentionTerms() : null
 
   const toneClass = {
     move: 'text-good-400',
@@ -190,12 +190,18 @@ export default async function Page({
           <div className="mt-2 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1.5 text-[13px]">
             {meta?.trailerNumber && (
               <>
-                <span className="text-white/55">{t(locale, 'trucks.detail.trailer')} {meta.trailerNumber}</span>
-                <span aria-hidden className="text-white/25">·</span>
+                <span className="text-white/55">
+                  {t(locale, 'trucks.detail.trailer')} {meta.trailerNumber}
+                </span>
+                <span aria-hidden className="text-white/25">
+                  ·
+                </span>
               </>
             )}
             <span className="font-medium text-white/85">{truck.driverName || t(locale, 'trucks.detail.noDriver')}</span>
-            <span aria-hidden className="hidden text-white/25 sm:inline">·</span>
+            <span aria-hidden className="hidden text-white/25 sm:inline">
+              ·
+            </span>
             {/* Driver contact — the number a dispatcher actually needs at hand. */}
             {meta?.driverPhone ? (
               <a
@@ -213,7 +219,9 @@ export default async function Page({
                кнопки «Копировать» и «Карта» уезжали на разные строки, а статус «ON»
                оставался один посреди пустоты. Место — кнопка: ответ на «где сейчас
                трак» почти всегда тут же уходит брокеру. Копируется «город, штат». */
-            <div className={`mt-2 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-[13px] ${toneClass[statusTone(fs.driveStatus)]}`}>
+            <div
+              className={`mt-2 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-[13px] ${toneClass[statusTone(fs.driveStatus)]}`}
+            >
               <CopyPlace
                 text={`📍 ${fs.location}`}
                 copy={cityOf(fs.location) ?? fs.location}
@@ -324,19 +332,25 @@ export default async function Page({
               </div>
               <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] sm:grid-cols-3">
                 <div>
-                  <dt className="text-[10px] uppercase tracking-wider text-white/45">{t(locale, 'trucks.detail.pickup')}</dt>
+                  <dt className="text-[10px] uppercase tracking-wider text-white/45">
+                    {t(locale, 'trucks.detail.pickup')}
+                  </dt>
                   <dd className="font-medium text-white/85">
                     {activeLoad.pickupTime || activeLoad.pickupDate?.slice(0, 10) || '—'}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-wider text-white/45">{t(locale, 'trucks.detail.delivery')}</dt>
+                  <dt className="text-[10px] uppercase tracking-wider text-white/45">
+                    {t(locale, 'trucks.detail.delivery')}
+                  </dt>
                   <dd className="font-medium text-white/85">
                     {activeLoad.deliveryTime || activeLoad.deliveryDate?.slice(0, 10) || '—'}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-wider text-white/45">{t(locale, 'trucks.detail.rate')}</dt>
+                  <dt className="text-[10px] uppercase tracking-wider text-white/45">
+                    {t(locale, 'trucks.detail.rate')}
+                  </dt>
                   <dd className="font-medium text-white/85">{usd.format(activeLoad.rate)}</dd>
                 </div>
               </dl>
@@ -359,7 +373,6 @@ export default async function Page({
             <DriverLinkButton url={driverLink} driverPhone={meta?.driverPhone ?? null} seenAt={driverSeen} />
           )}
         </div>
-
       </section>
 
       {/* Незакрытый ремонт — прямо над картой, а не строкой в самом низу страницы: раньше
@@ -406,6 +419,21 @@ export default async function Page({
       {/* Порядок — по частоте: карта отвечает на «где он сейчас» одним взглядом и
           стоит первой; рейт-кон и документы прилетают каждый час; водитель и история
           пути — раз в неделю; ремонт и экономика — раз в месяц. ===== */}
+      {activeLoad && stop && terms && (
+        <DetentionTile
+          wide
+          at={stop.at}
+          sinceIso={stop.sinceIso}
+          endIso={stop.endIso}
+          min={stop.min}
+          rateHr={terms.rate}
+          freeHr={terms.free}
+          refId={activeLoad.referenceId}
+          route={`${activeLoad.origin ?? '—'} → ${activeLoad.destination ?? '—'}`}
+          truck={truckLabel(truck)}
+        />
+      )}
+
       {/* ===== Map: where the truck sits + where delivery is ===== */}
       {mapMarkers.length > 0 && (
         <section className="panel mt-4 p-4">
@@ -415,12 +443,15 @@ export default async function Page({
               <Info text={t(locale, 'trucks.detail.onMapInfo')} />
             </h2>
             <RefreshFleetButton
-              staleMinutes={
-                fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null
-              }
+              staleMinutes={fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null}
             />
           </div>
-          <FleetMap markers={mapMarkers} routes={mapRoutes} height="clamp(320px, 46vh, 600px)" distanceMi={routeMiles} />
+          <FleetMap
+            markers={mapMarkers}
+            routes={mapRoutes}
+            height="clamp(320px, 46vh, 600px)"
+            distanceMi={routeMiles}
+          />
         </section>
       )}
 
@@ -437,7 +468,15 @@ export default async function Page({
         // распознаётся как детеншен. Грузы уже загружены выше, нового запроса нет.
         stops={loads.flatMap((l) => [
           ...(l.origin ? [{ city: l.origin, kind: 'pickup' as const, day: l.pickupDate }] : []),
-          ...(l.destination ? [{ city: l.destination, kind: 'delivery' as const, day: l.deliveryDate }] : []),
+          ...(l.destination
+            ? [
+                {
+                  city: l.destination,
+                  kind: 'delivery' as const,
+                  day: l.deliveryDate,
+                },
+              ]
+            : []),
         ])}
       />
 
@@ -448,10 +487,7 @@ export default async function Page({
             {t(locale, 'trucks.detail.newLoadFromRc')}
             <Info text={t(locale, 'trucks.detail.newLoadFromRcInfo')} />
           </h2>
-          <Link
-            href={`/loads/new?truck=${truck.id}`}
-            className="text-[12px] text-white/55 hover:text-white/85"
-          >
+          <Link href={`/loads/new?truck=${truck.id}`} className="text-[12px] text-white/55 hover:text-white/85">
             {t(locale, 'trucks.detail.orManually')}
           </Link>
         </div>
@@ -460,7 +496,11 @@ export default async function Page({
           truckId={truck.id}
           docs={docs
             .filter((d) => d.kind === 'ratecon' && d.loadId === null)
-            .map((d) => ({ id: d.id, title: d.title, uploadedAt: d.uploadedAt }))}
+            .map((d) => ({
+              id: d.id,
+              title: d.title,
+              uploadedAt: d.uploadedAt,
+            }))}
         />
       </section>
 
@@ -474,7 +514,8 @@ export default async function Page({
         <section className="panel flex min-w-0 flex-col p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white/62">
-              {t(locale, 'trucks.detail.loadsHeading')}{active > 0 && ` · ${active} ${t(locale, 'trucks.detail.inProgress')}`}
+              {t(locale, 'trucks.detail.loadsHeading')}
+              {active > 0 && ` · ${active} ${t(locale, 'trucks.detail.inProgress')}`}
             </h2>
             <Link href={`/loads/new?truck=${truck.id}`} className="text-[12px] text-haul-400 hover:underline">
               {t(locale, 'trucks.detail.addLoad')}
@@ -492,10 +533,7 @@ export default async function Page({
                      badge, the rate and the RC button to share ~330px — so every route
                      clipped to "Denver, CO → Kansas C…". Route owns line one; the money
                      drops to line two, where it has the width to itself. */
-                  <div
-                    key={load.id}
-                    className="panel-interactive relative rounded-xl border border-white/6 p-3"
-                  >
+                  <div key={load.id} className="panel-interactive relative rounded-xl border border-white/6 p-3">
                     {/* The WHOLE row opens the load now, not just the route text — a
                         2cm-wide link inside a card-sized target is a miss waiting to
                         happen. Overlay link, so the RC button next to it keeps working
@@ -656,7 +694,13 @@ function Chip({
   info?: string
 }) {
   const color =
-    tone === 'good' ? 'text-good-400' : tone === 'bad' ? 'text-bad-400' : tone === 'warn' ? 'text-warn-400' : 'text-white'
+    tone === 'good'
+      ? 'text-good-400'
+      : tone === 'bad'
+        ? 'text-bad-400'
+        : tone === 'warn'
+          ? 'text-warn-400'
+          : 'text-white'
   return (
     <div className="rounded-xl border border-white/8 bg-ink-900/50 px-3 py-2 text-center backdrop-blur">
       <div className={`nums text-[16px] font-bold ${color}`}>{value}</div>

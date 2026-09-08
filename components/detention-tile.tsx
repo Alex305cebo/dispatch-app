@@ -6,7 +6,6 @@ import { driveTime } from '@/lib/fmt'
 import { notify } from '@/lib/notify'
 import { detentionAmount } from '@/lib/detention'
 
-
 /** Плитка «Детеншен» на странице груза: сколько трак стоит у пикапа/выгрузки,
  * сколько это уже стоит брокеру, и готовое письмо в буфер. Отправка — только
  * руками: никаких автоматических сообщений. */
@@ -19,6 +18,8 @@ export function DetentionTile({
   refId,
   route,
   truck,
+  endIso = null,
+  wide = false,
 }: {
   at: 'pickup' | 'delivery'
   sinceIso: string
@@ -28,12 +29,24 @@ export function DetentionTile({
   refId: string | null
   route: string
   truck: string
+  /** Водитель отметил «Загрузился»/«Выгрузился» — стоянка закончилась, счёт замер. */
+  endIso?: string | null
+  /** Отдельной полосой над картой, а не плиткой в ряду. */
+  wide?: boolean
 }) {
   const locale = useLocale()
   const amount = detentionAmount(min, rateHr, freeHr)
   const over = min >= freeHr * 60
   const since = new Date(sinceIso)
-  const stamp = since.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  const fmt = (d: Date) =>
+    d.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+  const stamp = fmt(since)
+  const endStamp = endIso ? fmt(new Date(endIso)) : null
   const h = Math.floor(min / 60)
   const m = min % 60
 
@@ -42,7 +55,9 @@ export function DetentionTile({
     const text =
       `Detention request${refId ? ` — Load #${refId}` : ''}\n` +
       `Route: ${route}\nTruck: ${truck}\n` +
-      `Truck arrived at ${at} on ${stamp} and has been waiting ${h}h ${m}m.\n` +
+      (endStamp
+        ? `Truck arrived at ${at} on ${stamp} and was released at ${endStamp}: ${h}h ${m}m on site.\n`
+        : `Truck arrived at ${at} on ${stamp} and has been waiting ${h}h ${m}m.\n`) +
       `Per the rate confirmation, detention applies after ${freeHr} free hours at $${rateHr}/hr.\n` +
       `Detention to date: $${amount.toFixed(2)}. Please confirm and add to the invoice.\n` +
       `In/out times are documented on the BOL.`
@@ -55,7 +70,9 @@ export function DetentionTile({
   }
 
   return (
-    <div className={`flex-1 basis-[11rem] rounded-xl border px-3 py-2 ${over ? 'border-bad-500/35 bg-bad-500/[0.07]' : 'border-white/10 bg-white/[0.04]'}`}>
+    <div
+      className={`rounded-xl border px-3 py-2 ${wide ? 'mt-4 sm:px-4' : 'flex-1 basis-[11rem]'} ${over ? 'border-bad-500/35 bg-bad-500/[0.07]' : 'border-white/10 bg-white/[0.04]'}`}
+    >
       <div className="text-[10px] uppercase tracking-wider text-white/45">
         {t(locale, at === 'pickup' ? 'detention.atPickup' : 'detention.atDelivery')}
       </div>
@@ -64,7 +81,10 @@ export function DetentionTile({
         {over && <span className="ml-2">· ${amount.toFixed(0)}</span>}
       </div>
       <div className="nums mt-0.5 text-[11px] text-white/45">
-        {t(locale, 'detention.since').replace('{t}', stamp)} · {t(locale, 'detention.terms').replace('{free}', String(freeHr)).replace('{rate}', String(rateHr))}
+        {t(locale, endStamp ? 'detention.between' : 'detention.since')
+          .replace('{t}', stamp)
+          .replace('{e}', endStamp ?? '')}{' '}
+        · {t(locale, 'detention.terms').replace('{free}', String(freeHr)).replace('{rate}', String(rateHr))}
       </div>
       {over && (
         <button

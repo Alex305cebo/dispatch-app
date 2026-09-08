@@ -27,7 +27,13 @@ const ICON = {
   photo: '📷',
 } as const
 
-const clock = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+const clock = (iso: string) =>
+  new Date(iso).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
 /** ISO → значение для <input type="datetime-local"> в местном времени браузера. */
 const toLocalInput = (iso: string) => {
   const d = new Date(iso)
@@ -44,7 +50,17 @@ const toLocalInput = (iso: string) => {
  * От этих времён считается детеншен, поэтому у каждой отметки есть правка времени и
  * удаление, а недостающую можно добавить руками.
  */
-export function DriverTimeline({ events, locale, truckId, loadId }: { events: LoadEvent[]; locale: ReturnType<typeof useLocale>; truckId: number; loadId: number }) {
+export function DriverTimeline({
+  events,
+  locale,
+  truckId,
+  loadId,
+}: {
+  events: LoadEvent[]
+  locale: ReturnType<typeof useLocale>
+  truckId: number
+  loadId: number
+}) {
   const [editing, setEditing] = useState(false)
   const [pending, start] = useTransition()
   const [timeOf, setTimeOf] = useState<number | null>(null)
@@ -69,9 +85,13 @@ export function DriverTimeline({ events, locale, truckId, loadId }: { events: Lo
               setTimeOf(null)
               setAdding(false)
             }}
-            className="ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium normal-case tracking-normal text-white/50 hover:bg-white/8 hover:text-white/85"
+            className={`ml-auto inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[12px] font-semibold normal-case tracking-normal transition-colors ${
+              editing
+                ? 'border-haul-500/50 bg-haul-500/20 text-haul-200 hover:bg-haul-500/30'
+                : 'border-white/15 bg-white/[0.06] text-white/80 hover:border-white/30 hover:bg-white/10 hover:text-white'
+            }`}
           >
-            <Pencil size={11} strokeWidth={2.2} />
+            <Pencil size={12} strokeWidth={2.2} />
             {t(locale, editing ? 'driver.timeline.editDone' : 'driver.timeline.edit')}
           </button>
         )}
@@ -83,7 +103,11 @@ export function DriverTimeline({ events, locale, truckId, loadId }: { events: Lo
           icon={Smartphone}
           title={t(locale, 'driver.timeline.noneTitle')}
           text={t(locale, 'driver.timeline.none')}
-          action={{ href: `/trucks/${truckId}`, label: t(locale, 'driver.timeline.noneCta'), icon: <Send size={14} strokeWidth={2.2} /> }}
+          action={{
+            href: `/trucks/${truckId}`,
+            label: t(locale, 'driver.timeline.noneCta'),
+            icon: <Send size={14} strokeWidth={2.2} />,
+          }}
         />
       ) : (
         <ol className={`flex flex-col gap-1.5 ${pending ? 'opacity-60' : ''}`}>
@@ -91,7 +115,9 @@ export function DriverTimeline({ events, locale, truckId, loadId }: { events: Lo
             const prev = events[i - 1]
             // Время на складе: приехал → загрузился / приехал → выгрузился.
             const dwell =
-              prev && ((prev.kind === 'arrived_pickup' && e.kind === 'loaded') || (prev.kind === 'arrived_delivery' && e.kind === 'delivered'))
+              prev &&
+              ((prev.kind === 'arrived_pickup' && e.kind === 'loaded') ||
+                (prev.kind === 'arrived_delivery' && e.kind === 'delivered'))
                 ? Math.round((Date.parse(e.at) - Date.parse(prev.at)) / 60_000)
                 : null
             return (
@@ -222,7 +248,11 @@ function AddForm({
       >
         {t(locale, 'driver.timeline.save')}
       </button>
-      <button type="button" onClick={onCancel} className="rounded-lg px-2 py-1.5 text-[12.5px] text-white/55 hover:text-white/85">
+      <button
+        type="button"
+        onClick={onCancel}
+        className="rounded-lg px-2 py-1.5 text-[12.5px] text-white/55 hover:text-white/85"
+      >
         {t(locale, 'driver.timeline.cancel')}
       </button>
     </div>
