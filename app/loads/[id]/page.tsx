@@ -171,18 +171,30 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           геокодер: раньше эти секунды держали ВЕСЬ документ, и груз не показывался,
           пока не ответит бесплатный OSRM. Теперь цифры, документы и расчёт приходят
           сразу, а карта втекает следом в свою границу. */}
-      {stop && terms && (
-        <DetentionTile
-          wide
-          at={stop.at}
-          sinceIso={stop.sinceIso}
-          endIso={stop.endIso}
-          min={stop.min}
-          rateHr={terms.rate}
-          freeHr={terms.free}
-          refId={load.referenceId}
-          route={`${load.origin ?? '—'} → ${load.destination ?? '—'}`}
-          truck={truckLabel(truck)}
+      {/* Блок «Водитель» — над картой: отметки рейса и стоянка у склада с суммой
+          детеншена по ним, одним блоком. Это ответ на «где он и что делает» без
+          звонка. Пусто — подсказка, откуда взять ссылку. */}
+      {load.status !== 'cancelled' && (
+        <DriverTimeline
+          events={driverEvents}
+          locale={locale}
+          truckId={truck.id}
+          loadId={load.id}
+          detention={
+            stop && terms
+              ? {
+                  at: stop.at,
+                  sinceIso: stop.sinceIso,
+                  endIso: stop.endIso,
+                  min: stop.min,
+                  rateHr: terms.rate,
+                  freeHr: terms.free,
+                  refId: load.referenceId,
+                  route: `${load.origin ?? '—'} → ${load.destination ?? '—'}`,
+                  truck: truckLabel(truck),
+                }
+              : null
+          }
         />
       )}
 
@@ -213,12 +225,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               ` · ${t(locale, 'brokers.paysIn').replace('{n}', String(brokerGrade.payDays))}`}
           </span>
         </div>
-      )}
-
-      {/* Хронология от водителя — сразу под шапкой: это ответ на «где он и что
-          делает» без звонка. Пусто — подсказка, откуда взять ссылку. */}
-      {load.status !== 'cancelled' && (
-        <DriverTimeline events={driverEvents} locale={locale} truckId={truck.id} loadId={load.id} />
       )}
 
       {/* Текст водителю — сразу под хронологией: его шлют в начале рейса, а не

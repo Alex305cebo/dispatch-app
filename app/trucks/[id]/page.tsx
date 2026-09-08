@@ -32,7 +32,7 @@ import { getCompany } from '@/lib/invoice'
 import { dispatcherPhoneKey, getSetting, detentionTerms } from '@/lib/settings'
 import { stopWindow } from '@/lib/detention'
 import { listLoadEvents } from '@/lib/load-events'
-import { DetentionTile } from '@/components/detention-tile'
+import { DriverTimeline } from '@/components/driver-timeline'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { CopyPlace } from '@/components/copy-place'
@@ -152,7 +152,8 @@ export default async function Page({
   // destination city, with rough miles + drive time to it.
   const { markers: mapMarkers, routes: mapRoutes, miles: routeMiles } = await loadMapData(activeLoad, truck, fs, locale)
   // Стоянка у склада по отметкам водителя — как на карточке груза, над картой.
-  const stop = activeLoad ? stopWindow(await listLoadEvents(companyId, activeLoad.id)) : null
+  const driverEvents = activeLoad ? await listLoadEvents(companyId, activeLoad.id) : []
+  const stop = activeLoad ? stopWindow(driverEvents) : null
   const terms = stop && stop.min >= 30 ? await detentionTerms() : null
 
   const toneClass = {
@@ -419,18 +420,29 @@ export default async function Page({
       {/* Порядок — по частоте: карта отвечает на «где он сейчас» одним взглядом и
           стоит первой; рейт-кон и документы прилетают каждый час; водитель и история
           пути — раз в неделю; ремонт и экономика — раз в месяц. ===== */}
-      {activeLoad && stop && terms && (
-        <DetentionTile
-          wide
-          at={stop.at}
-          sinceIso={stop.sinceIso}
-          endIso={stop.endIso}
-          min={stop.min}
-          rateHr={terms.rate}
-          freeHr={terms.free}
-          refId={activeLoad.referenceId}
-          route={`${activeLoad.origin ?? '—'} → ${activeLoad.destination ?? '—'}`}
-          truck={truckLabel(truck)}
+      {/* Блок «Водитель» по текущему грузу — тот же, что на карточке груза:
+          отметки рейса и стоянка у склада с детеншеном, над картой. */}
+      {activeLoad && (
+        <DriverTimeline
+          events={driverEvents}
+          locale={locale}
+          truckId={truck.id}
+          loadId={activeLoad.id}
+          detention={
+            stop && terms
+              ? {
+                  at: stop.at,
+                  sinceIso: stop.sinceIso,
+                  endIso: stop.endIso,
+                  min: stop.min,
+                  rateHr: terms.rate,
+                  freeHr: terms.free,
+                  refId: activeLoad.referenceId,
+                  route: `${activeLoad.origin ?? '—'} → ${activeLoad.destination ?? '—'}`,
+                  truck: truckLabel(truck),
+                }
+              : null
+          }
         />
       )}
 
