@@ -16,7 +16,7 @@ export function DetentionTile({
   min,
   rateHr,
   freeHr,
-  ref,
+  refId,
   route,
   truck,
 }: {
@@ -25,7 +25,7 @@ export function DetentionTile({
   min: number
   rateHr: number
   freeHr: number
-  ref: string | null
+  refId: string | null
   route: string
   truck: string
 }) {
@@ -40,7 +40,7 @@ export function DetentionTile({
   async function copyLetter() {
     // Письмо брокеру по-английски — так его и отправляют, независимо от языка интерфейса.
     const text =
-      `Detention request${ref ? ` — Load #${ref}` : ''}\n` +
+      `Detention request${refId ? ` — Load #${refId}` : ''}\n` +
       `Route: ${route}\nTruck: ${truck}\n` +
       `Truck arrived at ${at} on ${stamp} and has been waiting ${h}h ${m}m.\n` +
       `Per the rate confirmation, detention applies after ${freeHr} free hours at $${rateHr}/hr.\n` +

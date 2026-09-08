@@ -462,7 +462,7 @@ async function LoadMapSection({
                   min={arrivedAt ? Math.max(live.detention.min, Math.round((Date.now() - Date.parse(arrivedAt)) / 60_000)) : live.detention.min}
                   rateHr={detentionRate}
                   freeHr={detentionFree}
-                  ref={load.referenceId}
+                  refId={load.referenceId}
                   route={`${load.origin ?? '—'} → ${load.destination ?? '—'}`}
                   truck={truckLabel(truck)}
                 />
