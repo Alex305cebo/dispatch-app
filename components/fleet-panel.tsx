@@ -6,7 +6,7 @@
 // this, so nothing here refetches — the rows are already in hand.
 
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { Truck, X } from 'lucide-react'
 import { FleetMap, type MapMarker, type MapRoute } from '@/components/fleet-map'
 import { FleetList, type TrackingRow, type TruckMoney } from '@/components/fleet-list'
 import { RefreshFleetButton } from '@/components/refresh-fleet-button'
@@ -31,9 +31,7 @@ type TileData = { value: string; label: string; tone?: 'warn' }
 function Tile({ value, label, tone }: TileData) {
   return (
     <div className="panel-inset flex flex-col justify-center px-3 py-2.5">
-      <div
-        className={`nums truncate text-[18px] leading-tight ${tone === 'warn' ? 'text-warn-400' : 'text-white/90'}`}
-      >
+      <div className={`nums truncate text-[18px] leading-tight ${tone === 'warn' ? 'text-warn-400' : 'text-white/90'}`}>
         {value}
       </div>
       <div className="mt-0.5 truncate text-[11px] text-white/45">{label}</div>
@@ -72,6 +70,20 @@ export function FleetPanel({
   const locale = useLocale()
   const [selected, setSelected] = useState<number | null>(null)
   const row = selected == null ? null : (rows.find((r) => r.id === selected) ?? null)
+  // Выбор чипом ведёт карту к траку; выбор пином на карте — нет (он уже там).
+  const [focus, setFocus] = useState<{ lat: number; lng: number } | null>(null)
+  const pick = (r: TrackingRow) => {
+    if (selected === r.id) {
+      setSelected(null)
+      setFocus(null)
+      return
+    }
+    setSelected(r.id)
+    setFocus(r.lat != null && r.lng != null ? { lat: r.lat, lng: r.lng } : null)
+  }
+  // «Edwin M. TRK-2237 TRL-1186» → «2237»: на чипе только номер, остальное — в title.
+  const unitOf = (label: string) => /TRK-(\S+)/.exec(label)?.[1] ?? label
+  const toneDot = { move: 'text-good-400', on: 'text-haul-300', rest: 'text-white/45' } as const
 
   // Same four slots either way, so clicking a pin swaps the numbers without the strip
   // changing height or the tiles jumping to new widths.
@@ -113,9 +125,42 @@ export function FleetPanel({
 
   return (
     <>
-      <div className="mb-4">
-        <FleetMap markers={markers} routes={routes} onSelect={setSelected} />
+      <div className="mb-2">
+        <FleetMap markers={markers} routes={routes} onSelect={setSelected} focus={focus} />
       </div>
+
+      {/* Быстрый выбор трака — чипы прямо под картой: номер и цвет статуса. Нажатие
+          ведёт карту к траку и показывает его цифры в плитках ниже; повторное —
+          снимает выбор. На телефоне ряд листается пальцем, а не переносится в
+          четыре строки. */}
+      {rows.length > 1 && (
+        <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0">
+          {rows.map((r) => {
+            const active = selected === r.id
+            return (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => pick(r)}
+                title={r.label}
+                aria-pressed={active}
+                className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[12px] font-semibold transition-colors ${
+                  active
+                    ? 'border-haul-400/70 bg-haul-500/25 text-white'
+                    : 'border-white/12 bg-white/[0.04] text-white/75 hover:border-white/30 hover:bg-white/[0.08]'
+                }`}
+              >
+                <Truck
+                  size={13}
+                  strokeWidth={2.3}
+                  className={r.unavailable ? 'text-warn-400' : toneDot[r.statusTone]}
+                />
+                <span className="nums">{unitOf(r.label)}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Deliberately NOT the map's legend again. Moving / on duty / stopped is already
           drawn over the map in colour, and repeating it in words underneath was the
@@ -132,9 +177,7 @@ export function FleetPanel({
                 <span className="truncate text-[13px] font-semibold text-white">{row.label}</span>
                 {/* Время водителя, а не пятая плитка: плиток ровно четыре в обоих
                     состояниях, и пятая ломала бы ряд именно при выборе трака. */}
-                {row.zone && (
-                  <LocalTime zone={row.zone} className="nums shrink-0 text-[11.5px] text-white/45" />
-                )}
+                {row.zone && <LocalTime zone={row.zone} className="nums shrink-0 text-[11.5px] text-white/45" />}
               </span>
               <Button size="sm" variant="ghost" icon={<X size={12} />} onClick={() => setSelected(null)}>
                 {t(locale, 'tracking.wholeFleet')}
