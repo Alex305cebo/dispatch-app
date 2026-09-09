@@ -509,6 +509,14 @@ export const trucksDict = {
     ro: 'Fără cursă. Stă gol în {place} — caută cursă de acolo.',
     kk: 'Жүк жоқ. Бос тұр: {place} — жүкті осы жерден іздеу керек.',
   },
+  'trucks.detail.addLoadCta': {
+    ru: 'Добавить груз',
+    en: 'Add load',
+    es: 'Añadir carga',
+    uk: 'Додати вантаж',
+    ro: 'Adaugă cursă',
+    kk: 'Жүк қосу',
+  },
   'trucks.detail.addLoad': { ru: '+ груз', en: '+ load', es: '+ carga', uk: '+ вантаж', ro: '+ cursă', kk: '+ жүк' },
   'trucks.detail.onMap': {
     ru: 'На карте',

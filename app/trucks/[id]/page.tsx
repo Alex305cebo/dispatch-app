@@ -2,7 +2,9 @@ import { cityOf } from '@/lib/maintenance-core'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
+import { Plus } from 'lucide-react'
 import { BackButton } from '@/components/back-button'
+import { Button } from '@/components/button'
 import { PairBar } from '@/components/pair-bar'
 import { DriverLinkButton } from '@/components/driver-link-button'
 import { sql } from '@/lib/db'
@@ -363,9 +365,15 @@ export default async function Page({
               {cityOf(fs?.location)
                 ? t(locale, 'trucks.detail.idleAt').replace('{place}', cityOf(fs?.location)!)
                 : t(locale, 'trucks.detail.noActiveLoad')}
-              <Link href={`/loads/new?truck=${truck.id}`} className="text-haul-400 hover:underline">
-                {t(locale, 'trucks.detail.addLoad')}
-              </Link>
+              {/* Свободный трак — главное действие на карточке: завести ему груз.
+                  Была текстовая ссылка «+ груз» в углу, её не находили. */}
+              <Button
+                href={`/loads/new?truck=${truck.id}`}
+                variant="primary"
+                icon={<Plus size={15} strokeWidth={2.5} />}
+              >
+                {t(locale, 'trucks.detail.addLoadCta')}
+              </Button>
             </div>
           )}
           {/* Страница водителя — заметным блоком, а не значком в углу: пока водитель
@@ -529,9 +537,9 @@ export default async function Page({
               {t(locale, 'trucks.detail.loadsHeading')}
               {active > 0 && ` · ${active} ${t(locale, 'trucks.detail.inProgress')}`}
             </h2>
-            <Link href={`/loads/new?truck=${truck.id}`} className="text-[12px] text-haul-400 hover:underline">
-              {t(locale, 'trucks.detail.addLoad')}
-            </Link>
+            <Button href={`/loads/new?truck=${truck.id}`} size="sm" icon={<Plus size={13} strokeWidth={2.5} />}>
+              {t(locale, 'trucks.detail.addLoadCta')}
+            </Button>
           </div>
           {rows.length === 0 ? (
             <p className="text-[13px] text-white/55">{t(locale, 'trucks.detail.noLoadsYet')}</p>
