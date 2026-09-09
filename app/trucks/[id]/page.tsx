@@ -425,6 +425,31 @@ export default async function Page({
         </a>
       )}
 
+      {/* ===== RC drop — первым делом под шапкой: рейт-кон прилетает каждый час,
+          и с него начинается любая работа с траком. ===== */}
+      <section className="panel mt-4 p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+            {t(locale, 'trucks.detail.newLoadFromRc')}
+            <Info text={t(locale, 'trucks.detail.newLoadFromRcInfo')} />
+          </h2>
+          <Link href={`/loads/new?truck=${truck.id}`} className="text-[12px] text-white/55 hover:text-white/85">
+            {t(locale, 'trucks.detail.orManually')}
+          </Link>
+        </div>
+        <TruckRcDrop truckId={truck.id} />
+        <OrphanRateCons
+          truckId={truck.id}
+          docs={docs
+            .filter((d) => d.kind === 'ratecon' && d.loadId === null)
+            .map((d) => ({
+              id: d.id,
+              title: d.title,
+              uploadedAt: d.uploadedAt,
+            }))}
+        />
+      </section>
+
       {/* Порядок — по частоте: карта отвечает на «где он сейчас» одним взглядом и
           стоит первой; рейт-кон и документы прилетают каждый час; водитель и история
           пути — раз в неделю; ремонт и экономика — раз в месяц. ===== */}
@@ -499,30 +524,6 @@ export default async function Page({
             : []),
         ])}
       />
-
-      {/* ===== RC drop — the fastest path: paperwork in, load out ===== */}
-      <section className="panel mt-4 p-4">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
-            {t(locale, 'trucks.detail.newLoadFromRc')}
-            <Info text={t(locale, 'trucks.detail.newLoadFromRcInfo')} />
-          </h2>
-          <Link href={`/loads/new?truck=${truck.id}`} className="text-[12px] text-white/55 hover:text-white/85">
-            {t(locale, 'trucks.detail.orManually')}
-          </Link>
-        </div>
-        <TruckRcDrop truckId={truck.id} />
-        <OrphanRateCons
-          truckId={truck.id}
-          docs={docs
-            .filter((d) => d.kind === 'ratecon' && d.loadId === null)
-            .map((d) => ({
-              id: d.id,
-              title: d.title,
-              uploadedAt: d.uploadedAt,
-            }))}
-        />
-      </section>
 
       {/* ===== Around the truck: loads + documents ===== */}
       {/* No `items-start` here on purpose. With it each column was only as tall as its

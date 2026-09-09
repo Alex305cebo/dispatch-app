@@ -52,8 +52,7 @@ const toneClass = {
 }
 
 /** Fuel colour ladder — below 15% it's a stop-and-fix, below 30% a plan-ahead. */
-const fuelClass = (v: number) =>
-  v <= 15 ? 'text-bad-400' : v <= 30 ? 'text-warn-400' : 'text-white/55'
+const fuelClass = (v: number) => (v <= 15 ? 'text-bad-400' : v <= 30 ? 'text-warn-400' : 'text-white/55')
 
 /** Экономика трака за неделю — вторая половина строки. Раньше жила в отдельной
  * сетке карточек под этим же списком, и один трак показывался на странице дважды:
@@ -136,17 +135,15 @@ export function FleetList({
                 their clicks. Everything interactive below sits on z-10 and stays
                 clickable; this covers the inert space between them. panel-interactive's
                 :has(:focus-visible) gives the card its lift for keyboard users. */}
-            <Link
-              href={`/trucks/${r.id}`}
-              aria-label={r.label}
-              className="absolute inset-0 rounded-[inherit]"
-            />
+            <Link href={`/trucks/${r.id}`} aria-label={r.label} className="absolute inset-0 rounded-[inherit]" />
 
             {/* Line 1 — who. Name and status only; anything else pushed the status
                 pill onto its own line at card width. */}
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-1.5">
-                <span className="truncate text-[15px] font-semibold">{r.label}</span>
+            {/* Имя не режется: пилюли переносятся на вторую строку, если не влезли.
+                Раньше «truncate» оставлял от «Evgeny Glagolev» одну букву. */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                <span className="text-[15px] font-semibold">{r.label}</span>
                 {r.unavailable && (
                   <span className="shrink-0 rounded-full bg-warn-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-warn-400">
                     {r.unavailable === 'repair'
@@ -156,7 +153,7 @@ export function FleetList({
                 )}
               </div>
               <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium ${toneClass[r.statusTone]}`}
+                className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium ${toneClass[r.statusTone]}`}
               >
                 {r.statusText}
               </span>
@@ -180,12 +177,7 @@ export function FleetList({
                 ) : (
                   <span className="truncate">{t(locale, 'tracking.noEldData')}</span>
                 )}
-                {r.zone && (
-                  <LocalTime
-                    zone={r.zone}
-                    className="nums shrink-0 text-[11.5px] text-white/40"
-                  />
-                )}
+                {r.zone && <LocalTime zone={r.zone} className="nums shrink-0 text-[11.5px] text-white/40" />}
               </span>
               {r.fuel !== null && (
                 <span
@@ -201,25 +193,26 @@ export function FleetList({
             {/* Exceptions only — a card with nothing wrong shows no strip at all. */}
             {(r.weather || r.idleHours !== null) && (
               <div className="mt-1.5 flex flex-wrap gap-1">
-                {r.weather && (() => {
-                  // Сырое «Extreme Heat Warning» красным пугало и ничего не объясняло.
-                  // Короткий понятный ярлык, значок по типу и подсказка о том, чем это
-                  // грозит траку; красный только там, где рейс реально встаёт.
-                  const kind = weatherKind(r.weather.event)
-                  const bad = weatherTone(kind) === 'bad'
-                  return (
-                    <span
-                      title={`${t(locale, `wx.${kind}.hint` as Parameters<typeof t>[1])}
+                {r.weather &&
+                  (() => {
+                    // Сырое «Extreme Heat Warning» красным пугало и ничего не объясняло.
+                    // Короткий понятный ярлык, значок по типу и подсказка о том, чем это
+                    // грозит траку; красный только там, где рейс реально встаёт.
+                    const kind = weatherKind(r.weather.event)
+                    const bad = weatherTone(kind) === 'bad'
+                    return (
+                      <span
+                        title={`${t(locale, `wx.${kind}.hint` as Parameters<typeof t>[1])}
 
 ${r.weather.event} · ${t(locale, 'wx.source')}`}
-                      className={`rounded px-1.5 py-0.5 text-[10.5px] font-medium ${
-                        bad ? 'bg-bad-500/15 text-bad-400' : 'bg-warn-400/15 text-warn-400'
-                      }`}
-                    >
-                      {WEATHER_ICON[kind]} {t(locale, `wx.${kind}` as Parameters<typeof t>[1])}
-                    </span>
-                  )
-                })()}
+                        className={`rounded px-1.5 py-0.5 text-[10.5px] font-medium ${
+                          bad ? 'bg-bad-500/15 text-bad-400' : 'bg-warn-400/15 text-warn-400'
+                        }`}
+                      >
+                        {WEATHER_ICON[kind]} {t(locale, `wx.${kind}` as Parameters<typeof t>[1])}
+                      </span>
+                    )
+                  })()}
                 {r.idleHours !== null && (
                   <span className="rounded bg-warn-400/15 px-1.5 py-0.5 text-[10.5px] font-medium text-warn-400">
                     {t(locale, 'tracking.idlePrefix')}
@@ -250,12 +243,7 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
                 the card's height apart. The route lives in the title instead. */}
             <div className="relative z-10 mt-auto flex items-center gap-1.5 pt-2.5">
               {r.phone && (
-                <Button
-                  size="sm"
-                  href={`tel:${r.phone}`}
-                  external
-                  icon={<Phone size={12} />}
-                >
+                <Button size="sm" href={`tel:${r.phone}`} external icon={<Phone size={12} />}>
                   {t(locale, 'tracking.callShort')}
                 </Button>
               )}
