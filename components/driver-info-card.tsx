@@ -34,8 +34,7 @@ export function DriverInfoCard({ text, locale = 'en' }: { text: string; locale?:
       </summary>
       <div className="mt-3">
         <div className="mb-2 flex justify-end">
-          <Button variant="primary" size="sm" type="button"
-            onClick={copy}>
+          <Button variant="primary" size="sm" type="button" onClick={copy}>
             {t(locale, 'trucks.driverInfo.copyButton')}
           </Button>
         </div>
