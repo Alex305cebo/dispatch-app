@@ -2159,3 +2159,46 @@ export async function logClientError(input: {
     /* см. выше */
   }
 }
+
+/**
+ * Новый трак из ELD одним нажатием. ZigZag уже прислал юнит в fleet_status (номер,
+ * водитель, где стоит), а в парке его нет — страница траков показывает его с кнопкой.
+ * Экономика копируется с последнего заведённого трака компании: ставки оплаты,
+ * страховка, платёж — у одного парка они одинаковые, а в форме их всё равно можно
+ * поправить. VIN подтянет ближайший опрос ELD (lib/eld.ts пишет его в truck_meta).
+ */
+export async function addTruckFromEld(unit: string): Promise<{ error: string } | { id: number }> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const locale = await getLocale()
+  const companyId = await companyScope()
+  const number = unit.trim()
+  if (!number || number.startsWith('DEMO-')) return { error: t(locale, 'actions.truckNotFound') }
+  try {
+    const dup = await sql`SELECT id FROM trucks WHERE company_id = ${companyId} AND number = ${number}`
+    if (dup[0]) return { id: (dup[0] as { id: number }).id }
+    const fs = (await sql`SELECT driver_name FROM fleet_status WHERE unit = ${number}`)[0] as
+      { driver_name: string | null } | undefined
+    // Водитель в ELD — «Фамилия Имя»; в парке принято «Имя Фамилия».
+    const driver = (fs?.driver_name ?? '').trim().split(/\s+/).reverse().join(' ')
+    const rows = await sql`
+      INSERT INTO trucks (name, number, driver_name, mpg, fuel_price_per_gallon,
+                          driver_pay_mode, driver_cents_per_mile, driver_percent_of_gross,
+                          truck_payment_per_day, insurance_per_day, eld_permits_per_day,
+                          maintenance_cost_per_mile, factoring_percent, dispatch_percent, company_id)
+      SELECT ${number}, ${number}, ${driver}, mpg, fuel_price_per_gallon,
+             driver_pay_mode, driver_cents_per_mile, driver_percent_of_gross,
+             truck_payment_per_day, insurance_per_day, eld_permits_per_day,
+             maintenance_cost_per_mile, factoring_percent, dispatch_percent, company_id
+      FROM trucks WHERE company_id = ${companyId}
+      ORDER BY id DESC LIMIT 1
+      RETURNING id`
+    if (!rows[0]) return { error: t(locale, 'actions.truckNotFound') }
+    const id = (rows[0] as { id: number }).id
+    revalidatePath('/trucks')
+    revalidatePath('/')
+    return { id }
+  } catch (e) {
+    return { error: humanError(e, locale) }
+  }
+}

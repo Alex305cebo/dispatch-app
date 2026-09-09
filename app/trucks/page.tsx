@@ -2,6 +2,7 @@ import { Plus } from 'lucide-react'
 import { Button } from '@/components/button'
 import { Suspense } from 'react'
 import { EldLinks } from '@/components/eld-links'
+import { EldNewTrucks } from '@/components/eld-new-trucks'
 import { BoardSkeleton, FleetBoard } from './fleet-board'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { currentLoadsByTruck } from '@/lib/map'
@@ -11,10 +12,7 @@ import { dispatcherPhoneKey, getSetting } from '@/lib/settings'
 import { getCurrentUser } from '@/lib/session'
 import { buildWorkingDays } from '@/lib/heatmap'
 import { getCompany } from '@/lib/invoice'
-import {
-  expiries,
-  truckMetas,
-} from '@/lib/maintenance'
+import { expiries, truckMetas } from '@/lib/maintenance'
 import { sql } from '@/lib/db'
 import { usd, shortName, weekBounds, loadWeekAnchorMs } from '@/lib/fmt'
 import { companyScope } from '@/lib/session'
@@ -62,7 +60,7 @@ export default async function Page() {
     listTrucks(companyId),
     getCompany(),
     truckMetas(companyId),
-    sql`SELECT unit, drive_status, location, odometer, fuel FROM fleet_status`,
+    sql`SELECT unit, drive_status, location, odometer, fuel, driver_name FROM fleet_status`,
     // Свой номер диспетчера — в блок «Driver Info» для брокера.
     user ? getSetting(dispatcherPhoneKey(user.id)) : Promise.resolve(null),
     // Кто закреплён за каждым траком. Раньше в блоке для брокера у ВСЕХ водителей
@@ -81,6 +79,19 @@ export default async function Page() {
     ]),
   )
   const byUnit = new Map((fleetRaw as FS[]).map((f) => [f.unit, f]))
+  // Юниты, которые ELD уже видит, а в парке их нет — новый трак заводится кнопкой.
+  // Демо-юниты и демо-компанию не трогаем: у демо свой выдуманный парк.
+  const known = new Set(trucks.map((t) => t.number).filter(Boolean))
+  const eldNew =
+    companyId === 'default'
+      ? (fleetRaw as (FS & { driver_name: string | null })[])
+          .filter((f) => f.unit && !f.unit.startsWith('DEMO-') && !known.has(f.unit))
+          .map((f) => ({
+            unit: f.unit,
+            driver: f.driver_name ? f.driver_name.trim().split(/\s+/).reverse().join(' ') : null,
+            location: f.location ?? null,
+          }))
+      : []
 
   // Per-truck loads in parallel — the whole point is strict separation, so each
   // truck's money is computed only from its own loads.
@@ -170,6 +181,8 @@ export default async function Page() {
           Раньше это был отдельный раздел «Трекинг», и один и тот же трак жил на двух
           экранах разными половинами. Своя Suspense-граница, потому что здесь ждут
           геокодирование и маршрутизатор: шапка и всё, что ниже, показываются сразу. */}
+      <EldNewTrucks units={eldNew} />
+
       <Suspense fallback={<BoardSkeleton />}>
         <FleetBoard
           locale={locale}
@@ -178,62 +191,62 @@ export default async function Page() {
           // траков: эти шесть полей брокер спрашивает в каждом звонке.
           between={
             <>
-      {/* Справочник водителей — первым делом на странице. Эти шесть полей брокер
+              {/* Справочник водителей — первым делом на странице. Эти шесть полей брокер
           спрашивает в каждом звонке, а лежали они в четырёх разных местах: имя и
           номер трака на карточке, телефон, прицеп и VIN — внутри «паспорта трака»
           на странице конкретного трака, MC компании — в настройках. Данные новых
           запросов не стоят: trucks, metas и company страница уже загрузила. */}
-      <DriverDirectory
-        mc={company.mcdot.replace(/^MC[\s#-]*/i, '')}
-        companyName={company.name}
-        companyEmail={company.email}
-        dispatcherName={user?.name ?? ''}
-        dispatcherPhone={dispatcherPhone ?? ''}
-        drivers={trucks.map((truck) => {
-          const meta = metas.get(truck.id)
-          const disp = dispByTruck.get(truck.id)
-          return {
-            truckId: truck.id,
-            dispatcherName: disp?.name ?? null,
-            dispatcherPhone: disp?.phone ?? null,
-            driverName: truck.driverName,
-            driverPhone: meta?.driverPhone ?? null,
-            truckNumber: truck.number,
-            trailerNumber: meta?.trailerNumber ?? null,
-            vin: meta?.vin ?? null,
-          }
-        })}
-      />
+              <DriverDirectory
+                mc={company.mcdot.replace(/^MC[\s#-]*/i, '')}
+                companyName={company.name}
+                companyEmail={company.email}
+                dispatcherName={user?.name ?? ''}
+                dispatcherPhone={dispatcherPhone ?? ''}
+                drivers={trucks.map((truck) => {
+                  const meta = metas.get(truck.id)
+                  const disp = dispByTruck.get(truck.id)
+                  return {
+                    truckId: truck.id,
+                    dispatcherName: disp?.name ?? null,
+                    dispatcherPhone: disp?.phone ?? null,
+                    driverName: truck.driverName,
+                    driverPhone: meta?.driverPhone ?? null,
+                    truckNumber: truck.number,
+                    trailerNumber: meta?.trailerNumber ?? null,
+                    vin: meta?.vin ?? null,
+                  }
+                })}
+              />
 
-      <div className="mb-4">
-        <FleetHeatmap
-          rows={perTruck.map(({ truck, working, current }) => {
-            const fs = truck.number ? byUnit.get(truck.number) : undefined
-            return {
-              id: truck.id,
-              label: truck.number?.trim() || truck.name,
-              sub: shortName(truck.driverName),
-              working,
-              // Два правых столбца вместо полосы и процента: куда едет либо где
-              // стоит, и когда освободится. Данные уже на странице — карточки
-              // парка ниже читают ровно эти же current и byUnit.
-              place: current
-                ? `→ ${current.destination ?? '—'}`
-                : (placeCity(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')),
-              when: truck.unavailable
-                ? { text: unavailableLabel(locale, truck.unavailable), tone: 'off' as const }
-                : current
-                  ? {
-                      text: current.deliveryDate
-                        ? `${t(locale, 'trucks.heatmap.until')} ${shortDate(current.deliveryDate, locale)}`
-                        : t(locale, 'trucks.heatmap.onLoad'),
-                      tone: 'busy' as const,
+              <div className="mb-4">
+                <FleetHeatmap
+                  rows={perTruck.map(({ truck, working, current }) => {
+                    const fs = truck.number ? byUnit.get(truck.number) : undefined
+                    return {
+                      id: truck.id,
+                      label: truck.number?.trim() || truck.name,
+                      sub: shortName(truck.driverName),
+                      working,
+                      // Два правых столбца вместо полосы и процента: куда едет либо где
+                      // стоит, и когда освободится. Данные уже на странице — карточки
+                      // парка ниже читают ровно эти же current и byUnit.
+                      place: current
+                        ? `→ ${current.destination ?? '—'}`
+                        : (placeCity(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')),
+                      when: truck.unavailable
+                        ? { text: unavailableLabel(locale, truck.unavailable), tone: 'off' as const }
+                        : current
+                          ? {
+                              text: current.deliveryDate
+                                ? `${t(locale, 'trucks.heatmap.until')} ${shortDate(current.deliveryDate, locale)}`
+                                : t(locale, 'trucks.heatmap.onLoad'),
+                              tone: 'busy' as const,
+                            }
+                          : { text: t(locale, 'trucks.heatmap.free'), tone: 'free' as const },
                     }
-                  : { text: t(locale, 'trucks.heatmap.free'), tone: 'free' as const },
-            }
-          })}
-        />
-      </div>
+                  })}
+                />
+              </div>
             </>
           }
           // Под карточками: подключение ELD — раз в жизни трака.
@@ -244,7 +257,6 @@ export default async function Page() {
           }
         />
       </Suspense>
-
     </main>
   )
 }
