@@ -10,12 +10,13 @@ import { Button } from '@/components/button'
 // страницу-приложение Samsara, из которой данных не достать.
 
 import { useState, useTransition } from 'react'
+import { ChevronDown, Radio } from 'lucide-react'
 import { clearTracking, saveTracking } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 
-export function EldLinks({ count }: { count: number }) {
+export function EldLinks({ count, eldOn = false }: { count: number; eldOn?: boolean }) {
   const locale = useLocale()
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
@@ -45,19 +46,33 @@ export function EldLinks({ count }: { count: number }) {
   }
 
   return (
-    <div className="mb-4 rounded-xl border border-white/8 bg-ink-900/50 p-3">
+    // Та же панель, что и остальные секции страницы: раньше это была плоская
+    // полоса с текстовым «▼», выглядела чужой и сломанной.
+    <section className="panel mt-4 p-4">
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between text-left text-[12px] font-semibold text-white/70"
+        aria-expanded={open}
+        className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5 text-left"
       >
-        <span>
-          {t(locale, 'tracking.trackingHeader')} {count > 0 && `${t(locale, 'tracking.connectedSuffix')}${count}`}
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          <Radio size={13} strokeWidth={2.2} className="text-haul-300" />
+          {t(locale, 'tracking.trackingHeader')}
         </span>
-        <span className="text-white/45">{open ? '▲' : '▼'}</span>
+        {(eldOn || count > 0) && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-good-500/30 bg-good-500/10 px-2.5 py-0.5 text-[11.5px] font-medium text-good-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-good-400" />
+            {eldOn ? t(locale, 'tracking.eldConnected') : `${t(locale, 'tracking.connectedShort')} ${count}`}
+          </span>
+        )}
+        <span className="ml-auto flex items-center gap-1.5 text-[12px] text-white/50">
+          {t(locale, open ? 'tracking.setupHide' : 'tracking.setupShow')}
+          <ChevronDown size={15} strokeWidth={2.2} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        </span>
       </button>
 
       {open && (
-        <div className="mt-3">
+        <div className="mt-3 border-t border-white/[0.06] pt-3">
           <p className="mb-2 text-[11px] leading-relaxed text-white/55">{t(locale, 'tracking.setupInfo')}</p>
           <textarea
             value={text}
@@ -82,6 +97,6 @@ export function EldLinks({ count }: { count: number }) {
           </div>
         </div>
       )}
-    </div>
+    </section>
   )
 }

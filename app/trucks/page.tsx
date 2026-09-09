@@ -248,7 +248,7 @@ export default async function Page() {
           // Под карточками: подключение ELD — раз в жизни трака.
           after={
             <>
-              <EldLinks count={shareCount + (samsaraOn ? 1 : 0)} />
+              <EldLinks count={shareCount + (samsaraOn ? 1 : 0)} eldOn={!!process.env.ELD_USERNAME} />
             </>
           }
         />
