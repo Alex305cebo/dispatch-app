@@ -1407,6 +1407,14 @@ export const trucksDict = {
     ro: 'Info pentru șofer — copiază',
     kk: 'Жүргізушіге ақпарат — көшіру',
   },
+  'trucks.driverInfo.verify': {
+    ru: 'Перепроверь всё перед отправкой водителю: текст собран ИИ из рейт-кона, названия складов, адреса, время и номера могут быть с ошибкой. Сверь с документом.',
+    en: 'Double-check everything before sending it to the driver: the AI built this from the rate con — facility names, addresses, times and numbers can be wrong. Compare with the document.',
+    es: 'Revisa todo antes de enviarlo al conductor: la IA lo armó del rate con; nombres de almacenes, direcciones, horarios y números pueden estar mal. Compara con el documento.',
+    uk: 'Перевір усе перед відправкою водієві: текст зібрав ШІ з рейт-кону, назви складів, адреси, час і номери можуть бути з помилкою. Звір із документом.',
+    ro: 'Verifică totul înainte de a-l trimite șoferului: textul e făcut de AI din rate con — numele depozitelor, adresele, orele și numerele pot fi greșite. Compară cu documentul.',
+    kk: 'Жүргізушіге жібермес бұрын бәрін тексер: мәтінді ЖИ рейт-коннан құрады, қойма атаулары, мекенжайлар, уақыт пен нөмірлер қате болуы мүмкін. Құжатпен салыстыр.',
+  },
   'trucks.driverInfo.info': {
     ru: 'Готовый текст для водителя: адреса загрузки/выгрузки, время, номера, ставка, вес — собранный из rate con при распознавании. Разверни и нажми «Копировать», чтобы отправить снова.',
     en: 'Ready-to-send text for the driver: pickup/drop-off addresses, times, reference numbers, rate, weight — assembled from the rate con when it was read. Expand and hit “Copy” to send it again.',

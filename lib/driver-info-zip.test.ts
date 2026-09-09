@@ -93,3 +93,13 @@ test('название склада — первая строка блока п�
   assert.equal(hasStreets(sheet), true)
   assert.equal(hasStreets('Pick up Address:\n\nAnahiem, CA\n'), false)
 })
+
+test('название склада перед адресом не затирается, а блок с улицей не трогается', () => {
+  const text = 'Pick up Address:\n\nFiberon\n\n23680 NE Glisan St\nGresham, OR 97030\n\n____\nTime: 08:00\n'
+  assert.equal(withAddresses(text, { pickup: '23680 NE Glisan St, 97030', origin: 'Gresham, OR' }), text)
+  const cityOnly = 'Pick up Address:\n\nWoodmark\n\nAnahiem, CA\n\n____\nTime: 05:00\n'
+  assert.equal(
+    withAddresses(cityOnly, { pickup: '400 E Orangethorpe Ave, 92801', origin: 'Anaheim, CA' }),
+    'Pick up Address:\n\nWoodmark\n\n400 E Orangethorpe Ave, Anaheim, CA 92801\n\n____\nTime: 05:00\n',
+  )
+})

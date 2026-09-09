@@ -51,6 +51,9 @@ export function withCities(text: string, places: Record<string, string>): string
 /** Заголовок пункта в тексте водителю: «Pick up Address:», «Delivery Address:». */
 const STOP_HEADER = /^\s*(pick\s?-?up|delivery|drop\s?-?off)\s+address\s*:?\s*$/i
 
+/** Конец блока пункта: линейка, «Time:», «Ref:». */
+const BLOCK_END = /^\s*(?:_{3,}|-{3,}|time\s*:|ref\s*:)/i
+
 /** Есть ли в строке улица — номер дома с буквами после него. */
 const HAS_STREET = /\d+\s+[A-Za-z]/
 
@@ -84,11 +87,17 @@ export function withAddresses(
     const isPickup = /pick/i.test(h[1]!)
     const addr = isPickup ? stops.pickup : stops.delivery
     if (!addr || !addr.trim()) continue
-    // Первая непустая строка после заголовка — это и есть пункт.
-    let j = i + 1
-    while (j < lines.length && !lines[j]!.trim()) j++
-    if (j >= lines.length || HAS_STREET.test(lines[j]!)) continue
-    lines[j] = full(addr.trim(), isPickup ? stops.origin : stops.destination)
+    // Блок пункта — до линейки, «Time:», «Ref:» или следующего заголовка. Первой
+    // строкой в нём часто стоит НАЗВАНИЕ склада, и трогать его нельзя: раньше оно
+    // затиралось адресом, и водитель терял, какую вывеску искать у ворот.
+    let end = i + 1
+    while (end < lines.length && !BLOCK_END.test(lines[end]!) && !STOP_HEADER.test(lines[end]!)) end++
+    const block = lines.slice(i + 1, end)
+    if (block.some((l) => HAS_STREET.test(l))) continue
+    // Заменяем только строку «Город, ST»; название и всё остальное остаются.
+    const j = block.findIndex((l) => HAS_CITY_STATE.test(l) && !HAS_STREET.test(l))
+    if (j < 0) continue
+    lines[i + 1 + j] = full(addr.trim(), isPickup ? stops.origin : stops.destination)
   }
   return lines.join('\n')
 }
