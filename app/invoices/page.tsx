@@ -188,18 +188,31 @@ async function Unpaid({
           </h2>
           <div className="flex flex-col gap-2">
             {uninvoiced.map((load) => (
-              <div key={load.id} className="panel flex items-center gap-4 p-4 border-warn-400/20">
-                <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
-                  <div className="truncate text-[14px] font-medium">
-                    {load.origin ?? '—'} → {load.destination ?? '—'}
-                  </div>
-                  <div className="mt-0.5 text-[12px] text-white/60">
-                    {load.brokerMc ? `MC ${load.brokerMc} · ` : ''}
-                    {t(locale, 'finances.uninvoiced.cta')}
-                  </div>
-                </Link>
-                <span className="nums shrink-0 text-[15px] font-bold">{usd.format(load.rate)}</span>
-                {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
+              <div key={load.id} className="panel p-4 border-warn-400/20">
+                <div className="flex items-center gap-4">
+                  <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
+                    <div className="truncate text-[14px] font-medium">
+                      {load.origin ?? '—'} → {load.destination ?? '—'}
+                    </div>
+                    <div className="mt-0.5 text-[12px] text-white/60">
+                      {load.brokerMc ? `MC ${load.brokerMc} · ` : ''}
+                      {t(locale, 'finances.uninvoiced.cta')}
+                    </div>
+                  </Link>
+                  <span className="nums shrink-0 text-[15px] font-bold">{usd.format(load.rate)}</span>
+                  {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
+                </div>
+                {/* Статус меняется прямо здесь: платёж пришёл по квик-пею или через
+                    факторинг раньше инвойса — не ходить за этим на страницу груза. */}
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
+                  <PaidToggle loadId={load.id} />
+                  <Link
+                    href={`/loads/${load.id}`}
+                    className="rounded-lg border border-white/15 px-3 py-1.5 text-[12px] font-semibold text-white/80 hover:border-white/35 hover:text-white"
+                  >
+                    {t(locale, 'finances.card.buildInvoice')}
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
@@ -238,24 +251,36 @@ async function Unpaid({
 
   function renderReceivable(r: Receivable) {
     return (
-      <div key={r.load.id} className={`panel flex items-center gap-4 p-4 ${r.overdue ? 'border-bad-500/30' : ''}`}>
-        <Link href={`/loads/${r.load.id}`} className="min-w-0 flex-1">
-          <div className="truncate text-[14px] font-medium">
-            {r.load.invoiceNumber} · {r.load.origin ?? '—'} → {r.load.destination ?? '—'}
-          </div>
-          <div className="mt-0.5 text-[12px] text-white/60">
-            {r.load.brokerMc ? `MC ${r.load.brokerMc} · ` : ''}
-            <span className={r.overdue ? 'text-bad-400' : 'text-white/60'}>
-              {t(locale, 'finances.unpaid.daysOut')
-                .replace('{d}', String(r.daysOut))
-                .replace('{n}', String(r.load.paymentTermsDays))}
-              {r.overdue ? t(locale, 'finances.unpaid.overdue') : ''}
-            </span>
-          </div>
-        </Link>
-        <span className="nums shrink-0 text-[15px] font-bold">{usd.format(r.load.rate)}</span>
-        {rateCons.get(r.load.id) && <RateConButton docId={rateCons.get(r.load.id)!} compact />}
-        <PaidToggle loadId={r.load.id} />
+      <div key={r.load.id} className={`panel p-4 ${r.overdue ? 'border-bad-500/30' : ''}`}>
+        <div className="flex items-center gap-4">
+          <Link href={`/loads/${r.load.id}`} className="min-w-0 flex-1">
+            <div className="truncate text-[14px] font-medium">
+              {r.load.invoiceNumber} · {r.load.origin ?? '—'} → {r.load.destination ?? '—'}
+            </div>
+            <div className="mt-0.5 text-[12px] text-white/60">
+              {r.load.brokerMc ? `MC ${r.load.brokerMc} · ` : ''}
+              <span className={r.overdue ? 'text-bad-400' : 'text-white/60'}>
+                {t(locale, 'finances.unpaid.daysOut')
+                  .replace('{d}', String(r.daysOut))
+                  .replace('{n}', String(r.load.paymentTermsDays))}
+                {r.overdue ? t(locale, 'finances.unpaid.overdue') : ''}
+              </span>
+            </div>
+          </Link>
+          <span className="nums shrink-0 text-[15px] font-bold">{usd.format(r.load.rate)}</span>
+          {rateCons.get(r.load.id) && <RateConButton docId={rateCons.get(r.load.id)!} compact />}
+        </div>
+        {/* Кнопки статуса — своей строкой под карточкой: на телефоне рядом с суммой
+            им не хватало места, и «Оплачено» приходилось искать. */}
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
+          <PaidToggle loadId={r.load.id} />
+          <Link
+            href={`/loads/${r.load.id}`}
+            className="rounded-lg border border-white/15 px-3 py-1.5 text-[12px] font-semibold text-white/80 hover:border-white/35 hover:text-white"
+          >
+            {t(locale, 'finances.card.openLoad')}
+          </Link>
+        </div>
       </div>
     )
   }
