@@ -23,17 +23,16 @@ import {
   type HistoryLeg,
   type LoadStop,
 } from '@/lib/trip-history'
-import { agoText, driveTime } from '@/lib/fmt'
+import { agoText, driveTime, usDate } from '@/lib/fmt'
 import { t, type Locale } from '@/lib/i18n'
 
 const loc = (locale: Locale) => (locale === 'ru' ? 'ru-RU' : 'en-US')
 const timeOf = (iso: string, locale: Locale) =>
   new Date(iso).toLocaleTimeString(loc(locale), { hour: '2-digit', minute: '2-digit' })
-const dateOf = (iso: string, locale: Locale) => new Date(iso).toLocaleDateString(loc(locale))
+const dateOf = (iso: string, _locale: Locale) => usDate(iso)
 // Короткая дата для отрезка, перешедшего полночь: заголовок дня показывает только
 // день НАЧАЛА, и одно время конца («15:34–15:00») читалось как бессмыслица.
-const dateShort = (iso: string, locale: Locale) =>
-  new Date(iso).toLocaleDateString(loc(locale), { day: '2-digit', month: '2-digit' })
+const dateShort = (iso: string, _locale: Locale) => usDate(iso)
 
 function rangeLabel(from: string, to: string, locale: Locale): string {
   const tf = timeOf(from, locale)
@@ -122,11 +121,7 @@ function DayRibbon({
           )
         })}
         {futurePct > 0 && (
-          <span
-            className="absolute inset-y-0 right-0 bg-ink-950/55"
-            style={{ width: `${futurePct}%` }}
-            aria-hidden
-          />
+          <span className="absolute inset-y-0 right-0 bg-ink-950/55" style={{ width: `${futurePct}%` }} aria-hidden />
         )}
       </div>
       <div className="mt-1 flex justify-between text-[9px] tabular-nums text-white/25">
@@ -169,9 +164,7 @@ export function TripHistory({
   // Сегодняшний ли это день — по часам БРАУЗЕРА (nowMs ставится после монтирования).
   // Взять серверное время нельзя: у сервера свой пояс, и «сегодня» разъехалось бы.
   const isToday =
-    freshest && nowMs !== null
-      ? dateOf(freshest, locale) === dateOf(new Date(nowMs).toISOString(), locale)
-      : false
+    freshest && nowMs !== null ? dateOf(freshest, locale) === dateOf(new Date(nowMs).toISOString(), locale) : false
 
   const total = summarize(legs)
   // Часы под погрузкой и выгрузкой — то, за что выставляют детеншен. Считаются

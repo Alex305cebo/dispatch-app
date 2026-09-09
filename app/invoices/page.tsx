@@ -12,7 +12,7 @@ import {
 } from '@/lib/loads'
 import type { LoadRecord } from '@/lib/map'
 import { calcLoad, type Breakdown } from '@/lib/profit'
-import { usd, usd2, weekAnchorOf, weekLabel, weekStart } from '@/lib/fmt'
+import { usd, usd2, weekAnchorOf, weekLabel, weekStart, usDate } from '@/lib/fmt'
 import { truckLabel, type TruckRecord } from '@/lib/map'
 import { redirect } from 'next/navigation'
 import { companyScope, getCurrentUser } from '@/lib/session'
@@ -207,9 +207,7 @@ async function Unpaid({
       )}
 
       {rec.length === 0 ? (
-        uninvoiced.length === 0 && (
-          <Empty icon={CircleCheckBig} title={t(locale, 'finances.unpaid.empty')} />
-        )
+        uninvoiced.length === 0 && <Empty icon={CircleCheckBig} title={t(locale, 'finances.unpaid.empty')} />
       ) : (
         /* Was one flat column of every outstanding invoice — fine at eight rows, a
            scrolling wall at eighty, with the overdue ones buried somewhere inside it.
@@ -240,28 +238,25 @@ async function Unpaid({
 
   function renderReceivable(r: Receivable) {
     return (
-            <div
-              key={r.load.id}
-              className={`panel flex items-center gap-4 p-4 ${r.overdue ? 'border-bad-500/30' : ''}`}
-            >
-              <Link href={`/loads/${r.load.id}`} className="min-w-0 flex-1">
-                <div className="truncate text-[14px] font-medium">
-                  {r.load.invoiceNumber} · {r.load.origin ?? '—'} → {r.load.destination ?? '—'}
-                </div>
-                <div className="mt-0.5 text-[12px] text-white/60">
-                  {r.load.brokerMc ? `MC ${r.load.brokerMc} · ` : ''}
-                  <span className={r.overdue ? 'text-bad-400' : 'text-white/60'}>
-                    {t(locale, 'finances.unpaid.daysOut')
-                      .replace('{d}', String(r.daysOut))
-                      .replace('{n}', String(r.load.paymentTermsDays))}
-                    {r.overdue ? t(locale, 'finances.unpaid.overdue') : ''}
-                  </span>
-                </div>
-              </Link>
-              <span className="nums shrink-0 text-[15px] font-bold">{usd.format(r.load.rate)}</span>
-              {rateCons.get(r.load.id) && <RateConButton docId={rateCons.get(r.load.id)!} compact />}
-              <PaidToggle loadId={r.load.id} />
-            </div>
+      <div key={r.load.id} className={`panel flex items-center gap-4 p-4 ${r.overdue ? 'border-bad-500/30' : ''}`}>
+        <Link href={`/loads/${r.load.id}`} className="min-w-0 flex-1">
+          <div className="truncate text-[14px] font-medium">
+            {r.load.invoiceNumber} · {r.load.origin ?? '—'} → {r.load.destination ?? '—'}
+          </div>
+          <div className="mt-0.5 text-[12px] text-white/60">
+            {r.load.brokerMc ? `MC ${r.load.brokerMc} · ` : ''}
+            <span className={r.overdue ? 'text-bad-400' : 'text-white/60'}>
+              {t(locale, 'finances.unpaid.daysOut')
+                .replace('{d}', String(r.daysOut))
+                .replace('{n}', String(r.load.paymentTermsDays))}
+              {r.overdue ? t(locale, 'finances.unpaid.overdue') : ''}
+            </span>
+          </div>
+        </Link>
+        <span className="nums shrink-0 text-[15px] font-bold">{usd.format(r.load.rate)}</span>
+        {rateCons.get(r.load.id) && <RateConButton docId={rateCons.get(r.load.id)!} compact />}
+        <PaidToggle loadId={r.load.id} />
+      </div>
     )
   }
 }
@@ -364,29 +359,29 @@ async function Paid({
               tone={i === 0 ? 'good' : 'plain'}
               defaultOpen={i === 0}
             >
-              <div className="flex flex-col gap-2">{g.rows.map(({ load, r }) => (
-            <div key={load.id} className="panel flex items-center gap-4 p-4">
-              <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
-                <div className="truncate text-[14px] font-medium">
-                  {load.invoiceNumber} · {load.origin ?? '—'} → {load.destination ?? '—'}
-                </div>
-                <div className="mt-0.5 text-[12px] text-white/60">
-                  {load.paidAt
-                    ? new Date(load.paidAt).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'en-US')
-                    : '—'}
-                  {r ? (
-                    <>
-                      {' '}
-                      · {r.allInRpm.toFixed(2)} $/mi · {r.totalMiles} mi
-                    </>
-                  ) : null}
-                </div>
-              </Link>
-              <span className="nums shrink-0 text-[15px] font-bold">{usd.format(load.rate)}</span>
-              {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
-              <PaidToggle loadId={load.id} paid />
-            </div>
-          ))}</div>
+              <div className="flex flex-col gap-2">
+                {g.rows.map(({ load, r }) => (
+                  <div key={load.id} className="panel flex items-center gap-4 p-4">
+                    <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
+                      <div className="truncate text-[14px] font-medium">
+                        {load.invoiceNumber} · {load.origin ?? '—'} → {load.destination ?? '—'}
+                      </div>
+                      <div className="mt-0.5 text-[12px] text-white/60">
+                        {load.paidAt ? usDate(load.paidAt) : '—'}
+                        {r ? (
+                          <>
+                            {' '}
+                            · {r.allInRpm.toFixed(2)} $/mi · {r.totalMiles} mi
+                          </>
+                        ) : null}
+                      </div>
+                    </Link>
+                    <span className="nums shrink-0 text-[15px] font-bold">{usd.format(load.rate)}</span>
+                    {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
+                    <PaidToggle loadId={load.id} paid />
+                  </div>
+                ))}
+              </div>
             </Collapse>
           ))}
         </div>
@@ -524,9 +519,7 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
         <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[13px] font-semibold">
             <span className="capitalize">{weekLabel(week.weekStartMs, locale)}</span>
-            <span className="nums shrink-0 text-[12.5px] font-normal text-white/60">
-              {usd.format(week.gross)}
-            </span>
+            <span className="nums shrink-0 text-[12.5px] font-normal text-white/60">{usd.format(week.gross)}</span>
           </summary>
 
           <div className="mt-3 flex flex-col gap-2.5">
@@ -550,8 +543,7 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
                             <span>{drv.label}</span>
                             <span className="nums shrink-0 text-[11.5px] font-normal text-white/60">
                               {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(drv.loads.length))} ·{' '}
-                              {usd.format(drv.gross)} ·{' '}
-                              {Math.round(drv.miles)} mi
+                              {usd.format(drv.gross)} · {Math.round(drv.miles)} mi
                             </span>
                           </div>
                           <ul className="mt-1.5 flex flex-col gap-1">
@@ -566,8 +558,7 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
                                     {load.origin ?? '—'} → {load.destination ?? '—'}
                                   </span>
                                   <span className="nums shrink-0">
-                                    {Math.round(load.loadedMiles + load.deadheadMiles)} mi ·{' '}
-                                    {usd.format(load.rate)}
+                                    {Math.round(load.loadedMiles + load.deadheadMiles)} mi · {usd.format(load.rate)}
                                   </span>
                                 </Link>
                               </li>
@@ -649,7 +640,8 @@ async function ByWeek({
             <span className="nums shrink-0 text-right">
               <span className="text-[15px] text-good-400">{usd.format(week.gross)}</span>
               <span className="ml-2 text-[11.5px] font-normal text-white/50">
-                {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(week.count))} · {Math.round(week.miles)} mi
+                {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(week.count))} · {Math.round(week.miles)}{' '}
+                mi
                 {week.miles > 0 && ` · ${usd2.format(week.gross / week.miles)}/mi`}
               </span>
               {/* Неделя одним файлом для бухгалтера: грузы, мили, ставки, счета, зарплата. */}
@@ -671,7 +663,8 @@ async function ByWeek({
                     <span className="text-haul-300">{row.label}</span>
                     <span className="nums shrink-0 text-[11.5px] font-normal text-white/60">
                       {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(row.loads.length))} ·{' '}
-                      {Math.round(row.miles)} mi · <span className="font-semibold text-white/85">{usd.format(row.gross)}</span>
+                      {Math.round(row.miles)} mi ·{' '}
+                      <span className="font-semibold text-white/85">{usd.format(row.gross)}</span>
                     </span>
                   </div>
                   <ul className="mt-1.5 flex flex-col gap-1">
@@ -705,7 +698,10 @@ async function ByWeek({
 
 type DriverWeek = {
   weekStartMs: number
-  trucks: Map<number, { label: string; loads: { load: LoadRecord; pay: number | null; miles: number }[]; pay: number; miles: number }>
+  trucks: Map<
+    number,
+    { label: string; loads: { load: LoadRecord; pay: number | null; miles: number }[]; pay: number; miles: number }
+  >
   pay: number
 }
 
@@ -809,23 +805,11 @@ async function ByDriver({ companyId, locale }: { companyId: 'default' | 'demo'; 
   )
 }
 
-function Stat({
-  label,
-  value,
-  tone,
-  info,
-}: {
-  label: string
-  value: string
-  tone?: 'warn' | 'bad'
-  info?: string
-}) {
+function Stat({ label, value, tone, info }: { label: string; value: string; tone?: 'warn' | 'bad'; info?: string }) {
   return (
     <div className="panel px-4 py-3">
       <div
-        className={`nums text-lg font-bold ${
-          tone === 'bad' ? 'text-bad-400' : tone === 'warn' ? 'text-warn-400' : ''
-        }`}
+        className={`nums text-lg font-bold ${tone === 'bad' ? 'text-bad-400' : tone === 'warn' ? 'text-warn-400' : ''}`}
       >
         {value}
       </div>

@@ -28,6 +28,7 @@ import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale } from '@/lib/i18n'
 import { ShowMore } from '@/components/collapse'
+import { usDate } from '@/lib/fmt'
 
 export function DocUpload({
   truckId,
@@ -347,7 +348,7 @@ function DocRow({
             {from ?? '—'} → {to ?? '—'}
           </span>
         )}
-        <span className="nums ml-auto shrink-0 text-[11.5px] text-white/35">{doc.uploadedAt.slice(0, 10)}</span>
+        <span className="nums ml-auto shrink-0 text-[11.5px] text-white/35">{usDate(doc.uploadedAt)}</span>
         {showLinks && doc.truckId && (
           <a href={`/trucks/${doc.truckId}`} className="shrink-0 text-[11px] text-white/45 hover:text-white/85">
             {t(locale, 'docs.row.truck')}
@@ -388,7 +389,7 @@ function DocRow({
           </div>
         )}
         <span className="nums block text-xs text-white/40">
-          {fmtSize(doc.sizeBytes)} · {doc.uploadedAt.slice(0, 10)}
+          {fmtSize(doc.sizeBytes)} · {usDate(doc.uploadedAt)}
         </span>
         {doc.loadId === null && doc.truckId && attachTargets && (
           <UnattachedActions
@@ -604,8 +605,7 @@ export function DocTrash({ rows }: { rows: DocLibRow[] }) {
           <div className="min-w-0 flex-1">
             <span className="block truncate text-[14px] text-white/70">{d.title}</span>
             <span className="text-[11px] text-white/45">
-              {t(locale, 'docs.trash.deletedOn').replace('{d}', d.deletedAt?.slice(0, 10) ?? '')} ·{' '}
-              {fmtSize(d.sizeBytes)}
+              {t(locale, 'docs.trash.deletedOn').replace('{d}', usDate(d.deletedAt))} · {fmtSize(d.sizeBytes)}
             </span>
           </div>
           <button

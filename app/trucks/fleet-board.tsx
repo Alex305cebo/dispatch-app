@@ -21,7 +21,7 @@ import { type TrackingRow } from '@/components/fleet-list'
 import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
 import { positionSignals } from '@/lib/eld'
 import { activeAlert, type WeatherAlert } from '@/lib/weather'
-import { agoText, driveTime } from '@/lib/fmt'
+import { agoText, driveTime, usDate } from '@/lib/fmt'
 import { t as tr, type Locale } from '@/lib/i18n'
 import { companyScope } from '@/lib/session'
 
@@ -78,10 +78,7 @@ export async function FleetBoard({
   const phoneById = new Map(phoneRows.map((r) => [r.truck_id, r.driver_phone]))
   // Freshest row, not an arbitrary one — SELECT * has no ORDER BY, so rows[0] was
   // whichever the DB happened to return and could under-report how current we are.
-  const snapshotMs = rows.reduce(
-    (max, r) => Math.max(max, new Date(r.updated_at).getTime()),
-    0,
-  )
+  const snapshotMs = rows.reduce((max, r) => Math.max(max, new Date(r.updated_at).getTime()), 0)
   const snapshot = snapshotMs > 0 ? new Date(snapshotMs).toISOString() : null
   const staleMinutes = snapshotMs > 0 ? Math.round((Date.now() - snapshotMs) / 60000) : null
 
@@ -106,9 +103,7 @@ export async function FleetBoard({
         // used to be two queries per truck over overlapping windows of the same table.
         const [wx, signals] = await Promise.all([
           activeAlert(pt.lat, pt.lng).catch(() => null),
-          t.number
-            ? positionSignals(t.number, pt.lat, pt.lng).catch(() => null)
-            : Promise.resolve(null),
+          t.number ? positionSignals(t.number, pt.lat, pt.lng).catch(() => null) : Promise.resolve(null),
         ])
         weather = wx
         idleAt = signals?.idleAt ?? null
@@ -177,9 +172,7 @@ export async function FleetBoard({
         lat: pickup.lat,
         lng: pickup.lng,
         label: `${tr(locale, 'tracking.pickupPrefix')}${load.origin}`,
-        sub: [load.pickupTime || (load.pickupDate ? load.pickupDate.slice(0, 10) : null)]
-          .filter(Boolean)
-          .join('\n'),
+        sub: [load.pickupTime || usDate(load.pickupDate) || null].filter(Boolean).join('\n'),
         kind: 'pickup',
         href: `/loads/${load.id}`,
       })
@@ -230,7 +223,9 @@ export async function FleetBoard({
         tone: st.tone,
         kind: 'truck',
         heading: heading ?? undefined,
-        eta: legToDelivery ? `${totalMiles} mi · ~${driveTime(totalEtaMin, locale)}${tr(locale, 'tracking.toDelivery')}` : undefined,
+        eta: legToDelivery
+          ? `${totalMiles} mi · ~${driveTime(totalEtaMin, locale)}${tr(locale, 'tracking.toDelivery')}`
+          : undefined,
         zone: zoneFor(fs.lat, fs.lng) ?? undefined,
         href: `/trucks/${t.id}`,
         truckId: t.id,

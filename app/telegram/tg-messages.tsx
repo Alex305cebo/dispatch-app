@@ -16,7 +16,7 @@ import { tgPollMessages } from './actions'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale } from '@/lib/i18n'
 import type { TgMsg } from '@/lib/telegram'
-
+import { usDate } from '@/lib/fmt'
 
 function humanSize(bytes: number, locale: Locale): string {
   if (bytes < 1024) return `${bytes} ${t(locale, 'telegram.page.bytesUnit')}`
@@ -29,22 +29,12 @@ function when(iso: string | null, locale: Locale): string {
   const d = new Date(iso)
   const today = new Date().toDateString() === d.toDateString()
   const dl = locale === 'ru' ? 'ru-RU' : 'en-US'
-  return today
-    ? d.toLocaleTimeString(dl, { hour: '2-digit', minute: '2-digit' })
-    : d.toLocaleDateString(dl, { day: '2-digit', month: '2-digit' })
+  return today ? d.toLocaleTimeString(dl, { hour: '2-digit', minute: '2-digit' }) : usDate(d)
 }
 
 const POLL_MS = 15_000
 
-export function TgMessages({
-  chatId,
-  phone,
-  initial,
-}: {
-  chatId: string
-  phone: string | null
-  initial: TgMsg[]
-}) {
+export function TgMessages({ chatId, phone, initial }: { chatId: string; phone: string | null; initial: TgMsg[] }) {
   const locale = useLocale()
   const [list, setList] = useState(initial)
 
@@ -69,60 +59,61 @@ export function TgMessages({
   }, [chatId])
 
   return (
-        <div className="flex max-h-[58vh] flex-1 flex-col gap-1.5 overflow-y-auto p-4">
-          {list.map((m) => (
-            <div
-              key={m.id}
-              className={`max-w-[80%] rounded-2xl px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap ${
-                m.out
-                  ? 'self-end rounded-br-sm bg-haul-500/25 text-white'
-                  : 'self-start rounded-bl-sm bg-white/8 text-white/90'
-              }`}
-            >
-              {m.media === 'image' && (
-                <>
-                  <TgImage src={`/api/tg-media/${chatId}/${m.id}`} />
-                  <TgAttachButton chatId={chatId} msgId={m.id} phone={phone} />
-                </>
-              )}
-              {m.media === 'pdf' && (
-                <>
-                  <a
-                    href={`/api/tg-media/${chatId}/${m.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mb-1 block overflow-hidden rounded-lg border border-white/10 bg-white/5 transition-colors hover:bg-white/8"
-                  >
-                    {m.hasThumb && (
-                      // Page-1 preview Telegram made for the file — "видно, что внутри".
-                      <img
-                        src={`/api/tg-media/${chatId}/${m.id}?thumb=1`}
-                        alt={t(locale, 'telegram.page.pdfPreviewAlt')}
-                        className="max-h-44 w-full object-cover object-top"
-                      />
-                    )}
-                    <span className="flex items-center gap-2 px-2.5 py-2">
-                      <span className="text-[17px]">📄</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[12.5px] font-medium text-white/90">
-                          {m.fileName || t(locale, 'telegram.page.defaultDocName')}
-                        </span>
-                        <span className="block text-[11px] text-white/45">
-                          {m.fileSize ? `${humanSize(m.fileSize, locale)} · ` : ''}{t(locale, 'telegram.page.openPdf')}
-                        </span>
-                      </span>
+    <div className="flex max-h-[58vh] flex-1 flex-col gap-1.5 overflow-y-auto p-4">
+      {list.map((m) => (
+        <div
+          key={m.id}
+          className={`max-w-[80%] rounded-2xl px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap ${
+            m.out
+              ? 'self-end rounded-br-sm bg-haul-500/25 text-white'
+              : 'self-start rounded-bl-sm bg-white/8 text-white/90'
+          }`}
+        >
+          {m.media === 'image' && (
+            <>
+              <TgImage src={`/api/tg-media/${chatId}/${m.id}`} />
+              <TgAttachButton chatId={chatId} msgId={m.id} phone={phone} />
+            </>
+          )}
+          {m.media === 'pdf' && (
+            <>
+              <a
+                href={`/api/tg-media/${chatId}/${m.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="mb-1 block overflow-hidden rounded-lg border border-white/10 bg-white/5 transition-colors hover:bg-white/8"
+              >
+                {m.hasThumb && (
+                  // Page-1 preview Telegram made for the file — "видно, что внутри".
+                  <img
+                    src={`/api/tg-media/${chatId}/${m.id}?thumb=1`}
+                    alt={t(locale, 'telegram.page.pdfPreviewAlt')}
+                    className="max-h-44 w-full object-cover object-top"
+                  />
+                )}
+                <span className="flex items-center gap-2 px-2.5 py-2">
+                  <span className="text-[17px]">📄</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[12.5px] font-medium text-white/90">
+                      {m.fileName || t(locale, 'telegram.page.defaultDocName')}
                     </span>
-                  </a>
-                  <TgAttachButton chatId={chatId} msgId={m.id} phone={phone} />
-                </>
-              )}
-              {m.media === 'other' && !m.text && <span className="text-white/45">{t(locale, 'telegram.page.attachment')}</span>}
-              {m.text}
-              <span className="mt-0.5 block text-right text-[10px] text-white/40">
-                {when(m.at, locale)}
-              </span>
-            </div>
-          ))}
-      </div>
+                    <span className="block text-[11px] text-white/45">
+                      {m.fileSize ? `${humanSize(m.fileSize, locale)} · ` : ''}
+                      {t(locale, 'telegram.page.openPdf')}
+                    </span>
+                  </span>
+                </span>
+              </a>
+              <TgAttachButton chatId={chatId} msgId={m.id} phone={phone} />
+            </>
+          )}
+          {m.media === 'other' && !m.text && (
+            <span className="text-white/45">{t(locale, 'telegram.page.attachment')}</span>
+          )}
+          {m.text}
+          <span className="mt-0.5 block text-right text-[10px] text-white/40">{when(m.at, locale)}</span>
+        </div>
+      ))}
+    </div>
   )
 }

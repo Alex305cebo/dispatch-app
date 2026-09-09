@@ -12,7 +12,7 @@ import { calcLoad } from '@/lib/profit'
 import { fleetStatusByUnit, getTruckMeta, listMaintenance, listTodos, oilStatus } from '@/lib/maintenance'
 import { tripHistory } from '@/lib/eld'
 import { loadMapData, statusTone } from '@/lib/load-map'
-import { usd, usd2, weekBounds, loadWeekAnchorMs } from '@/lib/fmt'
+import { usd, usd2, weekBounds, loadWeekAnchorMs, usDate } from '@/lib/fmt'
 import { FleetMap } from '@/components/fleet-map'
 import { StatusBadge, statusLabel } from '@/components/status'
 import { TruckForm } from '@/components/truck-form'
@@ -337,7 +337,7 @@ export default async function Page({
                     {t(locale, 'trucks.detail.pickup')}
                   </dt>
                   <dd className="font-medium text-white/85">
-                    {activeLoad.pickupTime || activeLoad.pickupDate?.slice(0, 10) || '—'}
+                    {activeLoad.pickupTime || usDate(activeLoad.pickupDate) || '—'}
                   </dd>
                 </div>
                 <div>
@@ -345,7 +345,7 @@ export default async function Page({
                     {t(locale, 'trucks.detail.delivery')}
                   </dt>
                   <dd className="font-medium text-white/85">
-                    {activeLoad.deliveryTime || activeLoad.deliveryDate?.slice(0, 10) || '—'}
+                    {activeLoad.deliveryTime || usDate(activeLoad.deliveryDate) || '—'}
                   </dd>
                 </div>
                 <div>

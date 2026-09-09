@@ -10,6 +10,7 @@ import { markNotesRead, parseRcForNotes, setBrokerNotes, translateBrokerNotes } 
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale } from '@/lib/i18n'
+import { usDate } from '@/lib/fmt'
 
 // The AI prompt (lib/ratecon-ai-contract.ts) tags each fact line with one of these —
 // lets the wall of prose from the RC render as a scannable list instead of one blob.
@@ -63,7 +64,8 @@ export function BrokerNotes({
   hasRc: boolean
 }) {
   const locale = useLocale()
-  const TAGS = tagsFor(locale)  const [editing, setEditing] = useState(false)
+  const TAGS = tagsFor(locale)
+  const [editing, setEditing] = useState(false)
   const [text, setText] = useState(notes ?? '')
   const [pending, start] = useTransition()
   // Not persisted — re-translated on demand each time the page reloads, which is
@@ -156,8 +158,7 @@ export function BrokerNotes({
           className={textarea}
         />
         <div className="mt-2 flex gap-2">
-          <Button variant="primary" size="sm" disabled={pending}
-            onClick={saveText}>
+          <Button variant="primary" size="sm" disabled={pending} onClick={saveText}>
             {pending ? t(locale, 'loadEdit.saving') : t(locale, 'loadEdit.save')}
           </Button>
           <button
@@ -179,8 +180,7 @@ export function BrokerNotes({
     return (
       <div className="panel flex flex-wrap items-center gap-3 p-4">
         {hasRc && (
-          <Button variant="primary" disabled={pending}
-            onClick={parse}>
+          <Button variant="primary" disabled={pending} onClick={parse}>
             {pending ? t(locale, 'brokerNotes.parsing') : t(locale, 'brokerNotes.parseRc')}
           </Button>
         )}
@@ -204,7 +204,10 @@ export function BrokerNotes({
   const structured = lines.some((l) => l.tag !== null)
   // One-line taste of the note while collapsed — the full text is a wall, and tags
   // are noise at a glance, so strip them here even for structured notes.
-  const preview = shown.replace(/\[\w+\]/g, '').replace(/\s+/g, ' ').trim()
+  const preview = shown
+    .replace(/\[\w+\]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 
   return (
     <details
@@ -214,9 +217,7 @@ export function BrokerNotes({
       // read — stronger while unread, but no longer *blinking*: a whole-card opacity
       // pulse read as an alarm/glitch. Only the small ring behind ⚠ animates now.
       className={`group overflow-hidden rounded-2xl border transition-colors ${
-        unread
-          ? 'border-warn-400/40 bg-warn-400/10 ring-1 ring-warn-400/25'
-          : 'border-warn-400/15 bg-warn-400/[0.03]'
+        unread ? 'border-warn-400/40 bg-warn-400/10 ring-1 ring-warn-400/25' : 'border-warn-400/15 bg-warn-400/[0.03]'
       }`}
     >
       <summary className="flex cursor-pointer list-none items-center gap-2 p-3.5">
@@ -233,11 +234,9 @@ export function BrokerNotes({
         >
           {t(locale, 'brokerNotes.heading')}
         </span>
-        <span className="min-w-0 flex-1 truncate text-[12px] text-white/45 group-open:hidden">
-          {preview}
-        </span>
+        <span className="min-w-0 flex-1 truncate text-[12px] text-white/45 group-open:hidden">{preview}</span>
         <span className="shrink-0 text-[11px] text-white/45">
-          {unread ? t(locale, 'brokerNotes.new') : t(locale, 'brokerNotes.readOn').replace('{date}', readAt!.slice(0, 10))}
+          {unread ? t(locale, 'brokerNotes.new') : t(locale, 'brokerNotes.readOn').replace('{date}', usDate(readAt))}
         </span>
         {/* Explicit fold/unfold hint — this being a <details> (click to toggle) isn't
             obvious on its own, especially now that unread notes open by default. */}
@@ -262,9 +261,7 @@ export function BrokerNotes({
                         {meta.icon}
                       </span>
                       <span>
-                        <span
-                          className={`mr-1.5 font-semibold ${meta.warn ? 'text-warn-300' : 'text-white/55'}`}
-                        >
+                        <span className={`mr-1.5 font-semibold ${meta.warn ? 'text-warn-300' : 'text-white/55'}`}>
                           {meta.label}:
                         </span>
                         <span className="text-white/85">{l.text}</span>
@@ -282,37 +279,37 @@ export function BrokerNotes({
         )}
 
         <div className="mt-3 flex items-center gap-2">
-        <button
-          disabled={translating}
-          onClick={toggleTranslate}
-          className="text-[12px] text-white/55 transition-colors hover:text-white/85 disabled:opacity-40"
-        >
-          {translating ? 'Перевожу…' : showRu && ru ? 'Оригинал (EN)' : '🌐 На русский'}
-        </button>
-        {unread && (
           <button
-            disabled={pending}
-            onClick={acknowledge}
-            className="rounded-lg bg-warn-400 px-4 py-1.5 text-[12px] font-semibold text-ink-950 transition-colors hover:bg-warn-300 disabled:opacity-40"
+            disabled={translating}
+            onClick={toggleTranslate}
+            className="text-[12px] text-white/55 transition-colors hover:text-white/85 disabled:opacity-40"
           >
-            {pending ? '…' : t(locale, 'brokerNotes.acknowledge')}
+            {translating ? 'Перевожу…' : showRu && ru ? 'Оригинал (EN)' : '🌐 На русский'}
           </button>
-        )}
-        <button
-          onClick={() => setEditing(true)}
-          className="text-[12px] text-white/55 transition-colors hover:text-white/85"
-        >
-          {t(locale, 'loadEdit.edit')}
-        </button>
-        {hasRc && (
+          {unread && (
+            <button
+              disabled={pending}
+              onClick={acknowledge}
+              className="rounded-lg bg-warn-400 px-4 py-1.5 text-[12px] font-semibold text-ink-950 transition-colors hover:bg-warn-300 disabled:opacity-40"
+            >
+              {pending ? '…' : t(locale, 'brokerNotes.acknowledge')}
+            </button>
+          )}
           <button
-            disabled={pending}
-            onClick={parse}
-            className="text-[12px] text-white/45 transition-colors hover:text-white/75 disabled:opacity-40"
+            onClick={() => setEditing(true)}
+            className="text-[12px] text-white/55 transition-colors hover:text-white/85"
           >
-            {pending ? '…' : t(locale, 'brokerNotes.updateFromRc')}
+            {t(locale, 'loadEdit.edit')}
           </button>
-        )}
+          {hasRc && (
+            <button
+              disabled={pending}
+              onClick={parse}
+              className="text-[12px] text-white/45 transition-colors hover:text-white/75 disabled:opacity-40"
+            >
+              {pending ? '…' : t(locale, 'brokerNotes.updateFromRc')}
+            </button>
+          )}
         </div>
       </div>
     </details>

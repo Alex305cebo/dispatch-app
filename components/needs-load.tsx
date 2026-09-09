@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Info } from '@/components/info'
 import { truckLabel, type TruckRecord } from '@/lib/map'
-import { usd } from '@/lib/fmt'
+import { usd, usDate } from '@/lib/fmt'
 import { idleSummary, type IdleTruck } from '@/lib/idle-fleet'
 import { t, type Locale } from '@/lib/i18n'
 import { CopyPlace } from '@/components/copy-place'
@@ -127,10 +127,6 @@ export function NeedsLoad({
 
 /** «2026-08-17» → «17 авг». Год не пишем: карта смотрит на ближайшие дни. */
 function fmtDay(iso: string, locale: Locale): string {
-  const [y, m, d] = iso.split('-').map(Number)
-  if (!y || !m || !d) return iso
-  return new Date(y, m - 1, d).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'en-US', {
-    day: 'numeric',
-    month: 'short',
-  })
+  void locale
+  return usDate(iso) || iso
 }

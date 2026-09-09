@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { weekAnchorOf, weekLabel, normalizeApptTime, shortName } from './fmt.ts'
+import { weekAnchorOf, weekLabel, normalizeApptTime, shortName, usDate } from './fmt.ts'
 
 // Relative to Date.now() rather than hardcoded ISO strings — a fixed UTC timestamp
 // can land on a different local calendar day depending on the machine's timezone,
@@ -63,15 +63,12 @@ test('weekLabel works in both locales', () => {
 // real-world bug: a pickup WINDOW written as two datetimes with no separator and
 // military times with no colon. The trap is the YEAR — /2026 must never become 20:26.
 test('a mashed pickup window is split and given colons', () => {
-  assert.equal(
-    normalizeApptTime('07/22/2026 060007/22/2026 2100'),
-    '07/22/2026 06:00 – 21:00',
-  )
+  assert.equal(normalizeApptTime('07/22/2026 060007/22/2026 2100'), '07/22/26 06:00 – 21:00')
 })
 
 test('the year inside a date is never turned into a time', () => {
   // If /2026 were treated as HHMM it would read "20:26" — this guards that.
-  assert.equal(normalizeApptTime('07/22/2026'), '07/22/2026')
+  assert.equal(normalizeApptTime('07/22/2026'), '07/22/26')
 })
 
 test('an already well-formed appointment passes through untouched', () => {
@@ -81,6 +78,21 @@ test('an already well-formed appointment passes through untouched', () => {
 test('a bare military time gets its colon', () => {
   assert.equal(normalizeApptTime('0600'), '06:00')
   assert.equal(normalizeApptTime('2100 - 2300'), '21:00 - 23:00')
+})
+
+test('a month-name date keeps its year and comes out as MM/DD/YY', () => {
+  assert.equal(normalizeApptTime('Sep 4, 2026 13:00 CDT'), '09/04/26 13:00 CDT')
+  assert.equal(normalizeApptTime('AUG 20, 2026 0900 - 1400'), '08/20/26 09:00 - 14:00')
+})
+
+test('a year already mangled into a time is repaired', () => {
+  assert.equal(normalizeApptTime('Sep 4, 20:26 13:00 CDT'), '09/04/26 13:00 CDT')
+})
+
+test('usDate: ISO date and timestamp both come out as MM/DD/YY', () => {
+  assert.equal(usDate('2026-09-08'), '09/08/26')
+  assert.equal(usDate(new Date(2026, 8, 8, 15, 4)), '09/08/26')
+  assert.equal(usDate(null), '')
 })
 
 test('empty and null collapse to null', () => {

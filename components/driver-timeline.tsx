@@ -9,6 +9,7 @@ import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
 import { notify } from '@/lib/notify'
 import { t } from '@/lib/i18n'
+import { usDate, usTime } from '@/lib/fmt'
 import type { LoadEvent } from '@/lib/load-events'
 
 const KEY = {
@@ -38,13 +39,7 @@ const DOT = {
   photo: 'bg-white/40',
 } as const
 
-const clock = (iso: string) =>
-  new Date(iso).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+const clock = (iso: string) => `${usDate(iso)} ${usTime(iso)}`
 /** ISO → значение для <input type="datetime-local"> в местном времени браузера. */
 const toLocalInput = (iso: string) => {
   const d = new Date(iso)

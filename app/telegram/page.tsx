@@ -24,6 +24,7 @@ import { TgAttachButton } from './tg-attach-button'
 import { TgImage } from './tg-image'
 import { TgChatSettings } from './tg-chat-settings'
 import { Info } from '@/components/info'
+import { usDate } from '@/lib/fmt'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,16 +44,10 @@ function when(iso: string | null, locale: Locale): string {
   const d = new Date(iso)
   const today = new Date().toDateString() === d.toDateString()
   const dl = locale === 'ru' ? 'ru-RU' : 'en-US'
-  return today
-    ? d.toLocaleTimeString(dl, { hour: '2-digit', minute: '2-digit' })
-    : d.toLocaleDateString(dl, { day: '2-digit', month: '2-digit' })
+  return today ? d.toLocaleTimeString(dl, { hour: '2-digit', minute: '2-digit' }) : usDate(d)
 }
 
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: Promise<{ chat?: string }>
-}) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ chat?: string }> }) {
   const user = await getCurrentUser()
   const locale = await getLocale()
 
@@ -62,9 +57,7 @@ export default async function Page({
     return (
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
         <h1 className="mb-5 text-xl font-bold tracking-tight">Telegram</h1>
-        <p className="panel p-4 text-[13px] text-white/65">
-          {t(locale, 'telegram.page.needLogin')}
-        </p>
+        <p className="panel p-4 text-[13px] text-white/65">{t(locale, 'telegram.page.needLogin')}</p>
       </main>
     )
   }
@@ -74,9 +67,7 @@ export default async function Page({
     return (
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
         <h1 className="mb-5 text-xl font-bold tracking-tight">Telegram</h1>
-        <p className="panel p-4 text-[13px] text-white/65">
-          {t(locale, 'telegram.page.noAccess')}
-        </p>
+        <p className="panel p-4 text-[13px] text-white/65">{t(locale, 'telegram.page.noAccess')}</p>
       </main>
     )
   }
@@ -143,7 +134,8 @@ export default async function Page({
             <Info side="bottom" text={t(locale, 'telegram.page.tooltip')} />
           </h1>
           <p className="text-[13px] text-white/65">
-            {t(locale, 'telegram.page.yourAccount')}{account?.phone ? ` · +${account.phone}` : ''}
+            {t(locale, 'telegram.page.yourAccount')}
+            {account?.phone ? ` · +${account.phone}` : ''}
             {account?.name ? ` · ${account.name}` : ''}
           </p>
         </div>
@@ -160,9 +152,7 @@ export default async function Page({
         {/* Dialog list — on phones it hides once a chat is open (back link shows it). */}
         <div className={`panel overflow-hidden ${open ? 'max-md:hidden' : ''}`}>
           {dialogs.length === 0 && !error ? (
-            <p className="p-4 text-[13px] text-white/55">
-              {t(locale, 'telegram.page.noneShownYet')}
-            </p>
+            <p className="p-4 text-[13px] text-white/55">{t(locale, 'telegram.page.noneShownYet')}</p>
           ) : (
             <ul className="max-h-[70vh] overflow-y-auto">
               {dialogs.map((d) => {
@@ -176,9 +166,7 @@ export default async function Page({
                       }`}
                     >
                       <span className="flex items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate text-[14px] font-medium">
-                          {d.name}
-                        </span>
+                        <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{d.name}</span>
                         {truck && (
                           <span className="shrink-0 rounded-full bg-haul-500/15 px-1.5 py-0.5 text-[10px] font-medium text-haul-400">
                             #{truck}

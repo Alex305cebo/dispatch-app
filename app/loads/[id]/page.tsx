@@ -9,7 +9,7 @@ import { fleetStatusByUnit, getTruckMeta } from '@/lib/maintenance'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
-import { driveTime, usd } from '@/lib/fmt'
+import { driveTime, usd, usDate } from '@/lib/fmt'
 import { loadMapData } from '@/lib/load-map'
 import { FleetMap } from '@/components/fleet-map'
 import { LocalTime } from '@/components/local-time'
@@ -295,7 +295,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </h2>
           {load.paidAt && (
             <span className="rounded-full bg-good-500/15 px-2 py-0.5 text-[11px] font-medium text-good-400">
-              {t(locale, 'loadDetail.paidOn').replace('{date}', load.paidAt.slice(0, 10))}
+              {t(locale, 'loadDetail.paidOn').replace('{date}', usDate(load.paidAt))}
             </span>
           )}
         </div>

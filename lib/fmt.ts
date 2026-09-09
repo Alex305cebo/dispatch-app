@@ -110,13 +110,13 @@ export function agoText(iso: string | Date, locale: Locale): string {
     if (diffMin < 60) return `${diffMin} мин назад`
     const diffH = Math.round(diffMin / 60)
     if (diffH < 24) return `${diffH} ч назад`
-    return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })
+    return usDate(d)
   }
   if (diffMin < 1) return 'just now'
   if (diffMin < 60) return `${diffMin} min ago`
   const diffH = Math.round(diffMin / 60)
   if (diffH < 24) return `${diffH}h ago`
-  return d.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' })
+  return usDate(d)
 }
 
 /**
@@ -136,9 +136,76 @@ export function normalizeApptTime(raw: string | null | undefined): string | null
   let s = String(raw).trim()
   if (!s) return null
   s = s.replace(/(\d{4})(?=\d{1,2}\/\d{1,2}\/\d{2,4}\b)/g, '$1 – ')
-  s = s.replace(/(^|\s)([01]\d|2[0-3])([0-5]\d)(?=\D|$)/g, '$1$2:$3')
+  // Голое HHMM получает двоеточие — но НЕ год после «Sep 4,» / «AUG 20»: «Sep 4, 2026
+  // 13:00 CDT» превращался в «Sep 4, 20:26 13:00 CDT» и так уезжал в базу.
+  s = s.replace(/(^|\s)([01]\d|2[0-3])([0-5]\d)(?=\D|$)/g, (m, pre: string, h: string, mm: string, off: number) =>
+    MONTH_DAY_BEFORE.test(s.slice(0, off)) ? m : `${pre}${h}:${mm}`,
+  )
   s = s.replace(/^(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(.+?)\s+[–-]\s+\1\s+(.+)$/, '$1 $2 – $3')
-  return s.replace(/\s+/g, ' ').trim()
+  return usDatesIn(s.replace(/\s+/g, ' ').trim())
+}
+
+const MONTHS = 'jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec'
+/** Перед 4-значным числом стоит «Месяц день,» — значит это год, а не время. */
+const MONTH_DAY_BEFORE = new RegExp(String.raw`(?:${MONTHS})[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s*$`, 'i')
+const MONTH_NO: Record<string, number> = {
+  jan: 1,
+  feb: 2,
+  mar: 3,
+  apr: 4,
+  may: 5,
+  jun: 6,
+  jul: 7,
+  aug: 8,
+  sep: 9,
+  sept: 9,
+  oct: 10,
+  nov: 11,
+  dec: 12,
+}
+const pad2 = (n: number) => String(n).padStart(2, '0')
+const mdy = (m: number, d: number, y: number) => `${pad2(m)}/${pad2(d)}/${pad2(y % 100)}`
+
+/**
+ * Дата в одном виде везде: «09/08/26». Так пишут в рейт-конах и так привык читать
+ * диспетчер; «2026-09-08», «Sep 8, 2026» и «8 сент.» вперемешку читались хуже.
+ * Строка «YYYY-MM-DD» берётся как есть, без часового пояса: это дата, а не момент.
+ */
+export function usDate(v: string | Date | null | undefined): string {
+  if (!v) return ''
+  if (typeof v === 'string') {
+    const m = /^(\d{4})-(\d{2})-(\d{2})(?:$|T)/.exec(v)
+    if (m && v.length === 10) return mdy(Number(m[2]), Number(m[3]), Number(m[1]))
+  }
+  const d = typeof v === 'string' ? new Date(v) : v
+  if (Number.isNaN(d.getTime())) return typeof v === 'string' ? v : ''
+  return mdy(d.getMonth() + 1, d.getDate(), d.getFullYear())
+}
+
+/** Время «3:04 PM» — рядом с usDate, когда нужен момент, а не только день. */
+export function usTime(v: string | Date): string {
+  const d = typeof v === 'string' ? new Date(v) : v
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
+
+/**
+ * Даты внутри произвольного текста (окно погрузки из рейт-кона) — в тот же вид:
+ * «9/8/2026», «2026-09-08», «Sep 8, 2026», «AUG 20 2026» → «09/08/26». Заодно чинит
+ * уже испорченный год «Sep 4, 20:26 13:00» → «09/04/26 13:00».
+ */
+export function usDatesIn(text: string): string {
+  return text
+    .replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_, y, m, d) => mdy(+m, +d, +y))
+    .replace(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g, (_, m, d, y) => mdy(+m, +d, +y))
+    .replace(/\b(\d{1,2})\/(\d{1,2})\/(\d{2})\b/g, (_, m, d, y) => mdy(+m, +d, 2000 + +y))
+    .replace(
+      new RegExp(
+        String.raw`\b(${MONTHS})[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(?:(\d{4})|20:(\d{2}))(?=\D|$)`,
+        'gi',
+      ),
+      (_, mon: string, d: string, y?: string, yy?: string) =>
+        mdy(MONTH_NO[mon.toLowerCase()] ?? 1, +d, y ? +y : 2000 + Number(yy)),
+    )
 }
 
 /** Время в чужом часовом поясе словами: «14:32 PDT».

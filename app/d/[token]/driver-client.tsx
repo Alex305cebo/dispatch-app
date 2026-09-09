@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { t, type Locale } from '@/lib/i18n'
 import type { LoadStatus } from '@/lib/map'
+import { usDate } from '@/lib/fmt'
 
 type DriverLoad = {
   id: number
@@ -36,7 +37,8 @@ const EVENT_KEY = {
 } as const
 
 const mapsHref = (q: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`
-const clock = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+const clock = (iso: string) =>
+  new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
 /**
  * Страница водителя: где он сейчас в рейсе, один следующий шаг крупной кнопкой,
@@ -113,24 +115,48 @@ export function DriverClient({
           ? 3
           : 2
         : 4
-  const STEPS = ['driver.step.toPickup', 'driver.step.atPickup', 'driver.step.toDelivery', 'driver.step.atDelivery', 'driver.step.done'] as const
+  const STEPS = [
+    'driver.step.toPickup',
+    'driver.step.atPickup',
+    'driver.step.toDelivery',
+    'driver.step.atDelivery',
+    'driver.step.done',
+  ] as const
 
-  const stop = (label: string, addr: string | null, city: string | null, date: string | null, time: string | null, active: boolean) => {
+  const stop = (
+    label: string,
+    addr: string | null,
+    city: string | null,
+    date: string | null,
+    time: string | null,
+    active: boolean,
+  ) => {
     const where = addr || city || '—'
     return (
-      <div className={`rounded-xl border p-3 ${active ? 'border-haul-400/60 bg-haul-500/[0.08]' : 'border-white/10 bg-white/[0.03]'}`}>
+      <div
+        className={`rounded-xl border p-3 ${active ? 'border-haul-400/60 bg-haul-500/[0.08]' : 'border-white/10 bg-white/[0.03]'}`}
+      >
         <div className="text-[11px] uppercase tracking-wider text-white/50">
           {label}
-          {active && <span className="ml-2 rounded bg-haul-500/25 px-1.5 py-0.5 text-[10px] normal-case text-haul-200">{t(locale, 'driver.next')}</span>}
+          {active && (
+            <span className="ml-2 rounded bg-haul-500/25 px-1.5 py-0.5 text-[10px] normal-case text-haul-200">
+              {t(locale, 'driver.next')}
+            </span>
+          )}
         </div>
         <div className="mt-0.5 text-[15px] font-semibold leading-snug">{where}</div>
         {(date || time) && (
           <div className="nums mt-0.5 text-[13px] text-white/70">
-            {date ? date.slice(0, 10) : ''}
+            {usDate(date)}
             {time ? ` · ${time}` : ''}
           </div>
         )}
-        <a href={mapsHref(where)} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-haul-500/15 px-3 py-1.5 text-[13px] font-semibold text-haul-300">
+        <a
+          href={mapsHref(where)}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-haul-500/15 px-3 py-1.5 text-[13px] font-semibold text-haul-300"
+        >
           📍 {t(locale, 'driver.openMap')}
         </a>
       </div>
@@ -145,7 +171,9 @@ export function DriverClient({
           <ol className="flex items-center gap-1 text-[10px] uppercase tracking-wider">
             {STEPS.slice(0, 4).map((k, i) => (
               <li key={k} className="flex flex-1 items-center gap-1">
-                <span className={`size-2.5 shrink-0 rounded-full ${i < step ? 'bg-good-400' : i === step ? 'bg-haul-400 ring-4 ring-haul-500/25' : 'bg-white/15'}`} />
+                <span
+                  className={`size-2.5 shrink-0 rounded-full ${i < step ? 'bg-good-400' : i === step ? 'bg-haul-400 ring-4 ring-haul-500/25' : 'bg-white/15'}`}
+                />
                 <span className={`truncate ${i === step ? 'text-white' : 'text-white/40'}`}>{t(locale, k)}</span>
               </li>
             ))}
@@ -161,26 +189,50 @@ export function DriverClient({
           {/* ОДИН следующий шаг — большой кнопкой прямо под заголовком. */}
           <div className="mt-3">
             {step === 0 && (
-              <button type="button" disabled={!!busy} onClick={() => act({ action: 'arrived' }, 'arrived')} className={`${big} bg-haul-500 text-white`}>
+              <button
+                type="button"
+                disabled={!!busy}
+                onClick={() => act({ action: 'arrived' }, 'arrived')}
+                className={`${big} bg-haul-500 text-white`}
+              >
                 📍 {busy === 'arrived' ? t(locale, 'driver.sending') : t(locale, 'driver.arrivedPickup')}
               </button>
             )}
             {step === 1 && (
-              <button type="button" disabled={!!busy} onClick={() => act({ action: 'status', to: 'in_transit' }, 'in_transit')} className={`${big} bg-haul-500 text-white`}>
+              <button
+                type="button"
+                disabled={!!busy}
+                onClick={() => act({ action: 'status', to: 'in_transit' }, 'in_transit')}
+                className={`${big} bg-haul-500 text-white`}
+              >
                 🚚 {busy === 'in_transit' ? t(locale, 'driver.sending') : t(locale, 'driver.loaded')}
               </button>
             )}
             {step === 2 && (
-              <button type="button" disabled={!!busy} onClick={() => act({ action: 'arrived' }, 'arrived')} className={`${big} bg-haul-500 text-white`}>
+              <button
+                type="button"
+                disabled={!!busy}
+                onClick={() => act({ action: 'arrived' }, 'arrived')}
+                className={`${big} bg-haul-500 text-white`}
+              >
                 📍 {busy === 'arrived' ? t(locale, 'driver.sending') : t(locale, 'driver.arrivedDelivery')}
               </button>
             )}
             {step === 3 && (
-              <button type="button" disabled={!!busy} onClick={() => act({ action: 'status', to: 'delivered' }, 'delivered')} className={`${big} bg-good-500 text-white`}>
+              <button
+                type="button"
+                disabled={!!busy}
+                onClick={() => act({ action: 'status', to: 'delivered' }, 'delivered')}
+                className={`${big} bg-good-500 text-white`}
+              >
                 ✅ {busy === 'delivered' ? t(locale, 'driver.sending') : t(locale, 'driver.delivered')}
               </button>
             )}
-            {step === 4 && <p className="rounded-xl bg-good-500/10 px-4 py-3 text-center text-[14px] font-medium text-good-400">{t(locale, 'driver.allDone')}</p>}
+            {step === 4 && (
+              <p className="rounded-xl bg-good-500/10 px-4 py-3 text-center text-[14px] font-medium text-good-400">
+                {t(locale, 'driver.allDone')}
+              </p>
+            )}
             {/* Пропустил «приехал» — можно сразу «загрузился/выгрузился», мелкой кнопкой. */}
             {(step === 0 || step === 2) && (
               <button
@@ -195,18 +247,38 @@ export function DriverClient({
           </div>
 
           <div className="mt-3 flex flex-col gap-2">
-            {stop(t(locale, 'driver.pickup'), load.pickupAddress, load.origin, load.pickupDate, load.pickupTime, step <= 1)}
-            {stop(t(locale, 'driver.delivery'), load.deliveryAddress, load.destination, load.deliveryDate, load.deliveryTime, step === 2 || step === 3)}
+            {stop(
+              t(locale, 'driver.pickup'),
+              load.pickupAddress,
+              load.origin,
+              load.pickupDate,
+              load.pickupTime,
+              step <= 1,
+            )}
+            {stop(
+              t(locale, 'driver.delivery'),
+              load.deliveryAddress,
+              load.destination,
+              load.deliveryDate,
+              load.deliveryTime,
+              step === 2 || step === 3,
+            )}
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {load.brokerPhone && (
-              <a href={`tel:${load.brokerPhone}`} className="rounded-xl border border-white/15 px-4 py-2 text-[14px] font-semibold">
+              <a
+                href={`tel:${load.brokerPhone}`}
+                className="rounded-xl border border-white/15 px-4 py-2 text-[14px] font-semibold"
+              >
                 📞 {t(locale, 'driver.callBroker')}
                 {load.brokerName ? ` · ${load.brokerName}` : ''}
               </a>
             )}
             {dispatcherPhone && (
-              <a href={`tel:${dispatcherPhone}`} className="rounded-xl border border-white/15 px-4 py-2 text-[14px] font-semibold">
+              <a
+                href={`tel:${dispatcherPhone}`}
+                className="rounded-xl border border-white/15 px-4 py-2 text-[14px] font-semibold"
+              >
                 📞 {t(locale, 'driver.callDispatch')}
               </a>
             )}
@@ -217,18 +289,76 @@ export function DriverClient({
       {load && (
         <section className="mt-4">
           <p className="mb-2 text-[11px] uppercase tracking-wider text-white/50">{t(locale, 'driver.docsHeading')}</p>
-          <input ref={bolRef} type="file" accept="image/*,application/pdf" capture="environment" multiple className="hidden" onChange={(e) => { upload('bol', e.target.files); e.target.value = '' }} />
-          <input ref={podRef} type="file" accept="image/*,application/pdf" capture="environment" multiple className="hidden" onChange={(e) => { upload('pod', e.target.files); e.target.value = '' }} />
-          <input ref={photoRef} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => { upload('photo', e.target.files); e.target.value = '' }} />
+          <input
+            ref={bolRef}
+            type="file"
+            accept="image/*,application/pdf"
+            capture="environment"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              upload('bol', e.target.files)
+              e.target.value = ''
+            }}
+          />
+          <input
+            ref={podRef}
+            type="file"
+            accept="image/*,application/pdf"
+            capture="environment"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              upload('pod', e.target.files)
+              e.target.value = ''
+            }}
+          />
+          <input
+            ref={photoRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              upload('photo', e.target.files)
+              e.target.value = ''
+            }}
+          />
           <div className="grid grid-cols-2 gap-3">
-            <button type="button" disabled={!!busy} onClick={() => bolRef.current?.click()} className={`${big} border-2 ${load.hasBol ? 'border-good-500/40 text-good-400' : 'border-warn-400/50 text-warn-400'}`}>
-              📄 {busy === 'bol' ? t(locale, 'driver.sending') : load.hasBol ? t(locale, 'driver.bolDone') : t(locale, 'driver.bolPhoto')}
+            <button
+              type="button"
+              disabled={!!busy}
+              onClick={() => bolRef.current?.click()}
+              className={`${big} border-2 ${load.hasBol ? 'border-good-500/40 text-good-400' : 'border-warn-400/50 text-warn-400'}`}
+            >
+              📄{' '}
+              {busy === 'bol'
+                ? t(locale, 'driver.sending')
+                : load.hasBol
+                  ? t(locale, 'driver.bolDone')
+                  : t(locale, 'driver.bolPhoto')}
             </button>
-            <button type="button" disabled={!!busy} onClick={() => podRef.current?.click()} className={`${big} border-2 ${load.hasPod ? 'border-good-500/40 text-good-400' : 'border-warn-400/50 text-warn-400'}`}>
-              📄 {busy === 'pod' ? t(locale, 'driver.sending') : load.hasPod ? t(locale, 'driver.podDone') : t(locale, 'driver.podPhoto')}
+            <button
+              type="button"
+              disabled={!!busy}
+              onClick={() => podRef.current?.click()}
+              className={`${big} border-2 ${load.hasPod ? 'border-good-500/40 text-good-400' : 'border-warn-400/50 text-warn-400'}`}
+            >
+              📄{' '}
+              {busy === 'pod'
+                ? t(locale, 'driver.sending')
+                : load.hasPod
+                  ? t(locale, 'driver.podDone')
+                  : t(locale, 'driver.podPhoto')}
             </button>
           </div>
-          <button type="button" disabled={!!busy} onClick={() => photoRef.current?.click()} className={`${big} mt-3 border-2 border-white/15 text-white/85`}>
+          <button
+            type="button"
+            disabled={!!busy}
+            onClick={() => photoRef.current?.click()}
+            className={`${big} mt-3 border-2 border-white/15 text-white/85`}
+          >
             📷 {busy === 'photo' ? t(locale, 'driver.sending') : t(locale, 'driver.cargoPhoto')}
             {load.photos > 0 && <span className="nums text-[13px] font-medium text-white/50">· {load.photos}</span>}
           </button>
@@ -240,7 +370,9 @@ export function DriverClient({
       <section className="mt-4">
         <p className="mb-2 text-[11px] uppercase tracking-wider text-white/50">{t(locale, 'driver.noteHeading')}</p>
         <div className="flex flex-wrap gap-2">
-          {(['driver.quick.delay', 'driver.quick.breakdown', 'driver.quick.waiting', 'driver.quick.question'] as const).map((k) => (
+          {(
+            ['driver.quick.delay', 'driver.quick.breakdown', 'driver.quick.waiting', 'driver.quick.question'] as const
+          ).map((k) => (
             <button
               key={k}
               type="button"
@@ -276,17 +408,22 @@ export function DriverClient({
 
       {events.length > 0 && (
         <section className="mt-5">
-          <p className="mb-2 text-[11px] uppercase tracking-wider text-white/50">{t(locale, 'driver.historyHeading')}</p>
+          <p className="mb-2 text-[11px] uppercase tracking-wider text-white/50">
+            {t(locale, 'driver.historyHeading')}
+          </p>
           <ul className="flex flex-col gap-1 text-[12.5px]">
-            {[...events].reverse().slice(0, 8).map((e) => (
-              <li key={e.id} className="flex items-baseline gap-2 text-white/70">
-                <span className="nums shrink-0 text-white/45">{clock(e.at)}</span>
-                <span>
-                  {t(locale, EVENT_KEY[e.kind as keyof typeof EVENT_KEY] ?? 'driver.ev.note')}
-                  {e.note ? `: ${e.note}` : ''}
-                </span>
-              </li>
-            ))}
+            {[...events]
+              .reverse()
+              .slice(0, 8)
+              .map((e) => (
+                <li key={e.id} className="flex items-baseline gap-2 text-white/70">
+                  <span className="nums shrink-0 text-white/45">{clock(e.at)}</span>
+                  <span>
+                    {t(locale, EVENT_KEY[e.kind as keyof typeof EVENT_KEY] ?? 'driver.ev.note')}
+                    {e.note ? `: ${e.note}` : ''}
+                  </span>
+                </li>
+              ))}
           </ul>
         </section>
       )}

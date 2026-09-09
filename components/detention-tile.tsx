@@ -2,7 +2,7 @@
 
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
-import { driveTime } from '@/lib/fmt'
+import { driveTime, usDate, usTime } from '@/lib/fmt'
 import { notify } from '@/lib/notify'
 import { detentionAmount } from '@/lib/detention'
 
@@ -38,13 +38,7 @@ export function DetentionTile({
   const amount = detentionAmount(min, rateHr, freeHr)
   const over = min >= freeHr * 60
   const since = new Date(sinceIso)
-  const fmt = (d: Date) =>
-    d.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    })
+  const fmt = (d: Date) => `${usDate(d)} ${usTime(d)}`
   const stamp = fmt(since)
   const endStamp = endIso ? fmt(new Date(endIso)) : null
   const h = Math.floor(min / 60)

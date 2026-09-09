@@ -9,7 +9,7 @@ import { cityCoordsBest, deliveryInfoBest } from './geo-routing'
 import { liveTrail, trailLabels } from './eld'
 import { tripEta } from './trip-eta'
 import { distToPathMiles, haversineMiles } from './geo'
-import { driveTime } from './fmt'
+import { driveTime, usDate } from './fmt'
 import { zoneFor } from './tz'
 import { t, type Locale } from './i18n.ts'
 import type { MapMarker, MapRoute } from '@/components/fleet-map'
@@ -22,17 +22,13 @@ export function statusTone(s: string | null): 'move' | 'on' | 'rest' {
   return 'rest'
 }
 
-
 /** Строка назначения для плашки: «окно 08:00–16:00», «к 08:00» или «весь день
  * (FCFS)». Рейт-коны печатают окно как два штампа с датами — в сыром виде на
  * плашке это читалось как мусор «08/29/2026 00:01 08/29/2026 23:59». */
 export function apptText(time: string | null | undefined, locale: Locale): string | null {
-  const times = [...(time ?? '').matchAll(/(\d{1,2}):(\d{2})/g)].map(
-    (m) => Number(m[1]) * 60 + Number(m[2]),
-  )
+  const times = [...(time ?? '').matchAll(/(\d{1,2}):(\d{2})/g)].map((m) => Number(m[1]) * 60 + Number(m[2]))
   if (!times.length) return null
-  const fmt = (v: number) =>
-    `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}`
+  const fmt = (v: number) => `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}`
   if (times.length >= 2) {
     const [a, b] = [times[0]!, times[times.length - 1]!]
     // Окно на весь день — это «приезжай когда угодно», печатать 00:01–23:59 незачем.
@@ -98,7 +94,14 @@ export async function loadMapData(
   let etaText: string | null = null
   let miles: number | null = null
   let etaMin: number | null = null
-  const live: LoadMapData['live'] = { realEtaMin: null, slackMin: null, idleMin: null, offRouteMi: null, toPickupMi: null, detention: null }
+  const live: LoadMapData['live'] = {
+    realEtaMin: null,
+    slackMin: null,
+    idleMin: null,
+    offRouteMi: null,
+    toPickupMi: null,
+    detention: null,
+  }
 
   // Prefer the RC's exact street address over the bare city — pins the real dock,
   // not just the city center. Falls back to ZIP then city if OSM can't resolve that
@@ -125,9 +128,7 @@ export async function loadMapData(
         lat: pickup.lat,
         lng: pickup.lng,
         label: `${t(locale, 'tracking.pickupPrefix')}${load.origin}`,
-        sub: [load.pickupDate ? load.pickupDate.slice(0, 10) : null, apptText(load.pickupTime, locale)]
-          .filter(Boolean)
-          .join('\n'),
+        sub: [usDate(load.pickupDate) || null, apptText(load.pickupTime, locale)].filter(Boolean).join('\n'),
         kind: 'pickup',
         href: `/loads/${load.id}`,
       })
@@ -157,9 +158,7 @@ export async function loadMapData(
   const gpsAge = Number.isNaN(seenMs) ? null : Math.max(0, Date.now() - seenMs)
   const stale = gpsAge !== null && gpsAge > STALE_GPS_MS
 
-  const trail = truck.number
-    ? await liveTrail(truck.number, lat, lng).catch(() => null)
-    : null
+  const trail = truck.number ? await liveTrail(truck.number, lat, lng).catch(() => null) : null
   const heading = trail?.heading ?? null
   // Хвост пути за 12 часов — серой линией ЗА траком: видно, ехал ли ночью, где
   // стоял и не крутится ли на месте. Первым в списке, чтобы дорога рисовалась
@@ -216,9 +215,7 @@ export async function loadMapData(
       lat: pickup.lat,
       lng: pickup.lng,
       label: `${t(locale, 'tracking.pickupPrefix')}${load.origin}`,
-      sub: [load.pickupDate ? load.pickupDate.slice(0, 10) : null, apptText(load.pickupTime, locale)]
-        .filter(Boolean)
-        .join('\n'),
+      sub: [usDate(load.pickupDate) || null, apptText(load.pickupTime, locale)].filter(Boolean).join('\n'),
       kind: 'pickup',
       href: `/loads/${load.id}`,
     })
@@ -271,7 +268,11 @@ export async function loadMapData(
     if (atPickup || atDelivery) {
       // Стоит у склада: это детеншен, а не простой. Считаем с момента остановки.
       // У забукированного груза стоянка у пикапа — погрузка; у едущего у выгрузки — выгрузка.
-      live.detention = { at: atDelivery && load.status === 'in_transit' ? 'delivery' : 'pickup', sinceIso: trail.idleAt.toISOString(), min }
+      live.detention = {
+        at: atDelivery && load.status === 'in_transit' ? 'delivery' : 'pickup',
+        sinceIso: trail.idleAt.toISOString(),
+        min,
+      }
     } else live.idleMin = min
   }
 

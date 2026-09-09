@@ -14,7 +14,7 @@ import { buildWorkingDays } from '@/lib/heatmap'
 import { getCompany } from '@/lib/invoice'
 import { expiries, truckMetas } from '@/lib/maintenance'
 import { sql } from '@/lib/db'
-import { usd, shortName, weekBounds, loadWeekAnchorMs } from '@/lib/fmt'
+import { usd, shortName, weekBounds, loadWeekAnchorMs, usDate } from '@/lib/fmt'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { placeCity } from '@/lib/place'
@@ -33,12 +33,8 @@ type FS = {
 
 /** «2026-08-17» → «17 авг». Год не пишем: столбец про ближайшие дни. */
 function shortDate(iso: string, locale: Locale): string {
-  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
-  if (!y || !m || !d) return iso
-  return new Date(y, m - 1, d).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'en-US', {
-    day: 'numeric',
-    month: 'short',
-  })
+  void locale
+  return usDate(iso.slice(0, 10)) || iso
 }
 
 const unavailableLabel = (locale: Locale, status: 'repair' | 'vacation') =>
