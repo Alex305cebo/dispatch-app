@@ -3,7 +3,8 @@ import { cookies } from 'next/headers'
 import { truckByDriverToken } from '@/lib/driver-link'
 import { listDocs, listLoads } from '@/lib/loads'
 import { listLoadEvents } from '@/lib/load-events'
-import { currentLoadsByTruck } from '@/lib/map'
+import { currentLoadsByTruck, nextLoadsByTruck } from '@/lib/map'
+import { usDate } from '@/lib/fmt'
 import { getCompany } from '@/lib/invoice'
 import { setSetting } from '@/lib/settings'
 import { resolveLocale, t } from '@/lib/i18n'
@@ -25,6 +26,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
   const locale = resolveLocale(jar.get('driver_locale')?.value ?? 'en')
   const [loads, company] = await Promise.all([listLoads(truck.companyId, { truckId: truck.id }), getCompany()])
   const load = currentLoadsByTruck(loads).get(truck.id) ?? null
+  const next = nextLoadsByTruck(loads).get(truck.id) ?? null
   const [docs, events] = await Promise.all([
     load ? listDocs(truck.companyId, { loadId: load.id }) : Promise.resolve([]),
     load ? listLoadEvents(truck.companyId, load.id) : Promise.resolve([]),
@@ -72,13 +74,30 @@ export default async function Page({ params }: { params: Promise<{ token: string
             <p className="text-[15px] font-medium">{t(locale, 'driver.noLoad')}</p>
             <p className="mt-1 text-[13px] text-white/60">{t(locale, 'driver.noLoadHint')}</p>
             {company.phone && (
-              <a href={`tel:${company.phone}`} className="mt-3 inline-block rounded-xl border border-white/15 px-4 py-2 text-[14px] font-semibold">
+              <a
+                href={`tel:${company.phone}`}
+                className="mt-3 inline-block rounded-xl border border-white/15 px-4 py-2 text-[14px] font-semibold"
+              >
                 📞 {t(locale, 'driver.callDispatch')}
               </a>
             )}
           </section>
           <DriverClient token={token} locale={locale} load={null} events={[]} dispatcherPhone={company.phone} />
         </>
+      )}
+      {next && (
+        <section className="panel mt-4 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/50">
+            {t(locale, 'driver.nextLoad')}
+          </p>
+          <p className="mt-1 text-[15px] font-semibold">
+            {next.origin ?? '—'} → {next.destination ?? '—'}
+          </p>
+          <p className="nums mt-0.5 text-[13px] text-white/70">
+            {next.pickupTime || usDate(next.pickupDate)}
+            {next.pickupAddress ? ` · ${next.pickupAddress}` : ''}
+          </p>
+        </section>
       )}
       <LangSwitch locale={locale} />
     </main>

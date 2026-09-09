@@ -9,14 +9,7 @@ import { normalizeApptTime, shortName } from './fmt.ts'
 
 export type LoadStatus = 'quoted' | 'booked' | 'in_transit' | 'delivered' | 'paid' | 'cancelled'
 
-export const STATUSES: LoadStatus[] = [
-  'quoted',
-  'booked',
-  'in_transit',
-  'delivered',
-  'paid',
-  'cancelled',
-]
+export const STATUSES: LoadStatus[] = ['quoted', 'booked', 'in_transit', 'delivered', 'paid', 'cancelled']
 
 // LoadRecord is a SUPERSET of Load, so calcLoad(record, truck) type-checks with no
 // adapter. rate/loadedMiles/deadheadMiles/transitDays stay declared once, in profit.ts.
@@ -86,11 +79,40 @@ export type TruckRecord = TruckSettings & {
 export function currentLoadsByTruck(loads: LoadRecord[]): Map<number, LoadRecord> {
   const out = new Map<number, LoadRecord>()
   for (const l of loads) {
-    if (l.truckId === null || (l.status !== 'booked' && l.status !== 'in_transit')) continue
+    if (l.truckId === null || !isOpen(l)) continue
     const held = out.get(l.truckId)
-    if (!held || Date.parse(l.createdAt) > Date.parse(held.createdAt)) out.set(l.truckId, l)
+    if (!held || runOrder(l, held) < 0) out.set(l.truckId, l)
   }
   return out
+}
+
+/**
+ * Следующий груз трака: забукирован, но не текущий. Диспетчер бросает рейт-кон
+ * следующего рейса, пока водитель ещё везёт этот, — раньше новый груз тут же
+ * становился «текущим» по дате создания, вытеснял везущийся с карты и со страницы
+ * водителя, и кнопка «Выгрузился» попадала не в тот груз.
+ */
+export function nextLoadsByTruck(loads: LoadRecord[]): Map<number, LoadRecord> {
+  const current = currentLoadsByTruck(loads)
+  const out = new Map<number, LoadRecord>()
+  for (const l of loads) {
+    if (l.truckId === null || !isOpen(l) || current.get(l.truckId)?.id === l.id) continue
+    const held = out.get(l.truckId)
+    if (!held || runOrder(l, held) < 0) out.set(l.truckId, l)
+  }
+  return out
+}
+
+const isOpen = (l: LoadRecord) => l.status === 'booked' || l.status === 'in_transit'
+
+/** Кто едет раньше: везущийся прежде забукированного, дальше по дате пикапа
+ * (без даты — в конец), при равных — заведённый раньше. */
+function runOrder(a: LoadRecord, b: LoadRecord): number {
+  if (a.status !== b.status) return a.status === 'in_transit' ? -1 : 1
+  const pa = a.pickupDate ? Date.parse(a.pickupDate) : Infinity
+  const pb = b.pickupDate ? Date.parse(b.pickupDate) : Infinity
+  if (pa !== pb) return pa < pb ? -1 : 1
+  return Date.parse(a.createdAt) - Date.parse(b.createdAt)
 }
 
 /**
@@ -110,9 +132,7 @@ export function currentLoadsByTruck(loads: LoadRecord[]): Map<number, LoadRecord
 export function truckLabel(t: TruckRecord, trailer?: string | null): string {
   const num = t.number?.trim() || t.name
   const trl = trailer?.trim()
-  return [shortName(t.driverName), num ? `TRK-${num}` : null, trl ? `TRL-${trl}` : null]
-    .filter(Boolean)
-    .join(' ')
+  return [shortName(t.driverName), num ? `TRK-${num}` : null, trl ? `TRL-${trl}` : null].filter(Boolean).join(' ')
 }
 
 /** ZigZag duty codes → a plain label + a colour bucket. Shared between /tracking

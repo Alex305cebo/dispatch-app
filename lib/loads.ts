@@ -235,7 +235,7 @@ export async function currentLoadForTruck(companyId: CompanyId, truckId: number)
   const rows = (await sql`
     SELECT * FROM loads
     WHERE company_id = ${companyId} AND truck_id = ${truckId} AND status IN ('in_transit', 'booked')
-    ORDER BY created_at DESC
+    ORDER BY (status = 'in_transit') DESC, pickup_date ASC NULLS LAST, created_at ASC
     LIMIT 1`) as LoadRow[]
   return rows[0] ? rowToLoad(rows[0]) : null
 }

@@ -9,7 +9,7 @@ import { PairBar } from '@/components/pair-bar'
 import { DriverLinkButton } from '@/components/driver-link-button'
 import { sql } from '@/lib/db'
 import { getTruck, listDocs, listLoads, rateConByLoad } from '@/lib/loads'
-import { currentLoadsByTruck, truckLabel } from '@/lib/map'
+import { currentLoadsByTruck, nextLoadsByTruck, truckLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { fleetStatusByUnit, getTruckMeta, listMaintenance, listTodos, oilStatus } from '@/lib/maintenance'
 import { tripHistory } from '@/lib/eld'
@@ -149,6 +149,8 @@ export default async function Page({
   // path twice over. currentLoadsByTruck() is the same rule, in memory, and is what
   // /trucks and /tracking already use.
   const activeLoad = currentLoadsByTruck(live).get(truck.id) ?? null
+  // Следующий рейс, если рейт-кон на него уже брошен, пока этот везётся.
+  const nextLoad = nextLoadsByTruck(live).get(truck.id) ?? null
 
   // Map: the truck where it sits (ELD GPS) plus a delivery pin at its active load's
   // destination city, with rough miles + drive time to it.
@@ -357,6 +359,24 @@ export default async function Page({
                   <dd className="font-medium text-white/85">{usd.format(activeLoad.rate)}</dd>
                 </div>
               </dl>
+              {nextLoad && (
+                <Link
+                  href={`/loads/${nextLoad.id}`}
+                  className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[13px] hover:border-white/25"
+                >
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                    {t(locale, 'trucks.detail.nextLoad')}
+                  </span>
+                  <span className="font-medium text-white/85">
+                    {nextLoad.origin ?? '—'} → {nextLoad.destination ?? '—'}
+                  </span>
+                  <span className="nums text-white/50">{nextLoad.pickupTime || usDate(nextLoad.pickupDate)}</span>
+                  {nextLoad.referenceId && (
+                    <span className="nums text-[12px] text-white/40">#{nextLoad.referenceId}</span>
+                  )}
+                  <span className="nums ml-auto font-medium text-white/70">{usd.format(nextLoad.rate)}</span>
+                </Link>
+              )}
             </>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-white/55">
