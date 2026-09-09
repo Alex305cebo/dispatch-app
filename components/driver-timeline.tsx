@@ -75,6 +75,7 @@ export function DriverTimeline({
   truckId,
   loadId,
   detention = null,
+  link,
 }: {
   events: LoadEvent[]
   locale: ReturnType<typeof useLocale>
@@ -82,6 +83,9 @@ export function DriverTimeline({
   loadId: number
   /** Стоянка у склада ≥ 30 мин по отметкам — см. lib/detention stopWindow. */
   detention?: DetentionProps | null
+  /** Блок «Страница водителя» (ссылка, Telegram, SMS) — внутри того же блока:
+   * отметки приходят именно по этой ссылке, они дополняют друг друга. */
+  link?: React.ReactNode
 }) {
   const [editing, setEditing] = useState(false)
   const [pending, start] = useTransition()
@@ -139,11 +143,15 @@ export function DriverTimeline({
             icon={Smartphone}
             title={t(locale, 'driver.timeline.noneTitle')}
             text={t(locale, 'driver.timeline.none')}
-            action={{
-              href: `/trucks/${truckId}`,
-              label: t(locale, 'driver.timeline.noneCta'),
-              icon: <Send size={14} strokeWidth={2.2} />,
-            }}
+            action={
+              link
+                ? undefined
+                : {
+                    href: `/trucks/${truckId}`,
+                    label: t(locale, 'driver.timeline.noneCta'),
+                    icon: <Send size={14} strokeWidth={2.2} />,
+                  }
+            }
           />
         ) : (
           <ol className={`relative ml-1.5 border-l border-white/10 ${pending ? 'opacity-60' : ''}`}>
@@ -242,6 +250,8 @@ export function DriverTimeline({
           </div>
         )}
       </div>
+
+      {link && <div className="border-t border-white/[0.06] px-4 py-3">{link}</div>}
 
       {/* Стоянка у склада — внизу того же блока: считается из отметок выше. */}
       {detention && (

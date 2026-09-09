@@ -378,7 +378,7 @@ export default async function Page({
           )}
           {/* Страница водителя — заметным блоком, а не значком в углу: пока водитель
               ссылку не открывал, блок подсвечен и зовёт её отправить. */}
-          {driverLink && (
+          {driverLink && !activeLoad && (
             <DriverLinkButton url={driverLink} driverPhone={meta?.driverPhone ?? null} seenAt={driverSeen} />
           )}
         </div>
@@ -461,6 +461,11 @@ export default async function Page({
           locale={locale}
           truckId={truck.id}
           loadId={activeLoad.id}
+          link={
+            driverLink ? (
+              <DriverLinkButton embedded url={driverLink} driverPhone={meta?.driverPhone ?? null} seenAt={driverSeen} />
+            ) : undefined
+          }
           detention={
             stop && terms
               ? {

@@ -20,10 +20,13 @@ export function DriverLinkButton({
   url,
   driverPhone,
   seenAt,
+  embedded = false,
 }: {
   url: string
   driverPhone: string | null
   seenAt: string | null
+  /** Внутри блока «Водитель» — без своей рамки, там она уже есть у панели. */
+  embedded?: boolean
 }) {
   const locale = useLocale()
   const [copied, setCopied] = useState(false)
@@ -37,7 +40,15 @@ export function DriverLinkButton({
       href: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent('Your load page — tap Arrived / Loaded / Delivered and send BOL/POD photos. No app needed.')}`,
       cls: 'bg-[#2AABEE]/15 text-[#2AABEE] hover:bg-[#2AABEE]/25',
     },
-    ...(driverPhone ? [{ name: 'SMS', href: `sms:${driverPhone}?&body=${encodeURIComponent(text)}`, cls: 'bg-white/10 text-white/85 hover:bg-white/20' }] : []),
+    ...(driverPhone
+      ? [
+          {
+            name: 'SMS',
+            href: `sms:${driverPhone}?&body=${encodeURIComponent(text)}`,
+            cls: 'bg-white/10 text-white/85 hover:bg-white/20',
+          },
+        ]
+      : []),
   ]
 
   async function copy() {
@@ -53,20 +64,26 @@ export function DriverLinkButton({
 
   return (
     <div
-      className={`mt-3 rounded-2xl border p-3 text-left ${
-        fresh ? 'border-haul-500/45 bg-haul-500/[0.10]' : 'border-white/10 bg-white/[0.03]'
-      }`}
+      className={
+        embedded
+          ? 'text-left'
+          : `mt-3 rounded-2xl border p-3 text-left ${fresh ? 'border-haul-500/45 bg-haul-500/[0.10]' : 'border-white/10 bg-white/[0.03]'}`
+      }
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <Smartphone size={16} strokeWidth={2.2} className={fresh ? 'text-haul-300' : 'text-white/55'} />
         <span className="text-[13.5px] font-semibold">{t(locale, 'driver.link.title')}</span>
         <span className={`nums ml-auto text-[11.5px] ${fresh ? 'text-haul-300' : 'text-good-400/80'}`}>
-          {seenAt ? t(locale, 'driver.link.seen').replace('{ago}', agoText(seenAt, locale)) : t(locale, 'driver.link.neverSeen')}
+          {seenAt
+            ? t(locale, 'driver.link.seen').replace('{ago}', agoText(seenAt, locale))
+            : t(locale, 'driver.link.neverSeen')}
         </span>
       </div>
       <p className="mt-1 text-[12.5px] leading-relaxed text-white/60">{t(locale, 'driver.link.info')}</p>
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-        <span className="mr-0.5 text-[11.5px] uppercase tracking-wider text-white/45">{t(locale, 'driver.link.share')}</span>
+        <span className="mr-0.5 text-[11.5px] uppercase tracking-wider text-white/45">
+          {t(locale, 'driver.link.share')}
+        </span>
         {share.map((s) => (
           <a
             key={s.name}
@@ -83,7 +100,11 @@ export function DriverLinkButton({
           onClick={copy}
           className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-[12.5px] font-medium text-white/80 hover:border-white/35"
         >
-          {copied ? <Check size={13} strokeWidth={2.5} className="text-good-400" /> : <Copy size={13} strokeWidth={2.2} />}
+          {copied ? (
+            <Check size={13} strokeWidth={2.5} className="text-good-400" />
+          ) : (
+            <Copy size={13} strokeWidth={2.2} />
+          )}
           {t(locale, copied ? 'driver.link.copiedShort' : 'driver.link.copy')}
         </button>
         <a
