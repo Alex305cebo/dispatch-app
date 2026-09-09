@@ -35,6 +35,7 @@ import { dispatcherPhoneKey, getSetting, detentionTerms } from '@/lib/settings'
 import { stopWindow } from '@/lib/detention'
 import { listLoadEvents } from '@/lib/load-events'
 import { DriverTimeline } from '@/components/driver-timeline'
+import { QueuedLoadHint } from '@/components/queued-load-hint'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { CopyPlace } from '@/components/copy-place'
@@ -377,6 +378,7 @@ export default async function Page({
                   <span className="nums ml-auto font-medium text-white/70">{usd.format(nextLoad.rate)}</span>
                 </Link>
               )}
+              {nextLoad && <QueuedLoadHint compact locale={locale} current={activeLoad} next={nextLoad} />}
             </>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-white/55">

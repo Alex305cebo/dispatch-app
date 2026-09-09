@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
-import { getLoad, laneAvgRpmFor, listDocs, truckForLoad } from '@/lib/loads'
+import { currentLoadForTruck, getLoad, laneAvgRpmFor, listDocs, truckForLoad } from '@/lib/loads'
+import { QueuedLoadHint } from '@/components/queued-load-hint'
 import { truckLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { getCompany } from '@/lib/invoice'
@@ -65,13 +66,16 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   // Обратный груз ищут, пока трак едет: список «кому звонить» нужен только
   // забукированному и едущему грузу, доставленному он ни к чему.
   const wantBackhaul = load.status === 'booked' || load.status === 'in_transit'
-  const [truckMeta, laneAvgRpm, backhaul, brokerGrade, driverEvents] = await Promise.all([
+  const [truckMeta, laneAvgRpm, backhaul, brokerGrade, driverEvents, truckCurrent] = await Promise.all([
     getTruckMeta(truck.id),
     laneAvgRpmFor(companyId, load.origin, load.destination, load.id),
     wantBackhaul ? backhaulBrokers(companyId, load.destination) : Promise.resolve(null),
     brokerGradeFor(companyId, load.brokerMc, load.brokerEmail, load.brokerName),
     listLoadEvents(companyId, load.id),
+    // Этот груз забукирован, а трак ещё везёт другой — подсказка, что делать.
+    load.status === 'booked' ? currentLoadForTruck(companyId, truck.id) : Promise.resolve(null),
   ])
+  const queuedBehind = truckCurrent && truckCurrent.id !== load.id ? truckCurrent : null
 
   // Never throws: the DB CHECKs mirror calcLoad's throw conditions, so every stored
   // row is a valid input by construction.
@@ -201,6 +205,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <Suspense fallback={<MapSkeleton />}>
         <LoadMapSection load={load} truck={truck} fs={fs} locale={locale} driverMarked={!!stop} />
       </Suspense>
+
+      {queuedBehind && <QueuedLoadHint locale={locale} current={queuedBehind} next={load} />}
 
       {/* Мили оценены приблизительно: в рейт-коне город с опечаткой, точный адрес не
           нашёлся. Груз создан, но пробег надо вписать руками — иначе $/милю и зарплата
