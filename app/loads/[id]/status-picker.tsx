@@ -3,7 +3,7 @@
 import { DocLink } from '@/components/doc-link'
 
 import { useOptimistic, useTransition } from 'react'
-import { Ban, Check, MapPin } from 'lucide-react'
+import { Ban, Check } from 'lucide-react'
 import { setStatus } from '@/app/actions'
 import { type LoadStatus } from '@/lib/map'
 import { notify } from '@/lib/notify'
@@ -63,8 +63,20 @@ function DocChip({ label, docId, due }: { label: string; docId: number | null; d
   )
 }
 
+/** Иконка шага той же формы, что у статусов. */
+function StepIcon({ icon: Icon }: { icon: (typeof STATUS_ICON)[LoadStatus] }) {
+  return <Icon size={13} strokeWidth={2.5} />
+}
+
 /** Промежуточная остановка на рейке: не статус, а точка рейса — без кнопки. */
-export type RailStop = { key: string; label: string; sub: string | null; done: boolean; current: boolean }
+export type RailStop = {
+  key: string
+  role: 'pickup' | 'delivery'
+  label: string
+  sub: string | null
+  done: boolean
+  current: boolean
+}
 
 export function StatusPicker({
   id,
@@ -121,7 +133,7 @@ export function StatusPicker({
                   <span key={st.key} className="contents">
                     <span
                       aria-hidden
-                      className={`mt-3.5 h-0.5 min-w-2 flex-1 rounded-full ${st.done || st.current ? STEP_TONE.in_transit.line : 'bg-white/10'}`}
+                      className={`mt-3.5 h-0.5 min-w-2 flex-1 rounded-full ${st.done || st.current ? STEP_TONE[st.role === 'pickup' ? 'booked' : 'delivered'].line : 'bg-white/10'}`}
                     />
                     <div
                       className="flex w-[54px] shrink-0 flex-col items-center gap-1 sm:w-[72px]"
@@ -129,13 +141,21 @@ export function StatusPicker({
                     >
                       <span
                         className={`flex size-7 shrink-0 items-center justify-center rounded-full ${
-                          st.done || st.current ? STEP_TONE.in_transit.dot : 'bg-white/[0.07] text-white/40'
+                          st.done || st.current
+                            ? STEP_TONE[st.role === 'pickup' ? 'booked' : 'delivered'].dot
+                            : 'bg-white/[0.07] text-white/40'
                         } ${st.current ? 'ring-2 ring-white/25 ring-offset-2 ring-offset-ink-950' : ''}`}
                       >
-                        {st.done ? <Check size={14} strokeWidth={3} /> : <MapPin size={13} strokeWidth={2.5} />}
+                        {st.done ? (
+                          <Check size={14} strokeWidth={3} />
+                        ) : st.role === 'pickup' ? (
+                          <StepIcon icon={STATUS_ICON.booked} />
+                        ) : (
+                          <StepIcon icon={STATUS_ICON.delivered} />
+                        )}
                       </span>
                       <span
-                        className={`w-full truncate text-center text-2xs font-medium ${st.current ? STEP_TONE.in_transit.text : st.done ? 'text-white/55' : 'text-white/30'}`}
+                        className={`w-full truncate text-center text-2xs font-medium ${st.current ? STEP_TONE[st.role === 'pickup' ? 'booked' : 'delivered'].text : st.done ? 'text-white/55' : 'text-white/30'}`}
                       >
                         {st.label}
                       </span>

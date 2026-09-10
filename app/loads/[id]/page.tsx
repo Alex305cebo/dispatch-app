@@ -37,7 +37,7 @@ import { listLoadEvents } from '@/lib/load-events'
 import { DriverTimeline } from '@/components/driver-timeline'
 import { DriverInfoCard } from '@/components/driver-info-card'
 import { withAddresses, stopNames } from '@/lib/driver-info-zip'
-import { isDone, nextOpenStop, stopTitle, stopsFrom, viaLabel } from '@/lib/stops'
+import { isDone, nextOpenStop, stopsFrom, viaLabel } from '@/lib/stops'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
 import { CopyPlace } from '@/components/copy-place'
@@ -148,7 +148,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             podId={podDoc?.id ?? null}
             stops={stops.slice(1, -1).map((s) => ({
               key: String(s.seq),
-              label: stopTitle(s, stops, locale),
+              role: s.role,
+              label: t(locale, s.role === 'pickup' ? 'stops.pickupStep' : 'stops.deliveryStep'),
               sub: s.city ? s.city.replace(/,.*$/, '') : null,
               done: load.status === 'delivered' || load.status === 'paid' || isDone(s, driverEvents, stops),
               current: load.status === 'in_transit' && nextOpenStop(stops, driverEvents)?.seq === s.seq,

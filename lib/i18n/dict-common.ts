@@ -421,6 +421,8 @@ export const commonDict = {
     ro: 'via {cities}',
     kk: '{cities} арқылы',
   },
+  'stops.pickupStep': { ru: 'Погрузка', en: 'Pickup', es: 'Carga', uk: 'Завантаження', ro: 'Încărcare', kk: 'Тиеу' },
+  'stops.deliveryStep': { ru: 'Доставка', en: 'Delivery', es: 'Entrega', uk: 'Доставка', ro: 'Livrare', kk: 'Жеткізу' },
   'stops.pickup': { ru: 'Пикап', en: 'Pickup', es: 'Recogida', uk: 'Пікап', ro: 'Încărcare', kk: 'Тиеу' },
   'stops.delivery': { ru: 'Выгрузка', en: 'Delivery', es: 'Entrega', uk: 'Вивантаження', ro: 'Livrare', kk: 'Түсіру' },
   'driver.noLoad': {
