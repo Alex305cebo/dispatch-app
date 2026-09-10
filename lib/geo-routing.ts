@@ -477,12 +477,13 @@ export async function routeMilesVia(
     if (loose?.rough) estimated = true
     return loose?.pt ?? null
   }
+  // Остановку без города и с кривым индексом (ИИ прочитал «66127» вместо 68127)
+  // пропускаем, а не отказываемся от всего пробега: концы рейса важнее середины.
   const pts: LatLng[] = []
   for (const s of stops) {
-    if (!s.city && !s.address) return { error: t(locale, 'tracking.geoNoCoords') }
+    if (!s.city && !s.address) continue
     const pt = await find(s.address, s.city ?? s.address ?? '')
-    if (!pt) return { error: t(locale, 'tracking.geoNoCoords') }
-    pts.push(pt)
+    if (pt) pts.push(pt)
   }
   if (pts.length < 2) return { error: t(locale, 'tracking.geoNoCoords') }
   const pairs = pts.slice(1).map((b, i) => [pts[i]!, b] as const)

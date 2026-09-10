@@ -1303,6 +1303,18 @@ export const loadsDict = {
     kk: 'Брокер MC',
   },
   'loadEdit.phone': { ru: 'Телефон', en: 'Phone', es: 'Teléfono', uk: 'Телефон', ro: 'Telefon', kk: 'Телефон' },
+  'loadEdit.stopName': { ru: 'Склад', en: 'Facility', es: 'Almacén', uk: 'Склад', ro: 'Depozit', kk: 'Қойма' },
+  'loadEdit.stopCity': {
+    ru: 'Город, штат',
+    en: 'City, ST',
+    es: 'Ciudad, ST',
+    uk: 'Місто, штат',
+    ro: 'Oraș, ST',
+    kk: 'Қала, штат',
+  },
+  'loadEdit.stopAddress': { ru: 'Адрес', en: 'Address', es: 'Dirección', uk: 'Адреса', ro: 'Adresă', kk: 'Мекенжай' },
+  'loadEdit.stopDate': { ru: 'Дата', en: 'Date', es: 'Fecha', uk: 'Дата', ro: 'Dată', kk: 'Күні' },
+  'loadEdit.stopTime': { ru: 'Окно', en: 'Window', es: 'Ventana', uk: 'Вікно', ro: 'Fereastră', kk: 'Терезе' },
   'loadEdit.partial': { ru: 'Партиал', en: 'Partial', es: 'Parcial', uk: 'Партіал', ro: 'Parțial', kk: 'Партиал' },
   'loadEdit.partialHint': {
     ru: 'едет в одном трейлере с другим грузом',

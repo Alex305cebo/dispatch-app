@@ -39,10 +39,11 @@ export const AI_PROMPT = `You are reading a US trucking RATE CONFIRMATION docume
 
 Rules:
 - "stops" = every physical pickup (shipper) and delivery (consignee/receiver) stop, in trip order. The BROKER / logistics company in the letterhead and the CARRIER being paid are NEVER stops, even though their addresses are printed. A stop is where the truck loads or unloads freight.
+- Multi-stop rate cons put extra stops on their OWN pages ("ADDITIONAL STOP #1", "Stop Type: Delivery", "SEE ADDITIONAL PAGES FOR STOP INFORMATION") or in the load notes ("Drop 1: ...", "Drop 2: ..."). Read EVERY such page/line as its own stop, in trip order between the first pickup and the final destination, with its own company, street, city, state, zip, arrival date and reference numbers ("Drop 1: CO326166 / 95300" → refs ["CO326166","95300"]). Never collapse a 3-stop load into 2.
 - company = the facility/shipper name at that stop. street = street address line only. time = the date/appointment window EXACTLY as written (e.g. "07/15/26 12:00 Appt"). refs = pickup#/delivery#/PO/BOL/SID numbers belonging to that stop.
 - city and state are REQUIRED for every stop and must be filled whenever the address shows a place at all. Many rate cons print the whole address as one run of text — "909 MAGNOLIA AVENUE AUBURNDALE, FL 33823 US" — where the city and state sit at the END of the street line, not on a line of their own. Split them out: street="909 MAGNOLIA AVENUE", city="AUBURNDALE", state="FL". Leaving city empty makes the load unmappable and its mileage uncomputable, so it is never the safe choice.
 - state = the two-letter US state code only ("FL", not "Florida", not "FL 33823").
-- zip = the postal code DIGITS only ("33823" or "33823-1234"). Never a country code, never "33823 US".
+- zip = the postal code DIGITS only ("33823" or "33823-1234"), copied digit by digit as printed. Never a country code, never "33823 US".
 - rate = the TOTAL amount payable to the carrier for this load (line haul plus fuel surcharge if a total is printed). NEVER an insurance limit, declared value, or per-mile figure.
 - loadedMiles only if a mileage/distance is printed.
 - referenceId = the load/order number of this load.

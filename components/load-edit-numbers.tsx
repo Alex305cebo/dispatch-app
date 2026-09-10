@@ -85,6 +85,12 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
     partial: load.partial ?? false,
     deliveryDate: load.deliveryDate ?? '',
   })
+  // Остановки правятся только у груза, где они есть (три и больше точек): у
+  // двухточечного за них отвечают даты выше.
+  const [st, setSt] = useState<LoadStop[]>(load.stops?.length ? load.stops : [])
+  const setStop =
+    (i: number, k: 'name' | 'address' | 'city' | 'date' | 'time') => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setSt(st.map((x, j) => (j === i ? { ...x, [k]: e.target.value || null } : x)))
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value })
 
   // Поиск MC по названию. MC печатают не все брокеры, а без него ни проверить
@@ -164,6 +170,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
         pickupDate: f.pickupDate || null,
         deliveryDate: f.deliveryDate || null,
         partial: f.partial,
+        stops: st.length > 2 ? st : undefined,
       })
       if (res?.error) notify('error', res.error)
       else {
@@ -338,6 +345,56 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
           type="date"
         />
       </div>
+      {st.length > 2 && (
+        <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+            {t(locale, 'loadEdit.groupDates')} · {stopsLabel(st, locale)}
+          </div>
+          <div className="flex flex-col gap-3">
+            {st.map((s, i) => (
+              <div key={s.seq} className="rounded-lg border border-white/8 p-2.5">
+                <div className="mb-1.5 text-[11px] font-semibold text-white/70">{stopTitle(s, st, locale)}</div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Field
+                    label={t(locale, 'loadEdit.stopName')}
+                    value={s.name ?? ''}
+                    onChange={setStop(i, 'name')}
+                    text
+                  />
+                  <Field
+                    label={t(locale, 'loadEdit.stopCity')}
+                    value={s.city ?? ''}
+                    onChange={setStop(i, 'city')}
+                    text
+                    placeholder="Omaha, NE"
+                  />
+                  <Field
+                    label={t(locale, 'loadEdit.stopAddress')}
+                    value={s.address ?? ''}
+                    onChange={setStop(i, 'address')}
+                    text
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field
+                      label={t(locale, 'loadEdit.stopDate')}
+                      value={s.date ?? ''}
+                      onChange={setStop(i, 'date')}
+                      type="date"
+                    />
+                    <Field
+                      label={t(locale, 'loadEdit.stopTime')}
+                      value={s.time ?? ''}
+                      onChange={setStop(i, 'time')}
+                      text
+                      placeholder="8am-3pm"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <label className="flex items-center gap-2 text-[13px] text-white/80">
         <input
           type="checkbox"

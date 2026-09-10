@@ -874,8 +874,11 @@ export async function createLoadFromRc(
       // Текст водителю: побеждает тот, где есть улицы и названия складов (лист
       // водителя), даже если у груза уже был текст из рейт-кона с одним «Город, ST».
       const { hasStreets } = await import('@/lib/driver-info-zip')
+      // Файл принёс остановки, которых у груза не было, — его текст водителю полнее
+      // (по блоку на каждую точку), берём его.
+      const stopsFilled = !twin.stops?.length && !!stopsJson
       const info =
-        nz(driverInfo) && hasStreets(driverInfo) && !hasStreets(twin.driver_info)
+        nz(driverInfo) && (stopsFilled || (hasStreets(driverInfo) && !hasStreets(twin.driver_info)))
           ? (filled.push('driverInfo'), await driverInfoWithCities(driverInfo))
           : (nz(twin.driver_info) ??
             (nz(driverInfo) ? (filled.push('driverInfo'), await driverInfoWithCities(driverInfo)) : null))
@@ -888,7 +891,6 @@ export async function createLoadFromRc(
       if (citiesChanged) filled.push('cities')
       // Остановки: у груза их ещё нет, а этот файл принёс три и больше — дописываем
       // и пересчитываем мили через все точки.
-      const stopsFilled = !twin.stops?.length && !!stopsJson
       if (stopsFilled) filled.push('stops')
       // Мили. У первого груза они могли быть посчитаны по опечатке («Anahiem» → точка
       // в Оклахоме → 1075 mi вместо 290) и при этом НЕ помечены как оценка: геокодер
@@ -1469,6 +1471,8 @@ export type LoadDetailsPatch = {
   deliveryDate: string | null
   /** Едет в одном трейлере с другим грузом — см. lib/map.ts activeLoadsByTruck. */
   partial?: boolean
+  /** Остановки, поправленные руками (ИИ прочитал город/дату не так). */
+  stops?: LoadStop[]
 }
 
 export async function updateLoadDetails(loadId: number, p: LoadDetailsPatch): Promise<{ error: string } | void> {
@@ -1488,7 +1492,8 @@ export async function updateLoadDetails(loadId: number, p: LoadDetailsPatch): Pr
       broker_mc = ${p.brokerMc || null}, broker_phone = ${p.brokerPhone || null},
       broker_email = ${p.brokerEmail || null}, pickup_date = ${p.pickupDate || null},
       delivery_date = ${p.deliveryDate || null},
-      partial = COALESCE(${p.partial ?? null}, partial)
+      partial = COALESCE(${p.partial ?? null}, partial),
+      stops = COALESCE(${p.stops?.length ? JSON.stringify(p.stops) : null}::jsonb, stops)
       WHERE id = ${loadId} AND company_id = ${await companyScope()}`
   } catch (e) {
     return { error: humanError(e, locale) }
@@ -1619,7 +1624,7 @@ export async function parseRcForNotes(loadId: number): Promise<{ error: string }
       reference_id = COALESCE(reference_id, ${load.referenceId}),
       pay_via = COALESCE(pay_via, ${load.payVia}),
       driver_info = ${driverInfo},
-      stops = COALESCE(stops, ${fields.stops && fields.stops.length > 2 ? JSON.stringify(await fillStopCitiesFromZip(fields.stops)) : null}::jsonb)
+      stops = COALESCE(${fields.stops && fields.stops.length > 2 ? JSON.stringify(await fillStopCitiesFromZip(fields.stops)) : null}::jsonb, stops)
       WHERE id = ${loadId} AND company_id = ${companyId}`
   } catch (e) {
     return { error: humanError(e, locale) }
