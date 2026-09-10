@@ -49,7 +49,7 @@ export function withCities(text: string, places: Record<string, string>): string
 }
 
 /** Заголовок пункта в тексте водителю: «Pick up Address:», «Delivery Address:». */
-const STOP_HEADER = /^\s*(pick\s?-?up|delivery|drop\s?-?off)\s+address\s*:?\s*$/i
+const STOP_HEADER = /^\s*(pick\s?-?up|delivery|drop\s?-?off)(?:\s+\d+)?\s+address\s*:?\s*$/i
 
 /** Конец блока пункта: линейка, «Time:», «Ref:». */
 const BLOCK_END = /^\s*(?:_{3,}|-{3,}|time\s*:|ref\s*:)/i

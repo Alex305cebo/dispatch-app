@@ -37,6 +37,7 @@ import { listLoadEvents } from '@/lib/load-events'
 import { DriverTimeline } from '@/components/driver-timeline'
 import { DriverInfoCard } from '@/components/driver-info-card'
 import { withAddresses, stopNames } from '@/lib/driver-info-zip'
+import { stopsFrom, viaLabel } from '@/lib/stops'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
 import { CopyPlace } from '@/components/copy-place'
@@ -80,6 +81,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   // Never throws: the DB CHECKs mirror calcLoad's throw conditions, so every stored
   // row is a valid input by construction.
   const r = calcLoad(load, truck)
+  // Остановки: JSON у новых грузов, две точки у старых; названия складов у старых —
+  // из текста водителю.
+  const stopNamesLegacy = stopNames(load.driverInfo)
+  const stops = stopsFrom(load, { pickup: stopNamesLegacy.pickup, delivery: stopNamesLegacy.delivery })
+  const via = viaLabel(stops, locale)
   // Стоянка у склада по отметкам водителя — над картой, потому что это деньги:
   // от «Приехал» до «Загрузился», дальше счёт замирает. Меньше получаса не показываем.
   const stop = load.status === 'cancelled' ? null : stopWindow(driverEvents)
@@ -110,6 +116,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <section className="relative mt-3 overflow-hidden rounded-3xl border border-white/8 bg-gradient-to-b from-ink-800/80 to-ink-950 p-5 sm:p-8">
         <h1 className="text-[22px] font-semibold sm:text-[26px]">
           {load.origin ?? '—'} → {load.destination ?? '—'}
+          {via && <span className="ml-2 text-[15px] font-medium text-white/50 sm:text-[17px]">· {via}</span>}
         </h1>
         <p className="mt-1.5 text-[13px] text-white/65">
           {/* Откуда взялся груз. Раньше здесь стояло «Пришёл с DAT по QR» у ЛЮБОГО
@@ -280,6 +287,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             pickupTime: load.pickupTime,
             deliveryTime: load.deliveryTime,
             laneAvgRpm,
+            stops: stops,
           }}
         />
       </section>

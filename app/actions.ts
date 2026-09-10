@@ -20,6 +20,7 @@ import { headers } from 'next/headers'
 import { sql } from '@/lib/db'
 import { humanError } from '@/lib/msg'
 import type { LoadStatus } from '@/lib/map'
+import type { LoadStop } from '@/lib/stops'
 import type { QrLoad } from '@/lib/qr-load'
 import type { TruckSettings } from '@/lib/profit'
 import { checkBroker, checkBrokerByDot, type BrokerCheck, type RcContext } from '@/lib/fmcsa'
@@ -720,6 +721,19 @@ async function fillCitiesFromZip(load: QrLoad): Promise<QrLoad> {
   }
 }
 
+/** То же для списка остановок: у каждой город сверяется с её индексом. */
+async function fillStopCitiesFromZip(stops: LoadStop[] | undefined): Promise<LoadStop[] | undefined> {
+  if (!stops?.length) return stops
+  const { zipOf, pickCity } = await import('@/lib/city-fix')
+  const { zipPlace } = await import('@/lib/geo-routing')
+  const out: LoadStop[] = []
+  for (const s of stops) {
+    const z = zipOf(s.address)
+    out.push({ ...s, city: pickCity(s.city, z ? await zipPlace(z) : null) })
+  }
+  return out
+}
+
 /**
  * Дописать город и штат в тексте для водителя там, где рейт-кон напечатал один
  * индекс. «157 Starpointe Boulevard / 15021» — это не адрес: по нему не доехать и
@@ -772,7 +786,7 @@ async function findLoadByReference(companyId: string, truckId: number, ref: stri
   const rows = (await sql`
     SELECT id, truck_id, origin, destination, rate, loaded_miles, deadhead_miles, miles_estimated, pickup_address, delivery_address,
            pickup_time, delivery_time, pickup_date, delivery_date, broker_name, broker_mc,
-           broker_phone, broker_email, broker_notes, driver_info, pay_via
+           broker_phone, broker_email, broker_notes, driver_info, pay_via, stops
     FROM loads
     WHERE company_id = ${companyId}
       AND status NOT IN ('cancelled', 'paid')
@@ -801,6 +815,7 @@ async function findLoadByReference(companyId: string, truckId: number, ref: stri
     broker_notes: string | null
     driver_info: string | null
     pay_via: string | null
+    stops: LoadStop[] | null
   }[]
   return rows[0] ?? null
 }
@@ -813,6 +828,8 @@ export async function createLoadFromRc(
    * `load` — stored so it can be re-copied from the load page later, not just once
    * in the browser session right after the RC was read. */
   driverInfo?: string,
+  /** Все остановки рейса из того же чтения (lib/stops.ts); две и меньше — обычный груз. */
+  stops?: LoadStop[],
 ): Promise<RcCreateResult | { error: string }> {
   const ro = await demoReadOnly()
   if (ro) return ro
@@ -820,6 +837,8 @@ export async function createLoadFromRc(
   try {
     const companyId = await companyScope()
     if (!(await truckBelongs(companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }
+    stops = await fillStopCitiesFromZip(stops)
+    const stopsJson = stops && stops.length > 2 ? JSON.stringify(stops) : null
     // A rate con prints TWO MC numbers — the broker's and ours, as the carrier being
     // hired — and whichever the reader grabbed first used to land in broker_mc. That
     // pointed the FMCSA check at our own company and reported "broker authority NONE",
@@ -867,6 +886,10 @@ export async function createLoadFromRc(
       const destination = zipOf(load.deliveryAddress) && nz(load.destination) ? load.destination : twin.destination
       const citiesChanged = origin !== twin.origin || destination !== twin.destination
       if (citiesChanged) filled.push('cities')
+      // Остановки: у груза их ещё нет, а этот файл принёс три и больше — дописываем
+      // и пересчитываем мили через все точки.
+      const stopsFilled = !twin.stops?.length && !!stopsJson
+      if (stopsFilled) filled.push('stops')
       // Мили. У первого груза они могли быть посчитаны по опечатке («Anahiem» → точка
       // в Оклахоме → 1075 mi вместо 290) и при этом НЕ помечены как оценка: геокодер
       // «нашёл». Поэтому пересчитываем всякий раз, когда второй файл улучшил вводные —
@@ -880,12 +903,14 @@ export async function createLoadFromRc(
         miles = load.loadedMiles
         milesEstimated = false
         filled.push('miles')
-      } else if ((citiesChanged || hasZips || twin.miles_estimated) && origin && destination) {
-        const { routeMiles } = await import('@/lib/geo-routing')
-        const r = await routeMiles(origin, destination, locale, {
-          origin: pickupAddress ?? load.pickupAddress,
-          destination: deliveryAddress ?? load.deliveryAddress,
-        })
+      } else if ((citiesChanged || hasZips || twin.miles_estimated || stopsFilled) && origin && destination) {
+        const { routeMiles, routeMilesVia } = await import('@/lib/geo-routing')
+        const r = stopsFilled
+          ? await routeMilesVia(stops!, locale)
+          : await routeMiles(origin, destination, locale, {
+              origin: pickupAddress ?? load.pickupAddress,
+              destination: deliveryAddress ?? load.deliveryAddress,
+            })
         if ('miles' in r && r.miles > 0 && r.miles !== twin.loaded_miles && (!r.estimated || twin.miles_estimated)) {
           miles = r.miles
           milesEstimated = !!r.estimated
@@ -906,7 +931,8 @@ export async function createLoadFromRc(
           pickup_date = COALESCE(pickup_date, ${load.pickupDate ?? null}),
           delivery_date = COALESCE(delivery_date, ${load.deliveryDate ?? null}),
           broker_name = ${brokerName}, broker_mc = ${brokerMc}, broker_phone = ${brokerPhone}, broker_email = ${brokerEmail},
-          broker_notes = ${notes}, driver_info = ${info}, pay_via = COALESCE(pay_via, ${load.payVia ?? null})
+          broker_notes = ${notes}, driver_info = ${info}, pay_via = COALESCE(pay_via, ${load.payVia ?? null}),
+          stops = COALESCE(stops, ${stopsJson}::jsonb)
         WHERE id = ${twin.id} AND company_id = ${companyId}`
       // Файл — к этому же грузу, со своим типом (лист водителя остаётся листом).
       if (docId && (await docBelongs(companyId, docId)))
@@ -930,6 +956,13 @@ export async function createLoadFromRc(
     // one guard covers the truck-page drop, /import and the new-load scanner alike.
     let loadedMiles = load.loadedMiles
     let milesEstimated = false
+    // Три и больше точек: мили через все, не напрямую от первой к последней, даже
+    // если рейт-кон напечатал свои — те обычно и есть прямые.
+    if (stopsJson && load.origin && load.destination) {
+      const { routeMilesVia } = await import('@/lib/geo-routing')
+      const r = await routeMilesVia(stops!, locale)
+      if ('miles' in r && r.miles > 0 && !r.estimated) loadedMiles = r.miles
+    }
     if (!(loadedMiles > 0) && load.origin && load.destination) {
       const { routeMiles } = await import('@/lib/geo-routing')
       const r = await routeMiles(load.origin, load.destination, locale, {
@@ -963,14 +996,14 @@ export async function createLoadFromRc(
                          destination, truck_location, spot_rpm, broker_name, broker_mc, broker_email,
                          broker_phone, reference_id, source, truck_id, pickup_date,
                          delivery_date, broker_notes, pickup_time, delivery_time,
-                         pickup_address, delivery_address, status, dispatcher_id, company_id, driver_info, pay_via, miles_estimated)
+                         pickup_address, delivery_address, status, dispatcher_id, company_id, driver_info, pay_via, miles_estimated, stops)
       VALUES (${load.rate}, ${loadedMiles}, ${deadheadMiles}, ${load.transitDays},
               ${load.origin}, ${load.destination}, ${load.truckLocation}, ${load.spotRpm},
               ${load.brokerName}, ${brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
               'qr', ${truckId}, ${load.pickupDate ?? null}, ${load.deliveryDate ?? null},
               ${load.brokerNotes ?? null}, ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
               ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, 'booked', ${dispatcherId}, ${companyId},
-              ${await driverInfoWithCities(driverInfo)}, ${load.payVia ?? null}, ${milesEstimated})
+              ${await driverInfoWithCities(driverInfo)}, ${load.payVia ?? null}, ${milesEstimated}, ${stopsJson}::jsonb)
       RETURNING id`
     const loadId = (rows[0] as { id: number }).id
     if (docId && (await docBelongs(companyId, docId)))
@@ -1033,7 +1066,7 @@ export async function createLoadFromExistingRc(
 
   const { aiToFields } = await import('@/lib/ratecon-ai-contract')
   const fields = aiToFields(res.fields, res.model)
-  return createLoadFromRc(truckId, toQrLoad(fields), docId, formatDriverInfo(fields))
+  return createLoadFromRc(truckId, toQrLoad(fields), docId, formatDriverInfo(fields), fields.stops)
 }
 
 /** Status can also be set here (not just via markPaid's "Отметить оплаченным"
@@ -1560,7 +1593,8 @@ export async function parseRcForNotes(loadId: number): Promise<{ error: string }
       broker_email = COALESCE(broker_email, ${load.brokerEmail}),
       reference_id = COALESCE(reference_id, ${load.referenceId}),
       pay_via = COALESCE(pay_via, ${load.payVia}),
-      driver_info = ${driverInfo}
+      driver_info = ${driverInfo},
+      stops = COALESCE(stops, ${fields.stops && fields.stops.length > 2 ? JSON.stringify(await fillStopCitiesFromZip(fields.stops)) : null}::jsonb)
       WHERE id = ${loadId} AND company_id = ${companyId}`
   } catch (e) {
     return { error: humanError(e, locale) }

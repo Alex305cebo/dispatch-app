@@ -142,13 +142,22 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
         throw new Error(
           ai.reason === 'no_key'
             ? t(locale, 'newLoad.aiUnavailable')
-            : t(locale, 'newLoad.notRecognized').replace('{detail}', ai.detail ?? t(locale, 'newLoad.aiUnavailableShort')),
+            : t(locale, 'newLoad.notRecognized').replace(
+                '{detail}',
+                ai.detail ?? t(locale, 'newLoad.aiUnavailableShort'),
+              ),
         )
       }
 
       // 4) create the load on THIS truck, attach the RC
       setStage(t(locale, 'rcDrop.stageCreating'))
-      const made = await createLoadFromRc(truckId, toQrLoad(ai.fields), docId, formatDriverInfo(ai.fields))
+      const made = await createLoadFromRc(
+        truckId,
+        toQrLoad(ai.fields),
+        docId,
+        formatDriverInfo(ai.fields),
+        ai.fields.stops,
+      )
       if ('error' in made) throw new Error(made.error)
       for (const f of rest) await fileDoc(f, companions.includes(f) ? 'driverinfo' : 'ratecon', made.loadId)
       if (rest.length) notify('ok', t(locale, 'rcDrop.companionSaved'), rest.map((f) => f.name).join(', '))
@@ -182,9 +191,7 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
     return (
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-[13px] font-semibold text-good-400">
-            {t(locale, 'rcDrop.createdBadge')}
-          </span>
+          <span className="text-[13px] font-semibold text-good-400">{t(locale, 'rcDrop.createdBadge')}</span>
           <div className="flex gap-2">
             <Link
               href={`/loads/${res.loadId}`}
@@ -204,13 +211,19 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
           <p className="rounded-lg bg-good-500/10 px-3 py-2 text-[12.5px] text-good-300">
             {t(locale, 'rcDrop.mergedBadge')}
             {res.filled && res.filled.length > 0 && (
-              <> · {t(locale, 'rcDrop.mergedFilled')}: {res.filled.map((f) => t(locale, `rcDrop.f.${f}` as Parameters<typeof t>[1])).join(', ')}</>
+              <>
+                {' '}
+                · {t(locale, 'rcDrop.mergedFilled')}:{' '}
+                {res.filled.map((f) => t(locale, `rcDrop.f.${f}` as Parameters<typeof t>[1])).join(', ')}
+              </>
             )}
           </p>
         )}
         {res.missing && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-warn-400/30 bg-warn-500/[0.08] px-3 py-2 text-[12.5px]">
-            <span className="text-warn-300">{t(locale, res.missing === 'rate' ? 'rcDrop.needRate' : 'rcDrop.needSheet')}</span>
+            <span className="text-warn-300">
+              {t(locale, res.missing === 'rate' ? 'rcDrop.needRate' : 'rcDrop.needSheet')}
+            </span>
             <input
               type="file"
               accept="application/pdf,.pdf,image/*"
@@ -268,10 +281,11 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
 
         <div>
           <div className="mb-1.5 flex items-center justify-between">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-white/62">
-              Driver Information
-            </p>
-            <Button variant="primary" size="sm" onClick={() =>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-white/62">Driver Information</p>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() =>
                 startCopy(async () => {
                   try {
                     await navigator.clipboard.writeText(driverInfo)
@@ -280,7 +294,8 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
                     notify('warn', t(locale, 'rcDrop.clipboardDenied'))
                   }
                 })
-              }>
+              }
+            >
               {t(locale, 'import.copy')}
             </Button>
           </div>
@@ -306,7 +321,9 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       }}
       animate={{ scale: drag ? 1.01 : 1 }}
       className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-3 py-3 text-center transition-colors sm:flex-row sm:gap-4 sm:px-4 sm:text-left ${
-        drag ? 'border-haul-400 bg-haul-500/15' : 'border-haul-500/40 bg-haul-500/[0.05] hover:border-haul-400/80 hover:bg-haul-500/10'
+        drag
+          ? 'border-haul-400 bg-haul-500/15'
+          : 'border-haul-500/40 bg-haul-500/[0.05] hover:border-haul-400/80 hover:bg-haul-500/10'
       }`}
     >
       <input
@@ -322,7 +339,10 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
           <span className="flex items-center gap-2 text-[14px] font-medium">
             <span className="inline-block size-3.5 animate-spin rounded-full border-2 border-white/25 border-t-haul-400" />
             {stage}
-            <span className="nums text-white/55">{elapsed}{t(locale, 'rcDrop.secondsSuffix')}</span>
+            <span className="nums text-white/55">
+              {elapsed}
+              {t(locale, 'rcDrop.secondsSuffix')}
+            </span>
           </span>
           <span className="mt-1 text-[12px] font-medium text-warn-400">{t(locale, 'rcDrop.doNotClose')}</span>
         </>
@@ -333,7 +353,16 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
               пол-экрана ради трёх фраз. Подсказка про перетаскивание — только там,
               где мышь: на телефоне файлы не таскают. */}
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-haul-500/15 text-haul-300 sm:size-10">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-5"
+              aria-hidden
+            >
               <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
               <path d="M14 3v5h5" />
               <path d="M12 18v-6" />
@@ -346,7 +375,15 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
             <span className="mt-0.5 hidden text-[11.5px] text-white/40 sm:block">{t(locale, 'rcDrop.orDrop')}</span>
           </span>
           <span className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-haul-500 px-4 py-2.5 text-[14px] font-semibold text-white transition-transform hover:bg-haul-400 active:scale-[0.98] sm:w-auto">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="size-4" aria-hidden>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              className="size-4"
+              aria-hidden
+            >
               <path d="M12 5v14M5 12h14" />
             </svg>
             {t(locale, 'rcDrop.chooseFile')}
@@ -356,12 +393,16 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
       {error && (
         <span className="mt-2 flex flex-col items-center gap-1.5">
           <span className="text-[12px] text-bad-400">{error}</span>
-          <Button variant="primary" size="sm" type="button"
+          <Button
+            variant="primary"
+            size="sm"
+            type="button"
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
               handle(lastFiles)
-            }}>
+            }}
+          >
             {t(locale, 'import.retryScan')}
           </Button>
         </span>

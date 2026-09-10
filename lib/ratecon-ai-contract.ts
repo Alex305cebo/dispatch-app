@@ -5,6 +5,7 @@
 
 import type { Found, RateConFields, Stop } from './ratecon.ts'
 import { t, type Locale } from './i18n.ts'
+import type { LoadStop } from './stops.ts'
 
 /** Try in order; 404 (renamed model) and 429 (quota) fall through to the next.
  * Ends on gemini-3.1-flash-lite on purpose — its free-tier daily cap (500/day) is far
@@ -25,22 +26,14 @@ import { t, type Locale } from './i18n.ts'
 // rate cons ran the account out of requests before lunch and every later parse failed
 // outright. A slightly weaker read on some documents beats no read at all after the
 // twentieth, and 2.5-flash stays as the fallback for whatever lite fumbles.
-export const AI_MODELS = [
-  'gemini-3.1-flash-lite',
-  'gemini-2.5-flash',
-  'gemini-3-flash-preview',
-]
+export const AI_MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-3-flash-preview']
 
 /** The same three, strongest first. Worth choosing only once the install's key has
  * billing behind it: the reasoning above — lead with the 500/day model because the
  * request COUNT is the scarce resource — stops applying the moment the daily cap does.
  * The admin picks between the two orders (Админ → Ключи). The fallback chain is
  * identical either way, so the wrong choice costs ordering and nothing else. */
-export const AI_MODELS_QUALITY = [
-  'gemini-2.5-flash',
-  'gemini-3-flash-preview',
-  'gemini-3.1-flash-lite',
-]
+export const AI_MODELS_QUALITY = ['gemini-2.5-flash', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite']
 
 export const AI_PROMPT = `You are reading a US trucking RATE CONFIRMATION document. Extract ONLY facts printed in the document. Never guess, never infer — use null for anything not present.
 
@@ -133,7 +126,10 @@ const found = <T>(value: T | null | undefined, evidence: string): Found<T> | nul
 
 function stopBlock(s: AiStop | undefined): Stop {
   if (!s) return { block: null, time: null, ref: null }
-  const cityLine = [s.city, s.state, s.zip].filter(Boolean).join(', ').replace(/, (\d)/, ' $1')
+  const cityLine = [s.city, s.state, s.zip]
+    .filter(Boolean)
+    .join(', ')
+    .replace(/, (\d)/, ' $1')
   const block = [s.company, s.street, cityLine].filter(Boolean).join('\n') || null
   return {
     block,
@@ -155,8 +151,10 @@ function stopBlock(s: AiStop | undefined): Stop {
  * and stopping at a house number or a street-type word gets the boundary right.
  */
 const US_STATES = new Set(
-  ('AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND ' +
-    'OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC').split(' '),
+  (
+    'AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND ' +
+    'OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC'
+  ).split(' '),
 )
 /** Words that end a street and therefore start nothing — the city cannot reach past them. */
 const STREET_WORD =
@@ -201,7 +199,10 @@ const cityOf = (s: AiStop | undefined): string | null => {
 /** Plain, geocodable "1234 Industrial Pkwy, Greer, SC 29650" — no company name, unlike stopBlock. */
 function addressLine(s: AiStop | undefined): string | null {
   if (!s?.street) return null
-  const cityLine = [s.city, s.state, s.zip].filter(Boolean).join(', ').replace(/, (\d)/, ' $1')
+  const cityLine = [s.city, s.state, s.zip]
+    .filter(Boolean)
+    .join(', ')
+    .replace(/, (\d)/, ' $1')
   return [s.street, cityLine].filter(Boolean).join(', ') || null
 }
 
@@ -226,8 +227,21 @@ export function aiToFields(ai: AiFields, model: string, locale: Locale = 'en'): 
   // the trip's two ends. Intermediate stops ride along in the refs the model returns.
   const pu = pickups[0] ?? ai.stops[0]
   const del = deliveries[deliveries.length - 1] ?? ai.stops[ai.stops.length - 1]
+  // Полный список остановок — для карты, водителя и миль через все точки. Дата
+  // остановки: из её окна, а у концов — из pickupDate/deliveryDate документа.
+  const stops: LoadStop[] = ai.stops.map((s, i) => ({
+    seq: i + 1,
+    role: s.role === 'pickup' ? 'pickup' : 'delivery',
+    name: s.company?.trim() || null,
+    address: addressLine(s),
+    city: cityOf(s),
+    date: toIso(s.time) ?? (s === pu ? toIso(ai.pickupDate) : s === del ? toIso(ai.deliveryDate) : null),
+    time: s.time?.trim() || null,
+    refs: (s.refs ?? []).filter(Boolean),
+  }))
 
   return {
+    stops,
     rate: found(ai.rate, ev),
     loadedMiles: found(ai.loadedMiles, ev),
     origin: found(cityOf(pu), ev),
@@ -277,5 +291,6 @@ export function mergeAi(base: RateConFields, ai: RateConFields): RateConFields {
     importantNotes: ai.importantNotes ?? base.importantNotes,
     pickupAddress: ai.pickupAddress ?? base.pickupAddress,
     deliveryAddress: ai.deliveryAddress ?? base.deliveryAddress,
+    stops: ai.stops ?? base.stops,
   }
 }

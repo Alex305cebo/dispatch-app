@@ -11,6 +11,9 @@ import { usd, usd2 } from '@/lib/fmt'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
+import { Fragment } from 'react'
+import { usDate } from '@/lib/fmt'
+import { stopsFrom, stopTitle, stopsLabel, type LoadStop } from '@/lib/stops'
 
 export type LoadDetails = {
   id: number
@@ -40,10 +43,28 @@ export type LoadDetails = {
   /** Наш собственный средний $/милю по этому направлению — подпорка на месте
    * биржевого спот-рейта, которого у нас нет ни от одного бесплатного источника. */
   laneAvgRpm?: number | null
+  /** Остановки по порядку (lib/stops.ts stopsFrom) — «Сроки» рисуются по ним. */
+  stops?: LoadStop[]
 }
 
 export function LoadEditNumbers({ load }: { load: LoadDetails }) {
   const locale = useLocale()
+  const stops = load.stops?.length
+    ? load.stops
+    : stopsFrom(
+        {
+          stops: null,
+          origin: load.origin ?? null,
+          destination: load.destination ?? null,
+          pickupAddress: load.pickupAddress,
+          deliveryAddress: load.deliveryAddress,
+          pickupDate: load.pickupDate,
+          deliveryDate: load.deliveryDate,
+          pickupTime: load.pickupTime ?? null,
+          deliveryTime: load.deliveryTime ?? null,
+        },
+        { pickup: load.pickupName, delivery: load.deliveryName },
+      )
   const [editing, setEditing] = useState(false)
   const [pending, start] = useTransition()
 
@@ -220,18 +241,21 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
           <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
             <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/40">
               {t(locale, 'loadEdit.groupDates')}
+              {stops.length > 2 && (
+                <span className="ml-1.5 normal-case text-white/55">· {stopsLabel(stops, locale)}</span>
+              )}
             </div>
             <dl className="grid gap-y-2">
               {/* Окно из рейт-кона («8/14/2026 09:00-13:00») информативнее голой
-                  даты — диспетчеру нужен именно интервал. */}
-              <Row label={t(locale, 'loadEdit.pickup')} value={load.pickupTime || load.pickupDate || '—'} />
-              {/* Полный адрес из рейт-кона — прямо под окном: раньше за ним
-                  ходили в сам документ или на карту. */}
-              {load.pickupAddress && <Addr text={load.pickupAddress} name={load.pickupName} city={load.origin} />}
-              <Row label={t(locale, 'loadEdit.delivery')} value={load.deliveryTime || load.deliveryDate || '—'} />
-              {load.deliveryAddress && (
-                <Addr text={load.deliveryAddress} name={load.deliveryName} city={load.destination} />
-              )}
+                  даты — диспетчеру нужен именно интервал. Полный адрес — прямо под
+                  окном: раньше за ним ходили в сам документ или на карту. Остановок
+                  может быть три и больше — по строке на каждую. */}
+              {stops.map((s) => (
+                <Fragment key={s.seq}>
+                  <Row label={stopTitle(s, stops, locale)} value={s.time || usDate(s.date) || '—'} />
+                  {s.address && <Addr text={s.address} name={s.name} city={s.city} />}
+                </Fragment>
+              ))}
             </dl>
           </div>
         </div>

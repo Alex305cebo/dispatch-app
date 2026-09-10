@@ -16,6 +16,7 @@
 
 import { EMPTY, type QrLoad } from './qr-load.ts'
 import { normalizeApptTime } from './fmt.ts'
+import type { LoadStop } from './stops.ts'
 
 /** A parsed value plus the source line it came from — shown so the human can check. */
 export type Found<T> = { value: T; evidence: string }
@@ -61,26 +62,69 @@ export type RateConFields = {
    */
   pickupAddress: Found<string> | null
   deliveryAddress: Found<string> | null
+  /** ВСЕ остановки по порядку (только ИИ): pickupStop/deliveryStop выше — концы рейса. */
+  stops?: LoadStop[]
 }
 
-const ABBR = 'AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC'
+const ABBR =
+  'AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC'
 
 const FULL_NAMES: Record<string, string> = {
-  alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA',
-  colorado: 'CO', connecticut: 'CT', delaware: 'DE', florida: 'FL', georgia: 'GA',
-  hawaii: 'HI', idaho: 'ID', illinois: 'IL', indiana: 'IN', iowa: 'IA',
-  kansas: 'KS', kentucky: 'KY', louisiana: 'LA', maine: 'ME', maryland: 'MD',
-  massachusetts: 'MA', michigan: 'MI', minnesota: 'MN', mississippi: 'MS',
-  missouri: 'MO', montana: 'MT', nebraska: 'NE', nevada: 'NV',
-  'new hampshire': 'NH', 'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY',
-  'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH', oklahoma: 'OK',
-  oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
-  'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT', vermont: 'VT',
-  virginia: 'VA', washington: 'WA', 'west virginia': 'WV', wisconsin: 'WI',
+  alabama: 'AL',
+  alaska: 'AK',
+  arizona: 'AZ',
+  arkansas: 'AR',
+  california: 'CA',
+  colorado: 'CO',
+  connecticut: 'CT',
+  delaware: 'DE',
+  florida: 'FL',
+  georgia: 'GA',
+  hawaii: 'HI',
+  idaho: 'ID',
+  illinois: 'IL',
+  indiana: 'IN',
+  iowa: 'IA',
+  kansas: 'KS',
+  kentucky: 'KY',
+  louisiana: 'LA',
+  maine: 'ME',
+  maryland: 'MD',
+  massachusetts: 'MA',
+  michigan: 'MI',
+  minnesota: 'MN',
+  mississippi: 'MS',
+  missouri: 'MO',
+  montana: 'MT',
+  nebraska: 'NE',
+  nevada: 'NV',
+  'new hampshire': 'NH',
+  'new jersey': 'NJ',
+  'new mexico': 'NM',
+  'new york': 'NY',
+  'north carolina': 'NC',
+  'north dakota': 'ND',
+  ohio: 'OH',
+  oklahoma: 'OK',
+  oregon: 'OR',
+  pennsylvania: 'PA',
+  'rhode island': 'RI',
+  'south carolina': 'SC',
+  'south dakota': 'SD',
+  tennessee: 'TN',
+  texas: 'TX',
+  utah: 'UT',
+  vermont: 'VT',
+  virginia: 'VA',
+  washington: 'WA',
+  'west virginia': 'WV',
+  wisconsin: 'WI',
   wyoming: 'WY',
 }
 
-const FULL = Object.keys(FULL_NAMES).sort((a, b) => b.length - a.length).join('|')
+const FULL = Object.keys(FULL_NAMES)
+  .sort((a, b) => b.length - a.length)
+  .join('|')
 
 // Two patterns, deliberately different in case-sensitivity:
 //  - Abbreviations stay case-SENSITIVE. With /i, "…customer, in Texas" makes "in"
@@ -111,26 +155,27 @@ function hasCity(s: string): boolean {
 }
 
 function normalize(text: string): string {
-  return text
-    .replace(/\r/g, '')
-    // Watermarks and odd encodings inject control bytes mid-line ("TOTAL RATE
-    // <STX> 4800.00"), which silently break every label→value pattern. Strip all
-    // control chars except newline and tab, then collapse runs of spaces.
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ')
-    .replace(/[ \t]+/g, ' ')
+  return (
+    text
+      .replace(/\r/g, '')
+      // Watermarks and odd encodings inject control bytes mid-line ("TOTAL RATE
+      // <STX> 4800.00"), which silently break every label→value pattern. Strip all
+      // control chars except newline and tab, then collapse runs of spaces.
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ')
+      .replace(/[ \t]+/g, ' ')
+  )
 }
 
 function lineAround(text: string, index: number): string {
   const start = text.lastIndexOf('\n', index) + 1
   const end = text.indexOf('\n', index)
-  return text.slice(start, end === -1 ? undefined : end).trim().slice(0, 120)
+  return text
+    .slice(start, end === -1 ? undefined : end)
+    .trim()
+    .slice(0, 120)
 }
 
-function search<T>(
-  text: string,
-  patterns: RegExp[],
-  pick: (m: RegExpMatchArray) => T | null,
-): Found<T> | null {
+function search<T>(text: string, patterns: RegExp[], pick: (m: RegExpMatchArray) => T | null): Found<T> | null {
   for (const re of patterns) {
     // Walk EVERY match: `pick` rejects false positives, and a rejected first hit
     // must not hide a valid second one.
@@ -215,7 +260,8 @@ const DEST_LABELS = [
 ]
 
 // Words that are never a city but do sit in front of a comma + state-looking token.
-const NOT_A_CITY = /\b(broker|customer|carrier|shipper|consignee|seal|trailer|invoice|address|contact|attn|inc|llc|corp)\b/i
+const NOT_A_CITY =
+  /\b(broker|customer|carrier|shipper|consignee|seal|trailer|invoice|address|contact|attn|inc|llc|corp)\b/i
 
 /**
  * Find "City, ST" in a window AFTER a label. Windowing matters: real docs repeat the
@@ -281,7 +327,10 @@ function trimToCity(line: string): string | null {
     new RegExp(String.raw`^[\s\S]*?[A-Za-z][A-Za-z.'\- ]{0,26}?[, ]\s*(?:${ABBR})\s+\d{5}(?:-\d{4})?(?!\d)`),
   )?.[0]
   const comma = line.match(
-    new RegExp(String.raw`^[\s\S]*?[A-Za-z][A-Za-z.'\- ]{0,26},\s*(?:${ABBR}|${FULL})\b(?:\s+\d{5}(?:-\d{4})?(?!\d))?`, 'i'),
+    new RegExp(
+      String.raw`^[\s\S]*?[A-Za-z][A-Za-z.'\- ]{0,26},\s*(?:${ABBR}|${FULL})\b(?:\s+\d{5}(?:-\d{4})?(?!\d))?`,
+      'i',
+    ),
   )?.[0]
   const cands = [zip, comma].filter((s): s is string => !!s).map((s) => s.trim())
   return cands.sort((a, b) => a.length - b.length)[0] ?? null
@@ -313,9 +362,7 @@ function parseStop(text: string, labels: RegExp[], endLabels: RegExp): Stop {
       // that's how the driver reads it. NOTE: no 'm' flag here. With it, `$` means
       // end-of-LINE and the capture stops at the first newline, silently dropping
       // every reference but the first.
-      const refM = section.match(
-        new RegExp(String.raw`\bRef\s*:\s*([\s\S]*?)(?=${DIVIDER}|\n\s*\n|$)`, 'i'),
-      )
+      const refM = section.match(new RegExp(String.raw`\bRef\s*:\s*([\s\S]*?)(?=${DIVIDER}|\n\s*\n|$)`, 'i'))
 
       return {
         block,
@@ -419,8 +466,14 @@ function anchorStops(text: string): { pu: string | null; del: string | null } {
 
     let cls: 'pu' | 'del' | null = null
     for (let k = i; k >= 0 && i - k <= 6; k--) {
-      if (STOP_DEL.test(lines[k]!)) { cls = 'del'; break }
-      if (STOP_PU.test(lines[k]!)) { cls = 'pu'; break }
+      if (STOP_DEL.test(lines[k]!)) {
+        cls = 'del'
+        break
+      }
+      if (STOP_PU.test(lines[k]!)) {
+        cls = 'pu'
+        break
+      }
     }
     stops.push({ block, cls, i })
   }
@@ -500,7 +553,8 @@ function blockFromColumn(items: PositionedText[], cityState: string): string | n
   // further down. Build a block from each and pick, rather than guessing by position.
   // Comma optional here too — the anchor fragment is often "SUN VALLEY CA 91352".
   const anchors = items.filter(
-    (i) => i.s.includes(city.trim()) && (/,\s*[A-Z]{2}\b/.test(i.s) || /[A-Za-z][, ]\s*[A-Z]{2}\s+\d{5}(?!\d)/.test(i.s)),
+    (i) =>
+      i.s.includes(city.trim()) && (/,\s*[A-Z]{2}\b/.test(i.s) || /[A-Za-z][, ]\s*[A-Z]{2}\s+\d{5}(?!\d)/.test(i.s)),
   )
 
   const candidates = anchors
@@ -668,10 +722,27 @@ export function formatDriverInfo(f: RateConFields): string {
 
   out.push(`LOAD ID: #${f.referenceId?.value ?? '—'}`, '')
 
-  for (const [title, stop, fallback] of [
-    ['Pick up Address:', f.pickupStop, f.origin?.value],
-    ['Delivery Address:', f.deliveryStop, f.destination?.value],
-  ] as const) {
+  // Три и больше точек: блок на каждую, с номером у повторяющейся роли —
+  // «Delivery 1 Address:», «Delivery 2 Address:». Две точки — как всегда.
+  const many = f.stops && f.stops.length > 2 ? f.stops : null
+  const blocks: (readonly [string, Stop, string | undefined])[] = many
+    ? many.map((s) => {
+        const same = many.filter((x) => x.role === s.role)
+        const n = same.length > 1 ? ` ${same.indexOf(s) + 1}` : ''
+        const title = `${s.role === 'pickup' ? 'Pick up' : 'Delivery'}${n} Address:`
+        const block = [s.name, s.address].filter(Boolean).join('\n') || null
+        return [
+          title,
+          { block, time: s.time, ref: s.refs.length ? s.refs.join('\n') : null },
+          s.city ?? undefined,
+        ] as const
+      })
+    : [
+        ['Pick up Address:', f.pickupStop, f.origin?.value] as const,
+        ['Delivery Address:', f.deliveryStop, f.destination?.value] as const,
+      ]
+
+  for (const [title, stop, fallback] of blocks) {
     out.push(title, '')
     // Fall back to the city when the layout has no quotable block (some brokers
     // scatter the stop across a table) — a city beats an empty line.
@@ -686,7 +757,10 @@ export function formatDriverInfo(f: RateConFields): string {
   if (f.commodity) out.push(`Commodity: ${f.commodity.value}`)
   if (f.weight) out.push(`Weight: ${f.weight.value}`)
 
-  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+  return out
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 /** Feeds the same LoadForm the QR path uses. Absent fields keep their defaults. */

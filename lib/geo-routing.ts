@@ -27,7 +27,6 @@ async function fetchSoon(url: string, init?: RequestInit, ms = NET_TIMEOUT_MS): 
   return fetch(url, { ...init, signal: AbortSignal.timeout(ms) })
 }
 
-
 type LatLng = { lat: number; lng: number }
 
 /** "City, ST" → coords. Nominatim (1 req/s, UA required), cached forever in settings. */
@@ -215,8 +214,7 @@ export async function cityCoordsBest(
   const zip = address ? extractZip(address) : null
   const zipPt = zip ? await geocodeZip(zip) : null
   const cityPt = zipPt ?? (city ? await cityGeocodeChecked(city) : null)
-  const trust = (p: LatLng | null): p is LatLng =>
-    !!p && (!cityPt || haversineMiles(p, cityPt) <= MAX_ADDR_DRIFT_MI)
+  const trust = (p: LatLng | null): p is LatLng => !!p && (!cityPt || haversineMiles(p, cityPt) <= MAX_ADDR_DRIFT_MI)
 
   if (address) {
     // Best first: Mapbox (rooftop-accurate, free tier) when a token is configured.
@@ -351,9 +349,7 @@ async function roadRoute(from: LatLng, to: LatLng, geometry = true): Promise<Roa
       minutes: Math.round(r.duration / 60),
       // Прореживаем ДО записи в кэш: полная геометрия OSRM на длинном рейсе — это
       // 17 000 точек и 600 КБ на строку settings (см. simplifyPath).
-      ...(coords?.length
-        ? { coords: simplifyPath(coords.map(([lng, lat]) => [lat, lng] as [number, number])) }
-        : {}),
+      ...(coords?.length ? { coords: simplifyPath(coords.map(([lng, lat]) => [lat, lng] as [number, number])) } : {}),
     }
     await setSetting(key, JSON.stringify({ at: Date.now(), path }))
     // ponytail: sweep on ~1 write in 20 rather than every write — a cache miss already
@@ -390,10 +386,7 @@ async function routeTo(from: LatLng, pt: LatLng | null, geometry = true): Promis
  * No polyline — both callers (the dashboard fleet cards and the "miles left" server
  * action) render text only. Use deliveryInfoBest for the map, which needs the line.
  */
-export async function deliveryInfo(
-  from: LatLng,
-  destCity: string | null | undefined,
-): Promise<DeliveryPoint | null> {
+export async function deliveryInfo(from: LatLng, destCity: string | null | undefined): Promise<DeliveryPoint | null> {
   if (!destCity?.trim()) return null
   return routeTo(from, await geocode(destCity), false)
 }
@@ -419,6 +412,23 @@ export async function routeMiles(
   /** Полные адреса с индексами, если есть: индекс надёжнее названия города. */
   addr: { origin?: string | null; destination?: string | null } = {},
 ): Promise<{ miles: number; estimated?: boolean } | { error: string }> {
+  return routeMilesVia(
+    [
+      { address: addr.origin, city: origin },
+      { address: addr.destination, city: destination },
+    ],
+    locale,
+  )
+}
+
+/**
+ * Мили через ВСЕ остановки по порядку (пикап → дроп 1 → дроп 2). Каждый отрезок —
+ * той же дорогой, что и двухточечный маршрут, суммой; кэш OSRM остаётся по парам.
+ */
+export async function routeMilesVia(
+  stops: { address?: string | null; city: string | null }[],
+  locale: Locale = 'ru',
+): Promise<{ miles: number; estimated?: boolean } | { error: string }> {
   // cityCoordsBest, а не голый geocode: у него за спиной ещё Census и поиск по
   // индексу. Один Nominatim подводил ровно там, где это дороже всего — на сервере
   // хостинга его ответы бывают пустыми, и груз из рейт-кона без пробега отказывались
@@ -437,11 +447,21 @@ export async function routeMiles(
     if (loose?.rough) estimated = true
     return loose?.pt ?? null
   }
-  const a = await find(addr.origin, origin)
-  const b = await find(addr.destination, destination)
-  if (!a || !b) return { error: t(locale, 'tracking.geoNoCoords') }
+  const pts: LatLng[] = []
+  for (const s of stops) {
+    if (!s.city && !s.address) return { error: t(locale, 'tracking.geoNoCoords') }
+    const pt = await find(s.address, s.city ?? s.address ?? '')
+    if (!pt) return { error: t(locale, 'tracking.geoNoCoords') }
+    pts.push(pt)
+  }
+  if (pts.length < 2) return { error: t(locale, 'tracking.geoNoCoords') }
+  const pairs = pts.slice(1).map((b, i) => [pts[i]!, b] as const)
   // Центр штата вместо города — дорогу не считаем, только прямую с надбавкой.
-  if (estimated) return { miles: Math.max(1, Math.round(haversineMiles(a, b) * 1.15)), estimated: true }
+  if (estimated)
+    return {
+      miles: Math.max(1, Math.round(pairs.reduce((sum, [a, b]) => sum + haversineMiles(a, b) * 1.15, 0))),
+      estimated: true,
+    }
 
   // Truck-legal routing when a key exists; fall through to free OSRM on any failure.
   const key = process.env.ORS_API_KEY
@@ -450,7 +470,7 @@ export async function routeMiles(
       const res = await fetchSoon('https://api.openrouteservice.org/v2/directions/driving-hgv', {
         method: 'POST',
         headers: { Authorization: key, 'content-type': 'application/json' },
-        body: JSON.stringify({ coordinates: [[a.lng, a.lat], [b.lng, b.lat]] }),
+        body: JSON.stringify({ coordinates: pts.map((p) => [p.lng, p.lat]) }),
       })
       if (res.ok) {
         const data = (await res.json()) as { routes?: { summary?: { distance?: number } }[] }
@@ -463,15 +483,23 @@ export async function routeMiles(
   }
 
   // Free path — OSRM demo, real driving miles, no key. Miles only, no polyline.
-  const road = await roadRoute(a, b, false)
-  if (road) return { miles: road.miles }
-  // Маршрутизатор не ответил, но обе точки известны — считаем по прямой с надбавкой
-  // на извилистость дорог (эмпирические +15 % для магистральных рейсов по США).
-  // Приблизительный пробег лучше отказа: без числа груз вообще не заводится, а
-  // диспетчер всё равно правит мили руками, когда видит их на карточке.
-  const straight = haversineMiles(a, b)
-  if (straight > 0) return { miles: Math.round(straight * 1.15) }
-  return { error: t(locale, 'tracking.geoNoRoute') }
+  // По отрезкам: кэш и лимиты OSRM остаются такими же, как у обычного груза.
+  let miles = 0
+  for (const [a, b] of pairs) {
+    const road = await roadRoute(a, b, false)
+    if (road) {
+      miles += road.miles
+      continue
+    }
+    // Маршрутизатор не ответил, но точки известны — по прямой с надбавкой на
+    // извилистость дорог (эмпирические +15 % для магистральных рейсов по США).
+    // Приблизительный пробег лучше отказа: без числа груз вообще не заводится, а
+    // диспетчер всё равно правит мили руками, когда видит их на карточке.
+    const straight = haversineMiles(a, b)
+    if (!(straight > 0)) return { error: t(locale, 'tracking.geoNoRoute') }
+    miles += straight * 1.15
+  }
+  return { miles: Math.max(1, Math.round(miles)) }
 }
 
 /**
@@ -532,9 +560,7 @@ export async function ipCity(ip: string | null): Promise<string | null> {
 }
 
 /** Latest US retail diesel $/gal (EIA weekly), cached 24h. null without key. */
-export async function dieselPrice(
-  locale: Locale = 'ru',
-): Promise<{ price: number; asOf: string } | { error: string }> {
+export async function dieselPrice(locale: Locale = 'ru'): Promise<{ price: number; asOf: string } | { error: string }> {
   const key = process.env.EIA_API_KEY
   if (!key) return { error: 'no_key' }
 

@@ -426,7 +426,7 @@ CREATE TABLE IF NOT EXISTS app_errors (
 );
 CREATE INDEX IF NOT EXISTS app_errors_at ON app_errors(at DESC);
 
-INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-08')
+INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-10')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- Через кого брокер платит перевозчикам (TriumphPay, Comdata, RTS…), если рейт-кон
@@ -483,3 +483,14 @@ CREATE INDEX IF NOT EXISTS load_events_at ON load_events(company_id, at DESC);
 -- штат) или не найдены вовсе. Диспетчер видит пометку и вписывает точные; правка
 -- миль в «Деталях» снимает флаг.
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS miles_estimated BOOLEAN NOT NULL DEFAULT false;
+
+-- Остановки груза по порядку рейса (lib/stops.ts): рейт-кон с тремя точками
+-- («один пикап, две выгрузки») раньше терял середину. origin/destination и
+-- pickup_*/delivery_* остались концами рейса — их читают финансы и отчёты.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS stops JSONB;
+-- Партиал: два груза едут в одном трейлере одновременно — такой груз не вытесняет
+-- текущий и не встаёт «следующим».
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS partial BOOLEAN NOT NULL DEFAULT false;
+-- Какой остановки касается отметка водителя (NULL у старых — первый пикап /
+-- последняя выгрузка, см. lib/stops.ts eventSeq).
+ALTER TABLE load_events ADD COLUMN IF NOT EXISTS stop_seq INTEGER;

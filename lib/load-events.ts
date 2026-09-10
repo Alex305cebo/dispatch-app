@@ -9,6 +9,8 @@ export type LoadEvent = {
   kind: LoadEventKind
   note: string | null
   at: string
+  /** Номер остановки (lib/stops.ts); null у отметок до остановок. */
+  stopSeq: number | null
 }
 
 /**
@@ -23,37 +25,83 @@ export async function addLoadEvent(
   truckId: number | null,
   kind: LoadEventKind,
   note: string | null = null,
+  stopSeq: number | null = null,
 ): Promise<void> {
-  await sql`INSERT INTO load_events (company_id, load_id, truck_id, kind, note) VALUES (${companyId}, ${loadId}, ${truckId}, ${kind}, ${note})`
+  await sql`INSERT INTO load_events (company_id, load_id, truck_id, kind, note, stop_seq) VALUES (${companyId}, ${loadId}, ${truckId}, ${kind}, ${note}, ${stopSeq})`
 }
 
 export async function listLoadEvents(companyId: 'default' | 'demo', loadId: number): Promise<LoadEvent[]> {
   const rows = (await sql`
-    SELECT id, load_id, truck_id, kind, note, at FROM load_events
+    SELECT id, load_id, truck_id, kind, note, at, stop_seq FROM load_events
     WHERE company_id = ${companyId} AND load_id = ${loadId}
-    ORDER BY at ASC, id ASC`) as { id: number; load_id: number | null; truck_id: number | null; kind: LoadEventKind; note: string | null; at: string }[]
-  return rows.map((r) => ({ id: r.id, loadId: r.load_id, truckId: r.truck_id, kind: r.kind, note: r.note, at: String(r.at) }))
+    ORDER BY at ASC, id ASC`) as {
+    id: number
+    load_id: number | null
+    truck_id: number | null
+    kind: LoadEventKind
+    note: string | null
+    at: string
+    stop_seq: number | null
+  }[]
+  return rows.map((r) => ({
+    id: r.id,
+    loadId: r.load_id,
+    truckId: r.truck_id,
+    kind: r.kind,
+    note: r.note,
+    at: String(r.at),
+    stopSeq: r.stop_seq ?? null,
+  }))
 }
 
 /** Последние сообщения водителей за сутки — для уведомлений диспетчеру. */
-export async function recentDriverNotes(companyId: 'default' | 'demo'): Promise<(LoadEvent & { truckNumber: string | null })[]> {
+export async function recentDriverNotes(
+  companyId: 'default' | 'demo',
+): Promise<(LoadEvent & { truckNumber: string | null })[]> {
   const rows = (await sql`
     SELECT e.id, e.load_id, e.truck_id, e.kind, e.note, e.at, t.number
     FROM load_events e LEFT JOIN trucks t ON t.id = e.truck_id
     WHERE e.company_id = ${companyId} AND e.kind = 'note' AND e.at > now() - interval '24 hours'
-    ORDER BY e.at DESC LIMIT 20`) as { id: number; load_id: number | null; truck_id: number | null; kind: LoadEventKind; note: string | null; at: string; number: string | null }[]
-  return rows.map((r) => ({ id: r.id, loadId: r.load_id, truckId: r.truck_id, kind: r.kind, note: r.note, at: String(r.at), truckNumber: r.number }))
+    ORDER BY e.at DESC LIMIT 20`) as {
+    id: number
+    load_id: number | null
+    truck_id: number | null
+    kind: LoadEventKind
+    note: string | null
+    at: string
+    number: string | null
+  }[]
+  return rows.map((r) => ({
+    id: r.id,
+    loadId: r.load_id,
+    truckId: r.truck_id,
+    kind: r.kind,
+    note: r.note,
+    at: String(r.at),
+    stopSeq: null,
+    truckNumber: r.number,
+  }))
 }
 
 /** Убрать ошибочную отметку. Возвращает груз, чтобы вызывающий обновил страницу. */
 export async function deleteLoadEvent(companyId: 'default' | 'demo', id: number): Promise<number | null> {
-  const rows = (await sql`DELETE FROM load_events WHERE id = ${id} AND company_id = ${companyId} RETURNING load_id`) as { load_id: number | null }[]
+  const rows =
+    (await sql`DELETE FROM load_events WHERE id = ${id} AND company_id = ${companyId} RETURNING load_id`) as {
+      load_id: number | null
+    }[]
   return rows[0]?.load_id ?? null
 }
 
 /** Поправить время отметки: от него считается детеншен, и нажатая на час раньше
  * кнопка «Приехал» завышает сумму в письме брокеру. */
-export async function updateLoadEventAt(companyId: 'default' | 'demo', id: number, atIso: string): Promise<number | null> {
-  const rows = (await sql`UPDATE load_events SET at = ${atIso} WHERE id = ${id} AND company_id = ${companyId} RETURNING load_id`) as { load_id: number | null }[]
+export async function updateLoadEventAt(
+  companyId: 'default' | 'demo',
+  id: number,
+  atIso: string,
+): Promise<number | null> {
+  const rows =
+    (await sql`UPDATE load_events SET at = ${atIso} WHERE id = ${id} AND company_id = ${companyId} RETURNING load_id`) as {
+      load_id: number | null
+    }[]
   return rows[0]?.load_id ?? null
 }

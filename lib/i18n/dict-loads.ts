@@ -1717,6 +1717,7 @@ export const loadsDict = {
     ro: 'orașe după cod poștal',
     kk: 'индекс бойынша қалалар',
   },
+  'rcDrop.f.stops': { ru: 'остановки', en: 'stops', es: 'paradas', uk: 'зупинки', ro: 'opriri', kk: 'аялдамалар' },
   'rcDrop.f.miles': { ru: 'мили', en: 'miles', es: 'millas', uk: 'милі', ro: 'mile', kk: 'мильдер' },
   'rcDrop.needRate': {
     ru: 'Это лист водителя, ставки в нём нет. Груз создан — загрузи рейт-кон, и ставка подтянется в этот же груз.',

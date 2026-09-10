@@ -6,6 +6,7 @@
 import type { Load, TruckSettings } from './profit.ts'
 import { t, type Locale } from './i18n.ts'
 import { normalizeApptTime, shortName } from './fmt.ts'
+import type { LoadStop } from './stops.ts'
 
 export type LoadStatus = 'quoted' | 'booked' | 'in_transit' | 'delivered' | 'paid' | 'cancelled'
 
@@ -52,6 +53,10 @@ export type LoadRecord = Load & {
   /** Pre-rendered "Driver Information" text (lib/ratecon.ts formatDriverInfo) — set
    * once when the load is sourced from a rate con, null for manual entries. */
   driverInfo: string | null
+  /** Остановки по порядку рейса; null у грузов до этого поля — см. lib/stops.ts stopsFrom. */
+  stops: LoadStop[] | null
+  /** Едет в одном трейлере с другим грузом (два рейт-кона, один рейс). */
+  partial: boolean
 }
 
 export type TruckRecord = TruckSettings & {
@@ -200,6 +205,8 @@ export type LoadRow = {
   dispatcher_id?: number | null
   company_id?: string | null
   driver_info?: string | null
+  stops?: LoadStop[] | string | null
+  partial?: boolean | null
 }
 
 export type TruckRow = {
@@ -265,6 +272,8 @@ export function rowToLoad(r: LoadRow): LoadRecord {
     dispatcherId: r.dispatcher_id ?? null,
     companyId: r.company_id === 'demo' ? 'demo' : 'default',
     driverInfo: r.driver_info ?? null,
+    stops: typeof r.stops === 'string' ? (JSON.parse(r.stops) as LoadStop[]) : (r.stops ?? null),
+    partial: r.partial === true,
   }
 }
 

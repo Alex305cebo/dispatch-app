@@ -49,8 +49,7 @@ export async function tgStartLogin(
   }
   const id = Number(apiId.trim())
   const locale = await getLocale()
-  if (!id || !apiHash.trim() || !phone.trim())
-    return { error: t(locale, 'telegram.actions.needCreds') }
+  if (!id || !apiHash.trim() || !phone.trim()) return { error: t(locale, 'telegram.actions.needCreds') }
   try {
     return await startLogin(user.id, id, apiHash.trim(), phone.trim())
   } catch (e) {
@@ -337,7 +336,7 @@ async function attachRateCon(
     }
   }
 
-  const created = await createLoadFromRc(truck.truckId, load, docId, formatDriverInfo(fields))
+  const created = await createLoadFromRc(truck.truckId, load, docId, formatDriverInfo(fields), fields.stops)
   if ('error' in created) return { error: created.error }
   return {
     ok: true,
