@@ -5,7 +5,8 @@
 
 import type { LoadRecord, TruckRecord } from './map'
 import type { FleetStatus } from './maintenance-core'
-import { cityCoordsBest, deliveryInfoBest } from './geo-routing'
+import { cityCoordsBest, routeToPoint, routeVia } from './geo-routing'
+import { isDone, stopTitle, stopsFrom, type StopEv } from './stops.ts'
 import { liveTrail, trailLabels } from './eld'
 import { tripEta } from './trip-eta'
 import { distToPathMiles, haversineMiles } from './geo'
@@ -64,7 +65,7 @@ export type LoadMapData = {
     toPickupMi: number | null
     /** Стоит У пикапа или у выгрузки: с какого момента и сколько минут. Это и есть
      * детеншен — время, которое брокер должен оплатить сверх бесплатных часов. */
-    detention: { at: 'pickup' | 'delivery'; sinceIso: string; min: number } | null
+    detention: { at: 'pickup' | 'delivery'; seq: number; sinceIso: string; min: number } | null
   }
 }
 
@@ -88,6 +89,8 @@ export async function loadMapData(
   truck: TruckRecord,
   fs: FleetStatus | undefined,
   locale: Locale,
+  /** Отметки водителя: по ним видно, какая остановка следующая (lib/stops.ts). */
+  events: StopEv[] = [],
 ): Promise<LoadMapData> {
   const markers: MapMarker[] = []
   const routes: MapRoute[] = []
@@ -103,10 +106,43 @@ export async function loadMapData(
     detention: null,
   }
 
-  // Prefer the RC's exact street address over the bare city — pins the real dock,
-  // not just the city center. Falls back to ZIP then city if OSM can't resolve that
-  // specific address (common for rural/warehouse addresses).
-  const pickup = await cityCoordsBest(load?.pickupAddress, load?.origin)
+  // Остановки по порядку и их точки: адрес из рейт-кона точнее города, за ним
+  // индекс, за ним город (cityCoordsBest). ПОСЛЕДОВАТЕЛЬНО — у бесплатного
+  // Nominatim правило «один запрос в секунду».
+  const stops = load ? stopsFrom(load) : []
+  type Pt = { lat: number; lng: number }
+  const pts: (Pt | null)[] = []
+  for (const st of stops) pts.push(await cityCoordsBest(st.address, st.city))
+  const multi = stops.length > 2
+  const markerAt = (i: number): MapMarker | null => {
+    const st = stops[i]
+    const p = pts[i]
+    if (!st || !p || !load) return null
+    const isPickup = st.role === 'pickup'
+    // Две точки — подписи как всегда; три и больше — «Выгрузка 1 · Omaha, NE» и
+    // название склада во второй строке.
+    const label = multi
+      ? `${stopTitle(st, stops, locale)} · ${st.city ?? ''}`
+      : isPickup
+        ? `${t(locale, 'tracking.pickupPrefix')}${st.city}`
+        : `Delivery · ${st.city}`
+    const sub = multi
+      ? [st.name, usDate(st.date) || null, apptText(st.time, locale)].filter(Boolean).join('\n')
+      : isPickup
+        ? [usDate(st.date) || null, apptText(st.time, locale)].filter(Boolean).join('\n')
+        : load.origin
+          ? `${t(locale, 'tracking.fromPrefix')}${load.origin}`
+          : ''
+    return {
+      lat: p.lat,
+      lng: p.lng,
+      label,
+      sub: sub || undefined,
+      kind: isPickup ? 'pickup' : 'dest',
+      href: `/loads/${load.id}`,
+    }
+  }
+  const known = pts.filter((p): p is Pt => !!p)
 
   const lat = fs?.lat ?? null
   const lng = fs?.lng ?? null
@@ -114,38 +150,20 @@ export async function loadMapData(
   // load — so drawing its live position here, plus a route from it to this load's delivery,
   // points at places that have nothing to do with this load (reported: a delivered load
   // showed the truck a state away, already assigned to the next haul). For anything not
-  // currently being run, draw the load's OWN pickup→delivery route and no live truck.
+  // currently being run, draw the load's OWN route through its stops and no live truck.
   const isActive = load == null || load.status === 'booked' || load.status === 'in_transit'
   const noGps = lat == null || lng == null
 
   if (load && (!isActive || noGps)) {
-    // Geocode the destination on its own rather than only as the end of a route from the
-    // pickup: if the pickup address can't be resolved, the delivery pin must still show —
-    // losing the whole map is worse than losing one pin.
-    const dest = await cityCoordsBest(load.deliveryAddress, load.destination)
-    if (pickup) {
-      markers.push({
-        lat: pickup.lat,
-        lng: pickup.lng,
-        label: `${t(locale, 'tracking.pickupPrefix')}${load.origin}`,
-        sub: [usDate(load.pickupDate) || null, apptText(load.pickupTime, locale)].filter(Boolean).join('\n'),
-        kind: 'pickup',
-        href: `/loads/${load.id}`,
-      })
-    }
-    if (dest) {
-      markers.push({
-        lat: dest.lat,
-        lng: dest.lng,
-        label: `Delivery · ${load.destination}`,
-        sub: load.origin ? `${t(locale, 'tracking.fromPrefix')}${load.origin}` : undefined,
-        kind: 'dest',
-        href: `/loads/${load.id}`,
-      })
-    }
-    if (pickup && dest) {
-      const leg = await deliveryInfoBest(pickup, load.deliveryAddress, load.destination)
-      routes.push({ from: [pickup.lat, pickup.lng], to: [dest.lat, dest.lng], coords: leg?.coords })
+    stops.forEach((_, i) => {
+      const m = markerAt(i)
+      if (m) markers.push(m)
+    })
+    if (known.length >= 2) {
+      const first = known[0]!
+      const last = known[known.length - 1]!
+      const leg = await routeVia(known)
+      routes.push({ from: [first.lat, first.lng], to: [last.lat, last.lng], coords: leg?.coords })
       miles = leg?.miles ?? (load.loadedMiles > 0 ? load.loadedMiles : null)
     }
     return { markers, routes, etaText, miles, etaMin, live }
@@ -194,92 +212,63 @@ export async function loadMapData(
     heading: stale ? undefined : (heading ?? undefined),
     href: `/trucks/${truck.id}`,
   }
-  // Not picked up yet: the real road ahead is truck → pickup (the actual deadhead)
-  // → delivery (the loaded miles) — never a straight line to delivery that skips
-  // the pickup stop entirely.
-  let legToPickup: Awaited<ReturnType<typeof deliveryInfoBest>> = null
-  let legToDelivery: Awaited<ReturnType<typeof deliveryInfoBest>> = null
-  if (load?.status === 'booked' && pickup) {
-    ;[legToPickup, legToDelivery] = await Promise.all([
-      deliveryInfoBest({ lat, lng }, load.pickupAddress, load.origin),
-      deliveryInfoBest(pickup, load.deliveryAddress, load.destination),
-    ])
-  } else if (load) {
-    legToDelivery = await deliveryInfoBest({ lat, lng }, load.deliveryAddress, load.destination)
+
+  // Что впереди: непройденные остановки по отметкам. Груз «в пути» без отметок
+  // (статус поставил GPS или диспетчер) — первый пикап уже позади. Дорога: трак →
+  // следующая точка → остальные по порядку, никогда не прямая к последней.
+  let ahead = stops.map((st, i) => ({ st, p: pts[i] ?? null, i })).filter(({ st }) => !isDone(st, events, stops))
+  const firstPickup = stops.find((st) => st.role === 'pickup')
+  if (load?.status === 'in_transit' && ahead[0] && ahead[0].st.seq === firstPickup?.seq) ahead = ahead.slice(1)
+  const next = ahead[0] ?? null
+  const aheadPts = ahead.filter((a) => a.p).map((a) => a.p!)
+  const legToNext = next?.p ? await routeToPoint({ lat, lng }, next.p) : null
+  const legRest = aheadPts.length > 1 ? await routeVia(aheadPts) : null
+
+  for (const a of ahead) {
+    const m = markerAt(a.i)
+    if (m) markers.push(m)
   }
 
-  // Only while still booked — once picked up, the truck IS at/past this stop and
-  // the pin has nothing left to say, just a second (wrong-looking) dot on the map.
-  if (pickup && load?.status === 'booked') {
-    markers.push({
-      lat: pickup.lat,
-      lng: pickup.lng,
-      label: `${t(locale, 'tracking.pickupPrefix')}${load.origin}`,
-      sub: [usDate(load.pickupDate) || null, apptText(load.pickupTime, locale)].filter(Boolean).join('\n'),
-      kind: 'pickup',
-      href: `/loads/${load.id}`,
-    })
-  }
-
-  if (legToDelivery && load) {
-    const routeMiles = (legToPickup?.miles ?? 0) + legToDelivery.miles
+  if (legToNext && next && load) {
+    const routeMiles = legToNext.miles + (legRest?.miles ?? 0)
     miles = routeMiles
-    live.toPickupMi = legToPickup?.miles ?? null
-    const routeEtaMin = (legToPickup?.etaMin ?? 0) + legToDelivery.etaMin
+    live.toPickupMi = next.st.role === 'pickup' ? legToNext.miles : null
+    const routeEtaMin = legToNext.etaMin + (legRest?.etaMin ?? 0)
     etaMin = routeEtaMin
-    // Честный срок: за рулём + ночёвки, против даты и времени выгрузки в её поясе.
+    const finalPt = aheadPts[aheadPts.length - 1]!
+    // Честный срок: за рулём + ночёвки, против даты и времени последней выгрузки в её поясе.
     const eta = tripEta(
       routeEtaMin,
       Date.now(),
       load.deliveryDate,
       load.deliveryTime,
-      zoneFor(legToDelivery.lat, legToDelivery.lng),
+      zoneFor(finalPt.lat, finalPt.lng),
     )
     live.realEtaMin = eta.realMin
     live.slackMin = eta.slackMin
     etaText = `${routeMiles} mi · ~${driveTime(routeEtaMin, locale)}${t(locale, 'tracking.toDelivery')}`
     truckM.eta = etaText
-    if (legToPickup && pickup) {
-      routes.push({ from: [lat, lng], to: [pickup.lat, pickup.lng], coords: legToPickup.coords })
-      routes.push({
-        from: [pickup.lat, pickup.lng],
-        to: [legToDelivery.lat, legToDelivery.lng],
-        coords: legToDelivery.coords,
-      })
-    } else {
-      routes.push({ from: [lat, lng], to: [legToDelivery.lat, legToDelivery.lng], coords: legToDelivery.coords })
+    routes.push({ from: [lat, lng], to: [legToNext.lat, legToNext.lng], coords: legToNext.coords })
+    if (legRest) {
+      const a0 = aheadPts[0]!
+      routes.push({ from: [a0.lat, a0.lng], to: [finalPt.lat, finalPt.lng], coords: legRest.coords })
     }
-    markers.push({
-      lat: legToDelivery.lat,
-      lng: legToDelivery.lng,
-      label: `Delivery · ${load.destination}`,
-      sub: load.origin ? `${t(locale, 'tracking.fromPrefix')}${load.origin}` : undefined,
-      kind: 'dest',
-      href: `/loads/${load.id}`,
-    })
   }
 
-  // Простой: стоит — но не у пикапа и не у выгрузки, там стоять положено.
+  // Простой: стоит — но не у одной из остановок, там стоять положено.
   if (trail?.idleAt && load) {
     const min = Math.round((Date.now() - trail.idleAt.getTime()) / 60_000)
-    const atPickup = pickup != null && haversineMiles({ lat, lng }, { lat: pickup.lat, lng: pickup.lng }) < 5
-    const atDelivery =
-      legToDelivery != null && haversineMiles({ lat, lng }, { lat: legToDelivery.lat, lng: legToDelivery.lng }) < 5
-    if (atPickup || atDelivery) {
+    const near = stops.map((st, i) => ({ st, p: pts[i] })).find(({ p }) => p && haversineMiles({ lat, lng }, p) < 5)
+    if (near) {
       // Стоит у склада: это детеншен, а не простой. Считаем с момента остановки.
-      // У забукированного груза стоянка у пикапа — погрузка; у едущего у выгрузки — выгрузка.
-      live.detention = {
-        at: atDelivery && load.status === 'in_transit' ? 'delivery' : 'pickup',
-        sinceIso: trail.idleAt.toISOString(),
-        min,
-      }
+      live.detention = { at: near.st.role, seq: near.st.seq, sinceIso: trail.idleAt.toISOString(), min }
     } else live.idleMin = min
   }
 
   // Уход с маршрута — только когда груз уже везётся: расстояние до плановой линии
-  // пикап→выгрузка. Пока трак едет НА пикап, сравнивать его не с чем.
-  if (load?.status === 'in_transit' && pickup) {
-    const planned = await deliveryInfoBest(pickup, load.deliveryAddress, load.destination).catch(() => null)
+  // через остановки. Пока трак едет НА пикап, сравнивать его не с чем.
+  if (load?.status === 'in_transit' && known.length >= 2) {
+    const planned = await routeVia(known).catch(() => null)
     if (planned?.coords?.length) {
       const off = distToPathMiles({ lat, lng }, planned.coords)
       // 25 миль: объезды, заправки и весовые дальше от трассы не уводят.

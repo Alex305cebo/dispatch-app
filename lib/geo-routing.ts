@@ -305,9 +305,18 @@ async function sweepExpiredRoutes(): Promise<void> {
  * of trucks with this cache; self-host OSRM or add an ORS key if it starts flaking.
  */
 async function roadRoute(from: LatLng, to: LatLng, geometry = true): Promise<RoadPath | null> {
+  return roadRouteVia([from, to], geometry)
+}
+
+/** Та же дорога через несколько точек подряд (пикап → дроп 1 → дроп 2): OSRM
+ * принимает список координат; ключ кэша для двух точек тот же, что и раньше. */
+async function roadRouteVia(points: LatLng[], geometry = true): Promise<RoadPath | null> {
+  const from = points[0]
+  const rest = points.slice(1)
+  if (!from || !rest.length) return null
   const key =
     `${geometry ? 'osrm' : 'osrmsum'}:${cacheCell(from.lat)},${cacheCell(from.lng)}` +
-    `->${to.lat.toFixed(3)},${to.lng.toFixed(3)}`
+    rest.map((p) => `->${p.lat.toFixed(3)},${p.lng.toFixed(3)}`).join('')
   const hit = await getSetting(key)
   if (hit) {
     try {
@@ -331,7 +340,7 @@ async function roadRoute(from: LatLng, to: LatLng, geometry = true): Promise<Roa
     // route ever spans 1000+ miles this payload gets big enough to worth trimming.
     const url =
       `https://router.project-osrm.org/route/v1/driving/` +
-      `${from.lng},${from.lat};${to.lng},${to.lat}` +
+      points.map((p) => `${p.lng},${p.lat}`).join(';') +
       `?overview=${geometry ? 'full' : 'false'}&geometries=geojson`
     const res = await fetchSoon(url, { headers: { 'User-Agent': 'DispatchApp/1.0 (fleet tool)' } })
     if (!res.ok) return null
@@ -367,6 +376,27 @@ type DeliveryPoint = {
   miles: number
   etaMin: number
   coords?: [number, number][]
+}
+
+/** Дорога от трака до уже известной точки — для карты груза с остановками. */
+export async function routeToPoint(from: LatLng, pt: LatLng): Promise<DeliveryPoint | null> {
+  return routeTo(from, pt)
+}
+
+/**
+ * Дорога через все точки по порядку, с линией: для карты груза с остановками.
+ * Возвращает конечную точку, сумму миль и минут. Маршрутизатор молчит — прямые
+ * отрезки с надбавкой, как у двухточечного routeTo.
+ */
+export async function routeVia(points: LatLng[]): Promise<DeliveryPoint | null> {
+  const last = points[points.length - 1]
+  if (points.length < 2 || !last) return null
+  const road = await roadRouteVia(points, true)
+  if (road) return { lat: last.lat, lng: last.lng, miles: road.miles, etaMin: road.minutes, coords: road.coords }
+  let miles = 0
+  for (let i = 1; i < points.length; i++) miles += haversineMiles(points[i - 1]!, points[i]!) * 1.2
+  miles = Math.round(miles)
+  return { lat: last.lat, lng: last.lng, miles, etaMin: Math.round((miles / 55) * 60) }
 }
 
 /** Real road route from `from` to an already-resolved point; straight-line ×1.2 at 55mph if routing fails. */

@@ -155,9 +155,14 @@ export default async function Page({
 
   // Map: the truck where it sits (ELD GPS) plus a delivery pin at its active load's
   // destination city, with rough miles + drive time to it.
-  const { markers: mapMarkers, routes: mapRoutes, miles: routeMiles } = await loadMapData(activeLoad, truck, fs, locale)
-  // Стоянка у склада по отметкам водителя — как на карточке груза, над картой.
+  // Отметки водителя — и для стоянки у склада, и чтобы карта знала, какая
+  // остановка следующая.
   const driverEvents = activeLoad ? await listLoadEvents(companyId, activeLoad.id) : []
+  const {
+    markers: mapMarkers,
+    routes: mapRoutes,
+    miles: routeMiles,
+  } = await loadMapData(activeLoad, truck, fs, locale, driverEvents)
   const stop = activeLoad ? stopWindow(driverEvents) : null
   const terms = stop && stop.min >= 30 ? await detentionTerms() : null
 

@@ -210,7 +210,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       )}
 
       <Suspense fallback={<MapSkeleton />}>
-        <LoadMapSection load={load} truck={truck} fs={fs} locale={locale} driverMarked={!!stop} />
+        <LoadMapSection load={load} truck={truck} fs={fs} locale={locale} driverMarked={!!stop} events={driverEvents} />
       </Suspense>
 
       {queuedBehind && <QueuedLoadHint locale={locale} current={queuedBehind} next={load} />}
@@ -371,6 +371,7 @@ async function LoadMapSection({
   fs,
   locale,
   driverMarked,
+  events,
 }: {
   load: Awaited<ReturnType<typeof getLoad>>
   truck: Parameters<typeof loadMapData>[1]
@@ -378,6 +379,7 @@ async function LoadMapSection({
   locale: Awaited<ReturnType<typeof getLocale>>
   /** Водитель отмечает шаги сам — стоянка уже показана над картой, GPS-плитка не нужна. */
   driverMarked: boolean
+  events: Awaited<ReturnType<typeof listLoadEvents>>
 }) {
   if (!load) return null
   const { rate: detentionRate, free: detentionFree } = await detentionTerms()
@@ -387,7 +389,7 @@ async function LoadMapSection({
     miles: routeMiles,
     etaMin,
     live,
-  } = await loadMapData(load, truck, fs, locale)
+  } = await loadMapData(load, truck, fs, locale, events)
   if (mapMarkers.length === 0) return null
   // План заправок по плановой линии маршрута (не по следу): цены EIA по регионам.
   // Только пока груз везётся или забукирован — доставленному он ни к чему.
