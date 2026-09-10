@@ -37,7 +37,7 @@ import { listLoadEvents } from '@/lib/load-events'
 import { DriverTimeline } from '@/components/driver-timeline'
 import { DriverInfoCard } from '@/components/driver-info-card'
 import { withAddresses, stopNames } from '@/lib/driver-info-zip'
-import { stopsFrom, viaLabel } from '@/lib/stops'
+import { isDone, nextOpenStop, stopTitle, stopsFrom, viaLabel } from '@/lib/stops'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
 import { CopyPlace } from '@/components/copy-place'
@@ -141,7 +141,19 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             row with the rate-con control squeezed it to ~160px and clipped every label
             to "Оплач…". Rate con moves onto its own line underneath. */}
         <div className="mt-5">
-          <StatusPicker id={load.id} current={load.status} bolId={bolDoc?.id ?? null} podId={podDoc?.id ?? null} />
+          <StatusPicker
+            id={load.id}
+            current={load.status}
+            bolId={bolDoc?.id ?? null}
+            podId={podDoc?.id ?? null}
+            stops={stops.slice(1, -1).map((s) => ({
+              key: String(s.seq),
+              label: stopTitle(s, stops, locale),
+              sub: s.city ? s.city.replace(/,.*$/, '') : null,
+              done: load.status === 'delivered' || load.status === 'paid' || isDone(s, driverEvents, stops),
+              current: load.status === 'in_transit' && nextOpenStop(stops, driverEvents)?.seq === s.seq,
+            }))}
+          />
         </div>
         {/* Бумаги груза одной сеткой: rate con, BOL, POD — три кнопки одного размера,
             на телефоне 2×2 (четвёртая клетка — «Повторить груз»), на широком экране

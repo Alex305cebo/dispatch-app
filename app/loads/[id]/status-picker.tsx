@@ -3,7 +3,7 @@
 import { DocLink } from '@/components/doc-link'
 
 import { useOptimistic, useTransition } from 'react'
-import { Ban, Check } from 'lucide-react'
+import { Ban, Check, MapPin } from 'lucide-react'
 import { setStatus } from '@/app/actions'
 import { type LoadStatus } from '@/lib/map'
 import { notify } from '@/lib/notify'
@@ -63,16 +63,23 @@ function DocChip({ label, docId, due }: { label: string; docId: number | null; d
   )
 }
 
+/** Промежуточная остановка на рейке: не статус, а точка рейса — без кнопки. */
+export type RailStop = { key: string; label: string; sub: string | null; done: boolean; current: boolean }
+
 export function StatusPicker({
   id,
   current,
   bolId = null,
   podId = null,
+  stops = [],
 }: {
   id: number
   current: LoadStatus
   bolId?: number | null
   podId?: number | null
+  /** Остановки между первой погрузкой и последней выгрузкой (lib/stops.ts) —
+   * встают на рейку между «В пути» и «Доставлен», чтобы дроп 1 не пропадал. */
+  stops?: RailStop[]
 }) {
   const [pending, start] = useTransition()
   const locale = useLocale()
@@ -100,7 +107,7 @@ export function StatusPicker({
           connectors between them are the flexible part. Doing it the other way round
           (flexible steps, fixed connectors) makes the dots drift apart at different
           widths and the labels collide. */}
-      <ol className={`flex items-start ${cancelled ? 'opacity-40' : ''}`}>
+      <ol className={`flex items-start overflow-x-auto ${cancelled ? 'opacity-40' : ''}`}>
         {PIPELINE.map((s, i) => {
           const done = currentIdx > i
           const isCurrent = currentIdx === i
@@ -108,6 +115,34 @@ export function StatusPicker({
           const Icon = STATUS_ICON[s]
           return (
             <li key={s} className="contents">
+              {/* Промежуточные остановки — между «В пути» и «Доставлен». */}
+              {s === 'delivered' &&
+                stops.map((st) => (
+                  <span key={st.key} className="contents">
+                    <span
+                      aria-hidden
+                      className={`mt-3.5 h-0.5 min-w-2 flex-1 rounded-full ${st.done || st.current ? STEP_TONE.in_transit.line : 'bg-white/10'}`}
+                    />
+                    <div
+                      className="flex w-[54px] shrink-0 flex-col items-center gap-1 sm:w-[72px]"
+                      title={`${st.label}${st.sub ? ` · ${st.sub}` : ''}`}
+                    >
+                      <span
+                        className={`flex size-7 shrink-0 items-center justify-center rounded-full ${
+                          st.done || st.current ? STEP_TONE.in_transit.dot : 'bg-white/[0.07] text-white/40'
+                        } ${st.current ? 'ring-2 ring-white/25 ring-offset-2 ring-offset-ink-950' : ''}`}
+                      >
+                        {st.done ? <Check size={14} strokeWidth={3} /> : <MapPin size={13} strokeWidth={2.5} />}
+                      </span>
+                      <span
+                        className={`w-full truncate text-center text-2xs font-medium ${st.current ? STEP_TONE.in_transit.text : st.done ? 'text-white/55' : 'text-white/30'}`}
+                      >
+                        {st.label}
+                      </span>
+                      {st.sub && <span className="w-full truncate text-center text-[9px] text-white/40">{st.sub}</span>}
+                    </div>
+                  </span>
+                ))}
               {i > 0 && (
                 <span
                   aria-hidden
@@ -129,9 +164,7 @@ export function StatusPicker({
                   aria-current={isCurrent ? 'step' : undefined}
                   title={statusLabel(locale, s)}
                   className={`flex size-7 shrink-0 items-center justify-center rounded-full transition-all duration-150 disabled:cursor-default ${
-                    done || isCurrent
-                      ? tone.dot
-                      : 'bg-white/[0.07] text-white/40 hover:bg-white/15 hover:text-white/70'
+                    done || isCurrent ? tone.dot : 'bg-white/[0.07] text-white/40 hover:bg-white/15 hover:text-white/70'
                   } ${isCurrent ? 'ring-2 ring-white/25 ring-offset-2 ring-offset-ink-950' : ''} ${
                     !done && !isCurrent ? 'hover:scale-110' : ''
                   }`}
