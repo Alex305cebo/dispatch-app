@@ -333,6 +333,7 @@ function NeedsAttention({
           route: `${load.origin ?? '—'} → ${load.destination ?? '—'}`,
           reasons: reasons.map((r) => ({ label: t(locale, r.key), bad: r.bad })),
         }))}
+        moreLabel={t(locale, 'loads.page.showMore')}
       />
     </section>
   )

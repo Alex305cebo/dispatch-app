@@ -46,7 +46,7 @@ export function PairBar({
       <span className="min-w-0">
         <span className={`${cap} sm:hidden`}>{truckShort}</span>
         <span className={`${cap} hidden sm:block`}>{truckCap}</span>
-        <span className="block truncate font-semibold">{truck?.label ?? t(locale, 'pair.noTruck')}</span>
+        <span className="block font-semibold max-sm:line-clamp-2 max-sm:text-[12px] max-sm:leading-tight sm:truncate">{truck?.label ?? t(locale, 'pair.noTruck')}</span>
       </span>
     </>
   )
@@ -59,7 +59,7 @@ export function PairBar({
           {loadCap}
           {load?.sub ? ` · ${load.sub}` : ''}
         </span>
-        <span className="block truncate font-semibold">{load?.label ?? t(locale, 'pair.noLoad')}</span>
+        <span className="block font-semibold max-sm:line-clamp-2 max-sm:text-[12px] max-sm:leading-tight sm:truncate">{load?.label ?? t(locale, 'pair.noLoad')}</span>
       </span>
     </>
   )

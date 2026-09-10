@@ -589,12 +589,10 @@ export default async function Page({
       />
 
       {/* ===== Around the truck: loads + documents ===== */}
-      {/* No `items-start` here on purpose. With it each column was only as tall as its
-          own content, so a truck with seven loads and three documents left a column of
-          bare page background beside the documents panel. Stretched, both panels end on
-          the same line, and the lists inside them are capped and scroll — so whichever
-          side has more rows, the block stays the same compact height. */}
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      {/* Высота каждой панели — по её содержимому (items-start), без внутренней
+          прокрутки: список из двух файлов не тянется до высоты семи грузов, а на
+          телефоне вложенный скролл не ловит палец. */}
+      <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
         <section className="panel flex min-w-0 flex-col p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white/62">
@@ -608,7 +606,7 @@ export default async function Page({
           {rows.length === 0 ? (
             <p className="text-[13px] text-white/55">{t(locale, 'trucks.detail.noLoadsYet')}</p>
           ) : (
-            <div className="flex max-h-[28rem] flex-col gap-2 overflow-y-auto pr-1">
+            <div className="flex flex-col gap-2">
               {rows.map(({ load, r }) => {
                 const rcId = rateCons.get(load.id)
                 return (
@@ -663,11 +661,8 @@ export default async function Page({
           <DocUpload truckId={truck.id} />
           {/* attachTargets = this truck's live loads, so a file that came in via
               Telegram and landed under the truck can be recognised into a load or
-              linked to an existing one straight from the list.
-              Capped like the loads list opposite: a truck with a dozen files would
-              otherwise stretch this column past the loads beside it — the same
-              imbalance, just mirrored. */}
-          <div className="max-h-[28rem] overflow-y-auto pr-1">
+              linked to an existing one straight from the list. */}
+          <div>
             <DocList
               docs={docs}
               attachTargets={live.map((l) => ({

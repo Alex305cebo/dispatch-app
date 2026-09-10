@@ -55,9 +55,11 @@ const VARIANTS: Record<Variant, string> = {
   ].join(' '),
 }
 
+// Зоны нажатия: не ниже 36px на десктопе и 44px на телефоне — 28-пиксельные
+// кнопки промахивались пальцем.
 const SIZES: Record<Size, string> = {
-  sm: 'h-7 px-2.5 text-xs',
-  md: 'h-9 px-3.5 text-base',
+  sm: 'h-9 px-3 text-xs max-md:h-11',
+  md: 'h-9 px-3.5 text-base max-md:h-11',
   lg: 'h-11 px-5 text-md',
 }
 

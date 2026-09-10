@@ -22,6 +22,7 @@ export const commonDict = {
   },
   'alerts.on': { ru: 'включены', en: 'on', es: 'activadas', uk: 'увімкнено', ro: 'pornite', kk: 'қосулы' },
   'alerts.off': { ru: 'включить', en: 'turn on', es: 'activar', uk: 'увімкнути', ro: 'pornește', kk: 'қосу' },
+  'common.more': { ru: 'Ещё', en: 'More', es: 'Más', uk: 'Ще', ro: 'Mai mult', kk: 'Тағы' },
   'alerts.blocked': {
     ru: 'запрещены в браузере',
     en: 'blocked by the browser',

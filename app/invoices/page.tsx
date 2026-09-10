@@ -22,6 +22,7 @@ import { getSetting } from '@/lib/settings'
 import { can } from '@/lib/capabilities-server'
 import { PaidToggle } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
+import { MoreMenu } from '@/components/more-menu'
 import { Info } from '@/components/info'
 import { CircleCheckBig, Wallet } from 'lucide-react'
 import { Collapse } from '@/components/collapse'
@@ -252,13 +253,13 @@ async function Unpaid({
   function renderReceivable(r: Receivable) {
     return (
       <div key={r.load.id} className={`panel p-4 ${r.overdue ? 'border-bad-500/30' : ''}`}>
-        <div className="flex items-center gap-4">
+        <div className="flex items-start gap-3">
           <Link href={`/loads/${r.load.id}`} className="min-w-0 flex-1">
-            <div className="truncate text-[14px] font-medium">
-              {r.load.invoiceNumber} · {r.load.origin ?? '—'} → {r.load.destination ?? '—'}
+            <div className="text-[14px] font-medium">
+              {r.load.origin ?? '—'} → {r.load.destination ?? '—'}
             </div>
             <div className="mt-0.5 text-[12px] text-white/60">
-              {r.load.brokerMc ? `MC ${r.load.brokerMc} · ` : ''}
+              {r.load.invoiceNumber} · {r.load.brokerMc ? `MC ${r.load.brokerMc} · ` : ''}
               <span className={r.overdue ? 'text-bad-400' : 'text-white/60'}>
                 {t(locale, 'finances.unpaid.daysOut')
                   .replace('{d}', String(r.daysOut))
@@ -276,7 +277,7 @@ async function Unpaid({
           <PaidToggle loadId={r.load.id} />
           <Link
             href={`/loads/${r.load.id}`}
-            className="rounded-lg border border-white/15 px-3 py-1.5 text-[12px] font-semibold text-white/80 hover:border-white/35 hover:text-white"
+            className="inline-flex min-h-9 items-center rounded-lg border border-white/15 px-3 text-[12px] font-semibold text-white/80 hover:border-white/35 hover:text-white max-md:min-h-11"
           >
             {t(locale, 'finances.card.openLoad')}
           </Link>
@@ -386,13 +387,16 @@ async function Paid({
             >
               <div className="flex flex-col gap-2">
                 {g.rows.map(({ load, r }) => (
-                  <div key={load.id} className="panel flex items-center gap-4 p-4">
-                    <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
-                      <div className="truncate text-[14px] font-medium">
-                        {load.invoiceNumber} · {load.origin ?? '—'} → {load.destination ?? '—'}
+                  /* Маршрут — первой строкой на всю ширину, сумма и RC ниже, «Снять
+                     отметку» — в «Ещё»: в одной строке с суммой и кнопками на телефоне
+                     от маршрута оставалось одно многоточие. */
+                  <div key={load.id} className="panel p-4">
+                    <Link href={`/loads/${load.id}`} className="block min-w-0">
+                      <div className="text-[14px] font-medium">
+                        {load.origin ?? '—'} → {load.destination ?? '—'}
                       </div>
                       <div className="mt-0.5 text-[12px] text-white/60">
-                        {load.paidAt ? usDate(load.paidAt) : '—'}
+                        {load.invoiceNumber} · {load.paidAt ? usDate(load.paidAt) : '—'}
                         {r ? (
                           <>
                             {' '}
@@ -401,9 +405,13 @@ async function Paid({
                         ) : null}
                       </div>
                     </Link>
-                    <span className="nums shrink-0 text-[15px] font-bold">{usd.format(load.rate)}</span>
-                    {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
-                    <PaidToggle loadId={load.id} paid />
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="nums mr-auto text-[15px] font-bold">{usd.format(load.rate)}</span>
+                      {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
+                      <MoreMenu label={t(locale, 'common.more')}>
+                        <PaidToggle loadId={load.id} paid />
+                      </MoreMenu>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -542,9 +550,9 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
       <p className="text-[11.5px] text-white/45">{t(locale, 'finances.payWeekNote')}</p>
       {sortedWeeks.map((week) => (
         <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[13px] font-semibold">
-            <span className="capitalize">{weekLabel(week.weekStartMs, locale)}</span>
-            <span className="nums shrink-0 text-[12.5px] font-normal text-white/60">{usd.format(week.gross)}</span>
+          <summary className="flex cursor-pointer list-none flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+            <span className="text-[15px] font-semibold capitalize">{weekLabel(week.weekStartMs, locale)}</span>
+            <span className="nums text-[17px] font-semibold">{usd.format(week.gross)}</span>
           </summary>
 
           <div className="mt-3 flex flex-col gap-2.5">
@@ -660,26 +668,27 @@ async function ByWeek({
       <p className="text-[11.5px] text-white/45">{t(locale, 'finances.payWeekNote')}</p>
       {sortedWeeks.map((week) => (
         <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[13px] font-semibold">
-            <span className="capitalize">{weekLabel(week.weekStartMs, locale)}</span>
-            <span className="nums shrink-0 text-right">
-              <span className="text-[15px] text-good-400">{usd.format(week.gross)}</span>
-              <span className="ml-2 text-[11.5px] font-normal text-white/50">
-                {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(week.count))} · {Math.round(week.miles)}{' '}
-                mi
+          {/* Дата и итог — первый уровень, грузы/мили/RPM — второй. На телефоне в
+              столбик: одна строка «дата + сумма + мили + CSV» ломалась на три. */}
+          <summary className="flex cursor-pointer list-none flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+            <span className="text-[15px] font-semibold capitalize">{weekLabel(week.weekStartMs, locale)}</span>
+            <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 sm:justify-end">
+              <span className="nums text-[17px] font-semibold">{usd.format(week.gross)}</span>
+              <span className="nums text-[12px] text-white/55">
+                {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(week.count))} · {Math.round(week.miles)} mi
                 {week.miles > 0 && ` · ${usd2.format(week.gross / week.miles)}/mi`}
               </span>
-              {/* Неделя одним файлом для бухгалтера: грузы, мили, ставки, счета, зарплата. */}
-              <a
-                href={`/api/export/week?start=${week.weekStartMs}`}
-                className="ml-2 rounded-md border border-white/12 px-2 py-0.5 text-[11px] font-medium text-white/70 hover:border-white/30 hover:text-white"
-              >
-                CSV
-              </a>
             </span>
           </summary>
 
           <div className="mt-3 flex flex-col gap-2">
+            {/* Неделя одним файлом для бухгалтера: грузы, мили, ставки, счета, зарплата. */}
+            <a
+              href={`/api/export/week?start=${week.weekStartMs}`}
+              className="inline-flex min-h-9 items-center self-end rounded-md border border-white/12 px-2.5 text-[11.5px] font-medium text-white/70 hover:border-white/30 hover:text-white max-md:min-h-11"
+            >
+              CSV
+            </a>
             {[...week.trucks.values()]
               .sort((a, b) => b.gross - a.gross)
               .map((row) => (
@@ -783,10 +792,12 @@ async function ByDriver({ companyId, locale }: { companyId: 'default' | 'demo'; 
       <p className="text-[11.5px] text-white/45">{t(locale, 'finances.payWeekNote')}</p>
       {sortedWeeks.map((week) => (
         <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[13px] font-semibold">
-            <span className="capitalize">{weekLabel(week.weekStartMs, locale)}</span>
-            <span className="nums shrink-0 text-[12.5px] font-normal text-white/60">
-              {t(locale, 'finances.payDue')} <span className="font-semibold text-good-400">{usd.format(week.pay)}</span>
+          {/* «К выплате» белым и крупно: зелёный читался как уже проведённая выплата. */}
+          <summary className="flex cursor-pointer list-none flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+            <span className="text-[15px] font-semibold capitalize">{weekLabel(week.weekStartMs, locale)}</span>
+            <span className="flex items-baseline gap-x-2">
+              <span className="text-[12px] text-white/55">{t(locale, 'finances.payDue')}</span>
+              <span className="nums text-[17px] font-semibold">{usd.format(week.pay)}</span>
             </span>
           </summary>
 

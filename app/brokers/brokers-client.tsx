@@ -183,7 +183,7 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                   return (
                   <li
                     key={rowKey}
-                    className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-white/6 px-3 py-2.5"
+                    className="flex flex-wrap items-start gap-x-3 gap-y-1.5 rounded-lg border border-white/6 px-3 py-2.5"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -295,27 +295,6 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                         </div>
                       )}
                     </div>
-                    {/* Правка руками: и реестр, и разбор документа ошибаются — не тот
-                        MC, телефон менеджера вместо офиса, почта, на которую счёт не
-                        примут. Правка идёт по всей истории брокера, иначе её пришлось
-                        бы повторять в каждом грузе. */}
-                    <button
-                      type="button"
-                      onClick={() => setEditFor(editFor === rowKey ? null : rowKey)}
-                      className="shrink-0 rounded-lg border border-white/10 px-2.5 py-1 text-[12px] text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300"
-                    >
-                      {editFor === rowKey ? t(locale, 'brokers.editClose') : t(locale, 'brokers.edit')}
-                    </button>
-                    {b.mc && (
-                      <button
-                        type="button"
-                        onClick={() => check('mc', b.mc!)}
-                        className="shrink-0 rounded-lg border border-white/10 px-2.5 py-1 text-[12px] text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300"
-                      >
-                        {t(locale, 'brokers.recheck')}
-                      </button>
-                    )}
-
                     {/* Представители — свёрнуты. Разворачивать нечего, если он один:
                         такой уже показан строкой выше. */}
                     {b.reps.length > 1 && (
@@ -353,6 +332,31 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                         </ul>
                       </details>
                     )}
+
+                    {/* Действия — своей строкой под контактами: рядом с ними в RU
+                        «Изменить / Проверить» оставляли телефону и почте узкую колонку.
+                        Правка руками: и реестр, и разбор документа ошибаются — не тот
+                        MC, телефон менеджера вместо офиса, почта, на которую счёт не
+                        примут. Правка идёт по всей истории брокера, иначе её пришлось
+                        бы повторять в каждом грузе. */}
+                    <div className="flex w-full flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditFor(editFor === rowKey ? null : rowKey)}
+                        className="inline-flex min-h-9 items-center rounded-lg border border-white/10 px-3 text-[12.5px] text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300 max-md:min-h-11"
+                      >
+                        {editFor === rowKey ? t(locale, 'brokers.editClose') : t(locale, 'brokers.edit')}
+                      </button>
+                      {b.mc && (
+                        <button
+                          type="button"
+                          onClick={() => check('mc', b.mc!)}
+                          className="inline-flex min-h-9 items-center rounded-lg border border-white/10 px-3 text-[12.5px] text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300 max-md:min-h-11"
+                        >
+                          {t(locale, 'brokers.recheck')}
+                        </button>
+                      )}
+                    </div>
 
                     {owedFor === rowKey && b.unpaid.length > 0 && (
                       <ul className="w-full rounded-lg border border-white/10 bg-ink-950/60 p-2">
