@@ -1283,6 +1283,8 @@ export async function addLoadEventManual(
   kind: string,
   atIso: string,
   note?: string,
+  /** Какой остановки касается (lib/stops.ts); без номера — концы рейса. */
+  stopSeq?: number | null,
 ): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
@@ -1295,8 +1297,8 @@ export async function addLoadEventManual(
   const rows = (await sql`SELECT truck_id FROM loads WHERE id = ${loadId}`) as {
     truck_id: number | null
   }[]
-  await sql`INSERT INTO load_events (company_id, load_id, truck_id, kind, note, at)
-            VALUES (${companyId}, ${loadId}, ${rows[0]?.truck_id ?? null}, ${kind}, ${note?.trim() || null}, ${when.toISOString()})`
+  await sql`INSERT INTO load_events (company_id, load_id, truck_id, kind, note, at, stop_seq)
+            VALUES (${companyId}, ${loadId}, ${rows[0]?.truck_id ?? null}, ${kind}, ${note?.trim() || null}, ${when.toISOString()}, ${stopSeq ?? null})`
   revalidatePath(`/loads/${loadId}`)
 }
 
@@ -1465,6 +1467,8 @@ export type LoadDetailsPatch = {
   brokerEmail: string | null
   pickupDate: string | null
   deliveryDate: string | null
+  /** Едет в одном трейлере с другим грузом — см. lib/map.ts activeLoadsByTruck. */
+  partial?: boolean
 }
 
 export async function updateLoadDetails(loadId: number, p: LoadDetailsPatch): Promise<{ error: string } | void> {
@@ -1483,12 +1487,33 @@ export async function updateLoadDetails(loadId: number, p: LoadDetailsPatch): Pr
       broker_name = ${p.brokerName || null},
       broker_mc = ${p.brokerMc || null}, broker_phone = ${p.brokerPhone || null},
       broker_email = ${p.brokerEmail || null}, pickup_date = ${p.pickupDate || null},
-      delivery_date = ${p.deliveryDate || null}
+      delivery_date = ${p.deliveryDate || null},
+      partial = COALESCE(${p.partial ?? null}, partial)
       WHERE id = ${loadId} AND company_id = ${await companyScope()}`
   } catch (e) {
     return { error: humanError(e, locale) }
   }
   revalidatePath(`/loads/${loadId}`)
+  revalidatePath('/loads')
+  revalidatePath('/', 'layout')
+}
+
+/**
+ * Партиал: груз едет в одном трейлере с текущим. Кнопка в панели после
+ * распознавания рейт-кона и галочка в «Деталях». Такой груз не вытесняет текущий
+ * с карты и со страницы водителя и не встаёт «следующим».
+ */
+export async function setLoadPartial(loadId: number, partial: boolean): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const companyId = await companyScope()
+  if (!(await loadBelongs(companyId, loadId))) return { error: t(await getLocale(), 'actions.loadNotFound') }
+  const rows =
+    (await sql`UPDATE loads SET partial = ${partial} WHERE id = ${loadId} AND company_id = ${companyId} RETURNING truck_id`) as {
+      truck_id: number | null
+    }[]
+  revalidatePath(`/loads/${loadId}`)
+  if (rows[0]?.truck_id) revalidatePath(`/trucks/${rows[0].truck_id}`)
   revalidatePath('/loads')
   revalidatePath('/', 'layout')
 }

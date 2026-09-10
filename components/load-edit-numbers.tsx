@@ -45,6 +45,8 @@ export type LoadDetails = {
   laneAvgRpm?: number | null
   /** Остановки по порядку (lib/stops.ts stopsFrom) — «Сроки» рисуются по ним. */
   stops?: LoadStop[]
+  /** Едет в одном трейлере с другим грузом. */
+  partial?: boolean
 }
 
 export function LoadEditNumbers({ load }: { load: LoadDetails }) {
@@ -80,6 +82,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
     brokerPhone: load.brokerPhone ?? '',
     brokerEmail: load.brokerEmail ?? '',
     pickupDate: load.pickupDate ?? '',
+    partial: load.partial ?? false,
     deliveryDate: load.deliveryDate ?? '',
   })
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value })
@@ -160,6 +163,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
         brokerEmail: f.brokerEmail.trim() || null,
         pickupDate: f.pickupDate || null,
         deliveryDate: f.deliveryDate || null,
+        partial: f.partial,
       })
       if (res?.error) notify('error', res.error)
       else {
@@ -250,6 +254,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
                   даты — диспетчеру нужен именно интервал. Полный адрес — прямо под
                   окном: раньше за ним ходили в сам документ или на карту. Остановок
                   может быть три и больше — по строке на каждую. */}
+              {load.partial && <Row label={t(locale, 'loadEdit.partial')} value={t(locale, 'loadEdit.yes')} />}
               {stops.map((s) => (
                 <Fragment key={s.seq}>
                   <Row label={stopTitle(s, stops, locale)} value={s.time || usDate(s.date) || '—'} />
@@ -333,6 +338,16 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
           type="date"
         />
       </div>
+      <label className="flex items-center gap-2 text-[13px] text-white/80">
+        <input
+          type="checkbox"
+          checked={f.partial}
+          onChange={(e) => setF({ ...f, partial: e.target.checked })}
+          className="size-4 accent-[#7c6cff]"
+        />
+        {t(locale, 'loadEdit.partial')}
+        <span className="text-[12px] text-white/45">· {t(locale, 'loadEdit.partialHint')}</span>
+      </label>
       <div className="flex gap-2">
         <Button variant="primary" disabled={pending} onClick={save}>
           {pending ? t(locale, 'loadEdit.saving') : t(locale, 'loadEdit.save')}

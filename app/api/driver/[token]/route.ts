@@ -3,9 +3,10 @@ import { revalidatePath } from 'next/cache'
 import { sql } from '@/lib/db'
 import { truckByDriverToken } from '@/lib/driver-link'
 import { listLoads } from '@/lib/loads'
-import { currentLoadsByTruck } from '@/lib/map'
+import { activeLoadsByTruck } from '@/lib/map'
+import { eventSeq, nextOpenStop, stopsFrom } from '@/lib/stops'
 import { autoInvoiceIfReady } from '@/lib/invoice'
-import { addLoadEvent } from '@/lib/load-events'
+import { addLoadEvent, listLoadEvents } from '@/lib/load-events'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,30 +26,64 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
   if (truck.companyId === 'demo') return NextResponse.json({ error: 'demo' }, { status: 403 })
 
   const loads = await listLoads(truck.companyId, { truckId: truck.id })
-  const load = currentLoadsByTruck(loads).get(truck.id) ?? null
-
   const fd = await req.formData()
   const action = String(fd.get('action') || '')
+  // Текущий груз и партиалы; страница называет, какого груза и какой остановки
+  // касается нажатие. Токен всё равно даёт доступ только к грузам ЭТОГО трака.
+  const active = activeLoadsByTruck(loads).get(truck.id) ?? []
+  const wantId = Number(fd.get('loadId')) || null
+  const load = (wantId ? active.find((l) => l.id === wantId) : null) ?? active[0] ?? null
+  const stops = load ? stopsFrom(load) : []
+  const stopSeq = Number(fd.get('stopSeq')) || null
+  const stop = stopSeq ? (stops.find((s) => s.seq === stopSeq) ?? null) : null
 
-  // «Приехал на погрузку» / «Приехал на выгрузку» — только отметка времени, статус
-  // не меняется. Это время и есть доказательство детеншена.
+  // «Приехал» на остановку — только отметка времени, статус не меняется. Это
+  // время и есть доказательство детеншена. Без номера остановки (старая страница)
+  // — по статусу: booked = погрузка, in_transit = выгрузка.
   if (action === 'arrived') {
     if (!load) return NextResponse.json({ error: 'no load' }, { status: 409 })
-    const kind = load.status === 'booked' ? 'arrived_pickup' : load.status === 'in_transit' ? 'arrived_delivery' : null
+    const kind = stop
+      ? stop.role === 'pickup'
+        ? 'arrived_pickup'
+        : 'arrived_delivery'
+      : load.status === 'booked'
+        ? 'arrived_pickup'
+        : load.status === 'in_transit'
+          ? 'arrived_delivery'
+          : null
     if (!kind) return NextResponse.json({ error: 'bad state' }, { status: 409 })
-    await addLoadEvent(truck.companyId, load.id, truck.id, kind)
+    await addLoadEvent(truck.companyId, load.id, truck.id, kind, null, stop?.seq ?? eventSeq({ kind, at: '' }, stops))
     revalidate(truck.id, load.id)
     return NextResponse.json({ ok: true })
   }
 
+  // «Загрузился» / «Выгрузился» на остановке. Статус груза: «в пути» после первой
+  // погрузки, «доставлен» — когда пройдены ВСЕ остановки, не после первой выгрузки.
   if (action === 'status') {
     if (!load) return NextResponse.json({ error: 'no load' }, { status: 409 })
+    if (stop) {
+      if (load.status !== 'booked' && load.status !== 'in_transit')
+        return NextResponse.json({ error: 'bad transition' }, { status: 409 })
+      const kind = stop.role === 'pickup' ? 'loaded' : 'delivered'
+      await addLoadEvent(truck.companyId, load.id, truck.id, kind, null, stop.seq)
+      const events = await listLoadEvents(truck.companyId, load.id)
+      const to =
+        stop.role === 'pickup' && load.status === 'booked'
+          ? 'in_transit'
+          : stop.role === 'delivery' && nextOpenStop(stops, events) === null
+            ? 'delivered'
+            : null
+      if (to) await sql`UPDATE loads SET status = ${to} WHERE id = ${load.id} AND company_id = ${truck.companyId}`
+      revalidate(truck.id, load.id)
+      return NextResponse.json({ ok: true, status: to ?? load.status })
+    }
     const to = String(fd.get('to') || '')
-    // Только шаг вперёд по своему грузу: booked → in_transit → delivered.
+    // Старая страница без остановок: только шаг вперёд, booked → in_transit → delivered.
     const ok = (load.status === 'booked' && to === 'in_transit') || (load.status === 'in_transit' && to === 'delivered')
     if (!ok) return NextResponse.json({ error: 'bad transition' }, { status: 409 })
     await sql`UPDATE loads SET status = ${to} WHERE id = ${load.id} AND company_id = ${truck.companyId}`
-    await addLoadEvent(truck.companyId, load.id, truck.id, to === 'in_transit' ? 'loaded' : 'delivered')
+    const kind = to === 'in_transit' ? 'loaded' : 'delivered'
+    await addLoadEvent(truck.companyId, load.id, truck.id, kind, null, eventSeq({ kind, at: '' }, stops))
     revalidate(truck.id, load.id)
     return NextResponse.json({ ok: true, status: to })
   }
@@ -56,7 +91,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
   // Сообщение диспетчеру: сломался, задержка, вопрос. Водитель пишет сам — это не
   // автоматическое сообщение. Диспетчер видит его на грузе и в уведомлениях.
   if (action === 'note') {
-    const text = String(fd.get('text') || '').trim().slice(0, 500)
+    const text = String(fd.get('text') || '')
+      .trim()
+      .slice(0, 500)
     if (!text) return NextResponse.json({ error: 'empty' }, { status: 400 })
     await addLoadEvent(truck.companyId, load?.id ?? null, truck.id, 'note', text)
     revalidate(truck.id, load?.id ?? null)
@@ -81,7 +118,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
                 ${file.type || 'application/octet-stream'}, ${file.size}, decode(${hex}, 'hex'), ${truck.companyId})`
       saved++
     }
-    if (saved) await addLoadEvent(truck.companyId, load?.id ?? null, truck.id, 'photo', `${kind.toUpperCase()} × ${saved}`)
+    if (saved)
+      await addLoadEvent(truck.companyId, load?.id ?? null, truck.id, 'photo', `${kind.toUpperCase()} × ${saved}`)
     if (load && kind === 'pod') await autoInvoiceIfReady(truck.companyId, load.id)
     revalidate(truck.id, load?.id ?? null)
     return NextResponse.json({ ok: true, saved })

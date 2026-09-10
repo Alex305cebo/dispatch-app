@@ -11,6 +11,7 @@ import { notify } from '@/lib/notify'
 import { t } from '@/lib/i18n'
 import { usDate, usTime } from '@/lib/fmt'
 import type { LoadEvent } from '@/lib/load-events'
+import { eventSeq, stopTitle, type LoadStop } from '@/lib/stops'
 
 const KEY = {
   arrived_pickup: 'driver.ev.arrivedPickup',
@@ -76,13 +77,16 @@ export function DriverTimeline({
   loadId,
   detention = null,
   link,
+  stops = [],
 }: {
   events: LoadEvent[]
   locale: ReturnType<typeof useLocale>
   truckId: number
   loadId: number
-  /** Стоянка у склада ≥ 30 мин по отметкам — см. lib/detention stopWindow. */
-  detention?: DetentionProps | null
+  /** Стоянки у складов ≥ 30 мин по отметкам — по одной на остановку (lib/detention stopWindows). */
+  detention?: DetentionProps | DetentionProps[] | null
+  /** Остановки груза — чтобы у отметки было видно, к какой она (lib/stops.ts). */
+  stops?: LoadStop[]
   /** Блок «Страница водителя» (ссылка, Telegram, SMS) — внутри того же блока:
    * отметки приходят именно по этой ссылке, они дополняют друг друга. */
   link?: React.ReactNode
@@ -100,6 +104,14 @@ export function DriverTimeline({
 
   // Где рейс сейчас — последний шаг (не сообщение и не фото), одной строкой в шапке.
   const last = [...events].reverse().find((e) => e.kind !== 'note' && e.kind !== 'photo') ?? null
+  const detentions = detention == null ? [] : Array.isArray(detention) ? detention : [detention]
+  // Три и больше точек: у отметки подпись остановки — «Выгрузка 1 (Omaha, NE)».
+  const multi = stops.length > 2
+  const stopOf = (e: LoadEvent): LoadStop | null => {
+    if (!multi) return null
+    const seq = eventSeq({ kind: e.kind, at: e.at, stopSeq: e.stopSeq }, stops)
+    return stops.find((s) => s.seq === seq) ?? null
+  }
 
   return (
     <section className="panel mt-4 overflow-hidden p-0">
@@ -161,9 +173,11 @@ export function DriverTimeline({
               const dwell =
                 prev &&
                 ((prev.kind === 'arrived_pickup' && e.kind === 'loaded') ||
-                  (prev.kind === 'arrived_delivery' && e.kind === 'delivered'))
+                  (prev.kind === 'arrived_delivery' && e.kind === 'delivered')) &&
+                (!multi || eventSeq(prev, stops) === eventSeq(e, stops))
                   ? Math.round((Date.parse(e.at) - Date.parse(prev.at)) / 60_000)
                   : null
+              const at = stopOf(e)
               const isLast = i === events.length - 1
               return (
                 <li key={e.id} className="relative flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5 pl-5 text-[13px]">
@@ -200,6 +214,12 @@ export function DriverTimeline({
                     {ICON[e.kind]} {t(locale, KEY[e.kind])}
                     {e.note ? `: ${e.note}` : ''}
                   </span>
+                  {at && (
+                    <span className="text-[12px] text-white/50">
+                      · {stopTitle(at, stops, locale)}
+                      {at.city ? ` (${at.city})` : ''}
+                    </span>
+                  )}
                   {dwell != null && dwell > 0 && (
                     <span
                       className={`nums rounded-md px-1.5 py-0.5 text-[11.5px] ${dwell >= 120 ? 'bg-bad-500/15 text-bad-300' : 'bg-white/[0.06] text-white/55'}`}
@@ -231,10 +251,11 @@ export function DriverTimeline({
             {adding ? (
               <AddForm
                 locale={locale}
+                stops={multi ? stops : []}
                 onCancel={() => setAdding(false)}
-                onSave={(kind, at, note) => {
+                onSave={(kind, at, note, stopSeq) => {
                   setAdding(false)
-                  run(() => addLoadEventManual(loadId, kind, at, note))
+                  run(() => addLoadEventManual(loadId, kind, at, note, stopSeq))
                 }}
               />
             ) : (
@@ -253,10 +274,13 @@ export function DriverTimeline({
 
       {link && <div className="border-t border-white/[0.06] px-4 py-3">{link}</div>}
 
-      {/* Стоянка у склада — внизу того же блока: считается из отметок выше. */}
-      {detention && (
+      {/* Стоянка у склада — внизу того же блока: считается из отметок выше.
+          У груза с несколькими точками — по плитке на каждую стоянку. */}
+      {detentions.length > 0 && (
         <div className="border-t border-white/[0.06] px-4 pb-4">
-          <DetentionTile wide {...detention} />
+          {detentions.map((d, i) => (
+            <DetentionTile key={i} wide {...d} />
+          ))}
         </div>
       )}
     </section>
@@ -266,25 +290,52 @@ export function DriverTimeline({
 /** Отметка руками: водитель забыл нажать, а время сказал по телефону. */
 function AddForm({
   locale,
+  stops,
   onSave,
   onCancel,
 }: {
   locale: ReturnType<typeof useLocale>
-  onSave: (kind: string, atIso: string, note?: string) => void
+  /** Пусто у двухточечного груза; иначе — выбор остановки. */
+  stops: LoadStop[]
+  onSave: (kind: string, atIso: string, note?: string, stopSeq?: number | null) => void
   onCancel: () => void
 }) {
   const [kind, setKind] = useState('arrived_pickup')
   const [at, setAt] = useState(toLocalInput(new Date().toISOString()))
   const [note, setNote] = useState('')
+  const [seq, setSeq] = useState<number>(stops[0]?.seq ?? 0)
+  // Остановка задаёт и вид отметки: у пикапа — приехал/загрузился, у выгрузки — приехал/выгрузился.
+  const chosen = stops.find((s) => s.seq === seq) ?? null
   const KINDS = ['arrived_pickup', 'loaded', 'arrived_delivery', 'delivered', 'note'] as const
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2">
+      {stops.length > 0 && (
+        <select
+          value={seq}
+          onChange={(e) => setSeq(Number(e.target.value))}
+          className="rounded-lg border border-white/15 bg-ink-950/70 px-2 py-1.5 text-[12.5px] outline-none"
+        >
+          {stops.map((s) => (
+            <option key={s.seq} value={s.seq}>
+              {stopTitle(s, stops, locale)}
+              {s.city ? ` · ${s.city}` : ''}
+            </option>
+          ))}
+        </select>
+      )}
       <select
         value={kind}
         onChange={(e) => setKind(e.target.value)}
         className="rounded-lg border border-white/15 bg-ink-950/70 px-2 py-1.5 text-[12.5px] outline-none"
       >
-        {KINDS.map((k) => (
+        {KINDS.filter(
+          (k) =>
+            !chosen ||
+            k === 'note' ||
+            (chosen.role === 'pickup'
+              ? k === 'arrived_pickup' || k === 'loaded'
+              : k === 'arrived_delivery' || k === 'delivered'),
+        ).map((k) => (
           <option key={k} value={k}>
             {t(locale, KEY[k])}
           </option>
@@ -307,7 +358,14 @@ function AddForm({
       <button
         type="button"
         disabled={!at}
-        onClick={() => onSave(kind, new Date(at).toISOString(), note.trim() || undefined)}
+        onClick={() =>
+          onSave(
+            kind,
+            new Date(at).toISOString(),
+            note.trim() || undefined,
+            chosen && kind !== 'note' ? chosen.seq : null,
+          )
+        }
         className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12.5px] font-semibold text-white disabled:opacity-50"
       >
         {t(locale, 'driver.timeline.save')}

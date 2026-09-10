@@ -160,7 +160,7 @@ test('без водителя остаётся номер трака, а не п
   assert.equal(truckLabel(t, '1847'), 'TRK-2237 TRL-1847')
 })
 
-import { nextLoadsByTruck } from './map.ts'
+import { activeLoadsByTruck, nextLoadsByTruck } from './map.ts'
 
 test('везущийся груз остаётся текущим, когда для трака забукирован следующий', () => {
   const base = { truckId: 1, rate: 1, loadedMiles: 1, deadheadMiles: 0 } as unknown as LoadRecord
@@ -189,4 +189,46 @@ test('из двух забукированных текущий — с ранн�
   assert.equal(currentLoadsByTruck([early, later]).get(1)?.id, 1)
   assert.equal(nextLoadsByTruck([early, later]).get(1)?.id, 2)
   assert.equal(nextLoadsByTruck([early]).get(1), undefined)
+})
+
+test('партиал не вытесняет текущий груз и не встаёт следующим, но едет вместе с ним', () => {
+  const base = { truckId: 1, rate: 1, loadedMiles: 1, deadheadMiles: 0, partial: false } as unknown as LoadRecord
+  const hauling = {
+    ...base,
+    id: 10,
+    status: 'in_transit',
+    pickupDate: '2026-09-08',
+    createdAt: '2026-09-07T00:00:00Z',
+  } as LoadRecord
+  const partial = {
+    ...base,
+    id: 11,
+    status: 'booked',
+    partial: true,
+    pickupDate: '2026-09-08',
+    createdAt: '2026-09-09T00:00:00Z',
+  } as LoadRecord
+  const next = {
+    ...base,
+    id: 12,
+    status: 'booked',
+    pickupDate: '2026-09-12',
+    createdAt: '2026-09-09T01:00:00Z',
+  } as LoadRecord
+  const all = [partial, next, hauling]
+  assert.equal(currentLoadsByTruck(all).get(1)?.id, 10)
+  assert.equal(nextLoadsByTruck(all).get(1)?.id, 12)
+  assert.deepEqual(
+    activeLoadsByTruck(all)
+      .get(1)
+      ?.map((l) => l.id),
+    [10, 11],
+  )
+  // Одни партиалы — первый из них и есть текущий для водителя.
+  assert.deepEqual(
+    activeLoadsByTruck([partial])
+      .get(1)
+      ?.map((l) => l.id),
+    [11],
+  )
 })

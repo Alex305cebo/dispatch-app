@@ -9,7 +9,7 @@ import { PairBar } from '@/components/pair-bar'
 import { DriverLinkButton } from '@/components/driver-link-button'
 import { sql } from '@/lib/db'
 import { getTruck, listDocs, listLoads, rateConByLoad } from '@/lib/loads'
-import { currentLoadsByTruck, nextLoadsByTruck, truckLabel } from '@/lib/map'
+import { activeLoadsByTruck, currentLoadsByTruck, nextLoadsByTruck, truckLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { fleetStatusByUnit, getTruckMeta, listMaintenance, listTodos, oilStatus } from '@/lib/maintenance'
 import { tripHistory } from '@/lib/eld'
@@ -32,7 +32,8 @@ import { Info } from '@/components/info'
 import { companyScope, getCurrentUser } from '@/lib/session'
 import { getCompany } from '@/lib/invoice'
 import { dispatcherPhoneKey, getSetting, detentionTerms } from '@/lib/settings'
-import { stopWindow } from '@/lib/detention'
+import { stopWindows } from '@/lib/detention'
+import { stopsFrom, viaLabel } from '@/lib/stops'
 import { listLoadEvents } from '@/lib/load-events'
 import { DriverTimeline } from '@/components/driver-timeline'
 import { QueuedLoadHint } from '@/components/queued-load-hint'
@@ -152,19 +153,26 @@ export default async function Page({
   const activeLoad = currentLoadsByTruck(live).get(truck.id) ?? null
   // Следующий рейс, если рейт-кон на него уже брошен, пока этот везётся.
   const nextLoad = nextLoadsByTruck(live).get(truck.id) ?? null
+  // Партиалы: едут вместе с текущим в одном трейлере.
+  const partials = (activeLoadsByTruck(live).get(truck.id) ?? []).filter((l) => l.id !== activeLoad?.id)
+  const activeStops = activeLoad ? stopsFrom(activeLoad) : []
+  const activeVia = activeLoad ? viaLabel(activeStops, locale) : null
 
   // Map: the truck where it sits (ELD GPS) plus a delivery pin at its active load's
   // destination city, with rough miles + drive time to it.
   // Отметки водителя — и для стоянки у склада, и чтобы карта знала, какая
   // остановка следующая.
   const driverEvents = activeLoad ? await listLoadEvents(companyId, activeLoad.id) : []
-  const {
-    markers: mapMarkers,
-    routes: mapRoutes,
-    miles: routeMiles,
-  } = await loadMapData(activeLoad, truck, fs, locale, driverEvents)
-  const stop = activeLoad ? stopWindow(driverEvents) : null
-  const terms = stop && stop.min >= 30 ? await detentionTerms() : null
+  const mapData = await loadMapData(activeLoad, truck, fs, locale, driverEvents)
+  // Партиалы — теми же пинами и линиями, без второго трака (fs не передаём).
+  for (const p of partials) {
+    const extra = await loadMapData(p, truck, undefined, locale)
+    mapData.markers.push(...extra.markers)
+    mapData.routes.push(...extra.routes)
+  }
+  const { markers: mapMarkers, routes: mapRoutes, miles: routeMiles } = mapData
+  const windows = activeLoad ? stopWindows(driverEvents, activeStops).filter((w) => w.min >= 30) : []
+  const terms = windows.length ? await detentionTerms() : null
 
   const toneClass = {
     move: 'text-good-400',
@@ -328,6 +336,7 @@ export default async function Page({
                 >
                   <span className="truncate text-[16px] font-semibold">
                     {activeLoad.origin ?? '—'} → {activeLoad.destination ?? '—'}
+                    {activeVia && <span className="ml-1.5 text-[13px] font-medium text-white/50">· {activeVia}</span>}
                   </span>
                   <span className="shrink-0 text-[14px] text-haul-300 transition-transform group-hover:translate-x-0.5">
                     ↗
@@ -365,6 +374,24 @@ export default async function Page({
                   <dd className="font-medium text-white/85">{usd.format(activeLoad.rate)}</dd>
                 </div>
               </dl>
+              {partials.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/loads/${p.id}`}
+                  className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-haul-500/30 bg-haul-500/[0.06] px-3 py-2 text-[13px] hover:border-haul-400/60"
+                >
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-haul-300">
+                    {t(locale, 'trucks.detail.partialLoad')}
+                  </span>
+                  <span className="font-medium text-white/85">
+                    {p.origin ?? '—'} → {p.destination ?? '—'}
+                  </span>
+                  <span className="nums text-white/50">{p.pickupTime || usDate(p.pickupDate)}</span>
+                  {p.referenceId && <span className="nums text-[12px] text-white/40">#{p.referenceId}</span>}
+                  {p.brokerName && <span className="truncate text-[12px] text-white/45">· {p.brokerName}</span>}
+                  <span className="nums ml-auto font-medium text-white/70">{usd.format(p.rate)}</span>
+                </Link>
+              ))}
               {nextLoad && (
                 <Link
                   href={`/loads/${nextLoad.id}`}
@@ -464,7 +491,14 @@ export default async function Page({
             {t(locale, 'trucks.detail.orManually')}
           </Link>
         </div>
-        <TruckRcDrop truckId={truck.id} />
+        <TruckRcDrop
+          truckId={truck.id}
+          currentLoad={
+            activeLoad
+              ? { id: activeLoad.id, route: `${activeLoad.origin ?? '—'} → ${activeLoad.destination ?? '—'}` }
+              : null
+          }
+        />
         <OrphanRateCons
           truckId={truck.id}
           docs={docs
@@ -488,26 +522,23 @@ export default async function Page({
           locale={locale}
           truckId={truck.id}
           loadId={activeLoad.id}
+          stops={activeStops}
           link={
             driverLink ? (
               <DriverLinkButton embedded url={driverLink} driverPhone={meta?.driverPhone ?? null} seenAt={driverSeen} />
             ) : undefined
           }
-          detention={
-            stop && terms
-              ? {
-                  at: stop.at,
-                  sinceIso: stop.sinceIso,
-                  endIso: stop.endIso,
-                  min: stop.min,
-                  rateHr: terms.rate,
-                  freeHr: terms.free,
-                  refId: activeLoad.referenceId,
-                  route: `${activeLoad.origin ?? '—'} → ${activeLoad.destination ?? '—'}`,
-                  truck: truckLabel(truck),
-                }
-              : null
-          }
+          detention={windows.map((w) => ({
+            at: w.at,
+            sinceIso: w.sinceIso,
+            endIso: w.endIso,
+            min: w.min,
+            rateHr: terms?.rate ?? 35,
+            freeHr: terms?.free ?? 2,
+            refId: activeLoad.referenceId,
+            route: `${activeLoad.origin ?? '—'} → ${activeLoad.destination ?? '—'}`,
+            truck: truckLabel(truck),
+          }))}
         />
       )}
 

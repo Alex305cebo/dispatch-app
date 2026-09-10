@@ -459,6 +459,14 @@ export const trucksDict = {
     ro: 'Câte mile mai sunt până la următorul schimb de ulei. Verde → galben → roșu pe măsură ce se apropie intervalul.',
     kk: 'Келесі май ауыстыруға қанша миль қалды. Аралыққа жақындаған сайын жасыл → сары → қызыл.',
   },
+  'trucks.detail.partialLoad': {
+    ru: 'Партиал · едет вместе',
+    en: 'Partial · rides along',
+    es: 'Parcial · va junto',
+    uk: 'Партіал · їде разом',
+    ro: 'Parțial · merge împreună',
+    kk: 'Партиал · бірге жүреді',
+  },
   'trucks.detail.nextLoad': {
     ru: 'Следующий груз',
     en: 'Next load',

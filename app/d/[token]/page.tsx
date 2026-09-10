@@ -3,17 +3,19 @@ import { cookies } from 'next/headers'
 import { truckByDriverToken } from '@/lib/driver-link'
 import { listDocs, listLoads } from '@/lib/loads'
 import { listLoadEvents } from '@/lib/load-events'
-import { currentLoadsByTruck, nextLoadsByTruck } from '@/lib/map'
-import { usDate } from '@/lib/fmt'
+import { activeLoadsByTruck, nextLoadsByTruck } from '@/lib/map'
+import { mergeStops } from '@/lib/stops'
 import { getCompany } from '@/lib/invoice'
 import { setSetting } from '@/lib/settings'
 import { resolveLocale, t } from '@/lib/i18n'
-import { DriverClient, LangSwitch } from './driver-client'
+import { usDate } from '@/lib/fmt'
+import { DriverClient, LangSwitch, type DriverLoad } from './driver-client'
 
 // Страница водителя — без логина и без приложения. Открывается по ссылке из карточки
-// трака (lib/driver-link.ts). Видно только своё: текущий груз, адреса, телефон
-// брокера; можно отметить шаги рейса, написать диспетчеру и подшить фото. Ставки и
-// другие траки не видны. Публичный адрес — см. middleware.ts, /d/ в списке без сессии.
+// трака (lib/driver-link.ts). Видно только своё: текущий груз (и партиалы, если два
+// груза едут в одном трейлере), остановки по порядку, телефон брокера; можно
+// отметить шаги рейса, написать диспетчеру и подшить фото. Ставки и другие траки не
+// видны. Публичный адрес — см. middleware.ts, /d/ в списке без сессии.
 // Язык — по умолчанию английский (ссылку шлют водителям с любым родным языком, а
 // английский понимают все), переключатель внизу запоминается своей cookie.
 export const dynamic = 'force-dynamic'
@@ -25,13 +27,30 @@ export default async function Page({ params }: { params: Promise<{ token: string
   const jar = await cookies()
   const locale = resolveLocale(jar.get('driver_locale')?.value ?? 'en')
   const [loads, company] = await Promise.all([listLoads(truck.companyId, { truckId: truck.id }), getCompany()])
-  const load = currentLoadsByTruck(loads).get(truck.id) ?? null
+  // Текущий груз и партиалы — одной лентой остановок (lib/stops.ts mergeStops).
+  const active = activeLoadsByTruck(loads).get(truck.id) ?? []
+  const load = active[0] ?? null
   const next = nextLoadsByTruck(loads).get(truck.id) ?? null
-  const [docs, events] = await Promise.all([
+  const [docs, eventsPer] = await Promise.all([
     load ? listDocs(truck.companyId, { loadId: load.id }) : Promise.resolve([]),
-    load ? listLoadEvents(truck.companyId, load.id) : Promise.resolve([]),
+    Promise.all(active.map((l) => listLoadEvents(truck.companyId, l.id))),
   ])
+  const events = eventsPer.flatMap((evs, i) =>
+    evs.map((e) => ({ id: e.id, kind: e.kind, note: e.note, at: e.at, stopSeq: e.stopSeq, loadId: active[i]!.id })),
+  )
   const has = (k: string) => docs.some((d) => d.kind === k)
+  const summary = (l: (typeof active)[number]): DriverLoad => ({
+    id: l.id,
+    status: l.status,
+    origin: l.origin,
+    destination: l.destination,
+    brokerName: l.brokerName,
+    brokerPhone: l.brokerPhone,
+    referenceId: l.referenceId,
+    hasBol: l.id === load?.id && has('bol'),
+    hasPod: l.id === load?.id && has('pod'),
+    photos: l.id === load?.id ? docs.filter((d) => d.kind === 'photo').length : 0,
+  })
   // «Водитель открывал страницу N мин назад» — диспетчеру видно, что ссылка живая.
   // Ошибка записи страницу не роняет.
   setSetting(`driver_seen:${truck.id}`, new Date().toISOString()).catch(() => {})
@@ -47,25 +66,10 @@ export default async function Page({ params }: { params: Promise<{ token: string
         <DriverClient
           token={token}
           locale={locale}
-          load={{
-            id: load.id,
-            status: load.status,
-            origin: load.origin,
-            destination: load.destination,
-            pickupAddress: load.pickupAddress,
-            deliveryAddress: load.deliveryAddress,
-            pickupDate: load.pickupDate,
-            deliveryDate: load.deliveryDate,
-            pickupTime: load.pickupTime,
-            deliveryTime: load.deliveryTime,
-            brokerName: load.brokerName,
-            brokerPhone: load.brokerPhone,
-            referenceId: load.referenceId,
-            hasBol: has('bol'),
-            hasPod: has('pod'),
-            photos: docs.filter((d) => d.kind === 'photo').length,
-          }}
-          events={events.map((e) => ({ id: e.id, kind: e.kind, note: e.note, at: e.at }))}
+          load={summary(load)}
+          loads={active.map(summary)}
+          stops={mergeStops(active)}
+          events={events}
           dispatcherPhone={company.phone}
         />
       ) : (
@@ -82,7 +86,15 @@ export default async function Page({ params }: { params: Promise<{ token: string
               </a>
             )}
           </section>
-          <DriverClient token={token} locale={locale} load={null} events={[]} dispatcherPhone={company.phone} />
+          <DriverClient
+            token={token}
+            locale={locale}
+            load={null}
+            loads={[]}
+            stops={[]}
+            events={[]}
+            dispatcherPhone={company.phone}
+          />
         </>
       )}
       {next && (

@@ -5,18 +5,13 @@ import { useRouter } from 'next/navigation'
 import { t, type Locale } from '@/lib/i18n'
 import type { LoadStatus } from '@/lib/map'
 import { usDate } from '@/lib/fmt'
+import { arrivedAt, isDone, stopTitle, stopsLabel, type MergedStop } from '@/lib/stops'
 
-type DriverLoad = {
+export type DriverLoad = {
   id: number
   status: LoadStatus
   origin: string | null
   destination: string | null
-  pickupAddress: string | null
-  deliveryAddress: string | null
-  pickupDate: string | null
-  deliveryDate: string | null
-  pickupTime: string | null
-  deliveryTime: string | null
   brokerName: string | null
   brokerPhone: string | null
   referenceId: string | null
@@ -25,7 +20,14 @@ type DriverLoad = {
   photos: number
 }
 
-type Ev = { id: number; kind: string; note: string | null; at: string }
+export type Ev = {
+  id: number
+  kind: string
+  note: string | null
+  at: string
+  stopSeq: number | null
+  loadId: number | null
+}
 
 const EVENT_KEY = {
   arrived_pickup: 'driver.ev.arrivedPickup',
@@ -43,19 +45,29 @@ const clock = (iso: string) =>
 /**
  * Страница водителя: где он сейчас в рейсе, один следующий шаг крупной кнопкой,
  * адреса, звонки, фото и сообщение диспетчеру. Всё крупно — читается на стоянке,
- * нажимается большим пальцем. Шаги идут по порядку: приехал на погрузку →
- * загрузился → приехал на выгрузку → выгрузился; время каждого — диспетчеру.
+ * нажимается большим пальцем.
+ *
+ * Рейс — лента ОСТАНОВОК (lib/stops.ts): у каждой «приехал», потом «загрузился»
+ * или «выгрузился». Груз с тремя точками идёт по трём; партиалы (два груза в одном
+ * трейлере) — одной лентой по датам, у каждой остановки подпись, чей это груз.
  */
 export function DriverClient({
   token,
   locale,
   load,
+  loads,
+  stops,
   events,
   dispatcherPhone,
 }: {
   token: string
   locale: Locale
+  /** Основной груз — под него идут фото BOL/POD. */
   load: DriverLoad | null
+  /** Все грузы, которые едут сейчас (текущий + партиалы). */
+  loads: DriverLoad[]
+  /** Остановки всех этих грузов по порядку. */
+  stops: MergedStop[]
   events: Ev[]
   dispatcherPhone: string
 }) {
@@ -101,64 +113,77 @@ export function DriverClient({
   const big =
     'flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-4 text-[16px] font-bold transition-transform active:scale-[0.98] disabled:opacity-50'
 
-  // Где водитель в рейсе — по статусу и по последней отметке «приехал».
-  const arrivedPickup = events.some((e) => e.kind === 'arrived_pickup')
-  const arrivedDelivery = events.some((e) => e.kind === 'arrived_delivery')
-  const step: 0 | 1 | 2 | 3 | 4 = !load
-    ? 0
-    : load.status === 'booked'
-      ? arrivedPickup
-        ? 1
-        : 0
-      : load.status === 'in_transit'
-        ? arrivedDelivery
-          ? 3
-          : 2
-        : 4
-  const STEPS = [
-    'driver.step.toPickup',
-    'driver.step.atPickup',
-    'driver.step.toDelivery',
-    'driver.step.atDelivery',
-    'driver.step.done',
-  ] as const
+  // Где водитель в рейсе — по отметкам на каждой остановке. Груз «в пути» без
+  // отметок (статус поставил GPS или диспетчер): его первый пикап уже позади.
+  const stopsOf = (loadId: number) => stops.filter((s) => s.loadId === loadId)
+  const evOf = (loadId: number) => events.filter((e) => e.loadId === loadId)
+  const statusOf = (loadId: number) => loads.find((l) => l.id === loadId)?.status ?? 'booked'
+  const done = (s: MergedStop) => {
+    const st = statusOf(s.loadId)
+    if (st === 'delivered' || st === 'paid') return true
+    if (isDone(s, evOf(s.loadId), stopsOf(s.loadId))) return true
+    return (
+      s.role === 'pickup' && st === 'in_transit' && stopsOf(s.loadId).find((x) => x.role === 'pickup')?.seq === s.seq
+    )
+  }
+  const next = stops.find((s) => !done(s)) ?? null
+  const arrived = next ? arrivedAt(next, evOf(next.loadId), stopsOf(next.loadId)) : null
+  const many = loads.length > 1
+  const stepText = !next
+    ? 'driver.step.done'
+    : next.role === 'pickup'
+      ? arrived
+        ? 'driver.step.atPickup'
+        : 'driver.step.toPickup'
+      : arrived
+        ? 'driver.step.atDelivery'
+        : 'driver.step.toDelivery'
+  const target = (s: MergedStop) => ({ loadId: String(s.loadId), stopSeq: String(s.seq) })
+  const tag = (s: MergedStop) => (many ? ` · #${s.ref ?? s.loadId}${s.broker ? ` ${s.broker}` : ''}` : '')
 
-  const stop = (
-    label: string,
-    addr: string | null,
-    city: string | null,
-    date: string | null,
-    time: string | null,
-    active: boolean,
-  ) => {
-    const where = addr || city || '—'
+  const card = (s: MergedStop, active: boolean) => {
+    const where = s.address || s.city || '—'
+    const finished = done(s)
     return (
       <div
-        className={`rounded-xl border p-3 ${active ? 'border-haul-400/60 bg-haul-500/[0.08]' : 'border-white/10 bg-white/[0.03]'}`}
+        key={`${s.loadId}-${s.seq}`}
+        className={`rounded-xl border p-3 ${
+          active
+            ? 'border-haul-400/60 bg-haul-500/[0.08]'
+            : finished
+              ? 'border-white/5 bg-white/[0.02] opacity-60'
+              : 'border-white/10 bg-white/[0.03]'
+        }`}
       >
         <div className="text-[11px] uppercase tracking-wider text-white/50">
-          {label}
+          {finished ? '✓ ' : ''}
+          {stopTitle(s, stopsOf(s.loadId), locale)}
+          {tag(s)}
           {active && (
             <span className="ml-2 rounded bg-haul-500/25 px-1.5 py-0.5 text-[10px] normal-case text-haul-200">
               {t(locale, 'driver.next')}
             </span>
           )}
         </div>
+        {s.name && <div className="mt-0.5 text-[13px] font-semibold text-white/80">{s.name}</div>}
         <div className="mt-0.5 text-[15px] font-semibold leading-snug">{where}</div>
-        {(date || time) && (
+        {(s.date || s.time) && (
           <div className="nums mt-0.5 text-[13px] text-white/70">
-            {usDate(date)}
-            {time ? ` · ${time}` : ''}
+            {usDate(s.date)}
+            {s.time ? ` · ${s.time}` : ''}
           </div>
         )}
-        <a
-          href={mapsHref(where)}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-haul-500/15 px-3 py-1.5 text-[13px] font-semibold text-haul-300"
-        >
-          📍 {t(locale, 'driver.openMap')}
-        </a>
+        {s.refs.length > 0 && <div className="nums mt-0.5 text-[12px] text-white/50">Ref: {s.refs.join(', ')}</div>}
+        {!finished && (
+          <a
+            href={mapsHref(where)}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-haul-500/15 px-3 py-1.5 text-[13px] font-semibold text-haul-300"
+          >
+            📍 {t(locale, 'driver.openMap')}
+          </a>
+        )}
       </div>
     )
   }
@@ -167,113 +192,95 @@ export function DriverClient({
     <>
       {load && (
         <section className="panel mt-4 p-4">
-          {/* Полоса шагов: видно, где он и что дальше. */}
+          {/* Полоса остановок: видно, где он и что дальше. */}
           <ol className="flex items-center gap-1 text-[10px] uppercase tracking-wider">
-            {STEPS.slice(0, 4).map((k, i) => (
-              <li key={k} className="flex flex-1 items-center gap-1">
-                <span
-                  className={`size-2.5 shrink-0 rounded-full ${i < step ? 'bg-good-400' : i === step ? 'bg-haul-400 ring-4 ring-haul-500/25' : 'bg-white/15'}`}
-                />
-                <span className={`truncate ${i === step ? 'text-white' : 'text-white/40'}`}>{t(locale, k)}</span>
-              </li>
-            ))}
+            {stops.map((s) => {
+              const state = done(s) ? 'done' : s === next ? 'now' : 'later'
+              return (
+                <li key={`${s.loadId}-${s.seq}`} className="flex min-w-0 flex-1 items-center gap-1">
+                  <span
+                    className={`size-2.5 shrink-0 rounded-full ${state === 'done' ? 'bg-good-400' : state === 'now' ? 'bg-haul-400 ring-4 ring-haul-500/25' : 'bg-white/15'}`}
+                  />
+                  <span className={`truncate ${state === 'now' ? 'text-white' : 'text-white/40'}`}>
+                    {(s.city ?? stopTitle(s, stopsOf(s.loadId), locale)).replace(/,.*$/, '')}
+                  </span>
+                </li>
+              )
+            })}
           </ol>
           <div className="mt-3 text-[18px] font-bold leading-snug">
             {load.origin ?? '—'} → {load.destination ?? '—'}
+            {(stops.length > 2 || many) && (
+              <span className="ml-2 text-[13px] font-medium text-white/50">· {stopsLabel(stops, locale)}</span>
+            )}
           </div>
           <div className="mt-0.5 text-[13px] text-white/60">
-            {t(locale, STEPS[step])}
-            {load.referenceId ? ` · #${load.referenceId}` : ''}
+            {t(locale, stepText)}
+            {next && next.city ? ` · ${next.city}` : ''}
+            {!many && load.referenceId ? ` · #${load.referenceId}` : ''}
           </div>
 
           {/* ОДИН следующий шаг — большой кнопкой прямо под заголовком. */}
           <div className="mt-3">
-            {step === 0 && (
+            {next && !arrived && (
               <button
                 type="button"
                 disabled={!!busy}
-                onClick={() => act({ action: 'arrived' }, 'arrived')}
+                onClick={() => act({ action: 'arrived', ...target(next) }, 'arrived')}
                 className={`${big} bg-haul-500 text-white`}
               >
-                📍 {busy === 'arrived' ? t(locale, 'driver.sending') : t(locale, 'driver.arrivedPickup')}
+                📍{' '}
+                {busy === 'arrived'
+                  ? t(locale, 'driver.sending')
+                  : t(locale, next.role === 'pickup' ? 'driver.arrivedPickup' : 'driver.arrivedDelivery')}
               </button>
             )}
-            {step === 1 && (
+            {next && arrived && (
               <button
                 type="button"
                 disabled={!!busy}
-                onClick={() => act({ action: 'status', to: 'in_transit' }, 'in_transit')}
-                className={`${big} bg-haul-500 text-white`}
+                onClick={() => act({ action: 'status', ...target(next) }, 'status')}
+                className={`${big} ${next.role === 'pickup' ? 'bg-haul-500' : 'bg-good-500'} text-white`}
               >
-                🚚 {busy === 'in_transit' ? t(locale, 'driver.sending') : t(locale, 'driver.loaded')}
+                {next.role === 'pickup' ? '🚚' : '✅'}{' '}
+                {busy === 'status'
+                  ? t(locale, 'driver.sending')
+                  : t(locale, next.role === 'pickup' ? 'driver.loaded' : 'driver.delivered')}
               </button>
             )}
-            {step === 2 && (
-              <button
-                type="button"
-                disabled={!!busy}
-                onClick={() => act({ action: 'arrived' }, 'arrived')}
-                className={`${big} bg-haul-500 text-white`}
-              >
-                📍 {busy === 'arrived' ? t(locale, 'driver.sending') : t(locale, 'driver.arrivedDelivery')}
-              </button>
-            )}
-            {step === 3 && (
-              <button
-                type="button"
-                disabled={!!busy}
-                onClick={() => act({ action: 'status', to: 'delivered' }, 'delivered')}
-                className={`${big} bg-good-500 text-white`}
-              >
-                ✅ {busy === 'delivered' ? t(locale, 'driver.sending') : t(locale, 'driver.delivered')}
-              </button>
-            )}
-            {step === 4 && (
+            {!next && (
               <p className="rounded-xl bg-good-500/10 px-4 py-3 text-center text-[14px] font-medium text-good-400">
                 {t(locale, 'driver.allDone')}
               </p>
             )}
             {/* Пропустил «приехал» — можно сразу «загрузился/выгрузился», мелкой кнопкой. */}
-            {(step === 0 || step === 2) && (
+            {next && !arrived && (
               <button
                 type="button"
                 disabled={!!busy}
-                onClick={() => act({ action: 'status', to: step === 0 ? 'in_transit' : 'delivered' }, 'skip')}
+                onClick={() => act({ action: 'status', ...target(next) }, 'skip')}
                 className="mt-2 w-full rounded-lg py-1.5 text-[12.5px] text-white/50 underline-offset-2 hover:underline"
               >
-                {t(locale, step === 0 ? 'driver.alreadyLoaded' : 'driver.alreadyDelivered')}
+                {t(locale, next.role === 'pickup' ? 'driver.alreadyLoaded' : 'driver.alreadyDelivered')}
               </button>
             )}
           </div>
 
-          <div className="mt-3 flex flex-col gap-2">
-            {stop(
-              t(locale, 'driver.pickup'),
-              load.pickupAddress,
-              load.origin,
-              load.pickupDate,
-              load.pickupTime,
-              step <= 1,
-            )}
-            {stop(
-              t(locale, 'driver.delivery'),
-              load.deliveryAddress,
-              load.destination,
-              load.deliveryDate,
-              load.deliveryTime,
-              step === 2 || step === 3,
-            )}
-          </div>
+          <div className="mt-3 flex flex-col gap-2">{stops.map((s) => card(s, s === next))}</div>
           <div className="mt-3 flex flex-wrap gap-2">
-            {load.brokerPhone && (
-              <a
-                href={`tel:${load.brokerPhone}`}
-                className="rounded-xl border border-white/15 px-4 py-2 text-[14px] font-semibold"
-              >
-                📞 {t(locale, 'driver.callBroker')}
-                {load.brokerName ? ` · ${load.brokerName}` : ''}
-              </a>
-            )}
+            {loads
+              .filter((l) => l.brokerPhone)
+              .map((l) => (
+                <a
+                  key={l.id}
+                  href={`tel:${l.brokerPhone}`}
+                  className="rounded-xl border border-white/15 px-4 py-2 text-[14px] font-semibold"
+                >
+                  📞 {t(locale, 'driver.callBroker')}
+                  {l.brokerName ? ` · ${l.brokerName}` : ''}
+                  {many && l.referenceId ? ` · #${l.referenceId}` : ''}
+                </a>
+              ))}
             {dispatcherPhone && (
               <a
                 href={`tel:${dispatcherPhone}`}
@@ -413,17 +420,25 @@ export function DriverClient({
           </p>
           <ul className="flex flex-col gap-1 text-[12.5px]">
             {[...events]
+              .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
               .reverse()
               .slice(0, 8)
-              .map((e) => (
-                <li key={e.id} className="flex items-baseline gap-2 text-white/70">
-                  <span className="nums shrink-0 text-white/45">{clock(e.at)}</span>
-                  <span>
-                    {t(locale, EVENT_KEY[e.kind as keyof typeof EVENT_KEY] ?? 'driver.ev.note')}
-                    {e.note ? `: ${e.note}` : ''}
-                  </span>
-                </li>
-              ))}
+              .map((e) => {
+                const st =
+                  e.loadId != null && e.stopSeq != null
+                    ? stops.find((s) => s.loadId === e.loadId && s.seq === e.stopSeq)
+                    : null
+                return (
+                  <li key={e.id} className="flex items-baseline gap-2 text-white/70">
+                    <span className="nums shrink-0 text-white/45">{clock(e.at)}</span>
+                    <span>
+                      {t(locale, EVENT_KEY[e.kind as keyof typeof EVENT_KEY] ?? 'driver.ev.note')}
+                      {st?.city ? ` · ${st.city}` : ''}
+                      {e.note ? `: ${e.note}` : ''}
+                    </span>
+                  </li>
+                )
+              })}
           </ul>
         </section>
       )}

@@ -234,7 +234,7 @@ export async function activeLoadForTruck(companyId: CompanyId, truckId: number):
 export async function currentLoadForTruck(companyId: CompanyId, truckId: number): Promise<LoadRecord | null> {
   const rows = (await sql`
     SELECT * FROM loads
-    WHERE company_id = ${companyId} AND truck_id = ${truckId} AND status IN ('in_transit', 'booked')
+    WHERE company_id = ${companyId} AND truck_id = ${truckId} AND status IN ('in_transit', 'booked') AND partial = false
     ORDER BY (status = 'in_transit') DESC, pickup_date ASC NULLS LAST, created_at ASC
     LIMIT 1`) as LoadRow[]
   return rows[0] ? rowToLoad(rows[0]) : null

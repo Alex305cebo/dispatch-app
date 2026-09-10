@@ -14,7 +14,7 @@ import { extractPdf, looksScanned } from '@/lib/pdf-text'
 import { formatDriverInfo, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
 import { rcWarnings, type RcWarning } from '@/lib/rc-warnings'
-import { createLoadFromRc, uploadDocument } from '@/app/actions'
+import { createLoadFromRc, setLoadPartial, uploadDocument } from '@/app/actions'
 import { docKindFromText } from '@/lib/caption-kind'
 import { staleBuildMessage } from '@/components/build-watch'
 import { notify } from '@/lib/notify'
@@ -41,8 +41,17 @@ const WTONE = {
   info: 'bg-white/6 text-white/70',
 }
 
-export function TruckRcDrop({ truckId }: { truckId: number }) {
+export function TruckRcDrop({
+  truckId,
+  currentLoad = null,
+}: {
+  truckId: number
+  /** Груз, который трак везёт сейчас: новый рейт-кон может быть партиалом к нему. */
+  currentLoad?: { id: number; route: string } | null
+}) {
   const locale = useLocale()
+  const [partialMarked, setPartialMarked] = useState(false)
+  const [partialBusy, setPartialBusy] = useState(false)
   const [busy, setBusy] = useState(false)
   const [stage, setStage] = useState('')
   const [elapsed, setElapsed] = useState(0)
@@ -218,6 +227,35 @@ export function TruckRcDrop({ truckId }: { truckId: number }) {
               </>
             )}
           </p>
+        )}
+        {/* Трак уже везёт груз, а этот — новый (не второй файл того же): спросить,
+            партиал ли это. Иначе он встанет «следующим», а не поедет вместе. */}
+        {currentLoad && !res.merged && res.loadId !== currentLoad.id && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-haul-500/35 bg-haul-500/[0.08] px-3 py-2 text-[12.5px]">
+            {partialMarked ? (
+              <span className="text-good-300">{t(locale, 'rcDrop.partialMarked')}</span>
+            ) : (
+              <>
+                <span className="min-w-0 flex-1 text-white/70">{t(locale, 'rcDrop.partialHint')}</span>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  loading={partialBusy}
+                  onClick={() => {
+                    setPartialBusy(true)
+                    void setLoadPartial(res.loadId, true).then((r) => {
+                      setPartialBusy(false)
+                      if (r && 'error' in r) return notify('error', r.error)
+                      setPartialMarked(true)
+                      notify('ok', t(locale, 'rcDrop.partialMarked'))
+                    })
+                  }}
+                >
+                  {t(locale, 'rcDrop.partialOf').replace('{route}', currentLoad.route)}
+                </Button>
+              </>
+            )}
+          </div>
         )}
         {res.missing && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-warn-400/30 bg-warn-500/[0.08] px-3 py-2 text-[12.5px]">

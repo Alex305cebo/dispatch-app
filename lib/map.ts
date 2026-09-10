@@ -84,7 +84,8 @@ export type TruckRecord = TruckSettings & {
 export function currentLoadsByTruck(loads: LoadRecord[]): Map<number, LoadRecord> {
   const out = new Map<number, LoadRecord>()
   for (const l of loads) {
-    if (l.truckId === null || !isOpen(l)) continue
+    // Партиал едет ВМЕСТЕ с текущим, а не вместо него — см. activeLoadsByTruck.
+    if (l.truckId === null || !isOpen(l) || l.partial) continue
     const held = out.get(l.truckId)
     if (!held || runOrder(l, held) < 0) out.set(l.truckId, l)
   }
@@ -101,9 +102,27 @@ export function nextLoadsByTruck(loads: LoadRecord[]): Map<number, LoadRecord> {
   const current = currentLoadsByTruck(loads)
   const out = new Map<number, LoadRecord>()
   for (const l of loads) {
-    if (l.truckId === null || !isOpen(l) || current.get(l.truckId)?.id === l.id) continue
+    if (l.truckId === null || !isOpen(l) || l.partial || current.get(l.truckId)?.id === l.id) continue
     const held = out.get(l.truckId)
     if (!held || runOrder(l, held) < 0) out.set(l.truckId, l)
+  }
+  return out
+}
+
+/**
+ * Всё, что трак везёт сейчас: текущий груз и партиалы (два рейт-кона в одном
+ * трейлере). Первым — текущий; трак с одними партиалами — первый партиал.
+ * Страница водителя и карточка трака показывают весь список, карта — все линии.
+ */
+export function activeLoadsByTruck(loads: LoadRecord[]): Map<number, LoadRecord[]> {
+  const current = currentLoadsByTruck(loads)
+  const out = new Map<number, LoadRecord[]>()
+  for (const [truckId, l] of current) out.set(truckId, [l])
+  const partials = loads.filter((l) => l.truckId !== null && isOpen(l) && l.partial).sort(runOrder)
+  for (const l of partials) {
+    const list = out.get(l.truckId!) ?? []
+    list.push(l)
+    out.set(l.truckId!, list)
   }
   return out
 }

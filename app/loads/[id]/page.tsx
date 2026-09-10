@@ -28,7 +28,7 @@ import { BackButton } from '@/components/back-button'
 import { PairBar } from '@/components/pair-bar'
 import { DetentionTile } from '@/components/detention-tile'
 import { detentionTerms } from '@/lib/settings'
-import { stopWindow } from '@/lib/detention'
+import { stopWindows } from '@/lib/detention'
 import { BackhaulList } from '@/components/backhaul-list'
 import { backhaulBrokers } from '@/lib/backhaul'
 import { brokerGradeFor } from '@/lib/brokers'
@@ -76,7 +76,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     // Этот груз забукирован, а трак ещё везёт другой — подсказка, что делать.
     load.status === 'booked' ? currentLoadForTruck(companyId, truck.id) : Promise.resolve(null),
   ])
-  const queuedBehind = truckCurrent && truckCurrent.id !== load.id ? truckCurrent : null
+  const queuedBehind = truckCurrent && truckCurrent.id !== load.id && !load.partial ? truckCurrent : null
 
   // Never throws: the DB CHECKs mirror calcLoad's throw conditions, so every stored
   // row is a valid input by construction.
@@ -88,8 +88,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const via = viaLabel(stops, locale)
   // Стоянка у склада по отметкам водителя — над картой, потому что это деньги:
   // от «Приехал» до «Загрузился», дальше счёт замирает. Меньше получаса не показываем.
-  const stop = load.status === 'cancelled' ? null : stopWindow(driverEvents)
-  const terms = stop && stop.min >= 30 ? await detentionTerms() : null
+  // По окну на каждую остановку, где водитель простоял от получаса.
+  const windows = load.status === 'cancelled' ? [] : stopWindows(driverEvents, stops).filter((w) => w.min >= 30)
+  const stop = windows[windows.length - 1] ?? null
+  const terms = windows.length ? await detentionTerms() : null
   const invoiceDoc = docs.find((d) => d.kind === 'invoice')
   const rateConDoc = docs.find((d) => d.kind === 'ratecon')
   const bolDoc = docs.find((d) => d.kind === 'bol')
@@ -191,21 +193,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           locale={locale}
           truckId={truck.id}
           loadId={load.id}
-          detention={
-            stop && terms
-              ? {
-                  at: stop.at,
-                  sinceIso: stop.sinceIso,
-                  endIso: stop.endIso,
-                  min: stop.min,
-                  rateHr: terms.rate,
-                  freeHr: terms.free,
-                  refId: load.referenceId,
-                  route: `${load.origin ?? '—'} → ${load.destination ?? '—'}`,
-                  truck: truckLabel(truck),
-                }
-              : null
-          }
+          stops={stops}
+          detention={windows.map((w) => ({
+            at: w.at,
+            sinceIso: w.sinceIso,
+            endIso: w.endIso,
+            min: w.min,
+            rateHr: terms?.rate ?? 35,
+            freeHr: terms?.free ?? 2,
+            refId: load.referenceId,
+            route: `${load.origin ?? '—'} → ${load.destination ?? '—'}`,
+            truck: truckLabel(truck),
+          }))}
         />
       )}
 
@@ -288,6 +287,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             deliveryTime: load.deliveryTime,
             laneAvgRpm,
             stops: stops,
+            partial: load.partial,
           }}
         />
       </section>
