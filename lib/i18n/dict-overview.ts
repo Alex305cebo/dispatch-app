@@ -60,7 +60,7 @@ export const overviewDict = {
   // truncated to "RPM · REVENUE ...". The (i) tooltip beside it carries the meaning.
   'overview.rpm': { ru: 'RPM', en: 'RPM', es: 'RPM', uk: 'RPM', ro: 'RPM', kk: 'RPM' },
   'overview.rpmInfo': {
-    ru: 'RPM (rate per mile) — средний доход на милю по всему парку: общая выручка ÷ общие мили (гружёные + порожние). Главный ориентир, брать груз или нет.',
+    ru: 'RPM (rate per mile) — средний доход на милю по всему парку: общая выручка ÷ общие мили (гружёные + deadhead). Главный ориентир, брать груз или нет.',
     en: 'RPM (rate per mile) — average revenue per mile across the whole fleet: total revenue ÷ total miles (loaded + empty). The main yardstick for whether to take a load.',
     es: 'RPM (tarifa por milla) — ingreso medio por milla de toda la flota: ingresos totales ÷ millas totales (cargadas + vacías). La referencia principal para decidir si tomar una carga.',
     uk: 'RPM (rate per mile) — середній дохід на милю по всьому парку: загальна виручка ÷ загальні милі (гружені + порожні). Головний орієнтир, брати вантаж чи ні.',
@@ -79,7 +79,7 @@ export const overviewDict = {
   },
   'overview.totalMiles': { ru: 'Всего миль', en: 'Total miles', es: 'Millas totales', uk: 'Усього миль', ro: 'Mile totale', kk: 'Барлық миль' },
   'overview.totalMilesInfo': {
-    ru: 'Суммарные мили всех активных грузов — гружёные плюс порожние (deadhead).',
+    ru: 'Суммарные мили всех активных грузов — гружёные плюс deadhead (пустые мили).',
     en: 'Total miles across all active loads — loaded plus empty (deadhead).',
     es: 'Millas sumadas de todas las cargas activas — cargadas más vacías (deadhead).',
     uk: 'Сумарні милі всіх активних вантажів — гружені плюс порожні (deadhead).',

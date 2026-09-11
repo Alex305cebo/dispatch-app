@@ -427,7 +427,7 @@ export const trucksDict = {
     kk: 'Мөлшерлеме/миль',
   },
   'trucks.chip.rpmInfo': {
-    ru: 'Средний доход на милю (RPM) по грузам этой недели: выручка ÷ мили (гружёные + порожние).',
+    ru: 'Средний доход на милю (RPM) по грузам этой недели: выручка ÷ мили (гружёные + deadhead).',
     en: 'Average revenue per mile (RPM) for this week’s loads: revenue ÷ miles (loaded + empty).',
     es: 'Ingreso medio por milla (RPM) de las cargas de esta semana: ingresos ÷ millas (cargadas + vacías).',
     uk: 'Середній дохід на милю (RPM) по вантажах цього тижня: виручка ÷ милі (гружені + порожні).',

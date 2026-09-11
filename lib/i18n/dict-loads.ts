@@ -1345,7 +1345,7 @@ export const loadsDict = {
     kk: 'басқа жүкпен бір тіркемеде жүреді',
   },
   'loadEdit.yes': { ru: 'да', en: 'yes', es: 'sí', uk: 'так', ro: 'da', kk: 'иә' },
-  'rcDrop.deadheadWarn': { ru: 'Порожний пробег {mi} mi — больше {limit} миль', en: 'Deadhead {mi} mi — over {limit} miles', es: 'Recorrido vacío {mi} mi: más de {limit} millas', uk: 'Порожній пробіг {mi} mi — понад {limit} миль', ro: 'Drum gol {mi} mi — peste {limit} mile', kk: 'Бос жүріс {mi} mi — {limit} мильден көп' },
+  'rcDrop.deadheadWarn': { ru: 'Deadhead (пустые мили) {mi} mi — больше {limit} миль', en: 'Deadhead {mi} mi — over {limit} miles', es: 'Recorrido vacío {mi} mi: más de {limit} millas', uk: 'Deadhead (порожні милі) {mi} mi — понад {limit} миль', ro: 'Drum gol {mi} mi — peste {limit} mile', kk: 'Бос жүріс {mi} mi — {limit} мильден көп' },
   'rcDrop.deadheadFromLoad': { ru: 'По дороге от выгрузки текущего груза ({from}) до пикапа ({to}).', en: 'By road from the current load delivery ({from}) to the pickup ({to}).', es: 'Por carretera desde la entrega de la carga actual ({from}) hasta la recogida ({to}).', uk: 'Дорогою від вивантаження поточного вантажу ({from}) до пікапу ({to}).', ro: 'Pe drum de la livrarea cursei curente ({from}) până la încărcare ({to}).', kk: 'Ағымдағы жүкті түсіру орнынан ({from}) тиеуге ({to}) дейін жолмен.' },
   'rcDrop.deadheadFromGps': { ru: 'По дороге от места, где трак сейчас ({from}), до пикапа ({to}).', en: 'By road from where the truck is now ({from}) to the pickup ({to}).', es: 'Por carretera desde donde está el camión ahora ({from}) hasta la recogida ({to}).', uk: 'Дорогою від місця, де трак зараз ({from}), до пікапу ({to}).', ro: 'Pe drum de unde e camionul acum ({from}) până la încărcare ({to}).', kk: 'Тракт қазір тұрған жерден ({from}) тиеуге ({to}) дейін жолмен.' },
   'rcDrop.deadheadRough': { ru: 'Дорогу построить не удалось, это примерно, по прямой.', en: 'The road route could not be built, this is approximate, in a straight line.', es: 'No se pudo trazar la ruta por carretera; es aproximado, en línea recta.', uk: 'Дорогу побудувати не вдалося, це приблизно, по прямій.', ro: 'Traseul pe drum nu s-a putut calcula, e aproximativ, în linie dreaptă.', kk: 'Жол маршруты құрылмады, бұл шамамен, түзу сызықпен.' },
@@ -2124,7 +2124,7 @@ export const loadsDict = {
     kk: 'Барлық шығынды көру үшін басыңыз',
   },
   'analysis.allInRpmInfo': {
-    ru: 'Доход на милю с учётом всех расходов по этому грузу: чистыми ÷ мили (гружёные + порожние). Ниже нуля — груз в убыток.',
+    ru: 'Доход на милю с учётом всех расходов по этому грузу: чистыми ÷ мили (гружёные + deadhead). Ниже нуля — груз в убыток.',
     en: 'Revenue per mile after all costs on this load: net ÷ miles (loaded + deadhead). Below zero means the load is a loss.',
     es: 'Ingreso por milla contando todos los gastos de esta carga: neto ÷ millas (cargadas + vacías). Por debajo de cero, la carga da pérdidas.',
     uk: 'Дохід на милю з урахуванням усіх витрат по цьому вантажу: чистими ÷ милі (гружені + порожні). Нижче нуля — вантаж у збиток.',
@@ -2716,7 +2716,7 @@ export const loadsDict = {
     kk: 'Жанармай шамамен:',
   },
   'loadCard.deadheadNote': {
-    ru: 'Порожний пробег и ваши расходы не учтены — их знает только диспетчер.',
+    ru: 'Deadhead (пустые мили) и ваши расходы не учтены — их знает только диспетчер.',
     en: 'Deadhead and your own costs are not included — only the dispatcher knows those.',
     es: 'El recorrido en vacío y tus gastos no están contados — solo el despachador los conoce.',
     uk: 'Порожній пробіг і ваші витрати не враховані — їх знає лише диспетчер.',
@@ -2981,7 +2981,7 @@ export const loadsDict = {
     kk: 'Ештеңе ауыстырма: жүргізуші «Түсірдім» басқанда немесе ағымдағыны «Жеткізілді» деп белгілегенде жүк өзі ағымдағы болады.',
   },
   'queued.step2': {
-    ru: 'Сверь время: выгрузка текущего {delivery}, пикап следующего {pickup}. Учти порожний перегон и часы водителя; не успевает — сразу звони брокеру следующего груза.',
+    ru: 'Сверь время: выгрузка текущего {delivery}, пикап следующего {pickup}. Учти deadhead (пустые мили) и часы водителя; не успевает — сразу звони брокеру следующего груза.',
     en: 'Check the timing: current delivery {delivery}, next pickup {pickup}. Count the deadhead and the driver’s hours; if it does not fit, call the next load’s broker now.',
     es: 'Revisa los tiempos: entrega actual {delivery}, recogida siguiente {pickup}. Cuenta el vacío y las horas del conductor; si no llega, llama ya al bróker de la siguiente carga.',
     uk: 'Звір час: вивантаження поточного {delivery}, пікап наступного {pickup}. Врахуй порожній перегін і години водія; не встигає — одразу дзвони брокеру наступного вантажу.',
