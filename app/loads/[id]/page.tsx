@@ -27,7 +27,9 @@ import { DocButton } from '@/components/doc-button'
 import { BackButton } from '@/components/back-button'
 import { PairBar } from '@/components/pair-bar'
 import { DetentionTile } from '@/components/detention-tile'
-import { detentionTerms } from '@/lib/settings'
+import { detentionTerms, getSetting } from '@/lib/settings'
+import { headers } from 'next/headers'
+import { DriverLinkButton } from '@/components/driver-link-button'
 import { stopWindows } from '@/lib/detention'
 import { BackhaulList } from '@/components/backhaul-list'
 import { backhaulBrokers } from '@/lib/backhaul'
@@ -67,6 +69,19 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   // Обратный груз ищут, пока трак едет: список «кому звонить» нужен только
   // забукированному и едущему грузу, доставленному он ни к чему.
   const wantBackhaul = load.status === 'booked' || load.status === 'in_transit'
+  // Страница водителя: адрес и когда он её открывал — как на карточке трака.
+  // В демо ссылку не выдаём.
+  const driverSeen = await getSetting(`driver_seen:${truck.id}`)
+  const driverLink =
+    companyId === 'demo'
+      ? null
+      : await (async () => {
+          const { driverTokenFor } = await import('@/lib/driver-link')
+          const h = await headers()
+          const host = h.get('x-forwarded-host') ?? h.get('host') ?? ''
+          const proto = h.get('x-forwarded-proto') ?? 'https'
+          return host ? `${proto}://${host}/d/${await driverTokenFor(truck.id)}` : null
+        })()
   const [truckMeta, laneAvgRpm, backhaul, brokerGrade, driverEvents, truckCurrent] = await Promise.all([
     getTruckMeta(truck.id),
     laneAvgRpmFor(companyId, load.origin, load.destination, load.id),
@@ -212,6 +227,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           truckId={truck.id}
           loadId={load.id}
           stops={stops}
+          // Те же кнопки Telegram / SMS / Копировать, что на карточке трака: блок
+          // «Водитель» одинаковый на обеих карточках и никуда не уводит.
+          link={
+            driverLink ? (
+              <DriverLinkButton embedded url={driverLink} driverPhone={truckMeta?.driverPhone ?? null} seenAt={driverSeen} />
+            ) : undefined
+          }
           detention={windows.map((w) => ({
             at: w.at,
             sinceIso: w.sinceIso,
@@ -424,8 +446,10 @@ async function LoadMapSection({
   const detention = driverMarked ? null : live.detention
 
   return (
-    <section className="panel mt-4 p-4">
-      <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+    // Телефон: заголовок → карта → плитки (order), иначе карта уезжала под экран
+    // плиток. На широком экране порядок прежний: плитки над картой.
+    <section className="panel mt-4 flex flex-col p-4">
+      <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90 max-md:order-[-2]">
         {t(locale, 'loadDetail.mapHeading')}
         <Info text={t(locale, 'loadDetail.mapInfo')} />
       </h2>
@@ -642,6 +666,7 @@ async function LoadMapSection({
               стоят плитки, и с телефона кнопка оказывалась на экран выше того, что
               обновляет. Тот же живой режим, что на /tracking: сам подтягивает GPS при
               открытии устаревшей страницы и перечитывает её каждые полминуты. */}
+      <div className="max-md:order-[-1] max-md:mb-3">
       <div className="mb-2 flex justify-end">
         <RefreshFleetButton
           staleMinutes={fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null}
@@ -668,6 +693,7 @@ async function LoadMapSection({
               : null
         }
       />
+      </div>
     </section>
   )
 }

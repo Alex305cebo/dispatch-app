@@ -155,15 +155,6 @@ export function DriverTimeline({
             icon={Smartphone}
             title={t(locale, 'driver.timeline.noneTitle')}
             text={t(locale, 'driver.timeline.none')}
-            action={
-              link
-                ? undefined
-                : {
-                    href: `/trucks/${truckId}`,
-                    label: t(locale, 'driver.timeline.noneCta'),
-                    icon: <Send size={14} strokeWidth={2.2} />,
-                  }
-            }
           />
         ) : (
           <ol className={`relative ml-1.5 border-l border-white/10 ${pending ? 'opacity-60' : ''}`}>
