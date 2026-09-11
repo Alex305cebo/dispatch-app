@@ -322,6 +322,11 @@ function DocRow({
   dense?: boolean
 }) {
   const locale = useLocale()
+  // Имя по смыслу, а не по файлу: брокеры шлют «RateConfirmation_9497205.pdf», и в
+  // библиотеке по такому имени не понять, чей это груз. Когда документ привязан к
+  // грузу, показываем «Rate con · Chicago, IL → Dallas, TX», а имя файла — мелко
+  // рядом. Сам файл не переименовывается, скачается под своим именем.
+  const name = from || to ? `${docKindLabel(doc.kind, locale)} · ${from ?? '—'} → ${to ?? '—'}` : doc.title
   // items-start, and the size/date moved UNDER the filename rather than beside it. In
   // the truck page's half-width column the old single row gave the filename whatever
   // was left after a type pill, a size, a date and a delete button — measured at
@@ -341,12 +346,10 @@ function DocRow({
           className="order-first basis-full truncate text-left text-[13px] text-white/85 hover:text-haul-400 hover:underline sm:order-none sm:min-w-0 sm:shrink sm:basis-auto"
           title={doc.title}
         >
-          {doc.title}
+          {name}
         </DocLink>
-        {(from || to) && (
-          <span className="hidden min-w-0 shrink truncate text-[11.5px] text-white/40 sm:block">
-            {from ?? '—'} → {to ?? '—'}
-          </span>
+        {name !== doc.title && (
+          <span className="hidden min-w-0 shrink truncate text-[11.5px] text-white/40 sm:block">{doc.title}</span>
         )}
         <span className="nums ml-auto shrink-0 text-[11.5px] text-white/35">{usDate(doc.uploadedAt)}</span>
         {showLinks && doc.truckId && (
@@ -381,13 +384,9 @@ function DocRow({
           className="block w-full truncate text-left text-md text-white/85 hover:text-haul-400 hover:underline"
           title={doc.title}
         >
-          {doc.title}
+          {name}
         </DocLink>
-        {(from || to) && (
-          <div className="truncate text-xs text-white/45">
-            {from ?? '—'} → {to ?? '—'}
-          </div>
-        )}
+        {name !== doc.title && <div className="truncate text-xs text-white/45">{doc.title}</div>}
         <span className="nums block text-xs text-white/40">
           {fmtSize(doc.sizeBytes)} · {usDate(doc.uploadedAt)}
         </span>
