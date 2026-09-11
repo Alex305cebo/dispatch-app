@@ -465,9 +465,15 @@ export function DocList({
   return (
     <>
       <ul className="mt-3 flex flex-col gap-1.5">
-        {docs.map((d) => (
-          <DocRow key={d.id} doc={d} showLinks={showLinks} onDelete={setDel} attachTargets={attachTargets} />
-        ))}
+        {/* Первые три — остальное за «ещё N»: у трака бумаг десятки, и без этого
+            панель документов уезжала на несколько экранов. */}
+        <ShowMore
+          limit={3}
+          label={t(locale, 'docs.library.more')}
+          items={docs.map((d) => (
+            <DocRow key={d.id} doc={d} showLinks={showLinks} onDelete={setDel} attachTargets={attachTargets} />
+          ))}
+        />
       </ul>
       {del && <DeleteDialog doc={del} onClose={() => setDel(null)} />}
     </>

@@ -41,6 +41,7 @@ import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { CopyPlace } from '@/components/copy-place'
 import { TruckPhoto } from '@/components/truck-photo'
+import { ShowMore } from '@/components/collapse'
 
 export const dynamic = 'force-dynamic'
 
@@ -619,7 +620,7 @@ export default async function Page({
             <p className="text-[13px] text-white/55">{t(locale, 'trucks.detail.noLoadsYet')}</p>
           ) : (
             <div className="flex flex-col gap-2">
-              {rows.map(({ load, r }) => {
+              <ShowMore limit={4} label={t(locale, 'docs.library.more')} items={rows.map(({ load, r }) => {
                 const rcId = rateCons.get(load.id)
                 return (
                   /* Two lines, not one. This card sits in a half-width column beside the
@@ -658,7 +659,7 @@ export default async function Page({
                     </div>
                   </div>
                 )
-              })}
+              })} />
             </div>
           )}
         </section>
