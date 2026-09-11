@@ -35,7 +35,7 @@ export function NeedsLoad({
   return (
     <section className="panel mb-6 p-4">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'needsLoad.title')}
           <Info text={t(locale, 'needsLoad.info')} />
         </h2>

@@ -9,7 +9,7 @@ import { PairBar } from '@/components/pair-bar'
 import { DriverLinkButton } from '@/components/driver-link-button'
 import { sql } from '@/lib/db'
 import { getTruck, listDocs, listLoads, rateConByLoad } from '@/lib/loads'
-import { activeLoadsByTruck, currentLoadsByTruck, nextLoadsByTruck, truckLabel } from '@/lib/map'
+import { activeLoadsByTruck, currentLoadsByTruck, nextLoadsByTruck, truckLabel, truckShortLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { fleetStatusByUnit, getTruckMeta, listMaintenance, listTodos, oilStatus } from '@/lib/maintenance'
 import { tripHistory } from '@/lib/eld'
@@ -40,6 +40,7 @@ import { QueuedLoadHint } from '@/components/queued-load-hint'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { CopyPlace } from '@/components/copy-place'
+import { TruckPhoto } from '@/components/truck-photo'
 
 export const dynamic = 'force-dynamic'
 
@@ -185,7 +186,7 @@ export default async function Page({
       <BackButton href="/trucks" label={t(locale, 'trucks.detail.backAll')} />
       <PairBar
         current="truck"
-        truck={{ id: truck.id, label: truckLabel(truck, meta?.trailerNumber) }}
+        truck={{ id: truck.id, label: truckLabel(truck, meta?.trailerNumber), short: truckShortLabel(truck) }}
         load={
           activeLoad
             ? {
@@ -198,15 +199,23 @@ export default async function Page({
         locale={locale}
       />
 
-      {/* ===== HERO: the truck in the centre, key info around it ===== */}
-      <section className="relative mt-3 overflow-hidden rounded-3xl border border-white/8 bg-gradient-to-b from-ink-800/80 to-ink-950 px-4 pt-5 pb-4 sm:px-8">
-        <div className="text-center">
-          <h1 className="text-[26px] font-bold leading-none">{truck.number ?? truck.name}</h1>
+      {/* ===== Шапка-баннер, как карточка товара: слева номер, водитель, где стоит;
+           справа трак крупно во всю высоту шапки, за ним мягкая подсветка. На
+           телефоне картинка — полосой сверху. Задание и цифры — ниже в той же
+           панели. ===== */}
+      <section className="panel relative mt-3 overflow-hidden">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-full bg-[radial-gradient(60%_90%_at_85%_45%,rgba(109,90,232,0.22),transparent_70%)] sm:w-3/5"
+        />
+        <div className="relative grid sm:grid-cols-[minmax(0,1fr)_minmax(280px,44%)]">
+          <div className="min-w-0 p-4 sm:p-5">
+          <h1 className="text-[22px] font-semibold leading-7 sm:text-[26px] sm:leading-8">{truck.number ?? truck.name}</h1>
 
           {/* One wrapping row instead of a stack of full-width lines — trailer,
               driver, phone and live GPS all read as one compact block on any width,
               wrapping to extra lines on narrow phones instead of stretching tall. */}
-          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1.5 text-[13px]">
+          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-[13px]">
             {meta?.trailerNumber && (
               <>
                 <span className="text-white/55">
@@ -239,14 +248,13 @@ export default async function Page({
                оставался один посреди пустоты. Место — кнопка: ответ на «где сейчас
                трак» почти всегда тут же уходит брокеру. Копируется «город, штат». */
             <div
-              className={`mt-2 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-[13px] ${toneClass[statusTone(fs.driveStatus)]}`}
+              className={`mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] ${toneClass[statusTone(fs.driveStatus)]}`}
             >
               <CopyPlace
                 text={`📍 ${fs.location}`}
                 copy={cityOf(fs.location) ?? fs.location}
                 coords={{ lat: fs.lat, lng: fs.lng }}
                 size="sm"
-                className="justify-center"
               />
               {fs.driveStatus && <span className="font-semibold">· {fs.driveStatus}</span>}
             </div>
@@ -278,48 +286,10 @@ export default async function Page({
           <div className="mt-2.5">
             <TruckAvailability truckId={truck.id} current={truck.unavailable} locale={locale} />
           </div>
-        </div>
-
-        <img
-          src="/truck.png"
-          alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
-          className="mx-auto my-1 w-2/3 max-w-xl drop-shadow-2xl sm:w-full"
-        />
-
-        {/* Info ring — the truck's numbers at a glance. */}
-        {/* Five across once there's a fuel reading, four without — a truck whose ELD
-            never reports fuel should not get an empty tile holding the space. */}
-        <div className={`grid grid-cols-2 gap-2 ${fs?.fuel != null ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}>
-          <Chip
-            label={t(locale, 'trucks.chip.weekRate')}
-            value={usd.format(weekGross)}
-            tone={weekGross > 0 ? 'good' : undefined}
-            info={t(locale, 'trucks.chip.weekRateInfo')}
-          />
-          <Chip
-            label={t(locale, 'trucks.chip.rpm')}
-            value={`${usd2.format(avgRpm)}`}
-            info={t(locale, 'trucks.chip.rpmInfo')}
-          />
-          <Chip
-            label={t(locale, 'trucks.chip.oilIn')}
-            value={oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—'}
-            tone={oil?.tone}
-            info={t(locale, 'trucks.chip.oilInInfo')}
-          />
-          {fs?.fuel != null && (
-            <Chip
-              label={t(locale, 'trucks.chip.fuel')}
-              value={`${Math.round(fs.fuel)}%`}
-              tone={fs.fuel <= 15 ? 'bad' : fs.fuel <= 30 ? 'warn' : undefined}
-              info={t(locale, 'trucks.chip.fuelInfo')}
-            />
-          )}
-        </div>
 
         {/* ===== Current assignment: route, pickup/delivery dates, at a glance ===== */}
         <div className="mt-4 border-t border-white/8 pt-4">
-          <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
             {t(locale, 'trucks.detail.currentAssignment')}
             <Info text={t(locale, 'trucks.detail.currentAssignmentInfo')} />
           </h2>
@@ -352,7 +322,7 @@ export default async function Page({
               </div>
               <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] sm:grid-cols-3">
                 <div>
-                  <dt className="text-[10px] uppercase tracking-wider text-white/45">
+                  <dt className="text-xs text-white/60 font-medium">
                     {t(locale, 'trucks.detail.pickup')}
                   </dt>
                   <dd className="font-medium text-white/85">
@@ -360,7 +330,7 @@ export default async function Page({
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-wider text-white/45">
+                  <dt className="text-xs text-white/60 font-medium">
                     {t(locale, 'trucks.detail.delivery')}
                   </dt>
                   <dd className="font-medium text-white/85">
@@ -368,7 +338,7 @@ export default async function Page({
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-wider text-white/45">
+                  <dt className="text-xs text-white/60 font-medium">
                     {t(locale, 'trucks.detail.rate')}
                   </dt>
                   <dd className="font-medium text-white/85">{usd.format(activeLoad.rate)}</dd>
@@ -380,7 +350,7 @@ export default async function Page({
                   href={`/loads/${p.id}`}
                   className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-haul-500/30 bg-haul-500/[0.06] px-3 py-2 text-[13px] hover:border-haul-400/60"
                 >
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-haul-300">
+                  <span className="text-base leading-6 font-semibold text-haul-300">
                     {t(locale, 'trucks.detail.partialLoad')}
                   </span>
                   <span className="font-medium text-white/85">
@@ -397,7 +367,7 @@ export default async function Page({
                   href={`/loads/${nextLoad.id}`}
                   className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[13px] hover:border-white/25"
                 >
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                  <span className="text-[13px] font-semibold text-white/75">
                     {t(locale, 'trucks.detail.nextLoad')}
                   </span>
                   <span className="font-medium text-white/85">
@@ -436,6 +406,48 @@ export default async function Page({
             <DriverLinkButton url={driverLink} driverPhone={meta?.driverPhone ?? null} seenAt={driverSeen} />
           )}
         </div>
+
+        {/* Цифры трака — одной компактной строкой ПОД заданием: сроки текущего рейса
+            читаются раньше недельной ставки и масла. */}
+        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-white/8 pt-3">
+          <Chip
+            label={t(locale, 'trucks.chip.weekRate')}
+            value={usd.format(weekGross)}
+            tone={weekGross > 0 ? 'good' : undefined}
+            info={t(locale, 'trucks.chip.weekRateInfo')}
+          />
+          <Chip
+            label={t(locale, 'trucks.chip.rpm')}
+            value={`${usd2.format(avgRpm)}`}
+            info={t(locale, 'trucks.chip.rpmInfo')}
+          />
+          <Chip
+            label={t(locale, 'trucks.chip.oilIn')}
+            value={oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—'}
+            tone={oil?.tone}
+            info={t(locale, 'trucks.chip.oilInInfo')}
+          />
+          {fs?.fuel != null && (
+            <Chip
+              label={t(locale, 'trucks.chip.fuel')}
+              value={`${Math.round(fs.fuel)}%`}
+              tone={fs.fuel <= 15 ? 'bad' : fs.fuel <= 30 ? 'warn' : undefined}
+              info={t(locale, 'trucks.chip.fuelInfo')}
+            />
+          )}
+        </div>
+          </div>
+          {/* Трак — во всю высоту левой колонки: шапка, задание и цифры слева, машина
+              справа, пустого места под текстом больше нет. На телефоне — полосой сверху. */}
+          <div className="relative h-44 max-sm:order-first sm:h-auto">
+            <TruckPhoto
+              fill
+              truckId={truck.id}
+              hasPhoto={meta?.hasTruckPhoto ?? false}
+              alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
+            />
+          </div>
+        </div>
       </section>
 
       {/* Незакрытый ремонт — прямо над картой, а не строкой в самом низу страницы: раньше
@@ -461,7 +473,7 @@ export default async function Page({
           </span>
           <div className="min-w-0 flex-1">
             <p
-              className={`text-2xs font-semibold uppercase tracking-wider ${
+              className={`text-base font-semibold leading-6 ${
                 hasUrgentTodo ? 'text-bad-400' : 'text-warn-400'
               }`}
             >
@@ -483,7 +495,7 @@ export default async function Page({
           и с него начинается любая работа с траком. ===== */}
       <section className="panel mt-4 p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
             {t(locale, 'trucks.detail.newLoadFromRc')}
             <Info text={t(locale, 'trucks.detail.newLoadFromRcInfo')} />
           </h2>
@@ -546,7 +558,7 @@ export default async function Page({
       {mapMarkers.length > 0 && (
         <section className="panel mt-4 p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+            <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
               {t(locale, 'trucks.detail.onMap')}
               <Info text={t(locale, 'trucks.detail.onMapInfo')} />
             </h2>
@@ -589,15 +601,13 @@ export default async function Page({
       />
 
       {/* ===== Around the truck: loads + documents ===== */}
-      {/* No `items-start` here on purpose. With it each column was only as tall as its
-          own content, so a truck with seven loads and three documents left a column of
-          bare page background beside the documents panel. Stretched, both panels end on
-          the same line, and the lists inside them are capped and scroll — so whichever
-          side has more rows, the block stays the same compact height. */}
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      {/* Высота каждой панели — по её содержимому (items-start), без внутренней
+          прокрутки: список из двух файлов не тянется до высоты семи грузов, а на
+          телефоне вложенный скролл не ловит палец. */}
+      <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
         <section className="panel flex min-w-0 flex-col p-4">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white/62">
+            <h2 className="text-base leading-6 font-semibold text-white/90">
               {t(locale, 'trucks.detail.loadsHeading')}
               {active > 0 && ` · ${active} ${t(locale, 'trucks.detail.inProgress')}`}
             </h2>
@@ -608,7 +618,7 @@ export default async function Page({
           {rows.length === 0 ? (
             <p className="text-[13px] text-white/55">{t(locale, 'trucks.detail.noLoadsYet')}</p>
           ) : (
-            <div className="flex max-h-[28rem] flex-col gap-2 overflow-y-auto pr-1">
+            <div className="flex flex-col gap-2">
               {rows.map(({ load, r }) => {
                 const rcId = rateCons.get(load.id)
                 return (
@@ -655,7 +665,7 @@ export default async function Page({
 
         <section className="panel flex min-w-0 flex-col p-4">
           <div className="mb-2">
-            <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+            <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
               {t(locale, 'trucks.detail.documents')}
               <Info text={t(locale, 'trucks.detail.documentsInfo')} />
             </h2>
@@ -663,11 +673,8 @@ export default async function Page({
           <DocUpload truckId={truck.id} />
           {/* attachTargets = this truck's live loads, so a file that came in via
               Telegram and landed under the truck can be recognised into a load or
-              linked to an existing one straight from the list.
-              Capped like the loads list opposite: a truck with a dozen files would
-              otherwise stretch this column past the loads beside it — the same
-              imbalance, just mirrored. */}
-          <div className="max-h-[28rem] overflow-y-auto pr-1">
+              linked to an existing one straight from the list. */}
+          <div>
             <DocList
               docs={docs}
               attachTargets={live.map((l) => ({
@@ -683,7 +690,7 @@ export default async function Page({
            брокеру ежечасно (имя, телефон, трак/трейлер), уже в шапке и в
            «Данных водителей» на списке траков. ===== */}
       <details className="group panel mt-4 p-4">
-        <summary className="-m-1 flex cursor-pointer list-none items-center gap-1.5 rounded-lg p-1 text-[11px] font-semibold uppercase tracking-wider text-white/62 transition-colors hover:bg-white/[0.03] hover:text-white/90">
+        <summary className="-m-1 flex cursor-pointer list-none items-center gap-1.5 rounded-lg p-1 text-base leading-6 font-semibold text-white/90 transition-colors hover:bg-white/[0.03] hover:text-white/90">
           <span className="text-[13px] leading-none text-white/40 transition-transform duration-200 group-open:rotate-90">
             ▸
           </span>
@@ -735,7 +742,7 @@ export default async function Page({
 
       {/* ===== Economics — collapsed by default (rarely changed) ===== */}
       <details className="group panel mt-4 p-4">
-        <summary className="-m-1 flex cursor-pointer list-none items-center gap-1.5 rounded-lg p-1 text-[11px] font-semibold uppercase tracking-wider text-white/62 transition-colors hover:bg-white/[0.03] hover:text-white/90">
+        <summary className="-m-1 flex cursor-pointer list-none items-center gap-1.5 rounded-lg p-1 text-base leading-6 font-semibold text-white/90 transition-colors hover:bg-white/[0.03] hover:text-white/90">
           <span className="text-[13px] leading-none text-white/40 transition-transform duration-200 group-open:rotate-90">
             ▸
           </span>
@@ -786,12 +793,12 @@ function Chip({
           ? 'text-warn-400'
           : 'text-white'
   return (
-    <div className="rounded-xl border border-white/8 bg-ink-900/50 px-3 py-2 text-center backdrop-blur">
-      <div className={`nums text-[16px] font-bold ${color}`}>{value}</div>
-      <div className="mt-0.5 flex items-center justify-center gap-1 text-[10px] uppercase tracking-wider text-white/55">
+    <div className="flex items-baseline gap-1.5">
+      <span className={`nums text-[15px] font-semibold ${color}`}>{value}</span>
+      <span className="flex items-center gap-1 text-xs font-medium text-white/60">
         {label}
         {info && <Info text={info} />}
-      </div>
+      </span>
     </div>
   )
 }

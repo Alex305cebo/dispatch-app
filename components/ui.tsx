@@ -38,7 +38,7 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-white/65">
+      <span className="mb-1.5 block text-xs font-medium text-white/70">
         {label}
       </span>
       <div className="relative">
@@ -89,7 +89,7 @@ export function TextField({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-white/65">
+      <span className="mb-1.5 block text-xs font-medium text-white/70">
         {label}
       </span>
       <input

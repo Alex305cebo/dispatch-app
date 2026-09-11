@@ -83,6 +83,15 @@ export const navDict = {
     ro: 'Mod DEMO — toate datele sunt fictive, iar modificările nu se păstrează definitiv.',
     kk: 'ДЕМО режимі — барлық дерек шын емес, өзгерістер біржола сақталмайды.',
   },
+  // Телефон: длинная фраза не влезала в одну строку и обрезалась.
+  'demo.bannerShort': {
+    ru: 'ДЕМО-режим, данные ненастоящие.',
+    en: 'DEMO mode, fake data.',
+    es: 'Modo DEMO, datos ficticios.',
+    uk: 'ДЕМО-режим, дані несправжні.',
+    ro: 'Mod DEMO, date fictive.',
+    kk: 'ДЕМО режимі, деректер жалған.',
+  },
   'demo.signIn': { ru: 'Войти в свой аккаунт →', en: 'Sign in to your account →', es: 'Entrar en mi cuenta →', uk: 'Увійти у свій акаунт →', ro: 'Intră în contul tău →', kk: 'Өз аккаунтыңа кіру →' },
 
   'ai.err.quota': {

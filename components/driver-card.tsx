@@ -97,7 +97,7 @@ export function DriverCard({
   return (
     <Wrap className={embedded ? '' : 'panel p-4'}>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'trucks.driverCard.heading')}
           {!embedded && <Info text={t(locale, 'trucks.driverCard.info')} />}
         </h2>
@@ -261,7 +261,7 @@ function Field({
     'w-full rounded-lg border border-white/10 bg-ink-950/70 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500'
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[11px] uppercase tracking-wider text-white/55">{label}</span>
+      <span className="text-xs text-white/65 font-medium">{label}</span>
       <input type={type} value={value} onChange={onChange} placeholder={placeholder} className={input} />
     </label>
   )
@@ -270,7 +270,7 @@ function Field({
 function Row({ label, value, href }: { label: string; value: string; href?: string }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[10px] uppercase tracking-wider text-white/45">{label}</dt>
+      <dt className="text-xs text-white/60 font-medium">{label}</dt>
       <dd className="truncate font-medium text-white/85">
         {href ? (
           <a href={href} className="text-haul-400 hover:underline">

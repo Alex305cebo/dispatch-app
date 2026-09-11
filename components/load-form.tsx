@@ -81,12 +81,12 @@ export function LoadForm({
     <MotionConfig reducedMotion="user">
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <section className="panel p-5">
-          <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          <h2 className="mb-4 text-base leading-6 font-semibold text-white/90">
             {tr(locale, 'loadForm.heading')}
           </h2>
 
           <label className="mb-4 block">
-            <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-white/65">
+            <span className="mb-1.5 block text-xs font-medium text-white/70">
               {tr(locale, 'loadForm.truckLabel')}
             </span>
             <select
@@ -207,7 +207,7 @@ export function LoadForm({
         </section>
 
         <section className="panel p-5 lg:sticky lg:top-6">
-          <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          <h2 className="mb-4 text-base leading-6 font-semibold text-white/90">
             {tr(locale, 'loadDetail.rateHeading')}
           </h2>
           {calcError && <p className="text-sm text-bad-400">{calcError}</p>}

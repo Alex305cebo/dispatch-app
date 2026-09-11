@@ -78,7 +78,7 @@ export function Info({ text }: { text: string; side?: 'top' | 'bottom' }) {
           setHovered(true)
         }}
         onMouseLeave={() => setHovered(false)}
-        className="inline-flex size-[15px] shrink-0 items-center justify-center rounded-full border border-white/25 align-middle text-[10px] font-semibold leading-none text-white/55 transition-colors hover:border-haul-500 hover:text-haul-400"
+        className="relative inline-flex size-[15px] shrink-0 items-center justify-center rounded-full border border-white/25 align-middle before:absolute before:-inset-3.5 before:content-[''] text-[10px] font-semibold leading-none text-white/55 transition-colors hover:border-haul-500 hover:text-haul-400"
       >
         i
       </button>

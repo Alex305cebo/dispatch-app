@@ -301,7 +301,7 @@ export function TruckRcDrop({
 
         {res.warnings.length > 0 && (
           <div>
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+            <p className="mb-1.5 text-base leading-6 font-semibold text-white/90">
               {t(locale, 'rcDrop.checkOnLoad')}
             </p>
             <ul className="flex flex-col gap-1.5">
@@ -319,7 +319,7 @@ export function TruckRcDrop({
 
         <div>
           <div className="mb-1.5 flex items-center justify-between">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-white/62">Driver Information</p>
+            <p className="text-base leading-6 font-semibold text-white/90">Driver Information</p>
             <Button
               variant="primary"
               size="sm"

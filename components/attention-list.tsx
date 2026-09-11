@@ -1,20 +1,12 @@
 'use client'
 
-// The scrolling body of "Требуют внимания" on /loads.
-//
-// Lazy here means lazy RENDERING, not lazy fetching, and that distinction is the
-// whole design: every flagged load is already in hand on the server (the page
-// computes them from the loads it fetched anyway, and the driver sections below
-// render every one of those loads regardless). Adding a server action to page them
-// in would buy nothing — the bytes are already on the wire — while adding a
-// round-trip, a loading state and a way to get out of sync.
-//
-// What it does buy: the list starts at PAGE rows instead of all of them, and grows
-// only as far as the dispatcher actually scrolls. On a fleet with hundreds of
-// flagged loads that is the difference between a few dozen DOM nodes and a few
-// hundred on first paint.
+// «Требуют внимания» на /loads. Список без собственной прокрутки: первые PAGE
+// строк, дальше кнопка «ещё N». Вложенный скролл на телефоне ловил палец и прятал
+// хвост списка, а подгрузка по скроллу отодвигала доску грузов всё дальше.
+// Строки разделены линиями, а не вложенными капсулами; маршрут на телефоне
+// занимает всю первую строку, причины — под ним.
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 
 export type AttentionItem = {
@@ -26,59 +18,41 @@ export type AttentionItem = {
 
 const PAGE = 8
 
-export function AttentionList({ items }: { items: AttentionItem[] }) {
+export function AttentionList({ items, moreLabel }: { items: AttentionItem[]; moreLabel: string }) {
   const [shown, setShown] = useState(Math.min(PAGE, items.length))
-  const sentinel = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const el = sentinel.current
-    if (!el || shown >= items.length) return
-    // root:null — the observer measures against the viewport, which is correct even
-    // though the list has its own scroll container: an overflow ancestor already
-    // clips intersection, so the sentinel only reports visible once it is scrolled
-    // into the container AND the container is on screen. rootMargin gives it a screen
-    // of lead time so rows exist before they're reached, not after.
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setShown((n) => Math.min(n + PAGE, items.length))
-        }
-      },
-      { rootMargin: '160px' },
-    )
-    io.observe(el)
-    return () => io.disconnect()
-  }, [shown, items.length])
 
   return (
-    // Capped height, so the section can never push the actual dispatch board off the
-    // screen — which is what a full list of 39 rows did before.
-    <div className="max-h-[19rem] overflow-y-auto pr-1">
-      <div className="flex flex-col gap-1.5">
-        {items.slice(0, shown).map((it) => (
-          <Link
-            key={it.id}
-            href={`/loads/${it.id}`}
-            className="panel-inset panel-interactive flex items-center gap-2 px-3 py-2"
-          >
-            <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{it.route}</span>
-            <span className="flex shrink-0 flex-wrap justify-end gap-1">
-              {it.reasons.map((r) => (
-                <span
-                  key={r.label}
-                  className={`rounded px-1.5 py-0.5 text-[10.5px] font-medium ${
-                    r.bad ? 'bg-bad-500/15 text-bad-400' : 'bg-warn-400/15 text-warn-400'
-                  }`}
-                >
-                  {r.label}
-                </span>
-              ))}
-            </span>
-          </Link>
-        ))}
-        {/* Zero height at rest: it must not add a gap under the last row. */}
-        {shown < items.length && <div ref={sentinel} aria-hidden className="h-px" />}
-      </div>
+    <div className="flex flex-col divide-y divide-white/8">
+      {items.slice(0, shown).map((it) => (
+        <Link
+          key={it.id}
+          href={`/loads/${it.id}`}
+          className="flex min-h-11 flex-col justify-center gap-1 rounded-md px-1.5 py-2 transition-colors hover:bg-white/[0.04] sm:flex-row sm:items-center sm:gap-2"
+        >
+          <span className="min-w-0 flex-1 text-[13px] font-medium sm:truncate">{it.route}</span>
+          <span className="flex shrink-0 flex-wrap gap-1 sm:justify-end">
+            {it.reasons.map((r) => (
+              <span
+                key={r.label}
+                className={`rounded px-1.5 py-0.5 text-[10.5px] font-medium ${
+                  r.bad ? 'bg-bad-500/15 text-bad-400' : 'bg-warn-400/15 text-warn-400'
+                }`}
+              >
+                {r.label}
+              </span>
+            ))}
+          </span>
+        </Link>
+      ))}
+      {shown < items.length && (
+        <button
+          type="button"
+          onClick={() => setShown((n) => Math.min(n + PAGE, items.length))}
+          className="min-h-11 rounded-md px-1.5 text-left text-[12.5px] font-medium text-haul-400 hover:underline"
+        >
+          {moreLabel.replace('{n}', String(items.length - shown))}
+        </button>
+      )}
     </div>
   )
 }

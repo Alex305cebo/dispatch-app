@@ -17,6 +17,8 @@ export type TruckMeta = {
   driverPhone: string | null
   notes: string | null
   hasPhoto: boolean
+  /** Загружено ли своё фото трака (truck_meta.truck_photo) — иначе картинка по умолчанию. */
+  hasTruckPhoto: boolean
   registrationExpiry: string | null
   inspectionExpiry: string | null
   insuranceExpiry: string | null

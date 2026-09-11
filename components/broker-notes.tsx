@@ -6,6 +6,18 @@ import { Button } from '@/components/button'
 // a "Прочитано" button; after, it goes quiet. Editable so notes can be fixed/added.
 
 import { useEffect, useRef, useState, useTransition } from 'react'
+import {
+  Banknote,
+  Bookmark,
+  Clock,
+  FileText,
+  HardHat,
+  Package,
+  Phone,
+  Shield,
+  TriangleAlert,
+  type LucideIcon,
+} from 'lucide-react'
 import { markNotesRead, parseRcForNotes, setBrokerNotes, translateBrokerNotes } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
@@ -15,17 +27,17 @@ import { usDate } from '@/lib/fmt'
 // The AI prompt (lib/ratecon-ai-contract.ts) tags each fact line with one of these —
 // lets the wall of prose from the RC render as a scannable list instead of one blob.
 // Untagged lines (older notes, or anything typed by hand) just render as plain text.
-function tagsFor(locale: Locale): Record<string, { label: string; icon: string; warn?: boolean }> {
+function tagsFor(locale: Locale): Record<string, { label: string; icon: LucideIcon; warn?: boolean }> {
   return {
-    SAFETY: { label: t(locale, 'brokerNotes.tagSafety'), icon: '🦺' },
-    LOAD: { label: t(locale, 'brokerNotes.tagLoad'), icon: '📦' },
-    SCHEDULE: { label: t(locale, 'brokerNotes.tagSchedule'), icon: '🕐' },
-    CONTACT: { label: t(locale, 'brokerNotes.tagContact'), icon: '📞' },
-    REF: { label: t(locale, 'brokerNotes.tagRef'), icon: '🔖' },
-    DOCS: { label: t(locale, 'brokerNotes.tagDocs'), icon: '📄' },
-    INSURANCE: { label: t(locale, 'brokerNotes.tagInsurance'), icon: '🛡' },
-    PENALTY: { label: t(locale, 'brokerNotes.tagPenalty'), icon: '💸', warn: true },
-    WARNING: { label: t(locale, 'brokerNotes.tagWarning'), icon: '❗', warn: true },
+    SAFETY: { label: t(locale, 'brokerNotes.tagSafety'), icon: HardHat },
+    LOAD: { label: t(locale, 'brokerNotes.tagLoad'), icon: Package },
+    SCHEDULE: { label: t(locale, 'brokerNotes.tagSchedule'), icon: Clock },
+    CONTACT: { label: t(locale, 'brokerNotes.tagContact'), icon: Phone },
+    REF: { label: t(locale, 'brokerNotes.tagRef'), icon: Bookmark },
+    DOCS: { label: t(locale, 'brokerNotes.tagDocs'), icon: FileText },
+    INSURANCE: { label: t(locale, 'brokerNotes.tagInsurance'), icon: Shield },
+    PENALTY: { label: t(locale, 'brokerNotes.tagPenalty'), icon: Banknote, warn: true },
+    WARNING: { label: t(locale, 'brokerNotes.tagWarning'), icon: TriangleAlert, warn: true },
   }
 }
 
@@ -146,7 +158,7 @@ export function BrokerNotes({
   if (editing) {
     return (
       <section className="panel p-4">
-        <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="mb-2 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'brokerNotes.editHeading')}
         </h2>
         <textarea
@@ -213,23 +225,22 @@ export function BrokerNotes({
     <details
       ref={detailsRef}
       open={unread}
-      // A slight amber tint always, so this doesn't blend into the page even once
-      // read — stronger while unread, but no longer *blinking*: a whole-card opacity
-      // pulse read as an alarm/glitch. Only the small ring behind ⚠ animates now.
-      className={`group overflow-hidden rounded-2xl border transition-colors ${
-        unread ? 'border-warn-400/40 bg-warn-400/10 ring-1 ring-warn-400/25' : 'border-warn-400/15 bg-warn-400/[0.03]'
+      // Условия брокера — справочный текст, не тревога: панель нейтральная. Жёлтым
+      // подсвечивается только непрочитанное, и только пока не нажали «Прочитано».
+      className={`group overflow-hidden rounded-xl border transition-colors ${
+        unread ? 'border-warn-400/40 bg-warn-400/[0.06]' : 'border-white/10 bg-ink-900'
       }`}
     >
       <summary className="flex cursor-pointer list-none items-center gap-2 p-3.5">
         {unread && (
           <span className="relative flex size-4 shrink-0 items-center justify-center" aria-hidden>
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-warn-400/50" />
-            <span className="relative text-warn-300">⚠</span>
+            <TriangleAlert size={14} strokeWidth={2.2} className="relative text-warn-300" />
           </span>
         )}
         <span
-          className={`shrink-0 text-[11px] font-semibold uppercase tracking-wider ${
-            unread ? 'text-warn-300' : 'text-white/62'
+          className={`shrink-0 text-[13px] font-semibold ${
+            unread ? 'text-warn-300' : 'text-white/90'
           }`}
         >
           {t(locale, 'brokerNotes.heading')}
@@ -257,9 +268,7 @@ export function BrokerNotes({
                 <li key={i} className="flex items-baseline gap-2 text-[13.5px] leading-relaxed">
                   {meta ? (
                     <>
-                      <span className="shrink-0" aria-hidden>
-                        {meta.icon}
-                      </span>
+                      <meta.icon size={14} strokeWidth={2} className="relative top-0.5 shrink-0 text-white/45" aria-hidden />
                       <span>
                         <span className={`mr-1.5 font-semibold ${meta.warn ? 'text-warn-300' : 'text-white/55'}`}>
                           {meta.label}:

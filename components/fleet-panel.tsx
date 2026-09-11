@@ -131,10 +131,10 @@ export function FleetPanel({
 
       {/* Быстрый выбор трака — чипы прямо под картой: номер и цвет статуса. Нажатие
           ведёт карту к траку и показывает его цифры в плитках ниже; повторное —
-          снимает выбор. На телефоне ряд листается пальцем, а не переносится в
-          четыре строки. */}
+          снимает выбор. Ряд переносится: весь парк виден без горизонтального
+          жеста, а на телефоне чип не ниже 44px. */}
       {rows.length > 1 && (
-        <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0">
+        <div className="mb-4 flex flex-wrap gap-2">
           {rows.map((r) => {
             const active = selected === r.id
             return (
@@ -144,7 +144,7 @@ export function FleetPanel({
                 onClick={() => pick(r)}
                 title={r.label}
                 aria-pressed={active}
-                className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[12px] font-semibold transition-colors ${
+                className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-colors md:min-h-8 md:px-2.5 md:text-[12px] ${
                   active
                     ? 'border-haul-400/70 bg-haul-500/25 text-white'
                     : 'border-white/12 bg-white/[0.04] text-white/75 hover:border-white/30 hover:bg-white/[0.08]'

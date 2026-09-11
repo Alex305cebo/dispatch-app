@@ -72,7 +72,7 @@ function SafetyMeter({ score }: { score: number }) {
   return (
     <div className="rounded-xl border border-white/8 bg-white/[0.02] p-3">
       <div className="mb-1.5 flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/50">
+        <span className="flex items-center gap-1.5 text-[13px] font-semibold text-white/75">
           {t(locale, 'brokers.safetyHeading')}
           <Info text={t(locale, 'brokers.safetyInfo')} />
         </span>
@@ -192,7 +192,7 @@ export function BrokerChecklist({ check, collapsible = false }: { check: BrokerC
         if (i > revealed) return null
         if (en.kind === 'header')
           return (
-            <p key={i} className="mt-2 flex items-center gap-1.5 px-1 text-[10px] font-semibold uppercase tracking-wider text-white/40 first:mt-0">
+            <p key={i} className="mt-2 flex items-center gap-1.5 px-1 text-[13px] font-semibold text-white/75 first:mt-0">
               {en.label}
               <Info text={t(locale, en.info)} />
             </p>

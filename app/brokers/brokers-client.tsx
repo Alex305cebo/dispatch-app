@@ -140,7 +140,7 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
           проверку по FMCSA — при новом брокере, справочник — изредка. */}
       {/* ── Our brokers ────────────────────────────────────── */}
       <section className="panel p-5">
-        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'brokers.dbHeading')}
           <Info text={t(locale, 'brokers.dbInfo')} />
           <Info text={t(locale, 'brokers.moneyInfo')} />
@@ -183,7 +183,7 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                   return (
                   <li
                     key={rowKey}
-                    className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-white/6 px-3 py-2.5"
+                    className="flex flex-wrap items-start gap-x-3 gap-y-1.5 rounded-lg border border-white/6 px-3 py-2.5"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -295,27 +295,6 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                         </div>
                       )}
                     </div>
-                    {/* Правка руками: и реестр, и разбор документа ошибаются — не тот
-                        MC, телефон менеджера вместо офиса, почта, на которую счёт не
-                        примут. Правка идёт по всей истории брокера, иначе её пришлось
-                        бы повторять в каждом грузе. */}
-                    <button
-                      type="button"
-                      onClick={() => setEditFor(editFor === rowKey ? null : rowKey)}
-                      className="shrink-0 rounded-lg border border-white/10 px-2.5 py-1 text-[12px] text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300"
-                    >
-                      {editFor === rowKey ? t(locale, 'brokers.editClose') : t(locale, 'brokers.edit')}
-                    </button>
-                    {b.mc && (
-                      <button
-                        type="button"
-                        onClick={() => check('mc', b.mc!)}
-                        className="shrink-0 rounded-lg border border-white/10 px-2.5 py-1 text-[12px] text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300"
-                      >
-                        {t(locale, 'brokers.recheck')}
-                      </button>
-                    )}
-
                     {/* Представители — свёрнуты. Разворачивать нечего, если он один:
                         такой уже показан строкой выше. */}
                     {b.reps.length > 1 && (
@@ -353,6 +332,31 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                         </ul>
                       </details>
                     )}
+
+                    {/* Действия — своей строкой под контактами: рядом с ними в RU
+                        «Изменить / Проверить» оставляли телефону и почте узкую колонку.
+                        Правка руками: и реестр, и разбор документа ошибаются — не тот
+                        MC, телефон менеджера вместо офиса, почта, на которую счёт не
+                        примут. Правка идёт по всей истории брокера, иначе её пришлось
+                        бы повторять в каждом грузе. */}
+                    <div className="flex w-full flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditFor(editFor === rowKey ? null : rowKey)}
+                        className="inline-flex min-h-9 items-center rounded-lg border border-white/10 px-3 text-[12.5px] text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300 max-md:min-h-11"
+                      >
+                        {editFor === rowKey ? t(locale, 'brokers.editClose') : t(locale, 'brokers.edit')}
+                      </button>
+                      {b.mc && (
+                        <button
+                          type="button"
+                          onClick={() => check('mc', b.mc!)}
+                          className="inline-flex min-h-9 items-center rounded-lg border border-white/10 px-3 text-[12.5px] text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300 max-md:min-h-11"
+                        >
+                          {t(locale, 'brokers.recheck')}
+                        </button>
+                      )}
+                    </div>
 
                     {owedFor === rowKey && b.unpaid.length > 0 && (
                       <ul className="w-full rounded-lg border border-white/10 bg-ink-950/60 p-2">
@@ -407,7 +411,7 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
 
       {/* ── Check form ─────────────────────────────────────── */}
       <section className="panel mt-4 p-5">
-        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'brokers.checkHeading')}
           <Info text={t(locale, 'brokers.checkInfo')} />
         </h2>
@@ -456,7 +460,7 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
 
       {/* ── Largest brokers (reference) ────────────────────── */}
       <section className="panel mt-4 p-5">
-        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'brokers.topHeading')}
           <Info text={t(locale, 'brokers.topInfo')} />
         </h2>
@@ -494,7 +498,7 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
               ✕
             </button>
             <h3 className="pr-8 text-[17px] font-semibold">{history.name}</h3>
-            <p className="mt-0.5 text-[12px] uppercase tracking-wider text-white/40">{history.hq}</p>
+            <p className="mt-0.5 text-xs text-white/55 font-medium">{history.hq}</p>
             {/* Реквизиты идут ВЫШЕ истории: история — это «кто они», а работать надо с
                 номером. В самом списке их не хранят намеренно — вписанный руками MC
                 устаревает и врёт, поэтому он тянется из реестра на месте. */}
@@ -645,7 +649,7 @@ function TopBrokerFacts({ name }: { name: string }) {
   const cell = (label: string, value: string | null) =>
     value ? (
       <div className="min-w-0">
-        <div className="text-[10px] uppercase tracking-wider text-white/35">{label}</div>
+        <div className="text-xs text-white/55 font-medium">{label}</div>
         <div className="nums truncate text-[13px] text-white/85">{value}</div>
       </div>
     ) : null

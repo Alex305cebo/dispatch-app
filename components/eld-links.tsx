@@ -55,7 +55,7 @@ export function EldLinks({ count, eldOn = false }: { count: number; eldOn?: bool
         aria-expanded={open}
         className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5 text-left"
       >
-        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <span className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
           <Radio size={13} strokeWidth={2.2} className="text-haul-300" />
           {t(locale, 'tracking.trackingHeader')}
         </span>

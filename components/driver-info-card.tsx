@@ -28,7 +28,7 @@ export function DriverInfoCard({ text, locale = 'en' }: { text: string; locale?:
 
   return (
     <details className="group panel mt-4 p-4">
-      <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
         <span className="text-white/40 transition-transform group-open:rotate-90">▸</span>
         {t(locale, 'trucks.driverInfo.heading')}
         <Info text={t(locale, 'trucks.driverInfo.info')} />

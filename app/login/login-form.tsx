@@ -314,7 +314,7 @@ export function LoginForm({
 
         {askBirthday && (
           <label className="mb-2.5 block">
-            <span className="mb-1 block text-[11px] uppercase tracking-wider text-white/55">
+            <span className="mb-1 block text-xs text-white/65 font-medium">
               {t(locale, 'login.birthday')}
             </span>
             {/* Родной календарь браузера: щёлкнул — выбрал — подтвердил. Никакой
@@ -415,7 +415,7 @@ export function LoginForm({
 
         {(bootstrap || mode === 'signin') && googleClientId && (
           <>
-            <div className="mt-4 flex items-center gap-3 text-[11px] uppercase tracking-wider text-white/35">
+            <div className="mt-4 flex items-center gap-3 text-xs text-white/55 font-medium">
               <span className="h-px flex-1 bg-white/10" />
               {t(locale, 'login.google.or')}
               <span className="h-px flex-1 bg-white/10" />

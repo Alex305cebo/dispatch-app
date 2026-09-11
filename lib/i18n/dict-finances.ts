@@ -479,6 +479,14 @@ export const financesDict = {
     ro: 'Plătit',
     kk: 'Төленді',
   },
+  'finances.paidToggle.mark': {
+    ru: 'Отметить оплату',
+    en: 'Mark as paid',
+    es: 'Marcar pago',
+    uk: 'Позначити оплату',
+    ro: 'Marchează plata',
+    kk: 'Төлемді белгілеу',
+  },
   'finances.paidToggle.remove': {
     ru: 'Снять отметку',
     en: 'Remove mark',

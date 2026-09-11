@@ -169,7 +169,7 @@ export default async function Page() {
             <CalendarClock size={15} strokeWidth={2.5} />
           </span>
           <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider text-warn-400">
+          <p className="flex items-center gap-1.5 text-base leading-6 font-semibold text-warn-400">
             {tr(locale, 'overview.docDeadlines')}
             <Info text={tr(locale, 'overview.docDeadlinesInfo')} />
           </p>
@@ -208,7 +208,7 @@ export default async function Page() {
             <MessageSquareWarning size={15} strokeWidth={2.5} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider text-haul-300">
+            <p className="flex items-center gap-1.5 text-base leading-6 font-semibold text-haul-300">
               {tr(locale, 'overview.brokerUnread')}
               <Info text={tr(locale, 'overview.brokerUnreadInfo')} />
             </p>
@@ -243,7 +243,7 @@ export default async function Page() {
           </span>
           <div className="min-w-0 flex-1">
           <p
-            className={`flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider ${
+            className={`flex items-center gap-1.5 text-base font-semibold leading-6 ${
               overdueTotal > 0 ? 'text-bad-400' : 'text-white/55'
             }`}
           >
@@ -271,7 +271,16 @@ export default async function Page() {
         </div>
       )}
 
-      {/* Четыре в ряд только с lg. На 640px четвёрка давала по ~155px на плитку, и
+      {/* «Кому искать груз» — первый содержательный блок: «что делать сегодня»
+          важнее итогов за период. Деньги и мили — сеткой ниже. */}
+      <NeedsLoad
+        rows={idleFleet(trucks, live, placeByTruck)}
+        trucks={byId}
+        trailers={trailers}
+        locale={locale}
+      />
+
+      {/* Итоги периода — после списка дел. Четыре в ряд только с lg. На 640px четвёрка давала по ~155px на плитку, и
           «$81,799» вылезал за край, а подпись схлопывалась в «TOT…». На планшете две
           широкие читаются, четыре узкие — нет. */}
       {loads.length > 0 && (
@@ -314,14 +323,6 @@ export default async function Page() {
         </div>
       )}
 
-      {/* Список дел — сразу под плитками: «что делать сегодня» важнее всего. */}
-      <NeedsLoad
-        rows={idleFleet(trucks, live, placeByTruck)}
-        trucks={byId}
-        trailers={trailers}
-        locale={locale}
-      />
-
       {/* Календарь загрузки за 14 дней — сразу под списком дел: кто когда освободится. */}
       {trucks.length > 0 && live.length > 0 && (
         <div className="mb-4">
@@ -355,7 +356,7 @@ export default async function Page() {
 
       {/* Fleet at a glance — driver + last-known ELD status, straight from the trucks. */}
       <div className="mb-2 mt-2 flex items-center justify-between">
-        <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
           {tr(locale, 'overview.fleetHeading')}
           <Info text={tr(locale, 'overview.fleetInfo')} />
         </h2>
@@ -462,7 +463,7 @@ export default async function Page() {
                   >
                     {usd.format(week)}
                   </div>
-                  <div className="flex items-center justify-end gap-1 text-2xs uppercase tracking-wider text-white/40">
+                  <div className="flex items-center justify-end gap-1 text-xs text-white/55 font-medium">
                     {tr(locale, 'overview.perWeek')}
                     <Info text={tr(locale, 'overview.perWeekInfo')} />
                   </div>
@@ -480,7 +481,7 @@ export default async function Page() {
 
       {rows.length > 0 ? (
         <>
-          <h2 className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          <h2 className="mb-2 mt-4 text-base leading-6 font-semibold text-white/90">
             {tr(locale, 'overview.recentLoads')}
           </h2>
           <div className="flex flex-col gap-1.5">

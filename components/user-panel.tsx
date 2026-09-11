@@ -117,7 +117,7 @@ function Group({ title, children }: { title?: string; children: React.ReactNode 
   return (
     <div className="border-t border-white/8 py-1 first:border-t-0">
       {title && (
-        <p className="px-2 pb-1 pt-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-white/35">
+        <p className="px-2 pb-1 pt-1.5 text-[13px] font-semibold text-white/75">
           {title}
         </p>
       )}

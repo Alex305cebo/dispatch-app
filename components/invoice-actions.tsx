@@ -121,13 +121,13 @@ export function PaidToggle({ loadId, paid = false }: { loadId: number; paid?: bo
           notify('ok', paid ? t(locale, 'finances.paidToggle.unmarked') : t(locale, 'finances.paidToggle.marked'))
         })
       }
-      className={`shrink-0 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-50 ${
+      className={`inline-flex min-h-9 shrink-0 items-center rounded-lg px-3 text-[12px] font-semibold transition-colors disabled:opacity-50 max-md:min-h-11 ${
         paid
           ? 'border border-white/10 text-white/60 hover:border-white/25 hover:text-white'
           : 'bg-haul-500 hover:bg-haul-400'
       }`}
     >
-      {paid ? t(locale, 'finances.paidToggle.remove') : t(locale, 'finances.paidToggle.marked')}
+      {paid ? t(locale, 'finances.paidToggle.remove') : t(locale, 'finances.paidToggle.mark')}
     </button>
   )
 }
@@ -156,14 +156,14 @@ export function CompanyForm({ initial }: { initial: Company }) {
         ] as const
       ).map(([k, key]) => (
         <label key={k}>
-          <span className="mb-1 block text-[11px] uppercase tracking-wider text-white/55">
+          <span className="mb-1 block text-xs text-white/65 font-medium">
             {t(locale, key)}
           </span>
           <input value={c[k]} onChange={f(k)} className={input} />
         </label>
       ))}
       <label className="sm:col-span-2">
-        <span className="mb-1 block text-[11px] uppercase tracking-wider text-white/55">
+        <span className="mb-1 block text-xs text-white/65 font-medium">
           {t(locale, 'finances.form.remitTo')}
         </span>
         <textarea value={c.remitTo} onChange={f('remitTo')} rows={2} className={input} />

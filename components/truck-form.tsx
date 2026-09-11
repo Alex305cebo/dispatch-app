@@ -36,7 +36,7 @@ export function TruckForm({ id, initial, locale = 'en' }: { id: number | null; i
 
   return (
     <section className="panel max-w-2xl p-5">
-      <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-white/50">{tr(locale, 'trucks.form.truckHeading')}</h3>
+      <h3 className="mb-3 text-[13px] font-semibold text-white/75">{tr(locale, 'trucks.form.truckHeading')}</h3>
       <div className="grid grid-cols-2 gap-3">
         <TextField
           label={tr(locale, 'trucks.form.numberLabel')}
@@ -52,7 +52,7 @@ export function TruckForm({ id, initial, locale = 'en' }: { id: number | null; i
         />
       </div>
 
-      <h3 className="mb-3 mt-6 text-[11px] font-semibold uppercase tracking-wider text-white/50">
+      <h3 className="mb-3 mt-6 text-[13px] font-semibold text-white/75">
         {tr(locale, 'trucks.form.economicsHeading')}
       </h3>
       <div className="grid grid-cols-2 gap-3">
@@ -89,7 +89,7 @@ export function TruckForm({ id, initial, locale = 'en' }: { id: number | null; i
         </div>
 
         <label className="block">
-          <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-white/65">
+          <span className="mb-1.5 block text-xs font-medium text-white/70">
             {tr(locale, 'trucks.form.driverPayLabel')}
           </span>
           <select

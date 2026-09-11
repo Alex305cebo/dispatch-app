@@ -12,7 +12,7 @@ import type { BackhaulBroker } from '@/lib/backhaul'
 export function BackhaulList({ state, brokers, locale }: { state: string; brokers: BackhaulBroker[]; locale: Locale }) {
   return (
     <section className="panel mt-4 p-4">
-      <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+      <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
         {t(locale, 'backhaul.heading').replace('{state}', state)}
         <Info text={t(locale, 'backhaul.info')} />
       </h2>

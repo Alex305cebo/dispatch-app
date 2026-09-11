@@ -9,7 +9,8 @@ import { LocalTime } from '@/components/local-time'
 import Link from 'next/link'
 import { Button } from '@/components/button'
 import { useLocale } from '@/components/locale-provider'
-import { WEATHER_ICON, weatherKind, weatherTone } from '@/lib/weather-label'
+import { weatherKind, weatherTone } from '@/lib/weather-label'
+import { WeatherIcon } from '@/components/weather-icon'
 import { t } from '@/lib/i18n'
 import { usd } from '@/lib/fmt'
 import { CopyPlace } from '@/components/copy-place'
@@ -209,7 +210,7 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
                           bad ? 'bg-bad-500/15 text-bad-400' : 'bg-warn-400/15 text-warn-400'
                         }`}
                       >
-                        {WEATHER_ICON[kind]} {t(locale, `wx.${kind}` as Parameters<typeof t>[1])}
+                        <WeatherIcon kind={kind} /> {t(locale, `wx.${kind}` as Parameters<typeof t>[1])}
                       </span>
                     )
                   })()}
@@ -279,7 +280,7 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
                     >
                       {money[r.id]!.week > 0 ? usd.format(money[r.id]!.week) : '—'}
                     </span>
-                    <span className="block text-[9.5px] uppercase tracking-wider text-white/40">
+                    <span className="block text-xs text-white/55 font-medium">
                       {t(locale, 'tracking.weekShort')}
                     </span>
                   </span>

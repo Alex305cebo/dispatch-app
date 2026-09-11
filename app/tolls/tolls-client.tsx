@@ -137,7 +137,7 @@ export function TollsClient({
 
   const input =
     'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2 text-[13px] text-white outline-none placeholder:text-white/30 focus:border-haul-500'
-  const label = 'mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-white/60'
+  const label = 'mb-1.5 block text-xs font-medium text-white/65'
 
   return (
     <div className="flex flex-col gap-4">
@@ -345,7 +345,7 @@ export function TollsClient({
           )}
 
           <section className="panel p-4">
-            <h2 className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+            <h2 className="mb-2.5 text-base leading-6 font-semibold text-white/90">
               {t(locale, 'tolls.options')}
             </h2>
             <div className="grid gap-2 sm:grid-cols-3">
@@ -383,7 +383,7 @@ export function TollsClient({
           </section>
 
           <section className="panel p-4">
-            <h2 className="mb-2 flex items-baseline justify-between gap-3 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+            <h2 className="mb-2 flex items-baseline justify-between gap-3 text-base leading-6 font-semibold text-white/90">
               {t(locale, 'tolls.plazas')}
               <span className="nums font-bold text-warn-400">{usd.format(option.total)}</span>
             </h2>
@@ -478,7 +478,7 @@ function OptionCard({
       <p className={`nums mt-1.5 text-xl font-bold ${o.total > 0 ? 'text-warn-400' : 'text-good-400'}`}>
         {usd.format(o.total)}
       </p>
-      <p className="text-[10px] uppercase tracking-wider text-white/40">
+      <p className="text-xs text-white/55 font-medium">
         {t(locale, 'tolls.tollsTotal')}
       </p>
       <p className="nums mt-1.5 text-[12px] text-white/60">

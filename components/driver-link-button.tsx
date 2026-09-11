@@ -81,7 +81,7 @@ export function DriverLinkButton({
       </div>
       <p className="mt-1 text-[12.5px] leading-relaxed text-white/60">{t(locale, 'driver.link.info')}</p>
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-        <span className="mr-0.5 text-[11.5px] uppercase tracking-wider text-white/45">
+        <span className="mr-0.5 text-xs text-white/60 font-medium">
           {t(locale, 'driver.link.share')}
         </span>
         {share.map((s) => (

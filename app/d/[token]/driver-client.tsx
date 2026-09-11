@@ -155,7 +155,7 @@ export function DriverClient({
               : 'border-white/10 bg-white/[0.03]'
         }`}
       >
-        <div className="text-[11px] uppercase tracking-wider text-white/50">
+        <div className="text-xs text-white/60 font-medium">
           {finished ? '✓ ' : ''}
           {stopTitle(s, stopsOf(s.loadId), locale)}
           {tag(s)}
@@ -193,7 +193,7 @@ export function DriverClient({
       {load && (
         <section className="panel mt-4 p-4">
           {/* Полоса остановок: видно, где он и что дальше. */}
-          <ol className="flex items-center gap-1 text-[10px] uppercase tracking-wider">
+          <ol className="flex items-center gap-1 text-xs font-medium">
             {stops.map((s) => {
               const state = done(s) ? 'done' : s === next ? 'now' : 'later'
               return (
@@ -295,7 +295,7 @@ export function DriverClient({
 
       {load && (
         <section className="mt-4">
-          <p className="mb-2 text-[11px] uppercase tracking-wider text-white/50">{t(locale, 'driver.docsHeading')}</p>
+          <p className="mb-2 text-xs text-white/60 font-medium">{t(locale, 'driver.docsHeading')}</p>
           <input
             ref={bolRef}
             type="file"
@@ -375,7 +375,7 @@ export function DriverClient({
 
       {/* Сообщение диспетчеру — сломался, задержка, вопрос. Пишет сам водитель. */}
       <section className="mt-4">
-        <p className="mb-2 text-[11px] uppercase tracking-wider text-white/50">{t(locale, 'driver.noteHeading')}</p>
+        <p className="mb-2 text-xs text-white/60 font-medium">{t(locale, 'driver.noteHeading')}</p>
         <div className="flex flex-wrap gap-2">
           {(
             ['driver.quick.delay', 'driver.quick.breakdown', 'driver.quick.waiting', 'driver.quick.question'] as const
@@ -415,7 +415,7 @@ export function DriverClient({
 
       {events.length > 0 && (
         <section className="mt-5">
-          <p className="mb-2 text-[11px] uppercase tracking-wider text-white/50">
+          <p className="mb-2 text-xs text-white/60 font-medium">
             {t(locale, 'driver.historyHeading')}
           </p>
           <ul className="flex flex-col gap-1 text-[12.5px]">

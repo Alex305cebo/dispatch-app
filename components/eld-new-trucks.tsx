@@ -18,7 +18,7 @@ export function EldNewTrucks({ units }: { units: { unit: string; driver: string 
   if (units.length === 0) return null
   return (
     <div className="mb-4 rounded-2xl border border-haul-500/40 bg-haul-500/[0.08] p-3 sm:p-4">
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-haul-200">
+      <div className="flex items-center gap-1.5 text-base leading-6 font-semibold text-haul-200">
         <Radio size={13} strokeWidth={2.2} />
         {t(locale, 'trucks.eldNew.title')}
       </div>
