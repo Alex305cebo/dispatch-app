@@ -3,6 +3,7 @@
 // Картинка трака в шапке карточки — и кнопка её сменить. Нажатие открывает выбор
 // файла; своё фото хранится в truck_meta.truck_photo, без него — /truck.png.
 import { useRef, useState, useTransition } from 'react'
+import { Camera } from 'lucide-react'
 import { saveTruckPhoto } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
@@ -45,27 +46,36 @@ export function TruckPhoto({
     })
   }
 
+  // Сама картинка не кнопка и не затемняется при наведении — сменить фото можно только
+  // маленькой иконкой в правом нижнем углу.
   return (
-    <label
-      title={t(locale, 'trucks.photo.change')}
-      className={`group block shrink-0 ${fill ? 'absolute inset-0' : 'relative'} ${className} ${pending ? 'opacity-50' : 'cursor-pointer'}`}
-    >
+    <div className={`block shrink-0 ${fill ? 'absolute inset-0' : 'relative'} ${className}`}>
       <img
         src={src}
         alt={alt}
-        className={fill ? 'h-full w-full object-contain object-bottom p-2 sm:object-right sm:p-4' : 'w-full object-contain'}
+        className={`${fill ? 'h-full w-full object-contain object-bottom p-2 sm:object-right sm:p-4' : 'w-full object-contain'} ${pending ? 'opacity-50' : ''}`}
       />
-      <span className="absolute inset-0 flex items-end justify-center rounded-xl bg-black/0 pb-1 text-[12px] font-medium text-transparent transition-colors group-hover:bg-black/40 group-hover:text-white">
-        {pending ? '…' : t(locale, 'trucks.photo.change')}
-      </span>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        disabled={pending}
-        onChange={(e) => pick(e.target.files?.[0])}
-      />
-    </label>
+      <label
+        title={t(locale, 'trucks.photo.change')}
+        aria-label={t(locale, 'trucks.photo.change')}
+        className={`absolute bottom-2 right-2 flex size-8 items-center justify-center rounded-full border border-white/15 bg-ink-900/80 text-white/70 transition-colors hover:border-white/35 hover:text-white max-md:size-10 ${
+          pending ? 'pointer-events-none' : 'cursor-pointer'
+        }`}
+      >
+        {pending ? (
+          <span className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        ) : (
+          <Camera size={15} strokeWidth={2.2} />
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          disabled={pending}
+          onChange={(e) => pick(e.target.files?.[0])}
+        />
+      </label>
+    </div>
   )
 }
