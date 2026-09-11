@@ -68,7 +68,9 @@ export function PairBar({
   )
 
   return (
-    <div className="sticky top-[var(--sticky-top)] z-30 mt-2 flex gap-1.5 rounded-xl border border-white/8 bg-ink-950/85 p-1 backdrop-blur sm:mt-3 sm:gap-2 sm:rounded-2xl sm:p-1.5">
+    // Липкая только при паре: трак без груза (и груз без трака) переключать не на что,
+    // и полоса, едущая за экраном, лишь занимает место.
+    <div className={`${truck && load ? 'sticky top-[var(--sticky-top)] z-30' : ''} mt-2 flex gap-1.5 rounded-xl border border-white/8 bg-ink-950/85 p-1 backdrop-blur sm:mt-3 sm:gap-2 sm:rounded-2xl sm:p-1.5`}>
       {current === 'truck' ? (
         <div className={active} aria-current="page">{truckInner}</div>
       ) : truck ? (
