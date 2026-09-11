@@ -271,16 +271,7 @@ export default async function Page() {
         </div>
       )}
 
-      {/* «Кому искать груз» — первый содержательный блок: «что делать сегодня»
-          важнее итогов за период. Деньги и мили — сеткой ниже. */}
-      <NeedsLoad
-        rows={idleFleet(trucks, live, placeByTruck)}
-        trucks={byId}
-        trailers={trailers}
-        locale={locale}
-      />
-
-      {/* Итоги периода — после списка дел. Четыре в ряд только с lg. На 640px четвёрка давала по ~155px на плитку, и
+      {/* Итоги периода. Четыре в ряд только с lg. На 640px четвёрка давала по ~155px на плитку, и
           «$81,799» вылезал за край, а подпись схлопывалась в «TOT…». На планшете две
           широкие читаются, четыре узкие — нет. */}
       {loads.length > 0 && (
@@ -323,7 +314,7 @@ export default async function Page() {
         </div>
       )}
 
-      {/* Календарь загрузки за 14 дней — сразу под списком дел: кто когда освободится. */}
+      {/* Календарь загрузки за 14 дней: кто когда освободится. */}
       {trucks.length > 0 && live.length > 0 && (
         <div className="mb-4">
           <FleetHeatmap
@@ -353,6 +344,15 @@ export default async function Page() {
           />
         </div>
       )}
+
+      {/* «Кому искать груз» — под «Загрузкой парка» (просьба пользователя): сначала
+          картина по дням, кто когда освободится, потом список, кому искать сейчас. */}
+      <NeedsLoad
+        rows={idleFleet(trucks, live, placeByTruck)}
+        trucks={byId}
+        trailers={trailers}
+        locale={locale}
+      />
 
       {/* Fleet at a glance — driver + last-known ELD status, straight from the trucks. */}
       <div className="mb-2 mt-2 flex items-center justify-between">
