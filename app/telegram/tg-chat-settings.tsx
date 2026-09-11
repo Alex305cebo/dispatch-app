@@ -21,13 +21,25 @@ export function TgChatSettings({
   dialogs: TgDialog[]
   shown: string[]
   chatTruck: Record<string, number>
-  trucks: { id: number; number: string }[]
+  trucks: { id: number; number: string; driver: string | null }[]
 }) {
   const locale = useLocale()
   const [shownSet, setShownSet] = useState(new Set(shown))
   const [pending, start] = useTransition()
   const [truckPending, startTruck] = useTransition()
   const dirty = shownSet.size !== shown.length || shown.some((id) => !shownSet.has(id))
+  // Диалогов сотни: искать по названию, а отмеченные и привязанные — сверху.
+  const [q, setQ] = useState('')
+  const needle = q.trim().toLowerCase()
+  const list = dialogs
+    .filter((d) => !needle || d.name.toLowerCase().includes(needle) || (d.phone ?? '').includes(needle))
+    .sort((a, b) => {
+      const ra = (shownSet.has(a.id) ? 0 : 2) + (chatTruck[a.id] ? 0 : 1)
+      const rb = (shownSet.has(b.id) ? 0 : 2) + (chatTruck[b.id] ? 0 : 1)
+      return ra - rb
+    })
+  const truckLabel = (tr: { number: string; driver: string | null }) =>
+    tr.driver ? `#${tr.number} · ${tr.driver}` : `#${tr.number}`
 
   function toggle(id: string) {
     setShownSet((prev) => {
@@ -66,11 +78,22 @@ export function TgChatSettings({
         {t(locale, 'telegram.settings.explain')}
       </p>
 
+      {dialogs.length > 8 && (
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t(locale, 'telegram.settings.search')}
+          className="mt-3 w-full rounded-lg border border-white/10 bg-ink-950/60 px-3 py-2 text-[13px] text-white outline-none placeholder:text-white/40 focus:border-haul-500"
+        />
+      )}
+
       {dialogs.length === 0 ? (
         <p className="mt-3 text-[13px] text-white/55">{t(locale, 'telegram.settings.noneVisible')}</p>
+      ) : list.length === 0 ? (
+        <p className="mt-3 text-[13px] text-white/55">{t(locale, 'telegram.settings.noMatch')}</p>
       ) : (
         <div className="mt-3 flex flex-col gap-1.5">
-          {dialogs.map((d) => (
+          {list.map((d) => (
             <label
               key={d.id}
               className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-white/6 bg-white/[0.015] px-3 py-2 select-none"
@@ -81,7 +104,10 @@ export function TgChatSettings({
                 onChange={() => toggle(d.id)}
                 className="size-4 shrink-0 accent-haul-500"
               />
-              <span className="min-w-0 flex-1 truncate text-[13px]">{d.name}</span>
+              <span className="min-w-0 flex-1 truncate text-[13px]">
+                {d.name}
+                {d.phone && <span className="nums ml-1.5 text-[11px] text-white/40">+{d.phone.replace(/^\+/, '')}</span>}
+              </span>
               {!d.isUser && (
                 <span className="shrink-0 rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] text-white/55">
                   {t(locale, 'telegram.settings.group')}
@@ -96,7 +122,7 @@ export function TgChatSettings({
                 <option value="">{t(locale, 'telegram.settings.pickTruck')}</option>
                 {trucks.map((t) => (
                   <option key={t.id} value={t.id}>
-                    #{t.number}
+                    {truckLabel(t)}
                   </option>
                 ))}
               </select>

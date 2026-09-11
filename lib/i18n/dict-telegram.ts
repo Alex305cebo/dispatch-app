@@ -147,6 +147,8 @@ export const telegramDict = {
     kk: 'Белгіленген диалогтар сол жақтағы тізімде көрінеді. Қалғаны жасырылған. Қасында чатты трактқа байлауға болады — сонда жүргізушінің POD/BOL суреттері оның жүгіне өзі тіркеледі.',
   },
   'telegram.settings.noneVisible': { ru: 'Диалогов не видно на этом аккаунте.', en: 'No conversations visible on this account.', es: 'En esta cuenta no se ven conversaciones.', uk: 'Діалогів не видно на цьому акаунті.', ro: 'Pe acest cont nu se văd conversații.', kk: 'Бұл аккаунтта диалогтар көрінбейді.' },
+  'telegram.settings.search': { ru: 'Найти чат по названию или телефону…', en: 'Find a chat by name or phone…', es: 'Buscar chat por nombre o teléfono…', uk: 'Знайти чат за назвою або телефоном…', ro: 'Caută chat după nume sau telefon…', kk: 'Чатты атауы не телефоны бойынша табу…' },
+  'telegram.settings.noMatch': { ru: 'Ничего не нашлось.', en: 'Nothing matched.', es: 'Nada coincide.', uk: 'Нічого не знайшлося.', ro: 'Nimic găsit.', kk: 'Ештеңе табылмады.' },
   'telegram.settings.group': { ru: 'группа', en: 'group', es: 'grupo', uk: 'група', ro: 'grup', kk: 'топ' },
   'telegram.settings.pickTruck': { ru: '— трак —', en: '— truck —', es: '— camión —', uk: '— трак —', ro: '— camion —', kk: '— тракт —' },
   'telegram.settings.saving': { ru: 'Сохраняю…', en: 'Saving…', es: 'Guardando…', uk: 'Зберігаю…', ro: 'Se salvează…', kk: 'Сақталуда…' },

@@ -135,7 +135,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   }
 
   // Telegram is real-accounts-only — always the real fleet, never the demo sandbox.
-  const trucks = (await listTrucks('default')).map((t) => ({ id: t.id, number: t.number ?? t.name }))
+  const trucks = (await listTrucks('default')).map((t) => ({ id: t.id, number: t.number ?? t.name, driver: t.driverName }))
   // Only approved chats appear in the list; the settings panel sees them all.
   const dialogs = allDialogs.filter((d) => shown.has(d.id))
 

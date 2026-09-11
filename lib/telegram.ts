@@ -167,7 +167,10 @@ const DIALOGS_TTL_MS = 5000
 async function cachedDialogs(uid: number, client: TelegramClient) {
   const hit = dialogsCache.get(uid)
   if (hit && Date.now() - hit.at < DIALOGS_TTL_MS) return hit.dialogs
-  const dialogs = await client.getDialogs({ limit: 30 })
+  // 30 последних было мало: чаты водителей и группы, где давно не писали,
+  // просто не попадали в список, и привязать их к траку было негде. Один
+  // вызов с большим лимитом — тот же flood-wait, что и раньше, кэш 5 с.
+  const dialogs = await client.getDialogs({ limit: 400 })
   dialogsCache.set(uid, { at: Date.now(), dialogs })
   return dialogs
 }
