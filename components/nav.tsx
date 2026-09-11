@@ -177,7 +177,8 @@ export function Nav({
     bumpDockTimer()
   }
   const hidden = new Set<string>()
-  if (!showTelegram) hidden.add('/telegram')
+  // Telegram — всегда в меню: без доступа или без подключения его страница сама
+  // пишет, что сделать. Спрятанный пункт не находили вовсе.
   if (!showFinances) hidden.add('/invoices')
   const items = hidden.size ? ITEMS.filter((it) => !hidden.has(it.href)) : ITEMS
   const rest = items.filter((it) => !it.primary && !it.soon)

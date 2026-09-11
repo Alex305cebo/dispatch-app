@@ -57,17 +57,49 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     return (
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
         <h1 className="mb-5 text-xl font-bold tracking-tight">Telegram</h1>
-        <p className="panel p-4 text-[13px] text-white/65">{t(locale, 'telegram.page.needLogin')}</p>
+        <div className="panel p-4">
+          <p className="text-[13px] text-white/75">{t(locale, 'telegram.page.needLogin')}</p>
+          <a
+            href="/login"
+            className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-haul-500 px-4 text-[13px] font-semibold text-white hover:bg-haul-400"
+          >
+            {t(locale, 'telegram.help.login')}
+          </a>
+        </div>
       </main>
     )
   }
 
   // Per-dispatcher capability (admin grants it). Admins always pass.
+  // Без доступа — не тупик, а инструкция: кто и где его включает. В демо Telegram
+  // не подключается вовсе (это чужой, общий аккаунт) — там предлагаем войти в свой.
   if (!(await can(user, 'telegram'))) {
     return (
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
         <h1 className="mb-5 text-xl font-bold tracking-tight">Telegram</h1>
-        <p className="panel p-4 text-[13px] text-white/65">{t(locale, 'telegram.page.noAccess')}</p>
+        <section className="panel p-4 sm:p-5">
+          <h2 className="text-base font-semibold leading-6 text-white/90">
+            {t(locale, user.isDemo ? 'telegram.help.demoTitle' : 'telegram.help.noAccessTitle')}
+          </h2>
+          <p className="mt-1 text-[13px] leading-relaxed text-white/65">{t(locale, 'telegram.help.what')}</p>
+          {user.isDemo ? (
+            <>
+              <p className="mt-3 text-[13px] leading-relaxed text-white/75">{t(locale, 'telegram.help.demoText')}</p>
+              <a
+                href="/login"
+                className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-haul-500 px-4 text-[13px] font-semibold text-white hover:bg-haul-400"
+              >
+                {t(locale, 'telegram.help.login')}
+              </a>
+            </>
+          ) : (
+            <ol className="mt-3 flex list-decimal flex-col gap-1.5 pl-5 text-[13px] leading-relaxed text-white/80">
+              <li>{t(locale, 'telegram.help.step1')}</li>
+              <li>{t(locale, 'telegram.help.step2')}</li>
+              <li>{t(locale, 'telegram.help.step3')}</li>
+            </ol>
+          )}
+        </section>
       </main>
     )
   }
