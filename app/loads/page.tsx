@@ -264,7 +264,7 @@ function WeekSummary({
   }
   return (
     <section className="panel mb-3 p-2.5">
-      <h2 className="mb-2 px-1.5 text-2xs font-semibold uppercase tracking-wider text-white/62">
+      <h2 className="mb-2 px-1.5 text-base leading-6 font-semibold text-white/90">
         {t(locale, 'loads.week.title')}
       </h2>
       {/* Неделя ещё могла не начаться — тогда плиток нет, а план на следующую есть. */}
@@ -321,7 +321,7 @@ function NeedsAttention({
 }) {
   return (
     <section className="panel mb-5 p-3">
-      <h2 className="mb-2 flex items-center gap-1.5 px-0.5 text-2xs font-semibold uppercase tracking-wider text-white/62">
+      <h2 className="mb-2 flex items-center gap-1.5 px-0.5 text-base leading-6 font-semibold text-white/90">
         <AlertTriangle size={12} className="text-warn-400" />
         {t(locale, 'loads.attention.title')} · <span className="nums">{items.length}</span>
       </h2>

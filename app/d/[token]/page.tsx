@@ -57,7 +57,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
 
   return (
     <main className="mx-auto max-w-lg px-4 pb-16 pt-6">
-      <p className="text-[12px] uppercase tracking-wider text-white/50">{company.name || 'TMS'}</p>
+      <p className="text-xs text-white/60 font-medium">{company.name || 'TMS'}</p>
       <h1 className="mt-1 text-[22px] font-bold">
         {truck.driverName || t(locale, 'driver.noName')} · {truck.number ?? truck.id}
       </h1>
@@ -99,7 +99,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
       )}
       {next && (
         <section className="panel mt-4 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/50">
+          <p className="text-[13px] font-semibold text-white/75">
             {t(locale, 'driver.nextLoad')}
           </p>
           <p className="mt-1 text-[15px] font-semibold">

@@ -49,7 +49,7 @@ export function BrokerCheckPanel({ fields }: { fields: RateConFields }) {
   return (
     <div className="panel mb-4 p-4">
       <div className="flex items-center gap-2">
-        <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'brokerCheck.heading').replace('{mc}', mc)}
           <Info text={t(locale, 'brokerCheck.info')} />
         </h2>

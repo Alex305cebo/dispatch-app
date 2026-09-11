@@ -319,7 +319,7 @@ export default async function Page({
 
         {/* ===== Current assignment: route, pickup/delivery dates, at a glance ===== */}
         <div className="mt-4 border-t border-white/8 pt-4">
-          <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
             {t(locale, 'trucks.detail.currentAssignment')}
             <Info text={t(locale, 'trucks.detail.currentAssignmentInfo')} />
           </h2>
@@ -352,7 +352,7 @@ export default async function Page({
               </div>
               <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] sm:grid-cols-3">
                 <div>
-                  <dt className="text-[10px] uppercase tracking-wider text-white/45">
+                  <dt className="text-xs text-white/60 font-medium">
                     {t(locale, 'trucks.detail.pickup')}
                   </dt>
                   <dd className="font-medium text-white/85">
@@ -360,7 +360,7 @@ export default async function Page({
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-wider text-white/45">
+                  <dt className="text-xs text-white/60 font-medium">
                     {t(locale, 'trucks.detail.delivery')}
                   </dt>
                   <dd className="font-medium text-white/85">
@@ -368,7 +368,7 @@ export default async function Page({
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-wider text-white/45">
+                  <dt className="text-xs text-white/60 font-medium">
                     {t(locale, 'trucks.detail.rate')}
                   </dt>
                   <dd className="font-medium text-white/85">{usd.format(activeLoad.rate)}</dd>
@@ -380,7 +380,7 @@ export default async function Page({
                   href={`/loads/${p.id}`}
                   className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-haul-500/30 bg-haul-500/[0.06] px-3 py-2 text-[13px] hover:border-haul-400/60"
                 >
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-haul-300">
+                  <span className="text-base leading-6 font-semibold text-haul-300">
                     {t(locale, 'trucks.detail.partialLoad')}
                   </span>
                   <span className="font-medium text-white/85">
@@ -397,7 +397,7 @@ export default async function Page({
                   href={`/loads/${nextLoad.id}`}
                   className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[13px] hover:border-white/25"
                 >
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                  <span className="text-[13px] font-semibold text-white/75">
                     {t(locale, 'trucks.detail.nextLoad')}
                   </span>
                   <span className="font-medium text-white/85">
@@ -461,7 +461,7 @@ export default async function Page({
           </span>
           <div className="min-w-0 flex-1">
             <p
-              className={`text-2xs font-semibold uppercase tracking-wider ${
+              className={`text-base font-semibold leading-6 ${
                 hasUrgentTodo ? 'text-bad-400' : 'text-warn-400'
               }`}
             >
@@ -483,7 +483,7 @@ export default async function Page({
           и с него начинается любая работа с траком. ===== */}
       <section className="panel mt-4 p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
             {t(locale, 'trucks.detail.newLoadFromRc')}
             <Info text={t(locale, 'trucks.detail.newLoadFromRcInfo')} />
           </h2>
@@ -546,7 +546,7 @@ export default async function Page({
       {mapMarkers.length > 0 && (
         <section className="panel mt-4 p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+            <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
               {t(locale, 'trucks.detail.onMap')}
               <Info text={t(locale, 'trucks.detail.onMapInfo')} />
             </h2>
@@ -595,7 +595,7 @@ export default async function Page({
       <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
         <section className="panel flex min-w-0 flex-col p-4">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white/62">
+            <h2 className="text-base leading-6 font-semibold text-white/90">
               {t(locale, 'trucks.detail.loadsHeading')}
               {active > 0 && ` · ${active} ${t(locale, 'trucks.detail.inProgress')}`}
             </h2>
@@ -653,7 +653,7 @@ export default async function Page({
 
         <section className="panel flex min-w-0 flex-col p-4">
           <div className="mb-2">
-            <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+            <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
               {t(locale, 'trucks.detail.documents')}
               <Info text={t(locale, 'trucks.detail.documentsInfo')} />
             </h2>
@@ -678,7 +678,7 @@ export default async function Page({
            брокеру ежечасно (имя, телефон, трак/трейлер), уже в шапке и в
            «Данных водителей» на списке траков. ===== */}
       <details className="group panel mt-4 p-4">
-        <summary className="-m-1 flex cursor-pointer list-none items-center gap-1.5 rounded-lg p-1 text-[11px] font-semibold uppercase tracking-wider text-white/62 transition-colors hover:bg-white/[0.03] hover:text-white/90">
+        <summary className="-m-1 flex cursor-pointer list-none items-center gap-1.5 rounded-lg p-1 text-base leading-6 font-semibold text-white/90 transition-colors hover:bg-white/[0.03] hover:text-white/90">
           <span className="text-[13px] leading-none text-white/40 transition-transform duration-200 group-open:rotate-90">
             ▸
           </span>
@@ -730,7 +730,7 @@ export default async function Page({
 
       {/* ===== Economics — collapsed by default (rarely changed) ===== */}
       <details className="group panel mt-4 p-4">
-        <summary className="-m-1 flex cursor-pointer list-none items-center gap-1.5 rounded-lg p-1 text-[11px] font-semibold uppercase tracking-wider text-white/62 transition-colors hover:bg-white/[0.03] hover:text-white/90">
+        <summary className="-m-1 flex cursor-pointer list-none items-center gap-1.5 rounded-lg p-1 text-base leading-6 font-semibold text-white/90 transition-colors hover:bg-white/[0.03] hover:text-white/90">
           <span className="text-[13px] leading-none text-white/40 transition-transform duration-200 group-open:rotate-90">
             ▸
           </span>
@@ -783,7 +783,7 @@ function Chip({
   return (
     <div className="rounded-xl border border-white/8 bg-ink-900/50 px-3 py-2 text-center backdrop-blur">
       <div className={`nums text-[16px] font-bold ${color}`}>{value}</div>
-      <div className="mt-0.5 flex items-center justify-center gap-1 text-[10px] uppercase tracking-wider text-white/55">
+      <div className="mt-0.5 flex items-center justify-center gap-1 text-xs text-white/65 font-medium">
         {label}
         {info && <Info text={info} />}
       </div>

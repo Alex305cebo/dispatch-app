@@ -43,7 +43,7 @@ export function MissingDocsBanner({
         <span className="text-[14px] leading-none">📄</span>
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-2xs font-semibold uppercase tracking-wider text-warn-400">
+        <p className="text-base leading-6 font-semibold text-warn-400">
           {t(locale, 'loadDetail.docsMissingTitle').replace('{missing}', missing)}
         </p>
         <p className="mt-0.5 text-[13px] text-white/75">

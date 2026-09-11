@@ -146,7 +146,7 @@ export function BrokerNotes({
   if (editing) {
     return (
       <section className="panel p-4">
-        <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="mb-2 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'brokerNotes.editHeading')}
         </h2>
         <textarea
@@ -228,7 +228,7 @@ export function BrokerNotes({
           </span>
         )}
         <span
-          className={`shrink-0 text-[11px] font-semibold uppercase tracking-wider ${
+          className={`shrink-0 text-[13px] font-semibold ${
             unread ? 'text-warn-300' : 'text-white/62'
           }`}
         >

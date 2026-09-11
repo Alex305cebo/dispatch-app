@@ -54,7 +54,7 @@ export function DemoToggle({ enabled, url }: { enabled: boolean; url: string }) 
       </div>
 
       <div>
-        <span className="mb-1 block text-[11px] uppercase tracking-wider text-white/55">
+        <span className="mb-1 block text-xs text-white/65 font-medium">
           {t(locale, 'admin.demoPublic.urlLabel')}
         </span>
         <div className="flex gap-2">

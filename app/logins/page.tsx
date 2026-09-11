@@ -145,7 +145,7 @@ export default async function Page() {
 
       {/* Gemini token spend — our running counter (Google AI Studio has the full total). */}
       <div className="panel mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 p-4">
-        <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/55">
+        <div className="flex items-center gap-1.5 text-[13px] font-semibold text-white/75">
           {t(locale, 'admin.logins.geminiSpend')}
           <Info text={t(locale, 'admin.logins.geminiInfo')} />
         </div>

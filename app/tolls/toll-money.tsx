@@ -23,7 +23,7 @@ export function TollMoney({
 
   return (
     <section className="panel mt-4 p-4">
-      <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+      <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
         {t(locale, "tolls.money.title").replace("{days}", String(days))}
         <Info text={t(locale, "tolls.money.info")} />
       </h2>
@@ -97,7 +97,7 @@ function Tile({
       >
         {value}
       </div>
-      <div className="mt-0.5 text-[10.5px] uppercase tracking-wider text-white/45">
+      <div className="mt-0.5 text-xs text-white/60 font-medium">
         {label}
       </div>
     </div>

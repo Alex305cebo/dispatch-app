@@ -38,7 +38,7 @@ export function PairBar({
     current === 'load' ? t(locale, 'pair.hereLoad') : load ? t(locale, 'pair.openLoad') : t(locale, 'pair.load')
   // Телефон: без заголовка-капса и без «TRK-/TRL-» — иконка говорит, что это, подсветка
   // говорит, где ты; остаётся одна строка «Morgan T. · DEMO-512», маршрут — до двух.
-  const cap = 'hidden truncate text-[11px] font-medium uppercase tracking-wider text-white/60 sm:block'
+  const cap = 'hidden truncate text-xs font-medium text-white/65 sm:block'
   // Без «block» в общем классе: он перебивал «hidden», и на телефоне показывались
   // обе подписи разом. Видимость — только через варианты sm:/max-sm:.
   const label = 'font-semibold max-sm:line-clamp-2 max-sm:text-[12px] max-sm:leading-[1.2] sm:block sm:truncate'

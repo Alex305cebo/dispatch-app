@@ -238,7 +238,7 @@ export function Tour({
       )}
 
       <div className="panel fixed z-[196] p-4" style={cardStyle}>
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-white/45">
+        <p className="text-[13px] font-semibold text-white/75">
           {t(locale, 'tour.stepOf')
             .replace('{n}', String(i + 1))
             .replace('{total}', String(steps.length))}

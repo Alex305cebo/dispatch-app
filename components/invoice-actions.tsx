@@ -156,14 +156,14 @@ export function CompanyForm({ initial }: { initial: Company }) {
         ] as const
       ).map(([k, key]) => (
         <label key={k}>
-          <span className="mb-1 block text-[11px] uppercase tracking-wider text-white/55">
+          <span className="mb-1 block text-xs text-white/65 font-medium">
             {t(locale, key)}
           </span>
           <input value={c[k]} onChange={f(k)} className={input} />
         </label>
       ))}
       <label className="sm:col-span-2">
-        <span className="mb-1 block text-[11px] uppercase tracking-wider text-white/55">
+        <span className="mb-1 block text-xs text-white/65 font-medium">
           {t(locale, 'finances.form.remitTo')}
         </span>
         <textarea value={c.remitTo} onChange={f('remitTo')} rows={2} className={input} />

@@ -177,7 +177,7 @@ export function Analysis({
           ].map((s) => (
             <div key={s.label} className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5">
               <div className="nums text-lg font-semibold">{s.node}</div>
-              <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/62">
+              <div className="flex items-center gap-1 text-xs text-white/70 font-medium">
                 {s.label}
                 <Info text={s.info} />
               </div>

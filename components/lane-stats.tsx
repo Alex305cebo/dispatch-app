@@ -24,7 +24,7 @@ export function LaneStats({ rows, locale }: { rows: PricedLoad[]; locale: Locale
 
   return (
     <details className="panel mt-4 p-4">
-      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
         <span className="text-white/40">▸</span>
         {t(locale, 'lanes.heading')}
         <Info text={t(locale, 'lanes.info')} />

@@ -93,7 +93,7 @@ function CopyBlock({ text, label }: { text: string; label: string }) {
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-3">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white/62">{label}</h2>
+        <h2 className="text-base leading-6 font-semibold text-white/90">{label}</h2>
         <Button
           variant="primary"
           size="sm"
@@ -243,7 +243,7 @@ export function CardClient() {
 
       {/* The numbers */}
       <section className="panel p-5">
-        <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="mb-3 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'loadCard.analysis')}
         </h2>
         {money ? (
@@ -281,7 +281,7 @@ export function CardClient() {
 
       {/* Broker legitimacy — same FMCSA data + safety score as the Brokers page */}
       <section className="panel p-5">
-        <h2 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="mb-1 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'loadCard.brokerCheck')}
         </h2>
         <p className="mb-3 text-[12px] leading-relaxed text-white/50">{t(locale, 'loadCard.brokerCheckDisclaimer')}</p>
@@ -300,7 +300,7 @@ export function CardClient() {
 
       {/* Route map */}
       <section className="panel p-5">
-        <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="mb-3 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'loadCard.map')}
         </h2>
         {markers.length ? (
@@ -340,7 +340,7 @@ type LatLngish = { lat: number; lng: number }
 function Stat({ label, value, big = false }: { label: string; value: string; big?: boolean }) {
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-wider text-white/50">{label}</div>
+      <div className="text-xs text-white/60 font-medium">{label}</div>
       <div className={big ? 'text-[20px] font-bold text-haul-400' : 'text-[16px] font-semibold'}>{value}</div>
     </div>
   )

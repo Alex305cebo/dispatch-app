@@ -44,7 +44,7 @@ export function TruckDispatcher({
 
   return (
     <label className="flex flex-wrap items-center gap-2">
-      <span className="text-[11px] uppercase tracking-wider text-white/45">
+      <span className="text-xs text-white/60 font-medium">
         {t(locale, 'trucks.detail.dispatcherPick')}
       </span>
       <select

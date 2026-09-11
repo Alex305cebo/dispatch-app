@@ -52,7 +52,7 @@ function Tile({ value, label, tone }: { value: string; label: string; tone?: 'wa
       >
         {value}
       </div>
-      <div className="mt-0.5 text-[10px] uppercase tracking-wider text-white/45">{label}</div>
+      <div className="mt-0.5 text-xs text-white/60 font-medium">{label}</div>
     </div>
   )
 }
@@ -232,7 +232,7 @@ export function TripHistory({
               {isNewDay && (
                 <>
                   <li className="mt-3 flex items-baseline justify-between gap-2 px-1 first:mt-0">
-                    <span className="text-2xs font-semibold uppercase tracking-wider text-white/40">{day}</span>
+                    <span className="text-[13px] font-semibold text-white/75">{day}</span>
                     {totals && totals.driveMin > 0 && (
                       <span className="nums text-[11px] text-white/45">
                         {totals.miles.toLocaleString('en-US')} mi ·{' '}

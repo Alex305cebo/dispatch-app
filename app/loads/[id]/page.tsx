@@ -180,7 +180,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </div>
 
         <div className="mt-5 border-t border-white/8 pt-5">
-          <h2 className="mb-4 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          <h2 className="mb-4 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
             {t(locale, 'loadDetail.rateHeading')}
             <Info text={t(locale, 'loadDetail.rateInfo')} />
           </h2>
@@ -271,7 +271,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       {backhaul && <BackhaulList state={backhaul.state} brokers={backhaul.brokers} locale={locale} />}
 
       <section className="panel mt-4 p-5">
-        <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="mb-4 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'loadDetail.detailsHeading')}
         </h2>
         <LoadEditNumbers
@@ -307,7 +307,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       </section>
 
       <section className="panel mt-4 p-5">
-        <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'loadDetail.docsHeading')}
           <Info text={t(locale, 'loadDetail.docsInfo')} />
         </h2>
@@ -317,7 +317,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
       <section className="panel mt-4 p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
             {t(locale, 'loadDetail.invoiceHeading')}
             <Info text={t(locale, 'loadDetail.invoiceInfo')} />
           </h2>
@@ -421,7 +421,7 @@ async function LoadMapSection({
 
   return (
     <section className="panel mt-4 p-4">
-      <h2 className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+      <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
         {t(locale, 'loadDetail.mapHeading')}
         <Info text={t(locale, 'loadDetail.mapInfo')} />
       </h2>
@@ -438,7 +438,7 @@ async function LoadMapSection({
                   столбиком из трёх строк в узкой плитке. */}
           {fs?.location && (
             <div className="basis-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 sm:flex-1 sm:basis-[11rem]">
-              <div className="text-[10px] uppercase tracking-wider text-white/45">
+              <div className="text-xs text-white/60 font-medium">
                 {t(locale, 'loadDetail.driverPlace')}
               </div>
               <CopyPlace
@@ -452,7 +452,7 @@ async function LoadMapSection({
           )}
           {driverZone && (
             <div className="flex-1 basis-[7.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wider text-white/45">
+              <div className="text-xs text-white/60 font-medium">
                 {t(locale, 'loadDetail.driverTime')}
               </div>
               {/* Высота зафиксирована: первый кадр LocalTime пустой (гидратация),
@@ -464,7 +464,7 @@ async function LoadMapSection({
           )}
           {routeMiles != null && (
             <div className="flex-1 basis-[7.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wider text-white/45">
+              <div className="text-xs text-white/60 font-medium">
                 {t(locale, 'loadDetail.distanceLeft')}
               </div>
               <div className="nums min-h-[1.375rem] text-[15px] font-semibold text-white/85">
@@ -474,7 +474,7 @@ async function LoadMapSection({
           )}
           {etaMin != null && (
             <div className="flex-1 basis-[7.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wider text-white/45">
+              <div className="text-xs text-white/60 font-medium">
                 {t(locale, 'loadDetail.etaLeft')}
               </div>
               <div className="nums min-h-[1.375rem] text-[15px] font-semibold text-white/85">
@@ -497,7 +497,7 @@ async function LoadMapSection({
                 live.slackMin >= 0 ? 'border-good-500/25 bg-good-500/[0.06]' : 'border-bad-500/30 bg-bad-500/[0.07]'
               }`}
             >
-              <div className="text-[10px] uppercase tracking-wider text-white/45">
+              <div className="text-xs text-white/60 font-medium">
                 {t(locale, 'loadDetail.deadline')}
               </div>
               <div
@@ -530,7 +530,7 @@ async function LoadMapSection({
                   детеншн не там — повод позвонить, пока не позвонил брокер. */}
           {live.idleMin != null && live.idleMin >= 120 && (
             <div className="flex-1 basis-[8rem] rounded-xl border border-warn-500/30 bg-warn-500/[0.07] px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wider text-white/45">
+              <div className="text-xs text-white/60 font-medium">
                 {t(locale, 'loadDetail.idleWarn')}
               </div>
               <div className="nums min-h-[1.375rem] text-[14px] font-semibold text-warn-400">
@@ -540,7 +540,7 @@ async function LoadMapSection({
           )}
           {live.offRouteMi != null && (
             <div className="flex-1 basis-[8rem] rounded-xl border border-warn-500/30 bg-warn-500/[0.07] px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wider text-white/45">
+              <div className="text-xs text-white/60 font-medium">
                 {t(locale, 'loadDetail.offRoute')}
               </div>
               <div className="nums min-h-[1.375rem] text-[14px] font-semibold text-warn-400">~{live.offRouteMi} mi</div>
@@ -560,7 +560,7 @@ async function LoadMapSection({
                     short ? 'border-warn-500/30 bg-warn-500/[0.07]' : 'border-white/10 bg-white/[0.04]'
                   }`}
                 >
-                  <div className="text-[10px] uppercase tracking-wider text-white/45">
+                  <div className="text-xs text-white/60 font-medium">
                     {t(locale, 'loadDetail.fuelFor')}
                   </div>
                   <div
@@ -579,7 +579,7 @@ async function LoadMapSection({
       {/* Дизель по пути: цена в каждом штате маршрута и где заливать полный бак. */}
       {fuel && fuel.stops.length >= 2 && (
         <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-          <div className="flex flex-wrap items-baseline gap-x-2 text-[10px] uppercase tracking-wider text-white/45">
+          <div className="flex flex-wrap items-baseline gap-x-2 text-xs text-white/60 font-medium">
             {t(locale, 'fuel.heading')}
             <span className="normal-case tracking-normal">· EIA {fuel.asOf}</span>
           </div>

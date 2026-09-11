@@ -44,7 +44,7 @@ export function QueuedLoadHint({
       }`}
     >
       {!compact && (
-        <p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <p className="mb-1 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
           <ListChecks size={13} strokeWidth={2.2} className="text-haul-300" />
           {t(locale, 'queued.title').replace('{route}', `${current.origin ?? '—'} → ${current.destination ?? '—'}`)}
         </p>

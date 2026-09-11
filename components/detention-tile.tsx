@@ -67,7 +67,7 @@ export function DetentionTile({
     <div
       className={`rounded-xl border px-3 py-2 ${wide ? 'mt-4 sm:px-4' : 'flex-1 basis-[11rem]'} ${over ? 'border-bad-500/35 bg-bad-500/[0.07]' : 'border-white/10 bg-white/[0.04]'}`}
     >
-      <div className="text-[10px] uppercase tracking-wider text-white/45">
+      <div className="text-xs text-white/60 font-medium">
         {t(locale, at === 'pickup' ? 'detention.atPickup' : 'detention.atDelivery')}
       </div>
       <div className={`nums min-h-[1.375rem] text-[14px] font-semibold ${over ? 'text-bad-400' : 'text-white/85'}`}>

@@ -70,7 +70,7 @@ export function TripHistoryPanel({
 
   return (
     <details className="panel mt-4 p-4" open={initialLegs.length > 0}>
-      <summary className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+      <summary className="flex flex-wrap items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
         {t(locale, 'trucks.detail.tripHistory')} · {t(locale, current.key)}
         <Info text={t(locale, 'trucks.detail.tripHistoryInfo')} />
         <SmallRefreshButton />

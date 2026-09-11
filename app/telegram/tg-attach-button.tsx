@@ -128,7 +128,7 @@ export function TgAttachButton({
 
       {open && (
         <div className="mt-1.5 w-[15rem] rounded-xl border border-white/12 bg-ink-900/95 p-2 shadow-lg">
-          <div className="px-1 pb-1 text-[9.5px] uppercase tracking-wider text-white/40">
+          <div className="px-1 pb-1 text-xs text-white/55 font-medium">
             {t(locale, 'telegram.attach.kindTitle')}
           </div>
           <div className="flex flex-wrap gap-1">
@@ -145,7 +145,7 @@ export function TgAttachButton({
             ))}
           </div>
 
-          <div className="px-1 pb-1 pt-2.5 text-[9.5px] uppercase tracking-wider text-white/40">
+          <div className="px-1 pb-1 pt-2.5 text-xs text-white/55 font-medium">
             {t(locale, 'telegram.attach.whereTitle')}
           </div>
           <div className="flex flex-col gap-1">

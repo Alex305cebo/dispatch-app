@@ -81,7 +81,7 @@ export function DriverDirectory({
           strokeWidth={2.5}
           className={`shrink-0 text-white/40 transition-transform ${openSection ? 'rotate-90' : ''}`}
         />
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="text-base leading-6 font-semibold text-white/90">
           {t(locale, 'drivers.title')}
         </h2>
         <span className="nums text-[11px] text-white/35">{drivers.length}</span>

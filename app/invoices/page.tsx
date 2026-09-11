@@ -183,7 +183,7 @@ async function Unpaid({
           (no invoiced_at yet), not visible anywhere else either. */}
       {uninvoiced.length > 0 && (
         <div className="mb-5">
-          <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
             {t(locale, 'finances.uninvoiced.heading')} · {usd.format(uninvoicedTotal)}
             <Info text={t(locale, 'finances.uninvoiced.info')} />
           </h2>
@@ -849,7 +849,7 @@ function Stat({ label, value, tone, info }: { label: string; value: string; tone
       >
         {value}
       </div>
-      <div className="mt-0.5 flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/62">
+      <div className="mt-0.5 flex items-center gap-1 text-xs text-white/70 font-medium">
         {label}
         {info && <Info text={info} />}
       </div>

@@ -66,7 +66,7 @@ export function Notifier({ collapsed = false }: { collapsed?: boolean }) {
             className="panel absolute right-0 z-[60] max-h-[60vh] w-[min(20rem,calc(100vw-2rem))] overflow-hidden max-md:top-12 md:bottom-12 md:left-0 md:right-auto"
           >
             <div className="flex items-center justify-between border-b border-white/8 px-3 py-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-white/65">
+              <span className="text-base leading-6 font-semibold text-white/90">
                 {t(locale, 'notifier.title')}
               </span>
               {notes.length > 0 && (

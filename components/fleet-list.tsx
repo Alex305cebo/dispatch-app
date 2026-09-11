@@ -279,7 +279,7 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
                     >
                       {money[r.id]!.week > 0 ? usd.format(money[r.id]!.week) : '—'}
                     </span>
-                    <span className="block text-[9.5px] uppercase tracking-wider text-white/40">
+                    <span className="block text-xs text-white/55 font-medium">
                       {t(locale, 'tracking.weekShort')}
                     </span>
                   </span>

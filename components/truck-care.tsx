@@ -42,7 +42,7 @@ function DateInput({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-white/65">
+      <span className="mb-1.5 block text-xs font-medium text-white/70">
         {label}
       </span>
       <input
@@ -179,7 +179,7 @@ export function TruckCare({
           Полоса отвечает на это без арифметики. */}
       <section className="panel p-4">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
             {t(locale, 'trucks.care.stateHeading')}
             <Info text={t(locale, 'trucks.care.oilInfo')} />
           </h2>
@@ -325,7 +325,7 @@ export function TruckCare({
       {/* Секция 2 — «Ремонт и обслуживание»: что сломано и что уже починено. Одна
           история трака, поэтому одна карточка. */}
       <section className="panel p-4">
-        <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'trucks.care.serviceHeading')}
           <Info text={t(locale, 'trucks.care.todoInfo')} />
         </h2>
@@ -398,7 +398,7 @@ export function TruckCare({
         {/* Maintenance log — same card as "Needs fixing": one ongoing story of
             what's broken and what's already been fixed on this truck. */}
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/8 pt-4">
-          <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+          <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
             {t(locale, 'trucks.care.logHeading')}
             <Info text={t(locale, 'trucks.care.logInfo')} />
           </h2>
@@ -410,7 +410,7 @@ export function TruckCare({
         {showMaint && (
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <label className="block">
-              <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-white/65">
+              <span className="mb-1.5 block text-xs font-medium text-white/70">
                 {t(locale, 'trucks.care.typeLabel')}
               </span>
               <select
@@ -442,7 +442,7 @@ export function TruckCare({
               suffix="mi"
             />
             <label className="block">
-              <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-white/65">
+              <span className="mb-1.5 block text-xs font-medium text-white/70">
                 {t(locale, 'trucks.care.dateLabel')}
               </span>
               <input

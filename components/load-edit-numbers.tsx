@@ -189,7 +189,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
             рисуются прочерком: «в рейт-коне нет MC» видно, а не спрятано. */}
         <div className="grid gap-3 text-[13px] sm:grid-cols-2">
           <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
-            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+            <div className="mb-2 text-[13px] font-semibold text-white/75">
               {t(locale, 'loadEdit.groupMoney')}
             </div>
             <dl className="grid gap-y-2">
@@ -218,7 +218,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
           </div>
 
           <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
-            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+            <div className="mb-2 text-[13px] font-semibold text-white/75">
               {t(locale, 'loadEdit.groupTrip')}
             </div>
             <dl className="grid gap-y-2">
@@ -230,7 +230,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
           </div>
 
           <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
-            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+            <div className="mb-2 text-[13px] font-semibold text-white/75">
               {t(locale, 'loadEdit.groupBroker')}
             </div>
             <dl className="grid gap-y-2">
@@ -250,7 +250,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
           </div>
 
           <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
-            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+            <div className="mb-2 text-[13px] font-semibold text-white/75">
               {t(locale, 'loadEdit.groupDates')}
               {stops.length > 2 && (
                 <span className="ml-1.5 normal-case text-white/55">· {stopsLabel(stops, locale)}</span>
@@ -347,7 +347,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
       </div>
       {st.length > 2 && (
         <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+          <div className="mb-2 text-[13px] font-semibold text-white/75">
             {t(locale, 'loadEdit.groupDates')} · {stopsLabel(st, locale)}
           </div>
           <div className="flex flex-col gap-3">
@@ -442,7 +442,7 @@ function Field({
     'w-full rounded-lg border border-white/10 bg-ink-950/70 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500'
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[11px] uppercase tracking-wider text-white/55">{label}</span>
+      <span className="text-xs text-white/65 font-medium">{label}</span>
       <input
         type={type ?? (text ? 'text' : 'number')}
         inputMode={type || text ? undefined : 'decimal'}

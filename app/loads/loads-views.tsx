@@ -218,7 +218,7 @@ function StatusBoard({
           {/* Count AND money in the header. A column that says only "37" tells the
               dispatcher how much work is in it but nothing about what it's worth,
               which is the number they actually compare columns on. */}
-          <h2 className="mb-2 flex items-center justify-between gap-2 text-2xs font-semibold uppercase tracking-wider text-white/62">
+          <h2 className="mb-2 flex items-center justify-between gap-2 text-base leading-6 font-semibold text-white/90">
             <span className="flex min-w-0 items-center gap-1.5">
               <span className="truncate">{statusLabel(locale, status)}</span>
               <span className="nums shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 font-bold text-white/70">
@@ -420,7 +420,7 @@ function Calendar({
               }`}
             >
               <span
-                className={`text-[10px] font-semibold uppercase tracking-wider ${
+                className={`text-[13px] font-semibold ${
                   isActive ? 'text-haul-300' : isToday ? 'text-haul-400' : 'text-white/45'
                 }`}
               >

@@ -121,7 +121,7 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
   return (
     <div className="panel relative p-3">
       <div className="mb-2.5 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider text-white/55">
+        <h2 className="flex items-center gap-1.5 text-[13px] font-semibold text-white/75">
           {t(locale, 'trucks.heatmap.title').replace('{n}', String(winDays))}
           <Info text={t(locale, 'trucks.heatmap.info')} />
         </h2>
@@ -335,7 +335,7 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
                   className="pointer-events-auto min-w-[180px] max-w-[240px] rounded-lg border border-white/12 bg-ink-900 p-2.5 shadow-2xl"
                 >
             <div className="mb-1 flex items-baseline justify-between gap-2">
-              <span className="text-2xs font-semibold uppercase tracking-wider text-white/50">{hover.label}</span>
+              <span className="text-[13px] font-semibold text-white/75">{hover.label}</span>
               <span className="nums text-2xs text-white/45">{prettyDay(hover.day)}</span>
             </div>
             {hover.loads.length === 0 ? (

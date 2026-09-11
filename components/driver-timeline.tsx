@@ -116,7 +116,7 @@ export function DriverTimeline({
   return (
     <section className="panel mt-4 overflow-hidden p-0">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/[0.06] bg-white/[0.025] px-4 py-3">
-        <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/62">
+        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
           <Smartphone size={13} strokeWidth={2.2} className="text-haul-300" />
           {t(locale, 'driver.timeline.heading')}
           <Info text={t(locale, 'driver.timeline.info')} />
