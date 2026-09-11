@@ -631,6 +631,86 @@ async function fillDeadhead(
   return d ? d.miles : deadheadMiles
 }
 
+/** С какого порожнего пробега диспетчер получает предупреждение после рейт-кона. */
+const DEADHEAD_WARN_MI = 150
+
+export type DeadheadCheck = {
+  miles: number
+  /** Откуда считали: от выгрузки груза, который трак уже везёт, или от GPS. */
+  from: 'load' | 'gps'
+  fromLabel: string | null
+  toLabel: string | null
+  /** Дорогу построить не удалось — прямая с надбавкой. */
+  estimated: boolean
+  warn: boolean
+}
+
+/**
+ * Порожний пробег до пикапа нового груза — по дороге и от правильной точки. Если трак
+ * уже везёт другой груз, считаем от его выгрузки (последней остановки): оттуда он и
+ * поедет пустым к новому пикапу. Иначе — от места трака по GPS. Раньше брался только
+ * GPS, и у груза, заведённого наперёд, порожний выходил «от середины текущего рейса».
+ */
+async function deadheadCheck(
+  companyId: 'default' | 'demo',
+  truckId: number,
+  excludeLoadId: number | null,
+  pickupAddress: string | null,
+  origin: string | null,
+): Promise<DeadheadCheck | null> {
+  if (!origin && !pickupAddress) return null
+  const { cityCoordsBest, routeToPoint } = await import('@/lib/geo-routing')
+  const to = await cityCoordsBest(pickupAddress, origin)
+  if (!to) return null
+  const prev = (await sql`
+    SELECT delivery_address, destination, stops FROM loads
+    WHERE company_id = ${companyId} AND truck_id = ${truckId}
+      AND status IN ('booked', 'in_transit') AND partial = false
+      AND id <> ${excludeLoadId ?? 0}
+    ORDER BY delivery_date DESC NULLS LAST, created_at DESC
+    LIMIT 1`) as {
+    delivery_address: string | null
+    destination: string | null
+    stops: { address: string | null; city: string | null }[] | string | null
+  }[]
+  let from: { lat: number; lng: number } | null = null
+  let kind: 'load' | 'gps' = 'gps'
+  let fromLabel: string | null = null
+  if (prev[0]) {
+    const st = typeof prev[0].stops === 'string' ? JSON.parse(prev[0].stops) : prev[0].stops
+    const end = st?.length ? st[st.length - 1] : null
+    const city = end?.city ?? prev[0].destination
+    from = await cityCoordsBest(end?.address ?? prev[0].delivery_address, city)
+    kind = 'load'
+    fromLabel = city ?? null
+  }
+  if (!from) {
+    const rows = (await sql`
+      SELECT fs.lat, fs.lng, fs.location FROM trucks t
+      LEFT JOIN fleet_status fs ON fs.unit = t.number
+      WHERE t.id = ${truckId} AND t.company_id = ${companyId}`) as {
+      lat: number | null
+      lng: number | null
+      location: string | null
+    }[]
+    const g = rows[0]
+    if (g?.lat == null || g?.lng == null) return null
+    from = { lat: g.lat, lng: g.lng }
+    kind = 'gps'
+    fromLabel = g.location
+  }
+  const leg = await routeToPoint(from, to)
+  if (!leg) return null
+  return {
+    miles: leg.miles,
+    from: kind,
+    fromLabel,
+    toLabel: origin ?? pickupAddress,
+    estimated: !!leg.estimated,
+    warn: leg.miles > DEADHEAD_WARN_MI,
+  }
+}
+
 export async function createLoad(
   load: NewLoad,
   /** Pre-uploaded document (the imported RC) that becomes this load's paperwork. */
@@ -772,6 +852,8 @@ export type RcCreateResult = {
   filled?: string[]
   /** Чего в грузе всё ещё нет — подсказка «загрузи второй файл». */
   missing?: 'rate' | 'driverinfo' | null
+  /** Порожний пробег до пикапа по дороге — для предупреждения больше 150 миль. */
+  deadhead?: DeadheadCheck | null
 }
 
 /**
@@ -943,9 +1025,11 @@ export async function createLoadFromRc(
       revalidatePath(`/trucks/${truckId}`)
       revalidatePath('/loads')
       revalidatePath('/')
+      const dh = await deadheadCheck(companyId, truckId, twin.id, pickupAddress ?? load.pickupAddress ?? null, origin)
       return {
         loadId: twin.id,
         merged: true,
+        deadhead: dh,
         filled,
         missing: rate > 0 ? (pickupAddress || deliveryAddress ? null : 'driverinfo') : 'rate',
       }
@@ -982,7 +1066,10 @@ export async function createLoadFromRc(
       loadedMiles = 1
       milesEstimated = true
     }
-    const deadheadMiles = await fillDeadhead(companyId, truckId, load.deadheadMiles, load.origin)
+    // Порожний — по дороге и от правильной точки (deadheadCheck); напечатанный в
+    // документе, если он там есть, важнее.
+    const dh = await deadheadCheck(companyId, truckId, null, load.pickupAddress ?? null, load.origin)
+    const deadheadMiles = load.deadheadMiles > 0 ? load.deadheadMiles : (dh?.miles ?? load.deadheadMiles)
     // Тот же добор MC, что и при ручном заведении: рейт-кон о нём обычно молчит.
     const brokerMc = load.brokerMc || (await knownBrokerMc(companyId, load.brokerName, load.brokerEmail))
     // Auto-credited to whoever's actually signed in and dropping the RC — no manual
@@ -1019,6 +1106,7 @@ export async function createLoadFromRc(
     revalidatePath('/')
     return {
       loadId,
+      deadhead: dh,
       // Чего не хватает: без ставки — это был лист водителя, нужен рейт-кон; без адресов
       // складов — это был рейт-кон, пригодится Driver Info.
       missing: load.rate > 0 ? (load.pickupAddress || load.deliveryAddress ? null : 'driverinfo') : 'rate',

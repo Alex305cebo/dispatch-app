@@ -14,7 +14,7 @@ import { extractPdf, looksScanned } from '@/lib/pdf-text'
 import { formatDriverInfo, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
 import { rcWarnings, type RcWarning } from '@/lib/rc-warnings'
-import { createLoadFromRc, setLoadPartial, uploadDocument } from '@/app/actions'
+import { createLoadFromRc, setLoadPartial, uploadDocument, type RcCreateResult } from '@/app/actions'
 import { docKindFromText } from '@/lib/caption-kind'
 import { staleBuildMessage } from '@/components/build-watch'
 import { notify } from '@/lib/notify'
@@ -33,6 +33,8 @@ type Result = {
   filled?: string[]
   /** Чего ещё нет: подсказка «загрузи второй файл». */
   missing?: 'rate' | 'driverinfo' | null
+  /** Порожний пробег до пикапа по дороге — предупреждение больше 150 миль. */
+  deadhead?: RcCreateResult['deadhead']
 }
 
 const WTONE = {
@@ -180,6 +182,7 @@ export function TruckRcDrop({
         merged: made.merged,
         filled: made.filled,
         missing: made.missing,
+        deadhead: made.deadhead,
       })
       notify('ok', t(locale, made.merged ? 'rcDrop.mergedToast' : 'rcDrop.createdToast'), file.name)
     } catch (e) {
@@ -227,6 +230,24 @@ export function TruckRcDrop({
               </>
             )}
           </p>
+        )}
+        {/* Порожний больше 150 миль — сказать сразу, пока ставку ещё можно обсудить
+            или груз передать. Считано по дороге от выгрузки текущего груза или от
+            GPS трака (deadheadCheck в app/actions.ts). */}
+        {res.deadhead?.warn && (
+          <div className="rounded-lg border border-warn-400/35 bg-warn-500/[0.08] px-3 py-2 text-[12.5px]">
+            <p className="font-semibold text-warn-300">
+              {t(locale, 'rcDrop.deadheadWarn')
+                .replace('{mi}', res.deadhead.miles.toLocaleString('en-US'))
+                .replace('{limit}', '150')}
+            </p>
+            <p className="mt-0.5 text-white/65">
+              {t(locale, res.deadhead.from === 'load' ? 'rcDrop.deadheadFromLoad' : 'rcDrop.deadheadFromGps')
+                .replace('{from}', res.deadhead.fromLabel ?? '—')
+                .replace('{to}', res.deadhead.toLabel ?? '—')}
+              {res.deadhead.estimated ? ` ${t(locale, 'rcDrop.deadheadRough')}` : ''}
+            </p>
+          </div>
         )}
         {/* Трак уже везёт груз, а этот — новый (не второй файл того же): спросить,
             партиал ли это. Иначе он встанет «следующим», а не поедет вместе. */}

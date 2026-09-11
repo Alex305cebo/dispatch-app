@@ -376,6 +376,8 @@ type DeliveryPoint = {
   miles: number
   etaMin: number
   coords?: [number, number][]
+  /** Маршрутизатор не ответил: мили — по прямой с надбавкой, не по дороге. */
+  estimated?: boolean
 }
 
 /** Дорога от трака до уже известной точки — для карты груза с остановками. */
@@ -405,7 +407,7 @@ async function routeTo(from: LatLng, pt: LatLng | null, geometry = true): Promis
   const road = await roadRoute(from, pt, geometry)
   if (road) return { lat: pt.lat, lng: pt.lng, miles: road.miles, etaMin: road.minutes, coords: road.coords }
   const miles = Math.round(haversineMiles(from, pt) * 1.2)
-  return { lat: pt.lat, lng: pt.lng, miles, etaMin: Math.round((miles / 55) * 60) }
+  return { lat: pt.lat, lng: pt.lng, miles, etaMin: Math.round((miles / 55) * 60), estimated: true }
 }
 
 /**

@@ -1345,6 +1345,10 @@ export const loadsDict = {
     kk: 'басқа жүкпен бір тіркемеде жүреді',
   },
   'loadEdit.yes': { ru: 'да', en: 'yes', es: 'sí', uk: 'так', ro: 'da', kk: 'иә' },
+  'rcDrop.deadheadWarn': { ru: 'Порожний пробег {mi} mi — больше {limit} миль', en: 'Deadhead {mi} mi — over {limit} miles', es: 'Recorrido vacío {mi} mi: más de {limit} millas', uk: 'Порожній пробіг {mi} mi — понад {limit} миль', ro: 'Drum gol {mi} mi — peste {limit} mile', kk: 'Бос жүріс {mi} mi — {limit} мильден көп' },
+  'rcDrop.deadheadFromLoad': { ru: 'По дороге от выгрузки текущего груза ({from}) до пикапа ({to}).', en: 'By road from the current load delivery ({from}) to the pickup ({to}).', es: 'Por carretera desde la entrega de la carga actual ({from}) hasta la recogida ({to}).', uk: 'Дорогою від вивантаження поточного вантажу ({from}) до пікапу ({to}).', ro: 'Pe drum de la livrarea cursei curente ({from}) până la încărcare ({to}).', kk: 'Ағымдағы жүкті түсіру орнынан ({from}) тиеуге ({to}) дейін жолмен.' },
+  'rcDrop.deadheadFromGps': { ru: 'По дороге от места, где трак сейчас ({from}), до пикапа ({to}).', en: 'By road from where the truck is now ({from}) to the pickup ({to}).', es: 'Por carretera desde donde está el camión ahora ({from}) hasta la recogida ({to}).', uk: 'Дорогою від місця, де трак зараз ({from}), до пікапу ({to}).', ro: 'Pe drum de unde e camionul acum ({from}) până la încărcare ({to}).', kk: 'Тракт қазір тұрған жерден ({from}) тиеуге ({to}) дейін жолмен.' },
+  'rcDrop.deadheadRough': { ru: 'Дорогу построить не удалось, это примерно, по прямой.', en: 'The road route could not be built, this is approximate, in a straight line.', es: 'No se pudo trazar la ruta por carretera; es aproximado, en línea recta.', uk: 'Дорогу побудувати не вдалося, це приблизно, по прямій.', ro: 'Traseul pe drum nu s-a putut calcula, e aproximativ, în linie dreaptă.', kk: 'Жол маршруты құрылмады, бұл шамамен, түзу сызықпен.' },
   'rcDrop.partialOf': {
     ru: 'Это партиал к {route}',
     en: 'This is a partial with {route}',
