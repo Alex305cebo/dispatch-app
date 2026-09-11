@@ -492,7 +492,7 @@ function Row({
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-white/[0.06] pb-1.5">
       <dt className="shrink-0 text-white/60">{label}</dt>
-      <dd className="nums min-w-0 text-right font-medium">
+      <dd className="nums min-w-0 text-right font-medium [overflow-wrap:anywhere]">
         {href ? (
           <a href={href} className="text-haul-400 hover:underline">
             {value}

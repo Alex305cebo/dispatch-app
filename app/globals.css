@@ -126,6 +126,15 @@
     min-width: 0;
   }
 
+  /* Длинные значения (почта, ссылки, VIN) переносятся внутри слова, а не вылезают
+     за край карточки на телефоне: «ops@prairieroutelogisticsdemo.com» в «Деталях»
+     груза торчал наружу. Правило общее — для всех dd и контактных ссылок. */
+  dd,
+  a[href^="mailto:"],
+  a[href^="tel:"] {
+    overflow-wrap: anywhere;
+  }
+
   html {
     color-scheme: dark;
     -webkit-tap-highlight-color: transparent;
