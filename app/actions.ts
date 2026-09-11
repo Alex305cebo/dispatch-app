@@ -1919,7 +1919,31 @@ export async function saveTruckPhoto(truckId: number, fd: FormData): Promise<{ e
       VALUES (${truckId}, decode(${hex}, 'hex'), ${file.type})
       ON CONFLICT (truck_id) DO UPDATE SET
         truck_photo      = EXCLUDED.truck_photo,
-        truck_photo_mime = EXCLUDED.truck_photo_mime`
+        truck_photo_mime = EXCLUDED.truck_photo_mime,
+        truck_model      = NULL`
+  } catch (e) {
+    return { error: humanError(e, locale) }
+  }
+  revalidatePath(`/trucks/${truckId}`)
+}
+
+/** Готовая картинка трака из списка (lib/truck-models.ts) или null — стандартная.
+ * Своё загруженное фото при этом снимается: показывается то, что выбрали последним. */
+export async function saveTruckModel(truckId: number, model: string | null): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const locale = await getLocale()
+  const { isTruckModel } = await import('@/lib/truck-models')
+  if (model !== null && !isTruckModel(model)) return { error: 'bad model' }
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
+  try {
+    await sql`
+      INSERT INTO truck_meta (truck_id, truck_model)
+      VALUES (${truckId}, ${model})
+      ON CONFLICT (truck_id) DO UPDATE SET
+        truck_model      = EXCLUDED.truck_model,
+        truck_photo      = NULL,
+        truck_photo_mime = NULL`
   } catch (e) {
     return { error: humanError(e, locale) }
   }

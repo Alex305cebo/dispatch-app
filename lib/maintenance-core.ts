@@ -19,6 +19,8 @@ export type TruckMeta = {
   hasPhoto: boolean
   /** Загружено ли своё фото трака (truck_meta.truck_photo) — иначе картинка по умолчанию. */
   hasTruckPhoto: boolean
+  /** Выбранная готовая картинка (lib/truck-models.ts), если своего фото нет. */
+  truckModel: string | null
   registrationExpiry: string | null
   inspectionExpiry: string | null
   insuranceExpiry: string | null

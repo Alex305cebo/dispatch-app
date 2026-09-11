@@ -435,7 +435,10 @@ ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS truck_photo_mime TEXT;
 -- NULL — конечная выгрузка, как и все старые POD.
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS stop_seq INTEGER;
 
-INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-12')
+-- Готовая картинка трака из public/trucks (lib/truck-models.ts); NULL — стандартная.
+ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS truck_model TEXT;
+
+INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-13')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- Через кого брокер платит перевозчикам (TriumphPay, Comdata, RTS…), если рейт-кон
