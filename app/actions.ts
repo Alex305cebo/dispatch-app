@@ -1307,6 +1307,23 @@ export async function addLoadEventManual(
   revalidatePath(`/loads/${loadId}`)
 }
 
+/** Снять отметку «загрузился/выгрузился» с промежуточной остановки — откат клика
+ * по точке на полосе статусов. Удаляет только отметки с номером этой точки. */
+export async function unmarkStop(
+  loadId: number,
+  stopSeq: number,
+  role: 'pickup' | 'delivery',
+): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const companyId = await companyScope()
+  if (!(await loadBelongs(companyId, loadId))) return { error: 'load' }
+  const kind = role === 'pickup' ? 'loaded' : 'delivered'
+  await sql`DELETE FROM load_events
+            WHERE company_id = ${companyId} AND load_id = ${loadId} AND stop_seq = ${stopSeq} AND kind = ${kind}`
+  revalidatePath(`/loads/${loadId}`)
+}
+
 export async function setDocumentKind(docId: number, kind: string): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro

@@ -214,12 +214,7 @@ export default async function Page() {
                 })}
               />
 
-            </>
-          }
-          // Под карточками: календарь загрузки на 14 дней и подключение ELD.
-          after={
-            <>
-              <div className="mb-4 mt-4">
+              <div className="mb-4">
                 <FleetHeatmap
                   rows={perTruck.map(({ truck, working, current }) => {
                     const fs = truck.number ? byUnit.get(truck.number) : undefined
@@ -248,6 +243,11 @@ export default async function Page() {
                   })}
                 />
               </div>
+            </>
+          }
+          // Под карточками: подключение ELD — раз в жизни трака.
+          after={
+            <>
               <EldLinks count={shareCount + (samsaraOn ? 1 : 0)} eldOn={!!process.env.ELD_USERNAME} />
             </>
           }

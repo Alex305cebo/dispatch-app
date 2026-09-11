@@ -4,7 +4,7 @@ import { DocLink } from '@/components/doc-link'
 
 import { useOptimistic, useRef, useState, useTransition } from 'react'
 import { Ban, Check } from 'lucide-react'
-import { addLoadEventManual, setStatus, uploadDocument } from '@/app/actions'
+import { addLoadEventManual, setStatus, unmarkStop, uploadDocument } from '@/app/actions'
 import { type LoadStatus } from '@/lib/map'
 import { notify } from '@/lib/notify'
 import { statusLabel, STATUS_ICON } from '@/components/status'
@@ -158,26 +158,27 @@ export function StatusPicker({
   // -1 while cancelled, which correctly leaves every step unreached below.
   const currentIdx = PIPELINE.indexOf(shown)
 
-  // Остановки, отмеченные с рейки прямо сейчас — до того, как сервер перерисует
-  // страницу с новой отметкой водителя.
-  const [localDone, setLocalDone] = useState<Set<string>>(new Set())
-  const stopDone = (st: RailStop) => st.done || localDone.has(st.key)
+  // Точки, переключённые с полосы прямо сейчас — до того, как сервер перерисует
+  // страницу. Клик по точке ставит отметку, повторный клик снимает: статус можно
+  // двигать и вперёд, и назад в любой момент, как и у обычных шагов.
+  const [override, setOverride] = useState<Map<string, boolean>>(new Map())
+  const stopDone = (st: RailStop) => override.get(st.key) ?? st.done
   // Мультистоп: как только первая промежуточная точка пройдена, первый «В пути»
   // закрыт галочкой, а текущий «В пути» рисуется после последней пройденной точки.
   const legDone = shown === 'in_transit' && stops.some(stopDone)
-  const markStop = (st: RailStop) =>
+  const toggleStop = (st: RailStop) => {
+    const wasDone = stopDone(st)
     start(async () => {
-      setLocalDone((prev) => new Set(prev).add(st.key))
-      const res = await addLoadEventManual(id, st.role === 'pickup' ? 'loaded' : 'delivered', new Date().toISOString(), undefined, st.seq)
+      setOverride((prev) => new Map(prev).set(st.key, !wasDone))
+      const res = wasDone
+        ? await unmarkStop(id, st.seq, st.role)
+        : await addLoadEventManual(id, st.role === 'pickup' ? 'loaded' : 'delivered', new Date().toISOString(), undefined, st.seq)
       if (res?.error) {
-        setLocalDone((prev) => {
-          const n = new Set(prev)
-          n.delete(st.key)
-          return n
-        })
+        setOverride((prev) => new Map(prev).set(st.key, wasDone))
         notify('error', res.error)
-      } else notify('ok', `${st.label}${st.sub ? ` · ${st.sub}` : ''}: ✓`)
+      } else notify('ok', `${st.label}${st.sub ? ` · ${st.sub}` : ''}: ${wasDone ? '↩' : '✓'}`)
     })
+  }
 
   const go = (s: LoadStatus) =>
     start(async () => {
@@ -208,7 +209,7 @@ export function StatusPicker({
                   // Текущая точка: первая непройденная, пока груз в пути.
                   const cur = shown === 'in_transit' && !sd && stops.slice(0, k).every(stopDone)
                   const tone = STEP_TONE[st.role === 'pickup' ? 'booked' : 'delivered']
-                  const clickable = shown === 'in_transit' && !sd
+                  const clickable = shown === 'in_transit'
                   // После последней пройденной точки — «В пути» к следующей.
                   const transitAfter = shown === 'in_transit' && sd && !(stops[k + 1] && stopDone(stops[k + 1]!))
                   return (
@@ -224,7 +225,7 @@ export function StatusPicker({
                         <button
                           type="button"
                           disabled={!clickable}
-                          onClick={() => markStop(st)}
+                          onClick={() => toggleStop(st)}
                           aria-current={cur ? 'step' : undefined}
                           className={`flex size-7 shrink-0 items-center justify-center rounded-full transition-all duration-150 disabled:cursor-default ${
                             sd || cur ? tone.dot : 'bg-white/[0.07] text-white/40 hover:bg-white/15 hover:text-white/70'
