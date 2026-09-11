@@ -101,11 +101,11 @@ const ITEMS: Item[] = [
   { href: '/', labelKey: 'nav.overview', icon: 'dash', primary: true },
   { href: '/loads', labelKey: 'nav.loads', icon: 'loads', primary: true },
   { href: '/trucks', labelKey: 'nav.trucks', icon: 'settings', primary: true },
-  { href: '/docs', labelKey: 'nav.docs', icon: 'docs' },
+  { href: '/docs', labelKey: 'nav.docs', icon: 'docs', primary: true },
   { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield' },
   { href: '/tolls', labelKey: 'nav.tolls', icon: 'toll' },
   { href: '/telegram', labelKey: 'nav.telegram', icon: 'chat' },
-  { href: '/invoices', labelKey: 'nav.finances', icon: 'money', primary: true },
+  { href: '/invoices', labelKey: 'nav.finances', icon: 'money' },
 ]
 
 export function Nav({
