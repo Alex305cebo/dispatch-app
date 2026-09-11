@@ -862,6 +862,27 @@ export type RcCreateResult = {
  * первый, а не плодить дубль. Свой трак — в приоритете, но груз мог завести и
  * коллега на другой карточке.
  */
+/**
+ * Тот же номер PO уже заведён на ДРУГОМ траке. Раньше такой рейт-кон молча
+ * приклеивался к чужому грузу (поиск смотрел все траки), груз этого трака не
+ * создавался, а брошенный по ошибке файл портил чужую карточку. Теперь дописывание
+ * — только в свой трак, а чужой груз — отказ с объяснением, где он.
+ */
+async function findLoadOnOtherTruck(companyId: string, truckId: number, ref: string | null | undefined) {
+  const key = (ref ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase()
+  if (key.length < 5) return null
+  const rows = (await sql`
+    SELECT l.id, l.reference_id, t.number, t.driver_name FROM loads l
+    JOIN trucks t ON t.id = l.truck_id
+    WHERE l.company_id = ${companyId} AND l.truck_id <> ${truckId}
+      AND l.status NOT IN ('cancelled', 'paid')
+      AND l.created_at > now() - interval '45 days'
+      AND upper(regexp_replace(COALESCE(l.reference_id, ''), '[^0-9A-Za-z]', '', 'g')) = ${key}
+    ORDER BY l.created_at DESC
+    LIMIT 1`) as { id: number; reference_id: string | null; number: string | null; driver_name: string | null }[]
+  return rows[0] ?? null
+}
+
 async function findLoadByReference(companyId: string, truckId: number, ref: string | null | undefined) {
   const key = (ref ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase()
   if (key.length < 5) return null
@@ -874,7 +895,8 @@ async function findLoadByReference(companyId: string, truckId: number, ref: stri
       AND status NOT IN ('cancelled', 'paid')
       AND created_at > now() - interval '45 days'
       AND upper(regexp_replace(COALESCE(reference_id, ''), '[^0-9A-Za-z]', '', 'g')) = ${key}
-    ORDER BY (truck_id = ${truckId}) DESC, created_at DESC
+      AND truck_id = ${truckId}
+    ORDER BY created_at DESC
     LIMIT 1`) as {
     id: number
     truck_id: number | null
@@ -912,7 +934,7 @@ export async function createLoadFromRc(
   driverInfo?: string,
   /** Все остановки рейса из того же чтения (lib/stops.ts); две и меньше — обычный груз. */
   stops?: LoadStop[],
-): Promise<RcCreateResult | { error: string }> {
+): Promise<RcCreateResult | { error: string; elsewhereLoadId?: number }> {
   const ro = await demoReadOnly()
   if (ro) return ro
   const locale = await getLocale()
@@ -940,6 +962,23 @@ export async function createLoadFromRc(
     // Второй файл той же пары (тот же PO#) — дополняем уже созданный груз тем, чего в
     // нём нет: ставкой из рейт-кона, адресами и контактами из листа водителя.
     const twin = await findLoadByReference(companyId, truckId, load.referenceId)
+    if (!twin) {
+      const other = await findLoadOnOtherTruck(companyId, truckId, load.referenceId)
+      if (other) {
+        // Файл — в корзину: иначе он повиснет у этого трака «рейт-коном без груза» и
+        // позовёт создать дубль. Из корзины его можно вернуть.
+        if (docId && (await docBelongs(companyId, docId)))
+          await sql`UPDATE documents SET deleted_at = now() WHERE id = ${docId} AND load_id IS NULL`
+        const truckName = [other.number ? `TRK-${other.number}` : null, other.driver_name].filter(Boolean).join(' · ')
+        revalidatePath(`/trucks/${truckId}`)
+        return {
+          error: t(locale, 'actions.rcElsewhere')
+            .replace('{ref}', other.reference_id ?? '')
+            .replace('{truck}', truckName || '—'),
+          elsewhereLoadId: other.id,
+        }
+      }
+    }
     if (twin) {
       const filled: string[] = []
       const nz = (v: string | null | undefined) => (v && v.trim() ? v : null)
@@ -2422,4 +2461,50 @@ export async function addTruckFromEld(unit: string): Promise<{ error: string } |
   } catch (e) {
     return { error: humanError(e, locale) }
   }
+}
+
+/**
+ * «Не тот файл» сразу после загрузки рейт-кона: удалить только что созданный груз и
+ * убрать его рейт-кон и Driver Info в корзину одним нажатием. Только пока груз не в
+ * работе: моложе двух часов, без отметок водителя и без BOL, POD и фото. Иначе —
+ * удаление на карточке груза с подтверждением. Файлы возвращаются из корзины.
+ */
+export async function undoRcUpload(loadId: number): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const locale = await getLocale()
+  const companyId = await companyScope()
+  if (!(await loadBelongs(companyId, loadId))) return { error: t(locale, 'actions.loadNotFound') }
+  const rows = (await sql`
+    SELECT l.origin, l.destination, l.truck_id,
+      (l.created_at > now() - interval '2 hours') AS fresh,
+      (SELECT count(*) FROM load_events e WHERE e.load_id = l.id)::int AS events,
+      (SELECT count(*) FROM documents d
+        WHERE d.load_id = l.id AND d.deleted_at IS NULL AND d.kind NOT IN ('ratecon', 'driverinfo'))::int AS docs
+    FROM loads l WHERE l.id = ${loadId} AND l.company_id = ${companyId}`) as {
+    origin: string | null
+    destination: string | null
+    truck_id: number | null
+    fresh: boolean
+    events: number
+    docs: number
+  }[]
+  const l = rows[0]
+  if (!l) return { error: t(locale, 'actions.loadNotFound') }
+  if (!l.fresh || l.events > 0 || l.docs > 0) return { error: t(locale, 'actions.undoTooLate') }
+  const who = (await getCurrentUser())?.name || t(locale, 'actions.dispatcherFallback')
+  try {
+    await sql`UPDATE documents SET deleted_at = now(), load_id = NULL
+              WHERE load_id = ${loadId} AND kind IN ('ratecon', 'driverinfo')`
+    await sql`UPDATE documents SET load_id = NULL WHERE load_id = ${loadId}`
+    await sql`DELETE FROM loads WHERE id = ${loadId} AND company_id = ${companyId}`
+    const route = [l.origin, l.destination].filter(Boolean).join(' → ') || `#${loadId}`
+    await auditDelete(companyId, who, 'undo_rc_upload', route, 'ratecon', l.origin, l.destination)
+  } catch (e) {
+    return { error: humanError(e, locale) }
+  }
+  if (l.truck_id) revalidatePath(`/trucks/${l.truck_id}`)
+  revalidatePath('/loads')
+  revalidatePath('/docs')
+  revalidatePath('/')
 }

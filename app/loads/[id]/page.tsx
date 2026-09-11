@@ -160,6 +160,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <div className="mt-5">
           <StatusPicker
             id={load.id}
+            truckId={truck.id}
+            title={`${load.origin ?? '—'} → ${load.destination ?? '—'}`}
             current={load.status}
             bolId={bolDoc?.id ?? null}
             podId={podDoc?.id ?? null}

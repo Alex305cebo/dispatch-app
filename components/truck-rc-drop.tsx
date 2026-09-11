@@ -14,7 +14,7 @@ import { extractPdf, looksScanned } from '@/lib/pdf-text'
 import { formatDriverInfo, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
 import { rcWarnings, type RcWarning } from '@/lib/rc-warnings'
-import { createLoadFromRc, setLoadPartial, uploadDocument, type RcCreateResult } from '@/app/actions'
+import { createLoadFromRc, setLoadPartial, undoRcUpload, uploadDocument, type RcCreateResult } from '@/app/actions'
 import { docKindFromText } from '@/lib/caption-kind'
 import { staleBuildMessage } from '@/components/build-watch'
 import { notify } from '@/lib/notify'
@@ -60,6 +60,9 @@ export function TruckRcDrop({
   const [drag, setDrag] = useState(false)
   const [res, setRes] = useState<Result | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Этот рейт-кон уже заведён на другом траке — ссылка на тот груз.
+  const [elsewhere, setElsewhere] = useState<number | null>(null)
+  const [undoBusy, setUndoBusy] = useState(false)
   const [, startCopy] = useTransition()
   const inputRef = useRef<HTMLInputElement>(null)
   // Kept so "Повторить" can re-run the same file without asking to re-pick it.
@@ -83,6 +86,7 @@ export function TruckRcDrop({
     if (!list.length) return
     setLastFiles(list)
     setError(null)
+    setElsewhere(null)
     setBusy(true)
     setStage(t(locale, 'rcDrop.stageReading'))
     setRes(null)
@@ -169,7 +173,10 @@ export function TruckRcDrop({
         formatDriverInfo(ai.fields),
         ai.fields.stops,
       )
-      if ('error' in made) throw new Error(made.error)
+      if ('error' in made) {
+        if ('elsewhereLoadId' in made && made.elsewhereLoadId) setElsewhere(made.elsewhereLoadId)
+        throw new Error(made.error)
+      }
       for (const f of rest) await fileDoc(f, companions.includes(f) ? 'driverinfo' : 'ratecon', made.loadId)
       if (rest.length) notify('ok', t(locale, 'rcDrop.companionSaved'), rest.map((f) => f.name).join(', '))
 
@@ -217,6 +224,31 @@ export function TruckRcDrop({
           </div>
         </div>
 
+        {/* Не тот файл — отменить загрузку одним нажатием, пока груз не в работе
+            (undoRcUpload): груз удаляется, рейт-кон уходит в корзину. */}
+        {!res.merged && (
+          <div className="flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              loading={undoBusy}
+              className="text-white/55 hover:text-bad-400"
+              onClick={() => {
+                const route = `${res.fields.origin?.value ?? '—'} → ${res.fields.destination?.value ?? '—'}`
+                if (!window.confirm(t(locale, 'rcDrop.undoConfirm').replace('{route}', route))) return
+                setUndoBusy(true)
+                void undoRcUpload(res.loadId).then((r) => {
+                  setUndoBusy(false)
+                  if (r && 'error' in r) return notify('error', r.error)
+                  notify('ok', t(locale, 'rcDrop.undone'))
+                  setRes(null)
+                })
+              }}
+            >
+              {t(locale, 'rcDrop.undo')}
+            </Button>
+          </div>
+        )}
         {/* Пара файлов TQL: второй дополнил первый — говорим, что именно; одного не
             хватает — зовём загрузить второй прямо отсюда, груз при этом уже создан. */}
         {res.merged && (
@@ -452,18 +484,28 @@ export function TruckRcDrop({
       {error && (
         <span className="mt-2 flex flex-col items-center gap-1.5">
           <span className="text-[12px] text-bad-400">{error}</span>
-          <Button
-            variant="primary"
-            size="sm"
-            type="button"
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              handle(lastFiles)
-            }}
-          >
-            {t(locale, 'import.retryScan')}
-          </Button>
+          {elsewhere ? (
+            <Link
+              href={`/loads/${elsewhere}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-[12px] font-semibold text-haul-300 hover:underline"
+            >
+              {t(locale, 'rcDrop.openElsewhere')}
+            </Link>
+          ) : (
+            <Button
+              variant="primary"
+              size="sm"
+              type="button"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                handle(lastFiles)
+              }}
+            >
+              {t(locale, 'import.retryScan')}
+            </Button>
+          )}
         </span>
       )}
     </motion.label>

@@ -4,7 +4,9 @@ import { DocLink } from '@/components/doc-link'
 
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react'
 import { Ban, Check } from 'lucide-react'
-import { addLoadEventManual, setStatus, unmarkStop, uploadDocument } from '@/app/actions'
+import { useRouter } from 'next/navigation'
+import { addLoadEventManual, deleteLoad, setStatus, unmarkStop, uploadDocument } from '@/app/actions'
+import { DeleteButton } from '@/components/delete-button'
 import { type LoadStatus } from '@/lib/map'
 import { notify } from '@/lib/notify'
 import { statusLabel, STATUS_ICON } from '@/components/status'
@@ -147,9 +149,15 @@ export function StatusPicker({
   bolId = null,
   podId = null,
   stops = [],
+  truckId = null,
+  title = '',
 }: {
   id: number
   current: LoadStatus
+  /** Трак груза — куда вернуться после удаления ошибочного груза. */
+  truckId?: number | null
+  /** «Nampa → Union City» — в подтверждениях отмены и удаления. */
+  title?: string
   bolId?: number | null
   podId?: number | null
   /** Остановки между первой погрузкой и последней выгрузкой (lib/stops.ts). */
@@ -160,6 +168,7 @@ export function StatusPicker({
   // The rail redraws the instant a step is clicked, then the server action confirms it.
   // React reverts `shown` by itself if the action throws, so a failed write can't leave
   // the rail showing a lie.
+  const router = useRouter()
   const [shown, setShown] = useOptimistic(current)
   const cancelled = shown === 'cancelled'
   // -1 while cancelled, which correctly leaves every step unreached below.
@@ -193,7 +202,14 @@ export function StatusPicker({
     ol.scrollTo({ left: ol.scrollLeft + (r.left + r.width / 2) - (o.left + o.width / 2), behavior: 'smooth' })
   }, [shown, override])
 
-  const go = (s: LoadStatus) =>
+  const go = (s: LoadStatus) => {
+    // «Отменён» — только осознанно: этой кнопкой по ошибке «отменяли» не тот груз, и
+    // трак оставался без текущего. Заведённый по ошибке груз удаляется отдельно.
+    if (s === 'cancelled' && !window.confirm(t(locale, 'loadStatus.cancelConfirm').replace('{route}', title || `#${id}`)))
+      return
+    applyStatus(s)
+  }
+  const applyStatus = (s: LoadStatus) =>
     start(async () => {
       setShown(s) // optimistic; reverts to `current` after the action if the server rejects
       const res = await setStatus(id, s)
@@ -408,7 +424,18 @@ export function StatusPicker({
 
       {/* Off to the side and quiet: cancelling is rare, irreversible in spirit, and
           must not sit in the row of ordinary next steps. */}
-      <div className="mt-3 flex justify-end">
+      {cancelled && <p className="mt-3 text-[12px] text-white/55">{t(locale, 'loadStatus.cancelledHint')}</p>}
+      <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+        {/* Заведён по ошибке — удалить совсем, с тем же подтверждением, что в списке
+            грузов. После удаления — на карточку трака: этого груза больше нет. */}
+        <DeleteButton
+          action={deleteLoad}
+          id={id}
+          title={title || `#${id}`}
+          note={t(locale, 'loads.page.deleteNote')}
+          label={t(locale, 'loadStatus.deleteWrong')}
+          onDone={() => router.push(truckId ? `/trucks/${truckId}` : '/loads')}
+        />
         <button
           type="button"
           disabled={cancelled}

@@ -18,11 +18,17 @@ export function DeleteButton({
   id,
   title,
   note,
+  label,
+  onDone,
 }: {
   action: (id: number, confirm: string) => Promise<{ error?: string } | void>
   id: number
   title: string
   note?: string // e.g. "and its calculations will be gone for good."
+  /** Кнопка словами вместо ✕ — где удаление не очевидно по крестику. */
+  label?: string
+  /** После удаления — например, уйти со страницы удалённого груза. */
+  onDone?: () => void
 }) {
   const locale = useLocale()
   const [open, setOpen] = useState(false)
@@ -39,6 +45,7 @@ export function DeleteButton({
         notify('ok', t(locale, 'deleteButton.deleted'), title)
         setOpen(false)
         setWord('')
+        onDone?.()
       }
     })
   }
@@ -49,11 +56,16 @@ export function DeleteButton({
   return (
     <>
       <button
+        type="button"
         title={t(locale, 'deleteButton.title')}
         onClick={() => setOpen(true)}
-        className="shrink-0 text-[13px] text-white/35 transition-colors hover:text-bad-400"
+        className={
+          label
+            ? 'inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-2xs font-medium text-white/35 transition-colors hover:bg-bad-500/10 hover:text-bad-400'
+            : 'shrink-0 text-[13px] text-white/35 transition-colors hover:text-bad-400'
+        }
       >
-        ✕
+        {label ?? '✕'}
       </button>
       {open && (
         <div
