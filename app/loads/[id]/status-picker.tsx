@@ -3,7 +3,7 @@
 import { DocLink } from '@/components/doc-link'
 
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react'
-import { Ban, Check } from 'lucide-react'
+import { Ban, Check, RotateCcw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { addLoadEventManual, deleteLoad, setStatus, unmarkStop, uploadDocument } from '@/app/actions'
 import { DeleteButton } from '@/components/delete-button'
@@ -397,7 +397,6 @@ export function StatusPicker({
               <div className={STEP_W}>
                 <button
                   type="button"
-                  disabled={cancelled}
                   onClick={() => (s === shown ? same(s) : go(s))}
                   aria-current={isCurrent ? 'step' : undefined}
                   title={statusLabel(locale, s)}
@@ -424,7 +423,23 @@ export function StatusPicker({
 
       {/* Off to the side and quiet: cancelling is rare, irreversible in spirit, and
           must not sit in the row of ordinary next steps. */}
-      {cancelled && <p className="mt-3 text-[12px] text-white/55">{t(locale, 'loadStatus.cancelledHint')}</p>}
+      {/* Отменили не тот груз или брокер вернул рейс: одна кнопка возвращает его в
+          работу — «В пути», трак снова с грузом. Раньше у отменённого груза вся полоса
+          была заблокирована, а подсказка обещала, что кружки нажимаются. */}
+      {cancelled && (
+        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-warn-400/30 bg-warn-500/[0.06] px-3 py-2">
+          <p className="min-w-0 flex-1 text-[12.5px] text-white/70">{t(locale, 'loadStatus.cancelledHint')}</p>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => applyStatus('in_transit')}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-haul-500 px-3 py-1.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-haul-400 disabled:opacity-50"
+          >
+            <RotateCcw size={13} strokeWidth={2.5} />
+            {t(locale, 'loadStatus.restore')}
+          </button>
+        </div>
+      )}
       <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
         {/* Заведён по ошибке — удалить совсем, с тем же подтверждением, что в списке
             грузов. После удаления — на карточку трака: этого груза больше нет. */}
