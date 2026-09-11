@@ -39,14 +39,16 @@ export function PairBar({
   const here = t(locale, 'pair.here')
   const truckShort = current === 'truck' ? `${t(locale, 'pair.truck')} · ${here}` : `${t(locale, 'pair.truck')} →`
   const loadShort = current === 'load' ? `${t(locale, 'pair.load')} · ${here}` : `${t(locale, 'pair.load')} →`
-  const cap = 'block truncate text-[10px] font-medium uppercase tracking-wider text-white/60 sm:text-[11px]'
+  // На телефоне подписи переносятся целиком: «Sam R. TRK-DEM…» в обрезанном виде не
+  // говорил ни водителя, ни трака. Полоса от этого выше — это дешевле, чем догадки.
+  const cap = 'block text-[10px] font-medium uppercase tracking-wider text-white/60 sm:truncate sm:text-[11px]'
   const truckInner = (
     <>
       <Truck strokeWidth={2.2} className="size-4 shrink-0 text-haul-400 sm:size-[18px]" />
       <span className="min-w-0">
         <span className={`${cap} sm:hidden`}>{truckShort}</span>
         <span className={`${cap} hidden sm:block`}>{truckCap}</span>
-        <span className="block font-semibold max-sm:line-clamp-2 max-sm:text-[12px] max-sm:leading-tight sm:truncate">{truck?.label ?? t(locale, 'pair.noTruck')}</span>
+        <span className="block font-semibold max-sm:text-[12px] max-sm:leading-tight max-sm:[overflow-wrap:anywhere] sm:truncate">{truck?.label ?? t(locale, 'pair.noTruck')}</span>
       </span>
     </>
   )
@@ -59,7 +61,7 @@ export function PairBar({
           {loadCap}
           {load?.sub ? ` · ${load.sub}` : ''}
         </span>
-        <span className="block font-semibold max-sm:line-clamp-2 max-sm:text-[12px] max-sm:leading-tight sm:truncate">{load?.label ?? t(locale, 'pair.noLoad')}</span>
+        <span className="block font-semibold max-sm:text-[12px] max-sm:leading-tight max-sm:[overflow-wrap:anywhere] sm:truncate">{load?.label ?? t(locale, 'pair.noLoad')}</span>
       </span>
     </>
   )
