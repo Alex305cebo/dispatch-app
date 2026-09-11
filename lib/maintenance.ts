@@ -43,6 +43,7 @@ const metaOf = (r: any): TruckMeta => ({
   cdlExpiry: asDate(r.cdl_expiry),
   medcardExpiry: asDate(r.medcard_expiry),
   hasPhoto: r.driver_photo_mime != null,
+  hasTruckPhoto: r.truck_photo_mime != null,
 })
 
 // Named columns, not SELECT * — driver_photo is a multi-hundred-KB bytea that would
@@ -58,7 +59,7 @@ export async function getTruckMeta(truckId: number): Promise<TruckMeta | null> {
   const rows = await sql`
     SELECT truck_id, vin, plate, trailer_number, year, make, model, oil_interval_mi,
       oil_last_odometer, driver_phone, notes, registration_expiry, inspection_expiry,
-      insurance_expiry, cdl_expiry, medcard_expiry, driver_photo_mime
+      insurance_expiry, cdl_expiry, medcard_expiry, driver_photo_mime, truck_photo_mime
     FROM truck_meta WHERE truck_id = ${truckId}`
   return rows[0] ? metaOf(rows[0]) : null
 }

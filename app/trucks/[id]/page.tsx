@@ -40,6 +40,7 @@ import { QueuedLoadHint } from '@/components/queued-load-hint'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { CopyPlace } from '@/components/copy-place'
+import { TruckPhoto } from '@/components/truck-photo'
 
 export const dynamic = 'force-dynamic'
 
@@ -203,10 +204,10 @@ export default async function Page({
            уезжало вниз; теперь задание видно сразу под шапкой. ===== */}
       <section className="panel mt-3 p-4 sm:p-5">
         <div className="flex items-start gap-3 sm:gap-4">
-          <img
-            src="/truck.png"
+          <TruckPhoto
+            truckId={truck.id}
+            hasPhoto={meta?.hasTruckPhoto ?? false}
             alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
-            className="mt-0.5 h-9 w-12 shrink-0 object-contain sm:h-12 sm:w-16"
           />
           <div className="min-w-0 flex-1">
           <h1 className="text-[22px] font-semibold leading-7 sm:text-[26px] sm:leading-8">{truck.number ?? truck.name}</h1>

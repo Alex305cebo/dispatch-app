@@ -1482,6 +1482,23 @@ export const trucksDict = {
     ro: '+ Completează',
     kk: '+ Толтыру',
   },
+  'trucks.photo.change': {
+    ru: 'Сменить фото трака',
+    en: 'Change truck photo',
+    es: 'Cambiar la foto del camión',
+    uk: 'Змінити фото трака',
+    ro: 'Schimbă poza camionului',
+    kk: 'Трак суретін ауыстыру',
+  },
+  'trucks.photo.saved': {
+    ru: 'Фото трака сохранено',
+    en: 'Truck photo saved',
+    es: 'Foto del camión guardada',
+    uk: 'Фото трака збережено',
+    ro: 'Poza camionului a fost salvată',
+    kk: 'Трак суреті сақталды',
+  },
+  'trucks.photo.overlay': { ru: 'фото', en: 'photo', es: 'foto', uk: 'фото', ro: 'poză', kk: 'сурет' },
   'trucks.driverCard.photoOverlay': { ru: 'фото', en: 'photo', es: 'foto', uk: 'фото', ro: 'poză', kk: 'сурет' },
   'trucks.driverCard.nameLabel': {
     ru: 'Имя водителя',

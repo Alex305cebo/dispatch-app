@@ -426,7 +426,12 @@ CREATE TABLE IF NOT EXISTS app_errors (
 );
 CREATE INDEX IF NOT EXISTS app_errors_at ON app_errors(at DESC);
 
-INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-10')
+-- Своё фото трака для шапки карточки (водитель может ездить на Volvo, а не на
+-- Freightliner с картинки по умолчанию). Тот же приём, что driver_photo.
+ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS truck_photo      BYTEA;
+ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS truck_photo_mime TEXT;
+
+INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-11')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- Через кого брокер платит перевозчикам (TriumphPay, Comdata, RTS…), если рейт-кон

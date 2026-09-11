@@ -1881,6 +1881,31 @@ export async function saveDriverPhoto(truckId: number, fd: FormData): Promise<{ 
   revalidatePath('/', 'layout')
 }
 
+/** Своё фото трака для шапки карточки. FormData: file. Отдаёт /api/truck-photo/[truckId]. */
+export async function saveTruckPhoto(truckId: number, fd: FormData): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const locale = await getLocale()
+  const file = fd.get('file')
+  if (!(file instanceof File) || file.size === 0) return { error: t(locale, 'actions.noFileSelected') }
+  if (file.size > MAX_PHOTO_BYTES) return { error: t(locale, 'actions.fileOver4mb') }
+  if (!file.type.startsWith('image/')) return { error: t(locale, 'actions.needImage') }
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
+
+  const hex = Buffer.from(await file.arrayBuffer()).toString('hex')
+  try {
+    await sql`
+      INSERT INTO truck_meta (truck_id, truck_photo, truck_photo_mime)
+      VALUES (${truckId}, decode(${hex}, 'hex'), ${file.type})
+      ON CONFLICT (truck_id) DO UPDATE SET
+        truck_photo      = EXCLUDED.truck_photo,
+        truck_photo_mime = EXCLUDED.truck_photo_mime`
+  } catch (e) {
+    return { error: humanError(e, locale) }
+  }
+  revalidatePath(`/trucks/${truckId}`)
+}
+
 export async function saveTruckMeta(truckId: number, m: TruckMetaInput): Promise<{ error: string } | void> {
   const ro = await demoReadOnly()
   if (ro) return ro
