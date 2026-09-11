@@ -2,9 +2,9 @@
 
 import { DocLink } from '@/components/doc-link'
 
-import { useOptimistic, useState, useTransition } from 'react'
+import { useOptimistic, useRef, useState, useTransition } from 'react'
 import { Ban, Check } from 'lucide-react'
-import { addLoadEventManual, setStatus } from '@/app/actions'
+import { addLoadEventManual, setStatus, uploadDocument } from '@/app/actions'
 import { type LoadStatus } from '@/lib/map'
 import { notify } from '@/lib/notify'
 import { statusLabel, STATUS_ICON } from '@/components/status'
@@ -63,6 +63,54 @@ function DocChip({ label, docId, due }: { label: string; docId: number | null; d
   )
 }
 
+/** POD промежуточной выгрузки: есть — зелёная ссылка, нет — кнопка загрузки (янтарная,
+ * когда точка уже пройдена и бумага должна быть на руках). */
+function StopPod({ loadId, seq, docId, due }: { loadId: number; seq: number; docId: number | null; due: boolean }) {
+  const locale = useLocale()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [pending, start] = useTransition()
+  if (docId) return <DocChip label="POD" docId={docId} due={false} />
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const list = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (!list.length) return
+    start(async () => {
+      let saved = 0
+      let firstError: string | null = null
+      for (const file of list) {
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('kind', 'pod')
+        fd.append('loadId', String(loadId))
+        fd.append('stopSeq', String(seq))
+        const res = await uploadDocument(fd)
+        if (res && 'error' in res) firstError ??= res.error
+        else saved++
+      }
+      if (saved) notify('ok', t(locale, 'loadDetail.docUploaded').replace('{label}', 'POD'))
+      if (firstError) notify('error', firstError)
+    })
+  }
+  return (
+    <>
+      <input ref={inputRef} type="file" accept="application/pdf,image/*" multiple className="hidden" onChange={onFile} />
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => inputRef.current?.click()}
+        title={t(locale, 'loadDetail.uploadDoc').replace('{label}', 'POD')}
+        className={`mt-1 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide transition-colors ${
+          due
+            ? 'animate-pulse bg-warn-400/20 text-warn-400 ring-1 ring-warn-400/60 hover:bg-warn-400/30'
+            : 'bg-white/[0.05] text-white/25 hover:bg-white/10 hover:text-white/60'
+        }`}
+      >
+        {pending ? '…' : '+ POD'}
+      </button>
+    </>
+  )
+}
+
 /** Иконка шага той же формы, что у статусов. */
 function StepIcon({ icon: Icon }: { icon: (typeof STATUS_ICON)[LoadStatus] }) {
   return <Icon size={13} strokeWidth={2.5} />
@@ -75,6 +123,8 @@ export type RailStop = {
   key: string
   seq: number
   role: 'pickup' | 'delivery'
+  /** POD этой выгрузки (documents.stop_seq = seq), если уже загружен. */
+  podId?: number | null
   label: string
   sub: string | null
   done: boolean
@@ -194,6 +244,7 @@ export function StatusPicker({
                           {st.label}
                         </span>
                         {st.sub && <span className="w-full truncate text-center text-[9px] text-white/40">{st.sub}</span>}
+                        {st.role === 'delivery' && <StopPod loadId={id} seq={st.seq} docId={st.podId ?? null} due={sd} />}
                       </div>
                       {transitAfter && (
                         <>

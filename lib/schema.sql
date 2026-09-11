@@ -431,7 +431,11 @@ CREATE INDEX IF NOT EXISTS app_errors_at ON app_errors(at DESC);
 ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS truck_photo      BYTEA;
 ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS truck_photo_mime TEXT;
 
-INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-11')
+-- POD промежуточной выгрузки: к какой остановке относится документ (lib/stops.ts seq).
+-- NULL — конечная выгрузка, как и все старые POD.
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS stop_seq INTEGER;
+
+INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-12')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- Через кого брокер платит перевозчикам (TriumphPay, Comdata, RTS…), если рейт-кон

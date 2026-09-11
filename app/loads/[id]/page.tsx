@@ -95,7 +95,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const invoiceDoc = docs.find((d) => d.kind === 'invoice')
   const rateConDoc = docs.find((d) => d.kind === 'ratecon')
   const bolDoc = docs.find((d) => d.kind === 'bol')
-  const podDoc = docs.find((d) => d.kind === 'pod')
+  // Конечный POD — без номера остановки; POD промежуточных точек живут на рейке.
+  const podDoc = docs.find((d) => d.kind === 'pod' && d.stopSeq == null) ?? docs.find((d) => d.kind === 'pod')
   const fs = truck.number ? fleet.get(truck.number) : undefined
 
   return (
@@ -151,6 +152,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               key: String(s.seq),
               seq: s.seq,
               role: s.role,
+              podId: s.role === 'delivery' ? (docs.find((d) => d.kind === 'pod' && d.stopSeq === s.seq)?.id ?? null) : null,
               label: t(locale, s.role === 'pickup' ? 'stops.pickupStep' : 'stops.deliveryStep'),
               sub: s.city ? s.city.replace(/,.*$/, '') : null,
               done: load.status === 'delivered' || load.status === 'paid' || isDone(s, driverEvents, stops),

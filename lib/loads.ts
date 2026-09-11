@@ -25,18 +25,18 @@ export async function listDocs(
   // на карточке трака и груза, а не только в библиотеке.
   const rows = filter?.loadId
     ? await sql`SELECT d.id, d.truck_id, d.load_id, d.maintenance_id, d.kind, d.title, d.mime, d.size_bytes,
-                       d.uploaded_at, d.deleted_at, l.origin, l.destination
+                       d.uploaded_at, d.deleted_at, d.stop_seq, l.origin, l.destination
                 FROM documents d LEFT JOIN loads l ON l.id = d.load_id
                 WHERE d.load_id = ${filter.loadId} AND d.company_id = ${companyId} AND d.deleted_at IS NULL
                 ORDER BY d.uploaded_at DESC`
     : filter?.truckId
       ? await sql`SELECT d.id, d.truck_id, d.load_id, d.maintenance_id, d.kind, d.title, d.mime, d.size_bytes,
-                         d.uploaded_at, d.deleted_at, l.origin, l.destination
+                         d.uploaded_at, d.deleted_at, d.stop_seq, l.origin, l.destination
                   FROM documents d LEFT JOIN loads l ON l.id = d.load_id
                   WHERE d.truck_id = ${filter.truckId} AND d.company_id = ${companyId} AND d.deleted_at IS NULL
                   ORDER BY d.uploaded_at DESC`
       : await sql`SELECT d.id, d.truck_id, d.load_id, d.maintenance_id, d.kind, d.title, d.mime, d.size_bytes,
-                         d.uploaded_at, d.deleted_at, l.origin, l.destination
+                         d.uploaded_at, d.deleted_at, d.stop_seq, l.origin, l.destination
                   FROM documents d LEFT JOIN loads l ON l.id = d.load_id
                   WHERE d.company_id = ${companyId} AND d.deleted_at IS NULL ORDER BY d.uploaded_at DESC LIMIT 200`
   /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -53,6 +53,7 @@ export async function listDocs(
     deletedAt: r.deleted_at ? new Date(r.deleted_at).toISOString() : null,
     origin: r.origin ?? null,
     destination: r.destination ?? null,
+    stopSeq: r.stop_seq ?? null,
   }))
 }
 

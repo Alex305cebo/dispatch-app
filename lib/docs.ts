@@ -55,6 +55,8 @@ export type DocMeta = {
   /** Маршрут груза, к которому привязан документ (listDocs) — для имени по смыслу. */
   origin?: string | null
   destination?: string | null
+  /** POD промежуточной остановки — её номер; null/нет — конечная выгрузка. */
+  stopSeq?: number | null
 }
 
 /** A document plus the truck/driver it belongs to and its load route — for the

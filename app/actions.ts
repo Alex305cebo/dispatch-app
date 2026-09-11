@@ -1232,6 +1232,8 @@ export async function uploadDocument(fd: FormData): Promise<{ id: number } | { e
   const truckId = fd.get('truckId') ? Number(fd.get('truckId')) : null
   const loadId = fd.get('loadId') ? Number(fd.get('loadId')) : null
   const maintenanceId = fd.get('maintenanceId') ? Number(fd.get('maintenanceId')) : null
+  // POD промежуточной остановки: номер точки; без него — конечная выгрузка.
+  const stopSeq = fd.get('stopSeq') ? Number(fd.get('stopSeq')) : null
   const companyId = await companyScope()
   if (truckId && !(await truckBelongs(companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }
   if (loadId && !(await loadBelongs(companyId, loadId))) return { error: t(locale, 'actions.loadNotFound') }
@@ -1240,16 +1242,17 @@ export async function uploadDocument(fd: FormData): Promise<{ id: number } | { e
 
   try {
     const rows = await sql`
-      INSERT INTO documents (truck_id, load_id, maintenance_id, kind, title, mime, size_bytes, data, company_id)
+      INSERT INTO documents (truck_id, load_id, maintenance_id, kind, title, mime, size_bytes, data, company_id, stop_seq)
       VALUES (${truckId}, ${loadId}, ${maintenanceId}, ${kind}, ${title},
-              ${file.type || 'application/octet-stream'}, ${file.size}, decode(${hex}, 'hex'), ${companyId})
+              ${file.type || 'application/octet-stream'}, ${file.size}, decode(${hex}, 'hex'), ${companyId}, ${stopSeq})
       RETURNING id`
     revalidatePath('/docs')
     if (truckId) revalidatePath(`/trucks/${truckId}`)
     if (loadId) revalidatePath(`/loads/${loadId}`)
     // A dispatcher only ever has POD/BOL/rate con, never an "invoice" of their own —
     // the invoice is generated FROM the POD, so once it lands there's no manual step.
-    if (loadId && kind === 'pod') await autoInvoiceIfReady(companyId, loadId)
+    // Инвойс собирается по КОНЕЧНОМУ POD; POD промежуточной точки его не запускает.
+    if (loadId && kind === 'pod' && stopSeq == null) await autoInvoiceIfReady(companyId, loadId)
     return { id: (rows[0] as { id: number }).id }
   } catch (e) {
     return { error: humanError(e, locale) }
