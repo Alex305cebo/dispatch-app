@@ -376,19 +376,24 @@ function DocRow({
   }
 
   return (
-    <li className="flex items-start gap-2.5 rounded-lg border border-white/6 px-3 py-2">
+    // Телефон — две строки: имя целиком (с переносом) и крестик сверху, тип файла,
+    // миниатюра и ссылки — под ним. В одной строке с типом и миниатюрой имени
+    // оставалось «Rate con · Olathe, …». На широком экране — одна строка, как и было.
+    <li className="flex flex-wrap items-start gap-x-2.5 gap-y-1.5 rounded-lg border border-white/6 px-3 py-2 sm:flex-nowrap">
       <KindPicker doc={doc} />
       <Thumb doc={doc} size={11} />
-      <div className="min-w-0 flex-1">
+      <div className="order-first min-w-0 flex-1 basis-[calc(100%-2.25rem)] sm:order-none sm:basis-auto">
         {/* Окном поверх страницы, а не отдельной страницей — см. doc-link.tsx. */}
         <DocLink
           docId={doc.id}
-          className="block w-full truncate text-left text-md text-white/85 hover:text-haul-400 hover:underline"
+          className="block w-full text-left text-md text-white/85 [overflow-wrap:anywhere] hover:text-haul-400 hover:underline sm:truncate"
           title={doc.title}
         >
           {name}
         </DocLink>
-        {name !== doc.title && <div className="truncate text-xs text-white/45">{doc.title}</div>}
+        {name !== doc.title && (
+          <div className="text-xs text-white/45 [overflow-wrap:anywhere] sm:truncate">{doc.title}</div>
+        )}
         <span className="nums block text-xs text-white/40">
           {fmtSize(doc.sizeBytes)} · {usDate(doc.uploadedAt)}
         </span>
@@ -415,7 +420,7 @@ function DocRow({
       <button
         title={t(locale, 'docs.delete.rowTitle')}
         onClick={() => onDelete(doc)}
-        className="shrink-0 text-[13px] text-white/35 transition-colors hover:text-bad-400"
+        className="order-first shrink-0 px-1 text-[13px] text-white/35 transition-colors hover:text-bad-400 sm:order-none"
       >
         ✕
       </button>
