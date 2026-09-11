@@ -687,10 +687,9 @@ export default async function Page({
         </section>
       </div>
 
-      {/* ===== Водитель — свёрнут: CDL, медкарта, фото меняются раз в год. Что нужно
-           брокеру ежечасно (имя, телефон, трак/трейлер), уже в шапке и в
-           «Данных водителей» на списке траков. ===== */}
-      <details className="group panel mt-4 p-4">
+      {/* ===== Водитель — раскрыт по умолчанию (просьба пользователя): имя, телефон,
+           трак/трейлер, VIN, сроки CDL и медкарты видны сразу. ===== */}
+      <details open className="group panel mt-4 p-4">
         <summary className="-m-1 flex cursor-pointer list-none items-center gap-1.5 rounded-lg p-1 text-base leading-6 font-semibold text-white/90 transition-colors hover:bg-white/[0.03] hover:text-white/90">
           <span className="text-[13px] leading-none text-white/40 transition-transform duration-200 group-open:rotate-90">
             ▸
