@@ -326,7 +326,9 @@ function DocRow({
   // библиотеке по такому имени не понять, чей это груз. Когда документ привязан к
   // грузу, показываем «Rate con · Chicago, IL → Dallas, TX», а имя файла — мелко
   // рядом. Сам файл не переименовывается, скачается под своим именем.
-  const name = from || to ? `${docKindLabel(doc.kind, locale)} · ${from ?? '—'} → ${to ?? '—'}` : doc.title
+  const a = from ?? doc.origin ?? null
+  const b = to ?? doc.destination ?? null
+  const name = a || b ? `${docKindLabel(doc.kind, locale)} · ${a ?? '—'} → ${b ?? '—'}` : doc.title
   // items-start, and the size/date moved UNDER the filename rather than beside it. In
   // the truck page's half-width column the old single row gave the filename whatever
   // was left after a type pill, a size, a date and a delete button — measured at

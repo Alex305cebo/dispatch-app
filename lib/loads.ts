@@ -21,16 +21,24 @@ export async function listDocs(
   companyId: CompanyId,
   filter?: { truckId?: number; loadId?: number },
 ): Promise<DocMeta[]> {
+  // Маршрут груза — вместе с документом: по нему строится имя «Rate con · A → B»
+  // на карточке трака и груза, а не только в библиотеке.
   const rows = filter?.loadId
-    ? await sql`SELECT id, truck_id, load_id, maintenance_id, kind, title, mime, size_bytes, uploaded_at, deleted_at
-                FROM documents WHERE load_id = ${filter.loadId} AND company_id = ${companyId} AND deleted_at IS NULL
-                ORDER BY uploaded_at DESC`
+    ? await sql`SELECT d.id, d.truck_id, d.load_id, d.maintenance_id, d.kind, d.title, d.mime, d.size_bytes,
+                       d.uploaded_at, d.deleted_at, l.origin, l.destination
+                FROM documents d LEFT JOIN loads l ON l.id = d.load_id
+                WHERE d.load_id = ${filter.loadId} AND d.company_id = ${companyId} AND d.deleted_at IS NULL
+                ORDER BY d.uploaded_at DESC`
     : filter?.truckId
-      ? await sql`SELECT id, truck_id, load_id, maintenance_id, kind, title, mime, size_bytes, uploaded_at, deleted_at
-                  FROM documents WHERE truck_id = ${filter.truckId} AND company_id = ${companyId} AND deleted_at IS NULL
-                  ORDER BY uploaded_at DESC`
-      : await sql`SELECT id, truck_id, load_id, maintenance_id, kind, title, mime, size_bytes, uploaded_at, deleted_at
-                  FROM documents WHERE company_id = ${companyId} AND deleted_at IS NULL ORDER BY uploaded_at DESC LIMIT 200`
+      ? await sql`SELECT d.id, d.truck_id, d.load_id, d.maintenance_id, d.kind, d.title, d.mime, d.size_bytes,
+                         d.uploaded_at, d.deleted_at, l.origin, l.destination
+                  FROM documents d LEFT JOIN loads l ON l.id = d.load_id
+                  WHERE d.truck_id = ${filter.truckId} AND d.company_id = ${companyId} AND d.deleted_at IS NULL
+                  ORDER BY d.uploaded_at DESC`
+      : await sql`SELECT d.id, d.truck_id, d.load_id, d.maintenance_id, d.kind, d.title, d.mime, d.size_bytes,
+                         d.uploaded_at, d.deleted_at, l.origin, l.destination
+                  FROM documents d LEFT JOIN loads l ON l.id = d.load_id
+                  WHERE d.company_id = ${companyId} AND d.deleted_at IS NULL ORDER BY d.uploaded_at DESC LIMIT 200`
   /* eslint-disable @typescript-eslint/no-explicit-any */
   return rows.map((r: any) => ({
     id: r.id,
@@ -43,6 +51,8 @@ export async function listDocs(
     sizeBytes: r.size_bytes,
     uploadedAt: new Date(r.uploaded_at).toISOString(),
     deletedAt: r.deleted_at ? new Date(r.deleted_at).toISOString() : null,
+    origin: r.origin ?? null,
+    destination: r.destination ?? null,
   }))
 }
 
