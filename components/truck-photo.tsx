@@ -53,7 +53,7 @@ export function TruckPhoto({
       <img
         src={src}
         alt={alt}
-        className={fill ? 'h-full w-full object-contain object-bottom p-2 sm:object-right-bottom sm:p-3' : 'w-full object-contain'}
+        className={fill ? 'h-full w-full object-contain object-bottom p-2 sm:object-right sm:p-4' : 'w-full object-contain'}
       />
       <span className="absolute inset-0 flex items-end justify-center rounded-xl bg-black/0 pb-1 text-[12px] font-medium text-transparent transition-colors group-hover:bg-black/40 group-hover:text-white">
         {pending ? '…' : t(locale, 'trucks.photo.change')}

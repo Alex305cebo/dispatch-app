@@ -286,19 +286,9 @@ export default async function Page({
           <div className="mt-2.5">
             <TruckAvailability truckId={truck.id} current={truck.unavailable} locale={locale} />
           </div>
-          </div>
-          <div className="relative h-44 max-sm:order-first sm:h-auto sm:min-h-[250px]">
-            <TruckPhoto
-              fill
-              truckId={truck.id}
-              hasPhoto={meta?.hasTruckPhoto ?? false}
-              alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
-            />
-          </div>
-        </div>
 
         {/* ===== Current assignment: route, pickup/delivery dates, at a glance ===== */}
-        <div className="relative border-t border-white/8 px-4 pt-4 sm:px-5">
+        <div className="mt-4 border-t border-white/8 pt-4">
           <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
             {t(locale, 'trucks.detail.currentAssignment')}
             <Info text={t(locale, 'trucks.detail.currentAssignmentInfo')} />
@@ -419,7 +409,7 @@ export default async function Page({
 
         {/* Цифры трака — одной компактной строкой ПОД заданием: сроки текущего рейса
             читаются раньше недельной ставки и масла. */}
-        <div className="relative mt-4 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-white/8 px-4 pb-4 pt-3 sm:px-5">
+        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-white/8 pt-3">
           <Chip
             label={t(locale, 'trucks.chip.weekRate')}
             value={usd.format(weekGross)}
@@ -445,6 +435,18 @@ export default async function Page({
               info={t(locale, 'trucks.chip.fuelInfo')}
             />
           )}
+        </div>
+          </div>
+          {/* Трак — во всю высоту левой колонки: шапка, задание и цифры слева, машина
+              справа, пустого места под текстом больше нет. На телефоне — полосой сверху. */}
+          <div className="relative h-44 max-sm:order-first sm:h-auto">
+            <TruckPhoto
+              fill
+              truckId={truck.id}
+              hasPhoto={meta?.hasTruckPhoto ?? false}
+              alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
+            />
+          </div>
         </div>
       </section>
 
