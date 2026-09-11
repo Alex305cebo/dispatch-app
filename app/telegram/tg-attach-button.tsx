@@ -12,7 +12,7 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { tgAttachToLoad, tgFileTargets, type TgAttachOpts } from './actions'
+import { setMyChatTruck, tgAttachToLoad, tgFileTargets, type TgAttachOpts, type TruckChoice } from './actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t, type MsgKey } from '@/lib/i18n'
@@ -44,11 +44,17 @@ export function TgAttachButton({
   const [open, setOpen] = useState(false)
   const [kind, setKind] = useState<DocClass | 'auto'>('auto')
   const [targets, setTargets] = useState<{ id: number; route: string; status: string }[] | null>(null)
+  // Чат ещё не привязан к траку: выбрать трак один раз, дальше — то же действие.
+  const [choose, setChoose] = useState<{ trucks: TruckChoice[]; retry: () => void } | null>(null)
 
   function run(opts?: TgAttachOpts) {
     start(async () => {
       const res = await tgAttachToLoad(chatId, msgId, phone, opts)
       if ('error' in res) {
+        if (res.trucks?.length) {
+          setChoose({ trucks: res.trucks, retry: () => run(opts) })
+          return
+        }
         notify('error', res.error)
         return
       }
@@ -75,13 +81,32 @@ export function TgAttachButton({
       start(async () => {
         const res = await tgFileTargets(chatId, phone)
         if ('error' in res) {
-          notify('error', res.error)
           setOpen(false)
+          if (res.trucks?.length) {
+            setChoose({ trucks: res.trucks, retry: () => toggle() })
+            return
+          }
+          notify('error', res.error)
           return
         }
         setTargets(res.loads)
       })
     }
+  }
+
+  // Привязать чат к выбранному траку и сразу повторить то, что нажимали.
+  function pick(tr: TruckChoice) {
+    const retry = choose?.retry
+    start(async () => {
+      const res = await setMyChatTruck(chatId, tr.id)
+      if (res?.error) {
+        notify('error', res.error)
+        return
+      }
+      setChoose(null)
+      notify('ok', t(locale, 'telegram.attach.linked').replace('{truck}', tr.label))
+      retry?.()
+    })
   }
 
   if (done) {
@@ -125,6 +150,26 @@ export function TgAttachButton({
           {open ? '▴' : '▾'}
         </button>
       </div>
+
+      {choose && (
+        <div className="mt-1.5 w-[15rem] rounded-xl border border-warn-400/35 bg-ink-900/95 p-2 shadow-lg">
+          <div className="px-1 pb-1 text-[12px] font-semibold text-white/85">
+            {t(locale, 'telegram.attach.pickTruckTitle')}
+          </div>
+          <p className="px-1 pb-1.5 text-[11px] leading-snug text-white/55">{t(locale, 'telegram.attach.pickTruckHint')}</p>
+          <div className="flex max-h-56 flex-col gap-1 overflow-y-auto">
+            {choose.trucks.map((tr) => (
+              <Row key={tr.id} label={tr.label} disabled={pending} onClick={() => pick(tr)} />
+            ))}
+          </div>
+          <button
+            onClick={() => setChoose(null)}
+            className="mt-1 px-2 py-1 text-[11px] text-white/45 transition-colors hover:text-white/80"
+          >
+            {t(locale, 'telegram.attach.pickTruckCancel')}
+          </button>
+        </div>
+      )}
 
       {open && (
         <div className="mt-1.5 w-[15rem] rounded-xl border border-white/12 bg-ink-900/95 p-2 shadow-lg">

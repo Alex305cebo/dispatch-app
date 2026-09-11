@@ -150,6 +150,25 @@ export async function setMyChatTruck(chatId: string, truckId: number | null): Pr
  * Потерять документ нельзя ни в одной ветке.
  */
 export type TgFileTarget = number | 'new' | 'truck'
+
+/** Трак для выбора «к какому траку этот чат». */
+export type TruckChoice = { id: number; label: string }
+
+/**
+ * Чат не привязан и телефон ни с одним паспортом не совпал — вместо голой ошибки
+ * отдаём список траков, и кнопка тут же спрашивает «к какому траку этот чат».
+ * Раньше каждое нажатие давало одну и ту же ошибку, а привязка пряталась внизу
+ * страницы в настройках чатов.
+ */
+async function truckChoices(): Promise<TruckChoice[]> {
+  const rows = (await sql`
+    SELECT id, number, driver_name FROM trucks WHERE company_id = 'default' ORDER BY number`) as {
+    id: number
+    number: string | null
+    driver_name: string | null
+  }[]
+  return rows.map((r) => ({ id: r.id, label: [r.number, r.driver_name].filter(Boolean).join(' · ') || `#${r.id}` }))
+}
 export type TgAttachOpts = { kind?: DocClass | 'auto'; target?: TgFileTarget }
 
 /** Грузы этого трака для выбора «куда». Список короткий и свежий сверху: бумагу
@@ -157,7 +176,9 @@ export type TgAttachOpts = { kind?: DocClass | 'auto'; target?: TgFileTarget }
 export async function tgFileTargets(
   chatId: string,
   driverPhone: string | null,
-): Promise<{ truck: string; loads: { id: number; route: string; status: string }[] } | { error: string }> {
+): Promise<
+  { truck: string; loads: { id: number; route: string; status: string }[] } | { error: string; trucks?: TruckChoice[] }
+> {
   let user: CurrentUser
   try {
     user = await requireTgUser()
@@ -165,7 +186,7 @@ export async function tgFileTargets(
     return { error: msg(e) }
   }
   const truck = await resolveTruckForChat(user.id, chatId, driverPhone)
-  if (!truck) return { error: t(await getLocale(), 'telegram.actions.noTruckLinked') }
+  if (!truck) return { error: t(await getLocale(), 'telegram.actions.noTruckLinked'), trucks: await truckChoices() }
   const rows = (await sql`
     SELECT id, origin, destination, status FROM loads
     WHERE company_id = 'default' AND truck_id = ${truck.truckId} AND status <> 'cancelled'
@@ -191,7 +212,9 @@ export async function tgAttachToLoad(
   driverPhone: string | null,
   /** Ручной выбор диспетчера. Без него всё решается само, как и раньше. */
   opts?: TgAttachOpts,
-): Promise<{ ok: true; loadId: number | null; loadRoute: string; created?: boolean } | { error: string }> {
+): Promise<
+  { ok: true; loadId: number | null; loadRoute: string; created?: boolean } | { error: string; trucks?: TruckChoice[] }
+> {
   const ro = await demoReadOnly()
   if (ro) return ro
   let user: CurrentUser
@@ -202,7 +225,7 @@ export async function tgAttachToLoad(
   }
   const locale = await getLocale()
   const truck = await resolveTruckForChat(user.id, chatId, driverPhone)
-  if (!truck) return { error: t(locale, 'telegram.actions.noTruckLinked') }
+  if (!truck) return { error: t(locale, 'telegram.actions.noTruckLinked'), trucks: await truckChoices() }
 
   const media = await tgMedia(user.id, chatId, msgId).catch(() => null)
   if (!media) return { error: t(locale, 'telegram.actions.downloadFailed') }
