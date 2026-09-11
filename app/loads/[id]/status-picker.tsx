@@ -2,7 +2,7 @@
 
 import { DocLink } from '@/components/doc-link'
 
-import { useOptimistic, useRef, useState, useTransition } from 'react'
+import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react'
 import { Ban, Check } from 'lucide-react'
 import { addLoadEventManual, setStatus, unmarkStop, uploadDocument } from '@/app/actions'
 import { type LoadStatus } from '@/lib/map'
@@ -180,6 +180,19 @@ export function StatusPicker({
 
   const same = (s: LoadStatus) => notify('ok', `${t(locale, 'loads.loadHash')}${id}: ${statusLabel(locale, s)}`)
 
+  // Телефон: полоса шире экрана и едет вбок. Текущий кружок сам подъезжает к центру —
+  // при открытии и после каждого нажатия, иначе он уезжает за край.
+  const railRef = useRef<HTMLOListElement>(null)
+  useEffect(() => {
+    const ol = railRef.current
+    if (!ol || ol.scrollWidth <= ol.clientWidth + 1) return
+    const el = ol.querySelector<HTMLElement>('[aria-current="step"]')
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const o = ol.getBoundingClientRect()
+    ol.scrollTo({ left: ol.scrollLeft + (r.left + r.width / 2) - (o.left + o.width / 2), behavior: 'smooth' })
+  }, [shown, override])
+
   const go = (s: LoadStatus) =>
     start(async () => {
       setShown(s) // optimistic; reverts to `current` after the action if the server rejects
@@ -274,7 +287,7 @@ export function StatusPicker({
     <div aria-busy={pending}>
       {/* Classic stepper geometry: each step is a fixed-width column, and the
           connectors between them are the flexible part. */}
-      <ol className={`flex items-start overflow-x-auto ${cancelled ? 'opacity-40' : ''}`}>
+      <ol ref={railRef} className={`flex items-start overflow-x-auto ${cancelled ? 'opacity-40' : ''}`}>
         {PIPELINE.map((s, i) => {
           // Первый «В пути» уходит с полосы, как только трак отметился на точке —
           // его место теперь после этой точки.
