@@ -116,7 +116,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       />
 
       {/* ===== HERO: route, truck, status and the rate — one card, not four loose pieces ===== */}
-      <section className="relative mt-3 overflow-hidden rounded-3xl border border-white/8 bg-gradient-to-b from-ink-800/80 to-ink-950 p-5 sm:p-8">
+      <section className="panel mt-3 p-4 sm:p-5">
         <h1 className="text-[22px] font-semibold sm:text-[26px]">
           {load.origin ?? '—'} → {load.destination ?? '—'}
           {via && <span className="ml-2 text-[15px] font-medium text-white/50 sm:text-[17px]">· {via}</span>}

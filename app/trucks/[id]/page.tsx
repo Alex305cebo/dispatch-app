@@ -198,15 +198,23 @@ export default async function Page({
         locale={locale}
       />
 
-      {/* ===== HERO: the truck in the centre, key info around it ===== */}
-      <section className="relative mt-3 overflow-hidden rounded-3xl border border-white/8 bg-gradient-to-b from-ink-800/80 to-ink-950 px-4 pt-5 pb-4 sm:px-8">
-        <div className="text-center">
-          <h1 className="text-[26px] font-bold leading-none">{truck.number ?? truck.name}</h1>
+      {/* ===== Шапка: номер, водитель, где стоит; картинка трака — иконкой слева.
+           Большая картина по центру занимала первый экран, а текущее задание
+           уезжало вниз; теперь задание видно сразу под шапкой. ===== */}
+      <section className="panel mt-3 p-4 sm:p-5">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <img
+            src="/truck.png"
+            alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
+            className="mt-0.5 h-9 w-12 shrink-0 object-contain sm:h-12 sm:w-16"
+          />
+          <div className="min-w-0 flex-1">
+          <h1 className="text-[22px] font-semibold leading-7 sm:text-[26px] sm:leading-8">{truck.number ?? truck.name}</h1>
 
           {/* One wrapping row instead of a stack of full-width lines — trailer,
               driver, phone and live GPS all read as one compact block on any width,
               wrapping to extra lines on narrow phones instead of stretching tall. */}
-          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1.5 text-[13px]">
+          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-[13px]">
             {meta?.trailerNumber && (
               <>
                 <span className="text-white/55">
@@ -239,14 +247,13 @@ export default async function Page({
                оставался один посреди пустоты. Место — кнопка: ответ на «где сейчас
                трак» почти всегда тут же уходит брокеру. Копируется «город, штат». */
             <div
-              className={`mt-2 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-[13px] ${toneClass[statusTone(fs.driveStatus)]}`}
+              className={`mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] ${toneClass[statusTone(fs.driveStatus)]}`}
             >
               <CopyPlace
                 text={`📍 ${fs.location}`}
                 copy={cityOf(fs.location) ?? fs.location}
                 coords={{ lat: fs.lat, lng: fs.lng }}
                 size="sm"
-                className="justify-center"
               />
               {fs.driveStatus && <span className="font-semibold">· {fs.driveStatus}</span>}
             </div>
@@ -278,43 +285,7 @@ export default async function Page({
           <div className="mt-2.5">
             <TruckAvailability truckId={truck.id} current={truck.unavailable} locale={locale} />
           </div>
-        </div>
-
-        <img
-          src="/truck.png"
-          alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
-          className="mx-auto my-1 w-2/3 max-w-xl drop-shadow-2xl sm:w-full"
-        />
-
-        {/* Info ring — the truck's numbers at a glance. */}
-        {/* Five across once there's a fuel reading, four without — a truck whose ELD
-            never reports fuel should not get an empty tile holding the space. */}
-        <div className={`grid grid-cols-2 gap-2 ${fs?.fuel != null ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}>
-          <Chip
-            label={t(locale, 'trucks.chip.weekRate')}
-            value={usd.format(weekGross)}
-            tone={weekGross > 0 ? 'good' : undefined}
-            info={t(locale, 'trucks.chip.weekRateInfo')}
-          />
-          <Chip
-            label={t(locale, 'trucks.chip.rpm')}
-            value={`${usd2.format(avgRpm)}`}
-            info={t(locale, 'trucks.chip.rpmInfo')}
-          />
-          <Chip
-            label={t(locale, 'trucks.chip.oilIn')}
-            value={oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—'}
-            tone={oil?.tone}
-            info={t(locale, 'trucks.chip.oilInInfo')}
-          />
-          {fs?.fuel != null && (
-            <Chip
-              label={t(locale, 'trucks.chip.fuel')}
-              value={`${Math.round(fs.fuel)}%`}
-              tone={fs.fuel <= 15 ? 'bad' : fs.fuel <= 30 ? 'warn' : undefined}
-              info={t(locale, 'trucks.chip.fuelInfo')}
-            />
-          )}
+          </div>
         </div>
 
         {/* ===== Current assignment: route, pickup/delivery dates, at a glance ===== */}
@@ -434,6 +405,36 @@ export default async function Page({
               ссылку не открывал, блок подсвечен и зовёт её отправить. */}
           {driverLink && !activeLoad && (
             <DriverLinkButton url={driverLink} driverPhone={meta?.driverPhone ?? null} seenAt={driverSeen} />
+          )}
+        </div>
+
+        {/* Цифры трака — одной компактной строкой ПОД заданием: сроки текущего рейса
+            читаются раньше недельной ставки и масла. */}
+        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-white/8 pt-3">
+          <Chip
+            label={t(locale, 'trucks.chip.weekRate')}
+            value={usd.format(weekGross)}
+            tone={weekGross > 0 ? 'good' : undefined}
+            info={t(locale, 'trucks.chip.weekRateInfo')}
+          />
+          <Chip
+            label={t(locale, 'trucks.chip.rpm')}
+            value={`${usd2.format(avgRpm)}`}
+            info={t(locale, 'trucks.chip.rpmInfo')}
+          />
+          <Chip
+            label={t(locale, 'trucks.chip.oilIn')}
+            value={oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—'}
+            tone={oil?.tone}
+            info={t(locale, 'trucks.chip.oilInInfo')}
+          />
+          {fs?.fuel != null && (
+            <Chip
+              label={t(locale, 'trucks.chip.fuel')}
+              value={`${Math.round(fs.fuel)}%`}
+              tone={fs.fuel <= 15 ? 'bad' : fs.fuel <= 30 ? 'warn' : undefined}
+              info={t(locale, 'trucks.chip.fuelInfo')}
+            />
           )}
         </div>
       </section>
@@ -781,12 +782,12 @@ function Chip({
           ? 'text-warn-400'
           : 'text-white'
   return (
-    <div className="rounded-xl border border-white/8 bg-ink-900/50 px-3 py-2 text-center backdrop-blur">
-      <div className={`nums text-[16px] font-bold ${color}`}>{value}</div>
-      <div className="mt-0.5 flex items-center justify-center gap-1 text-xs text-white/65 font-medium">
+    <div className="flex items-baseline gap-1.5">
+      <span className={`nums text-[15px] font-semibold ${color}`}>{value}</span>
+      <span className="flex items-center gap-1 text-xs font-medium text-white/60">
         {label}
         {info && <Info text={info} />}
-      </div>
+      </span>
     </div>
   )
 }
