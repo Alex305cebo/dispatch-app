@@ -549,11 +549,11 @@ export function DocLibrary({
                 </button>
                 {open && (
                   <ul className="flex flex-col gap-0.5 p-1.5">
-                    {/* Первые восемь — остальное за одной строкой «ещё N». У трака
+                    {/* Первые три — остальное за одной строкой «ещё N». У трака
                         бывает по два десятка бумаг, и разворачивать их все сразу
                         значит хоронить следующий трак под ними. */}
                     <ShowMore
-                      limit={8}
+                      limit={3}
                       label={t(locale, 'docs.library.more')}
                       items={g.rows.map((r) => (
                         <DocRow
