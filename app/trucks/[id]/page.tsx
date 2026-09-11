@@ -199,12 +199,17 @@ export default async function Page({
         locale={locale}
       />
 
-      {/* ===== Шапка: слева номер, водитель, где стоит; справа картинка трака
-           нормального размера (на телефоне — под текстом). Картина по центру на весь
-           экран уводила текущее задание вниз; здесь оно сразу под шапкой. ===== */}
-      <section className="panel mt-3 p-4 sm:p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-          <div className="min-w-0 flex-1">
+      {/* ===== Шапка-баннер, как карточка товара: слева номер, водитель, где стоит;
+           справа трак крупно во всю высоту шапки, за ним мягкая подсветка. На
+           телефоне картинка — полосой сверху. Задание и цифры — ниже в той же
+           панели. ===== */}
+      <section className="panel relative mt-3 overflow-hidden">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-full bg-[radial-gradient(60%_90%_at_85%_45%,rgba(109,90,232,0.22),transparent_70%)] sm:w-3/5"
+        />
+        <div className="relative grid sm:grid-cols-[minmax(0,1fr)_minmax(280px,44%)]">
+          <div className="min-w-0 p-4 sm:p-5">
           <h1 className="text-[22px] font-semibold leading-7 sm:text-[26px] sm:leading-8">{truck.number ?? truck.name}</h1>
 
           {/* One wrapping row instead of a stack of full-width lines — trailer,
@@ -282,16 +287,18 @@ export default async function Page({
             <TruckAvailability truckId={truck.id} current={truck.unavailable} locale={locale} />
           </div>
           </div>
-          <TruckPhoto
-            truckId={truck.id}
-            hasPhoto={meta?.hasTruckPhoto ?? false}
-            alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
-            className="mx-auto w-64 sm:mx-0 sm:w-64 lg:w-80"
-          />
+          <div className="relative h-44 max-sm:order-first sm:h-auto sm:min-h-[250px]">
+            <TruckPhoto
+              fill
+              truckId={truck.id}
+              hasPhoto={meta?.hasTruckPhoto ?? false}
+              alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
+            />
+          </div>
         </div>
 
         {/* ===== Current assignment: route, pickup/delivery dates, at a glance ===== */}
-        <div className="mt-4 border-t border-white/8 pt-4">
+        <div className="relative border-t border-white/8 px-4 pt-4 sm:px-5">
           <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
             {t(locale, 'trucks.detail.currentAssignment')}
             <Info text={t(locale, 'trucks.detail.currentAssignmentInfo')} />
@@ -412,7 +419,7 @@ export default async function Page({
 
         {/* Цифры трака — одной компактной строкой ПОД заданием: сроки текущего рейса
             читаются раньше недельной ставки и масла. */}
-        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-white/8 pt-3">
+        <div className="relative mt-4 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-white/8 px-4 pb-4 pt-3 sm:px-5">
           <Chip
             label={t(locale, 'trucks.chip.weekRate')}
             value={usd.format(weekGross)}

@@ -13,11 +13,14 @@ export function TruckPhoto({
   hasPhoto,
   alt,
   className = '',
+  fill = false,
 }: {
   truckId: number
   hasPhoto: boolean
   alt: string
   className?: string
+  /** Заполнить родителя (position: relative у него): трак во всю высоту, прижат к низу. */
+  fill?: boolean
 }) {
   const locale = useLocale()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -45,9 +48,13 @@ export function TruckPhoto({
   return (
     <label
       title={t(locale, 'trucks.photo.change')}
-      className={`group relative block shrink-0 ${className} ${pending ? 'opacity-50' : 'cursor-pointer'}`}
+      className={`group block shrink-0 ${fill ? 'absolute inset-0' : 'relative'} ${className} ${pending ? 'opacity-50' : 'cursor-pointer'}`}
     >
-      <img src={src} alt={alt} className="w-full object-contain" />
+      <img
+        src={src}
+        alt={alt}
+        className={fill ? 'h-full w-full object-contain object-bottom p-2 sm:object-right-bottom sm:p-3' : 'w-full object-contain'}
+      />
       <span className="absolute inset-0 flex items-end justify-center rounded-xl bg-black/0 pb-1 text-[12px] font-medium text-transparent transition-colors group-hover:bg-black/40 group-hover:text-white">
         {pending ? '…' : t(locale, 'trucks.photo.change')}
       </span>
