@@ -446,10 +446,10 @@ async function LoadMapSection({
   const detention = driverMarked ? null : live.detention
 
   return (
-    // Телефон: заголовок → карта → плитки (order), иначе карта уезжала под экран
-    // плиток. На широком экране порядок прежний: плитки над картой.
+    // Заголовок → карта → плитки (order) на любой ширине: сначала где трак на карте,
+    // потом цифры. Плитки над картой отодвигали её за экран.
     <section className="panel mt-4 flex flex-col p-4">
-      <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90 max-md:order-[-2]">
+      <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90 order-[-2]">
         {t(locale, 'loadDetail.mapHeading')}
         <Info text={t(locale, 'loadDetail.mapInfo')} />
       </h2>
@@ -666,7 +666,7 @@ async function LoadMapSection({
               стоят плитки, и с телефона кнопка оказывалась на экран выше того, что
               обновляет. Тот же живой режим, что на /tracking: сам подтягивает GPS при
               открытии устаревшей страницы и перечитывает её каждые полминуты. */}
-      <div className="max-md:order-[-1] max-md:mb-3">
+      <div className="order-[-1] mb-3">
       <div className="mb-2 flex justify-end">
         <RefreshFleetButton
           staleMinutes={fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null}
