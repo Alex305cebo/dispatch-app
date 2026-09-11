@@ -44,6 +44,26 @@ export const loadsDict = {
     ro: 'După stare',
     kk: 'Күйі бойынша',
   },
+  // Доска недели (вид «Календарь»)
+  'loads.board.truck': { ru: 'Трак', en: 'Truck', es: 'Camión', uk: 'Трак', ro: 'Camion', kk: 'Тракт' },
+  'loads.board.noTruck': { ru: 'Без трака', en: 'No truck', es: 'Sin camión', uk: 'Без трака', ro: 'Fără camion', kk: 'Тракт жоқ' },
+  'loads.board.free': { ru: 'свободен', en: 'free', es: 'libre', uk: 'вільний', ro: 'liber', kk: 'бос' },
+  'loads.board.emptyWeek': {
+    ru: 'На этой неделе ни у одного трака нет грузов.',
+    en: 'No truck has a load this week.',
+    es: 'Ningún camión tiene carga esta semana.',
+    uk: 'Цього тижня жоден трак не має вантажів.',
+    ro: 'Niciun camion nu are cursă săptămâna aceasta.',
+    kk: 'Осы аптада бірде-бір трактта жүк жоқ.',
+  },
+  'loads.board.hint': {
+    ru: 'Строка — трак, полоса — груз от погрузки до выгрузки. Пустая клетка — трак свободен, две полосы в строке — накладка. Полоса открывает груз.',
+    en: 'Row = truck, bar = load from pickup to delivery. Empty cell = truck is free; two bars in a row = overlap. A bar opens the load.',
+    es: 'Fila = camión, barra = carga de recogida a entrega. Celda vacía = camión libre; dos barras en una fila = solapamiento. La barra abre la carga.',
+    uk: 'Рядок — трак, смуга — вантаж від завантаження до вивантаження. Порожня клітинка — трак вільний, дві смуги в рядку — накладка. Смуга відкриває вантаж.',
+    ro: 'Rând = camion, bară = cursă de la încărcare la descărcare. Celulă goală = camion liber; două bare pe rând = suprapunere. Bara deschide cursa.',
+    kk: 'Жол — тракт, жолақ — тиеуден түсіруге дейінгі жүк. Бос ұяшық — тракт бос, бір жолда екі жолақ — қабаттасу. Жолақ жүкті ашады.',
+  },
   'loads.page.showMore': { ru: 'ещё {n}', en: '{n} more', es: '{n} más', uk: 'ще {n}', ro: 'încă {n}', kk: 'тағы {n}' },
   'lanes.heading': { ru: 'Направления', en: 'Lanes', es: 'Rutas', uk: 'Напрямки', ro: 'Rute', kk: 'Бағыттар' },
   'lanes.info': {

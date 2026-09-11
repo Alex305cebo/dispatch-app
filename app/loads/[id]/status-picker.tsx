@@ -206,8 +206,9 @@ export function StatusPicker({
               {s === 'delivered' &&
                 stops.map((st, k) => {
                   const sd = stopDone(st)
-                  // Текущая точка: первая непройденная, пока груз в пути.
-                  const cur = shown === 'in_transit' && !sd && stops.slice(0, k).every(stopDone)
+                  // Непройденная точка — пустой кружок, даже если она следующая: подсветка
+                  // читалась как «трак уже там», а он ещё в пути. Светится только «В пути».
+                  const cur = false
                   const tone = STEP_TONE[st.role === 'pickup' ? 'booked' : 'delivered']
                   const clickable = shown === 'in_transit'
                   // После последней пройденной точки — «В пути» к следующей.

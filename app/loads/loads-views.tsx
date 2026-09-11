@@ -311,16 +311,17 @@ function isoDate(d: Date): string {
  * full load cards never fit 7-abreast (routes truncated to "Atl…"), so the days
  * themselves are big tappable tiles (with a load-count badge) and the selected
  * day's loads render below at full size — same card language as the Обзор list. */
+/** Доска недели: строка — трак, столбцы — дни, груз — полоса от погрузки до
+ * выгрузки. Отвечает на «кто где когда» одним взглядом: свободные дни видны как
+ * пустые клетки, конфликты — как две полосы в одной строке. Полоса ведёт на груз.
+ * На телефоне доска едет вбок, колонка с траками прибита слева. */
 function Calendar({
   loads,
   weekMonday,
-  selectedDay,
   byId,
-  fallback,
   rateCons,
   locale,
   onWeek,
-  onDay,
 }: {
   loads: LoadRecord[]
   weekMonday: number
@@ -329,42 +330,66 @@ function Calendar({
   fallback: TruckRecord | undefined
   rateCons: Map<number, number>
   locale: Locale
-  /** Листание недели и выбор дня — чистая арифметика над уже загруженными грузами
-   * (см. byDay ниже), поэтому это состояние, а не адрес. */
   onWeek: (mondayMs: number) => void
   onDay: (iso: string | null) => void
 }) {
   const days = Array.from({ length: 7 }, (_, i) => new Date(weekMonday + i * DAY_MS))
   const weekIsos = days.map(isoDate)
   const todayIso = isoDate(new Date())
+  const weekEnd = weekIsos[6]!
+  const weekBegin = weekIsos[0]!
+  const isCurrentWeek = weekMonday === weekStart()
 
-  const byDay = new Map<string, LoadRecord[]>()
+  // Полоса груза: от погрузки до выгрузки (без выгрузки — один день), обрезанная
+  // границами недели. Грузы целиком вне недели не рисуются.
+  type Bar = { load: LoadRecord; from: number; to: number; lane: number }
+  const barsByTruck = new Map<number | null, Bar[]>()
   for (const l of loads) {
-    const anchor = l.pickupDate ?? l.createdAt.slice(0, 10)
-    if (!byDay.has(anchor)) byDay.set(anchor, [])
-    byDay.get(anchor)!.push(l)
+    if (l.status === 'cancelled') continue
+    const a = l.pickupDate ?? l.createdAt.slice(0, 10)
+    const b = l.deliveryDate && l.deliveryDate >= a ? l.deliveryDate : a
+    if (b < weekBegin || a > weekEnd) continue
+    const from = Math.max(0, weekIsos.indexOf(a < weekBegin ? weekBegin : a))
+    const to = Math.min(6, weekIsos.indexOf(b > weekEnd ? weekEnd : b))
+    const key = l.truckId !== null && byId.has(l.truckId) ? l.truckId : null
+    if (!barsByTruck.has(key)) barsByTruck.set(key, [])
+    barsByTruck.get(key)!.push({ load: l, from, to, lane: 0 })
+  }
+  // Пересекающиеся полосы одного трака — на разные дорожки, а не друг на друга.
+  for (const bars of barsByTruck.values()) {
+    bars.sort((x, y) => x.from - y.from || x.to - y.to)
+    const laneEnd: number[] = []
+    for (const bar of bars) {
+      let lane = laneEnd.findIndex((e) => e < bar.from)
+      if (lane < 0) lane = laneEnd.length
+      laneEnd[lane] = bar.to
+      bar.lane = lane
+    }
   }
 
-  // Which day is open: the URL's pick if it's inside this week, else today (when
-  // browsing the current week), else the week's first day that has loads — landing
-  // on a past week should open something interesting, not an empty Monday.
-  const activeIso =
-    selectedDay && weekIsos.includes(selectedDay)
-      ? selectedDay
-      : weekIsos.includes(todayIso)
-        ? todayIso
-        : (weekIsos.find((iso) => (byDay.get(iso) ?? []).length > 0) ?? weekIsos[0]!)
+  const trucks = [...byId.values()].sort((a, b) => (a.number ?? a.name).localeCompare(b.number ?? b.name))
+  const rows: { key: string; label: string; sub: string | null; href: string | null; bars: Bar[] }[] = trucks.map((tr) => ({
+    key: String(tr.id),
+    label: tr.number?.trim() || tr.name,
+    sub: tr.driverName,
+    href: `/trucks/${tr.id}`,
+    bars: barsByTruck.get(tr.id) ?? [],
+  }))
+  const orphan = barsByTruck.get(null) ?? []
+  if (orphan.length) rows.push({ key: 'none', label: t(locale, 'loads.board.noTruck'), sub: null, href: null, bars: orphan })
 
-  const dayLoads = byDay.get(activeIso) ?? []
-  const dayGross = dayLoads.reduce((s, l) => s + l.rate, 0)
-  const activeDate = new Date(`${activeIso}T00:00:00`)
-  const dayTitle = activeDate.toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'en-US', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  })
+  const weekGross = [...barsByTruck.values()].flat().reduce((s, b) => s + b.load.rate, 0)
+  const weekCount = [...barsByTruck.values()].flat().length
 
-  const isCurrentWeek = weekMonday === weekStart()
+  const TONE: Record<string, string> = {
+    quoted: 'border-white/15 bg-white/[0.06] text-white/70',
+    booked: 'border-cyan-400/40 bg-cyan-400/15 text-cyan-200',
+    in_transit: 'border-amber-400/40 bg-amber-400/15 text-amber-200',
+    delivered: 'border-fuchsia-400/40 bg-fuchsia-400/15 text-fuchsia-200',
+    paid: 'border-good-400/40 bg-good-400/15 text-good-400',
+    cancelled: 'border-bad-400/30 bg-bad-400/10 text-bad-400',
+  }
+  const city = (x: string | null) => (x ?? '—').replace(/,.*$/, '')
 
   return (
     <div>
@@ -372,148 +397,130 @@ function Calendar({
         <button
           type="button"
           onClick={() => onWeek(weekMonday - 7 * DAY_MS)}
-          className="rounded-xl border border-white/10 px-3.5 py-2 text-[12px] font-semibold text-white/75 transition-colors hover:border-white/25 hover:bg-white/5"
+          className="inline-flex min-h-9 items-center rounded-xl border border-white/10 px-3.5 text-[12px] font-semibold text-white/75 transition-colors hover:border-white/25 hover:bg-white/5 max-md:min-h-11"
         >
           {t(locale, 'loads.page.prevWeek')}
         </button>
-        <span className="flex items-center gap-2 text-[13.5px] font-semibold capitalize text-white/90">
-          {weekLabel(weekMonday, locale)}
-          {!isCurrentWeek && (
-            <button
-              type="button"
-              onClick={() => {
-                onWeek(weekStart())
-                onDay(null)
-              }}
-              className="rounded-full bg-haul-500/15 px-2 py-0.5 text-[11px] font-semibold normal-case text-haul-400 transition-colors hover:bg-haul-500/25"
-            >
-              {t(locale, 'loads.page.today')}
-            </button>
+        <span className="flex min-w-0 flex-col items-center gap-0.5 text-center">
+          <span className="flex items-center gap-2 text-[13.5px] font-semibold capitalize text-white/90">
+            {weekLabel(weekMonday, locale)}
+            {!isCurrentWeek && (
+              <button
+                type="button"
+                onClick={() => onWeek(weekStart())}
+                className="rounded-full bg-haul-500/15 px-2 py-0.5 text-[11px] font-semibold normal-case text-haul-400 transition-colors hover:bg-haul-500/25"
+              >
+                {t(locale, 'loads.page.today')}
+              </button>
+            )}
+          </span>
+          {weekCount > 0 && (
+            <span className="nums text-[12px] text-white/55">
+              {t(locale, 'loads.page.countLoads').replace('{n}', String(weekCount))} ·{' '}
+              <span className="font-semibold text-white/85">{usd.format(weekGross)}</span>
+            </span>
           )}
         </span>
         <button
           type="button"
           onClick={() => onWeek(weekMonday + 7 * DAY_MS)}
-          className="rounded-xl border border-white/10 px-3.5 py-2 text-[12px] font-semibold text-white/75 transition-colors hover:border-white/25 hover:bg-white/5"
+          className="inline-flex min-h-9 items-center rounded-xl border border-white/10 px-3.5 text-[12px] font-semibold text-white/75 transition-colors hover:border-white/25 hover:bg-white/5 max-md:min-h-11"
         >
           {t(locale, 'loads.page.nextWeek')}
         </button>
       </div>
 
-      {/* The week itself: 7 big tap targets. The count bubble is the "something
-          happened this day" signal at a glance; selection is the filled tile. */}
-      <div className="mb-4 grid grid-cols-7 gap-1.5 sm:gap-2">
-        {days.map((d, i) => {
-          const iso = weekIsos[i]!
-          const count = (byDay.get(iso) ?? []).length
-          const isToday = iso === todayIso
-          const isActive = iso === activeIso
-          return (
-            <button
-              key={iso}
-              type="button"
-              onClick={() => onDay(iso)}
-              className={`group relative flex flex-col items-center gap-0.5 rounded-2xl border px-1 py-2.5 text-center transition-all sm:py-3.5 ${
-                isActive
-                  ? 'border-haul-500/60 bg-gradient-to-b from-haul-500/25 to-haul-500/10 shadow-lg shadow-haul-500/10'
-                  : 'border-white/8 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]'
-              }`}
-            >
-              <span
-                className={`text-[13px] font-semibold ${
-                  isActive ? 'text-haul-300' : isToday ? 'text-haul-400' : 'text-white/45'
-                }`}
-              >
-                {t(locale, WEEKDAY_KEYS[i]!)}
-              </span>
-              <span
-                className={`nums text-[17px] font-bold leading-none sm:text-[20px] ${
-                  isActive ? 'text-white' : isToday ? 'text-haul-400' : count > 0 ? 'text-white/85' : 'text-white/35'
-                }`}
-              >
-                {d.getDate()}
-              </span>
-              {count > 0 ? (
-                <span
-                  className={`nums mt-0.5 rounded-full px-1.5 py-px text-[10px] font-bold ${
-                    isActive ? 'bg-haul-500 text-white' : 'bg-white/10 text-white/70 group-hover:bg-white/15'
-                  }`}
-                >
-                  {count}
-                </span>
-              ) : (
-                <span className="mt-0.5 text-[10px] text-white/20">·</span>
-              )}
-              {isToday && !isActive && (
-                <span className="absolute -bottom-px left-1/2 h-0.5 w-5 -translate-x-1/2 rounded-full bg-haul-500" />
-              )}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* The selected day, full size. */}
-      <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-[15px] font-semibold capitalize">{dayTitle}</h2>
-        {dayLoads.length > 0 && (
-          <span className="nums text-[13px] text-white/60">
-            {t(locale, 'loads.page.countLoads').replace('{n}', String(dayLoads.length))} ·{' '}
-            <span className="font-semibold text-white/85">{usd.format(dayGross)}</span>
-          </span>
-        )}
-      </div>
-
-      {dayLoads.length === 0 ? (
-        <Empty
-          icon={CalendarDays}
-          title={t(locale, 'loads.page.emptyDayTitle')}
-          text={t(locale, 'loads.page.emptyDayText')}
-        />
+      {weekCount === 0 ? (
+        <Empty icon={CalendarDays} title={t(locale, 'loads.page.emptyDayTitle')} text={t(locale, 'loads.board.emptyWeek')} />
       ) : (
-        <div className="flex flex-col gap-2.5">
-          {dayLoads.map((l) => {
-            const truck = (l.truckId !== null ? byId.get(l.truckId) : undefined) ?? fallback
-            let r: Breakdown | null = null
-            try {
-              r = truck ? calcLoad(l, truck) : null
-            } catch {
-              r = null // legacy rows with broken economics still deserve a card
-            }
-            const rcId = rateCons.get(l.id)
-            return (
-              <div
-                key={l.id}
-                className="panel panel-interactive flex items-center gap-3 p-4 sm:p-5"
-              >
-                <Link href={`/loads/${l.id}`} className="flex min-w-0 flex-1 items-center gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="truncate text-[15.5px] font-semibold sm:text-[17px]">
-                        {l.origin ?? '—'} → {l.destination ?? '—'}
-                      </span>
-                      <StatusBadge status={l.status} locale={locale} />
-                    </div>
-                    <div className="nums mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px] text-white/60">
-                      {truck && <span className="text-white/45">{truckLabel(truck)}</span>}
-                      {r && (
-                        <>
-                          <span>{Math.round(r.totalMiles)} mi</span>
-                          <span>{usd2.format(r.allInRpm)}/mi</span>
-                        </>
-                      )}
-                      {l.pickupTime && <span className="text-white/45">🕐 {l.pickupTime}</span>}
-                    </div>
-                  </div>
-                  <span className="nums shrink-0 text-right text-[19px] font-bold sm:text-[22px]">
-                    {usd.format(l.rate)}
-                  </span>
-                </Link>
-                {rcId && <RateConButton docId={rcId} compact />}
+        <div className="panel overflow-x-auto p-0">
+          <div className="min-w-[640px]">
+            {/* Шапка дней */}
+            <div className="grid grid-cols-[132px_repeat(7,minmax(0,1fr))] border-b border-white/8">
+              <div className="sticky left-0 z-10 bg-ink-900 px-3 py-2 text-[11px] font-medium text-white/45">
+                {t(locale, 'loads.board.truck')}
               </div>
-            )
-          })}
+              {days.map((d, i) => {
+                const isToday = weekIsos[i] === todayIso
+                return (
+                  <div
+                    key={weekIsos[i]}
+                    className={`flex items-baseline justify-center gap-1 px-1 py-2 text-center ${isToday ? 'bg-haul-500/10' : ''}`}
+                  >
+                    <span className={`text-[11px] font-medium ${isToday ? 'text-haul-300' : 'text-white/45'}`}>
+                      {t(locale, WEEKDAY_KEYS[i]!)}
+                    </span>
+                    <span className={`nums text-[13px] font-semibold ${isToday ? 'text-haul-300' : 'text-white/80'}`}>
+                      {d.getDate()}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+
+            {rows.map((row) => {
+              const lanes = Math.max(1, ...row.bars.map((b) => b.lane + 1))
+              return (
+                <div
+                  key={row.key}
+                  className="grid grid-cols-[132px_repeat(7,minmax(0,1fr))] border-b border-white/[0.06] last:border-b-0"
+                >
+                  <div className="sticky left-0 z-10 flex min-w-0 flex-col justify-center bg-ink-900 px-3 py-2">
+                    {row.href ? (
+                      <Link href={row.href} className="nums truncate text-[13px] font-semibold hover:text-haul-400">
+                        {row.label}
+                      </Link>
+                    ) : (
+                      <span className="truncate text-[13px] font-semibold text-white/70">{row.label}</span>
+                    )}
+                    {row.sub && <span className="truncate text-[11px] text-white/50">{row.sub}</span>}
+                  </div>
+                  <div
+                    className="relative col-span-7 grid grid-cols-7 gap-y-1 py-1.5"
+                    style={{ gridTemplateRows: `repeat(${lanes}, minmax(1.75rem, auto))` }}
+                  >
+                    {/* Фон дней: сегодня подсвечен, остальные — тонкие разделители */}
+                    {weekIsos.map((iso, i) => (
+                      <div
+                        key={iso}
+                        aria-hidden
+                        className={`pointer-events-none border-l border-white/[0.05] first:border-l-0 ${iso === todayIso ? 'bg-haul-500/[0.06]' : ''}`}
+                        style={{ gridColumn: i + 1, gridRow: `1 / span ${lanes}` }}
+                      />
+                    ))}
+                    {row.bars.length === 0 && (
+                      <span
+                        className="self-center px-2 text-[11px] text-white/30"
+                        style={{ gridColumn: '1 / span 7', gridRow: 1 }}
+                      >
+                        {t(locale, 'loads.board.free')}
+                      </span>
+                    )}
+                    {row.bars.map((b) => {
+                      const rcId = rateCons.get(b.load.id)
+                      return (
+                        <Link
+                          key={b.load.id}
+                          href={`/loads/${b.load.id}`}
+                          title={`${b.load.origin ?? '—'} → ${b.load.destination ?? '—'} · ${usd.format(b.load.rate)} · ${statusLabel(locale, b.load.status)}${rcId ? ' · RC' : ''}`}
+                          className={`z-[1] mx-0.5 flex min-w-0 items-center gap-1.5 rounded-md border px-2 text-[11.5px] font-medium transition-colors hover:brightness-125 ${TONE[b.load.status] ?? TONE.quoted}`}
+                          style={{ gridColumn: `${b.from + 1} / span ${b.to - b.from + 1}`, gridRow: b.lane + 1 }}
+                        >
+                          <span className="truncate">
+                            {city(b.load.origin)} → {city(b.load.destination)}
+                          </span>
+                          <span className="nums ml-auto shrink-0 opacity-80">{usd.format(b.load.rate)}</span>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
+      <p className="mt-2 text-[11.5px] text-white/45">{t(locale, 'loads.board.hint')}</p>
     </div>
   )
 }
