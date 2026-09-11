@@ -2,9 +2,9 @@
 
 import { DocLink } from '@/components/doc-link'
 
-import { useOptimistic, useTransition } from 'react'
+import { useOptimistic, useState, useTransition } from 'react'
 import { Ban, Check } from 'lucide-react'
-import { setStatus } from '@/app/actions'
+import { addLoadEventManual, setStatus } from '@/app/actions'
 import { type LoadStatus } from '@/lib/map'
 import { notify } from '@/lib/notify'
 import { statusLabel, STATUS_ICON } from '@/components/status'
@@ -68,9 +68,12 @@ function StepIcon({ icon: Icon }: { icon: (typeof STATUS_ICON)[LoadStatus] }) {
   return <Icon size={13} strokeWidth={2.5} />
 }
 
-/** Промежуточная остановка на рейке: не статус, а точка рейса — без кнопки. */
+/** Промежуточная остановка на рейке: точка рейса. Пока груз «В пути» — кнопка:
+ * нажатие ставит отметку «выгрузился/загрузился» на эту остановку, и следом на
+ * рейке появляется новый «В пути» — к следующей точке. */
 export type RailStop = {
   key: string
+  seq: number
   role: 'pickup' | 'delivery'
   label: string
   sub: string | null
@@ -105,6 +108,27 @@ export function StatusPicker({
   // -1 while cancelled, which correctly leaves every step unreached below.
   const currentIdx = PIPELINE.indexOf(shown)
 
+  // Остановки, отмеченные с рейки прямо сейчас — до того, как сервер перерисует
+  // страницу с новой отметкой водителя.
+  const [localDone, setLocalDone] = useState<Set<string>>(new Set())
+  const stopDone = (st: RailStop) => st.done || localDone.has(st.key)
+  // Мультистоп: как только первая промежуточная точка пройдена, первый «В пути»
+  // закрыт галочкой, а текущий «В пути» рисуется после последней пройденной точки.
+  const legDone = shown === 'in_transit' && stops.some(stopDone)
+  const markStop = (st: RailStop) =>
+    start(async () => {
+      setLocalDone((prev) => new Set(prev).add(st.key))
+      const res = await addLoadEventManual(id, st.role === 'pickup' ? 'loaded' : 'delivered', new Date().toISOString(), undefined, st.seq)
+      if (res?.error) {
+        setLocalDone((prev) => {
+          const n = new Set(prev)
+          n.delete(st.key)
+          return n
+        })
+        notify('error', res.error)
+      } else notify('ok', `${st.label}${st.sub ? ` · ${st.sub}` : ''}: ✓`)
+    })
+
   const go = (s: LoadStatus) =>
     start(async () => {
       setShown(s) // optimistic; reverts to `current` after the action if the server rejects
@@ -121,48 +145,74 @@ export function StatusPicker({
           widths and the labels collide. */}
       <ol className={`flex items-start overflow-x-auto ${cancelled ? 'opacity-40' : ''}`}>
         {PIPELINE.map((s, i) => {
-          const done = currentIdx > i
-          const isCurrent = currentIdx === i
+          const done = currentIdx > i || (s === 'in_transit' && legDone)
+          const isCurrent = currentIdx === i && !(s === 'in_transit' && legDone)
           const tone = STEP_TONE[s]
           const Icon = STATUS_ICON[s]
           return (
             <li key={s} className="contents">
               {/* Промежуточные остановки — между «В пути» и «Доставлен». */}
               {s === 'delivered' &&
-                stops.map((st) => (
-                  <span key={st.key} className="contents">
-                    <span
-                      aria-hidden
-                      className={`mt-3.5 h-0.5 min-w-2 flex-1 rounded-full ${st.done || st.current ? STEP_TONE[st.role === 'pickup' ? 'booked' : 'delivered'].line : 'bg-white/10'}`}
-                    />
-                    <div
-                      className="flex w-[54px] shrink-0 flex-col items-center gap-1 sm:w-[72px]"
-                      title={`${st.label}${st.sub ? ` · ${st.sub}` : ''}`}
-                    >
+                stops.map((st, k) => {
+                  const sd = stopDone(st)
+                  // Текущая точка: первая непройденная, пока груз в пути.
+                  const cur = shown === 'in_transit' && !sd && stops.slice(0, k).every(stopDone)
+                  const tone = STEP_TONE[st.role === 'pickup' ? 'booked' : 'delivered']
+                  const clickable = shown === 'in_transit' && !sd
+                  // После последней пройденной точки — «В пути» к следующей.
+                  const transitAfter = shown === 'in_transit' && sd && !(stops[k + 1] && stopDone(stops[k + 1]!))
+                  return (
+                    <span key={st.key} className="contents">
                       <span
-                        className={`flex size-7 shrink-0 items-center justify-center rounded-full ${
-                          st.done || st.current
-                            ? STEP_TONE[st.role === 'pickup' ? 'booked' : 'delivered'].dot
-                            : 'bg-white/[0.07] text-white/40'
-                        } ${st.current ? 'ring-2 ring-white/25 ring-offset-2 ring-offset-ink-950' : ''}`}
+                        aria-hidden
+                        className={`mt-3.5 h-0.5 min-w-2 flex-1 rounded-full ${sd || cur ? tone.line : 'bg-white/10'}`}
+                      />
+                      <div
+                        className="flex w-[54px] shrink-0 flex-col items-center gap-1 sm:w-[72px]"
+                        title={`${st.label}${st.sub ? ` · ${st.sub}` : ''}`}
                       >
-                        {st.done ? (
-                          <Check size={14} strokeWidth={3} />
-                        ) : st.role === 'pickup' ? (
-                          <StepIcon icon={STATUS_ICON.booked} />
-                        ) : (
-                          <StepIcon icon={STATUS_ICON.delivered} />
-                        )}
-                      </span>
-                      <span
-                        className={`w-full truncate text-center text-2xs font-medium ${st.current ? STEP_TONE[st.role === 'pickup' ? 'booked' : 'delivered'].text : st.done ? 'text-white/55' : 'text-white/30'}`}
-                      >
-                        {st.label}
-                      </span>
-                      {st.sub && <span className="w-full truncate text-center text-[9px] text-white/40">{st.sub}</span>}
-                    </div>
-                  </span>
-                ))}
+                        <button
+                          type="button"
+                          disabled={!clickable}
+                          onClick={() => markStop(st)}
+                          aria-current={cur ? 'step' : undefined}
+                          className={`flex size-7 shrink-0 items-center justify-center rounded-full transition-all duration-150 disabled:cursor-default ${
+                            sd || cur ? tone.dot : 'bg-white/[0.07] text-white/40 hover:bg-white/15 hover:text-white/70'
+                          } ${cur ? 'ring-2 ring-white/25 ring-offset-2 ring-offset-ink-950' : ''} ${clickable ? 'hover:scale-110' : ''}`}
+                        >
+                          {sd ? (
+                            <Check size={14} strokeWidth={3} />
+                          ) : st.role === 'pickup' ? (
+                            <StepIcon icon={STATUS_ICON.booked} />
+                          ) : (
+                            <StepIcon icon={STATUS_ICON.delivered} />
+                          )}
+                        </button>
+                        <span
+                          className={`w-full truncate text-center text-2xs font-medium ${cur ? tone.text : sd ? 'text-white/55' : 'text-white/30'}`}
+                        >
+                          {st.label}
+                        </span>
+                        {st.sub && <span className="w-full truncate text-center text-[9px] text-white/40">{st.sub}</span>}
+                      </div>
+                      {transitAfter && (
+                        <>
+                          <span aria-hidden className={`mt-3.5 h-0.5 min-w-2 flex-1 rounded-full ${STEP_TONE.in_transit.line}`} />
+                          <div className="flex w-[54px] shrink-0 flex-col items-center gap-1 sm:w-[72px]">
+                            <span
+                              className={`flex size-7 shrink-0 items-center justify-center rounded-full ring-2 ring-white/25 ring-offset-2 ring-offset-ink-950 ${STEP_TONE.in_transit.dot}`}
+                            >
+                              <StepIcon icon={STATUS_ICON.in_transit} />
+                            </span>
+                            <span className={`w-full truncate text-center text-2xs font-medium ${STEP_TONE.in_transit.text}`}>
+                              {statusLabel(locale, 'in_transit')}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    </span>
+                  )
+                })}
               {i > 0 && (
                 <span
                   aria-hidden

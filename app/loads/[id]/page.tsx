@@ -149,6 +149,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             podId={podDoc?.id ?? null}
             stops={stops.slice(1, -1).map((s) => ({
               key: String(s.seq),
+              seq: s.seq,
               role: s.role,
               label: t(locale, s.role === 'pickup' ? 'stops.pickupStep' : 'stops.deliveryStep'),
               sub: s.city ? s.city.replace(/,.*$/, '') : null,
