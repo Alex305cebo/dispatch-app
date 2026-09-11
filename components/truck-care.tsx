@@ -8,6 +8,7 @@ import { Button } from '@/components/button'
 // server page and refresh via revalidatePath.
 
 import { useState, useTransition } from 'react'
+import { Check } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
   addMaintenance,
@@ -113,6 +114,34 @@ export function TruckCare({
   const KIND_LABEL = kindLabel(locale)
   const PRIO_LABEL = prioLabel(locale)
 
+  /* ---- «масло заменено» ---- */
+  const [oilForm, setOilForm] = useState(false)
+  const [oilOdo, setOilOdo] = useState<number | null>(currentOdometer ? Math.round(currentOdometer) : null)
+  const [oilDate, setOilDate] = useState(new Date().toISOString().slice(0, 10))
+  const [oilCost, setOilCost] = useState<number | null>(null)
+  const saveOil = () =>
+    run(
+      async () => {
+        const r = await addMaintenance(truckId, {
+          kind: 'service',
+          title: t(locale, 'trucks.care.oilChangeTitle'),
+          notes: '',
+          cost: oilCost,
+          odometer: oilOdo,
+          doneAt: oilDate,
+        })
+        if (r?.error) return r
+        // Счётчик — явно: addMaintenance сбрасывает его по слову «масло»/«oil» в
+        // названии, а в испанском, румынском и казахском названии этого слова нет.
+        return saveTruckMeta(truckId, { ...m, oilLastOdometer: oilOdo })
+      },
+      t(locale, 'trucks.care.oilChangedToast'),
+      () => {
+        setM({ ...m, oilLastOdometer: oilOdo })
+        setOilForm(false)
+      },
+    )
+
   /* ---- quick todo ---- */
   const [todoTitle, setTodoTitle] = useState('')
   const [todoPrio, setTodoPrio] = useState<'low' | 'normal' | 'urgent'>('normal')
@@ -180,7 +209,7 @@ export function TruckCare({
       <section className="panel p-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
-            {t(locale, 'trucks.care.stateHeading')}
+            {t(locale, 'trucks.care.maintHeading')}
             <Info text={t(locale, 'trucks.care.oilInfo')} />
           </h2>
           <button
@@ -237,6 +266,51 @@ export function TruckCare({
               </>
             ) : null}
           </p>
+
+          {/* Масло поменяли — отмечается прямо здесь: пробег и дата подставлены, запись
+              уходит в журнал ниже, счётчик сбрасывается. Раньше для этого надо было
+              найти журнал в другой карточке. */}
+          {oilForm ? (
+            <div className="mt-3 grid gap-3 rounded-xl border border-white/8 p-3 sm:grid-cols-3">
+              <Field
+                label={t(locale, 'trucks.care.odometerLabel')}
+                value={oilOdo ?? NaN}
+                onChange={(n) => setOilOdo(Number.isNaN(n) ? null : n)}
+                suffix="mi"
+              />
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium text-white/70">
+                  {t(locale, 'trucks.care.dateLabel')}
+                </span>
+                <input type="date" value={oilDate} onChange={(e) => setOilDate(e.target.value)} className={input} />
+              </label>
+              <Field
+                label={t(locale, 'trucks.care.costLabel')}
+                value={oilCost ?? NaN}
+                onChange={(n) => setOilCost(Number.isNaN(n) ? null : n)}
+                prefix="$"
+              />
+              <div className="flex flex-wrap items-center gap-2 sm:col-span-3">
+                <Button variant="primary" size="sm" disabled={pending || oilOdo === null} onClick={saveOil}>
+                  {t(locale, 'trucks.care.oilSave')}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setOilForm(false)}>
+                  {t(locale, 'trucks.care.oilCancel')}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-2">
+              <Button
+                variant={oil && oil.tone !== 'good' ? 'primary' : 'secondary'}
+                size="sm"
+                icon={<Check size={14} strokeWidth={2.5} />}
+                onClick={() => setOilForm(true)}
+              >
+                {t(locale, 'trucks.care.oilChanged')}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Сроки документов переехали сюда из своей карточки и стали чипами: семь
@@ -320,15 +394,14 @@ export function TruckCare({
             </div>
           </div>
         )}
-      </section>
 
-      {/* Секция 2 — «Ремонт и обслуживание»: что сломано и что уже починено. Одна
-          история трака, поэтому одна карточка. */}
-      <section className="panel p-4">
-        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
-          {t(locale, 'trucks.care.serviceHeading')}
+        {/* «Нужно починить» и журнал — в той же карточке, что масло и паспорт. Было
+            две карточки: масло видно в одной, а отмечается записью в другой, и
+            журнал приходилось искать. */}
+        <h3 className="mt-4 flex items-center gap-1.5 border-t border-white/8 pt-4 text-[14px] font-semibold text-white/85">
+          {t(locale, 'trucks.care.fixHeading')}
           <Info text={t(locale, 'trucks.care.todoInfo')} />
-        </h2>
+        </h3>
 
         <div className="mt-3 flex gap-2">
           <input
@@ -398,10 +471,10 @@ export function TruckCare({
         {/* Maintenance log — same card as "Needs fixing": one ongoing story of
             what's broken and what's already been fixed on this truck. */}
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/8 pt-4">
-          <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+          <h3 className="flex items-center gap-1.5 text-[14px] font-semibold text-white/85">
             {t(locale, 'trucks.care.logHeading')}
             <Info text={t(locale, 'trucks.care.logInfo')} />
-          </h2>
+          </h3>
           <Button variant="primary" size="sm" onClick={() => setShowMaint((v) => !v)}>
             {showMaint ? t(locale, 'trucks.care.hide') : t(locale, 'trucks.care.addRecord')}
           </Button>

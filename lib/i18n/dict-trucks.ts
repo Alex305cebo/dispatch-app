@@ -1265,6 +1265,13 @@ export const trucksDict = {
     ro: 'Înregistrare adăugată',
     kk: 'Жазба қосылды',
   },
+  'trucks.care.maintHeading': { ru: 'Обслуживание трака', en: 'Truck maintenance', es: 'Mantenimiento del camión', uk: 'Обслуговування трака', ro: 'Întreținerea camionului', kk: 'Тракқа қызмет көрсету' },
+  'trucks.care.fixHeading': { ru: 'Нужно починить', en: 'Needs fixing', es: 'Por reparar', uk: 'Треба полагодити', ro: 'De reparat', kk: 'Жөндеу керек' },
+  'trucks.care.oilChanged': { ru: 'Масло заменено', en: 'Oil changed', es: 'Aceite cambiado', uk: 'Мастило замінено', ro: 'Ulei schimbat', kk: 'Май ауыстырылды' },
+  'trucks.care.oilSave': { ru: 'Записать замену', en: 'Save oil change', es: 'Guardar cambio', uk: 'Записати заміну', ro: 'Salvează schimbul', kk: 'Ауыстыруды жазу' },
+  'trucks.care.oilCancel': { ru: 'Отмена', en: 'Cancel', es: 'Cancelar', uk: 'Скасувати', ro: 'Anulează', kk: 'Бас тарту' },
+  'trucks.care.oilChangeTitle': { ru: 'Замена масла', en: 'Oil change', es: 'Cambio de aceite', uk: 'Заміна мастила', ro: 'Schimb de ulei', kk: 'Май ауыстыру' },
+  'trucks.care.oilChangedToast': { ru: 'Замена масла записана, счётчик сброшен', en: 'Oil change saved, counter reset', es: 'Cambio de aceite guardado, contador reiniciado', uk: 'Заміну мастила записано, лічильник скинуто', ro: 'Schimbul de ulei salvat, contor resetat', kk: 'Май ауыстыру жазылды, есептегіш ысырылды' },
   'trucks.care.oilResetHint': {
     ru: 'Запись «масло» с одометром сама сбросит счётчик замены.',
     en: 'An entry with “oil” and an odometer reading resets the change counter automatically.',
