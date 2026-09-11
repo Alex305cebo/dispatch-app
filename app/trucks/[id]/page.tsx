@@ -199,16 +199,11 @@ export default async function Page({
         locale={locale}
       />
 
-      {/* ===== Шапка: номер, водитель, где стоит; картинка трака — иконкой слева.
-           Большая картина по центру занимала первый экран, а текущее задание
-           уезжало вниз; теперь задание видно сразу под шапкой. ===== */}
+      {/* ===== Шапка: слева номер, водитель, где стоит; справа картинка трака
+           нормального размера (на телефоне — под текстом). Картина по центру на весь
+           экран уводила текущее задание вниз; здесь оно сразу под шапкой. ===== */}
       <section className="panel mt-3 p-4 sm:p-5">
-        <div className="flex items-start gap-3 sm:gap-4">
-          <TruckPhoto
-            truckId={truck.id}
-            hasPhoto={meta?.hasTruckPhoto ?? false}
-            alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
-          />
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
           <div className="min-w-0 flex-1">
           <h1 className="text-[22px] font-semibold leading-7 sm:text-[26px] sm:leading-8">{truck.number ?? truck.name}</h1>
 
@@ -287,6 +282,12 @@ export default async function Page({
             <TruckAvailability truckId={truck.id} current={truck.unavailable} locale={locale} />
           </div>
           </div>
+          <TruckPhoto
+            truckId={truck.id}
+            hasPhoto={meta?.hasTruckPhoto ?? false}
+            alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
+            className="mx-auto w-64 sm:mx-0 sm:w-64 lg:w-80"
+          />
         </div>
 
         {/* ===== Current assignment: route, pickup/delivery dates, at a glance ===== */}

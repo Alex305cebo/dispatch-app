@@ -8,7 +8,17 @@ import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 
-export function TruckPhoto({ truckId, hasPhoto, alt }: { truckId: number; hasPhoto: boolean; alt: string }) {
+export function TruckPhoto({
+  truckId,
+  hasPhoto,
+  alt,
+  className = '',
+}: {
+  truckId: number
+  hasPhoto: boolean
+  alt: string
+  className?: string
+}) {
   const locale = useLocale()
   const fileRef = useRef<HTMLInputElement>(null)
   const [pending, start] = useTransition()
@@ -35,11 +45,11 @@ export function TruckPhoto({ truckId, hasPhoto, alt }: { truckId: number; hasPho
   return (
     <label
       title={t(locale, 'trucks.photo.change')}
-      className={`group relative mt-0.5 block h-9 w-12 shrink-0 sm:h-12 sm:w-16 ${pending ? 'opacity-50' : 'cursor-pointer'}`}
+      className={`group relative block shrink-0 ${className} ${pending ? 'opacity-50' : 'cursor-pointer'}`}
     >
-      <img src={src} alt={alt} className="size-full object-contain" />
-      <span className="absolute inset-0 flex items-center justify-center rounded-md bg-black/0 text-[9px] font-medium text-transparent transition-colors group-hover:bg-black/50 group-hover:text-white">
-        {pending ? '…' : t(locale, 'trucks.photo.overlay')}
+      <img src={src} alt={alt} className="w-full object-contain" />
+      <span className="absolute inset-0 flex items-end justify-center rounded-xl bg-black/0 pb-1 text-[12px] font-medium text-transparent transition-colors group-hover:bg-black/40 group-hover:text-white">
+        {pending ? '…' : t(locale, 'trucks.photo.change')}
       </span>
       <input
         ref={fileRef}

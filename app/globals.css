@@ -148,20 +148,6 @@
     background-color: var(--color-ink-950);
     color: var(--color-white);
     @apply font-sans antialiased;
-    /* Glass has to refract something. One flat violet wash gave every card's blur the
-       same grey to chew on, which is why the panels read as plastic. Three ambient
-       blobs sit far apart in the brand hues, so a card near the top-left picks up a
-       different colour behind it than one at the bottom — that difference across the
-       page is what the eye reads as glass. Fixed, so it doesn't swim while scrolling. */
-    /* Each blob is deliberately WIDER than the viewport. At 50-60% the falloff ring
-       lands on screen and you see the arc — a visible smudge with an edge, which is
-       exactly what it looked like. Oversized, only the smooth middle is ever in view
-       and the colour reads as ambient light rather than as three blobs. */
-    background-image:
-      radial-gradient(120% 90% at 15% -20%, rgba(109, 90, 232, 0.42), transparent 70%),
-      radial-gradient(110% 80% at 95% 10%, rgba(45, 212, 191, 0.20), transparent 70%),
-      radial-gradient(130% 85% at 50% 120%, rgba(168, 85, 247, 0.24), transparent 72%);
-    background-attachment: fixed;
     transition:
       background-color 0.2s,
       color 0.2s;
@@ -181,173 +167,49 @@
   }
 }
 
-/* Every card in the app is a .panel, so this one rule is the biggest single lever on
-   how the whole UI reads. It used to be a 2.5%-white wash inside an 8%-white hairline:
-   technically a card, visually indistinguishable from the page behind it, which is
-   most of why the app looked flat.
-   Now it is a real surface — a top-lit gradient so the card has a light source, a
-   border bright enough to actually draw an edge, and layered shadow for depth. */
+/* Every card in the app is a .panel — one flat surface: ink-900 on the ink-950 page,
+   a hairline border, no gradient, no blur, no shadow. Цвет поверхности ничего не
+   значит для данных, поэтому он не меняется от карточки к карточке; глубина —
+   только вложенностью (panel → panel-inset), а не эффектами. */
 @utility panel {
-  /* 24px, not 16. In the liquid-glass reference the corner radius is the single
-     loudest signal that a surface is a slab of glass and not a bordered box — at
-     16px the card still reads as a form field. */
-  @apply rounded-[24px] border border-white/[0.14];
-  /* saturate() is the half of the recipe everyone leaves out. Blur on its own greys
-     the backdrop into mush; it's the boosted saturation that lets the colour behind
-     bleed through the way frosted glass actually behaves. The -webkit- prefix stays —
-     this is the one property Safari and iOS still want it on, and iPhone is where
-     this look gets judged. */
-  -webkit-backdrop-filter: blur(26px) saturate(190%);
-  backdrop-filter: blur(26px) saturate(190%);
-  /* Thin enough to actually be see-through. The old fill was near-opaque, so the
-     backdrop-filter underneath had no visible effect — the card was frosted glass
-     painted over with grey. */
-  background-image: linear-gradient(
-    150deg,
-    rgba(255, 255, 255, 0.13) 0%,
-    rgba(255, 255, 255, 0.05) 55%,
-    rgba(255, 255, 255, 0.02) 100%
-  );
-  box-shadow:
-    /* The lit top edge is what makes this read as a raised plane rather than a painted
-       box, and it was too faint to survive against a coloured backdrop — a glass slab
-       catches the light along its top edge, brightly. */
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 0 rgba(0, 0, 0, 0.3),
-    0 1px 2px rgba(0, 0, 0, 0.4),
-    0 12px 32px -10px rgba(0, 0, 0, 0.65);
+  @apply rounded-xl border border-white/10;
+  background-color: var(--color-ink-900);
 }
 
-/* Tier 2: a card INSIDE a card. This is the piece that was missing — in the liquid
-   glass reference, depth comes from nesting (a stats tile sitting inside the stats
-   panel), not from cards overlapping each other. Deliberately borderless: an inner
-   hairline next to the outer one reads as a double frame. It separates by fill and by
-   its own lit top edge alone, and carries no backdrop-filter — blurring a backdrop
-   that is itself already blurred just muddies it. */
+/* Tier 2: a surface INSIDE a panel — поле, выбранная строка, метрика. */
 @utility panel-inset {
-  @apply rounded-[18px];
-  background-image: linear-gradient(
-    150deg,
-    rgba(255, 255, 255, 0.055) 0%,
-    rgba(255, 255, 255, 0.02) 100%
-  );
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
-}
-:root[data-theme='light'] .panel-inset {
-  background-image: linear-gradient(
-    150deg,
-    rgba(15, 20, 30, 0.045) 0%,
-    rgba(15, 20, 30, 0.02) 100%
-  );
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.6),
-    inset 0 0 0 1px rgba(15, 20, 30, 0.03);
+  @apply rounded-lg;
+  background-color: var(--color-ink-800);
 }
 
-/* Cards that go somewhere. The lift is small on purpose — 2px and a brighter edge is
-   enough to say "clickable"; more turns a dense fleet list into a trampoline. */
+/* Cards that go somewhere: only the border answers hover/press. */
 @utility panel-interactive {
   transition:
-    transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 0.16s ease,
-    box-shadow 0.16s ease;
+    border-color 0.14s ease,
+    background-color 0.14s ease;
 }
 .panel-interactive:hover {
-  transform: translateY(-2px);
-  border-color: rgba(155, 142, 255, 0.35);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
-    inset 0 -1px 0 0 rgba(0, 0, 0, 0.28),
-    0 2px 4px rgba(0, 0, 0, 0.35),
-    0 14px 34px -10px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(109, 90, 232, 0.12);
+  border-color: rgba(155, 142, 255, 0.45);
 }
 .panel-interactive:active {
-  transform: translateY(0);
-  transition-duration: 0.08s;
+  background-color: rgba(255, 255, 255, 0.03);
 }
-/* Keyboard parity with Button. A card you can Tab to has to show where you are, and
-   the hover lift alone never fires for a keyboard user. :focus-visible, not :focus —
-   otherwise every mouse click on a card would leave a ring sitting there afterwards. */
-/* `:has()` covers the composite shape: a card whose <Link> is nested inside so that
-   action buttons can stay its siblings (see the load rows). That container can never
-   take focus itself, so without this a keyboard user tabbing into the row gets no
-   card-level feedback at all. */
 .panel-interactive:focus-visible,
 .panel-interactive:has(:focus-visible) {
   outline: none;
-  border-color: rgba(155, 142, 255, 0.55);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
-    0 14px 34px -10px rgba(0, 0, 0, 0.7),
-    0 0 0 2px rgba(155, 142, 255, 0.75);
+  border-color: rgba(155, 142, 255, 0.6);
+  box-shadow: 0 0 0 2px rgba(155, 142, 255, 0.6);
+}
+:root[data-theme='light'] .panel {
+  border-color: rgba(15, 20, 30, 0.1);
+}
+:root[data-theme='light'] .panel-interactive:hover {
+  border-color: rgba(91, 70, 214, 0.45);
 }
 :root[data-theme='light'] .panel-interactive:focus-visible,
 :root[data-theme='light'] .panel-interactive:has(:focus-visible) {
   border-color: rgba(91, 70, 214, 0.55);
-  box-shadow:
-    0 14px 30px -10px rgba(15, 20, 30, 0.22),
-    0 0 0 2px rgba(91, 70, 214, 0.65);
-}
-
-/* Elevation tier 2 — a card that should sit visibly ABOVE its neighbours: the hero
-   KPI tile, a focused/pinned row. Same surface as .panel, a deeper drop shadow so the
-   eye reads a real height difference instead of one flat plane of cards. Depth on this
-   app comes from a hierarchy of heights, not from more effects on every card. */
-/* Compound `.panel.panel-raised` (not an @utility): the light `.panel` shadow rule
-   below has the same specificity and comes later in the file, so a bare `.panel-raised`
-   selector loses to it and the raise never showed. Qualifying with both classes wins
-   on specificity in either theme, order-independent. */
-.panel.panel-raised {
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
-    inset 0 -1px 0 0 rgba(0, 0, 0, 0.3),
-    0 2px 4px rgba(0, 0, 0, 0.4),
-    0 18px 44px -14px rgba(0, 0, 0, 0.7);
-}
-:root[data-theme='light'] .panel.panel-raised {
-  box-shadow:
-    0 1px 3px rgba(16, 24, 40, 0.06),
-    0 14px 32px -12px rgba(16, 24, 40, 0.24);
-}
-
-/* Light glass. The card used to be solid #ffffff, which painted straight over the
-   backdrop-filter and left the light theme flat while the dark one turned to glass.
-   The recipe inverts rather than repeats: on a light page, MORE white and LESS blur —
-   push the blur here and text sitting on the card starts to swim. The shadow still
-   does the lifting, because an inner highlight is invisible against white. */
-:root[data-theme='light'] .panel {
-  background-image: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.86) 0%,
-    rgba(255, 255, 255, 0.72) 100%
-  );
-  background-color: transparent;
-  -webkit-backdrop-filter: blur(18px) saturate(170%);
-  backdrop-filter: blur(18px) saturate(170%);
-  border-color: rgba(15, 20, 30, 0.08);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.75),
-    0 1px 2px rgba(15, 20, 30, 0.05),
-    0 6px 18px -8px rgba(15, 20, 30, 0.14);
-}
-:root[data-theme='light'] .panel-interactive:hover {
-  border-color: rgba(91, 70, 214, 0.4);
-  box-shadow:
-    0 2px 4px rgba(15, 20, 30, 0.07),
-    0 14px 30px -10px rgba(15, 20, 30, 0.22),
-    0 0 0 1px rgba(91, 70, 214, 0.14);
-}
-:root[data-theme='light'] body {
-  /* Same three-blob backdrop as dark, at a fraction of the strength: on a light page
-     these only need to tint the white, not glow through it. Without them the light
-     cards blur a flat surface and the glass reads as plain frosting. */
-  background-image:
-    radial-gradient(58% 42% at 28% -6%, rgba(109, 90, 232, 0.16), transparent 66%),
-    radial-gradient(48% 38% at 82% 18%, rgba(20, 184, 166, 0.10), transparent 64%),
-    radial-gradient(52% 40% at 48% 92%, rgba(168, 85, 247, 0.10), transparent 66%);
+  box-shadow: 0 0 0 2px rgba(91, 70, 214, 0.5);
 }
 
 /* On a filled accent (buttons, badges) text must stay light in BOTH themes — the
@@ -720,45 +582,6 @@
   }
 }
 
-/* Лента вкладок на телефоне.
-   Она шире экрана — девять разделов в 390 пикселей не помещаются никак, и раньше
-   три из них на телефоне просто прятали. Теперь лента едет пальцем, а её края
-   растворяются там, где есть продолжение: это и есть подсказка, что она едет.
-   Полосу прокрутки убираем — под пальцем она не нужна, а место занимает.
-   data-edge ставит компонент (components/nav.tsx), читая scrollLeft. */
-.nav-dock-scroll {
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  scroll-snap-type: x proximity;
-  /* Чтобы протяжка ленты до упора не утаскивала за собой всю страницу. */
-  overscroll-behavior-x: contain;
-}
-.nav-dock-scroll::-webkit-scrollbar {
-  display: none;
-}
-.nav-dock-scroll[data-edge='end'] {
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent 100%);
-  mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent 100%);
-}
-.nav-dock-scroll[data-edge='start'] {
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 26px);
-  mask-image: linear-gradient(to right, transparent 0, #000 26px);
-}
-.nav-dock-scroll[data-edge='both'] {
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 26px, #000 calc(100% - 26px), transparent 100%);
-  mask-image: linear-gradient(to right, transparent 0, #000 26px, #000 calc(100% - 26px), transparent 100%);
-}
-@media (min-width: 768px) {
-  /* В боковой панели это обычный столбец: ни прокрутки, ни маски. */
-  .nav-dock-scroll,
-  .nav-dock-scroll[data-edge] {
-    overflow: visible;
-    scroll-snap-type: none;
-    -webkit-mask-image: none;
-    mask-image: none;
-  }
-}
 
 .nav-tab-btn {
   position: relative;

@@ -44,23 +44,6 @@ const RULES: [RegExp, WeatherKind][] = [
 /** Красный только там, где рейс реально останавливают; остальное жёлтым. */
 const BAD = new Set<WeatherKind>(['tornado', 'hurricane', 'blizzard', 'ice'])
 
-export const WEATHER_ICON: Record<WeatherKind, string> = {
-  tornado: '🌪',
-  hurricane: '🌀',
-  blizzard: '🌨',
-  ice: '🧊',
-  snow: '❄',
-  cold: '🥶',
-  heat: '🔥',
-  wind: '💨',
-  storm: '⛈',
-  flood: '🌊',
-  fog: '🌫',
-  dust: '🏜',
-  fire: '🔥',
-  other: '⚠',
-}
-
 export function weatherKind(event: string): WeatherKind {
   for (const [re, kind] of RULES) if (re.test(event)) return kind
   return 'other'

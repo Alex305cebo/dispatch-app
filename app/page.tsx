@@ -271,7 +271,16 @@ export default async function Page() {
         </div>
       )}
 
-      {/* Четыре в ряд только с lg. На 640px четвёрка давала по ~155px на плитку, и
+      {/* «Кому искать груз» — первый содержательный блок: «что делать сегодня»
+          важнее итогов за период. Деньги и мили — сеткой ниже. */}
+      <NeedsLoad
+        rows={idleFleet(trucks, live, placeByTruck)}
+        trucks={byId}
+        trailers={trailers}
+        locale={locale}
+      />
+
+      {/* Итоги периода — после списка дел. Четыре в ряд только с lg. На 640px четвёрка давала по ~155px на плитку, и
           «$81,799» вылезал за край, а подпись схлопывалась в «TOT…». На планшете две
           широкие читаются, четыре узкие — нет. */}
       {loads.length > 0 && (
@@ -313,14 +322,6 @@ export default async function Page() {
           />
         </div>
       )}
-
-      {/* Список дел — сразу под плитками: «что делать сегодня» важнее всего. */}
-      <NeedsLoad
-        rows={idleFleet(trucks, live, placeByTruck)}
-        trucks={byId}
-        trailers={trailers}
-        locale={locale}
-      />
 
       {/* Календарь загрузки за 14 дней — сразу под списком дел: кто когда освободится. */}
       {trucks.length > 0 && live.length > 0 && (
