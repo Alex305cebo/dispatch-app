@@ -1318,9 +1318,9 @@ export async function unmarkStop(
   if (ro) return ro
   const companyId = await companyScope()
   if (!(await loadBelongs(companyId, loadId))) return { error: 'load' }
-  const kind = role === 'pickup' ? 'loaded' : 'delivered'
+  const kinds = role === 'pickup' ? ['arrived_pickup', 'loaded'] : ['arrived_delivery', 'delivered']
   await sql`DELETE FROM load_events
-            WHERE company_id = ${companyId} AND load_id = ${loadId} AND stop_seq = ${stopSeq} AND kind = ${kind}`
+            WHERE company_id = ${companyId} AND load_id = ${loadId} AND stop_seq = ${stopSeq} AND kind = ANY(${kinds})`
   revalidatePath(`/loads/${loadId}`)
 }
 

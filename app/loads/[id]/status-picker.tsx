@@ -27,13 +27,21 @@ const STEP_TONE: Record<LoadStatus, { dot: string; text: string; line: string }>
   cancelled: { dot: 'bg-bad-500 text-white', text: 'text-bad-400', line: 'bg-bad-500/50' },
 }
 
+const STEP_W = 'flex w-[54px] shrink-0 flex-col items-center gap-1 sm:w-[72px]'
+const RING = 'ring-2 ring-white/25 ring-offset-2 ring-offset-ink-950'
+const HOLLOW = 'bg-white/[0.07] text-white/40 hover:bg-white/15 hover:text-white/70'
+
 /**
  * The load's progress AND the control that moves it — one thing, not two.
  *
- * This used to be six identical pills in a row. That shape answered "what can I set
- * this to" but never "where is this load now, and what has it already been through" —
- * the question anyone opening a load asks first. A rail answers both: steps behind the
- * current one are filled and ticked, the current one is lit, the rest are hollow.
+ * Steps behind the current one are filled and ticked, the current one is lit, the
+ * rest are hollow. Every circle is a button at any time — forward and back.
+ *
+ * Мультистоп. Промежуточная точка (Omaha) живёт между «Загрузкой» и «Доставлен»:
+ *  - нажал точку → трак НА выгрузке в Omaha: точка текущая, первый «В пути» уходит,
+ *    а пустой «В пути» появляется ПОСЛЕ точки;
+ *  - нажал этот «В пути» → трак выехал: точка с галочкой, «В пути» текущий.
+ * Ничего не активируется само — каждый шаг нажимает диспетчер.
  */
 // BOL rides at the loading step, POD at delivery — the paperwork each stage produces, filed
 // right where it belongs on the rail. Present → a clickable green chip to view it. Missing
@@ -64,7 +72,7 @@ function DocChip({ label, docId, due }: { label: string; docId: number | null; d
 }
 
 /** POD промежуточной выгрузки: есть — зелёная ссылка, нет — кнопка загрузки (янтарная,
- * когда точка уже пройдена и бумага должна быть на руках). */
+ * когда трак уже на точке или проехал её и бумага должна быть на руках). */
 function StopPod({ loadId, seq, docId, due }: { loadId: number; seq: number; docId: number | null; due: boolean }) {
   const locale = useLocale()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -116,20 +124,22 @@ function StepIcon({ icon: Icon }: { icon: (typeof STATUS_ICON)[LoadStatus] }) {
   return <Icon size={13} strokeWidth={2.5} />
 }
 
-/** Промежуточная остановка на рейке: точка рейса. Пока груз «В пути» — кнопка:
- * нажатие ставит отметку «выгрузился/загрузился» на эту остановку, и следом на
- * рейке появляется новый «В пути» — к следующей точке. */
+/** Промежуточная остановка на полосе статусов. */
 export type RailStop = {
   key: string
   seq: number
   role: 'pickup' | 'delivery'
-  /** POD этой выгрузки (documents.stop_seq = seq), если уже загружен. */
-  podId?: number | null
   label: string
   sub: string | null
+  /** Пройдена: есть «загрузился/выгрузился» на неё (или груз уже доставлен). */
   done: boolean
-  current: boolean
+  /** Трак стоит на ней: есть «приехал», но ещё не уехал. */
+  arrived: boolean
+  /** POD этой выгрузки (documents.stop_seq = seq), если уже загружен. */
+  podId?: number | null
 }
+
+type StopState = 'none' | 'arrived' | 'done'
 
 export function StatusPicker({
   id,
@@ -142,123 +152,162 @@ export function StatusPicker({
   current: LoadStatus
   bolId?: number | null
   podId?: number | null
-  /** Остановки между первой погрузкой и последней выгрузкой (lib/stops.ts) —
-   * встают на рейку между «В пути» и «Доставлен», чтобы дроп 1 не пропадал. */
+  /** Остановки между первой погрузкой и последней выгрузкой (lib/stops.ts). */
   stops?: RailStop[]
 }) {
   const [pending, start] = useTransition()
   const locale = useLocale()
   // The rail redraws the instant a step is clicked, then the server action confirms it.
-  // Before this the whole control greyed out for the round trip and only moved once the
-  // server answered — on a mobile connection that reads as "my tap didn't register",
-  // which is exactly when a dispatcher taps again. React reverts `shown` by itself if
-  // the action throws, so a failed write can't leave the rail showing a lie.
+  // React reverts `shown` by itself if the action throws, so a failed write can't leave
+  // the rail showing a lie.
   const [shown, setShown] = useOptimistic(current)
   const cancelled = shown === 'cancelled'
   // -1 while cancelled, which correctly leaves every step unreached below.
   const currentIdx = PIPELINE.indexOf(shown)
+  const TRANSIT_IDX = PIPELINE.indexOf('in_transit')
 
-  // Точки, переключённые с полосы прямо сейчас — до того, как сервер перерисует
-  // страницу. Клик по точке ставит отметку, повторный клик снимает: статус можно
-  // двигать и вперёд, и назад в любой момент, как и у обычных шагов.
-  const [override, setOverride] = useState<Map<string, boolean>>(new Map())
-  const stopDone = (st: RailStop) => override.get(st.key) ?? st.done
-  // Мультистоп: как только первая промежуточная точка пройдена, первый «В пути»
-  // закрыт галочкой, а текущий «В пути» рисуется после последней пройденной точки.
-  const legDone = shown === 'in_transit' && stops.some(stopDone)
-  const toggleStop = (st: RailStop) => {
-    const wasDone = stopDone(st)
-    start(async () => {
-      setOverride((prev) => new Map(prev).set(st.key, !wasDone))
-      // Точка живёт внутри «В пути»: отметка из «Загрузки» переводит груз в путь,
-      // снятие отметки у доставленного возвращает его в путь.
-      if (currentIdx !== PIPELINE.indexOf('in_transit')) {
-        setShown('in_transit')
-        const r0 = await setStatus(id, 'in_transit')
-        if (r0?.error) {
-          setOverride((prev) => new Map(prev).set(st.key, wasDone))
-          notify('error', r0.error)
-          return
-        }
-      }
-      const res = wasDone
-        ? await unmarkStop(id, st.seq, st.role)
-        : await addLoadEventManual(id, st.role === 'pickup' ? 'loaded' : 'delivered', new Date().toISOString(), undefined, st.seq)
-      if (res?.error) {
-        setOverride((prev) => new Map(prev).set(st.key, wasDone))
-        notify('error', res.error)
-      } else notify('ok', `${st.label}${st.sub ? ` · ${st.sub}` : ''}: ${wasDone ? '↩' : '✓'}`)
-    })
-  }
-  // Клик по первому «В пути», когда точки уже отмечены, — назад к первому плечу:
-  // снимаем отметки со всех точек.
-  const backToFirstLeg = () =>
-    start(async () => {
-      const done = stops.filter(stopDone)
-      setOverride((prev) => {
-        const n = new Map(prev)
-        for (const st of done) n.set(st.key, false)
-        return n
-      })
-      if (shown !== 'in_transit') {
-        setShown('in_transit')
-        await setStatus(id, 'in_transit')
-      }
-      for (const st of done) await unmarkStop(id, st.seq, st.role)
-      notify('ok', statusLabel(locale, 'in_transit'))
-    })
+  // Состояние точек, переключённых с полосы прямо сейчас — до того, как сервер
+  // перерисует страницу с новыми отметками.
+  const [override, setOverride] = useState<Map<string, StopState>>(new Map())
+  const stateOf = (st: RailStop): StopState =>
+    override.get(st.key) ?? (st.done ? 'done' : st.arrived ? 'arrived' : 'none')
+  // Последняя тронутая точка: после неё стоит «В пути». Пока ни одна не тронута,
+  // «В пути» стоит на своём обычном месте — перед точками.
+  const inTransit = shown === 'in_transit'
+  let lastTouched = -1
+  if (inTransit) stops.forEach((st, k) => stateOf(st) !== 'none' && (lastTouched = k))
+  const firstLegHidden = inTransit && lastTouched >= 0
+
+  const same = (s: LoadStatus) => notify('ok', `${t(locale, 'loads.loadHash')}${id}: ${statusLabel(locale, s)}`)
 
   const go = (s: LoadStatus) =>
     start(async () => {
       setShown(s) // optimistic; reverts to `current` after the action if the server rejects
       const res = await setStatus(id, s)
-      if (res?.error) notify('error', res.error)
-      else notify('ok', `${t(locale, 'loads.loadHash')}${id}: ${statusLabel(locale, s)}`)
+      if (res?.error) return notify('error', res.error)
+      notify('ok', `${t(locale, 'loads.loadHash')}${id}: ${statusLabel(locale, s)}`)
+      // Назад до «В пути» — точки тоже сбрасываются: в «Загрузке» трак ни на одной
+      // из них ещё не был.
+      if (PIPELINE.indexOf(s) < TRANSIT_IDX) {
+        const touched = stops.filter((st) => stateOf(st) !== 'none')
+        if (touched.length) {
+          setOverride((prev) => {
+            const n = new Map(prev)
+            for (const st of stops) n.set(st.key, 'none')
+            return n
+          })
+          for (const st of touched) await unmarkStop(id, st.seq, st.role)
+        }
+      }
     })
+
+  /** Груз должен быть «В пути», чтобы точки имели смысл. */
+  async function ensureTransit(): Promise<boolean> {
+    if (shown === 'in_transit') return true
+    setShown('in_transit')
+    const r = await setStatus(id, 'in_transit')
+    if (r?.error) {
+      notify('error', r.error)
+      return false
+    }
+    return true
+  }
+  const setState = (st: RailStop, v: StopState) => setOverride((prev) => new Map(prev).set(st.key, v))
+  const stopText = (st: RailStop) => `${st.label}${st.sub ? ` · ${st.sub}` : ''}`
+
+  /** Клик по точке: пусто → «приехал» (точка текущая); текущая → подсказка;
+   * пройдена → сброс до пустой. */
+  const clickStop = (st: RailStop) => {
+    const was = stateOf(st)
+    start(async () => {
+      if (was === 'arrived' && inTransit) return notify('ok', stopText(st))
+      if (!(await ensureTransit())) return
+      if (was === 'none' || was === 'arrived') {
+        setState(st, 'arrived')
+        if (was === 'arrived') return
+        const res = await addLoadEventManual(
+          id,
+          st.role === 'pickup' ? 'arrived_pickup' : 'arrived_delivery',
+          new Date().toISOString(),
+          undefined,
+          st.seq,
+        )
+        if (res?.error) {
+          setState(st, 'none')
+          notify('error', res.error)
+        } else notify('ok', stopText(st))
+      } else {
+        setState(st, 'none')
+        const res = await unmarkStop(id, st.seq, st.role)
+        if (res?.error) {
+          setState(st, 'done')
+          notify('error', res.error)
+        } else notify('ok', `${stopText(st)}: ↩`)
+      }
+    })
+  }
+
+  /** Клик по «В пути» после точки: трак выехал — точка пройдена, «В пути» текущий. */
+  const leaveStop = (st: RailStop) => {
+    const was = stateOf(st)
+    start(async () => {
+      if (was === 'done' && inTransit) return same('in_transit')
+      if (!(await ensureTransit())) return
+      if (was !== 'done') {
+        setState(st, 'done')
+        const res = await addLoadEventManual(
+          id,
+          st.role === 'pickup' ? 'loaded' : 'delivered',
+          new Date().toISOString(),
+          undefined,
+          st.seq,
+        )
+        if (res?.error) {
+          setState(st, was)
+          notify('error', res.error)
+        } else notify('ok', `${stopText(st)}: ✓`)
+      }
+    })
+  }
 
   return (
     <div aria-busy={pending}>
       {/* Classic stepper geometry: each step is a fixed-width column, and the
-          connectors between them are the flexible part. Doing it the other way round
-          (flexible steps, fixed connectors) makes the dots drift apart at different
-          widths and the labels collide. */}
+          connectors between them are the flexible part. */}
       <ol className={`flex items-start overflow-x-auto ${cancelled ? 'opacity-40' : ''}`}>
         {PIPELINE.map((s, i) => {
-          const done = currentIdx > i || (s === 'in_transit' && legDone)
-          const isCurrent = currentIdx === i && !(s === 'in_transit' && legDone)
+          // Первый «В пути» уходит с полосы, как только трак отметился на точке —
+          // его место теперь после этой точки.
+          if (s === 'in_transit' && firstLegHidden) return null
+          const done = currentIdx > i
+          const isCurrent = currentIdx === i
           const tone = STEP_TONE[s]
           const Icon = STATUS_ICON[s]
           return (
             <li key={s} className="contents">
-              {/* Промежуточные остановки — между «В пути» и «Доставлен». */}
+              {/* Промежуточные остановки — перед «Доставлен». */}
               {s === 'delivered' &&
                 stops.map((st, k) => {
-                  const sd = stopDone(st)
-                  // Непройденная точка — пустой кружок, даже если она следующая: подсветка
-                  // читалась как «трак уже там», а он ещё в пути. Светится только «В пути».
-                  const cur = false
-                  const tone = STEP_TONE[st.role === 'pickup' ? 'booked' : 'delivered']
-                  const clickable = !cancelled
-                  // После последней пройденной точки — «В пути» к следующей.
-                  const transitAfter = shown === 'in_transit' && sd && !(stops[k + 1] && stopDone(stops[k + 1]!))
+                  const state = stateOf(st)
+                  const sd = state === 'done'
+                  const atStop = state === 'arrived'
+                  const stTone = STEP_TONE[st.role === 'pickup' ? 'booked' : 'delivered']
+                  const showTransitAfter = inTransit && k === lastTouched
                   return (
                     <span key={st.key} className="contents">
                       <span
                         aria-hidden
-                        className={`mt-3.5 h-0.5 min-w-2 flex-1 rounded-full ${sd || cur ? tone.line : 'bg-white/10'}`}
+                        className={`mt-3.5 h-0.5 min-w-2 flex-1 rounded-full ${sd || atStop ? stTone.line : 'bg-white/10'}`}
                       />
-                      <div
-                        className="flex w-[54px] shrink-0 flex-col items-center gap-1 sm:w-[72px]"
-                        title={`${st.label}${st.sub ? ` · ${st.sub}` : ''}`}
-                      >
+                      <div className={STEP_W} title={stopText(st)}>
                         <button
                           type="button"
-                          disabled={!clickable}
-                          onClick={() => toggleStop(st)}
-                          aria-current={cur ? 'step' : undefined}
+                          disabled={cancelled}
+                          onClick={() => clickStop(st)}
+                          aria-current={atStop ? 'step' : undefined}
                           className={`flex size-7 shrink-0 items-center justify-center rounded-full transition-all duration-150 disabled:cursor-default ${
-                            sd || cur ? tone.dot : 'bg-white/[0.07] text-white/40 hover:bg-white/15 hover:text-white/70'
-                          } ${cur ? 'ring-2 ring-white/25 ring-offset-2 ring-offset-ink-950' : ''} ${clickable ? 'hover:scale-110' : ''}`}
+                            sd || atStop ? stTone.dot : HOLLOW
+                          } ${atStop ? RING : ''} ${state === 'none' ? 'hover:scale-110' : ''}`}
                         >
                           {sd ? (
                             <Check size={14} strokeWidth={3} />
@@ -269,27 +318,39 @@ export function StatusPicker({
                           )}
                         </button>
                         <span
-                          className={`w-full truncate text-center text-2xs font-medium ${cur ? tone.text : sd ? 'text-white/55' : 'text-white/30'}`}
+                          className={`w-full truncate text-center text-2xs font-medium ${atStop ? stTone.text : sd ? 'text-white/55' : 'text-white/30'}`}
                         >
                           {st.label}
                         </span>
                         {st.sub && <span className="w-full truncate text-center text-[9px] text-white/40">{st.sub}</span>}
-                        {st.role === 'delivery' && <StopPod loadId={id} seq={st.seq} docId={st.podId ?? null} due={sd} />}
+                        {st.role === 'delivery' && (
+                          <StopPod loadId={id} seq={st.seq} docId={st.podId ?? null} due={sd || atStop} />
+                        )}
                       </div>
-                      {transitAfter && (
+                      {/* «В пути» после точки: пустой, пока трак стоит на ней; текущий,
+                          когда выехал. */}
+                      {showTransitAfter && (
                         <>
-                          <span aria-hidden className={`mt-3.5 h-0.5 min-w-2 flex-1 rounded-full ${STEP_TONE.in_transit.line}`} />
-                          <div className="flex w-[54px] shrink-0 flex-col items-center gap-1 sm:w-[72px]">
+                          <span
+                            aria-hidden
+                            className={`mt-3.5 h-0.5 min-w-2 flex-1 rounded-full ${sd ? STEP_TONE.in_transit.line : 'bg-white/10'}`}
+                          />
+                          <div className={STEP_W}>
                             <button
                               type="button"
-                              onClick={() => (shown === 'in_transit' ? notify('ok', statusLabel(locale, 'in_transit')) : go('in_transit'))}
-                              aria-current="step"
+                              disabled={cancelled}
+                              onClick={() => leaveStop(st)}
+                              aria-current={sd ? 'step' : undefined}
                               title={statusLabel(locale, 'in_transit')}
-                              className={`flex size-7 shrink-0 items-center justify-center rounded-full ring-2 ring-white/25 ring-offset-2 ring-offset-ink-950 ${STEP_TONE.in_transit.dot}`}
+                              className={`flex size-7 shrink-0 items-center justify-center rounded-full transition-all duration-150 disabled:cursor-default ${
+                                sd ? `${STEP_TONE.in_transit.dot} ${RING}` : `${HOLLOW} hover:scale-110`
+                              }`}
                             >
                               <StepIcon icon={STATUS_ICON.in_transit} />
                             </button>
-                            <span className={`w-full truncate text-center text-2xs font-medium ${STEP_TONE.in_transit.text}`}>
+                            <span
+                              className={`w-full truncate text-center text-2xs font-medium ${sd ? STEP_TONE.in_transit.text : 'text-white/30'}`}
+                            >
                               {statusLabel(locale, 'in_transit')}
                             </span>
                           </div>
@@ -301,31 +362,19 @@ export function StatusPicker({
               {i > 0 && (
                 <span
                   aria-hidden
-                  className={`mt-3.5 h-0.5 min-w-2 flex-1 rounded-full ${
-                    done || isCurrent ? tone.line : 'bg-white/10'
-                  }`}
+                  className={`mt-3.5 h-0.5 min-w-2 flex-1 rounded-full ${done || isCurrent ? tone.line : 'bg-white/10'}`}
                 />
               )}
-              {/* 72px × 5 steps + 4 connectors is 392px of hard minimum — wider than
-                  the ~326px a phone actually leaves inside the panel, so the last step
-                  used to be clipped off the right edge (html has overflow-x:hidden, so
-                  it vanished rather than scrolled). Narrower columns below `sm` fit all
-                  five; the labels were already truncating. */}
-              <div className="flex w-[54px] shrink-0 flex-col items-center gap-1 sm:w-[72px]">
+              <div className={STEP_W}>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (s === 'in_transit' && legDone) return backToFirstLeg()
-                    if (s === shown) return notify('ok', `${t(locale, 'loads.loadHash')}${id}: ${statusLabel(locale, s)}`)
-                    go(s)
-                  }}
+                  disabled={cancelled}
+                  onClick={() => (s === shown ? same(s) : go(s))}
                   aria-current={isCurrent ? 'step' : undefined}
                   title={statusLabel(locale, s)}
                   className={`flex size-7 shrink-0 items-center justify-center rounded-full transition-all duration-150 disabled:cursor-default ${
-                    done || isCurrent ? tone.dot : 'bg-white/[0.07] text-white/40 hover:bg-white/15 hover:text-white/70'
-                  } ${isCurrent ? 'ring-2 ring-white/25 ring-offset-2 ring-offset-ink-950' : ''} ${
-                    !done && !isCurrent ? 'hover:scale-110' : ''
-                  }`}
+                    done || isCurrent ? tone.dot : HOLLOW
+                  } ${isCurrent ? RING : ''} ${!done && !isCurrent ? 'hover:scale-110' : ''}`}
                 >
                   {done ? <Check size={14} strokeWidth={3} /> : <Icon size={13} strokeWidth={2.5} />}
                 </button>
