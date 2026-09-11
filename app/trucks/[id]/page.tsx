@@ -9,7 +9,7 @@ import { PairBar } from '@/components/pair-bar'
 import { DriverLinkButton } from '@/components/driver-link-button'
 import { sql } from '@/lib/db'
 import { getTruck, listDocs, listLoads, rateConByLoad } from '@/lib/loads'
-import { activeLoadsByTruck, currentLoadsByTruck, nextLoadsByTruck, truckLabel } from '@/lib/map'
+import { activeLoadsByTruck, currentLoadsByTruck, nextLoadsByTruck, truckLabel, truckShortLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { fleetStatusByUnit, getTruckMeta, listMaintenance, listTodos, oilStatus } from '@/lib/maintenance'
 import { tripHistory } from '@/lib/eld'
@@ -185,7 +185,7 @@ export default async function Page({
       <BackButton href="/trucks" label={t(locale, 'trucks.detail.backAll')} />
       <PairBar
         current="truck"
-        truck={{ id: truck.id, label: truckLabel(truck, meta?.trailerNumber) }}
+        truck={{ id: truck.id, label: truckLabel(truck, meta?.trailerNumber), short: truckShortLabel(truck) }}
         load={
           activeLoad
             ? {

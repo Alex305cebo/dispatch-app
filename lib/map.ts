@@ -159,6 +159,13 @@ export function truckLabel(t: TruckRecord, trailer?: string | null): string {
   return [shortName(t.driverName), num ? `TRK-${num}` : null, trl ? `TRL-${trl}` : null].filter(Boolean).join(' ')
 }
 
+/** Короткая подпись для тесных мест (плашка на телефоне): «Morgan T. · DEMO-512»,
+ * без TRK-/TRL- и трейлера — они там не читаются, а трак опознаётся по номеру. */
+export function truckShortLabel(t: TruckRecord): string {
+  const num = t.number?.trim() || t.name
+  return [shortName(t.driverName), num].filter(Boolean).join(' · ')
+}
+
 /** ZigZag duty codes → a plain label + a colour bucket. Shared between /tracking
  * and the public /track/[id] link so both read a truck's status the same way.
  *

@@ -17,7 +17,7 @@ export function PairBar({
   locale,
 }: {
   current: 'truck' | 'load'
-  truck: { id: number; label: string } | null
+  truck: { id: number; label: string; short?: string } | null
   load: { id: number; label: string; sub?: string | null } | null
   locale: Locale
 }) {
@@ -36,19 +36,21 @@ export function PairBar({
     current === 'truck' ? t(locale, 'pair.hereTruck') : truck ? t(locale, 'pair.openTruck') : t(locale, 'pair.truck')
   const loadCap =
     current === 'load' ? t(locale, 'pair.hereLoad') : load ? t(locale, 'pair.openLoad') : t(locale, 'pair.load')
-  const here = t(locale, 'pair.here')
-  const truckShort = current === 'truck' ? `${t(locale, 'pair.truck')} · ${here}` : `${t(locale, 'pair.truck')} →`
-  const loadShort = current === 'load' ? `${t(locale, 'pair.load')} · ${here}` : `${t(locale, 'pair.load')} →`
-  // На телефоне подписи переносятся целиком: «Sam R. TRK-DEM…» в обрезанном виде не
-  // говорил ни водителя, ни трака. Полоса от этого выше — это дешевле, чем догадки.
-  const cap = 'block text-[10px] font-medium uppercase tracking-wider text-white/60 sm:truncate sm:text-[11px]'
+  // Телефон: без заголовка-капса и без «TRK-/TRL-» — иконка говорит, что это, подсветка
+  // говорит, где ты; остаётся одна строка «Morgan T. · DEMO-512», маршрут — до двух.
+  const cap = 'hidden truncate text-[11px] font-medium uppercase tracking-wider text-white/60 sm:block'
+  // Без «block» в общем классе: он перебивал «hidden», и на телефоне показывались
+  // обе подписи разом. Видимость — только через варианты sm:/max-sm:.
+  const label = 'font-semibold max-sm:line-clamp-2 max-sm:text-[12px] max-sm:leading-[1.2] sm:block sm:truncate'
   const truckInner = (
     <>
       <Truck strokeWidth={2.2} className="size-4 shrink-0 text-haul-400 sm:size-[18px]" />
       <span className="min-w-0">
-        <span className={`${cap} sm:hidden`}>{truckShort}</span>
-        <span className={`${cap} hidden sm:block`}>{truckCap}</span>
-        <span className="block font-semibold max-sm:text-[12px] max-sm:leading-tight max-sm:[overflow-wrap:anywhere] sm:truncate">{truck?.label ?? t(locale, 'pair.noTruck')}</span>
+        <span className={cap}>{truckCap}</span>
+        <span className="line-clamp-2 text-[12px] font-semibold leading-[1.2] sm:hidden">
+          {truck?.short ?? truck?.label ?? t(locale, 'pair.noTruck')}
+        </span>
+        <span className="hidden truncate font-semibold sm:block">{truck?.label ?? t(locale, 'pair.noTruck')}</span>
       </span>
     </>
   )
@@ -56,12 +58,11 @@ export function PairBar({
     <>
       <Package strokeWidth={2.2} className="size-4 shrink-0 text-good-400 sm:size-[18px]" />
       <span className="min-w-0">
-        <span className={`${cap} sm:hidden`}>{loadShort}</span>
-        <span className={`${cap} hidden sm:block`}>
+        <span className={cap}>
           {loadCap}
           {load?.sub ? ` · ${load.sub}` : ''}
         </span>
-        <span className="block font-semibold max-sm:text-[12px] max-sm:leading-tight max-sm:[overflow-wrap:anywhere] sm:truncate">{load?.label ?? t(locale, 'pair.noLoad')}</span>
+        <span className={label}>{load?.label ?? t(locale, 'pair.noLoad')}</span>
       </span>
     </>
   )

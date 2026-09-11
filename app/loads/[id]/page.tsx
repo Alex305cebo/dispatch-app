@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { currentLoadForTruck, getLoad, laneAvgRpmFor, listDocs, truckForLoad } from '@/lib/loads'
 import { QueuedLoadHint } from '@/components/queued-load-hint'
-import { truckLabel } from '@/lib/map'
+import { truckLabel, truckShortLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { getCompany } from '@/lib/invoice'
 import { fleetStatusByUnit, getTruckMeta } from '@/lib/maintenance'
@@ -106,6 +106,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         truck={{
           id: truck.id,
           label: truckLabel(truck, truckMeta?.trailerNumber),
+          short: truckShortLabel(truck),
         }}
         load={{
           id: load.id,
