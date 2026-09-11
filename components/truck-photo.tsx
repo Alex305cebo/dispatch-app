@@ -19,9 +19,12 @@ export function TruckPhoto({
   alt,
   className = '',
   fill = false,
+  demo = false,
 }: {
   truckId: number
   hasPhoto: boolean
+  /** Демо только для просмотра: выбор показывается сразу, но в базу не пишется. */
+  demo?: boolean
   /** Ключ готовой картинки (lib/truck-models.ts), если выбрана. */
   model?: string | null
   alt: string
@@ -70,6 +73,15 @@ export function TruckPhoto({
   }
 
   function choose(key: string | null) {
+    // Демо: сохранять нельзя, но выбор видно сразу — иначе нажатие выглядело как
+    // «ничего не происходит».
+    if (demo) {
+      setPicked(key)
+      setCustom(false)
+      setOpen(false)
+      notify('ok', t(locale, 'trucks.photo.demoNote'))
+      return
+    }
     start(async () => {
       const res = await saveTruckModel(truckId, key)
       if (res?.error) notify('error', res.error)

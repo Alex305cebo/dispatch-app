@@ -446,6 +446,7 @@ export default async function Page({
               truckId={truck.id}
               hasPhoto={meta?.hasTruckPhoto ?? false}
               model={meta?.truckModel ?? null}
+              demo={companyId === 'demo'}
               alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
             />
           </div>

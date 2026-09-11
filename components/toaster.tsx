@@ -51,7 +51,7 @@ export function Toaster() {
     // bottom-24 on phones clears the floating tab bar; bottom-6 once the nav is a
     // desktop sidebar. pointer-events-none on the stack so a toast never blocks a
     // click on whatever is underneath — only the toast itself takes the pointer.
-    <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex flex-col items-center gap-2 px-4 md:bottom-6 md:left-auto md:right-6 md:items-end md:px-0">
+    <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[120] flex flex-col items-center gap-2 px-4 md:bottom-6 md:left-auto md:right-6 md:items-end md:px-0">
       <AnimatePresence initial={false}>
         {live.map((n) => {
           const tone = TONE[n.kind]
