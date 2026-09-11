@@ -119,7 +119,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <div
             className={`pb-24 md:pb-0 md:pl-[var(--sidebar-w)] md:transition-[padding] md:duration-200 md:ease-out ${
               // Телефон: место под верхнюю панель (3rem), при демо — ещё и под баннер.
-              user?.isDemo ? 'pt-[5.25rem] md:pt-9' : 'pt-12 md:pt-0'
+              // --sticky-top — где липким полосам (PairBar) прижиматься: под панелью,
+              // а в демо ещё и под баннером, иначе баннер их накрывает.
+              user?.isDemo
+                ? 'pt-[5.25rem] md:pt-9 [--sticky-top:5.5rem] md:[--sticky-top:2.75rem]'
+                : 'pt-12 md:pt-0 [--sticky-top:3.25rem] md:[--sticky-top:0.5rem]'
             }`}
           >
             <RevealGuard />
