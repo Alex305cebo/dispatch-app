@@ -170,6 +170,17 @@ export function StatusPicker({
     const wasDone = stopDone(st)
     start(async () => {
       setOverride((prev) => new Map(prev).set(st.key, !wasDone))
+      // Точка живёт внутри «В пути»: отметка из «Загрузки» переводит груз в путь,
+      // снятие отметки у доставленного возвращает его в путь.
+      if (currentIdx !== PIPELINE.indexOf('in_transit')) {
+        setShown('in_transit')
+        const r0 = await setStatus(id, 'in_transit')
+        if (r0?.error) {
+          setOverride((prev) => new Map(prev).set(st.key, wasDone))
+          notify('error', r0.error)
+          return
+        }
+      }
       const res = wasDone
         ? await unmarkStop(id, st.seq, st.role)
         : await addLoadEventManual(id, st.role === 'pickup' ? 'loaded' : 'delivered', new Date().toISOString(), undefined, st.seq)
@@ -179,6 +190,23 @@ export function StatusPicker({
       } else notify('ok', `${st.label}${st.sub ? ` · ${st.sub}` : ''}: ${wasDone ? '↩' : '✓'}`)
     })
   }
+  // Клик по первому «В пути», когда точки уже отмечены, — назад к первому плечу:
+  // снимаем отметки со всех точек.
+  const backToFirstLeg = () =>
+    start(async () => {
+      const done = stops.filter(stopDone)
+      setOverride((prev) => {
+        const n = new Map(prev)
+        for (const st of done) n.set(st.key, false)
+        return n
+      })
+      if (shown !== 'in_transit') {
+        setShown('in_transit')
+        await setStatus(id, 'in_transit')
+      }
+      for (const st of done) await unmarkStop(id, st.seq, st.role)
+      notify('ok', statusLabel(locale, 'in_transit'))
+    })
 
   const go = (s: LoadStatus) =>
     start(async () => {
@@ -210,7 +238,7 @@ export function StatusPicker({
                   // читалась как «трак уже там», а он ещё в пути. Светится только «В пути».
                   const cur = false
                   const tone = STEP_TONE[st.role === 'pickup' ? 'booked' : 'delivered']
-                  const clickable = shown === 'in_transit'
+                  const clickable = !cancelled
                   // После последней пройденной точки — «В пути» к следующей.
                   const transitAfter = shown === 'in_transit' && sd && !(stops[k + 1] && stopDone(stops[k + 1]!))
                   return (
@@ -252,11 +280,15 @@ export function StatusPicker({
                         <>
                           <span aria-hidden className={`mt-3.5 h-0.5 min-w-2 flex-1 rounded-full ${STEP_TONE.in_transit.line}`} />
                           <div className="flex w-[54px] shrink-0 flex-col items-center gap-1 sm:w-[72px]">
-                            <span
+                            <button
+                              type="button"
+                              onClick={() => (shown === 'in_transit' ? notify('ok', statusLabel(locale, 'in_transit')) : go('in_transit'))}
+                              aria-current="step"
+                              title={statusLabel(locale, 'in_transit')}
                               className={`flex size-7 shrink-0 items-center justify-center rounded-full ring-2 ring-white/25 ring-offset-2 ring-offset-ink-950 ${STEP_TONE.in_transit.dot}`}
                             >
                               <StepIcon icon={STATUS_ICON.in_transit} />
-                            </span>
+                            </button>
                             <span className={`w-full truncate text-center text-2xs font-medium ${STEP_TONE.in_transit.text}`}>
                               {statusLabel(locale, 'in_transit')}
                             </span>
@@ -282,8 +314,11 @@ export function StatusPicker({
               <div className="flex w-[54px] shrink-0 flex-col items-center gap-1 sm:w-[72px]">
                 <button
                   type="button"
-                  disabled={s === shown}
-                  onClick={() => go(s)}
+                  onClick={() => {
+                    if (s === 'in_transit' && legDone) return backToFirstLeg()
+                    if (s === shown) return notify('ok', `${t(locale, 'loads.loadHash')}${id}: ${statusLabel(locale, s)}`)
+                    go(s)
+                  }}
                   aria-current={isCurrent ? 'step' : undefined}
                   title={statusLabel(locale, s)}
                   className={`flex size-7 shrink-0 items-center justify-center rounded-full transition-all duration-150 disabled:cursor-default ${
