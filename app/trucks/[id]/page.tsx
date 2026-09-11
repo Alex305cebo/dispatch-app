@@ -740,14 +740,42 @@ export default async function Page({
         />
       </div>
 
-      {/* ===== Economics — collapsed by default (rarely changed) ===== */}
+      {/* ===== Экономика — свёрнута, но в заголовке видны все её цифры одной строкой:
+           расход, дизель, оплата водителя, фиксированные в день, обслуживание,
+           факторинг, диспетч. Раскрытая — форма, где всё это правится. ===== */}
       <details className="group panel mt-4 p-4">
-        <summary className="-m-1 flex cursor-pointer list-none items-center gap-1.5 rounded-lg p-1 text-base leading-6 font-semibold text-white/90 transition-colors hover:bg-white/[0.03] hover:text-white/90">
+        <summary className="-m-1 flex cursor-pointer list-none flex-wrap items-center gap-1.5 rounded-lg p-1 text-base leading-6 font-semibold text-white/90 transition-colors hover:bg-white/[0.03] hover:text-white/90">
           <span className="text-[13px] leading-none text-white/40 transition-transform duration-200 group-open:rotate-90">
             ▸
           </span>
           {t(locale, 'trucks.detail.economics')}
           <Info text={t(locale, 'trucks.detail.economicsInfo')} />
+          <span className="nums flex min-w-0 basis-full flex-wrap items-center gap-x-2 gap-y-0.5 text-[12.5px] font-normal text-white/60 group-open:hidden sm:ml-2 sm:basis-auto">
+            <span>{truck.mpg} mpg</span>
+            <span aria-hidden>·</span>
+            <span>{usd2.format(truck.fuelPricePerGallon)}/gal</span>
+            <span aria-hidden>·</span>
+            <span>
+              {t(locale, 'trucks.econ.driver')}{' '}
+              {truck.driverPay.mode === 'cpm' ? `${truck.driverPay.centsPerMile}¢/mi` : `${truck.driverPay.percentOfGross}%`}
+            </span>
+            <span aria-hidden>·</span>
+            <span>
+              {usd.format(truck.truckPaymentPerDay + truck.insurancePerDay + truck.eldPermitsPerDay)}/{t(locale, 'trucks.econ.day')}
+            </span>
+            <span aria-hidden>·</span>
+            <span>
+              {t(locale, 'trucks.econ.maint')} {usd2.format(truck.maintenanceCostPerMile)}/mi
+            </span>
+            <span aria-hidden>·</span>
+            <span>
+              {t(locale, 'trucks.econ.factoring')} {truck.factoringPercent}%
+            </span>
+            <span aria-hidden>·</span>
+            <span>
+              {t(locale, 'trucks.econ.dispatch')} {truck.dispatchPercent}%
+            </span>
+          </span>
         </summary>
         <div className="mt-4">
           <TruckForm

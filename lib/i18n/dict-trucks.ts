@@ -765,6 +765,12 @@ export const trucksDict = {
     ro: 'Economie',
     kk: 'Экономика',
   },
+  // Сводка экономики в свёрнутом заголовке карточки трака
+  'trucks.econ.driver': { ru: 'водитель', en: 'driver', es: 'conductor', uk: 'водій', ro: 'șofer', kk: 'жүргізуші' },
+  'trucks.econ.day': { ru: 'день', en: 'day', es: 'día', uk: 'день', ro: 'zi', kk: 'күн' },
+  'trucks.econ.maint': { ru: 'обслуж.', en: 'maint.', es: 'mant.', uk: 'обслуг.', ro: 'întreț.', kk: 'қызмет' },
+  'trucks.econ.factoring': { ru: 'факторинг', en: 'factoring', es: 'factoring', uk: 'факторинг', ro: 'factoring', kk: 'факторинг' },
+  'trucks.econ.dispatch': { ru: 'диспетч', en: 'dispatch', es: 'despacho', uk: 'диспетч', ro: 'dispecerat', kk: 'диспетч' },
   'trucks.form.mpgLabel': {
     ru: 'MPG · миль на галлон',
     en: 'MPG · miles per gallon',
