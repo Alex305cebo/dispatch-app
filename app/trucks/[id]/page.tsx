@@ -29,11 +29,12 @@ import { RefreshFleetButton } from '@/components/refresh-fleet-button'
 import { TruckAvailability } from '@/components/truck-availability'
 import { TruckDispatcher } from '@/components/truck-dispatcher'
 import { Info } from '@/components/info'
+import { TaskStops } from '@/components/task-stops'
 import { companyScope, getCurrentUser } from '@/lib/session'
 import { getCompany } from '@/lib/invoice'
 import { dispatcherPhoneKey, getSetting, detentionTerms } from '@/lib/settings'
 import { stopWindows } from '@/lib/detention'
-import { stopsFrom, viaLabel } from '@/lib/stops'
+import { stopsFrom, viaLabel, type StopEv } from '@/lib/stops'
 import { listLoadEvents } from '@/lib/load-events'
 import { DriverTimeline } from '@/components/driver-timeline'
 import { QueuedLoadHint } from '@/components/queued-load-hint'
@@ -165,6 +166,11 @@ export default async function Page({
   // Отметки водителя — и для стоянки у склада, и чтобы карта знала, какая
   // остановка следующая.
   const driverEvents = activeLoad ? await listLoadEvents(companyId, activeLoad.id) : []
+  // Задание водителя — по всем грузам в трейлере сразу: текущий плюс партиалы.
+  // У партиала свои отметки, поэтому события тянутся по каждому грузу отдельно.
+  const taskLoads = activeLoad ? [activeLoad, ...partials] : partials
+  const taskEvents: Record<number, StopEv[]> = activeLoad ? { [activeLoad.id]: driverEvents } : {}
+  for (const p of partials) taskEvents[p.id] = await listLoadEvents(companyId, p.id)
   const mapData = await loadMapData(activeLoad, truck, fs, locale, driverEvents)
   // Партиалы — теми же пинами и линиями, без второго трака (fs не передаём).
   for (const p of partials) {
@@ -363,6 +369,11 @@ export default async function Page({
                   <span className="nums ml-auto font-medium text-white/70">{usd.format(p.rate)}</span>
                 </Link>
               ))}
+              {/* Порядок точек нужен, только когда их больше двух: у обычного рейса
+                  «откуда → куда» в строке выше и есть всё задание. */}
+              {(taskLoads.length > 1 || activeStops.length > 2) && (
+                <TaskStops loads={taskLoads} events={taskEvents} locale={locale} className="mt-3" />
+              )}
               {nextLoad && (
                 <Link
                   href={`/loads/${nextLoad.id}`}

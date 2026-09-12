@@ -121,3 +121,37 @@ test('партиалы: одна лента по дате и времени ок
   )
   assert.equal(m[0]!.broker, 'Echo')
 })
+
+test('партиал разных брокеров: точки обоих грузов идут одной лентой по датам и окнам', () => {
+  // Реальный случай: Tallgrass 620042 (три точки) и партиал Trinity 9843282 (две),
+  // оба в одном трейлере. Порядок — по дате, внутри дня по окну приёмки, но в одном
+  // городе выгрузка всегда идёт перед погрузкой: партиал грузят в освободившееся место.
+  const tallgrass = {
+    id: 1779, referenceId: '620042', brokerName: 'Tallgrass', origin: 'Olathe, KS', destination: 'Caldwell, ID',
+    pickupAddress: null, deliveryAddress: null, pickupDate: null, deliveryDate: null, pickupTime: null, deliveryTime: null,
+    stops: [
+      { seq: 1, role: 'pickup' as const, name: null, address: null, city: 'Olathe, KS', date: '2026-09-10', time: '8am-3pm', refs: [] },
+      { seq: 2, role: 'delivery' as const, name: null, address: null, city: 'Omaha, NE', date: '2026-09-11', time: null, refs: [] },
+      { seq: 3, role: 'delivery' as const, name: null, address: null, city: 'Caldwell, ID', date: '2026-09-14', time: '8-9am', refs: [] },
+    ],
+  }
+  const trinity = {
+    id: 1869, referenceId: '9843282', brokerName: 'Trinity', origin: 'Omaha, NE', destination: 'Ketchum, ID',
+    pickupAddress: null, deliveryAddress: null, pickupDate: '2026-09-11', deliveryDate: '2026-09-14',
+    pickupTime: '07:00 - 15:30', deliveryTime: '07:00 - 15:30', stops: null,
+  }
+  const merged = mergeStops([tallgrass, trinity])
+  assert.deepEqual(merged.map((s) => [s.loadId, s.city]), [
+    [1779, 'Olathe, KS'],
+    // Омаха 11.09: сначала выгрузка Tallgrass, потом погрузка партиала в
+    // освободившееся место — хотя окно погрузки в бумагах начинается раньше.
+    [1779, 'Omaha, NE'],
+    [1869, 'Omaha, NE'],
+    [1869, 'Ketchum, ID'],
+    [1779, 'Caldwell, ID'],
+  ])
+  // Пройденность считается по отметкам СВОЕГО груза: выгрузка Омахи отмечена
+  // у Tallgrass и не делает пройденной погрузку партиала в том же городе.
+  const done = merged.filter((s) => isDone(s, s.loadId === 1779 ? [{ kind: 'delivered', at: '2026-09-11', stopSeq: 2 }] : [], stopsFrom(s.loadId === 1779 ? tallgrass : trinity)))
+  assert.deepEqual(done.map((s) => [s.loadId, s.city]), [[1779, 'Omaha, NE']])
+})

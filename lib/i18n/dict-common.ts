@@ -773,4 +773,28 @@ export const commonDict = {
     ro: 'O iei sau nu: ce lasă cu adevărat cursa în camion.',
     kk: 'Алу керек пе, жоқ па: жүк тракқа шын мәнінде не қалдырады.',
   },
+  'task.title': {
+    ru: 'Задание по порядку',
+    en: 'Assignment in order',
+    es: 'Tarea en orden',
+    uk: 'Завдання по порядку',
+    ro: 'Sarcina în ordine',
+    kk: 'Тапсырма реті',
+  },
+  'task.info': {
+    ru: 'Все точки грузов, которые едут в одном трейлере, в том порядке, как их проедет водитель: по дате, затем по окну приёмки. В одном городе сначала выгрузка, потом погрузка — партиал грузят в освободившееся место. Пройденные отмечены галочкой, ближайшая выделена. Точка справа показывает, какому грузу и брокеру принадлежит остановка.',
+    en: 'Every stop of the loads riding in one trailer, in the order the driver will run them: by date, then by appointment window. In the same city a delivery comes before a pickup — a partial is loaded into the space that just freed up. Completed stops are ticked, the next one is highlighted. The dot on the right shows which load and broker the stop belongs to.',
+    es: 'Todas las paradas de las cargas que van en el mismo remolque, en el orden en que las hará el conductor: por fecha y luego por ventana de cita. En la misma ciudad la entrega va antes de la recogida: la carga parcial ocupa el espacio recién liberado. Las paradas hechas llevan una marca y la siguiente está resaltada. El punto de la derecha indica a qué carga y corredor pertenece.',
+    uk: 'Усі точки вантажів, що їдуть в одному трейлері, у порядку, в якому їх проїде водій: за датою, далі за вікном приймання. В одному місті спершу вивантаження, потім завантаження — партіал вантажать у місце, що звільнилося. Пройдені позначені галочкою, найближча виділена. Крапка праворуч показує, якому вантажу й брокеру належить зупинка.',
+    ro: 'Toate opririle curselor care merg în aceeași remorcă, în ordinea în care le va face șoferul: după dată, apoi după fereastra de programare. În același oraș descărcarea vine înaintea încărcării — partialul intră în locul tocmai eliberat. Opririle făcute sunt bifate, următoarea este evidențiată. Punctul din dreapta arată cărei curse și cărui broker îi aparține oprirea.',
+    kk: 'Бір тіркемеде кететін жүктердің барлық аялдамалары жүргізуші жүретін ретпен: күні бойынша, содан кейін қабылдау терезесі бойынша. Бір қалада алдымен түсіру, сосын тиеу — партиал босаған орынға тиеледі. Өткендері белгіленген, ең жақыны ерекшеленген. Оң жақтағы нүкте аялдама қай жүкке және брокерге тиесілі екенін көрсетеді.',
+  },
+  'task.left': {
+    ru: 'осталось {n}',
+    en: '{n} left',
+    es: 'quedan {n}',
+    uk: 'залишилось {n}',
+    ro: 'au rămas {n}',
+    kk: '{n} қалды',
+  },
 } as const

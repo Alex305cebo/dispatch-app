@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
-import { currentLoadForTruck, getLoad, laneAvgRpmFor, listDocs, truckForLoad } from '@/lib/loads'
+import { currentLoadForTruck, getLoad, laneAvgRpmFor, listDocs, listLoads, truckForLoad } from '@/lib/loads'
 import { QueuedLoadHint } from '@/components/queued-load-hint'
-import { truckLabel, truckShortLabel } from '@/lib/map'
+import { activeLoadsByTruck, truckLabel, truckShortLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { getCompany } from '@/lib/invoice'
 import { fleetStatusByUnit, getTruckMeta } from '@/lib/maintenance'
@@ -39,7 +39,8 @@ import { listLoadEvents } from '@/lib/load-events'
 import { DriverTimeline } from '@/components/driver-timeline'
 import { DriverInfoCard } from '@/components/driver-info-card'
 import { withAddresses, stopNames } from '@/lib/driver-info-zip'
-import { arrivedAt, isDone, stopsFrom, viaLabel } from '@/lib/stops'
+import { arrivedAt, isDone, stopsFrom, viaLabel, type StopEv } from '@/lib/stops'
+import { TaskStops } from '@/components/task-stops'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
 import { CopyPlace } from '@/components/copy-place'
@@ -82,7 +83,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           const proto = h.get('x-forwarded-proto') ?? 'https'
           return host ? `${proto}://${host}/d/${await driverTokenFor(truck.id)}` : null
         })()
-  const [truckMeta, laneAvgRpm, backhaul, brokerGrade, driverEvents, truckCurrent] = await Promise.all([
+  const [truckMeta, laneAvgRpm, backhaul, brokerGrade, driverEvents, truckCurrent, truckLoads] = await Promise.all([
     getTruckMeta(truck.id),
     laneAvgRpmFor(companyId, load.origin, load.destination, load.id),
     wantBackhaul ? backhaulBrokers(companyId, load.destination) : Promise.resolve(null),
@@ -90,7 +91,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     listLoadEvents(companyId, load.id),
     // Этот груз забукирован, а трак ещё везёт другой — подсказка, что делать.
     load.status === 'booked' ? currentLoadForTruck(companyId, truck.id) : Promise.resolve(null),
+    // Что ещё едет в этом же трейлере — чтобы показать одно задание на все грузы.
+    listLoads(companyId, { truckId: truck.id }),
   ])
+  const mates = (activeLoadsByTruck(truckLoads).get(truck.id) ?? []).filter((l) => l.id !== load.id)
+  const taskLoads = mates.length ? [load, ...mates] : []
+  const taskEvents: Record<number, StopEv[]> = { [load.id]: driverEvents }
+  for (const m of mates) taskEvents[m.id] = await listLoadEvents(companyId, m.id)
   const queuedBehind = truckCurrent && truckCurrent.id !== load.id && !load.partial ? truckCurrent : null
 
   // Never throws: the DB CHECKs mirror calcLoad's throw conditions, so every stored
@@ -178,6 +185,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             }))}
           />
         </div>
+        {/* Груз едет не один: задание водителя — точки обоих грузов подряд. */}
+        {taskLoads.length > 1 && <TaskStops loads={taskLoads} events={taskEvents} locale={locale} className="mt-4" />}
         {/* Бумаги груза одной сеткой: rate con, BOL, POD — три кнопки одного размера,
             на телефоне 2×2 (четвёртая клетка — «Повторить груз»), на широком экране
             в один ряд. Раньше rate con и «Повторить» стояли своим рядом с разными

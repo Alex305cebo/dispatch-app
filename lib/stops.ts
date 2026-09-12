@@ -170,6 +170,12 @@ export function mergeStops(
     const da = a.date ?? '9999',
       db = b.date ?? '9999'
     if (da !== db) return da < db ? -1 : 1
+    // Один город в один день: сначала ВЫГРУЗКА, потом погрузка — партиал грузят в
+    // место, которое освободилось после разгрузки, и наоборот не бывает. Окна брокеров
+    // этот порядок не выражают: у промежуточной выгрузки окна может не быть вовсе, и
+    // она уезжала в конец дня — за погрузку партиала, которой на деле была раньше.
+    const city = (c: string | null) => (c ?? '').toLowerCase().trim()
+    if (city(a.city) && city(a.city) === city(b.city) && a.role !== b.role) return a.role === 'delivery' ? -1 : 1
     const ta = firstMinutes(a.time),
       tb = firstMinutes(b.time)
     if (ta !== tb) return ta - tb
