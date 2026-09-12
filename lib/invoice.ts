@@ -8,6 +8,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { sql } from './db.ts'
 import { getSettings } from './settings.ts'
 import { getLoad } from './loads.ts'
+import { isDone, stopsFrom, type StopEv } from './stops.ts'
 import type { LoadRecord } from './map.ts'
 import { t, type Locale } from './i18n.ts'
 
@@ -194,6 +195,26 @@ export async function buildInvoicePacket(
 export async function autoInvoiceIfReady(companyId: 'default' | 'demo', loadId: number): Promise<void> {
   const load = await getLoad(companyId, loadId)
   if (!load || load.invoicedAt) return
+  // Мультистоп: POD промежуточной выгрузки — не конец рейса. Пока не закрыта КАЖДАЯ
+  // выгрузка (POD на её номер или отметка водителя), счёт не выписываем. POD без
+  // номера остановки засчитывается только последней точке — именно он и есть
+  // «рейс сдан». Без этого 11.09.2026 груз 620042 закрылся счётом на второй день
+  // из трёх, пока вторая половина ехала в Айдахо.
+  const stops = stopsFrom(load)
+  const deliveries = stops.filter((s) => s.role === 'delivery')
+  if (deliveries.length > 1) {
+    const [events, pods] = (await Promise.all([
+      sql`SELECT kind, at, stop_seq FROM load_events WHERE company_id = ${companyId} AND load_id = ${loadId}`,
+      sql`SELECT stop_seq FROM documents
+          WHERE company_id = ${companyId} AND load_id = ${loadId} AND kind = 'pod' AND deleted_at IS NULL`,
+    ])) as [{ kind: string; at: string; stop_seq: number | null }[], { stop_seq: number | null }[]]
+    const marks: StopEv[] = events.map((e) => ({ kind: e.kind, at: String(e.at), stopSeq: e.stop_seq }))
+    const last = deliveries[deliveries.length - 1]!
+    const finalPod = pods.some((p) => p.stop_seq == null)
+    const closed = (s: (typeof deliveries)[number]) =>
+      pods.some((p) => p.stop_seq === s.seq) || isDone(s, marks, stops) || (finalPod && s.seq === last.seq)
+    if (!deliveries.every(closed)) return
+  }
   try {
     await buildInvoicePacket(load)
   } catch {

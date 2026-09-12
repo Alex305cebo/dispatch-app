@@ -577,6 +577,35 @@ export async function markPaid(loadId: number, paid: boolean): Promise<{ error: 
   revalidatePath('/')
 }
 
+/** Убрать счёт, выставленный раньше времени.
+ *
+ * Случай 11.09.2026: у груза с тремя точками POD промежуточной выгрузки загрузили
+ * без номера остановки, приложение приняло его за конечный и выписало счёт, пока
+ * половина груза ещё ехала в трейлере. Кнопки «отменить» не было вовсе — снять
+ * счёт можно было только руками в базе.
+ *
+ * Номер и дата снимаются, PDF уходит в корзину (не удаляется): после последней
+ * выгрузки счёт соберётся заново, с верной датой. Оплаченный счёт не трогаем —
+ * деньги уже пришли, и отменять тут нечего. */
+export async function removeInvoice(loadId: number): Promise<{ error: string } | void> {
+  const denied = await assertCan('finances')
+  if (denied) return denied
+  const locale = await getLocale()
+  const companyId = await companyScope()
+  const rows = (await sql`
+    SELECT paid_at FROM loads WHERE id = ${loadId} AND company_id = ${companyId}`) as { paid_at: string | null }[]
+  const load = rows[0]
+  if (!load) return { error: t(locale, 'actions.loadNotFound') }
+  if (load.paid_at) return { error: t(locale, 'actions.invoicePaid') }
+  await sql`UPDATE documents SET deleted_at = now()
+            WHERE load_id = ${loadId} AND company_id = ${companyId} AND kind = 'invoice' AND deleted_at IS NULL`
+  await sql`UPDATE loads SET invoice_number = NULL, invoiced_at = NULL
+            WHERE id = ${loadId} AND company_id = ${companyId}`
+  revalidatePath(`/loads/${loadId}`)
+  revalidatePath('/invoices')
+  revalidatePath('/')
+}
+
 /** The company profile is one global record, not per-tenant (it's printed on every
  * real invoice) — so unlike everything else in this file, capability alone isn't
  * enough here: the demo account is blocked outright, whatever its capabilities say,

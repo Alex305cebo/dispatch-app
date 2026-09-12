@@ -446,6 +446,30 @@ export const financesDict = {
     ro: 'reconstruiește',
     kk: 'қайта жинау',
   },
+  'finances.invoiceBox.remove': {
+    ru: 'убрать счёт',
+    en: 'remove invoice',
+    es: 'quitar factura',
+    uk: 'прибрати рахунок',
+    ro: 'anulează factura',
+    kk: 'шотты алып тастау',
+  },
+  'finances.invoiceBox.removeConfirm': {
+    ru: 'Убрать счёт? Номер и дата снимутся, PDF уйдёт в корзину. После последней выгрузки счёт соберётся заново.',
+    en: 'Remove the invoice? Its number and date are cleared and the PDF goes to the trash. It will be built again after the final delivery.',
+    es: '¿Quitar la factura? Se borran su número y fecha y el PDF va a la papelera. Se generará de nuevo tras la última entrega.',
+    uk: 'Прибрати рахунок? Номер і дата знімуться, PDF піде в кошик. Після останнього вивантаження рахунок збереться заново.',
+    ro: 'Anulezi factura? Numărul și data se șterg, iar PDF-ul merge în coș. Se va reface după ultima descărcare.',
+    kk: 'Шотты алып тастау керек пе? Нөмірі мен күні алынады, PDF себетке кетеді. Соңғы түсіруден кейін шот қайта жиналады.',
+  },
+  'finances.invoiceBox.removed': {
+    ru: 'Счёт убран',
+    en: 'Invoice removed',
+    es: 'Factura quitada',
+    uk: 'Рахунок прибрано',
+    ro: 'Factura a fost anulată',
+    kk: 'Шот алынды',
+  },
 
   'finances.card.buildInvoice': {
     ru: 'Собрать инвойс',

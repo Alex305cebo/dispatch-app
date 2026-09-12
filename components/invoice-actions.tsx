@@ -6,7 +6,7 @@ import { Button } from '@/components/button'
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { generateInvoice, markPaid, saveCompany } from '@/app/actions'
+import { generateInvoice, markPaid, removeInvoice, saveCompany } from '@/app/actions'
 import type { Company } from '@/lib/invoice'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
@@ -102,6 +102,24 @@ export function InvoiceBox({
       <button onClick={gen} disabled={pending} className="text-[12px] text-white/45 hover:text-white/75">
         {t(locale, 'finances.invoiceBox.rebuild')}
       </button>
+      {/* Счёт выписался раньше времени (промежуточный POD приняли за конечный) —
+          снять его можно здесь, а не руками в базе. У оплаченного счёта кнопки нет. */}
+      {!paid && (
+        <button
+          disabled={pending}
+          onClick={() => {
+            if (!confirm(t(locale, 'finances.invoiceBox.removeConfirm'))) return
+            start(async () => {
+              const res = await removeInvoice(loadId)
+              if (res && 'error' in res) notify('error', res.error)
+              else notify('ok', t(locale, 'finances.invoiceBox.removed'))
+            })
+          }}
+          className="text-[12px] text-white/45 transition-colors hover:text-bad-400"
+        >
+          {t(locale, 'finances.invoiceBox.remove')}
+        </button>
+      )}
     </div>
   )
 }
