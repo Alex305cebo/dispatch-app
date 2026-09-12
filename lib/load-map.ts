@@ -74,7 +74,7 @@ export type LoadMapData = {
  * fleet_status.updated_at is when WE polled — eld_seen is when the DEVICE last reported,
  * and only the latter says anything about the position's real age (measured: a unit whose
  * device had been silent two days still showed updated_at "16 min ago"). */
-const STALE_GPS_MS = 30 * 60 * 1000
+export const STALE_GPS_MS = 30 * 60 * 1000
 
 function ageText(ms: number, locale: Locale): string {
   const min = Math.max(0, Math.round(ms / 60000))

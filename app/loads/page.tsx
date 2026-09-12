@@ -1,174 +1,108 @@
 import { Suspense } from 'react'
-import { AlertTriangle, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/button'
-import { listLoads, listTrucks, podLoadIds, rateConByLoad } from '@/lib/loads'
-import { type TruckRecord, type LoadRecord } from '@/lib/map'
+import { Info } from '@/components/info'
+import { LaneStats } from '@/components/lane-stats'
+import { sql } from '@/lib/db'
+import { listLoads, listTrucks } from '@/lib/loads'
 import { calcLoad } from '@/lib/profit'
 import { truckPhotoFlags } from '@/lib/maintenance'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
-import { t, type Locale, type MsgKey } from '@/lib/i18n'
-import { usd, usd2, weekAnchorOf, weekStart, loadWeekAnchorMs } from '@/lib/fmt'
-import { Info } from '@/components/info'
-import { AttentionList } from '@/components/attention-list'
-import { LaneStats } from '@/components/lane-stats'
+import { t } from '@/lib/i18n'
+import { usd, weekAnchorOf, weekStart } from '@/lib/fmt'
+import { isoDay, upcomingStop } from '@/lib/loads-dashboard'
+import type { StopEv } from '@/lib/stops'
+import type { LoadMetrics } from '@/components/loads-toolbar'
+import type { AttentionEntry } from './loads-insights'
+import { LoadsMapServer } from './loads-map-server'
 import { LoadsViews } from './loads-views'
 
 export const dynamic = 'force-dynamic'
 
+type Params = Promise<{ view?: string; week?: string; day?: string; q?: string }>
 
-// The page shell renders instantly; everything that needs the database lives in
-// <LoadsBoard> behind a Suspense boundary. That split is what keeps switching tabs or
-// paging the calendar from throwing the WHOLE page away: without it, the route-level
-// app/loading.tsx fires and a dispatcher watches the header, the week summary and the
-// attention list disappear and come back to see a different tab of the same data.
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: Promise<{ view?: string; week?: string; day?: string; q?: string }>
-}) {
+// Каркас рисуется сразу; всё, что ходит в базу, — в <LoadsBoard> за Suspense, чтобы
+// смена вкладки или недели не выбрасывала страницу целиком в app/loading.tsx.
+export default function Page({ searchParams }: { searchParams: Params }) {
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <Suspense fallback={<LoadsSkeleton />}>
+      <Suspense fallback={<div className="panel h-40 animate-pulse" />}>
         <LoadsBoard searchParams={searchParams} />
       </Suspense>
     </main>
   )
 }
 
-/** Placeholder while LoadsBoard resolves. Mirrors the real shape — heading, week
- * summary, tab bar, cards — so nothing jumps when the data lands. */
-function LoadsSkeleton() {
-  return (
-    <div className="animate-pulse">
-      <div className="h-7 w-40 rounded-lg bg-white/8" />
-      <div className="panel mt-4 h-[86px]" />
-      <div className="panel mt-3 h-9" />
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="panel h-24" />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-async function LoadsBoard({
-  searchParams,
-}: {
-  searchParams: Promise<{ view?: string; week?: string; day?: string; q?: string }>
-}) {
+async function LoadsBoard({ searchParams }: { searchParams: Params }) {
   const sp = await searchParams
-  const view = sp.view === 'board' ? 'board' : sp.view === 'calendar' ? 'calendar' : 'driver'
-  // Snapped to Monday even if the URL was hand-edited to a mid-week date — a
-  // calendar link can never land on a broken, non-Monday week.
-  const parsedWeek = sp.week ? Date.parse(`${sp.week}T00:00:00`) : NaN
-  const weekMonday = Number.isNaN(parsedWeek) ? weekStart() : weekAnchorOf(parsedWeek)
-  const selectedDay = sp.day ?? null
   const companyId = await companyScope()
   const locale = await getLocale()
-  const [loads, trucks, rateCons, photoIds, podIds] = await Promise.all([
+  const [loads, trucks, photoIds, docs, events] = await Promise.all([
     listLoads(companyId),
     listTrucks(companyId),
-    rateConByLoad(companyId),
     truckPhotoFlags(companyId),
-    podLoadIds(companyId),
+    // Рейт-кон и КОНЕЧНЫЙ POD (stop_seq IS NULL) по каждому грузу — те же условия, по
+    // которым lib/invoice.ts выставляет счёт автоматически.
+    sql`SELECT id, load_id, kind, stop_seq FROM documents
+        WHERE company_id = ${companyId} AND load_id IS NOT NULL AND deleted_at IS NULL
+        ORDER BY uploaded_at DESC`,
+    // Отметки водителя только по открытым грузам — по ним ищется ближайшая остановка.
+    sql`SELECT e.load_id, e.kind, e.at, e.stop_seq FROM load_events e
+        JOIN loads l ON l.id = e.load_id AND l.company_id = e.company_id
+        WHERE e.company_id = ${companyId} AND l.status IN ('booked', 'in_transit')
+        ORDER BY e.at ASC`,
   ])
-  const byId = new Map<number, TruckRecord>(trucks.map((t) => [t.id, t]))
-  const fallback = trucks[0]
-
-  // One section per driver instead of one flat list — same truck resolution as
-  // before (a load with no truck, or a dangling truck_id, falls back to the first
-  // truck), just bucketed by the resolved truck instead of rendered inline.
-  const byTruck = new Map<number, LoadRecord[]>()
-  for (const l of loads) {
-    const truck = (l.truckId !== null ? byId.get(l.truckId) : undefined) ?? fallback
-    if (!truck) continue
-    if (!byTruck.has(truck.id)) byTruck.set(truck.id, [])
-    byTruck.get(truck.id)!.push(l)
+  const rateCons = new Map<number, number>()
+  const podIds = new Set<number>()
+  for (const doc of docs) {
+    if (doc.kind === 'ratecon' && !rateCons.has(doc.load_id)) rateCons.set(doc.load_id, doc.id)
+    if (doc.kind === 'pod' && doc.stop_seq == null) podIds.add(doc.load_id)
   }
-  // listLoads() already orders newest-first, so each bucket stays newest-first too.
-  const groups = trucks
-    .map((truck) => ({ truck, loads: byTruck.get(truck.id) ?? [] }))
-    .filter((g) => g.loads.length > 0)
-
-  // ── Two summaries above the board ────────────────────────────────────────────
-  // Both are computed from the loads ALREADY fetched above — no extra query, no new
-  // table. Which is also why these particular numbers: revenue per truck, all-in
-  // rate per mile and deadhead share are what the trade press calls a dispatcher's
-  // daily minimum, and all three were already derivable here and going unused.
-  const priced = loads.map((l) => {
-    const truck = (l.truckId !== null ? byId.get(l.truckId) : undefined) ?? fallback
-    return { load: l, truck, r: truck ? calcLoad(l, truck) : null }
-  })
-
-  // The CURRENT week, always — not `weekMonday`, which follows the calendar tab's
-  // ?week param. A summary that silently retitled itself when someone paged back
-  // through the calendar would be worse than no summary at all.
-  const wkFrom = weekStart()
-  const wkTo = wkFrom + 7 * 24 * 60 * 60 * 1000
-  const weekRows = priced.filter(({ load }) => {
-    if (load.status === 'cancelled') return false
-    const ms = loadWeekAnchorMs(load.pickupDate, load.createdAt)
-    return ms >= wkFrom && ms < wkTo
-  })
-  const weekGross = weekRows.reduce((s, x) => s + x.load.rate, 0)
-  const weekMiles = weekRows.reduce((s, x) => s + (x.r?.totalMiles ?? 0), 0)
-  const weekDeadhead = weekRows.reduce((s, x) => s + x.load.deadheadMiles, 0)
-  // Per truck that actually RAN, not per truck owned — a unit parked all week would
-  // otherwise drag the number down and read as a rate problem when it's a coverage one.
-  const trucksRun = new Set(weekRows.map((x) => x.truck?.id).filter((id) => id != null)).size
-  const week = {
-    gross: weekGross,
-    net: weekRows.reduce((s, x) => s + (x.r?.net ?? 0), 0),
-    rpm: weekMiles > 0 ? weekGross / weekMiles : 0,
-    deadheadPct: weekMiles > 0 ? (weekDeadhead / weekMiles) * 100 : 0,
-    perTruck: trucksRun > 0 ? weekGross / trucksRun : 0,
-    count: weekRows.length,
+  const marks = new Map<number, StopEv[]>()
+  for (const e of events) {
+    const list = marks.get(e.load_id) ?? []
+    list.push({ kind: e.kind, at: String(e.at), stopSeq: e.stop_seq })
+    marks.set(e.load_id, list)
   }
 
-  // ── Следующая неделя ────────────────────────────────────────────────────────
-  // Итог недели говорит, как прошло. Этот вопрос — другой и задаётся в четверг:
-  // «на следующую неделю у нас вообще что-нибудь есть». Считается строго по дате
-  // пикапа (не по дате заведения): планирование живёт по календарю груза. Заявки
-  // (quoted) не считаются — их ещё не подтвердили, и подставлять их в план значит
-  // считать деньги, которых может не быть.
-  const nextTo = wkTo + 7 * 24 * 60 * 60 * 1000
-  const nextRows = priced.filter(({ load }) => {
-    if (load.status === 'cancelled' || load.status === 'quoted' || !load.pickupDate) return false
-    const ms = Date.parse(`${load.pickupDate}T00:00:00`)
-    return ms >= wkTo && ms < nextTo
+  const byId = new Map(trucks.map((tr) => [tr.id, tr]))
+  // Экономика считается против СВОЕГО трака; неназначенному грузу чужой не подставляется.
+  const priced = loads.map((load) => {
+    const truck = load.truckId == null ? undefined : byId.get(load.truckId)
+    return { load, r: truck ? calcLoad(load, truck) : null }
   })
-  // Траки без груза на следующей неделе — то, ради чего это и смотрят. Стоящие в
-  // ремонте и отпуске не в счёт: искать им груз всё равно некому.
-  const busyNext = new Set(nextRows.map((x) => x.truck?.id).filter((id) => id != null))
-  const next = {
-    gross: nextRows.reduce((s, x) => s + x.load.rate, 0),
-    count: nextRows.length,
-    idle: trucks.filter((tr) => !tr.unavailable && !busyNext.has(tr.id)).length,
-  }
-
-  // Loads with money or paperwork stuck to them. A quoted load is a draft — nothing
-  // is owed and no paperwork is late yet — so it is never flagged.
-  const now = Date.now()
-  const flagged: { load: LoadRecord; reasons: Reason[] }[] = []
+  const metrics: Record<number, LoadMetrics> = {}
   for (const { load, r } of priced) {
-    if (load.status === 'cancelled' || load.status === 'quoted') continue
-    const reasons: Reason[] = []
-    if (r && r.net < 0) reasons.push({ key: 'loads.attention.losing', bad: true })
-    if (load.invoicedAt && !load.paidAt) {
-      const dueMs = Date.parse(load.invoicedAt) + load.paymentTermsDays * 24 * 60 * 60 * 1000
-      if (now > dueMs) reasons.push({ key: 'loads.attention.overdue', bad: true })
-    } else if (load.status === 'delivered' && !load.invoicedAt) {
-      reasons.push({ key: 'loads.attention.uninvoiced', bad: false })
+    const miles = load.loadedMiles + load.deadheadMiles
+    metrics[load.id] = {
+      net: r?.net ?? 0,
+      rpm: miles > 0 ? load.rate / miles : 0,
+      hasPod: podIds.has(load.id),
+      hasRc: rateCons.has(load.id),
+      nextStop: upcomingStop(load, marks.get(load.id)),
     }
-    if (!rateCons.has(load.id)) reasons.push({ key: 'loads.attention.noRc', bad: false })
-    if (load.milesEstimated) reasons.push({ key: 'loads.attention.milesEstimated', bad: true })
-    if (reasons.length) flagged.push({ load, reasons })
   }
-  // Money-losing and overdue first: those are the ones that cost something today.
-  flagged.sort((a, b) => Number(b.reasons.some((x) => x.bad)) - Number(a.reasons.some((x) => x.bad)))
 
+  // Очередь внимания. Черновики, отменённые и оплаченные сюда не попадают: с них ничего
+  // не причитается и никакие бумаги не просрочены.
+  const now = Date.now()
+  const attention: AttentionEntry[] = []
+  for (const { load, r } of priced) {
+    if (load.status === 'quoted' || load.status === 'cancelled' || load.status === 'paid') continue
+    const route = [load.referenceId, `${load.origin ?? '—'} → ${load.destination ?? '—'}`].filter(Boolean).join(' · ')
+    const push = (category: AttentionEntry['category'], detail: string) => attention.push({ id: load.id, route, category, detail })
+    const missing = [rateCons.has(load.id) ? null : 'RC', load.status === 'delivered' && !podIds.has(load.id) ? 'POD' : null].filter(Boolean)
+    if (missing.length) push('documents', `${t(locale, 'loads.dash.missingDocs')}: ${missing.join(' / ')}`)
+    if (load.status === 'delivered' && !load.invoicedAt && podIds.has(load.id) && rateCons.has(load.id)) push('ready', usd.format(load.rate))
+    if (load.invoicedAt && !load.paidAt && now > Date.parse(load.invoicedAt) + load.paymentTermsDays * 86400000) push('overdue', usd.format(load.rate))
+    if (load.status === 'booked' || load.status === 'in_transit') {
+      if (load.milesEstimated) push('checks', t(locale, 'loads.attention.milesEstimated'))
+      else if (r && r.net < 0) push('checks', `${t(locale, 'loads.attention.losing')} · ${usd.format(r.net)}`)
+    }
+  }
+
+  const parsed = sp.week ? Date.parse(`${sp.week}T00:00:00`) : NaN
   return (
     <>
       <div className="mb-4 flex items-end justify-between gap-4">
@@ -184,162 +118,27 @@ async function LoadsBoard({
         </Button>
       </div>
 
-      {/* Итог недели — сразу под заголовком (просьба пользователя): деньги недели и
-          план на следующую смотрят первым делом, ещё до списка. */}
-      {loads.length > 0 && (
-        <div className="mb-4">
-          <WeekSummary week={week} next={next} locale={locale} />
-        </div>
-      )}
-
-      {flagged.length > 0 && <NeedsAttention items={flagged} locale={locale} />}
-
-      {/* Вкладки и всё, что они рисуют, — на клиенте: все три вида и любая неделя
-          строятся из этой же выборки, новых данных не нужно. Map и Set не переживают
-          границу сервер-клиент, поэтому уходят парами и массивом. */}
       <LoadsViews
         loads={loads}
         trucks={trucks}
-        // Чистая, ставка-миля и наличие POD по каждому грузу: по ним работают
-        // фильтры, сортировка и выгрузка. Считается здесь, потому что расчёт требует
-        // экономики трака, а она уже на руках — второй раз её тянуть незачем.
-        metrics={Object.fromEntries(
-          priced.map(({ load, r }) => [
-            load.id,
-            {
-              net: r?.net ?? 0,
-              rpm: r && r.totalMiles > 0 ? load.rate / r.totalMiles : 0,
-              hasPod: podIds.includes(load.id),
-            },
-          ]),
-        )}
-        rateConPairs={[...rateCons.entries()]}
+        metrics={metrics}
+        rateConPairs={[...rateCons]}
         photoTruckIds={[...photoIds]}
-        initialView={view}
-        initialWeek={weekMonday}
-        initialDay={selectedDay}
+        attention={attention}
+        weekFrom={isoDay(new Date(weekStart()))}
+        initialView={sp.view === 'board' ? 'board' : sp.view === 'calendar' ? 'calendar' : 'driver'}
+        initialWeek={Number.isNaN(parsed) ? weekStart() : weekAnchorOf(parsed)}
+        initialDay={sp.day ?? null}
         initialQuery={sp.q ?? ''}
+        mapPanel={
+          <Suspense key="map" fallback={<div className="panel mb-4 h-64 animate-pulse" />}>
+            <LoadsMapServer loads={loads} trucks={trucks} metrics={metrics} locale={locale} />
+          </Suspense>
+        }
       />
 
       {/* Направления — в самом низу: «куда возить выгодно» смотрят раз в неделю. */}
-      {/* Направления — свод по деньгам под итогом недели, в самом низу: «куда возить выгодно».
-          Считается по тем же расчётам, что уже сделаны выше для каждого груза. */}
-      <LaneStats
-        rows={priced.map(({ load, r }) => ({ load, net: r?.net ?? 0, miles: r?.totalMiles ?? 0 }))}
-        locale={locale}
-      />
-
+      <LaneStats rows={priced.map(({ load, r }) => ({ load, net: r?.net ?? 0, miles: load.loadedMiles + load.deadheadMiles }))} locale={locale} />
     </>
   )
 }
-
-type Reason = { key: MsgKey; bad: boolean }
-
-/** One figure in the week strip. Same nested-glass shape as the tracking page's
- * counters, so the app's two summaries read as one family rather than two designs. */
-function Tile({ value, label, tone }: { value: string; label: string; tone?: 'good' | 'bad' | 'warn' }) {
-  const color =
-    tone === 'good' ? 'text-good-400' : tone === 'bad' ? 'text-bad-400' : tone === 'warn' ? 'text-warn-400' : 'text-white/90'
-  return (
-    <div className="panel-inset flex flex-col justify-center px-3 py-2.5">
-      <div className={`nums truncate text-[17px] leading-tight ${color}`}>{value}</div>
-      <div className="mt-0.5 truncate text-[11px] text-white/45">{label}</div>
-    </div>
-  )
-}
-
-/** The week in five numbers. The page used to open straight onto driver cards: it
- * showed WHAT is being hauled and never once said how the week is going, which is
- * the first thing anyone opening a dispatch board actually wants to know. */
-function WeekSummary({
-  week,
-  next,
-  locale,
-}: {
-  week: { gross: number; net: number; rpm: number; deadheadPct: number; perTruck: number; count: number }
-  next: { gross: number; count: number; idle: number }
-  locale: Locale
-}) {
-  if (week.count === 0 && next.count === 0) {
-    return <p className="panel mb-4 px-4 py-3 text-[13px] text-white/45">{t(locale, 'loads.week.empty')}</p>
-  }
-  return (
-    <section className="panel mb-3 p-2.5">
-      <h2 className="mb-2 px-1.5 text-base leading-6 font-semibold text-white/90">
-        {t(locale, 'loads.week.title')}
-      </h2>
-      {/* Неделя ещё могла не начаться — тогда плиток нет, а план на следующую есть. */}
-      {week.count > 0 && (
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-        <Tile value={usd.format(week.gross)} label={t(locale, 'loads.week.gross')} />
-        <Tile value={`${usd2.format(week.rpm)}/mi`} label={t(locale, 'loads.week.rpm')} />
-        {/* Amber past 20%: the industry runs 15–20% empty, so above that this stopped
-            being background cost and became something to route around. */}
-        <Tile
-          value={`${week.deadheadPct.toFixed(0)}%`}
-          label={t(locale, 'loads.week.deadhead')}
-          tone={week.deadheadPct > 20 ? 'warn' : undefined}
-        />
-        <Tile value={usd.format(week.perTruck)} label={t(locale, 'loads.week.perTruck')} />
-      </div>
-      )}
-
-      {/* Что уже стоит на следующей неделе. Отдельной строкой, а не шестой плиткой:
-          это не итог, а план, и мерить его теми же цифрами нельзя. */}
-      <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-white/6 px-1.5 pt-2 text-[12px] text-white/55">
-        <span className="text-white/40">{t(locale, 'loads.week.nextTitle')}</span>
-        {next.count === 0 ? (
-          <span className="text-warn-400">{t(locale, 'loads.week.nextEmpty')}</span>
-        ) : (
-          <>
-            <span className="nums font-semibold text-white/85">{usd.format(next.gross)}</span>
-            <span className="nums">
-              {t(locale, 'loads.week.nextCount').replace('{n}', String(next.count))}
-            </span>
-          </>
-        )}
-        {/* Свободные траки — то, ради чего в план и смотрят: неделя начнётся, а им
-            нечего везти. */}
-        {next.idle > 0 && (
-          <span className="nums rounded-full bg-warn-500/15 px-2 py-0.5 font-medium text-warn-400">
-            {t(locale, 'loads.week.nextIdle').replace('{n}', String(next.idle))}
-          </span>
-        )}
-      </p>
-    </section>
-  )
-}
-
-/** Loads with money or paperwork stuck to them, newest problems first. Every row is
- * a link to the load itself — a list that names a problem without offering the way
- * to fix it just moves the search work somewhere else. */
-function NeedsAttention({
-  items,
-  locale,
-}: {
-  items: { load: LoadRecord; reasons: Reason[] }[]
-  locale: Locale
-}) {
-  return (
-    <section className="panel mb-5 p-3">
-      <h2 className="mb-2 flex items-center gap-1.5 px-0.5 text-base leading-6 font-semibold text-white/90">
-        <AlertTriangle size={12} className="text-warn-400" />
-        {t(locale, 'loads.attention.title')} · <span className="nums">{items.length}</span>
-      </h2>
-      {/* Translated here, on the server, rather than shipping message keys and a
-          locale into the client component — the labels are a closed set of four. */}
-      <AttentionList
-        items={items.map(({ load, reasons }) => ({
-          id: load.id,
-          route: `${load.origin ?? '—'} → ${load.destination ?? '—'}`,
-          reasons: reasons.map((r) => ({ label: t(locale, r.key), bad: r.bad })),
-        }))}
-        moreLabel={t(locale, 'loads.page.showMore')}
-      />
-    </section>
-  )
-}
-
-/** The color-coded dispatch board — every load in one glance, grouped by status
- * instead of by driver, so "what's still quoted" or "what's in transit right now"
- * doesn't require opening every driver's section to count. */

@@ -140,7 +140,7 @@ export function stopTitle(stop: LoadStop, stops: LoadStop[], locale: Locale): st
 }
 
 /** Первые часы:минуты из окна («8am-3pm» → 8:00, «Appt 06:00» → 6:00) для сортировки партиалов. */
-function firstMinutes(time: string | null): number {
+export function firstMinutes(time: string | null): number {
   if (!time) return 24 * 60
   const m = /(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i.exec(time)
   if (!m) return 24 * 60

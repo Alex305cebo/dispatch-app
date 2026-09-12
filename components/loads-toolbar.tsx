@@ -12,14 +12,16 @@
 // «что горит по деньгам», «где не собраны бумаги», «что в убыток». Всё считается по
 // уже загруженным грузам, ни одного нового запроса.
 
+import type { LoadStop } from '@/lib/stops'
+import { stopOrder } from '@/lib/loads-dashboard'
 import { useMemo, useState } from 'react'
 import { Download, Search, X } from 'lucide-react'
 import type { LoadRecord, TruckRecord } from '@/lib/map'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
 
-export type LoadFilter = 'all' | 'losing' | 'uninvoiced' | 'unpaid' | 'noPod'
-export type LoadSort = 'newest' | 'rate' | 'rpm' | 'net'
+export type LoadFilter = 'all' | 'losing' | 'uninvoiced' | 'unpaid' | 'noPod' | 'ready'
+export type LoadSort = 'newest' | 'rate' | 'rpm' | 'net' | 'nearest'
 
 /** Строка, по которой ищем. Всё, что диспетчер помнит о грузе, в одном месте. */
 function haystack(l: LoadRecord, truck: TruckRecord | undefined): string {
@@ -43,6 +45,7 @@ const FILTERS: { key: LoadFilter; label: MsgKey }[] = [
   { key: 'uninvoiced', label: 'loads.filter.uninvoiced' },
   { key: 'unpaid', label: 'loads.filter.unpaid' },
   { key: 'noPod', label: 'loads.filter.noPod' },
+  { key: 'ready', label: 'loads.filter.ready' },
 ]
 
 const SORTS: { key: LoadSort; label: MsgKey }[] = [
@@ -50,9 +53,17 @@ const SORTS: { key: LoadSort; label: MsgKey }[] = [
   { key: 'rate', label: 'loads.sort.rate' },
   { key: 'rpm', label: 'loads.sort.rpm' },
   { key: 'net', label: 'loads.sort.net' },
+  { key: 'nearest', label: 'loads.sort.nearest' },
 ]
 
-export type LoadMetrics = { net: number; rpm: number; hasPod: boolean }
+export type LoadMetrics = {
+  net: number
+  rpm: number
+  hasPod: boolean
+  hasRc: boolean
+  /** Ближайшая непройденная остановка открытого груза; null у закрытых. */
+  nextStop: LoadStop | null
+}
 
 /** 0 — в пути, 1 — забукирован, 2 — всё остальное. */
 export function activeRank(status: string): number {
@@ -92,6 +103,8 @@ export function useLoadsFilter(
           return l.status === 'delivered' && !l.invoicedAt
         case 'unpaid':
           return !!l.invoicedAt && !l.paidAt
+        case 'ready':
+          return l.status === 'delivered' && !l.invoicedAt && !!m?.hasPod && !!m?.hasRc
         case 'noPod':
           return (l.status === 'delivered' || l.status === 'paid') && !(m?.hasPod ?? false)
         default:
@@ -100,6 +113,11 @@ export function useLoadsFilter(
     })
     if (sort !== 'newest') {
       out = [...out].sort((a, b) => {
+        if (sort === 'nearest') {
+          const ka = stopOrder(metrics[a.id]?.nextStop)
+          const kb = stopOrder(metrics[b.id]?.nextStop)
+          return ka === kb ? 0 : ka < kb ? -1 : 1
+        }
         if (sort === 'rate') return b.rate - a.rate
         if (sort === 'rpm') return (metrics[b.id]?.rpm ?? 0) - (metrics[a.id]?.rpm ?? 0)
         return (metrics[b.id]?.net ?? 0) - (metrics[a.id]?.net ?? 0)
@@ -108,6 +126,8 @@ export function useLoadsFilter(
     // Активные — всегда сверху, при любой сортировке и любом фильтре: в пути, потом
     // забукированные, потом остальные. Сортировка стабильная, внутри группы порядок
     // выбранной сортировки сохраняется.
+    // «По ближайшей остановке» уже расставил открытые грузы; закрытые (без остановки) ушли в конец.
+    if (sort === 'nearest') return out
     return [...out].sort((a, b) => activeRank(a.status) - activeRank(b.status))
   }, [loads, byId, metrics, query, filter, sort])
 
@@ -230,7 +250,7 @@ export function LoadsToolbar({
             key={f.key}
             type="button"
             onClick={() => setFilter(f.key)}
-            className={`rounded-full px-2.5 py-1 text-[11.5px] font-medium transition-colors ${
+            className={`rounded-full px-2.5 py-1 text-[11.5px] font-medium transition-colors max-md:min-h-9 ${
               filter === f.key ? 'bg-haul-500/25 text-haul-300' : 'bg-white/6 text-white/60 hover:text-white/90'
             }`}
           >

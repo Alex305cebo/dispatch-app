@@ -12,15 +12,24 @@
 // ?view=/?week=/?day= по-прежнему задают начальное состояние, поэтому старые ссылки
 // и закладки продолжают открываться там, где ожидалось.
 
-import { useState } from 'react'
+import { createContext, useContext, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { CalendarDays, PackageOpen, Plus } from 'lucide-react'
 import { Button } from '@/components/button'
 import { ShowMore } from '@/components/collapse'
 import { Empty } from '@/components/empty'
-import { truckLabel, STATUSES, type TruckRecord, type LoadRecord } from '@/lib/map'
-import { calcLoad, type Breakdown } from '@/lib/profit'
-import { usd, usd2, weekAnchorOf, weekLabel, weekStart } from '@/lib/fmt'
+import {
+  STATUSES,
+  truckLabel,
+  currentLoadsByTruck,
+  nextLoadsByTruck,
+  activeLoadsByTruck,
+  type TruckRecord,
+  type LoadRecord,
+} from '@/lib/map'
+import { calcLoad } from '@/lib/profit'
+import { usd, usd2, usDate, weekLabel, weekStart } from '@/lib/fmt'
+import { isoDay, scheduleConnection, stopOrder, whenText, type Connection } from '@/lib/loads-dashboard'
 import { StatusBadge, statusLabel } from '@/components/status'
 import { LoadsToolbar, useLoadsFilter, type LoadMetrics, activeRank } from '@/components/loads-toolbar'
 import { RateConButton } from '@/components/ratecon-button'
@@ -28,7 +37,12 @@ import { DeleteButton } from '@/components/delete-button'
 import { DriverAvatar } from '@/components/driver-avatar'
 import { deleteLoad } from '@/app/actions'
 import { useLocale } from '@/components/locale-provider'
-import { t, type Locale } from '@/lib/i18n'
+import { t, type Locale, type MsgKey } from '@/lib/i18n'
+import { LoadsKpis, LoadsWeekChart, LoadsAttention, weekdayLabel, type AttentionEntry, type Selection } from './loads-insights'
+
+// Метрики груза (чистая, ставка-миля, RC/POD, ближайшая остановка) считает страница;
+// строкам они нужны глубоко в дереве, поэтому идут контекстом, а не через пять пропсов.
+const MetricsContext = createContext<Record<number, LoadMetrics>>({})
 
 // Тот же ряд оттенков, что у STATUS_STYLE (components/status.tsx) — акцент колонки,
 // а не вторая цветовая схема, чтобы доска и бейджи не разъезжались.
@@ -41,62 +55,92 @@ const COLUMN_ACCENT: Record<LoadRecord['status'], string> = {
   cancelled: 'border-t-bad-500/50',
 }
 
+type Scope = 'working' | 'completed' | 'all'
+const SCOPE_KEY: Record<Scope, MsgKey> = { working: 'loads.dash.working', completed: 'loads.dash.completed', all: 'loads.filter.all' }
+const WORKING: LoadRecord['status'][] = ['booked', 'in_transit', 'quoted']
+
+/** Сравнение, где Infinity значит «в конец»: Infinity - Infinity даёт NaN, а не 0. */
+const cmp = (a: number, b: number) => (a === b ? 0 : a < b ? -1 : 1)
+
 export function LoadsViews({
   loads: allLoads,
   trucks,
+  metrics,
   rateConPairs,
   photoTruckIds,
+  attention,
+  mapPanel,
+  weekFrom,
   initialView,
   initialWeek,
   initialDay,
   initialQuery,
-  metrics,
 }: {
   loads: LoadRecord[]
   trucks: TruckRecord[]
-  /** id груза → чистая, ставка-миля, есть ли POD. Считает страница. */
+  /** id груза → чистая, ставка-миля, RC/POD, ближайшая остановка. Считает страница. */
   metrics: Record<number, LoadMetrics>
   /** Map не переживает границу сервер-клиент как есть — передаём парами. */
   rateConPairs: [number, number][]
   photoTruckIds: number[]
+  /** Очередь внимания — собрана на сервере вместе с экономикой. */
+  attention: AttentionEntry[]
+  /** Карта — серверный компонент, приходит готовым узлом. */
+  mapPanel: ReactNode
+  /** Первый день текущей расчётной недели (yyyy-mm-dd) — с сервера, чтобы SSR и клиент сошлись. */
+  weekFrom: string
   initialView: 'driver' | 'board' | 'calendar'
   initialWeek: number
   initialDay: string | null
-  /** Поиск, пришедший в адресе (?q=) — по нему открываются ссылки из свода
-   * направлений. Без этого клик по строке приводил бы к полному списку. */
+  /** Поиск из адреса (?q=) — по нему открываются ссылки из свода направлений. */
   initialQuery: string
 }) {
   const locale = useLocale()
   // Поиск и фильтры стоят НАД видами и общие для всех трёх: искать груз, а потом
   // гадать, в какой из вкладок он теперь виден, — это не поиск.
-  const { query, setQuery, filter, setFilter, sort, setSort, result: loads } = useLoadsFilter(
-    allLoads,
-    trucks,
-    metrics,
-    initialQuery,
-  )
+  const { query, setQuery, filter, setFilter, sort, setSort, result: filtered } = useLoadsFilter(allLoads, trucks, metrics, initialQuery)
   const [view, setView] = useState(initialView)
   const [weekMonday, setWeekMonday] = useState(initialWeek)
   const [selectedDay, setSelectedDay] = useState(initialDay)
+  // «В работе» по умолчанию; поиск из адреса и календарь смотрят на всё.
+  const [scope, setScope] = useState<Scope>(initialQuery || initialView === 'calendar' ? 'all' : 'working')
+  // Выборка от плитки KPI или очереди внимания: список показывает только эти грузы.
+  const [selection, setSelection] = useState<Selection>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+
+  const select = (value: Selection) => {
+    setSelection(value)
+    setScope('all')
+    setView('driver')
+    setFilter('all')
+    setQuery('')
+    setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
+  }
+  // Фильтр и поиск смотрят по всем грузам: «неоплаченные» в режиме «В работе» иначе дали бы пустоту.
+  const inScope = (l: LoadRecord) =>
+    scope === 'all' || filter !== 'all' || !!query.trim() || WORKING.includes(l.status) === (scope === 'working')
+  const loads = filtered.filter((l) => (!selection || selection.ids.includes(l.id)) && inScope(l))
 
   const rateCons = new Map(rateConPairs)
   const photoIds = new Set(photoTruckIds)
   const byId = new Map<number, TruckRecord>(trucks.map((tr) => [tr.id, tr]))
-  const fallback = trucks[0]
-
+  // Груз без трака (или с трака, которого больше нет) — отдельной секцией, а не под
+  // первым траком, как было раньше.
+  const unassigned = loads.filter((l) => l.truckId == null || !byId.has(l.truckId))
   const byTruck = new Map<number, LoadRecord[]>()
   for (const l of loads) {
-    const truck = (l.truckId !== null ? byId.get(l.truckId) : undefined) ?? fallback
-    if (!truck) continue
-    if (!byTruck.has(truck.id)) byTruck.set(truck.id, [])
-    byTruck.get(truck.id)!.push(l)
+    if (l.truckId == null || !byId.has(l.truckId)) continue
+    if (!byTruck.has(l.truckId)) byTruck.set(l.truckId, [])
+    byTruck.get(l.truckId)!.push(l)
   }
-  // Траки с активным грузом — первыми: в пути, потом забукированные, потом те, у
-  // кого сейчас ничего нет.
+  // Порядок траков: по ближайшей остановке, если выбрана эта сортировка; иначе те, у
+  // кого груз в пути, потом забукированные, потом остальные.
+  const groupKey = (ls: LoadRecord[]) =>
+    Math.min(...ls.map((l) => (sort === 'nearest' ? stopOrder(metrics[l.id]?.nextStop) : activeRank(l.status))))
   const groups = trucks
     .map((truck) => ({ truck, loads: byTruck.get(truck.id) ?? [] }))
     .filter((g) => g.loads.length > 0)
-    .sort((a, b) => Math.min(...a.loads.map((l) => activeRank(l.status))) - Math.min(...b.loads.map((l) => activeRank(l.status))))
+    .sort((a, b) => cmp(groupKey(a.loads), groupKey(b.loads)))
 
   if (allLoads.length === 0) {
     return (
@@ -114,23 +158,69 @@ export function LoadsViews({
   }
 
   const tabClass = (active: boolean) =>
-    `-mb-px border-b-2 px-3 py-2 text-[13px] font-medium transition-colors ${
+    `-mb-px min-h-9 border-b-2 px-3 py-2 text-[13px] font-medium transition-colors max-md:min-h-11 ${
       active ? 'border-haul-500 text-white' : 'border-transparent text-white/55 hover:text-white/85'
+    }`
+  const scopeClass = (active: boolean) =>
+    `rounded-md px-3 py-1 text-[12px] font-medium transition-colors max-md:min-h-9 ${
+      active ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-white/55 hover:text-white/85'
     }`
 
   return (
-    <>
-      <div className="mb-5 flex gap-1.5 border-b border-white/8">
-        <button type="button" onClick={() => setView('driver')} className={tabClass(view === 'driver')}>
-          {t(locale, 'loads.page.tabByDriver')}
-        </button>
-        <button type="button" onClick={() => setView('board')} className={tabClass(view === 'board')}>
-          {t(locale, 'loads.page.tabByStatus')}
-        </button>
-        <button type="button" onClick={() => setView('calendar')} className={tabClass(view === 'calendar')}>
-          {t(locale, 'loads.page.tabCalendar')}
-        </button>
+    <MetricsContext.Provider value={metrics}>
+      <LoadsKpis loads={allLoads} trucks={trucks} weekFrom={weekFrom} locale={locale} onSelect={select} />
+      {mapPanel}
+      <LoadsAttention entries={attention} locale={locale} onSelect={select} />
+
+      <div ref={listRef} className="scroll-mt-4" />
+      {/* Одна строка управления: виды слева, «В работе / Завершённые / Все» справа. */}
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-x-3 gap-y-2 border-b border-white/8">
+        <div className="flex gap-1.5">
+          <button type="button" onClick={() => setView('driver')} className={tabClass(view === 'driver')}>
+            {t(locale, 'loads.page.tabByDriver')}
+          </button>
+          <button type="button" onClick={() => setView('board')} className={tabClass(view === 'board')}>
+            {t(locale, 'loads.page.tabByStatus')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setView('calendar')
+              setScope('all')
+            }}
+            className={tabClass(view === 'calendar')}
+          >
+            {t(locale, 'loads.page.tabCalendar')}
+          </button>
+        </div>
+        <div className="mb-1.5 flex rounded-lg bg-white/[0.05] p-0.5">
+          {(['working', 'completed', 'all'] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              aria-pressed={scope === s}
+              onClick={() => {
+                setScope(s)
+                setSelection(null)
+                setFilter('all')
+              }}
+              className={scopeClass(scope === s)}
+            >
+              {t(locale, SCOPE_KEY[s])}
+            </button>
+          ))}
+        </div>
       </div>
+      {selection && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-[12.5px]">
+          <span className="rounded-full bg-haul-500/15 px-2.5 py-1 font-medium text-haul-300">
+            {selection.label} · <span className="nums">{selection.ids.length}</span>
+          </span>
+          <button type="button" onClick={() => setSelection(null)} className="text-white/55 transition-colors hover:text-white max-md:min-h-9">
+            {t(locale, 'loads.dash.clear')} ×
+          </button>
+        </div>
+      )}
 
       {/* Панель поиска и фильтров — под вкладками, над содержимым: она общая для всех
           трёх видов, и её место там, где начинается содержимое. */}
@@ -149,20 +239,17 @@ export function LoadsViews({
       />
 
       {loads.length === 0 && (
-        <p className="panel p-4 text-center text-[13px] text-white/55">
-          {t(locale, 'loads.filter.nothingFound')}
-        </p>
+        <p className="panel p-4 text-center text-[13px] text-white/55">{t(locale, 'loads.filter.nothingFound')}</p>
       )}
 
       {view === 'board' ? (
-        <StatusBoard loads={loads} byId={byId} fallback={fallback} rateCons={rateCons} locale={locale} />
+        <StatusBoard loads={loads} byId={byId} rateCons={rateCons} locale={locale} />
       ) : view === 'calendar' ? (
         <Calendar
           loads={loads}
           weekMonday={weekMonday}
           selectedDay={selectedDay}
           byId={byId}
-          fallback={fallback}
           rateCons={rateCons}
           locale={locale}
           onWeek={setWeekMonday}
@@ -170,11 +257,22 @@ export function LoadsViews({
         />
       ) : (
         <div className="stagger flex flex-col gap-3">
+          {unassigned.length > 0 && (
+            <section className="panel p-3">
+              <h2 className="mb-2 px-0.5 text-base leading-6 font-semibold text-white/90">{t(locale, 'loads.dash.unassigned')}</h2>
+              <div className="space-y-2">
+                {unassigned.map((l) => (
+                  <LoadRow key={l.id} load={l} truck={undefined} rcId={rateCons.get(l.id)} locale={locale} />
+                ))}
+              </div>
+            </section>
+          )}
           {groups.map(({ truck, loads: ls }) => (
             <DriverGroup
               key={truck.id}
               truck={truck}
               loads={ls}
+              scheduleLoads={allLoads.filter((l) => l.truckId === truck.id)}
               rateCons={rateCons}
               hasPhoto={photoIds.has(truck.id)}
               locale={locale}
@@ -182,20 +280,20 @@ export function LoadsViews({
           ))}
         </div>
       )}
-    </>
+
+      <LoadsWeekChart loads={allLoads} trucks={trucks} weekFrom={weekFrom} locale={locale} />
+    </MetricsContext.Provider>
   )
 }
 
 function StatusBoard({
   loads,
   byId,
-  fallback,
   rateCons,
   locale,
 }: {
   loads: LoadRecord[]
   byId: Map<number, TruckRecord>
-  fallback: TruckRecord | undefined
   rateCons: Map<number, number>
   locale: Locale
 }) {
@@ -234,7 +332,7 @@ function StatusBoard({
                 rows and push everything below it off the screen. Six is roughly what
                 fits beside its neighbours before the grid stops reading as columns. */}
             <ShowMore limit={6} label={t(locale, 'loads.page.showMore')} items={loads.map((load) => {
-              const truck = (load.truckId !== null ? byId.get(load.truckId) : undefined) ?? fallback
+              const truck = (load.truckId !== null ? byId.get(load.truckId) : undefined)
               const r = truck ? calcLoad(load, truck) : null
               return (
                 /* Stacked, not side-by-side. Three columns on a laptop leave each card
@@ -284,22 +382,6 @@ function StatusBoard({
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
-const WEEKDAY_KEYS = [
-  'loads.page.weekdayMon',
-  'loads.page.weekdayTue',
-  'loads.page.weekdayWed',
-  'loads.page.weekdayThu',
-  'loads.page.weekdayFri',
-  'loads.page.weekdaySat',
-  'loads.page.weekdaySun',
-] as const
-
-/** ISO date (YYYY-MM-DD, local) — the calendar buckets by calendar day, not by
- * timestamp, so this must never go through toISOString() (UTC) or a load booked
- * late at night can land on the wrong day's column. */
-function isoDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 /** History of every load (any status, including cancelled — this is a record, not
  * a work queue), one week at a time. Pickup date is the natural anchor — "what's
@@ -327,15 +409,14 @@ function Calendar({
   weekMonday: number
   selectedDay: string | null
   byId: Map<number, TruckRecord>
-  fallback: TruckRecord | undefined
   rateCons: Map<number, number>
   locale: Locale
   onWeek: (mondayMs: number) => void
   onDay: (iso: string | null) => void
 }) {
   const days = Array.from({ length: 7 }, (_, i) => new Date(weekMonday + i * DAY_MS))
-  const weekIsos = days.map(isoDate)
-  const todayIso = isoDate(new Date())
+  const weekIsos = days.map(isoDay)
+  const todayIso = isoDay(new Date())
   const weekEnd = weekIsos[6]!
   const weekBegin = weekIsos[0]!
   const isCurrentWeek = weekMonday === weekStart()
@@ -447,8 +528,8 @@ function Calendar({
                     key={weekIsos[i]}
                     className={`flex items-baseline justify-center gap-1 px-1 py-2 text-center ${isToday ? 'bg-haul-500/10' : ''}`}
                   >
-                    <span className={`text-[11px] font-medium ${isToday ? 'text-haul-300' : 'text-white/45'}`}>
-                      {t(locale, WEEKDAY_KEYS[i]!)}
+                    <span className={`text-[11px] font-medium capitalize ${isToday ? 'text-haul-300' : 'text-white/45'}`}>
+                      {weekdayLabel(weekIsos[i]!, locale)}
                     </span>
                     <span className={`nums text-[13px] font-semibold ${isToday ? 'text-haul-300' : 'text-white/80'}`}>
                       {d.getDate()}
@@ -525,65 +606,102 @@ function Calendar({
   )
 }
 
+const VERDICT_KEY: Record<Connection, MsgKey> = {
+  overlap: 'loads.dash.overlap',
+  unknown: 'loads.dash.unknown',
+  review: 'loads.dash.review',
+}
+
+/** Стыковка текущего и следующего рейса: только даты. Подача, часовые пояса и часы
+ * водителя не считаются — поэтому тут нет слова «успевает». */
+function Connection({ current, next, locale }: { current: LoadRecord; next: LoadRecord; locale: Locale }) {
+  const verdict = scheduleConnection(current, next)
+  const when = (date: string | null, time: string | null) =>
+    whenText(date, time, t(locale, 'loads.dash.noDate'), t(locale, 'loads.dash.noTime'))
+  return (
+    <div className="panel-inset px-3 py-2 text-[12px]">
+      <p className="text-2xs font-semibold uppercase tracking-wide text-white/55">{t(locale, 'loads.dash.connection')}</p>
+      <p className="mt-1 break-words text-white/65">
+        {current.destination ?? '—'} · {when(current.deliveryDate, current.deliveryTime)} → {next.origin ?? '—'} ·{' '}
+        {when(next.pickupDate, next.pickupTime)}
+      </p>
+      <p className={`mt-1 ${verdict === 'overlap' ? 'text-bad-400' : 'text-warn-400'}`}>{t(locale, VERDICT_KEY[verdict])}</p>
+    </div>
+  )
+}
+
+/** Карточка трака: что везёт сейчас (текущий и партиалы), стыковка со следующим,
+ * следующие забукированные, черновики — и история, свёрнутая, пока есть активные. */
 function DriverGroup({
+  scheduleLoads,
   truck,
   loads,
   rateCons,
   hasPhoto,
   locale,
 }: {
+  /** ВСЕ грузы трака, без фильтров, — по ним решается, есть ли следующий рейс. */
+  scheduleLoads: LoadRecord[]
   truck: TruckRecord
   loads: LoadRecord[]
   rateCons: Map<number, number>
   hasPhoto: boolean
   locale: Locale
 }) {
-  // The load that matters right now: in transit beats booked beats everything else;
-  // with none active, the newest load (loads is already newest-first) stands in for
-  // "last load" — either way, one load is always featured, the rest fold away.
-  const active = loads.find((l) => l.status === 'in_transit') ?? loads.find((l) => l.status === 'booked')
-  const featured = active ?? loads[0]!
-  const rest = loads.filter((l) => l.id !== featured.id)
+  const current = currentLoadsByTruck(loads).get(truck.id)
+  const next = nextLoadsByTruck(loads).get(truck.id)
+  const active = activeLoadsByTruck(loads).get(truck.id) ?? []
+  const isActive = (l: LoadRecord) => active.some((a) => a.id === l.id)
+  const future = loads
+    .filter((l) => l.status === 'booked' && !isActive(l))
+    .sort((a, b) => (a.pickupDate ?? '9999').localeCompare(b.pickupDate ?? '9999'))
+  // Черновики — не история: заявка рядом с рейсом в пути ещё может стать следующим грузом.
+  const drafts = loads.filter((l) => l.status === 'quoted')
+  const rest = loads.filter((l) => !isActive(l) && l.status !== 'booked' && l.status !== 'quoted')
 
-  // The header used to carry a name and a count and nothing else, across the full
-  // width of the card — a lot of empty space for two short facts. What the money adds
-  // is the answer to "is this driver worth what he's running", which is the question
-  // the count alone raises and never answers.
+  const row = (l: LoadRecord) => <LoadRow key={l.id} load={l} truck={truck} rcId={rateCons.get(l.id)} locale={locale} />
+  const labelled = (l: LoadRecord, key: MsgKey, tone: string) => (
+    <div key={l.id}>
+      <p className={`mb-1 px-0.5 text-2xs font-semibold uppercase tracking-wide ${tone}`}>{t(locale, key)}</p>
+      {row(l)}
+    </div>
+  )
+  // Сумма по траку в шапке: не только сколько грузов, но и на сколько денег он везёт.
   const total = loads.reduce((s, l) => (l.status === 'cancelled' ? s : s + l.rate), 0)
-
   return (
     <section className="panel p-3">
-      <Link
-        href={`/trucks/${truck.id}`}
-        className="mb-2 flex items-center gap-2.5 transition-colors hover:text-haul-400"
-      >
+      <Link href={`/trucks/${truck.id}`} className="mb-2 flex items-center gap-2.5 transition-colors hover:text-haul-400">
         <DriverAvatar truckId={truck.id} name={truck.driverName} hasPhoto={hasPhoto} size={30} />
-        <span className="min-w-0 flex-1 break-words text-[13px] font-semibold leading-snug sm:text-[14px]">
-          {truckLabel(truck)}
-        </span>
+        <span className="min-w-0 flex-1 break-words text-[13px] font-semibold leading-snug sm:text-[14px]">{truckLabel(truck)}</span>
         <span className="nums shrink-0 text-[12px] font-semibold text-white/75">{usd.format(total)}</span>
-        {/* The count is the first thing to go on a narrow phone: it's the least of the
-            three facts here, and keeping it would cost the driver's own name letters. */}
-        <span className="hidden shrink-0 text-[11px] font-normal text-white/40 min-[380px]:inline">
+        {/* Счётчик уходит первым на узком телефоне: он наименее важен из трёх. */}
+        <span className="hidden shrink-0 text-[11px] text-white/40 min-[380px]:inline">
           {t(locale, 'loads.page.countLoads').replace('{n}', String(loads.length))}
         </span>
       </Link>
-
-      <LoadRow load={featured} truck={truck} rcId={rateCons.get(featured.id)} locale={locale} />
-
-      {rest.length > 0 && (
-        <details className="group mt-2">
-          <summary className="flex cursor-pointer list-none items-center gap-1.5 py-1.5 text-[12px] font-medium text-white/55 transition-colors hover:text-white">
-            <span className="text-white/40 transition-transform group-open:rotate-90">▸</span>
-            {t(locale, 'loads.page.moreLoads').replace('{n}', String(rest.length))}
-          </summary>
-          <div className="mt-2 flex flex-col gap-2">
-            {rest.map((l) => (
-              <LoadRow key={l.id} load={l} truck={truck} rcId={rateCons.get(l.id)} locale={locale} />
-            ))}
-          </div>
-        </details>
-      )}
+      <div className="space-y-2.5">
+        {active.map((l) => labelled(l, l.partial ? 'loads.dash.partial' : 'loads.dash.now', 'text-haul-400'))}
+        {current && next && <Connection current={current} next={next} locale={locale} />}
+        {current && !nextLoadsByTruck(scheduleLoads).has(truck.id) && (
+          <p className="rounded-lg border border-warn-400/25 bg-warn-400/[0.07] px-3 py-2 text-[12px] text-warn-400">
+            {t(locale, 'loads.dash.noNext')} · {current.destination ?? '—'} · {usDate(current.deliveryDate) || t(locale, 'loads.dash.noDate')}
+          </p>
+        )}
+        {future.map((l) => labelled(l, 'loads.dash.next', 'text-white/55'))}
+        {drafts.map((l) => labelled(l, 'loads.dash.quoted', 'text-white/45'))}
+        {rest.length > 0 &&
+          (active.length || future.length ? (
+            <details className="group">
+              <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium text-white/55 transition-colors hover:text-white max-md:min-h-11">
+                <span className="text-white/40 transition-transform group-open:rotate-90">▸</span>
+                {t(locale, 'loads.dash.history')} · {rest.length}
+              </summary>
+              <div className="mt-1 space-y-2">{rest.map(row)}</div>
+            </details>
+          ) : (
+            <div className="space-y-2">{rest.map(row)}</div>
+          ))}
+      </div>
     </section>
   )
 }
@@ -595,49 +713,52 @@ function LoadRow({
   locale,
 }: {
   load: LoadRecord
-  truck: TruckRecord
+  /** Нет трака — груз не назначен; экономика по нему не считается. */
+  truck: TruckRecord | undefined
   rcId: number | undefined
   locale: Locale
 }) {
-  // Each load costs against its OWN truck. Money lives in calcLoad, not SQL.
-  const r: Breakdown = calcLoad(load, truck)
+  const m = useContext(MetricsContext)[load.id]
+  const stop = m?.nextStop
+  const totalMiles = load.loadedMiles + load.deadheadMiles
+  const meta = [load.referenceId, load.brokerName].filter(Boolean).join(' · ')
+  const wantsPod = m?.hasPod || load.status === 'delivered' || load.status === 'paid'
   return (
     // Row is a flex container, not one big <Link>: the rate con button must
     // be a sibling of the link, never nested inside it.
-    // Padding and type both a step down from before: one row of text was sitting in a
-    // card tall enough for three, which is what made the list read as mostly air.
-    // Nothing was dropped to get there — every figure that was here still is.
     <div className="flex items-center gap-2 rounded-xl border border-white/6 px-3 py-2 transition-colors hover:border-white/15">
-      {/* Stacked on a phone, one row from `sm` up. Side by side at 375px the route had
-          to share ~270px with the status badge AND the rate, so "Kansas City, MO →
-          Chicago, IL" clipped to a few letters — and the city pair is the one thing on
-          this row that must never be cut. Stacked, it gets the full width and the money
-          moves onto the line below, beside the figures it belongs with. */}
-      <Link
-        href={`/loads/${load.id}`}
-        className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-3"
-      >
+      {/* Stacked on a phone, one row from `sm` up: side by side at 375px the city pair
+          shared ~270px with the badge and the rate and clipped to a few letters. */}
+      <Link href={`/loads/${load.id}`} className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-3">
         <div className="min-w-0 flex-1">
-          {/* На телефоне статус переносится ПОД маршрут, к милям: рядом с ним города
-              резались до «Atlanta, GA → Pho…», а именно они тут главное. */}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="min-w-0 basis-full truncate text-[13.5px] font-medium sm:basis-auto">
+            <span className="min-w-0 basis-full break-words text-[13.5px] font-medium sm:basis-auto">
               {load.origin ?? '—'} → {load.destination ?? '—'}
             </span>
             <StatusBadge status={load.status} locale={locale} />
             <span className="nums text-[11.5px] text-white/60">
-              {Math.round(r.totalMiles)} mi · {usd2.format(r.allInRpm)}/mi
+              {Math.round(totalMiles)} mi · {usd2.format(totalMiles > 0 ? load.rate / totalMiles : 0)}/mi
             </span>
           </div>
+          {/* Номер, брокер и бумаги одной строкой: RC и POD — то, без чего не выставить счёт. */}
+          <p className="mt-1 flex flex-wrap gap-x-2 text-[11px] text-white/60">
+            {meta && <span className="break-words">{meta}</span>}
+            {load.status !== 'quoted' && <span className={m?.hasRc ? 'text-good-400' : 'text-white/40'}>RC {m?.hasRc ? '✓' : '—'}</span>}
+            {wantsPod && <span className={m?.hasPod ? 'text-good-400' : 'text-white/40'}>POD {m?.hasPod ? '✓' : '—'}</span>}
+            {!truck && <span className="text-warn-400">{t(locale, 'loads.dash.unassigned')}</span>}
+          </p>
+          {stop && (
+            <p className="mt-1 break-words text-[12px] text-white/75" title={t(locale, 'loads.dash.localTime')}>
+              {t(locale, stop.role === 'pickup' ? 'stops.pickup' : 'stops.delivery')} · {stop.city ?? stop.address ?? '—'} ·{' '}
+              {whenText(stop.date, stop.time, t(locale, 'loads.dash.noDate'), t(locale, 'loads.dash.noTime'))}
+            </p>
+          )}
         </div>
-        {/* Inline pair on the phone (rate then loaded miles, reading left to right),
-            stacked block on the right from `sm` up. */}
+        {/* Inline pair on the phone (rate then loaded miles), stacked block on the right from `sm` up. */}
         <div className="flex shrink-0 items-baseline gap-2 sm:block sm:text-right">
           <div className="nums text-[15px] font-bold leading-tight">{usd.format(load.rate)}</div>
           {load.loadedMiles > 0 && (
-            <div className="nums text-[11px] font-medium text-haul-300">
-              {Math.round(load.loadedMiles).toLocaleString('en-US')} mi
-            </div>
+            <div className="nums text-[11px] font-medium text-haul-300">{Math.round(load.loadedMiles).toLocaleString('en-US')} mi</div>
           )}
         </div>
       </Link>
