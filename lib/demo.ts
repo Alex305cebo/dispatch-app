@@ -3,6 +3,7 @@
 // completely isolated from the real fleet (lib/loads.ts filters everything by it).
 // SERVER ONLY.
 
+import { retitleDocuments } from './doc-title.ts'
 import 'server-only'
 import { sql } from './db.ts'
 import { deleteSetting, setSetting } from './settings.ts'
@@ -729,6 +730,7 @@ export async function startDemoSession(locale: Locale): Promise<string> {
   if (await claimDemoReset()) {
     try {
       await resetDemoData(userId, locale)
+      await retitleDocuments({ companyId: 'demo' })
     } catch (e) {
       // Hand the claim back. Holding it after a failed reseed would leave every
       // visitor for the next 24 hours looking at a half-built fleet, with nothing in

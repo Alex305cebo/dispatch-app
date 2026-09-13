@@ -1,5 +1,6 @@
 'use server'
 
+import { retitleDocuments } from '@/lib/doc-title'
 import { revalidatePath } from 'next/cache'
 import {
   confirmLogin,
@@ -246,11 +247,12 @@ export async function tgAttachToLoad(
   const kind: DocClass = guessed
 
   const save = async (loadId: number | null) => {
-    await sql`
+    const ins = await sql`
       INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data, company_id)
       VALUES (${loadId}, ${truck.truckId}, ${kind},
               ${`${kind.toUpperCase()} #${truck.number} tg.${ext}`}, ${media.mime}, ${media.bytes.length},
               UNHEX(${media.bytes.toString('hex')}), 'default')`
+    if (ins.insertId) await retitleDocuments({ ids: [ins.insertId] })
     revalidatePath('/docs')
     revalidatePath(`/trucks/${truck.truckId}`)
     if (loadId) revalidatePath(`/loads/${loadId}`)
@@ -317,6 +319,7 @@ async function attachRateCon(
             UNHEX(${media.bytes.toString('hex')}), 'default')
     RETURNING id`) as { id: number }[]
   const docId = rows[0]!.id
+  await retitleDocuments({ ids: [docId] })
   revalidatePath('/docs')
   revalidatePath(`/trucks/${truck.truckId}`)
 
@@ -351,6 +354,7 @@ async function attachRateCon(
       )
   if (match) {
     await sql`UPDATE documents SET load_id = ${match.id} WHERE id = ${docId} AND load_id IS NULL`
+    await retitleDocuments({ ids: [docId] })
     revalidatePath(`/loads/${match.id}`)
     return {
       ok: true,

@@ -1,3 +1,4 @@
+import { retitleDocuments } from '@/lib/doc-title'
 import { NextResponse, type NextRequest } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { sql } from '@/lib/db'
@@ -112,10 +113,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
       // Название — от водителя: «BOL · 1590 · 2026-09-05.jpg», чтобы в списке было
       // видно, откуда пришло, а не «IMG_2041.jpg».
       const title = `${kind.toUpperCase()} · ${truck.number ?? truck.id} · ${new Date().toISOString().slice(0, 10)}${ext(file)}`
-      await sql`
+      const ins = await sql`
         INSERT INTO documents (truck_id, load_id, kind, title, mime, size_bytes, data, company_id)
         VALUES (${truck.id}, ${load?.id ?? null}, ${kind}, ${title},
                 ${file.type || 'application/octet-stream'}, ${file.size}, UNHEX(${hex}), ${truck.companyId})`
+      if (ins.insertId) await retitleDocuments({ ids: [ins.insertId] })
       saved++
     }
     if (saved)

@@ -1,3 +1,5 @@
+import { after } from 'next/server'
+import { ensureDocTitles } from '@/lib/doc-title'
 import type { Metadata, Viewport } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import { Nav } from '@/components/nav'
@@ -66,6 +68,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // wave instead — one round trip's latency off EVERY page in the app, this layout
   // being the one thing every route renders through.
   const [user, locale] = [await getCurrentUser(), await getLocale()]
+  // Разовое переименование старых документов по новому правилу (lib/doc-title.ts) —
+  // после ответа, страница его не ждёт; дальше это одна проверка флага на процесс.
+  after(() => ensureDocTitles())
   const companyId = user?.companyId ?? 'default'
   // .catch — из-за установки. Все четыре запроса здесь оформительские: имя компании
   // в шапке, значок просроченных документов, два пункта меню. Но макет общий для

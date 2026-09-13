@@ -13,6 +13,7 @@
 // «Обновить», опросы по таймеру, выход из аккаунта и смена языка (там меняется кука,
 // а не данные).
 
+import { retitleDocuments } from '@/lib/doc-title'
 import { DOC_KINDS } from '@/lib/docs'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -817,6 +818,7 @@ export async function createLoad(
     if (docId && (await docBelongs(companyId, docId))) {
       await sql`UPDATE documents SET load_id = ${id} WHERE id = ${docId} AND load_id IS NULL`
     }
+    await retitleDocuments({ loadId: id })
   } catch (e) {
     return { error: humanError(e, locale) }
   }
@@ -1124,6 +1126,8 @@ export async function createLoadFromRc(
       // Файл — к этому же грузу, со своим типом (лист водителя остаётся листом).
       if (docId && (await docBelongs(companyId, docId)))
         await sql`UPDATE documents SET load_id = ${twin.id} WHERE id = ${docId} AND load_id IS NULL`
+      // Имена файлов груза — по номеру груза и брокеру, которые только что прочитал ИИ.
+      await retitleDocuments({ loadId: twin.id, ids: docId ? [docId] : [] })
       revalidatePath(`/loads/${twin.id}`)
       revalidatePath(`/trucks/${truckId}`)
       revalidatePath('/loads')
@@ -1204,6 +1208,7 @@ export async function createLoadFromRc(
       // «Другое» из Telegram становится рейт-коном; лист водителя своим типом и остаётся.
       await sql`UPDATE documents SET load_id = ${loadId}, kind = CASE WHEN kind = 'other' THEN 'ratecon' ELSE kind END
                 WHERE id = ${docId} AND load_id IS NULL`
+    await retitleDocuments({ loadId, ids: docId ? [docId] : [] })
     revalidatePath(`/trucks/${truckId}`)
     revalidatePath('/loads')
     revalidatePath('/')
@@ -1358,6 +1363,7 @@ export async function saveTruck(id: number, t: TruckInput): Promise<{ error: str
         factoring_percent = ${t.factoringPercent},
         dispatch_percent = ${t.dispatchPercent}
       WHERE id = ${id} AND company_id = ${await companyScope()}`
+    await retitleDocuments({ truckId: id })
   } catch (e) {
     return { error: humanError(e, await getLocale()) }
   }
@@ -1437,6 +1443,7 @@ export async function uploadDocument(fd: FormData): Promise<{ id: number } | { e
       VALUES (${truckId}, ${loadId}, ${maintenanceId}, ${kind}, ${title},
               ${file.type || 'application/octet-stream'}, ${file.size}, UNHEX(${hex}), ${companyId}, ${stopSeq})
       RETURNING id`
+    await retitleDocuments({ ids: [(rows[0] as { id: number }).id] })
     revalidatePath('/docs')
     if (truckId) revalidatePath(`/trucks/${truckId}`)
     if (loadId) revalidatePath(`/loads/${loadId}`)
@@ -1522,6 +1529,7 @@ export async function setDocumentKind(docId: number, kind: string): Promise<{ er
   const companyId = await companyScope()
   if (!(await docBelongs(companyId, docId))) return
   await sql`UPDATE documents SET kind = ${kind} WHERE id = ${docId}`
+  await retitleDocuments({ ids: [docId] })
   const rows = await sql`SELECT load_id FROM documents WHERE id = ${docId}`
   const loadId = (rows[0] as { load_id: number | null } | undefined)?.load_id
   revalidatePath('/docs')
@@ -1551,6 +1559,7 @@ export async function attachDocumentToLoad(docId: number, loadId: number): Promi
   if (!(await docBelongs(companyId, docId)) || !(await loadBelongs(companyId, loadId))) return
   const upd = await sql`
     UPDATE documents SET load_id = ${loadId} WHERE id = ${docId} AND load_id IS NULL`
+  if (upd.affectedRows) await retitleDocuments({ ids: [docId] })
   const rows = upd.affectedRows ? await sql`SELECT kind FROM documents WHERE id = ${docId}` : []
   revalidatePath(`/loads/${loadId}`)
   revalidatePath('/docs')
@@ -1711,6 +1720,7 @@ export async function updateLoadDetails(loadId: number, p: LoadDetailsPatch): Pr
   } catch (e) {
     return { error: humanError(e, locale) }
   }
+  await retitleDocuments({ loadId })
   revalidatePath(`/loads/${loadId}`)
   revalidatePath('/loads')
   revalidatePath('/', 'layout')
@@ -1842,6 +1852,7 @@ export async function parseRcForNotes(loadId: number): Promise<{ error: string }
   } catch (e) {
     return { error: humanError(e, locale) }
   }
+  await retitleDocuments({ loadId })
   revalidatePath(`/loads/${loadId}`)
   revalidatePath('/trucks', 'layout')
   revalidatePath('/', 'layout')
@@ -2042,7 +2053,10 @@ export async function saveDriverInfo(
     // Номер трака стирать нельзя: по нему GPS находит машину (fleet_status.unit).
     // Пустое поле значит «не менял», а не «убрать».
     const num = d.truckNumber?.trim()
-    if (num) await sql`UPDATE trucks SET number = ${num} WHERE id = ${truckId}`
+    if (num) {
+      await sql`UPDATE trucks SET number = ${num} WHERE id = ${truckId}`
+      await retitleDocuments({ truckId })
+    }
     const trailer = d.trailerNumber?.trim() ?? null
     const vin = d.vin?.trim() ?? null
     await sql`

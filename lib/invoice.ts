@@ -2,6 +2,7 @@
 // from a load, then merges it with that load's rate con + POD into one PDF the
 // dispatcher sends (or emails). SERVER ONLY (DB + pdf-lib).
 
+import { retitleDocuments } from './doc-title.ts'
 import { cache } from 'react'
 import { revalidatePath } from 'next/cache'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
@@ -182,6 +183,7 @@ export async function buildInvoicePacket(
     UPDATE loads SET invoice_number = ${invoiceNumber}, invoiced_at = NOW(6),
       status = CASE WHEN status IN ('quoted','booked','in_transit','delivered') THEN 'delivered' ELSE status END
     WHERE id = ${load.id} AND company_id = ${load.companyId}`
+  await retitleDocuments({ ids: [docId] })
 
   return { docId, invoiceNumber }
 }

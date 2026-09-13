@@ -5,6 +5,7 @@
 // PER-USER: each dispatcher connects their own account, so intake loops over every
 // connected account — a driver can message whichever dispatcher they know.
 
+import { retitleDocuments } from './doc-title.ts'
 import { sql } from './db.ts'
 import { getSetting, setSetting } from './settings.ts'
 import {
@@ -122,11 +123,12 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
           } else {
             const hex = m.bytes.toString('hex')
             const ext = m.mime.includes('pdf') ? 'pdf' : 'jpg'
-            await sql`
+            const ins = await sql`
               INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data, company_id)
               VALUES (${target ? target.id : null}, ${truck.truckId}, ${kind},
                       ${`${kind.toUpperCase()} #${truck.number} tg.${ext}`}, ${m.mime}, ${m.bytes.length},
                       UNHEX(${hex}), ${REAL})`
+            if (ins.insertId) await retitleDocuments({ ids: [ins.insertId] })
             attached++
             // A dispatcher only ever has POD/BOL/rate con, never an "invoice" of their
             // own — the invoice is generated FROM the POD, so once it lands there's no
