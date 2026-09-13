@@ -195,6 +195,24 @@ export async function listPaidLoads(companyId: CompanyId): Promise<LoadRecord[]>
  * loadId → id of that load's rate con document (newest one, if it has several).
  * Lets every load list show an "open the rate con" button without an N+1 query.
  */
+/**
+ * Доставленные грузы без POD — из переданного списка (обычно грузы одного трака),
+ * свежие первыми. Правило то же, что у колокольчика (app/api/alerts): любой
+ * неудалённый POD считается. Оплаченные не берутся — деньги уже пришли.
+ */
+export async function loadsMissingPod(companyId: CompanyId, loads: LoadRecord[]): Promise<LoadRecord[]> {
+  const delivered = loads.filter((l) => l.status === 'delivered')
+  if (!delivered.length) return []
+  const rows = (await sql`
+    SELECT DISTINCT load_id FROM documents
+    WHERE kind = 'pod' AND deleted_at IS NULL AND company_id = ${companyId}
+      AND load_id IN (${delivered.map((l) => l.id)})`) as { load_id: number }[]
+  const has = new Set(rows.map((r) => r.load_id))
+  return delivered
+    .filter((l) => !has.has(l.id))
+    .sort((a, b) => (b.deliveryDate ?? b.createdAt).localeCompare(a.deliveryDate ?? a.createdAt))
+}
+
 export async function rateConByLoad(companyId: CompanyId): Promise<Map<number, number>> {
   const rows = await sql`
     SELECT load_id, id FROM (

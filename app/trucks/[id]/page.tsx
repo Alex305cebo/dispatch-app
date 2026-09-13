@@ -44,6 +44,8 @@ import { t } from '@/lib/i18n'
 import { CopyPlace } from '@/components/copy-place'
 import { TruckPhoto } from '@/components/truck-photo'
 import { ShowMore } from '@/components/collapse'
+import { MissingPodBanner } from '@/components/missing-pod-banner'
+import { loadsMissingPod } from '@/lib/loads'
 
 export const dynamic = 'force-dynamic'
 
@@ -126,6 +128,8 @@ export default async function Page({
         })()
 
   const live = loads.filter((l) => l.status !== 'cancelled')
+  // Доставленные грузы без POD — первой строкой «Текущего задания».
+  const missingPod = await loadsMissingPod(companyId, live)
   const rows = live.map((l) => ({ load: l, r: calcLoad(l, truck) }))
   const active = live.filter((l) => l.status === 'booked' || l.status === 'in_transit').length
 
@@ -316,6 +320,7 @@ export default async function Page({
             {t(locale, 'trucks.detail.currentAssignment')}
             <Info text={t(locale, 'trucks.detail.currentAssignmentInfo')} />
           </h2>
+          <MissingPodBanner loads={missingPod} locale={locale} className="mb-3" />
           {activeLoad ? (
             <>
               {/* Статус — ВПЛОТНУЮ к маршруту. justify-between отбрасывал его к правому

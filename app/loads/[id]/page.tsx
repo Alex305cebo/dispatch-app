@@ -43,6 +43,8 @@ import { arrivedAt, isDone, stopsFrom, viaLabel, type StopEv } from '@/lib/stops
 import { TaskStops } from '@/components/task-stops'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
+import { MissingPodBanner } from '@/components/missing-pod-banner'
+import { loadsMissingPod } from '@/lib/loads'
 import { CopyPlace } from '@/components/copy-place'
 import { placeCity } from '@/lib/place'
 
@@ -95,6 +97,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     listLoads(companyId, { truckId: truck.id }),
   ])
   const mates = (activeLoadsByTruck(truckLoads).get(truck.id) ?? []).filter((l) => l.id !== load.id)
+  // Прошлые грузы этого трака без POD — в шапку: пока везут этот, про тот забывают.
+  const missingPod = await loadsMissingPod(companyId, truckLoads.filter((l) => l.id !== load.id))
   const taskLoads = mates.length ? [load, ...mates] : []
   const taskEvents: Record<number, StopEv[]> = { [load.id]: driverEvents }
   for (const m of mates) taskEvents[m.id] = await listLoadEvents(companyId, m.id)
@@ -159,6 +163,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               груз ищут, называют по телефону и пишут в счёте. */}
           {load.referenceId && ` · ${t(locale, 'import.label.referenceId')} ${load.referenceId}`}
         </p>
+        <MissingPodBanner loads={missingPod} locale={locale} className="mt-3" />
         {/* Кнопка на трак живёт в полосе «Трак ⇄ Груз» наверху — второй раз здесь ни к чему. */}
 
         {/* The rail needs the full width to lay five labelled steps out; sharing a flex
