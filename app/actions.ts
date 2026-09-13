@@ -1241,7 +1241,7 @@ export async function createLoadFromExistingRc(
   // the truck's files" is to rescue exactly that case. Clicking recognise asserts it's a
   // rate con; if the AI can't read one out of it, geminiExtract errors cleanly below.
   const rows = await sql`
-    SELECT REPLACE(TO_BASE64(data), CHAR(10), '') AS b64, mime, load_id
+    SELECT REPLACE(TO_BASE64(data), CHAR(10 USING ascii), '') AS b64, mime, load_id
     FROM documents WHERE id = ${docId} AND company_id = ${companyId}`
   const doc = rows[0] as { b64: string; mime: string; load_id: number | null } | undefined
   if (!doc) return { error: t(locale, 'actions.rateconNotFound') }
@@ -1798,7 +1798,7 @@ export async function parseRcForNotes(loadId: number): Promise<{ error: string }
   // Postgres base64 comes newline-wrapped (PEM style); Gemini's decoder rejects the
   // newlines, so strip them.
   const docs = (await sql`
-    SELECT REPLACE(TO_BASE64(data), CHAR(10), '') AS b64, mime
+    SELECT REPLACE(TO_BASE64(data), CHAR(10 USING ascii), '') AS b64, mime
     FROM documents WHERE load_id = ${loadId} AND company_id = ${companyId} AND kind = 'ratecon'
     ORDER BY uploaded_at DESC LIMIT 1`) as { b64: string; mime: string }[]
   const doc = docs[0]

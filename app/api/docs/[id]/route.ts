@@ -38,7 +38,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // вышло — 404, список покажет иконку.
   if (q.has('thumb')) {
     const t = (await sql`
-      SELECT mime, REPLACE(TO_BASE64(thumb), CHAR(10), '') AS thumb FROM documents
+      SELECT mime, REPLACE(TO_BASE64(thumb), CHAR(10 USING ascii), '') AS thumb FROM documents
       WHERE id = ${Number(id)} AND company_id = ${scope}`) as { mime: string; thumb: string | null }[]
     const meta = t[0]
     if (!meta) return new NextResponse('Not found', { status: 404 })
@@ -47,7 +47,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       let out: Buffer
       if (meta.thumb) out = Buffer.from(meta.thumb, 'base64')
       else {
-        const full = (await sql`SELECT REPLACE(TO_BASE64(data), CHAR(10), '') AS b64 FROM documents WHERE id = ${Number(id)}`) as { b64: string }[]
+        const full = (await sql`SELECT REPLACE(TO_BASE64(data), CHAR(10 USING ascii), '') AS b64 FROM documents WHERE id = ${Number(id)}`) as { b64: string }[]
         const sharp = (await import('sharp')).default
         out = await sharp(Buffer.from(full[0]!.b64, 'base64'))
           .rotate()
@@ -70,7 +70,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
   const rows = await sql`
-    SELECT title, mime, REPLACE(TO_BASE64(data), CHAR(10), '') AS b64 FROM documents
+    SELECT title, mime, REPLACE(TO_BASE64(data), CHAR(10 USING ascii), '') AS b64 FROM documents
     WHERE id = ${Number(id)} AND company_id = ${scope}`
   const doc = rows[0] as { title: string; mime: string; b64: string } | undefined
   if (!doc) return new NextResponse('Not found', { status: 404 })

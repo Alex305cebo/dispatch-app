@@ -148,7 +148,7 @@ export async function buildInvoicePacket(
 
   // POD gate.
   const docs = (await sql`
-    SELECT kind, mime, REPLACE(TO_BASE64(data), CHAR(10), '') AS b64 FROM documents
+    SELECT kind, mime, REPLACE(TO_BASE64(data), CHAR(10 USING ascii), '') AS b64 FROM documents
     WHERE load_id = ${load.id} AND company_id = ${load.companyId} ORDER BY kind`) as { kind: string; mime: string; b64: string }[]
   if (!docs.some((d) => d.kind === 'pod'))
     return { error: t(locale, 'finances.err.noPod') }

@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ truckId: string }> }) {
   const { truckId } = await params
   const rows = await sql`
-    SELECT m.truck_photo_mime AS mime, REPLACE(TO_BASE64(m.truck_photo), CHAR(10), '') AS b64
+    SELECT m.truck_photo_mime AS mime, REPLACE(TO_BASE64(m.truck_photo), CHAR(10 USING ascii), '') AS b64
     FROM truck_meta m JOIN trucks t ON t.id = m.truck_id
     WHERE m.truck_id = ${Number(truckId)} AND t.company_id = ${await companyScope()}
       AND m.truck_photo IS NOT NULL`
