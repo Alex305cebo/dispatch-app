@@ -346,6 +346,38 @@ export async function fetchDiesel() {
 }
 
 /**
+ * Записать актуальную цену дизеля EIA в траки — один (truckId) или весь парк (null).
+ * Кнопка в форме трака только подставляла цену в поле, и её ещё надо было сохранить;
+ * здесь — сразу в базу, чтобы расчёты по всему парку не жили на цене полугодовой
+ * давности. Возвращает цену, дату EIA и сколько траков обновлено.
+ */
+export async function applyDieselPrice(
+  truckId: number | null,
+): Promise<{ price: number; asOf: string; count: number } | { error: string }> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const denied = await assertCan('edit_trucks')
+  if (denied) return denied
+  const { dieselPrice } = await import('@/lib/geo-routing')
+  const res = await dieselPrice(await getLocale())
+  if ('error' in res) return res
+  const companyId = await companyScope()
+  try {
+    const rows = (await sql`
+      UPDATE trucks SET fuel_price_per_gallon = ${res.price}
+      WHERE company_id = ${companyId} AND (${truckId}::int IS NULL OR id = ${truckId})
+      RETURNING id`) as { id: number }[]
+    revalidatePath('/trucks')
+    revalidatePath('/loads')
+    revalidatePath('/', 'layout')
+    for (const r of rows) revalidatePath(`/trucks/${r.id}`)
+    return { price: res.price, asOf: res.asOf, count: rows.length }
+  } catch (e) {
+    return { error: humanError(e, await getLocale()) }
+  }
+}
+
+/**
  * Owner pastes their ZigZag "Live Share" links (one per truck) — we keep the tokens
  * and immediately pull GPS from them. No vendor key needed. GPS only, no HOS.
  */

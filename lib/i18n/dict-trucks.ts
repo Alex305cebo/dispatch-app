@@ -821,6 +821,22 @@ export const trucksDict = {
     ro: 'Se actualizează prețul…',
     kk: 'Баға жаңартылуда…',
   },
+  'trucks.fuel.applyAll': {
+    ru: 'Обновить цену топлива всем тракам',
+    en: 'Update fuel price for all trucks',
+    es: 'Actualizar el precio del combustible en todos los camiones',
+    uk: 'Оновити ціну пального всім тракам',
+    ro: 'Actualizează prețul combustibilului la toate camioanele',
+    kk: 'Барлық тракқа жанармай бағасын жаңарту',
+  },
+  'trucks.fuel.applied': {
+    ru: 'Дизель ${price}/gal по данным EIA от {asOf} записан: траков — {n}.',
+    en: 'Diesel ${price}/gal per EIA as of {asOf} saved to {n} truck(s).',
+    es: 'Diésel ${price}/gal según EIA del {asOf} guardado en {n} camión(es).',
+    uk: 'Дизель ${price}/gal за даними EIA від {asOf} записано: траків — {n}.',
+    ro: 'Motorină ${price}/gal conform EIA din {asOf} salvată la {n} camion/camioane.',
+    kk: 'EIA деректері бойынша {asOf} дизель ${price}/gal жазылды: {n} трак.',
+  },
   'trucks.form.dieselCurrent': {
     ru: 'Обновить актуальную цену топлива',
     en: 'Update to current fuel price',

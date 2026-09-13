@@ -18,6 +18,7 @@ import { usd, usd2, weekBounds, loadWeekAnchorMs, usDate } from '@/lib/fmt'
 import { FleetMap } from '@/components/fleet-map'
 import { StatusBadge, statusLabel } from '@/components/status'
 import { TruckForm } from '@/components/truck-form'
+import { FuelPriceButton } from '@/components/fuel-price-button'
 import { TruckCare } from '@/components/truck-care'
 import { DriverCard } from '@/components/driver-card'
 import { TruckRcDrop } from '@/components/truck-rc-drop'
@@ -774,6 +775,7 @@ export default async function Page({
             <span>{truck.mpg} mpg</span>
             <span aria-hidden>·</span>
             <span>{usd2.format(truck.fuelPricePerGallon)}/gal</span>
+            <FuelPriceButton truckId={truck.id} locale={locale} />
             <span aria-hidden>·</span>
             <span>
               {t(locale, 'trucks.econ.driver')}{' '}

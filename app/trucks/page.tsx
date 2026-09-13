@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/button'
+import { FuelPriceButton } from '@/components/fuel-price-button'
 import { Suspense } from 'react'
 import { EldLinks } from '@/components/eld-links'
 import { EldNewTrucks } from '@/components/eld-new-trucks'
@@ -164,9 +165,12 @@ export default async function Page() {
             )}
           </p>
         </div>
-        <Button href="/trucks/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
-          {t(locale, 'trucks.page.addTruck')}
-        </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {trucks.length > 0 && <FuelPriceButton truckId={null} locale={locale} size="md" />}
+          <Button href="/trucks/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
+            {t(locale, 'trucks.page.addTruck')}
+          </Button>
+        </div>
       </div>
 
       {/* Вторая половина строки списка: деньги за неделю, число грузов и ближайший
