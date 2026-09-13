@@ -225,9 +225,24 @@ export async function loadMapData(
   const legToNext = next?.p ? await routeToPoint({ lat, lng }, next.p) : null
   const legRest = aheadPts.length > 1 ? await routeVia(aheadPts) : null
 
+  // Сколько траку ехать до КАЖДОЙ точки впереди — строкой в её плашке на карте:
+  // до ближайшей — отрезок от трака, до дальних — он же плюс путь через
+  // предыдущие точки по порядку. Спрашивают это про пикап и выгрузку чаще всего.
+  const withPts = ahead.filter((a) => a.p)
   for (const a of ahead) {
     const m = markerAt(a.i)
-    if (m) markers.push(m)
+    if (!m) continue
+    const k = withPts.findIndex((x) => x.i === a.i)
+    if (legToNext && k >= 0) {
+      const via = k > 0 ? await routeVia(withPts.slice(0, k + 1).map((x) => x.p!)).catch(() => null) : null
+      if (k === 0 || via) {
+        const mi = Math.round(legToNext.miles + (via?.miles ?? 0))
+        const min = legToNext.etaMin + (via?.etaMin ?? 0)
+        const to = a.st.role === 'pickup' ? 'tracking.toPickupSuffix' : 'tracking.toDelivery'
+        m.eta = `${mi} mi · ~${driveTime(min, locale)}${t(locale, to)}`
+      }
+    }
+    markers.push(m)
   }
 
   if (legToNext && next && load) {

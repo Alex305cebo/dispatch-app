@@ -13,6 +13,14 @@ export const trackingDict = {
     kk: 'Тиеу · ',
   },
   'tracking.fromPrefix': { ru: 'Из ', en: 'From ', es: 'Desde ', uk: 'Із ', ro: 'Din ', kk: 'Қайдан: ' },
+  'tracking.toPickupSuffix': {
+    ru: ' до пикапа',
+    en: ' to pickup',
+    es: ' hasta la recogida',
+    uk: ' до завантаження',
+    ro: ' până la încărcare',
+    kk: ' тиеуге дейін',
+  },
   'tracking.toDelivery': {
     ru: ' до delivery',
     en: ' to delivery',
