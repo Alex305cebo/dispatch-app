@@ -1571,6 +1571,14 @@ export const trucksDict = {
     ro: 'Poza camionului a fost salvată',
     kk: 'Трак суреті сақталды',
   },
+  'trucks.head.location': {
+    ru: 'Где сейчас',
+    en: 'Current location',
+    es: 'Ubicación actual',
+    uk: 'Де зараз',
+    ro: 'Unde este acum',
+    kk: 'Қазір қайда',
+  },
   'trucks.photo.pickTitle': {
     ru: 'Картинка трака',
     en: 'Truck picture',

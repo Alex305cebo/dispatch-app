@@ -2,7 +2,7 @@ import { cityOf } from '@/lib/maintenance-core'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
-import { Plus } from 'lucide-react'
+import { Phone, Plus } from 'lucide-react'
 import { BackButton } from '@/components/back-button'
 import { Button } from '@/components/button'
 import { PairBar } from '@/components/pair-bar'
@@ -229,82 +229,86 @@ export default async function Page({
         />
         <div className="relative grid sm:grid-cols-[minmax(0,1fr)_minmax(280px,44%)]">
           <div className="min-w-0 p-4 sm:p-5">
-          <h1 className="text-[22px] font-semibold leading-7 sm:text-[26px] sm:leading-8">{truck.number ?? truck.name}</h1>
-
-          {/* One wrapping row instead of a stack of full-width lines — trailer,
-              driver, phone and live GPS all read as one compact block on any width,
-              wrapping to extra lines on narrow phones instead of stretching tall. */}
-          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-[13px]">
-            {meta?.trailerNumber && (
-              <>
-                <span className="text-white/55">
-                  {t(locale, 'trucks.detail.trailer')} {meta.trailerNumber}
+          {/* Строка трака: номер, статус ELD значком, справа — доступность трака.
+              Всё, что нажимается в шапке, одного вида: кнопка h-8 с рамкой и иконкой. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <h1 className="nums text-[26px] font-semibold leading-8">{truck.number ?? truck.name}</h1>
+              {fs?.driveStatus && (
+                <span
+                  className={`inline-flex h-6 items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 text-[12px] font-semibold ${toneClass[statusTone(fs.driveStatus)]}`}
+                  title="ELD"
+                >
+                  <span aria-hidden className="size-1.5 rounded-full bg-current" />
+                  {fs.driveStatus}
                 </span>
-                <span aria-hidden className="text-white/25">
-                  ·
-                </span>
-              </>
-            )}
-            <span className="font-medium text-white/85">{truck.driverName || t(locale, 'trucks.detail.noDriver')}</span>
-            <span aria-hidden className="hidden text-white/25 sm:inline">
-              ·
-            </span>
-            {/* Driver contact — the number a dispatcher actually needs at hand. */}
-            {meta?.driverPhone ? (
-              <a
-                href={`tel:${meta.driverPhone}`}
-                className="inline-flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1 font-medium text-white/85 transition-colors hover:bg-white/12"
-              >
-                📞 {meta.driverPhone}
-              </a>
-            ) : (
-              <span className="text-white/40">{t(locale, 'trucks.detail.noPhone')}</span>
-            )}
-          </div>
-          {fs?.location && (
-            /* Место — своей строкой под именем и телефоном: в общем ряду на телефоне
-               кнопки «Копировать» и «Карта» уезжали на разные строки, а статус «ON»
-               оставался один посреди пустоты. Место — кнопка: ответ на «где сейчас
-               трак» почти всегда тут же уходит брокеру. Копируется «город, штат». */
-            <div
-              className={`mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] ${toneClass[statusTone(fs.driveStatus)]}`}
-            >
-              <CopyPlace
-                text={`📍 ${fs.location}`}
-                copy={cityOf(fs.location) ?? fs.location}
-                coords={{ lat: fs.lat, lng: fs.lng }}
-                size="sm"
-              />
-              {fs.driveStatus && <span className="font-semibold">· {fs.driveStatus}</span>}
+              )}
             </div>
-          )}
-
-          {(meta?.vin || meta?.plate) && (
-            <p className="mt-1.5 text-[11px] text-white/45">
-              {[meta.plate && `${t(locale, 'trucks.detail.plateLabel')} ${meta.plate}`, meta.vin && `VIN ${meta.vin}`]
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
-          )}
-          {/* Кто ведёт эту машину. Закрепление живёт в админке, а нужно оно здесь: на
-              странице трака и спрашивают «кто им занимается». */}
-          {user?.role === 'admin' ? (
-            <div className="mt-2">
-              <TruckDispatcher truckId={truck.id} current={dispatcherId} users={staff} />
-            </div>
-          ) : (
-            dispatcherName && (
-              <p className="mt-1.5 text-[11px] text-white/45">
-                {t(locale, 'trucks.detail.dispatcher').replace('{name}', dispatcherName)}
-              </p>
-            )
-          )}
-
-          {/* Manual availability — dims the truck across the app and pulls it out of
-              the "free" counters until it's flipped back. */}
-          <div className="mt-2.5">
+            {/* Manual availability — dims the truck across the app and pulls it out of
+                the "free" counters until it's flipped back. */}
             <TruckAvailability truckId={truck.id} current={truck.unavailable} locale={locale} />
           </div>
+
+          {/* Паспорт одной сеткой подписанных полей: подпись сверху, значение под ней.
+              Раньше это была строка через точки, где имя, номер трейлера и телефон
+              сливались в одно предложение. */}
+          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+            <HeadField label={t(locale, 'trucks.driverCard.heading')}>
+              {truck.driverName || <span className="text-white/40">{t(locale, 'trucks.detail.noDriver')}</span>}
+            </HeadField>
+            <HeadField label={t(locale, 'trucks.driverCard.phoneRowLabel')} className="max-sm:col-span-2">
+              {meta?.driverPhone ? (
+                <a
+                  href={`tel:${meta.driverPhone}`}
+                  className="nums mt-0.5 inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-[13px] font-medium text-white/90 transition-colors hover:border-white/30 hover:bg-white/[0.08] max-md:h-10"
+                >
+                  <Phone size={14} strokeWidth={2.2} className="text-haul-300" />
+                  {meta.driverPhone}
+                </a>
+              ) : (
+                <span className="text-white/40">{t(locale, 'trucks.detail.noPhone')}</span>
+              )}
+            </HeadField>
+            <HeadField label={t(locale, 'trucks.driverCard.trailerRowLabel')}>
+              {meta?.trailerNumber ? <span className="nums">{meta.trailerNumber}</span> : <span className="text-white/40">—</span>}
+            </HeadField>
+            {/* Кто ведёт эту машину. Закрепление живёт в админке, а нужно оно здесь: на
+                странице трака и спрашивают «кто им занимается». */}
+            {(user?.role === 'admin' || dispatcherName) && (
+              <HeadField label={t(locale, 'trucks.detail.dispatcherPick')}>
+                {user?.role === 'admin' ? (
+                  <TruckDispatcher bare truckId={truck.id} current={dispatcherId} users={staff} />
+                ) : (
+                  dispatcherName
+                )}
+              </HeadField>
+            )}
+            {meta?.plate && (
+              <HeadField label={t(locale, 'trucks.detail.plateLabel')}>
+                <span className="nums">{meta.plate}</span>
+              </HeadField>
+            )}
+            {meta?.vin && (
+              <HeadField label="VIN">
+                <span className="nums text-[13px] text-white/75">{meta.vin}</span>
+              </HeadField>
+            )}
+            {fs?.location && (
+              /* Где сейчас: место — отдельной строкой во всю ширину, кнопки под ним.
+                 Ответ на «где трак» почти всегда тут же уходит брокеру. */
+              <HeadField label={t(locale, 'trucks.head.location')} className="col-span-2 sm:col-span-3">
+                <span className="block">{fs.location}</span>
+                <CopyPlace
+                  text={fs.location}
+                  copy={cityOf(fs.location) ?? fs.location}
+                  coords={{ lat: fs.lat, lng: fs.lng }}
+                  variant="action"
+                  hideText
+                  className="mt-1.5"
+                />
+              </HeadField>
+            )}
+          </dl>
 
         {/* ===== Current assignment: route, pickup/delivery dates, at a glance ===== */}
         <div className="mt-4 border-t border-white/8 pt-4">
@@ -316,52 +320,37 @@ export default async function Page({
             <>
               {/* Статус — ВПЛОТНУЮ к маршруту. justify-between отбрасывал его к правому
                   краю, и посреди строки зияла пустая полоса в пол-экрана. */}
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Кнопка, а не текст-ссылка: маршрут — единственный переход с трака на
-                    его груз, и подчёркиванием при наведении он себя не выдавал. */}
-                <Link
-                  href={`/loads/${activeLoad.id}`}
-                  className="group flex min-w-0 items-center gap-2 rounded-xl border border-haul-500/35 bg-haul-500/[0.10] px-3 py-1.5 transition-colors hover:border-haul-400/60 hover:bg-haul-500/20"
-                >
-                  <span className="truncate text-[16px] font-semibold">
+              {/* Груз — одна карточка-ссылка: маршрут крупно, под ним статус, номер
+                  и брокер. Вся карточка нажимается и ведёт на груз. */}
+              <Link
+                href={`/loads/${activeLoad.id}`}
+                className="group block rounded-xl border border-haul-500/30 bg-haul-500/[0.07] px-3.5 py-2.5 transition-colors hover:border-haul-400/60 hover:bg-haul-500/[0.14]"
+              >
+                <span className="flex items-start justify-between gap-3">
+                  <span className="min-w-0 text-[17px] font-semibold leading-6">
                     {activeLoad.origin ?? '—'} → {activeLoad.destination ?? '—'}
                     {activeVia && <span className="ml-1.5 text-[13px] font-medium text-white/50">· {activeVia}</span>}
                   </span>
-                  <span className="shrink-0 text-[14px] text-haul-300 transition-transform group-hover:translate-x-0.5">
+                  <span className="mt-0.5 shrink-0 text-[15px] text-haul-300 transition-transform group-hover:translate-x-0.5">
                     ↗
                   </span>
-                </Link>
-                <StatusBadge status={activeLoad.status} locale={locale} />
-                {activeLoad.referenceId && (
-                  <span className="nums text-[12px] text-white/45">#{activeLoad.referenceId}</span>
-                )}
-                {activeLoad.brokerName && (
-                  <span className="truncate text-[12px] text-white/45">· {activeLoad.brokerName}</span>
-                )}
-              </div>
-              <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] sm:grid-cols-3">
-                <div>
-                  <dt className="text-xs text-white/60 font-medium">
-                    {t(locale, 'trucks.detail.pickup')}
-                  </dt>
-                  <dd className="font-medium text-white/85">
-                    {activeLoad.pickupTime || usDate(activeLoad.pickupDate) || '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-white/60 font-medium">
-                    {t(locale, 'trucks.detail.delivery')}
-                  </dt>
-                  <dd className="font-medium text-white/85">
-                    {activeLoad.deliveryTime || usDate(activeLoad.deliveryDate) || '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-white/60 font-medium">
-                    {t(locale, 'trucks.detail.rate')}
-                  </dt>
-                  <dd className="font-medium text-white/85">{usd.format(activeLoad.rate)}</dd>
-                </div>
+                </span>
+                <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-white/55">
+                  <StatusBadge status={activeLoad.status} locale={locale} />
+                  {activeLoad.referenceId && <span className="nums">#{activeLoad.referenceId}</span>}
+                  {activeLoad.brokerName && <span className="min-w-0 truncate">{activeLoad.brokerName}</span>}
+                </span>
+              </Link>
+              <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+                <HeadField label={t(locale, 'trucks.detail.pickup')}>
+                  <span className="nums">{activeLoad.pickupTime || usDate(activeLoad.pickupDate) || '—'}</span>
+                </HeadField>
+                <HeadField label={t(locale, 'trucks.detail.delivery')}>
+                  <span className="nums">{activeLoad.deliveryTime || usDate(activeLoad.deliveryDate) || '—'}</span>
+                </HeadField>
+                <HeadField label={t(locale, 'trucks.detail.rate')}>
+                  <span className="nums text-[16px] font-semibold">{usd.format(activeLoad.rate)}</span>
+                </HeadField>
               </dl>
               {partials.map((p) => (
                 <Link
@@ -446,7 +435,7 @@ export default async function Page({
 
         {/* Цифры трака — одной компактной строкой ПОД заданием: сроки текущего рейса
             читаются раньше недельной ставки и масла. */}
-        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-white/8 pt-3">
+        <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10 sm:grid-cols-4">
           <Chip
             label={t(locale, 'trucks.chip.weekRate')}
             value={usd.format(weekGross)}
@@ -884,13 +873,32 @@ function Chip({
         : tone === 'warn'
           ? 'text-warn-400'
           : 'text-white'
+  // Плитка: подпись сверху, число под ней — одинаковая высота во всей таблице.
   return (
-    <div className="flex items-baseline gap-1.5">
-      <span className={`nums text-[15px] font-semibold ${color}`}>{value}</span>
-      <span className="flex items-center gap-1 text-xs font-medium text-white/60">
-        {label}
+    <div className="flex min-w-0 flex-col justify-center gap-0.5 bg-ink-900 px-3 py-2.5">
+      <span className="flex min-w-0 items-center gap-1 text-[12px] font-medium leading-4 text-white/55">
+        <span className="truncate">{label}</span>
         {info && <Info text={info} />}
       </span>
+      <span className={`nums text-[17px] font-semibold leading-6 ${color}`}>{value}</span>
+    </div>
+  )
+}
+
+/** Поле шапки трака: мелкая подпись сверху, значение под ней. */
+function HeadField({
+  label,
+  children,
+  className = '',
+}: {
+  label: string
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div className={`min-w-0 ${className}`}>
+      <dt className="text-[12px] font-medium leading-4 text-white/50">{label}</dt>
+      <dd className="mt-1 text-[14px] font-medium leading-5 text-white/90">{children}</dd>
     </div>
   )
 }

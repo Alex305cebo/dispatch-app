@@ -17,10 +17,13 @@ export function TruckDispatcher({
   truckId,
   current,
   users,
+  bare = false,
 }: {
   truckId: number
   current: number | null
   users: { id: number; name: string; role: 'admin' | 'dispatcher' }[]
+  /** Без своей подписи — подпись даёт поле шапки трака. */
+  bare?: boolean
 }) {
   const locale = useLocale()
   const [value, setValue] = useState<string>(current == null ? '' : String(current))
@@ -41,6 +44,28 @@ export function TruckDispatcher({
       notify('ok', t(locale, 'admin.assign.saved'))
     })
   }
+
+  const select = (
+    <select
+      value={value}
+      disabled={pending}
+      aria-label={t(locale, 'trucks.detail.dispatcherPick')}
+      onChange={(e) => save(e.target.value)}
+      className={
+        bare
+          ? 'h-8 max-w-full cursor-pointer rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-[13px] font-medium text-white/90 outline-none transition-colors hover:border-white/30 focus:border-haul-500 disabled:opacity-50 max-md:h-10'
+          : 'rounded-lg border border-white/12 bg-ink-950/70 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500 disabled:opacity-50'
+      }
+    >
+      <option value="">{t(locale, 'admin.assign.free')}</option>
+      {users.map((u) => (
+        <option key={u.id} value={u.id}>
+          {u.name}
+        </option>
+      ))}
+    </select>
+  )
+  if (bare) return select
 
   return (
     <label className="flex flex-wrap items-center gap-2">

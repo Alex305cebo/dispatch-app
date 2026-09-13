@@ -33,6 +33,8 @@ export function CopyPlace({
   coords,
   className = '',
   size = 'md',
+  variant = 'accent',
+  hideText = false,
 }: {
   /** Что показать. */
   text: string
@@ -43,6 +45,10 @@ export function CopyPlace({
   className?: string
   /** 'sm' — внутри плотных строк списка, 'md' — в карточках и шапках. */
   size?: 'sm' | 'md'
+  /** 'action' — нейтральные кнопки одной высоты с остальными действиями шапки трака. */
+  variant?: 'accent' | 'action'
+  /** Текст места уже показан рядом (поле «Где сейчас») — только кнопки. */
+  hideText?: boolean
 }) {
   const locale = useLocale()
   const lat = coords?.lat
@@ -68,18 +74,22 @@ export function CopyPlace({
   }
 
   const btn =
-    size === 'sm'
-      ? 'gap-1 px-1.5 py-0.5 text-[11px]'
-      : 'gap-1.5 px-2 py-1 text-[12px]'
-  const icon = size === 'sm' ? 11 : 13
+    variant === 'action'
+      ? 'h-8 gap-1.5 px-2.5 text-[13px] max-md:h-10'
+      : size === 'sm'
+        ? 'gap-1 px-1.5 py-0.5 text-[11px]'
+        : 'gap-1.5 px-2 py-1 text-[12px]'
+  const icon = variant === 'action' ? 14 : size === 'sm' ? 11 : 13
   const skin =
-    'relative z-10 inline-flex shrink-0 items-center rounded-lg border border-haul-500/35 bg-haul-500/15 font-medium text-haul-300 transition-colors hover:border-haul-400 hover:bg-haul-500/30 hover:text-white'
+    variant === 'action'
+      ? 'relative z-10 inline-flex shrink-0 items-center rounded-lg border border-white/12 bg-white/[0.04] font-medium text-white/85 transition-colors hover:border-white/30 hover:bg-white/[0.08] hover:text-white [&>svg]:text-haul-300'
+      : 'relative z-10 inline-flex shrink-0 items-center rounded-lg border border-haul-500/35 bg-haul-500/15 font-medium text-haul-300 transition-colors hover:border-haul-400 hover:bg-haul-500/30 hover:text-white'
 
   return (
     <span className={`inline-flex min-w-0 flex-wrap items-center gap-1.5 ${className}`}>
       {/* Текст не растягивается на всю строку: иначе на телефоне кнопки вставали
           столбиком под ним, каждая на своей строке. */}
-      <span className="min-w-0 max-w-full truncate">{text}</span>
+      {!hideText && <span className="min-w-0 max-w-full truncate">{text}</span>}
       <button type="button" onClick={run} title={t(locale, hasPoint ? 'tracking.copyCoordsTitle' : 'tracking.copyLocationTitle')} className={`${skin} ${btn}`}>
         <Copy size={icon} />
         {t(locale, 'tracking.copyBtn')}
