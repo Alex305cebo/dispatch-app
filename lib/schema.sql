@@ -357,5 +357,11 @@ ON DUPLICATE KEY UPDATE id = id;
 
 -- Какая ревизия этого файла стоит в базе (/api/health?ready=). ПОДНЯТЬ при каждой
 -- новой колонке. Ничего не блокирует: приложение не отказывается стартовать.
-INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-14')
+-- Как заехать к каждой остановке — маршрут, въезд, ворота, «если склад выглядит закрытым,
+-- вы не там», дословно из рейт-кона: [{seq, role, text}] (lib/stops.ts StopDirection).
+-- Отдельной колонкой, а не внутри stops: JSON остановок хранится только у грузов с тремя
+-- и больше точками, а указания бывают и у обычного груза.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS directions JSON;
+
+INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-15')
 ON DUPLICATE KEY UPDATE value = VALUES(value);

@@ -97,7 +97,10 @@ export async function LoadsMapServer({
           lng: pt[1],
           label: stopLabel(s),
           // На конечной выгрузке — ещё ставка груза и за милю: пин читается без списка.
-          sub: [when, s === lastDrop ? rpm : null].filter(Boolean).join(' · ') || undefined,
+          sub:
+            [when, s === lastDrop ? rpm : null, s.directions ? `⚠ ${t(locale, 'loads.dash.hasDirections')}` : null]
+              .filter(Boolean)
+              .join(' · ') || undefined,
           kind: s.role === 'pickup' ? 'pickup' : 'dest',
           truckId: load.id,
         })

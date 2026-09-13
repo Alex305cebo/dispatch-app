@@ -1911,6 +1911,16 @@ export const loadsDict = {
     ro: 'Penalizări',
     kk: 'Айыппұлдар',
   },
+  'brokerNotes.tagRoute': { ru: 'Как заехать', en: 'Directions', es: 'Cómo llegar', uk: 'Як заїхати', ro: 'Cum ajungi', kk: 'Қалай кіру' },
+  'loadEdit.directions': { ru: 'Как заехать', en: 'Directions', es: 'Cómo llegar', uk: 'Як заїхати', ro: 'Cum ajungi', kk: 'Қалай кіру' },
+  'loads.dash.hasDirections': {
+    ru: 'есть указания, как заехать',
+    en: 'has directions to the facility',
+    es: 'tiene indicaciones de acceso',
+    uk: 'є вказівки, як заїхати',
+    ro: 'are indicații de acces',
+    kk: 'кіру нұсқаулары бар',
+  },
   'brokerNotes.tagWarning': {
     ru: 'Важно',
     en: 'Important',

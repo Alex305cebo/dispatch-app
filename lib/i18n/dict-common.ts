@@ -444,6 +444,22 @@ export const commonDict = {
   },
   'driver.pickup': { ru: 'Погрузка', en: 'Pickup', es: 'Recogida', uk: 'Завантаження', ro: 'Încărcare', kk: 'Тиеу' },
   'driver.delivery': { ru: 'Выгрузка', en: 'Delivery', es: 'Entrega', uk: 'Вивантаження', ro: 'Livrare', kk: 'Түсіру' },
+  'driver.directionsTitle': {
+    ru: 'Как заехать — прочитай до выезда',
+    en: 'Directions — read before you drive',
+    es: 'Cómo llegar — léelo antes de salir',
+    uk: 'Як заїхати — прочитай до виїзду',
+    ro: 'Cum ajungi — citește înainte de plecare',
+    kk: 'Қалай кіру керек — жолға шықпай тұрып оқы',
+  },
+  'driver.directionsGps': {
+    ru: 'Едь по этим указаниям, а не по навигатору.',
+    en: 'Follow these, not the GPS.',
+    es: 'Sigue estas indicaciones, no el GPS.',
+    uk: 'Їдь за цими вказівками, а не за навігатором.',
+    ro: 'Urmează aceste indicații, nu GPS-ul.',
+    kk: 'Навигаторға емес, осы нұсқауларға сүйен.',
+  },
   'driver.openMap': {
     ru: 'Открыть в картах',
     en: 'Open in Maps',

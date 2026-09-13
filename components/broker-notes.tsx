@@ -15,6 +15,7 @@ import {
   Package,
   Phone,
   Shield,
+  Signpost,
   TriangleAlert,
   type LucideIcon,
 } from 'lucide-react'
@@ -38,13 +39,14 @@ function tagsFor(locale: Locale): Record<string, { label: string; icon: LucideIc
     INSURANCE: { label: t(locale, 'brokerNotes.tagInsurance'), icon: Shield },
     PENALTY: { label: t(locale, 'brokerNotes.tagPenalty'), icon: Banknote, warn: true },
     WARNING: { label: t(locale, 'brokerNotes.tagWarning'), icon: TriangleAlert, warn: true },
+    ROUTE: { label: t(locale, 'brokerNotes.tagRoute'), icon: Signpost, warn: true },
   }
 }
 
 type NoteLine = { tag: string | null; text: string }
 
 // Locale-independent — only used to check whether a tag is one we recognize.
-const KNOWN_TAGS = new Set(['SAFETY', 'LOAD', 'SCHEDULE', 'CONTACT', 'REF', 'DOCS', 'INSURANCE', 'PENALTY', 'WARNING'])
+const KNOWN_TAGS = new Set(['SAFETY', 'LOAD', 'SCHEDULE', 'CONTACT', 'REF', 'DOCS', 'INSURANCE', 'PENALTY', 'WARNING', 'ROUTE'])
 
 function parseNotes(text: string): NoteLine[] {
   // The AI sometimes returns every tagged fact on ONE run-on line ("...stop.[LOAD]
@@ -212,7 +214,9 @@ export function BrokerNotes({
   // the driver can't check in to load or unload at all, so it can't sit buried
   // under safety notes or paperwork reminders. Array.sort is stable, so everything
   // else keeps its original order.
-  const sortedLines = [...lines].sort((a, b) => (a.tag === 'REF' ? -1 : 0) - (b.tag === 'REF' ? -1 : 0))
+  // Как заехать — ещё выше: не найдя въезд, водитель до номеров просто не доедет.
+  const rank = (tag: string | null) => (tag === 'ROUTE' ? 0 : tag === 'REF' ? 1 : 2)
+  const sortedLines = [...lines].sort((a, b) => rank(a.tag) - rank(b.tag))
   const structured = lines.some((l) => l.tag !== null)
   // One-line taste of the note while collapsed — the full text is a wall, and tags
   // are noise at a glance, so strip them here even for structured notes.

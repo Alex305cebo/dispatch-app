@@ -30,11 +30,17 @@ export type LoadStop = {
   time: string | null
   /** PU# / PO# / Delivery# этой точки. */
   refs: string[]
+  /** Как заехать: маршрут, въезд, ворота — дословно из рейт-кона, по-английски. */
+  directions?: string | null
 }
+
+/** Указания к остановке в колонке loads.directions — по её номеру и роли. */
+export type StopDirection = { seq: number; role: StopRole; text: string }
 
 /** Поля груза, из которых собираются остановки (подмножество LoadRecord). */
 export type StopSource = {
   stops?: LoadStop[] | null
+  directions?: StopDirection[] | string | null
   origin: string | null
   destination: string | null
   pickupAddress: string | null
@@ -54,6 +60,10 @@ export type StopEv = { kind: string; at: string; stopSeq?: number | null }
  * у JSON-остановок название своё.
  */
 export function stopsFrom(load: StopSource, names?: { pickup?: string | null; delivery?: string | null }): LoadStop[] {
+  return withDirections(baseStops(load, names), load.directions)
+}
+
+function baseStops(load: StopSource, names?: { pickup?: string | null; delivery?: string | null }): LoadStop[] {
   if (load.stops && load.stops.length > 0) return load.stops
   return [
     {
@@ -77,6 +87,29 @@ export function stopsFrom(load: StopSource, names?: { pickup?: string | null; de
       refs: [],
     },
   ]
+}
+
+/** Подложить к остановкам указания «как заехать» из loads.directions (по номеру и роли). */
+export function withDirections(stops: LoadStop[], raw: StopDirection[] | string | null | undefined): LoadStop[] {
+  let dirs: StopDirection[] | null = null
+  try {
+    dirs = typeof raw === 'string' ? (JSON.parse(raw) as StopDirection[]) : (raw ?? null)
+  } catch {
+    return stops
+  }
+  if (!Array.isArray(dirs) || !dirs.length) return stops
+  return stops.map((s) => {
+    const d = dirs.find((x) => x.seq === s.seq && x.role === s.role)
+    return d?.text?.trim() ? { ...s, directions: d.text.trim() } : s
+  })
+}
+
+/** Указания остановок для колонки loads.directions; null, если нет ни одного. */
+export function directionsOf(stops: LoadStop[] | null | undefined): StopDirection[] | null {
+  const out = (stops ?? []).flatMap((s) =>
+    s.directions?.trim() ? [{ seq: s.seq, role: s.role, text: s.directions.trim() }] : [],
+  )
+  return out.length ? out : null
 }
 
 /** Есть ли в грузе больше двух точек — тогда номера и «через …» имеют смысл. */

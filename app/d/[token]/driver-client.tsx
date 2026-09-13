@@ -166,6 +166,17 @@ export function DriverClient({
             </span>
           )}
         </div>
+        {/* Как заехать — первым, выше адреса и кнопки карты: навигатор к таким складам
+            ведёт не туда, а прочитать это нужно до того, как тронулся. */}
+        {s.directions && !finished && (
+          <div className="mt-2 rounded-lg border border-warn-400/45 bg-warn-500/15 px-3 py-2">
+            <div className="text-[12px] font-bold uppercase tracking-wide text-warn-400">
+              ⚠ {t(locale, 'driver.directionsTitle')}
+            </div>
+            <p className="mt-1 text-[14px] leading-snug text-white/90">{s.directions}</p>
+            <p className="mt-1 text-[12px] font-semibold text-warn-400">{t(locale, 'driver.directionsGps')}</p>
+          </div>
+        )}
         {s.name && <div className="mt-0.5 text-[13px] font-semibold text-white/80">{s.name}</div>}
         <div className="mt-0.5 text-[15px] font-semibold leading-snug">{where}</div>
         {(s.date || s.time) && (

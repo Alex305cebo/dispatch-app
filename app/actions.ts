@@ -22,7 +22,7 @@ import { shrinkPhoto } from '@/lib/photo'
 import { sql } from '@/lib/db'
 import { humanError } from '@/lib/msg'
 import type { LoadStatus } from '@/lib/map'
-import type { LoadStop } from '@/lib/stops'
+import { directionsOf, type LoadStop } from '@/lib/stops'
 import type { QrLoad } from '@/lib/qr-load'
 import type { TruckSettings } from '@/lib/profit'
 import { checkBroker, checkBrokerByDot, type BrokerCheck, type RcContext } from '@/lib/fmcsa'
@@ -1009,6 +1009,8 @@ export async function createLoadFromRc(
     if (!(await truckBelongs(companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }
     stops = await fillStopCitiesFromZip(stops)
     const stopsJson = stops && stops.length > 2 ? JSON.stringify(stops) : null
+    const dirs = directionsOf(stops)
+    const directionsJson = dirs ? JSON.stringify(dirs) : null
     // A rate con prints TWO MC numbers — the broker's and ours, as the carrier being
     // hired — and whichever the reader grabbed first used to land in broker_mc. That
     // pointed the FMCSA check at our own company and reported "broker authority NONE",
@@ -1121,7 +1123,8 @@ export async function createLoadFromRc(
           delivery_date = COALESCE(delivery_date, ${load.deliveryDate ?? null}),
           broker_name = ${brokerName}, broker_mc = ${brokerMc}, broker_phone = ${brokerPhone}, broker_email = ${brokerEmail},
           broker_notes = ${notes}, driver_info = ${info}, pay_via = COALESCE(pay_via, ${load.payVia ?? null}),
-          stops = COALESCE(stops, ${stopsJson})
+          stops = COALESCE(stops, ${stopsJson}),
+          directions = COALESCE(${directionsJson}, directions)
         WHERE id = ${twin.id} AND company_id = ${companyId}`
       // Файл — к этому же грузу, со своим типом (лист водителя остаётся листом).
       if (docId && (await docBelongs(companyId, docId)))
@@ -1192,14 +1195,14 @@ export async function createLoadFromRc(
                          destination, truck_location, spot_rpm, broker_name, broker_mc, broker_email,
                          broker_phone, reference_id, source, truck_id, pickup_date,
                          delivery_date, broker_notes, pickup_time, delivery_time,
-                         pickup_address, delivery_address, status, dispatcher_id, company_id, driver_info, pay_via, miles_estimated, stops)
+                         pickup_address, delivery_address, status, dispatcher_id, company_id, driver_info, pay_via, miles_estimated, stops, directions)
       VALUES (${load.rate}, ${loadedMiles}, ${deadheadMiles}, ${load.transitDays},
               ${load.origin}, ${load.destination}, ${load.truckLocation}, ${load.spotRpm},
               ${load.brokerName}, ${brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
               'qr', ${truckId}, ${load.pickupDate ?? null}, ${load.deliveryDate ?? null},
               ${load.brokerNotes ?? null}, ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
               ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, 'booked', ${dispatcherId}, ${companyId},
-              ${await driverInfoWithCities(driverInfo)}, ${load.payVia ?? null}, ${milesEstimated}, ${stopsJson})
+              ${await driverInfoWithCities(driverInfo)}, ${load.payVia ?? null}, ${milesEstimated}, ${stopsJson}, ${directionsJson})
       RETURNING id`
     const loadId = (rows[0] as { id: number }).id
     if (docId && (await docBelongs(companyId, docId)))
@@ -1847,7 +1850,8 @@ export async function parseRcForNotes(loadId: number): Promise<{ error: string }
       reference_id = COALESCE(reference_id, ${load.referenceId}),
       pay_via = COALESCE(pay_via, ${load.payVia}),
       driver_info = ${driverInfo},
-      stops = COALESCE(${fields.stops && fields.stops.length > 2 ? JSON.stringify(await fillStopCitiesFromZip(fields.stops)) : null}, stops)
+      stops = COALESCE(${fields.stops && fields.stops.length > 2 ? JSON.stringify(await fillStopCitiesFromZip(fields.stops)) : null}, stops),
+      directions = COALESCE(${directionsOf(fields.stops) ? JSON.stringify(directionsOf(fields.stops)) : null}, directions)
       WHERE id = ${loadId} AND company_id = ${companyId}`
   } catch (e) {
     return { error: humanError(e, locale) }

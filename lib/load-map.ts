@@ -133,11 +133,12 @@ export async function loadMapData(
         : load.origin
           ? `${t(locale, 'tracking.fromPrefix')}${load.origin}`
           : ''
+    const dir = st.directions ? `⚠ ${t(locale, 'loads.dash.hasDirections')}` : ''
     return {
       lat: p.lat,
       lng: p.lng,
       label,
-      sub: sub || undefined,
+      sub: [sub, dir].filter(Boolean).join('\n') || undefined,
       kind: isPickup ? 'pickup' : 'dest',
       href: `/loads/${load.id}`,
     }

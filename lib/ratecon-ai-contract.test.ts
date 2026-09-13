@@ -70,3 +70,24 @@ test('текст водителю — блок на каждую останов�
   assert.equal(names.pickup, 'United Rotary Brush - NEW OLATHE')
   assert.equal(names.delivery, 'City of Caldwell')
 })
+
+// Настоящий Load Info TQL 38295964: у выгрузки в Cleveland, TN — маршрут к складу.
+const TQL: AiFields = {
+  stops: [
+    { role: 'pickup', company: 'PRATT PAPER (WAPAKONETA, OH)', street: '12860 DIXIE HWY', city: 'Wapakoneta', state: 'OH', zip: '45895', time: '9/13/2026 FCFS 07:00 to 22:00', refs: ['17093609'], directions: "24/7 Shipping, FCFS If shipper looks closed, you're in the wrong place." },
+    { role: 'delivery', company: 'SHEETS TRIUMPH SHEETS (CLEVELAND, TN)', street: '4100 Old Tasso Rd NE', city: 'Cleveland', state: 'TN', zip: '37312', time: '9/14/2026 Appt 09:00', refs: ['17093609'], directions: 'ga 85-n, 1-75s keep left at the fork and follow signs for i-75 n/atlanta\n take exit 20 towards us-64 E/cleveland, turn left at 20th st NE take the 2nd left onto Old Tasso Road.' },
+  ],
+  rate: 1650,
+  referenceId: '38295964',
+  brokerName: 'TQL',
+}
+
+test('указания «как заехать» идут в остановки и в текст водителю сразу под адресом', () => {
+  const f = aiToFields(TQL, 'test')
+  assert.equal(f.stops?.[1]?.directions?.includes('\n'), false)
+  assert.match(f.stops?.[1]?.directions ?? '', /^ga 85-n, 1-75s keep left .* onto Old Tasso Road\.$/)
+  const out = formatDriverInfo(f)
+  // под адресом выгрузки, раньше строки со временем
+  assert.match(out, /Cleveland, TN 37312\n\n_+\n⚠ DIRECTIONS \(follow these, not GPS\): ga 85-n[^\n]*Old Tasso Road\.\n_+\nTime: 9\/14\/2026 Appt 09:00/)
+  assert.match(out, /⚠ DIRECTIONS \(follow these, not GPS\): 24\/7 Shipping, FCFS If shipper looks closed, you're in the wrong place\./)
+})

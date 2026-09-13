@@ -2,6 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   arrivedAt,
+  directionsOf,
+  withDirections,
   eventSeq,
   isDone,
   mergeStops,
@@ -154,4 +156,25 @@ test('партиал разных брокеров: точки обоих гру
   // у Tallgrass и не делает пройденной погрузку партиала в том же городе.
   const done = merged.filter((s) => isDone(s, s.loadId === 1779 ? [{ kind: 'delivered', at: '2026-09-11', stopSeq: 2 }] : [], stopsFrom(s.loadId === 1779 ? tallgrass : trinity)))
   assert.deepEqual(done.map((s) => [s.loadId, s.city]), [[1779, 'Omaha, NE']])
+})
+
+test('указания «как заехать» из колонки подкладываются к своей остановке — и у двухточечного груза', () => {
+  const dirs = [{ seq: 2, role: 'delivery' as const, text: 'Exit 20, left on 20th St NE, 2nd left onto Old Tasso Rd' }]
+  const s = stopsFrom({ ...legacy, directions: dirs })
+  assert.equal(s[0]!.directions, undefined)
+  assert.equal(s[1]!.directions, 'Exit 20, left on 20th St NE, 2nd left onto Old Tasso Rd')
+  // из базы JSON может прийти строкой
+  assert.equal(stopsFrom({ ...legacy, directions: JSON.stringify(dirs) })[1]!.directions, dirs[0]!.text)
+  // роль не совпала — не подкладываем чужой маршрут
+  assert.equal(stopsFrom({ ...legacy, directions: [{ ...dirs[0]!, role: 'pickup' }] })[1]!.directions, undefined)
+  assert.equal(withDirections(three, 'not json')[0], three[0])
+})
+
+test('directionsOf собирает только непустые указания, иначе null', () => {
+  assert.equal(directionsOf(three), null)
+  const withDir = three.map((s) => (s.seq === 3 ? { ...s, directions: '  Truck entrance on N 3rd Ave  ' } : s))
+  assert.deepEqual(directionsOf(withDir), [{ seq: 3, role: 'delivery', text: 'Truck entrance on N 3rd Ave' }])
+  // партиал: указания доезжают в общую ленту водителя
+  const merged = mergeStops([{ ...legacy, id: 1, referenceId: 'A', brokerName: 'TQL', directions: [{ seq: 1, role: 'pickup', text: 'Gate 4' }] }])
+  assert.equal(merged[0]!.directions, 'Gate 4')
 })
