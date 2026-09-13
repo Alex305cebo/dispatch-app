@@ -346,7 +346,7 @@ function DocRow({
         <Thumb doc={doc} size={7} />
         <DocLink
           docId={doc.id}
-          className="order-first basis-full truncate text-left text-[13px] text-white/85 hover:text-haul-400 hover:underline sm:order-none sm:min-w-0 sm:shrink sm:basis-auto"
+          className="order-first basis-full text-left text-[13px] leading-4 text-white/85 [overflow-wrap:anywhere] sm:truncate hover:text-haul-400 hover:underline sm:order-none sm:min-w-0 sm:shrink sm:basis-auto"
           title={doc.title}
         >
           {name}

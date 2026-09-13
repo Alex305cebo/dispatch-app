@@ -367,7 +367,7 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                           >
                             <Link
                               href={`/loads/${u.id}`}
-                              className="min-w-0 flex-1 truncate text-[12.5px] text-white/80 hover:underline"
+                              className="min-w-0 flex-1 basis-40 text-[12.5px] leading-4 text-white/80 hover:underline"
                             >
                               {u.route}
                               {u.ref ? ` · ${u.ref}` : ''}

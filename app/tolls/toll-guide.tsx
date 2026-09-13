@@ -51,7 +51,7 @@ export function TollGuide() {
         {TOLL_HOTSPOTS.map((h) => (
           <div key={h.name} className="rounded-xl border border-white/8 bg-ink-950/50 p-3">
             <div className="flex items-baseline justify-between gap-2">
-              <span className="min-w-0 truncate text-[13px] font-semibold text-white/90">{h.name}</span>
+              <span className="min-w-0 text-[13px] font-semibold leading-4 text-white/90">{h.name}</span>
               <span className="nums shrink-0 text-[13px] font-bold text-warn-400">{h.amount}</span>
             </div>
             <p className="mt-1 text-[11.5px] leading-relaxed text-white/55">{locale === 'en' ? h.en : h.ru}</p>

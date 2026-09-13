@@ -192,7 +192,7 @@ async function Unpaid({
               <div key={load.id} className="panel p-4 border-warn-400/20">
                 <div className="flex items-center gap-4">
                   <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
-                    <div className="truncate text-[14px] font-medium">
+                    <div className="text-[14px] font-medium leading-5">
                       {load.origin ?? '—'} → {load.destination ?? '—'}
                     </div>
                     <div className="mt-0.5 text-[12px] text-white/60">
@@ -584,9 +584,9 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
                               <li key={load.id}>
                                 <Link
                                   href={`/loads/${load.id}`}
-                                  className="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-[11.5px] text-white/60 transition-colors hover:bg-white/5 hover:text-white/85"
+                                  className="flex items-start justify-between gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-[12px] leading-4 text-white/65 transition-colors hover:bg-white/5 hover:text-white/90"
                                 >
-                                  <span className="min-w-0 truncate">
+                                  <span className="min-w-0">
                                     {load.referenceId ? `#${load.referenceId} · ` : ''}
                                     {load.origin ?? '—'} → {load.destination ?? '—'}
                                   </span>
@@ -706,9 +706,9 @@ async function ByWeek({
                       <li key={load.id} className="flex items-center gap-2">
                         <Link
                           href={`/loads/${load.id}`}
-                          className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md px-2 py-1 text-[11.5px] text-white/60 transition-colors hover:bg-white/5 hover:text-white/85"
+                          className="flex min-w-0 flex-1 items-start justify-between gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-[12px] leading-4 text-white/65 transition-colors hover:bg-white/5 hover:text-white/90"
                         >
-                          <span className="min-w-0 truncate">
+                          <span className="min-w-0">
                             {load.referenceId ? `#${load.referenceId} · ` : ''}
                             {load.origin ?? '—'} → {load.destination ?? '—'}
                             {load.brokerName ? ` · ${load.brokerName}` : ''}
@@ -819,9 +819,9 @@ async function ByDriver({ companyId, locale }: { companyId: 'default' | 'demo'; 
                       <li key={load.id}>
                         <Link
                           href={`/loads/${load.id}`}
-                          className="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-[11.5px] text-white/60 transition-colors hover:bg-white/5 hover:text-white/85"
+                          className="flex items-start justify-between gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-[12px] leading-4 text-white/65 transition-colors hover:bg-white/5 hover:text-white/90"
                         >
-                          <span className="min-w-0 truncate">
+                          <span className="min-w-0">
                             {load.referenceId ? `#${load.referenceId} · ` : ''}
                             {load.origin ?? '—'} → {load.destination ?? '—'}
                           </span>

@@ -690,24 +690,27 @@ export default async function Page({
                       aria-label={`${load.origin ?? '—'} → ${load.destination ?? '—'}`}
                       className="absolute inset-0 rounded-[inherit]"
                     />
-                    <div className="flex items-center gap-2">
-                      <span className="min-w-0 flex-1 truncate text-md font-medium">
+                    {/* Маршрут — первой строкой ЦЕЛИКОМ, с переносом: рядом с ним стоит
+                        только маленькая кнопка RC. Статус переехал во вторую строку —
+                        на телефоне он отнимал у маршрута половину ширины. */}
+                    <div className="flex items-start gap-2">
+                      <span className="min-w-0 flex-1 text-md font-medium leading-5">
                         {load.origin ?? '—'} → {load.destination ?? '—'}
                       </span>
-                      <StatusBadge status={load.status} locale={locale} />
                       {rcId && (
-                        <span className="relative z-10">
+                        <span className="relative z-10 -mt-0.5 shrink-0">
                           <RateConButton docId={rcId} compact />
                         </span>
                       )}
                     </div>
-                    <div className="mt-1 flex items-baseline justify-between gap-2">
-                      <span className="nums min-w-0 truncate text-sm text-white/60">
+                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <StatusBadge status={load.status} locale={locale} />
+                      <span className="nums text-sm text-white/60">
                         {Math.round(r.totalMiles)} mi · {usd2.format(r.allInRpm)}/mi
                       </span>
                       {/* Headline is the load's actual RATE, never net — the owner reads
                           these cards as "what this load is worth". Net is the small line. */}
-                      <span className="nums shrink-0 text-md font-bold">{usd.format(load.rate)}</span>
+                      <span className="nums ml-auto shrink-0 text-md font-bold">{usd.format(load.rate)}</span>
                     </div>
                   </div>
                 )

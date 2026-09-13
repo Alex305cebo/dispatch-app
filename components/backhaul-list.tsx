@@ -52,7 +52,7 @@ export function BackhaulList({ state, brokers, locale }: { state: string; broker
                   </span>
                 )}
               </div>
-              <div className="mt-0.5 truncate text-[11.5px] text-white/40">
+              <div className="mt-0.5 text-[11.5px] leading-4 text-white/45">
                 {t(locale, 'backhaul.last')} {b.lastDate} · {b.lastRoute}
               </div>
             </div>

@@ -89,7 +89,7 @@ export function CopyPlace({
     <span className={`inline-flex min-w-0 flex-wrap items-center gap-1.5 ${className}`}>
       {/* Текст не растягивается на всю строку: иначе на телефоне кнопки вставали
           столбиком под ним, каждая на своей строке. */}
-      {!hideText && <span className="min-w-0 max-w-full truncate">{text}</span>}
+      {!hideText && <span className="min-w-0 max-w-full">{text}</span>}
       <button type="button" onClick={run} title={t(locale, hasPoint ? 'tracking.copyCoordsTitle' : 'tracking.copyLocationTitle')} className={`${skin} ${btn}`}>
         <Copy size={icon} />
         {t(locale, 'tracking.copyBtn')}

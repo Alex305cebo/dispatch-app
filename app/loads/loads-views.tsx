@@ -344,7 +344,7 @@ function StatusBoard({
                 <div key={load.id} className="rounded-lg border border-white/6 p-2.5">
                   <div className="flex items-start gap-2">
                     <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
-                      <div className="truncate text-base font-medium">
+                      <div className="text-base font-medium leading-5">
                         {load.origin ?? '—'} → {load.destination ?? '—'}
                       </div>
                     </Link>
