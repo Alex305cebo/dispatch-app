@@ -28,33 +28,39 @@ const INLINE_OK = new Set([
 ])
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const rows = await sql`
-    SELECT title, mime, encode(data, 'base64') AS b64 FROM documents
-    WHERE id = ${Number(id)} AND company_id = ${await companyScope()}`
-  const doc = rows[0] as { title: string; mime: string; b64: string } | undefined
-  if (!doc) return new NextResponse('Not found', { status: 404 })
-
-  // ?download=1 → force a save-to-computer; otherwise open inline in the browser tab.
   const q = new URL(_req.url).searchParams
-  const download = q.has('download')
-  const mime = (doc.mime || '').split(';')[0]!.trim().toLowerCase()
+  const scope = await companyScope()
 
-  // ?thumb=1 → миниатюра для списка документов: фото груза по 200 КБ, а в списке
-  // их десяток — на телефоне это секунды. Ужимаем до 160px на сервере (sharp уже в
-  // проекте) и отдаём как JPEG; не картинка или не вышло — 404, список покажет иконку.
+  // ?thumb=1 → миниатюра для списка документов: фото груза по несколько МБ, а в
+  // списке их десяток. Миниатюра считается ОДИН раз и хранится в documents.thumb:
+  // тянуть полный файл из базы ради 160px — это и секунды на телефоне, и сетевой
+  // трафик Neon, которого на бесплатном плане 5 ГБ в месяц. Не картинка или не
+  // вышло — 404, список покажет иконку.
   if (q.has('thumb')) {
-    if (!mime.startsWith('image/')) return new NextResponse('Not an image', { status: 404 })
+    const t = (await sql`
+      SELECT mime, encode(thumb, 'base64') AS thumb FROM documents
+      WHERE id = ${Number(id)} AND company_id = ${scope}`) as { mime: string; thumb: string | null }[]
+    const meta = t[0]
+    if (!meta) return new NextResponse('Not found', { status: 404 })
+    if (!(meta.mime || '').toLowerCase().startsWith('image/')) return new NextResponse('Not an image', { status: 404 })
     try {
-      const sharp = (await import('sharp')).default
-      const out = await sharp(Buffer.from(doc.b64, 'base64'))
-        .rotate()
-        .resize(160, 160, { fit: 'cover' })
-        .jpeg({ quality: 70 })
-        .toBuffer()
+      let out: Buffer
+      if (meta.thumb) out = Buffer.from(meta.thumb, 'base64')
+      else {
+        const full = (await sql`SELECT encode(data, 'base64') AS b64 FROM documents WHERE id = ${Number(id)}`) as { b64: string }[]
+        const sharp = (await import('sharp')).default
+        out = await sharp(Buffer.from(full[0]!.b64, 'base64'))
+          .rotate()
+          .resize(160, 160, { fit: 'cover' })
+          .jpeg({ quality: 70 })
+          .toBuffer()
+        await sql`UPDATE documents SET thumb = decode(${out.toString('hex')}, 'hex') WHERE id = ${Number(id)}`
+      }
       return new NextResponse(new Uint8Array(out), {
         headers: {
           'content-type': 'image/jpeg',
-          'cache-control': 'private, max-age=86400',
+          // Файл под этим id не меняется никогда — кэш на месяц.
+          'cache-control': 'private, max-age=2592000, immutable',
           'x-content-type-options': 'nosniff',
           'content-security-policy': "default-src 'none'; sandbox",
         },
@@ -63,6 +69,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       return new NextResponse('Thumb failed', { status: 404 })
     }
   }
+  const rows = await sql`
+    SELECT title, mime, encode(data, 'base64') AS b64 FROM documents
+    WHERE id = ${Number(id)} AND company_id = ${scope}`
+  const doc = rows[0] as { title: string; mime: string; b64: string } | undefined
+  if (!doc) return new NextResponse('Not found', { status: 404 })
+
+  // ?download=1 → force a save-to-computer; otherwise open inline in the browser tab.
+  const download = q.has('download')
+  const mime = (doc.mime || '').split(';')[0]!.trim().toLowerCase()
   const inline = !download && INLINE_OK.has(mime)
   return new NextResponse(Buffer.from(doc.b64, 'base64'), {
     headers: {
@@ -70,7 +85,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       // это XML, который умеет выполнять скрипт, и как картинку его отдать нельзя.
       'content-type': inline ? mime : 'application/octet-stream',
       'content-disposition': `${inline ? 'inline' : 'attachment'}; filename="${encodeURIComponent(doc.title)}"`,
-      'cache-control': 'private, max-age=3600',
+      'cache-control': 'private, max-age=2592000, immutable',
       'x-content-type-options': 'nosniff',
       // Даже если что-то из списка окажется исполняемым, выполнять ему будет нечего:
       // ни скриптов, ни запросов наружу, ни встраивания в чужую страницу.

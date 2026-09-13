@@ -438,7 +438,11 @@ ALTER TABLE documents ADD COLUMN IF NOT EXISTS stop_seq INTEGER;
 -- Готовая картинка трака из public/trucks (lib/truck-models.ts); NULL — стандартная.
 ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS truck_model TEXT;
 
-INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-13')
+-- Миниатюра 160px для списка документов (app/api/docs/[id]?thumb=1), считается один
+-- раз при первом показе. Полный файл из базы ради миниатюры не тянем: трафик Neon.
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS thumb BYTEA;
+
+INSERT INTO settings (key, value) VALUES ('schema_version', '2026-09-13b')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- Через кого брокер платит перевозчикам (TriumphPay, Comdata, RTS…), если рейт-кон

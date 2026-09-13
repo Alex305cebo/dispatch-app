@@ -17,6 +17,7 @@ import { DOC_KINDS } from '@/lib/docs'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
+import { shrinkPhoto } from '@/lib/photo'
 import { sql } from '@/lib/db'
 import { humanError } from '@/lib/msg'
 import type { LoadStatus } from '@/lib/map'
@@ -2041,11 +2042,11 @@ export async function saveDriverPhoto(truckId: number, fd: FormData): Promise<{ 
   if (!file.type.startsWith('image/')) return { error: t(locale, 'actions.needImage') }
   if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
 
-  const hex = Buffer.from(await file.arrayBuffer()).toString('hex')
+  const hex = (await shrinkPhoto(Buffer.from(await file.arrayBuffer()), 512)).toString('hex')
   try {
     await sql`
       INSERT INTO truck_meta (truck_id, driver_photo, driver_photo_mime)
-      VALUES (${truckId}, decode(${hex}, 'hex'), ${file.type})
+      VALUES (${truckId}, decode(${hex}, 'hex'), 'image/jpeg')
       ON CONFLICT (truck_id) DO UPDATE SET
         driver_photo      = EXCLUDED.driver_photo,
         driver_photo_mime = EXCLUDED.driver_photo_mime`
@@ -2068,11 +2069,11 @@ export async function saveTruckPhoto(truckId: number, fd: FormData): Promise<{ e
   if (!file.type.startsWith('image/')) return { error: t(locale, 'actions.needImage') }
   if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
 
-  const hex = Buffer.from(await file.arrayBuffer()).toString('hex')
+  const hex = (await shrinkPhoto(Buffer.from(await file.arrayBuffer()), 1200)).toString('hex')
   try {
     await sql`
       INSERT INTO truck_meta (truck_id, truck_photo, truck_photo_mime)
-      VALUES (${truckId}, decode(${hex}, 'hex'), ${file.type})
+      VALUES (${truckId}, decode(${hex}, 'hex'), 'image/jpeg')
       ON CONFLICT (truck_id) DO UPDATE SET
         truck_photo      = EXCLUDED.truck_photo,
         truck_photo_mime = EXCLUDED.truck_photo_mime,
