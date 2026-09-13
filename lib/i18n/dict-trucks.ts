@@ -443,6 +443,15 @@ export const trucksDict = {
     ro: 'Nivelul din rezervor după senzorul camionului, vine de la ELD odată cu coordonatele. Se actualizează mai rar decât coordonatele — o dată la 20 de minute.',
     kk: 'Тракт датчигі бойынша бактағы деңгей, ELD-тен координаттармен бірге келеді. Координаттардан сирек жаңарады — 20 минутта бір рет.',
   },
+  'trucks.chip.odometer': { ru: 'Пробег', en: 'Odometer', es: 'Odómetro', uk: 'Пробіг', ro: 'Kilometraj', kk: 'Жүріс' },
+  'trucks.chip.odometerInfo': {
+    ru: 'Пробег трака по одометру, приходит с ELD вместе с координатами. От него считается срок замены масла.',
+    en: 'Truck odometer reading, delivered by the ELD alongside its position. The oil change countdown is based on it.',
+    es: 'Lectura del odómetro del camión, llega del ELD junto con las coordenadas. El cambio de aceite se calcula a partir de ella.',
+    uk: 'Пробіг трака за одометром, приходить з ELD разом із координатами. Від нього рахується строк заміни мастила.',
+    ro: 'Kilometrajul camionului, vine de la ELD odată cu coordonatele. Schimbul de ulei se calculează pornind de la el.',
+    kk: 'Трактың одометр бойынша жүрісі, ELD-тен координаттармен бірге келеді. Май ауыстыру мерзімі осыдан есептеледі.',
+  },
   'trucks.chip.oilIn': {
     ru: 'Масло через',
     en: 'Oil change in',

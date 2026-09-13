@@ -433,6 +433,13 @@ export default async function Page({
             value={`${usd2.format(avgRpm)}`}
             info={t(locale, 'trucks.chip.rpmInfo')}
           />
+          {fs?.odometer != null && (
+            <Chip
+              label={t(locale, 'trucks.chip.odometer')}
+              value={`${Math.round(fs.odometer).toLocaleString('en-US')} mi`}
+              info={t(locale, 'trucks.chip.odometerInfo')}
+            />
+          )}
           <Chip
             label={t(locale, 'trucks.chip.oilIn')}
             value={oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—'}
