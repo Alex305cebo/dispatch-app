@@ -99,11 +99,13 @@ export function LoadsViews({
   // Поиск и фильтры стоят НАД видами и общие для всех трёх: искать груз, а потом
   // гадать, в какой из вкладок он теперь виден, — это не поиск.
   const { query, setQuery, filter, setFilter, sort, setSort, result: filtered } = useLoadsFilter(allLoads, trucks, metrics, initialQuery)
-  const [view, setView] = useState(initialView)
+  // Календарь больше не вкладка — он всегда под картой; старая ссылка ?view=calendar
+  // открывает обычный вид по водителю.
+  const [view, setView] = useState<'driver' | 'board'>(initialView === 'board' ? 'board' : 'driver')
   const [weekMonday, setWeekMonday] = useState(initialWeek)
   const [selectedDay, setSelectedDay] = useState(initialDay)
-  // «В работе» по умолчанию; поиск из адреса и календарь смотрят на всё.
-  const [scope, setScope] = useState<Scope>(initialQuery || initialView === 'calendar' ? 'all' : 'working')
+  // «В работе» по умолчанию; поиск из адреса смотрит на всё.
+  const [scope, setScope] = useState<Scope>(initialQuery ? 'all' : 'working')
   // Выборка от плитки KPI или очереди внимания: список показывает только эти грузы.
   const [selection, setSelection] = useState<Selection>(null)
   const listRef = useRef<HTMLDivElement>(null)
@@ -170,6 +172,21 @@ export function LoadsViews({
     <MetricsContext.Provider value={metrics}>
       <LoadsKpis loads={allLoads} trucks={trucks} weekFrom={weekFrom} locale={locale} onSelect={select} />
       {mapPanel}
+      {/* Календарь недели — сразу под картой и виден с первого экрана: где каждый трак и
+          что он везёт на неделю. Поиск и фильтры ниже его не сужают — это обзор парка,
+          а не список; отменённые грузы календарь не рисует сам. */}
+      <div className="mb-4">
+        <Calendar
+          loads={allLoads}
+          weekMonday={weekMonday}
+          selectedDay={selectedDay}
+          byId={byId}
+          rateCons={rateCons}
+          locale={locale}
+          onWeek={setWeekMonday}
+          onDay={setSelectedDay}
+        />
+      </div>
       <LoadsAttention entries={attention} locale={locale} onSelect={select} />
 
       <div ref={listRef} className="scroll-mt-4" />
@@ -181,16 +198,6 @@ export function LoadsViews({
           </button>
           <button type="button" onClick={() => setView('board')} className={tabClass(view === 'board')}>
             {t(locale, 'loads.page.tabByStatus')}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setView('calendar')
-              setScope('all')
-            }}
-            className={tabClass(view === 'calendar')}
-          >
-            {t(locale, 'loads.page.tabCalendar')}
           </button>
         </div>
         <div className="mb-1.5 flex rounded-lg bg-white/[0.05] p-0.5">
@@ -244,17 +251,6 @@ export function LoadsViews({
 
       {view === 'board' ? (
         <StatusBoard loads={loads} byId={byId} rateCons={rateCons} locale={locale} />
-      ) : view === 'calendar' ? (
-        <Calendar
-          loads={loads}
-          weekMonday={weekMonday}
-          selectedDay={selectedDay}
-          byId={byId}
-          rateCons={rateCons}
-          locale={locale}
-          onWeek={setWeekMonday}
-          onDay={setSelectedDay}
-        />
       ) : (
         <div className="stagger flex flex-col gap-3">
           {unassigned.length > 0 && (
