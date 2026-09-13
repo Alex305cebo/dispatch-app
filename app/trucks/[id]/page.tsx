@@ -143,6 +143,17 @@ export default async function Page({
   const weekGross = weekRows.reduce((s, x) => s + x.load.rate, 0)
   const weekMiles = weekRows.reduce((s, x) => s + x.r.totalMiles, 0)
   const avgRpm = weekMiles > 0 ? weekRows.reduce((s, x) => s + x.r.gross, 0) / weekMiles : 0
+  const weekDeadhead = weekRows.reduce((s, x) => s + x.r.deadheadMiles, 0)
+  const weekDeadheadPct = weekMiles > 0 ? Math.round((weekDeadhead / weekMiles) * 100) : 0
+  // Сколько дней стоит без груза: от плановой даты последней доставки. Дата
+  // доставки, а не статус, потому что груз могут отметить «доставлен» и через
+  // неделю — а трак всё это время уже искал работу.
+  const lastDelivery = live
+    .filter((l) => (l.status === 'delivered' || l.status === 'paid') && l.deliveryDate)
+    .map((l) => l.deliveryDate!)
+    .sort()
+    .pop()
+  const idleDays = lastDelivery ? Math.max(0, Math.floor((Date.now() - Date.parse(lastDelivery)) / 86_400_000)) : null
   const openTodos = todos.filter((t) => !t.doneAt).length
   const hasUrgentTodo = todos.some((t) => !t.doneAt && t.priority === 'urgent')
   const oil = oilStatus(meta, fs?.odometer ?? null)
@@ -399,9 +410,22 @@ export default async function Page({
             <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-white/55">
               {/* Не просто «свободен», а ГДЕ стоит: это и есть ответ, в каком городе
                   искать ему груз. Без GPS остаётся прежняя фраза. */}
-              {cityOf(fs?.location)
-                ? t(locale, 'trucks.detail.idleAt').replace('{place}', cityOf(fs?.location)!)
-                : t(locale, 'trucks.detail.noActiveLoad')}
+              <span className="flex flex-wrap items-center gap-2">
+                {idleDays != null && (
+                  <span
+                    className={`nums rounded-md px-1.5 py-0.5 text-[12px] font-semibold ${
+                      idleDays >= 4 ? 'bg-bad-500/15 text-bad-400' : idleDays >= 2 ? 'bg-warn-500/15 text-warn-400' : 'bg-white/[0.06] text-white/70'
+                    }`}
+                  >
+                    {t(locale, 'trucks.detail.idleDays').replace('{n}', String(idleDays))}
+                  </span>
+                )}
+                <span>
+                  {cityOf(fs?.location)
+                    ? t(locale, 'trucks.detail.idleAt').replace('{place}', cityOf(fs?.location)!)
+                    : t(locale, 'trucks.detail.noActiveLoad')}
+                </span>
+              </span>
               {/* Свободный трак — главное действие на карточке: завести ему груз.
                   Была текстовая ссылка «+ груз» в углу, её не находили. */}
               <Button
@@ -430,9 +454,20 @@ export default async function Page({
             info={t(locale, 'trucks.chip.weekRateInfo')}
           />
           <Chip
+            label={t(locale, 'trucks.chip.weekMiles')}
+            value={`${Math.round(weekMiles).toLocaleString('en-US')} mi`}
+            info={t(locale, 'trucks.chip.weekMilesInfo')}
+          />
+          <Chip
             label={t(locale, 'trucks.chip.rpm')}
             value={`${usd2.format(avgRpm)}`}
             info={t(locale, 'trucks.chip.rpmInfo')}
+          />
+          <Chip
+            label={t(locale, 'trucks.chip.deadhead')}
+            value={weekMiles > 0 ? `${Math.round(weekDeadhead).toLocaleString('en-US')} mi · ${weekDeadheadPct}%` : '—'}
+            tone={weekMiles > 0 ? (weekDeadheadPct >= 25 ? 'bad' : weekDeadheadPct >= 15 ? 'warn' : 'good') : undefined}
+            info={t(locale, 'trucks.chip.deadheadInfo')}
           />
           {fs?.odometer != null && (
             <Chip
@@ -453,6 +488,13 @@ export default async function Page({
               value={`${Math.round(fs.fuel)}%`}
               tone={fs.fuel <= 15 ? 'bad' : fs.fuel <= 30 ? 'warn' : undefined}
               info={t(locale, 'trucks.chip.fuelInfo')}
+            />
+          )}
+          {activeLoad && (
+            <Chip
+              label={t(locale, 'trucks.chip.loadFuel')}
+              value={usd.format(calcLoad(activeLoad, truck).fuel)}
+              info={t(locale, 'trucks.chip.loadFuelInfo')}
             />
           )}
         </div>
