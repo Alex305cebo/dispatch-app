@@ -1,5 +1,6 @@
 'use client'
 
+import { safeUploadFile } from '@/lib/upload-name'
 import { DocLink } from '@/components/doc-link'
 
 import { Button } from '@/components/button'
@@ -173,7 +174,7 @@ export function TruckCare({
   function attachReceipt(file: File | undefined, recordTitle: string, maintenanceId: number) {
     if (!file) return
     const fd = new FormData()
-    fd.append('file', file)
+    fd.append('file', safeUploadFile(file))
     fd.append('kind', 'repair')
     fd.append('truckId', String(truckId))
     fd.append('maintenanceId', String(maintenanceId))

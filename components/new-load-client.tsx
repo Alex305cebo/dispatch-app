@@ -1,5 +1,6 @@
 'use client'
 
+import { safeUploadFile } from '@/lib/upload-name'
 import { Button } from '@/components/button'
 // New-load page: a compact "scan rate con" bar on top of the manual form. Drop a
 // PDF/фото → распознавание (Gemini) → заполненная форма ниже. Без скана форма
@@ -73,7 +74,7 @@ export function NewLoadClient({
       // Save the RC as a document — attached to the load on save.
       setDocId(undefined)
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', safeUploadFile(file))
       fd.append('kind', 'ratecon')
       void uploadDocument(fd).then((r) => {
         if (reqId.current === my && 'id' in r) setDocId(r.id)

@@ -1,5 +1,6 @@
 'use client'
 
+import { safeUploadFile } from '@/lib/upload-name'
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { t, type Locale } from '@/lib/i18n'
@@ -106,7 +107,7 @@ export function DriverClient({
     const fd = new FormData()
     fd.append('action', 'photo')
     fd.append('kind', kind)
-    for (const f of Array.from(files)) fd.append('file', f)
+    for (const f of Array.from(files)) fd.append('file', safeUploadFile(f))
     void post(fd, kind)
   }
 

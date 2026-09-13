@@ -1,5 +1,6 @@
 'use client'
 
+import { safeUploadFile } from '@/lib/upload-name'
 import { Button } from '@/components/button'
 // One obvious place to see and edit the driver: name, phone, licence dates. Before
 // this, the name was buried in the truck-economics form and the phone in the care
@@ -81,7 +82,7 @@ export function DriverCard({
   function pickPhoto(file: File | undefined) {
     if (!file) return
     const fd = new FormData()
-    fd.append('file', file)
+    fd.append('file', safeUploadFile(file))
     startPhoto(async () => {
       const res = await saveDriverPhoto(truckId, fd)
       if (res?.error) notify('error', res.error)

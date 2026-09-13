@@ -1,5 +1,6 @@
 'use client'
 
+import { safeUploadFile } from '@/lib/upload-name'
 import { DocLink } from '@/components/doc-link'
 
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react'
@@ -89,7 +90,7 @@ function StopPod({ loadId, seq, docId, due }: { loadId: number; seq: number; doc
       let firstError: string | null = null
       for (const file of list) {
         const fd = new FormData()
-        fd.append('file', file)
+        fd.append('file', safeUploadFile(file))
         fd.append('kind', 'pod')
         fd.append('loadId', String(loadId))
         fd.append('stopSeq', String(seq))

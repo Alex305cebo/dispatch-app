@@ -1,5 +1,6 @@
 'use client'
 
+import { safeUploadFile } from '@/lib/upload-name'
 import { DocLink } from '@/components/doc-link'
 import { DELETE_WORD } from '@/lib/delete-word'
 
@@ -60,7 +61,7 @@ export function DocUpload({
       let saved = 0
       for (const file of files) {
         const fd = new FormData()
-        fd.append('file', file)
+        fd.append('file', safeUploadFile(file))
         fd.append('kind', kind)
         if (truckId) fd.append('truckId', String(truckId))
         if (loadId) fd.append('loadId', String(loadId))

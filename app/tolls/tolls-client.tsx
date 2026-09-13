@@ -1,5 +1,6 @@
 'use client'
 
+import { safeUploadFile } from '@/lib/upload-name'
 import { useRef, useState, useTransition } from 'react'
 import { checkTolls, saveLoadTolls, tollsFromDocument, type TollCheck } from '@/app/actions'
 import { FleetMap, type MapMarker, type MapRoute } from '@/components/fleet-map'
@@ -86,7 +87,7 @@ export function TollsClient({
     if (!file) return
     setReading(true)
     const fd = new FormData()
-    fd.append('file', file)
+    fd.append('file', safeUploadFile(file))
     void tollsFromDocument(fd)
       .then((r) => {
         if ('error' in r) {
