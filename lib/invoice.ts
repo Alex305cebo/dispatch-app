@@ -148,7 +148,7 @@ export async function buildInvoicePacket(
 
   // POD gate.
   const docs = (await sql`
-    SELECT kind, mime, encode(data,'base64') AS b64 FROM documents
+    SELECT kind, mime, REPLACE(TO_BASE64(data), CHAR(10), '') AS b64 FROM documents
     WHERE load_id = ${load.id} AND company_id = ${load.companyId} ORDER BY kind`) as { kind: string; mime: string; b64: string }[]
   if (!docs.some((d) => d.kind === 'pod'))
     return { error: t(locale, 'finances.err.noPod') }
@@ -174,12 +174,12 @@ export async function buildInvoicePacket(
   const rows = await sql`
     INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data, company_id)
     VALUES (${load.id}, ${load.truckId}, 'invoice', ${`${invoiceNumber} packet.pdf`},
-            'application/pdf', ${bytes.length}, decode(${hex}, 'hex'), ${load.companyId})
+            'application/pdf', ${bytes.length}, UNHEX(${hex}), ${load.companyId})
     RETURNING id`
   const docId = (rows[0] as { id: number }).id
 
   await sql`
-    UPDATE loads SET invoice_number = ${invoiceNumber}, invoiced_at = now(),
+    UPDATE loads SET invoice_number = ${invoiceNumber}, invoiced_at = NOW(6),
       status = CASE WHEN status IN ('quoted','booked','in_transit','delivered') THEN 'delivered' ELSE status END
     WHERE id = ${load.id} AND company_id = ${load.companyId}`
 

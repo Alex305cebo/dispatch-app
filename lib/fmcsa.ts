@@ -200,12 +200,12 @@ async function buildFromRecord(mc: string | null, rec: any, key: string): Promis
                            bond_on_file, authority_granted, address, phone, raw, checked_at)
       VALUES (${mc}, ${base.legalName}, ${base.dbaName}, ${base.dotNumber}, ${base.authorityStatus},
               ${base.bondOnFile}, ${base.authorityGranted}, ${base.address}, ${base.phone},
-              ${JSON.stringify(rec)}, now())
-      ON CONFLICT (mc) DO UPDATE SET
-        legal_name = EXCLUDED.legal_name, dba_name = EXCLUDED.dba_name,
-        dot_number = EXCLUDED.dot_number, authority_status = EXCLUDED.authority_status,
-        bond_on_file = EXCLUDED.bond_on_file, authority_granted = EXCLUDED.authority_granted,
-        address = EXCLUDED.address, phone = EXCLUDED.phone, raw = EXCLUDED.raw, checked_at = now()`
+              ${JSON.stringify(rec)}, NOW(6))
+      ON DUPLICATE KEY UPDATE
+        legal_name = VALUES(legal_name), dba_name = VALUES(dba_name),
+        dot_number = VALUES(dot_number), authority_status = VALUES(authority_status),
+        bond_on_file = VALUES(bond_on_file), authority_granted = VALUES(authority_granted),
+        address = VALUES(address), phone = VALUES(phone), raw = VALUES(raw), checked_at = NOW(6)`
   }
   return base
 }

@@ -14,7 +14,7 @@ export async function GET(
 ) {
   const { truckId } = await params
   const rows = await sql`
-    SELECT m.driver_photo_mime AS mime, encode(m.driver_photo, 'base64') AS b64
+    SELECT m.driver_photo_mime AS mime, REPLACE(TO_BASE64(m.driver_photo), CHAR(10), '') AS b64
     FROM truck_meta m JOIN trucks t ON t.id = m.truck_id
     WHERE m.truck_id = ${Number(truckId)} AND t.company_id = ${await companyScope()}
       AND m.driver_photo IS NOT NULL`
@@ -26,7 +26,7 @@ export async function GET(
   if (row.b64.length > 300_000) {
     try {
       const small = await shrinkPhoto(Buffer.from(row.b64, 'base64'), 512)
-      await sql`UPDATE truck_meta SET driver_photo = decode(${small.toString('hex')}, 'hex'), driver_photo_mime = 'image/jpeg'
+      await sql`UPDATE truck_meta SET driver_photo = UNHEX(${small.toString('hex')}), driver_photo_mime = 'image/jpeg'
         WHERE truck_id = ${Number(truckId)}`
       row.b64 = small.toString('base64')
       row.mime = 'image/jpeg'

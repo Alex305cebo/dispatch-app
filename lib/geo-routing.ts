@@ -285,8 +285,8 @@ async function sweepExpiredRoutes(): Promise<void> {
   try {
     await sql`
       DELETE FROM settings
-      WHERE key LIKE 'osrm%'
-        AND substring(value from '"at":([0-9]+)')::bigint < ${cutoff}`
+      WHERE "key" LIKE 'osrm%'
+        AND CAST(NULLIF(REGEXP_SUBSTR(value, '(?<="at":)[0-9]+'), '') AS UNSIGNED) < ${cutoff}`
   } catch {
     // Eviction is housekeeping — never fail a dispatcher's page over it.
   }

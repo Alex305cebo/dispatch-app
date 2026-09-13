@@ -26,7 +26,7 @@ async function demoUserId(): Promise<number> {
   const created = await sql`
     INSERT INTO users (name, email, password_hash, role, is_demo)
     VALUES ('Demo', ${DEMO_EMAIL}, '', 'dispatcher', TRUE)
-    ON CONFLICT (email) DO UPDATE SET is_demo = TRUE
+    ON DUPLICATE KEY UPDATE is_demo = TRUE
     RETURNING id`
   return (created[0] as { id: number }).id
 }
@@ -43,7 +43,7 @@ async function attachDoc(
   await sql`
     INSERT INTO documents (truck_id, load_id, maintenance_id, kind, title, mime, size_bytes, data, company_id, uploaded_at)
     VALUES (${opts.truckId ?? null}, ${opts.loadId ?? null}, ${opts.maintenanceId ?? null}, ${kind}, ${title},
-            'application/pdf', ${bytes.length}, decode(${hex}, 'hex'), 'demo', ${opts.uploadedAt ?? new Date().toISOString()})`
+            'application/pdf', ${bytes.length}, UNHEX(${hex}), 'demo', ${new Date(opts.uploadedAt ?? Date.now())})`
 }
 
 /** Wipe every company_id='demo' row (FK-safe order) and reseed a fresh, varied
@@ -303,7 +303,7 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       VALUES (${id}, ${t.phone}, ${'TR-' + t.number.slice(-3)}, ${t.vin}, ${t.plate}, ${t.year},
               ${t.make}, ${t.model}, ${t.oilLastOdometer}, ${t.registrationExpiry}, ${t.inspectionExpiry},
               ${t.insuranceExpiry}, ${t.cdlExpiry}, ${t.medcardExpiry},
-              decode(${photoHex}, 'hex'), 'image/jpeg')`
+              UNHEX(${photoHex}), 'image/jpeg')`
     // fleet_status is normally filled by the ELD poller (lib/eld.ts) — faking one row
     // per demo truck is what makes the map pin, live location and oil countdown (it
     // needs a CURRENT odometer, not just the last-change one) show up at all.
@@ -311,7 +311,7 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
       INSERT INTO fleet_status
         (unit, driver_name, drive_status, location, lat, lng, odometer, fuel, bearing, updated_at)
       VALUES (${t.number}, ${driver}, ${t.driveStatus}, ${t.location}, ${t.lat}, ${t.lng},
-              ${t.odometer}, ${t.fuel}, ${t.bearing}, now())`
+              ${t.odometer}, ${t.fuel}, ${t.bearing}, NOW(6))`
     // Passport documents every real truck carries — insurance certificate and
     // registration copy, filed under the truck itself (not tied to any one load).
     await attachDoc('insurance', 'Certificate of Insurance.pdf', { truckId: id, uploadedAt: isoAt(-60) })
@@ -485,9 +485,10 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
                          pickup_date, delivery_date, pickup_time, delivery_time,
                          source, truck_id, status, dispatcher_id, company_id, invoiced_at, paid_at)
       VALUES (${l.rate}, ${l.spotRpm}, ${l.milesL}, ${l.milesD}, 2, ${l.origin}, ${l.destination},
-              ${l.mc}, ${brokerEmail}, ${l.phone}, ${l.refId}, ${l.notes}, ${notesReadAt},
+              ${l.mc}, ${brokerEmail}, ${l.phone}, ${l.refId}, ${l.notes}, ${notesReadAt ? new Date(notesReadAt) : null},
               ${l.pickup}, ${l.delivery}, ${l.pickupTime}, ${l.deliveryTime},
-              'manual', ${l.truckId}, ${l.status}, ${dispatcherId}, 'demo', ${invoicedAt}, ${paidAt})
+              'manual', ${l.truckId}, ${l.status}, ${dispatcherId}, 'demo',
+              ${invoicedAt ? new Date(invoicedAt) : null}, ${paidAt ? new Date(paidAt) : null})
       RETURNING id`
     const loadId = (rows[0] as { id: number }).id
     await attachDoc('ratecon', `Rate Confirmation — ${l.refId}.pdf`, { loadId, uploadedAt: isoAt(-14) })
@@ -614,11 +615,11 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
                            pickup_date, delivery_date, pickup_time, delivery_time,
                            source, truck_id, status, dispatcher_id, company_id, invoiced_at, paid_at)
         VALUES (${rate}, ${Math.round((rpm - 0.15) * 100) / 100}, ${milesL}, ${milesD}, 2, ${origin}, ${destination},
-                ${broker.mc}, ${brokerEmail}, ${broker.phone}, ${refId}, ${notes}, ${isoAt(deliverOffset)},
+                ${broker.mc}, ${brokerEmail}, ${broker.phone}, ${refId}, ${notes}, ${new Date(isoAt(deliverOffset))},
                 ${dateAt(pickupOffset)}, ${dateAt(deliverOffset)}, ${rcTime(pickupOffset, '08:00', 'FCFS')},
                 ${rcTime(deliverOffset, '14:00', 'Appt')},
                 'manual', ${truckId}, ${status}, ${dispatcherId}, 'demo',
-                ${invoicedAt}, ${paidAt})
+                ${invoicedAt ? new Date(invoicedAt) : null}, ${paidAt ? new Date(paidAt) : null})
         RETURNING id`
       const loadId = (rows[0] as { id: number }).id
       // A real paid load has its rate con on file — attaching it is what makes the
@@ -670,7 +671,7 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
                 ${dateAt(pickupOffset)}, ${dateAt(deliverOffset)},
                 ${rcTime(pickupOffset, '08:00', 'FCFS')}, ${rcTime(deliverOffset, '14:00', 'Appt')},
                 'manual', ${truckId}, 'paid', ${dispatcherId}, 'demo',
-                ${isoAt(deliverOffset + 1)}, ${isoAt(deliverOffset + 3)})
+                ${new Date(isoAt(deliverOffset + 1))}, ${new Date(isoAt(deliverOffset + 3))})
         RETURNING id`
       // Paperwork on these too. Without it every filler load reported a missing rate
       // con, and the fifteen of them alone were enough to drown the panel in one
@@ -706,12 +707,10 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
 async function claimDemoReset(): Promise<boolean> {
   const now = new Date().toISOString()
   const cutoff = new Date(Date.now() - RESET_AFTER_MS).toISOString()
-  const rows = await sql`
-    INSERT INTO settings (key, value) VALUES (${RESET_KEY}, ${now})
-    ON CONFLICT (key) DO UPDATE SET value = ${now}
-      WHERE settings.value < ${cutoff}
-    RETURNING key`
-  return rows.length > 0
+  const ins = await sql`INSERT IGNORE INTO settings ("key", value) VALUES (${RESET_KEY}, ${now})`
+  if (ins.affectedRows) return true
+  const upd = await sql`UPDATE settings SET value = ${now} WHERE "key" = ${RESET_KEY} AND value < ${cutoff}`
+  return (upd.affectedRows ?? 0) > 0
 }
 
 /**

@@ -115,7 +115,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
       await sql`
         INSERT INTO documents (truck_id, load_id, kind, title, mime, size_bytes, data, company_id)
         VALUES (${truck.id}, ${load?.id ?? null}, ${kind}, ${title},
-                ${file.type || 'application/octet-stream'}, ${file.size}, decode(${hex}, 'hex'), ${truck.companyId})`
+                ${file.type || 'application/octet-stream'}, ${file.size}, UNHEX(${hex}), ${truck.companyId})`
       saved++
     }
     if (saved)

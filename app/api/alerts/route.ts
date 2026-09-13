@@ -77,7 +77,7 @@ export async function GET() {
   // POD не загружен сутки после выгрузки: без него не выставить счёт.
   const delivered = live.filter((l) => l.status === 'delivered')
   if (delivered.length) {
-    const pods = (await sql`SELECT DISTINCT load_id FROM documents WHERE kind = 'pod' AND deleted_at IS NULL AND company_id = ${companyId} AND load_id = ANY(${delivered.map((l) => l.id)})`) as { load_id: number }[]
+    const pods = (await sql`SELECT DISTINCT load_id FROM documents WHERE kind = 'pod' AND deleted_at IS NULL AND company_id = ${companyId} AND load_id IN (${delivered.map((l) => l.id)})`) as { load_id: number }[]
     const hasPod = new Set(pods.map((p) => p.load_id))
     for (const l of delivered) {
       const since = l.deliveryDate ? Date.parse(l.deliveryDate) : NaN

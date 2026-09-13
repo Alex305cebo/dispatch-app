@@ -4,7 +4,7 @@
 import { sql } from './db.ts'
 
 export async function getSetting(key: string): Promise<string | null> {
-  const rows = await sql`SELECT value FROM settings WHERE key = ${key}`
+  const rows = await sql`SELECT value FROM settings WHERE "key" = ${key}`
   return (rows[0] as { value: string } | undefined)?.value ?? null
 }
 
@@ -13,7 +13,7 @@ export async function getSetting(key: string): Promise<string | null> {
  * ~58 ms each warm, and getCompany() ran exactly that on every single page render.
  * Missing keys are simply absent from the map. */
 export async function getSettings(keys: string[]): Promise<Map<string, string>> {
-  const rows = (await sql`SELECT key, value FROM settings WHERE key = ANY(${keys})`) as {
+  const rows = (await sql`SELECT "key", value FROM settings WHERE "key" IN (${keys})`) as {
     key: string
     value: string
   }[]
@@ -21,12 +21,12 @@ export async function getSettings(keys: string[]): Promise<Map<string, string>> 
 }
 
 export async function setSetting(key: string, value: string): Promise<void> {
-  await sql`INSERT INTO settings (key, value) VALUES (${key}, ${value})
-            ON CONFLICT (key) DO UPDATE SET value = ${value}`
+  await sql`INSERT INTO settings ("key", value) VALUES (${key}, ${value})
+            ON DUPLICATE KEY UPDATE value = ${value}`
 }
 
 export async function deleteSetting(key: string): Promise<void> {
-  await sql`DELETE FROM settings WHERE key = ${key}`
+  await sql`DELETE FROM settings WHERE "key" = ${key}`
 }
 
 /** Личный номер диспетчера — один ключ на пользователя.

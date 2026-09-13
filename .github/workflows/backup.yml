@@ -1,9 +1,12 @@
 name: DB backup
 
 # The app's real data — loads, trucks, brokers, AND every document (BOL/POD/rate
-# cons live as bytea) — sits in Neon, which Hostinger's file backups don't touch.
-# This is the off-site copy: a daily pg_dump pulled out of Neon and kept as a
-# GitHub artifact, independent of both Neon and Hostinger.
+# cons live as blobs) — sits in MariaDB on Hostinger, which Hostinger's own website
+# backups don't promise to keep for long. This is the off-site copy: a daily dump
+# pulled out of the database and kept as a GitHub artifact, independent of Hostinger.
+#
+# До 09/13/26 база была в Neon (Postgres) и дамп делал pg_dump. Дампы того времени
+# лежат в артефактах прошлых запусков, пока не истекут 90 дней.
 
 on:
   schedule:
@@ -15,40 +18,40 @@ jobs:
   dump:
     runs-on: ubuntu-latest
     steps:
-      # Neon runs Postgres 18; the runner's bundled client is 16 and pg_dump
-      # refuses a newer server. Pull pg_dump 18 from the official PGDG repo, and
-      # call it by full path — the base image's /usr/bin/pg_dump (16) otherwise
-      # wins on PATH.
-      - name: Install pg_dump 18
+      - name: Install MariaDB client
         run: |
-          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
           sudo apt-get update
-          sudo apt-get install -y postgresql-client-18
+          sudo apt-get install -y mariadb-client
 
       - name: Dump database
         env:
-          # Use the DIRECT connection string (host without "-pooler"): pg_dump over
-          # PgBouncer's transaction pooler breaks. Add as a repo secret.
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          # mysql://user:password@host:3306/database — the same string as DATABASE_URL
+          # in hPanel. The database must allow remote access (hPanel → Remote MySQL).
+          MYSQL_URL: ${{ secrets.MYSQL_URL }}
         run: |
-          test -n "$DATABASE_URL" || { echo "NEON_DATABASE_URL secret is not set"; exit 1; }
+          test -n "$MYSQL_URL" || { echo "MYSQL_URL secret is not set"; exit 1; }
+          rest="${MYSQL_URL#*://}"
+          creds="${rest%%@*}"; hostpart="${rest#*@}"
+          user="${creds%%:*}"; pass="${creds#*:}"
+          hostport="${hostpart%%/*}"; db="${hostpart#*/}"; db="${db%%\?*}"
+          host="${hostport%%:*}"; port="${hostport##*:}"; [ "$port" = "$hostport" ] && port=3306
+          # Пароль в файле, а не в командной строке: так он не виден в списке процессов.
+          umask 077
+          printf '[client]\nuser=%s\npassword=%s\nhost=%s\nport=%s\n' "$user" "$pass" "$host" "$port" > "$HOME/.my.cnf"
           stamp=$(date -u +%Y-%m-%d)
-          # -Fc = compressed custom format, the one pg_restore wants.
-          /usr/lib/postgresql/18/bin/pg_dump "$DATABASE_URL" -Fc -f "dispatch-$stamp.dump"
-          # Второй экземпляр — обычный SQL (gzip): восстанавливается без pg_restore,
-          # хоть через psql, хоть из SQL-редактора Neon, и читается глазами. Для
-          # локального recovery-комплекта это важнее компактности.
-          /usr/lib/postgresql/18/bin/pg_dump "$DATABASE_URL" -Fp | gzip -9 > "dispatch-$stamp.sql.gz"
-          ls -lh "dispatch-$stamp.dump" "dispatch-$stamp.sql.gz"
+          # --single-transaction: снимок без блокировки таблиц, приложение работает дальше.
+          # --hex-blob: файлы документов в дампе как hex, дамп восстанавливается и читается.
+          mariadb-dump --single-transaction --skip-lock-tables --hex-blob \
+            --default-character-set=utf8mb4 "$db" | gzip -9 > "dispatch-$stamp.sql.gz"
+          # Пустой или оборванный дамп — провал, а не «успешный» артефакт.
+          gzip -dc "dispatch-$stamp.sql.gz" | tail -1 | grep -q "Dump completed" || { echo "dump incomplete"; exit 1; }
+          ls -lh "dispatch-$stamp.sql.gz"
 
       - name: Upload backup artifact
         uses: actions/upload-artifact@v4
         with:
           name: db-backup
-          path: |
-            dispatch-*.dump
-            dispatch-*.sql.gz
-          # 90 дней (было 30): потолок GitHub, и это дешёвая страховка — три месяца
-          # ежедневных дампов на случай, если проблема в базе заметится не сразу.
+          path: dispatch-*.sql.gz
+          # 90 дней: потолок GitHub, и это дешёвая страховка — три месяца ежедневных
+          # дампов на случай, если проблема в базе заметится не сразу.
           retention-days: 90

@@ -27,7 +27,8 @@ test('хвост из одних комментариев не выдаётся 
 test('настоящая schema.sql режется на осмысленные операторы', async () => {
   const schema = await readFile(new URL('./schema.sql', import.meta.url), 'utf8')
   const out = splitStatements(schema)
-  assert.ok(out.length > 30, `операторов всего ${out.length}`)
+  // 17 таблиц + заглушка трака + версия схемы (консолидированная схема MariaDB).
+  assert.ok(out.length >= 19, `операторов всего ${out.length}`)
   // Каждый оператор обязан начинаться с ключевого слова SQL. Именно эта проверка
   // поймала бы прошлую поломку: кусок начинался со слова "this" из комментария.
   for (const stmt of out) {

@@ -41,11 +41,11 @@ export async function POST(req: NextRequest) {
       INSERT INTO fleet_status
         (unit, driver_name, hos_percent, drive_status, location, lat, lng, eld_seen, updated_at)
       VALUES (${unit}, ${r.driverName ?? null}, ${r.hosPercent ?? null}, ${r.driveStatus ?? null},
-              ${r.location ?? null}, ${r.lat ?? null}, ${r.lng ?? null}, ${r.eldSeen ?? null}, now())
-      ON CONFLICT (unit) DO UPDATE SET
-        driver_name = EXCLUDED.driver_name, hos_percent = EXCLUDED.hos_percent,
-        drive_status = EXCLUDED.drive_status, location = EXCLUDED.location,
-        lat = EXCLUDED.lat, lng = EXCLUDED.lng, eld_seen = EXCLUDED.eld_seen, updated_at = now()`
+              ${r.location ?? null}, ${r.lat ?? null}, ${r.lng ?? null}, ${r.eldSeen ?? null}, NOW(6))
+      ON DUPLICATE KEY UPDATE
+        driver_name = VALUES(driver_name), hos_percent = VALUES(hos_percent),
+        drive_status = VALUES(drive_status), location = VALUES(location),
+        lat = VALUES(lat), lng = VALUES(lng), eld_seen = VALUES(eld_seen), updated_at = NOW(6)`
     updated++
   }
   return NextResponse.json({ ok: true, updated })

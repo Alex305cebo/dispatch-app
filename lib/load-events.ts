@@ -61,7 +61,7 @@ export async function recentDriverNotes(
   const rows = (await sql`
     SELECT e.id, e.load_id, e.truck_id, e.kind, e.note, e.at, t.number
     FROM load_events e LEFT JOIN trucks t ON t.id = e.truck_id
-    WHERE e.company_id = ${companyId} AND e.kind = 'note' AND e.at > now() - interval '24 hours'
+    WHERE e.company_id = ${companyId} AND e.kind = 'note' AND e.at > NOW(6) - INTERVAL 24 HOUR
     ORDER BY e.at DESC LIMIT 20`) as {
     id: number
     load_id: number | null
@@ -99,9 +99,10 @@ export async function updateLoadEventAt(
   id: number,
   atIso: string,
 ): Promise<number | null> {
-  const rows =
-    (await sql`UPDATE load_events SET at = ${atIso} WHERE id = ${id} AND company_id = ${companyId} RETURNING load_id`) as {
-      load_id: number | null
-    }[]
+  const upd = await sql`UPDATE load_events SET at = ${new Date(atIso)} WHERE id = ${id} AND company_id = ${companyId}`
+  if (!upd.affectedRows) return null
+  const rows = (await sql`SELECT load_id FROM load_events WHERE id = ${id} AND company_id = ${companyId}`) as {
+    load_id: number | null
+  }[]
   return rows[0]?.load_id ?? null
 }

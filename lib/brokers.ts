@@ -263,7 +263,8 @@ export async function knownBrokerMc(
       AND coalesce(broker_mc, '') <> ''
       AND (
         (${key} <> '' AND lower(coalesce(broker_name, '')) = ${key})
-        OR (${domain ?? ''} <> '' AND lower(split_part(coalesce(broker_email, ''), '@', 2)) = ${domain ?? ''})
+        OR (${domain ?? ''} <> '' AND LOCATE('@', coalesce(broker_email, '')) > 0
+            AND lower(SUBSTRING_INDEX(SUBSTRING_INDEX(broker_email, '@', 2), '@', -1)) = ${domain ?? ''})
       )
     ORDER BY created_at DESC
     LIMIT 1`) as { broker_mc: string | null }[]

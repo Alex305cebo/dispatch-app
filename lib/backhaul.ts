@@ -33,11 +33,11 @@ export async function backhaulBrokers(
   if (!state) return null
   const rows = (await sql`
     SELECT id, origin, destination, rate, loaded_miles, deadhead_miles, broker_name, broker_mc, broker_phone, broker_email,
-           COALESCE(pickup_date::text, created_at::text) AS day
+           COALESCE(CAST(pickup_date AS CHAR), CAST(created_at AS CHAR)) AS day
     FROM loads
     WHERE company_id = ${companyId}
       AND status NOT IN ('quoted', 'cancelled')
-      AND origin ~* ${`,\\s*${state}\\b`}
+      AND origin REGEXP ${`(?i),\\s*${state}\\b`}
       AND (broker_name IS NOT NULL OR broker_mc IS NOT NULL)
     ORDER BY created_at DESC
     LIMIT 400`) as {

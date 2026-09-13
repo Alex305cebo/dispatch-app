@@ -140,13 +140,12 @@ export async function updateBrokerInfo(
       AND (
         (${findName} <> '' AND lower(coalesce(broker_name, '')) = ${findName})
         OR (${findName} = '' AND ${findMc} <> ''
-            AND regexp_replace(coalesce(broker_mc, ''), '[^0-9]', '', 'g') = ${findMc})
-      )
-    RETURNING id`) as { id: number }[]
+            AND regexp_replace(coalesce(broker_mc, ''), '[^0-9]', '') = ${findMc})
+      )`)
 
   revalidatePath('/brokers')
   revalidatePath('/loads')
-  return { updated: rows.length }
+  return { updated: rows.affectedRows ?? 0 }
 }
 
 /**
@@ -309,7 +308,7 @@ export async function brokerContactsFromHistory(
     SELECT broker_email, broker_phone, broker_mc, pay_via FROM loads
     WHERE company_id = ${companyId}
       AND (
-        (${mcDigits} <> '' AND regexp_replace(coalesce(broker_mc, ''), '[^0-9]', '', 'g') = ${mcDigits})
+        (${mcDigits} <> '' AND regexp_replace(coalesce(broker_mc, ''), '[^0-9]', '') = ${mcDigits})
         OR (${key} <> '' AND lower(coalesce(broker_name, '')) = ${key})
       )
     ORDER BY created_at DESC`) as {
@@ -363,10 +362,13 @@ export async function applyDieselPrice(
   if ('error' in res) return res
   const companyId = await companyScope()
   try {
-    const rows = (await sql`
+    await sql`
       UPDATE trucks SET fuel_price_per_gallon = ${res.price}
-      WHERE company_id = ${companyId} AND (${truckId}::int IS NULL OR id = ${truckId})
-      RETURNING id`) as { id: number }[]
+      WHERE company_id = ${companyId} AND (${truckId} IS NULL OR id = ${truckId})`
+    const rows = (await sql`
+      SELECT id FROM trucks WHERE company_id = ${companyId} AND (${truckId} IS NULL OR id = ${truckId})`) as {
+      id: number
+    }[]
     revalidatePath('/trucks')
     revalidatePath('/loads')
     revalidatePath('/', 'layout')
@@ -550,11 +552,11 @@ async function autoAdvanceLoadStatuses(): Promise<void> {
     // a short haul whose pickup sits inside the delivery geofence can't mark "arrived at
     // delivery" before it's even been loaded.
     if (dP != null && dP <= GEOFENCE_MI && !pickupArrived) {
-      await sql`UPDATE loads SET pickup_arrived_at = now() WHERE id = ${r.id} AND pickup_arrived_at IS NULL`
+      await sql`UPDATE loads SET pickup_arrived_at = NOW(6) WHERE id = ${r.id} AND pickup_arrived_at IS NULL`
       pickupArrived = true
     }
     if (r.status === 'in_transit' && dD != null && dD <= GEOFENCE_MI && !deliveryArrived) {
-      await sql`UPDATE loads SET delivery_arrived_at = now() WHERE id = ${r.id} AND delivery_arrived_at IS NULL`
+      await sql`UPDATE loads SET delivery_arrived_at = NOW(6) WHERE id = ${r.id} AND delivery_arrived_at IS NULL`
       deliveryArrived = true
     }
 
@@ -603,7 +605,7 @@ export async function generateInvoice(
 export async function markPaid(loadId: number, paid: boolean): Promise<{ error: string } | void> {
   const denied = await assertCan('finances')
   if (denied) return denied
-  await sql`UPDATE loads SET paid_at = ${paid ? new Date().toISOString() : null},
+  await sql`UPDATE loads SET paid_at = ${paid ? new Date() : null},
             status = ${paid ? 'paid' : 'delivered'} WHERE id = ${loadId} AND company_id = ${await companyScope()}`
   revalidatePath(`/loads/${loadId}`)
   revalidatePath('/invoices')
@@ -630,7 +632,7 @@ export async function removeInvoice(loadId: number): Promise<{ error: string } |
   const load = rows[0]
   if (!load) return { error: t(locale, 'actions.loadNotFound') }
   if (load.paid_at) return { error: t(locale, 'actions.invoicePaid') }
-  await sql`UPDATE documents SET deleted_at = now()
+  await sql`UPDATE documents SET deleted_at = NOW(6)
             WHERE load_id = ${loadId} AND company_id = ${companyId} AND kind = 'invoice' AND deleted_at IS NULL`
   await sql`UPDATE loads SET invoice_number = NULL, invoiced_at = NULL
             WHERE id = ${loadId} AND company_id = ${companyId}`
@@ -729,7 +731,7 @@ async function deadheadCheck(
     WHERE company_id = ${companyId} AND truck_id = ${truckId}
       AND status IN ('booked', 'in_transit') AND partial = false
       AND id <> ${excludeLoadId ?? 0}
-    ORDER BY delivery_date DESC NULLS LAST, created_at DESC
+    ORDER BY delivery_date IS NULL, delivery_date DESC, created_at DESC
     LIMIT 1`) as {
     delivery_address: string | null
     destination: string | null
@@ -938,8 +940,8 @@ async function findLoadOnOtherTruck(companyId: string, truckId: number, ref: str
     JOIN trucks t ON t.id = l.truck_id
     WHERE l.company_id = ${companyId} AND l.truck_id <> ${truckId}
       AND l.status NOT IN ('cancelled', 'paid')
-      AND l.created_at > now() - interval '45 days'
-      AND upper(regexp_replace(COALESCE(l.reference_id, ''), '[^0-9A-Za-z]', '', 'g')) = ${key}
+      AND l.created_at > NOW(6) - INTERVAL 45 DAY
+      AND upper(regexp_replace(COALESCE(l.reference_id, ''), '[^0-9A-Za-z]', '')) = ${key}
     ORDER BY l.created_at DESC
     LIMIT 1`) as { id: number; reference_id: string | null; number: string | null; driver_name: string | null }[]
   return rows[0] ?? null
@@ -955,8 +957,8 @@ async function findLoadByReference(companyId: string, truckId: number, ref: stri
     FROM loads
     WHERE company_id = ${companyId}
       AND status NOT IN ('cancelled', 'paid')
-      AND created_at > now() - interval '45 days'
-      AND upper(regexp_replace(COALESCE(reference_id, ''), '[^0-9A-Za-z]', '', 'g')) = ${key}
+      AND created_at > NOW(6) - INTERVAL 45 DAY
+      AND upper(regexp_replace(COALESCE(reference_id, ''), '[^0-9A-Za-z]', '')) = ${key}
       AND truck_id = ${truckId}
     ORDER BY created_at DESC
     LIMIT 1`) as {
@@ -1030,7 +1032,7 @@ export async function createLoadFromRc(
         // Файл — в корзину: иначе он повиснет у этого трака «рейт-коном без груза» и
         // позовёт создать дубль. Из корзины его можно вернуть.
         if (docId && (await docBelongs(companyId, docId)))
-          await sql`UPDATE documents SET deleted_at = now() WHERE id = ${docId} AND load_id IS NULL`
+          await sql`UPDATE documents SET deleted_at = NOW(6) WHERE id = ${docId} AND load_id IS NULL`
         const truckName = [other.number ? `TRK-${other.number}` : null, other.driver_name].filter(Boolean).join(' · ')
         revalidatePath(`/trucks/${truckId}`)
         return {
@@ -1117,7 +1119,7 @@ export async function createLoadFromRc(
           delivery_date = COALESCE(delivery_date, ${load.deliveryDate ?? null}),
           broker_name = ${brokerName}, broker_mc = ${brokerMc}, broker_phone = ${brokerPhone}, broker_email = ${brokerEmail},
           broker_notes = ${notes}, driver_info = ${info}, pay_via = COALESCE(pay_via, ${load.payVia ?? null}),
-          stops = COALESCE(stops, ${stopsJson}::jsonb)
+          stops = COALESCE(stops, ${stopsJson})
         WHERE id = ${twin.id} AND company_id = ${companyId}`
       // Файл — к этому же грузу, со своим типом (лист водителя остаётся листом).
       if (docId && (await docBelongs(companyId, docId)))
@@ -1193,7 +1195,7 @@ export async function createLoadFromRc(
               'qr', ${truckId}, ${load.pickupDate ?? null}, ${load.deliveryDate ?? null},
               ${load.brokerNotes ?? null}, ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
               ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, 'booked', ${dispatcherId}, ${companyId},
-              ${await driverInfoWithCities(driverInfo)}, ${load.payVia ?? null}, ${milesEstimated}, ${stopsJson}::jsonb)
+              ${await driverInfoWithCities(driverInfo)}, ${load.payVia ?? null}, ${milesEstimated}, ${stopsJson})
       RETURNING id`
     const loadId = (rows[0] as { id: number }).id
     if (docId && (await docBelongs(companyId, docId)))
@@ -1239,7 +1241,7 @@ export async function createLoadFromExistingRc(
   // the truck's files" is to rescue exactly that case. Clicking recognise asserts it's a
   // rate con; if the AI can't read one out of it, geminiExtract errors cleanly below.
   const rows = await sql`
-    SELECT replace(encode(data, 'base64'), E'\n', '') AS b64, mime, load_id
+    SELECT REPLACE(TO_BASE64(data), CHAR(10), '') AS b64, mime, load_id
     FROM documents WHERE id = ${docId} AND company_id = ${companyId}`
   const doc = rows[0] as { b64: string; mime: string; load_id: number | null } | undefined
   if (!doc) return { error: t(locale, 'actions.rateconNotFound') }
@@ -1295,7 +1297,7 @@ export async function setStatus(id: number, status: LoadStatus): Promise<{ error
   }
   await sql`
     UPDATE loads SET status = ${status},
-      paid_at = CASE WHEN ${status} = 'paid' THEN COALESCE(paid_at, now())
+      paid_at = CASE WHEN ${status} = 'paid' THEN COALESCE(paid_at, NOW(6))
                      WHEN paid_at IS NOT NULL THEN NULL
                      ELSE paid_at END
     WHERE id = ${id} AND company_id = ${await companyScope()}`
@@ -1433,7 +1435,7 @@ export async function uploadDocument(fd: FormData): Promise<{ id: number } | { e
     const rows = await sql`
       INSERT INTO documents (truck_id, load_id, maintenance_id, kind, title, mime, size_bytes, data, company_id, stop_seq)
       VALUES (${truckId}, ${loadId}, ${maintenanceId}, ${kind}, ${title},
-              ${file.type || 'application/octet-stream'}, ${file.size}, decode(${hex}, 'hex'), ${companyId}, ${stopSeq})
+              ${file.type || 'application/octet-stream'}, ${file.size}, UNHEX(${hex}), ${companyId}, ${stopSeq})
       RETURNING id`
     revalidatePath('/docs')
     if (truckId) revalidatePath(`/trucks/${truckId}`)
@@ -1492,7 +1494,7 @@ export async function addLoadEventManual(
     truck_id: number | null
   }[]
   await sql`INSERT INTO load_events (company_id, load_id, truck_id, kind, note, at, stop_seq)
-            VALUES (${companyId}, ${loadId}, ${rows[0]?.truck_id ?? null}, ${kind}, ${note?.trim() || null}, ${when.toISOString()}, ${stopSeq ?? null})`
+            VALUES (${companyId}, ${loadId}, ${rows[0]?.truck_id ?? null}, ${kind}, ${note?.trim() || null}, ${when}, ${stopSeq ?? null})`
   revalidatePath(`/loads/${loadId}`)
 }
 
@@ -1509,7 +1511,7 @@ export async function unmarkStop(
   if (!(await loadBelongs(companyId, loadId))) return { error: 'load' }
   const kinds = role === 'pickup' ? ['arrived_pickup', 'loaded'] : ['arrived_delivery', 'delivered']
   await sql`DELETE FROM load_events
-            WHERE company_id = ${companyId} AND load_id = ${loadId} AND stop_seq = ${stopSeq} AND kind = ANY(${kinds})`
+            WHERE company_id = ${companyId} AND load_id = ${loadId} AND stop_seq = ${stopSeq} AND kind IN (${kinds})`
   revalidatePath(`/loads/${loadId}`)
 }
 
@@ -1519,7 +1521,8 @@ export async function setDocumentKind(docId: number, kind: string): Promise<{ er
   if (!(kind in DOC_KINDS)) return { error: 'bad kind' }
   const companyId = await companyScope()
   if (!(await docBelongs(companyId, docId))) return
-  const rows = await sql`UPDATE documents SET kind = ${kind} WHERE id = ${docId} RETURNING load_id`
+  await sql`UPDATE documents SET kind = ${kind} WHERE id = ${docId}`
+  const rows = await sql`SELECT load_id FROM documents WHERE id = ${docId}`
   const loadId = (rows[0] as { load_id: number | null } | undefined)?.load_id
   revalidatePath('/docs')
   if (loadId) {
@@ -1546,8 +1549,9 @@ export async function attachDocumentToLoad(docId: number, loadId: number): Promi
   if (ro) return
   const companyId = await companyScope()
   if (!(await docBelongs(companyId, docId)) || !(await loadBelongs(companyId, loadId))) return
-  const rows = await sql`
-    UPDATE documents SET load_id = ${loadId} WHERE id = ${docId} AND load_id IS NULL RETURNING kind`
+  const upd = await sql`
+    UPDATE documents SET load_id = ${loadId} WHERE id = ${docId} AND load_id IS NULL`
+  const rows = upd.affectedRows ? await sql`SELECT kind FROM documents WHERE id = ${docId}` : []
   revalidatePath(`/loads/${loadId}`)
   revalidatePath('/docs')
   if ((rows[0] as { kind: string } | undefined)?.kind === 'pod') await autoInvoiceIfReady(companyId, loadId)
@@ -1604,7 +1608,7 @@ export async function deleteDocument(id: number, confirm: string): Promise<{ err
     const doc = rows[0]
     if (!doc) return { error: t(locale, 'actions.docNotFound') }
 
-    await sql`UPDATE documents SET deleted_at = now() WHERE id = ${id}`
+    await sql`UPDATE documents SET deleted_at = NOW(6) WHERE id = ${id}`
     await auditDelete(check.user.companyId, who, 'delete_document', doc.title, doc.kind, doc.origin, doc.destination)
   } catch (e) {
     return { error: humanError(e, locale) }
@@ -1702,7 +1706,7 @@ export async function updateLoadDetails(loadId: number, p: LoadDetailsPatch): Pr
       broker_email = ${p.brokerEmail || null}, pickup_date = ${p.pickupDate || null},
       delivery_date = ${p.deliveryDate || null},
       partial = COALESCE(${p.partial ?? null}, partial),
-      stops = COALESCE(${p.stops?.length ? JSON.stringify(p.stops) : null}::jsonb, stops)
+      stops = COALESCE(${p.stops?.length ? JSON.stringify(p.stops) : null}, stops)
       WHERE id = ${loadId} AND company_id = ${await companyScope()}`
   } catch (e) {
     return { error: humanError(e, locale) }
@@ -1722,10 +1726,10 @@ export async function setLoadPartial(loadId: number, partial: boolean): Promise<
   if (ro) return ro
   const companyId = await companyScope()
   if (!(await loadBelongs(companyId, loadId))) return { error: t(await getLocale(), 'actions.loadNotFound') }
-  const rows =
-    (await sql`UPDATE loads SET partial = ${partial} WHERE id = ${loadId} AND company_id = ${companyId} RETURNING truck_id`) as {
-      truck_id: number | null
-    }[]
+  await sql`UPDATE loads SET partial = ${partial} WHERE id = ${loadId} AND company_id = ${companyId}`
+  const rows = (await sql`SELECT truck_id FROM loads WHERE id = ${loadId} AND company_id = ${companyId}`) as {
+    truck_id: number | null
+  }[]
   revalidatePath(`/loads/${loadId}`)
   if (rows[0]?.truck_id) revalidatePath(`/trucks/${rows[0].truck_id}`)
   revalidatePath('/loads')
@@ -1768,7 +1772,7 @@ export async function translateBrokerNotes(
 export async function markNotesRead(loadId: number): Promise<void> {
   const ro = await demoReadOnly()
   if (ro) return
-  await sql`UPDATE loads SET notes_read_at = now()
+  await sql`UPDATE loads SET notes_read_at = NOW(6)
     WHERE id = ${loadId} AND company_id = ${await companyScope()} AND notes_read_at IS NULL`
   revalidatePath(`/loads/${loadId}`)
 }
@@ -1794,7 +1798,7 @@ export async function parseRcForNotes(loadId: number): Promise<{ error: string }
   // Postgres base64 comes newline-wrapped (PEM style); Gemini's decoder rejects the
   // newlines, so strip them.
   const docs = (await sql`
-    SELECT replace(encode(data, 'base64'), E'\n', '') AS b64, mime
+    SELECT REPLACE(TO_BASE64(data), CHAR(10), '') AS b64, mime
     FROM documents WHERE load_id = ${loadId} AND company_id = ${companyId} AND kind = 'ratecon'
     ORDER BY uploaded_at DESC LIMIT 1`) as { b64: string; mime: string }[]
   const doc = docs[0]
@@ -1833,7 +1837,7 @@ export async function parseRcForNotes(loadId: number): Promise<{ error: string }
       reference_id = COALESCE(reference_id, ${load.referenceId}),
       pay_via = COALESCE(pay_via, ${load.payVia}),
       driver_info = ${driverInfo},
-      stops = COALESCE(${fields.stops && fields.stops.length > 2 ? JSON.stringify(await fillStopCitiesFromZip(fields.stops)) : null}::jsonb, stops)
+      stops = COALESCE(${fields.stops && fields.stops.length > 2 ? JSON.stringify(await fillStopCitiesFromZip(fields.stops)) : null}, stops)
       WHERE id = ${loadId} AND company_id = ${companyId}`
   } catch (e) {
     return { error: humanError(e, locale) }
@@ -1906,7 +1910,7 @@ export async function addMaintenance(truckId: number, m: MaintenanceInput): Prom
     if (m.kind === 'service' && m.odometer !== null && /масл|oil/i.test(m.title)) {
       await sql`
         INSERT INTO truck_meta (truck_id, oil_last_odometer) VALUES (${truckId}, ${m.odometer})
-        ON CONFLICT (truck_id) DO UPDATE SET oil_last_odometer = ${m.odometer}`
+        ON DUPLICATE KEY UPDATE oil_last_odometer = ${m.odometer}`
     }
   } catch (e) {
     return { error: humanError(e, locale) }
@@ -1963,7 +1967,7 @@ export async function toggleTodo(id: number, truckId: number): Promise<void> {
   if (ro) return
   if (!(await truckBelongs(await companyScope(), truckId))) return
   await sql`UPDATE truck_todos
-            SET done_at = CASE WHEN done_at IS NULL THEN now() ELSE NULL END
+            SET done_at = CASE WHEN done_at IS NULL THEN NOW(6) ELSE NULL END
             WHERE id = ${id} AND truck_id = ${truckId}`
   revalidatePath(`/trucks/${truckId}`)
 }
@@ -2045,14 +2049,14 @@ export async function saveDriverInfo(
       INSERT INTO truck_meta (truck_id, driver_phone, cdl_expiry, medcard_expiry, trailer_number, vin)
       VALUES (${truckId}, ${d.phone.trim() || null}, ${d.cdlExpiry || null}, ${d.medcardExpiry || null},
               ${trailer}, ${vin})
-      ON CONFLICT (truck_id) DO UPDATE SET
-        driver_phone   = EXCLUDED.driver_phone,
-        cdl_expiry     = EXCLUDED.cdl_expiry,
-        medcard_expiry = EXCLUDED.medcard_expiry,
+      ON DUPLICATE KEY UPDATE
+        driver_phone   = VALUES(driver_phone),
+        cdl_expiry     = VALUES(cdl_expiry),
+        medcard_expiry = VALUES(medcard_expiry),
         -- COALESCE, а не присваивание: форма может не показывать эти поля (её зовут
         -- и с других экранов), и тогда пустое значение не должно стирать номер.
-        trailer_number = COALESCE(EXCLUDED.trailer_number, truck_meta.trailer_number),
-        vin            = COALESCE(EXCLUDED.vin, truck_meta.vin)`
+        trailer_number = COALESCE(VALUES(trailer_number), truck_meta.trailer_number),
+        vin            = COALESCE(VALUES(vin), truck_meta.vin)`
   } catch (e) {
     return { error: humanError(e, locale) }
   }
@@ -2078,10 +2082,10 @@ export async function saveDriverPhoto(truckId: number, fd: FormData): Promise<{ 
   try {
     await sql`
       INSERT INTO truck_meta (truck_id, driver_photo, driver_photo_mime)
-      VALUES (${truckId}, decode(${hex}, 'hex'), 'image/jpeg')
-      ON CONFLICT (truck_id) DO UPDATE SET
-        driver_photo      = EXCLUDED.driver_photo,
-        driver_photo_mime = EXCLUDED.driver_photo_mime`
+      VALUES (${truckId}, UNHEX(${hex}), 'image/jpeg')
+      ON DUPLICATE KEY UPDATE
+        driver_photo      = VALUES(driver_photo),
+        driver_photo_mime = VALUES(driver_photo_mime)`
   } catch (e) {
     return { error: humanError(e, locale) }
   }
@@ -2105,10 +2109,10 @@ export async function saveTruckPhoto(truckId: number, fd: FormData): Promise<{ e
   try {
     await sql`
       INSERT INTO truck_meta (truck_id, truck_photo, truck_photo_mime)
-      VALUES (${truckId}, decode(${hex}, 'hex'), 'image/jpeg')
-      ON CONFLICT (truck_id) DO UPDATE SET
-        truck_photo      = EXCLUDED.truck_photo,
-        truck_photo_mime = EXCLUDED.truck_photo_mime,
+      VALUES (${truckId}, UNHEX(${hex}), 'image/jpeg')
+      ON DUPLICATE KEY UPDATE
+        truck_photo      = VALUES(truck_photo),
+        truck_photo_mime = VALUES(truck_photo_mime),
         truck_model      = NULL`
   } catch (e) {
     return { error: humanError(e, locale) }
@@ -2129,8 +2133,8 @@ export async function saveTruckModel(truckId: number, model: string | null): Pro
     await sql`
       INSERT INTO truck_meta (truck_id, truck_model)
       VALUES (${truckId}, ${model})
-      ON CONFLICT (truck_id) DO UPDATE SET
-        truck_model      = EXCLUDED.truck_model,
+      ON DUPLICATE KEY UPDATE
+        truck_model      = VALUES(truck_model),
         truck_photo      = NULL,
         truck_photo_mime = NULL`
   } catch (e) {
@@ -2156,16 +2160,16 @@ export async function saveTruckMeta(truckId: number, m: TruckMetaInput): Promise
               ${m.oilLastOdometer}, ${m.driverPhone.trim() || null}, ${m.notes.trim() || null},
               ${d(m.registrationExpiry)}, ${d(m.inspectionExpiry)}, ${d(m.insuranceExpiry)},
               ${d(m.cdlExpiry)}, ${d(m.medcardExpiry)})
-      ON CONFLICT (truck_id) DO UPDATE SET
-        vin = EXCLUDED.vin, plate = EXCLUDED.plate, trailer_number = EXCLUDED.trailer_number, year = EXCLUDED.year,
-        make = EXCLUDED.make, model = EXCLUDED.model,
-        oil_interval_mi = EXCLUDED.oil_interval_mi,
-        oil_last_odometer = EXCLUDED.oil_last_odometer,
-        driver_phone = EXCLUDED.driver_phone, notes = EXCLUDED.notes,
-        registration_expiry = EXCLUDED.registration_expiry,
-        inspection_expiry = EXCLUDED.inspection_expiry,
-        insurance_expiry = EXCLUDED.insurance_expiry,
-        cdl_expiry = EXCLUDED.cdl_expiry, medcard_expiry = EXCLUDED.medcard_expiry`
+      ON DUPLICATE KEY UPDATE
+        vin = VALUES(vin), plate = VALUES(plate), trailer_number = VALUES(trailer_number), year = VALUES(year),
+        make = VALUES(make), model = VALUES(model),
+        oil_interval_mi = VALUES(oil_interval_mi),
+        oil_last_odometer = VALUES(oil_last_odometer),
+        driver_phone = VALUES(driver_phone), notes = VALUES(notes),
+        registration_expiry = VALUES(registration_expiry),
+        inspection_expiry = VALUES(inspection_expiry),
+        insurance_expiry = VALUES(insurance_expiry),
+        cdl_expiry = VALUES(cdl_expiry), medcard_expiry = VALUES(medcard_expiry)`
   } catch (e) {
     return { error: humanError(e, locale) }
   }
@@ -2539,10 +2543,10 @@ export async function undoRcUpload(loadId: number): Promise<{ error: string } | 
   if (!(await loadBelongs(companyId, loadId))) return { error: t(locale, 'actions.loadNotFound') }
   const rows = (await sql`
     SELECT l.origin, l.destination, l.truck_id,
-      (l.created_at > now() - interval '2 hours') AS fresh,
-      (SELECT count(*) FROM load_events e WHERE e.load_id = l.id)::int AS events,
+      (l.created_at > NOW(6) - INTERVAL 2 HOUR) AS fresh,
+      (SELECT count(*) FROM load_events e WHERE e.load_id = l.id) AS events,
       (SELECT count(*) FROM documents d
-        WHERE d.load_id = l.id AND d.deleted_at IS NULL AND d.kind NOT IN ('ratecon', 'driverinfo'))::int AS docs
+        WHERE d.load_id = l.id AND d.deleted_at IS NULL AND d.kind NOT IN ('ratecon', 'driverinfo')) AS docs
     FROM loads l WHERE l.id = ${loadId} AND l.company_id = ${companyId}`) as {
     origin: string | null
     destination: string | null
@@ -2556,7 +2560,7 @@ export async function undoRcUpload(loadId: number): Promise<{ error: string } | 
   if (!l.fresh || l.events > 0 || l.docs > 0) return { error: t(locale, 'actions.undoTooLate') }
   const who = (await getCurrentUser())?.name || t(locale, 'actions.dispatcherFallback')
   try {
-    await sql`UPDATE documents SET deleted_at = now(), load_id = NULL
+    await sql`UPDATE documents SET deleted_at = NOW(6), load_id = NULL
               WHERE load_id = ${loadId} AND kind IN ('ratecon', 'driverinfo')`
     await sql`UPDATE documents SET load_id = NULL WHERE load_id = ${loadId}`
     await sql`DELETE FROM loads WHERE id = ${loadId} AND company_id = ${companyId}`

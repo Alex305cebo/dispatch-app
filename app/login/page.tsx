@@ -29,7 +29,7 @@ export default async function LoginPage() {
           <p className="mt-2 text-[13px] leading-relaxed text-white/72">{t(locale, 'login.nodb_text')}</p>
           <p className="mt-1.5 text-[12.5px] leading-relaxed text-white/45">{t(other, 'login.nodb_text')}</p>
           <code className="mt-3 block rounded-lg border border-white/8 bg-ink-900/80 px-3 py-2 text-[12.5px] text-white/85">
-            DATABASE_URL=postgresql://…
+            DATABASE_URL=mysql://…
           </code>
         </div>
       </main>

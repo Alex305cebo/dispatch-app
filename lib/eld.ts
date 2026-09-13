@@ -62,7 +62,7 @@ export async function logPosition(
 ) {
   if (lat === null || lng === null) return
   await sql`INSERT INTO truck_position_log (unit, lat, lng, drive_status, location) VALUES (${unit}, ${lat}, ${lng}, ${driveStatus}, ${location})`
-  await sql`DELETE FROM truck_position_log WHERE unit = ${unit} AND at < now() - interval '100 days'`
+  await sql`DELETE FROM truck_position_log WHERE unit = ${unit} AND at < NOW(6) - INTERVAL 100 DAY`
 }
 
 /** How long the truck's GPS has stayed within ~0.5mi of its current spot, walking
@@ -82,7 +82,7 @@ export type TrailPoint = { lat: number; lng: number; at: string }
 async function recentTrail(unit: string): Promise<TrailPoint[]> {
   return (await sql`
     SELECT lat, lng, at FROM truck_position_log
-    WHERE unit = ${unit} AND at >= now() - interval '12 hours'
+    WHERE unit = ${unit} AND at >= NOW(6) - INTERVAL 12 HOUR
     ORDER BY at DESC`) as TrailPoint[]
 }
 
@@ -193,7 +193,7 @@ export async function headingOf(unit: string, lat: number, lng: number): Promise
 export async function tripHistory(unit: string, hours = 24): Promise<HistoryLeg[]> {
   const rows = (await sql`
     SELECT lat, lng, at, location FROM truck_position_log
-    WHERE unit = ${unit} AND at >= now() - interval '1 hour' * ${hours}
+    WHERE unit = ${unit} AND at >= NOW(6) - INTERVAL ${hours} HOUR
     ORDER BY at ASC`) as { lat: number; lng: number; at: string; location: string | null }[]
   // Тот же разбор штата, что и для снимка парка: в логе лежит сырая строка вендора,
   // и в истории пути она врала ровно так же, как на карте.
@@ -471,15 +471,15 @@ export async function fleetSnapshot(
               ${status}, ${v.location?.description ?? null},
               ${v.location?.latitude ?? null}, ${v.location?.longitude ?? null},
               ${odo}, ${extra?.fuel ?? null}, ${v.location?.bearing ?? null},
-              ${seen}, now())
-      ON CONFLICT (unit) DO UPDATE SET
-        driver_name = COALESCE(EXCLUDED.driver_name, fleet_status.driver_name),
-        drive_status = EXCLUDED.drive_status, location = EXCLUDED.location,
-        lat = EXCLUDED.lat, lng = EXCLUDED.lng,
-        odometer = COALESCE(EXCLUDED.odometer, fleet_status.odometer),
-        fuel = COALESCE(EXCLUDED.fuel, fleet_status.fuel),
-        bearing = COALESCE(EXCLUDED.bearing, fleet_status.bearing),
-        eld_seen = EXCLUDED.eld_seen, updated_at = now()`
+              ${seen}, NOW(6))
+      ON DUPLICATE KEY UPDATE
+        driver_name = COALESCE(VALUES(driver_name), fleet_status.driver_name),
+        drive_status = VALUES(drive_status), location = VALUES(location),
+        lat = VALUES(lat), lng = VALUES(lng),
+        odometer = COALESCE(VALUES(odometer), fleet_status.odometer),
+        fuel = COALESCE(VALUES(fuel), fleet_status.fuel),
+        bearing = COALESCE(VALUES(bearing), fleet_status.bearing),
+        eld_seen = VALUES(eld_seen), updated_at = NOW(6)`
     await logPosition(
       unit,
       v.location?.latitude ?? null,
@@ -502,8 +502,8 @@ export async function fleetSnapshot(
       await sql`
         INSERT INTO truck_meta (truck_id, vin)
         SELECT id, ${v.vin.trim()} FROM trucks WHERE number = ${unit} AND company_id = 'default'
-        ON CONFLICT (truck_id) DO UPDATE SET vin = EXCLUDED.vin
-        WHERE truck_meta.vin IS NULL OR truck_meta.vin = ''`
+        ON DUPLICATE KEY UPDATE
+          vin = IF(truck_meta.vin IS NULL OR truck_meta.vin = '', VALUES(vin), truck_meta.vin)`
     }
     updated++
   }
@@ -637,12 +637,12 @@ export async function liveShareSnapshot(): Promise<
       // (they come from the key path) alone.
       await sql`
         INSERT INTO fleet_status (unit, location, lat, lng, drive_status, eld_seen, updated_at)
-        VALUES (${unit}, ${desc}, ${lat}, ${lng}, ${status}, ${'live share'}, now())
-        ON CONFLICT (unit) DO UPDATE SET
-          location = COALESCE(EXCLUDED.location, fleet_status.location),
-          lat = EXCLUDED.lat, lng = EXCLUDED.lng,
-          drive_status = COALESCE(EXCLUDED.drive_status, fleet_status.drive_status),
-          eld_seen = EXCLUDED.eld_seen, updated_at = now()`
+        VALUES (${unit}, ${desc}, ${lat}, ${lng}, ${status}, ${'live share'}, NOW(6))
+        ON DUPLICATE KEY UPDATE
+          location = COALESCE(VALUES(location), fleet_status.location),
+          lat = VALUES(lat), lng = VALUES(lng),
+          drive_status = COALESCE(VALUES(drive_status), fleet_status.drive_status),
+          eld_seen = VALUES(eld_seen), updated_at = NOW(6)`
       await logPosition(unit, lat, lng, status, desc)
       updated++
     } catch (e) {

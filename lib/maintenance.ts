@@ -119,7 +119,7 @@ export async function truckMetas(companyId: CompanyId): Promise<Map<number, Truc
 /** Open (not-done) "needs fixing" count per truck, for the list's health chips. */
 export async function openTodoCounts(companyId: CompanyId): Promise<Map<number, number>> {
   const rows = await sql`
-    SELECT d.truck_id, COUNT(*)::int AS n FROM truck_todos d
+    SELECT d.truck_id, COUNT(*) AS n FROM truck_todos d
     JOIN trucks t ON t.id = d.truck_id
     WHERE t.company_id = ${companyId} AND d.done_at IS NULL
     GROUP BY d.truck_id`
@@ -152,7 +152,7 @@ export async function listMaintenance(truckId: number): Promise<MaintenanceRecor
 export async function listTodos(truckId: number): Promise<TruckTodo[]> {
   const rows = await sql`
     SELECT * FROM truck_todos WHERE truck_id = ${truckId}
-    ORDER BY done_at NULLS FIRST, created_at DESC`
+    ORDER BY done_at IS NOT NULL, done_at, created_at DESC`
   return rows.map((r: any) => ({
     id: r.id,
     truckId: r.truck_id,

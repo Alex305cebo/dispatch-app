@@ -126,7 +126,7 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
               INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data, company_id)
               VALUES (${target ? target.id : null}, ${truck.truckId}, ${kind},
                       ${`${kind.toUpperCase()} #${truck.number} tg.${ext}`}, ${m.mime}, ${m.bytes.length},
-                      decode(${hex}, 'hex'), ${REAL})`
+                      UNHEX(${hex}), ${REAL})`
             attached++
             // A dispatcher only ever has POD/BOL/rate con, never an "invoice" of their
             // own — the invoice is generated FROM the POD, so once it lands there's no

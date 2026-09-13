@@ -87,7 +87,7 @@ export async function createSession(userId: number): Promise<string> {
   // only needs to resist guessing, not memorability.
   const token = crypto.randomUUID() + crypto.randomUUID()
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000).toISOString()
-  await sql`INSERT INTO sessions (token, user_id, expires_at) VALUES (${token}, ${userId}, ${expiresAt})`
+  await sql`INSERT INTO sessions (token, user_id, expires_at) VALUES (${token}, ${userId}, ${new Date(expiresAt)})`
   return token
 }
 
@@ -98,7 +98,7 @@ export async function sessionUser(token: string | undefined | null): Promise<Ses
   const rows = (await sql`
     SELECT u.id, u.name, u.email, u.role, u.is_demo FROM sessions s
     JOIN users u ON u.id = s.user_id
-    WHERE s.token = ${token} AND s.expires_at > now() AND u.disabled_at IS NULL AND u.pending_since IS NULL`) as
+    WHERE s.token = ${token} AND s.expires_at > NOW(6) AND u.disabled_at IS NULL AND u.pending_since IS NULL`) as
     | { id: number; name: string; email: string; role: 'admin' | 'dispatcher'; is_demo: boolean }[]
   const row = rows[0]
   if (!row) return null

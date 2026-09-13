@@ -76,12 +76,12 @@ export async function samsaraSnapshot(): Promise<{ updated: number; errors: stri
       try {
         await sql`
           INSERT INTO fleet_status (unit, location, lat, lng, drive_status, eld_seen, updated_at)
-          VALUES (${unit}, ${desc}, ${g.latitude}, ${g.longitude}, ${status}, ${'samsara'}, now())
-          ON CONFLICT (unit) DO UPDATE SET
-            location = COALESCE(EXCLUDED.location, fleet_status.location),
-            lat = EXCLUDED.lat, lng = EXCLUDED.lng,
-            drive_status = COALESCE(EXCLUDED.drive_status, fleet_status.drive_status),
-            eld_seen = EXCLUDED.eld_seen, updated_at = now()`
+          VALUES (${unit}, ${desc}, ${g.latitude}, ${g.longitude}, ${status}, ${'samsara'}, NOW(6))
+          ON DUPLICATE KEY UPDATE
+            location = COALESCE(VALUES(location), fleet_status.location),
+            lat = VALUES(lat), lng = VALUES(lng),
+            drive_status = COALESCE(VALUES(drive_status), fleet_status.drive_status),
+            eld_seen = VALUES(eld_seen), updated_at = NOW(6)`
         await logPosition(unit, g.latitude, g.longitude, status, desc)
         updated++
       } catch (e) {

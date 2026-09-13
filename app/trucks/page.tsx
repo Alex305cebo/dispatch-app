@@ -66,7 +66,7 @@ export default async function Page() {
     sql`SELECT t.id, u.name, s.value AS phone
         FROM trucks t
         JOIN users u ON u.id = t.dispatcher_id
-        LEFT JOIN settings s ON s.key = 'disp_phone:' || u.id::text
+        LEFT JOIN settings s ON s.key = 'disp_phone:' || u.id
         WHERE t.company_id = ${companyId}`,
   ])
   const dispByTruck = new Map(

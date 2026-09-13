@@ -197,9 +197,11 @@ export async function listPaidLoads(companyId: CompanyId): Promise<LoadRecord[]>
  */
 export async function rateConByLoad(companyId: CompanyId): Promise<Map<number, number>> {
   const rows = await sql`
-    SELECT DISTINCT ON (load_id) load_id, id FROM documents
-    WHERE company_id = ${companyId} AND kind = 'ratecon' AND load_id IS NOT NULL
-    ORDER BY load_id, uploaded_at DESC`
+    SELECT load_id, id FROM (
+      SELECT load_id, id, ROW_NUMBER() OVER (PARTITION BY load_id ORDER BY uploaded_at DESC) AS rn
+      FROM documents
+      WHERE company_id = ${companyId} AND kind = 'ratecon' AND load_id IS NOT NULL
+    ) x WHERE rn = 1`
   /* eslint-disable @typescript-eslint/no-explicit-any */
   return new Map(rows.map((r: any) => [r.load_id as number, r.id as number]))
 }
@@ -234,7 +236,7 @@ export async function currentLoadForTruck(companyId: CompanyId, truckId: number)
   const rows = (await sql`
     SELECT * FROM loads
     WHERE company_id = ${companyId} AND truck_id = ${truckId} AND status IN ('in_transit', 'booked') AND partial = false
-    ORDER BY (status = 'in_transit') DESC, pickup_date ASC NULLS LAST, created_at ASC
+    ORDER BY (status = 'in_transit') DESC, pickup_date IS NULL, pickup_date ASC, created_at ASC
     LIMIT 1`) as LoadRow[]
   return rows[0] ? rowToLoad(rows[0]) : null
 }
@@ -320,7 +322,7 @@ export async function laneAvgRpmFor(
     FROM loads
     WHERE company_id = ${companyId} AND id <> ${exceptLoadId}
       AND status <> 'cancelled' AND loaded_miles > 0
-      AND origin ILIKE ${'%, ' + from} AND destination ILIKE ${'%, ' + to}`) as {
+      AND LOWER(origin) LIKE LOWER(${'%, ' + from}) AND LOWER(destination) LIKE LOWER(${'%, ' + to})`) as {
     rpm: string | number | null
     n: string | number
   }[]

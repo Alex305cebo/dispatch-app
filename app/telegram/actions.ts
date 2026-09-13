@@ -162,7 +162,7 @@ export type TruckChoice = { id: number; label: string }
  */
 async function truckChoices(): Promise<TruckChoice[]> {
   const rows = (await sql`
-    SELECT id, number, driver_name FROM trucks WHERE company_id = 'default' ORDER BY number`) as {
+    SELECT id, number, driver_name FROM trucks WHERE company_id = 'default' ORDER BY number IS NULL, number`) as {
     id: number
     number: string | null
     driver_name: string | null
@@ -250,7 +250,7 @@ export async function tgAttachToLoad(
       INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data, company_id)
       VALUES (${loadId}, ${truck.truckId}, ${kind},
               ${`${kind.toUpperCase()} #${truck.number} tg.${ext}`}, ${media.mime}, ${media.bytes.length},
-              decode(${media.bytes.toString('hex')}, 'hex'), 'default')`
+              UNHEX(${media.bytes.toString('hex')}), 'default')`
     revalidatePath('/docs')
     revalidatePath(`/trucks/${truck.truckId}`)
     if (loadId) revalidatePath(`/loads/${loadId}`)
@@ -314,7 +314,7 @@ async function attachRateCon(
     INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data, company_id)
     VALUES (NULL, ${truck.truckId}, 'ratecon',
             ${`RATECON #${truck.number} tg.${ext}`}, ${media.mime}, ${media.bytes.length},
-            decode(${media.bytes.toString('hex')}, 'hex'), 'default')
+            UNHEX(${media.bytes.toString('hex')}), 'default')
     RETURNING id`) as { id: number }[]
   const docId = rows[0]!.id
   revalidatePath('/docs')

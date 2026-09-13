@@ -200,7 +200,7 @@ export async function registerRequest(
   try {
     const rows = await sql`
       INSERT INTO users (name, email, password_hash, role, pending_since)
-      VALUES (${name.trim()}, ${email.trim().toLowerCase()}, ${await hashPassword(password)}, 'dispatcher', now())
+      VALUES (${name.trim()}, ${email.trim().toLowerCase()}, ${await hashPassword(password)}, 'dispatcher', NOW(6))
       RETURNING id`
     userId = (rows[0] as { id: number }).id
   } catch (e) {

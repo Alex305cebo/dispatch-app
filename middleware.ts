@@ -107,6 +107,9 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
+  // Node, а не edge: сессию проверяет запрос к MariaDB, а драйвер mysql2 работает только
+  // в Node (сокеты, stream). Прежний драйвер Neon ходил по HTTP и жил в edge.
+  runtime: 'nodejs',
   // These API routes are excluded: their callers (extension, cron pingers) can't
   // send a session cookie — each guards itself with its own shared token instead.
   matcher: ['/((?!_next/static|_next/image|icon|apple-icon|manifest.webmanifest|favicon.ico|api/fleet|api/eld-poll|api/tg-poll|api/health).*)'],
