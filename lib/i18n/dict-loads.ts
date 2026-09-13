@@ -3128,6 +3128,15 @@ export const loadsDict = {
     ro: 'Istoric',
     kk: 'Тарих',
   },
+  'loads.dash.allIn': { ru: 'all-in', en: 'all-in', es: 'all-in', uk: 'all-in', ro: 'all-in', kk: 'all-in' },
+  'loads.dash.rpmHint': {
+    ru: 'Ставка груза и ставка за милю по гружёным милям, как в «Деталях» груза. All-in — с учётом пустых миль (deadhead).',
+    en: 'Load rate and rate per loaded mile, as in the load Details. All-in includes empty miles (deadhead).',
+    es: 'Tarifa de la carga y por milla cargada, como en Detalles. All-in incluye las millas vacías (deadhead).',
+    uk: 'Ставка вантажу і ставка за милю по завантажених милях, як у «Деталях». All-in — з урахуванням порожніх миль (deadhead).',
+    ro: 'Tariful cursei și pe milă încărcată, ca în Detalii. All-in include milele goale (deadhead).',
+    kk: 'Жүк бағасы және жүкті миль үшін баға, «Мәліметтердегідей». All-in — бос мильдерді (deadhead) қоса.',
+  },
   'loads.dash.noTime': {
     ru: 'Время не указано',
     en: 'Time not specified',

@@ -7,9 +7,9 @@ import { FleetMap, type MapMarker, type MapRoute } from '@/components/fleet-map'
 import { StatusBadge } from '@/components/status'
 import { Info } from '@/components/info'
 import type { LoadRecord } from '@/lib/map'
-import type { LoadStop } from '@/lib/stops'
+import { stopsFrom, type LoadStop } from '@/lib/stops'
 import { t, type Locale } from '@/lib/i18n'
-import { usd } from '@/lib/fmt'
+import { usd, usd2 } from '@/lib/fmt'
 import { whenText } from '@/lib/loads-dashboard'
 
 export type LoadsMapRow = {
@@ -77,6 +77,16 @@ export function LoadsMap({ rows, locale }: { rows: LoadsMapRow[]; locale: Locale
           {rows.map((row) => {
             const active = id === row.load.id
             const stop = row.nextStop
+            // Конечная выгрузка — всегда видна: пока трак идёт на погрузку, следующая
+            // точка — пикап, а диспетчеру нужно и то, к какому часу сдать груз.
+            const drop = [...stopsFrom(row.load)].reverse().find((s) => s.role === 'delivery') ?? null
+            const showDrop = drop && !(stop && stop.role === 'delivery' && stop.seq === drop.seq)
+            // Ставка за милю груза — по гружёным милям, как в «Деталях» груза; all-in — с пустыми.
+            const loadedRpm = row.load.loadedMiles > 0 ? row.load.rate / row.load.loadedMiles : 0
+            const allMiles = row.load.loadedMiles + row.load.deadheadMiles
+            const allInRpm = allMiles > 0 ? row.load.rate / allMiles : 0
+            const noDate = t(locale, 'loads.dash.noDate')
+            const noTime = t(locale, 'loads.dash.noTime')
             return (
               <div
                 key={row.load.id}
@@ -95,12 +105,25 @@ export function LoadsMap({ rows, locale }: { rows: LoadsMapRow[]; locale: Locale
                   {stop && (
                     <span className="mt-0.5 block break-words text-[12px] text-white/65">
                       {t(locale, stop.role === 'pickup' ? 'stops.pickup' : 'stops.delivery')} · {stop.city ?? stop.address ?? '—'} ·{' '}
-                      {whenText(stop.date, stop.time, t(locale, 'loads.dash.noDate'), '')}
+                      {whenText(stop.date, stop.time, noDate, noTime)}
+                    </span>
+                  )}
+                  {showDrop && (
+                    <span className="mt-0.5 block break-words text-[12px] text-white/65">
+                      {t(locale, 'stops.delivery')} · {drop.city ?? drop.address ?? '—'} · {whenText(drop.date, drop.time, noDate, noTime)}
                     </span>
                   )}
                 </button>
                 <div className="mt-1.5 flex items-center justify-between gap-2">
-                  <span className="nums text-[15px] font-bold">{usd.format(row.load.rate)}</span>
+                  <span className="flex flex-wrap items-baseline gap-x-2" title={t(locale, 'loads.dash.rpmHint')}>
+                    <span className="nums text-[15px] font-bold">{usd.format(row.load.rate)}</span>
+                    {loadedRpm > 0 && <span className="nums text-[13px] font-semibold text-white/80">{usd2.format(loadedRpm)}/mi</span>}
+                    {allInRpm > 0 && row.load.deadheadMiles > 0 && (
+                      <span className="nums text-[11.5px] text-white/45">
+                        {t(locale, 'loads.dash.allIn')} {usd2.format(allInRpm)}
+                      </span>
+                    )}
+                  </span>
                   <Link
                     href={`/loads/${row.load.id}`}
                     className="inline-flex min-h-8 items-center gap-1 text-[12px] font-medium text-haul-400 hover:underline max-md:min-h-11"

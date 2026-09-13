@@ -4,7 +4,7 @@ import { routeVia } from '@/lib/geo-routing'
 import { STALE_GPS_MS, statusTone } from '@/lib/load-map'
 import { activeLoadsByTruck, truckLabel, type LoadRecord, type TruckRecord } from '@/lib/map'
 import { stopsFrom, type LoadStop } from '@/lib/stops'
-import { agoText, usDate } from '@/lib/fmt'
+import { agoText, usd, usd2, usDate } from '@/lib/fmt'
 import { t, type Locale } from '@/lib/i18n'
 import type { MapMarker, MapRoute } from '@/components/fleet-map'
 import type { LoadMetrics } from '@/components/loads-toolbar'
@@ -84,13 +84,20 @@ export async function LoadsMapServer({
         })
       }
       const stops = (stopsOf.get(load.id) ?? []).map((s) => ({ s, pt: point(s.address) ?? point(s.city) }))
+      const lastDrop = [...stops].reverse().find(({ s }) => s.role === 'delivery')?.s
+      const rpm = load.loadedMiles > 0 ? `${usd.format(load.rate)} · ${usd2.format(load.rate / load.loadedMiles)}/mi` : null
       for (const { s, pt } of stops) {
         if (!pt) continue
+        // Окно как напечатано в рейт-коне уже содержит дату — не повторять её.
+        const day = usDate(s.date)
+        const slot = s.time?.trim() || t(locale, 'loads.dash.noTime')
+        const when = day && slot.includes(day) ? slot : [day, slot].filter(Boolean).join(' · ')
         markers.push({
           lat: pt[0],
           lng: pt[1],
           label: stopLabel(s),
-          sub: [usDate(s.date), s.time].filter(Boolean).join(' · ') || undefined,
+          // На конечной выгрузке — ещё ставка груза и за милю: пин читается без списка.
+          sub: [when, s === lastDrop ? rpm : null].filter(Boolean).join(' · ') || undefined,
           kind: s.role === 'pickup' ? 'pickup' : 'dest',
           truckId: load.id,
         })
