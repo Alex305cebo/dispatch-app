@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
-import { fillBrokerMc, markPaid, runBrokerCheck, topBrokerInfo, updateBrokerInfo } from '@/app/actions'
+import { fillBrokerMc, runBrokerCheck, topBrokerInfo, updateBrokerInfo } from '@/app/actions'
+import { financesHref } from '@/lib/payments'
 import { useRouter } from 'next/navigation'
 import { notify } from '@/lib/notify'
 import type { BrokerCheck } from '@/lib/fmcsa'
@@ -75,21 +76,6 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
   // одному за раз: две открытые карточки в узком списке читаются как одна.
   const [owedFor, setOwedFor] = useState<string | null>(null)
   const [editFor, setEditFor] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-
-  function pay(loadId: number) {
-    setBusy(true)
-    start(async () => {
-      const res = await markPaid(loadId, true)
-      setBusy(false)
-      if (res?.error) {
-        notify('error', res.error)
-        return
-      }
-      notify('ok', t(locale, 'brokers.paidDone'))
-      router.refresh()
-    })
-  }
 
   // Escape closes the history bubble (plus the always-visible ✕ and click-outside).
   useEffect(() => {
@@ -378,14 +364,13 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                             <span className={`nums text-[11.5px] ${u.days > 30 ? 'text-warn-400' : 'text-white/45'}`}>
                               {t(locale, 'brokers.waitingDays').replace('{n}', String(u.days))}
                             </span>
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={() => pay(u.id)}
-                              className="rounded-lg border border-good-500/40 px-2 py-0.5 text-[11.5px] font-medium text-good-400 transition-colors hover:bg-good-500/15 disabled:opacity-50"
+                            {/* Оплату отмечает бухгалтер в «Финансах» — туда и ссылка. */}
+                            <Link
+                              href={financesHref({ id: u.id, referenceId: u.ref })}
+                              className="rounded-lg border border-white/15 px-2 py-0.5 text-[11.5px] font-medium text-white/75 transition-colors hover:border-white/35 hover:text-white"
                             >
-                              {t(locale, 'brokers.markPaid')}
-                            </button>
+                              {t(locale, 'payments.tab')} →
+                            </Link>
                           </li>
                         ))}
                       </ul>

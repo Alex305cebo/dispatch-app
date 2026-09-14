@@ -107,6 +107,21 @@ export function factoringDoneDay(p: LoadPayment | null, paidAt: string | null): 
   return paidAt ? todayEt(new Date(paidAt)) : null
 }
 
+/** Груз на вкладке «Оплата · факторинг» — через поиск по номеру груза. */
+export const financesHref = (load: { id: number; referenceId?: string | null }) =>
+  `/invoices?q=${encodeURIComponent(load.referenceId || String(load.id))}`
+
+/** Метка «где деньги» для карточки груза: ключ словаря и цвет. */
+export function payBadge(
+  status: LoadStatus,
+  p: LoadPayment | null,
+): { key: `payments.stage.${PayStage | 'none'}`; tone: 'good' | 'warn' | 'bad' | 'plain' } | null {
+  if (status !== 'delivered' && status !== 'paid') return null
+  if (!p) return status === 'paid' ? { key: 'payments.stage.paid', tone: 'good' } : { key: 'payments.stage.none', tone: 'plain' }
+  const tone = p.stage === 'rejected' || p.stage === 'chargeback' ? 'bad' : p.stage === 'submitted' ? 'warn' : 'good'
+  return { key: `payments.stage.${p.stage}`, tone }
+}
+
 /** Комиссия факторинга по проценту из экономики трака, до цента. */
 export function defaultFee(rate: number, factoringPercent: number | null | undefined): number {
   const pct = Number.isFinite(factoringPercent) && (factoringPercent ?? 0) > 0 ? factoringPercent! : 0

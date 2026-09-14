@@ -603,35 +603,6 @@ export async function generateInvoice(
   return res
 }
 
-/**
- * Прежняя кнопка «Оплачено» — оставлена для старых мест вызова, но пишет в учёт оплат
- * (app/invoices/payment-actions.ts): «оплачено» = прямая оплата сегодня на всю ставку,
- * «снять» = отменить последний шаг. Груз без записи оплаты, отмеченный оплаченным до
- * учёта факторинга, снимается как раньше — прямо в грузе.
- */
-export async function markPaid(loadId: number, paid: boolean): Promise<{ error: string } | void> {
-  const denied = await assertCan('finances')
-  if (denied) return denied
-  const { markPaidDirect, undoPaymentStep } = await import('@/app/invoices/payment-actions')
-  const { paymentFor } = await import('@/lib/payments-server')
-  const { todayEt } = await import('@/lib/payments')
-  const companyId = await companyScope()
-  if (paid) {
-    const res = await markPaidDirect(loadId, { via: 'other', on: todayEt() })
-    if ('error' in res) return res
-    return
-  }
-  if (await paymentFor(companyId, loadId)) {
-    const res = await undoPaymentStep(loadId)
-    if ('error' in res) return res
-    return
-  }
-  await sql`UPDATE loads SET paid_at = NULL, status = 'delivered' WHERE id = ${loadId} AND company_id = ${companyId} AND status = 'paid'`
-  revalidatePath(`/loads/${loadId}`)
-  revalidatePath('/invoices')
-  revalidatePath('/')
-}
-
 /** Убрать счёт, выставленный раньше времени.
  *
  * Случай 11.09.2026: у груза с тремя точками POD промежуточной выгрузки загрузили

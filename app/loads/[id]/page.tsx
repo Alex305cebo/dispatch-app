@@ -7,7 +7,10 @@ import { activeLoadsByTruck, truckLabel, truckShortLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { getCompany } from '@/lib/invoice'
 import { fleetStatusByUnit, getTruckMeta } from '@/lib/maintenance'
-import { companyScope } from '@/lib/session'
+import { companyScope, getCurrentUser } from '@/lib/session'
+import { can } from '@/lib/capabilities-server'
+import { financesHref, payBadge } from '@/lib/payments'
+import { paymentFor } from '@/lib/payments-server'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { driveTime, usd, usDate } from '@/lib/fmt'
@@ -119,6 +122,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const stop = windows[windows.length - 1] ?? null
   const terms = windows.length ? await detentionTerms() : null
   const invoiceDoc = docs.find((d) => d.kind === 'invoice')
+  // Где деньги за груз — метка на полосе статусов и у счёта; ставит её бухгалтер в «Финансах».
+  const badge = payBadge(load.status, await paymentFor(companyId, load.id))
+  const pay = badge && {
+    href: (await can(await getCurrentUser(), 'finances')) ? financesHref(load) : null,
+    label: t(locale, badge.key),
+    tone: badge.tone,
+  }
   const rateConDoc = docs.find((d) => d.kind === 'ratecon')
   const bolDoc = docs.find((d) => d.kind === 'bol')
   // Конечный POD — без номера остановки; POD промежуточных точек живут на рейке.
@@ -177,6 +187,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             current={load.status}
             bolId={bolDoc?.id ?? null}
             podId={podDoc?.id ?? null}
+            pay={pay}
             stops={stops.slice(1, -1).map((s) => ({
               key: String(s.seq),
               seq: s.seq,
@@ -374,6 +385,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           invoiceNumber={load.invoiceNumber}
           invoiceDocId={invoiceDoc?.id ?? null}
           paid={!!load.paidAt}
+          pay={pay}
           companyReady={!!(company.name && company.mcdot)}
         />
         <p className="mt-2 text-[12px] text-white/50">{t(locale, 'loadDetail.invoicePackageNote')}</p>

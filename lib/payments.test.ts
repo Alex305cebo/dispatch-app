@@ -4,6 +4,8 @@ import {
   DEFAULT_FACTORING,
   daysBetween,
   defaultFee,
+  financesHref,
+  payBadge,
   factoringDoneDay,
   isIsoDay,
   moneyIn,
@@ -89,6 +91,16 @@ test('CSV: кавычки и запятые экранируются, пусто
   assert.match(head!, /^Load ID,Load #,Route/)
   assert.match(line!, /^1825,38247870,"BILLINGS, MT → West Jefferson, OH",1935,TQL,3200,paid,funded,OTR Solutions,2026-09-14,,2026-09-15,3136,64,/)
   assert.match(line!, /"short ""pay"""$/)
+})
+
+test('метка оплаты на карточке груза и ссылка в «Финансы»', () => {
+  assert.equal(payBadge('in_transit', null), null)
+  assert.deepEqual(payBadge('delivered', null), { key: 'payments.stage.none', tone: 'plain' })
+  assert.deepEqual(payBadge('paid', null), { key: 'payments.stage.paid', tone: 'good' })
+  assert.deepEqual(payBadge('delivered', pay({})), { key: 'payments.stage.submitted', tone: 'warn' })
+  assert.deepEqual(payBadge('delivered', pay({ stage: 'rejected' })), { key: 'payments.stage.rejected', tone: 'bad' })
+  assert.equal(financesHref({ id: 1825, referenceId: '38247870' }), '/invoices?q=38247870')
+  assert.equal(financesHref({ id: 1825, referenceId: null }), '/invoices?q=1825')
 })
 
 test('сегодня по восточному времени', () => {

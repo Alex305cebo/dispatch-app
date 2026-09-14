@@ -103,14 +103,17 @@ export function PaymentsBoard({
   rows,
   settings,
   today,
+  initialQuery = '',
 }: {
   rows: PayRow[]
   settings: FactoringSettings
   today: string
+  /** Пришли по ссылке с груза (lib/payments.ts financesHref) — сразу найден и раскрыт. */
+  initialQuery?: string
 }) {
   const locale = useLocale()
   const [pending, start] = useTransition()
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialQuery)
   const [broker, setBroker] = useState('')
   const [truck, setTruck] = useState('')
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -296,7 +299,7 @@ export function PaymentsBoard({
             count={list.length}
             amount={usd.format(list.reduce((s, r) => s + r.rate, 0))}
             tone={GROUP_TONE[g]}
-            defaultOpen={OPEN.includes(g)}
+            defaultOpen={OPEN.includes(g) || !!initialQuery}
           >
             <div className="flex flex-col gap-2">
               {list.map((r) => (

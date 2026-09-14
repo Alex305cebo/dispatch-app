@@ -677,5 +677,12 @@ export const financesDict = {
   'payments.settings.recourse': { ru: 'Договор с регрессом', en: 'Recourse agreement', uk: 'Договір з регресом' },
   'payments.settings.days': { ru: 'Срок регресса, дней', en: 'Recourse period, days', uk: 'Строк регресу, днів' },
   'payments.empty': { ru: 'Неоплаченных грузов нет.', en: 'No unpaid loads.', uk: 'Неоплачених вантажів немає.' },
+  'payments.stage.none': { ru: 'Оплата в «Финансах»', en: 'Payment in Finances', uk: 'Оплата у «Фінансах»' },
+  'payments.stage.submitted': { ru: 'В факторинге', en: 'At factoring', uk: 'У факторингу' },
+  'payments.stage.funded': { ru: 'Аванс получен', en: 'Funded', uk: 'Аванс отримано' },
+  'payments.stage.closed': { ru: 'Закрыт', en: 'Closed', uk: 'Закрито' },
+  'payments.stage.rejected': { ru: 'Отказ факторинга', en: 'Factoring rejected', uk: 'Відмова факторингу' },
+  'payments.stage.chargeback': { ru: 'Регресс', en: 'Charged back', uk: 'Регрес' },
+  'payments.stage.paid': { ru: 'Оплачен', en: 'Paid', uk: 'Оплачено' },
   'payments.nothingFound': { ru: 'Ничего не найдено', en: 'Nothing found', uk: 'Нічого не знайдено' },
 } as const

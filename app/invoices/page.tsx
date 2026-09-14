@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { listLoads, listLoadsByDispatcher, listPaidLoads, listTrucks, rateConByLoad, type LoadWithDispatcher } from '@/lib/loads'
 import { sql } from '@/lib/db'
-import { daysBetween, defaultFee, factoringDoneDay, payGroup, todayEt, type PayGroup } from '@/lib/payments'
+import { daysBetween, defaultFee, factoringDoneDay, financesHref, payGroup, todayEt, type PayGroup } from '@/lib/payments'
 import { factoringSettings, paymentsByLoad } from '@/lib/payments-server'
 import { PaymentsBoard, type PayRow } from './payments-board'
 import type { LoadRecord } from '@/lib/map'
@@ -14,9 +14,7 @@ import { getLocale } from '@/lib/i18n-server'
 import { t, type Locale } from '@/lib/i18n'
 import { getSetting } from '@/lib/settings'
 import { can } from '@/lib/capabilities-server'
-import { PaidToggle } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
-import { MoreMenu } from '@/components/more-menu'
 import { Info } from '@/components/info'
 import { Wallet } from 'lucide-react'
 import { Collapse } from '@/components/collapse'
@@ -34,14 +32,14 @@ function tabDescription(locale: Locale): Record<string, string> {
   }
 }
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string }> }) {
   const user = await getCurrentUser()
   // Whole section is capability-gated — a dispatcher without it can't even URL in.
   if (!(await can(user, 'finances'))) redirect('/')
   // "По диспетчерам" is its own capability (default on) — a cross-dispatcher earnings
   // view. A user without it who lands on ?tab=dispatchers falls back to "unpaid".
   const canReport = await can(user, 'dispatcher_report')
-  const tabParam = (await searchParams).tab
+  const { tab: tabParam, q } = await searchParams
   // «Оплата · факторинг» — по умолчанию: «Финансы» — место бухгалтера, и первое, что
   // ему нужно, — какие грузы отправить в факторинг и где застряли деньги. Старая ссылка
   // ?tab=unpaid (обзор) ведёт сюда же — неоплаченные теперь здесь.
@@ -97,7 +95,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       </div>
 
       {tab === 'payments' ? (
-        <Payments companyId={companyId} rateCons={rateCons} locale={locale} />
+        <Payments companyId={companyId} rateCons={rateCons} locale={locale} query={q ?? ''} />
       ) : tab === 'weeks' ? (
         <ByWeek companyId={companyId} rateCons={rateCons} locale={locale} />
       ) : tab === 'paid' ? (
@@ -134,10 +132,12 @@ async function Payments({
   companyId,
   rateCons,
   locale,
+  query,
 }: {
   companyId: 'default' | 'demo'
   rateCons: Map<number, number>
   locale: Locale
+  query: string
 }) {
   const today = todayEt()
   const [loads, trucks, payments, settings] = await Promise.all([
@@ -212,7 +212,7 @@ async function Payments({
         />
         <Stat label={t(locale, 'payments.stat.risk')} value={usd.format(risk)} tone={risk ? 'bad' : undefined} />
       </div>
-      <PaymentsBoard rows={rows} settings={settings} today={today} />
+      <PaymentsBoard rows={rows} settings={settings} today={today} initialQuery={query} />
     </>
   )
 }
@@ -303,9 +303,12 @@ async function Paid({
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <span className="nums mr-auto text-[15px] font-bold">{usd.format(load.rate)}</span>
                       {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
-                      <MoreMenu label={t(locale, 'common.more')}>
-                        <PaidToggle loadId={load.id} paid />
-                      </MoreMenu>
+                      <Link
+                        href={financesHref(load)}
+                        className="inline-flex min-h-9 items-center rounded-lg border border-white/10 px-3 text-[12px] font-semibold text-white/60 hover:border-white/25 hover:text-white max-md:min-h-11"
+                      >
+                        {t(locale, 'payments.tab')}
+                      </Link>
                     </div>
                   </div>
                 ))}

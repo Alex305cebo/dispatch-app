@@ -6,7 +6,7 @@ import { Button } from '@/components/button'
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { generateInvoice, markPaid, removeInvoice, saveCompany } from '@/app/actions'
+import { generateInvoice, removeInvoice, saveCompany } from '@/app/actions'
 import type { Company } from '@/lib/invoice'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
@@ -15,18 +15,21 @@ import { t } from '@/lib/i18n'
 const input =
   'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[14px] text-white outline-none transition-all placeholder:text-white/45 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
 
-/** On the load page: generate the packet, or (once invoiced) mark paid. */
+/** On the load page: generate the packet; где деньги — метка со ссылкой в «Финансы». */
 export function InvoiceBox({
   loadId,
   invoiceNumber,
   invoiceDocId,
   paid,
+  pay = null,
   companyReady = true,
 }: {
   loadId: number
   invoiceNumber: string | null
   invoiceDocId: number | null
   paid: boolean
+  /** Этап оплаты (lib/payments.ts payBadge); href null — нет доступа к «Финансам». */
+  pay?: PayChip | null
   /** Are the company name + MC/DOT filled in? Without them an invoice can't be built. */
   companyReady?: boolean
 }) {
@@ -41,12 +44,6 @@ export function InvoiceBox({
         notify('ok', t(locale, 'finances.invoiceBox.built').replace('{n}', res.invoiceNumber))
         window.open(`/api/docs/${res.docId}`, '_blank')
       }
-    })
-
-  const toggle = (v: boolean) =>
-    start(async () => {
-      await markPaid(loadId, v)
-      notify('ok', v ? t(locale, 'finances.invoiceBox.marked') : t(locale, 'finances.invoiceBox.unmarked'))
     })
 
   // Can't invoice without your own company details — say so up front, with the way
@@ -90,15 +87,7 @@ export function InvoiceBox({
           {t(locale, 'finances.invoiceBox.open')}
         </DocLink>
       )}
-      <button
-        disabled={pending}
-        onClick={() => toggle(!paid)}
-        className={`rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-          paid ? 'bg-good-500/20 text-good-400' : 'bg-haul-500 text-white hover:bg-haul-400'
-        }`}
-      >
-        {paid ? t(locale, 'finances.invoiceBox.paidBadge') : t(locale, 'finances.invoiceBox.markPaid')}
-      </button>
+      {pay && <PayChipView pay={pay} className="rounded-lg px-3 py-1.5 text-[12px] font-semibold" />}
       <button onClick={gen} disabled={pending} className="text-[12px] text-white/45 hover:text-white/75">
         {t(locale, 'finances.invoiceBox.rebuild')}
       </button>
@@ -124,29 +113,25 @@ export function InvoiceBox({
   )
 }
 
-/** Mark-paid toggle used in the AR list — also doubles as the "Оплачено" tab's
- * undo (paid=true flips it back to unpaid instead). */
-export function PaidToggle({ loadId, paid = false }: { loadId: number; paid?: boolean }) {
-  const router = useRouter()
-  const locale = useLocale()
-  const [pending, start] = useTransition()
-  return (
-    <button
-      disabled={pending}
-      onClick={() =>
-        start(async () => {
-          await markPaid(loadId, !paid)
-          notify('ok', paid ? t(locale, 'finances.paidToggle.unmarked') : t(locale, 'finances.paidToggle.marked'))
-        })
-      }
-      className={`inline-flex min-h-9 shrink-0 items-center rounded-lg px-3 text-[12px] font-semibold transition-colors disabled:opacity-50 max-md:min-h-11 ${
-        paid
-          ? 'border border-white/10 text-white/60 hover:border-white/25 hover:text-white'
-          : 'bg-haul-500 hover:bg-haul-400'
-      }`}
-    >
-      {paid ? t(locale, 'finances.paidToggle.remove') : t(locale, 'finances.paidToggle.mark')}
-    </button>
+/** Где деньги за груз — метка; с доступом к «Финансам» ведёт туда. Отмечает оплату
+ * только бухгалтер на вкладке «Оплата · факторинг». */
+export type PayChip = { href: string | null; label: string; tone: 'good' | 'warn' | 'bad' | 'plain' }
+
+const PAY_TONE = {
+  good: 'bg-good-500/15 text-good-400 ring-good-400/30',
+  warn: 'bg-warn-400/15 text-warn-400 ring-warn-400/40',
+  bad: 'bg-bad-500/15 text-bad-400 ring-bad-500/40',
+  plain: 'bg-white/[0.06] text-white/70 ring-white/15',
+} as const
+
+export function PayChipView({ pay, className }: { pay: PayChip; className: string }) {
+  const cls = `${className} ring-1 ${PAY_TONE[pay.tone]}`
+  return pay.href ? (
+    <Link href={pay.href} className={`${cls} transition-colors hover:brightness-125`}>
+      {pay.label} →
+    </Link>
+  ) : (
+    <span className={cls}>{pay.label}</span>
   )
 }
 

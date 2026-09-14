@@ -8,6 +8,7 @@ import { Ban, Check, RotateCcw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { addLoadEventManual, deleteLoad, setStatus, unmarkStop, uploadDocument } from '@/app/actions'
 import { DeleteButton } from '@/components/delete-button'
+import { PayChipView, type PayChip } from '@/components/invoice-actions'
 import { type LoadStatus } from '@/lib/map'
 import { notify } from '@/lib/notify'
 import { statusLabel, STATUS_ICON } from '@/components/status'
@@ -152,8 +153,11 @@ export function StatusPicker({
   stops = [],
   truckId = null,
   title = '',
+  pay = null,
 }: {
   id: number
+  /** Где деньги (lib/payments.ts payBadge): метка под «Оплачен»; сам шаг ставят «Финансы». */
+  pay?: PayChip | null
   current: LoadStatus
   /** Трак груза — куда вернуться после удаления ошибочного груза. */
   truckId?: number | null
@@ -398,7 +402,7 @@ export function StatusPicker({
               <div className={STEP_W}>
                 <button
                   type="button"
-                  onClick={() => (s === shown ? same(s) : go(s))}
+                  onClick={() => (s === shown ? same(s) : s === 'paid' && pay?.href ? router.push(pay.href) : go(s))}
                   aria-current={isCurrent ? 'step' : undefined}
                   title={statusLabel(locale, s)}
                   className={`flex size-7 shrink-0 items-center justify-center rounded-full transition-all duration-150 disabled:cursor-default ${
@@ -416,6 +420,12 @@ export function StatusPicker({
                 </span>
                 {s === 'booked' && <DocChip label="BOL" docId={bolId} due={currentIdx >= 1} />}
                 {s === 'delivered' && <DocChip label="POD" docId={podId} due={currentIdx >= 2} />}
+                {s === 'paid' && pay && (
+                  <PayChipView
+                    pay={pay}
+                    className="mt-1 max-w-full truncate rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
+                  />
+                )}
               </div>
             </li>
           )
