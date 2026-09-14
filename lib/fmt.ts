@@ -2,6 +2,7 @@
 // these, and Intl is pure — it behaves identically on either side.
 
 import type { Locale } from './i18n.ts'
+import { todayEt } from './payments.ts'
 
 export const usd = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -43,15 +44,27 @@ export function driveTime(min: number, locale: Locale): string {
  *
  * Один этот якорь задаёт неделю во всём приложении (обзор, траки, грузы, финансы),
  * чтобы «за неделю» везде значило одно и то же.
+ *
+ * Пятница — по восточному времени, а не в поясе процесса: сервер Hostinger не в
+ * New York, и в его поясе неделя начиналась в четверг вечером — груз, заведённый в
+ * четверг в 22:00 по восточному, уезжал в следующую неделю.
  */
-const PAY_WEEK_DAY = 5 // пятница (getDay: Вс=0 … Пт=5)
+const PAY_WEEK_DAY = 5 // пятница (getUTCDay: Вс=0 … Пт=5)
+const nyHour = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' })
 
 export function weekAnchorOf(ms: number): number {
-  const d = new Date(ms)
-  const since = (d.getDay() - PAY_WEEK_DAY + 7) % 7
-  d.setHours(0, 0, 0, 0)
-  d.setDate(d.getDate() - since)
-  return d.getTime()
+  const noon = Date.parse(`${weekStartIso(todayEt(new Date(ms)))}T12:00:00Z`)
+  // Полночь этой пятницы в New York: полдень UTC там — 8 утра летом и 7 зимой.
+  // Часы переводят в воскресенье, пятницу это не задевает.
+  return noon - Number(nyHour.format(noon)) * 3_600_000
+}
+
+/** Пятница расчётной недели дня yyyy-mm-dd. Арифметика над датой, без часовых поясов, —
+ * одинаково на сервере и в браузере. */
+export function weekStartIso(iso: string): string {
+  const d = new Date(`${iso}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() - PAY_WEEK_DAY + 7) % 7))
+  return d.toISOString().slice(0, 10)
 }
 
 /** Полночь пятницы текущей расчётной недели — «за неделю» отсчитывается от неё,
@@ -62,10 +75,11 @@ export function weekStart(): number {
 
 /** Неделя как полуоткрытый промежуток [пятница, следующая пятница). Верхняя граница
  * важна: груз, забронированный на следующую неделю, не должен попадать в текущие
- * цифры. */
+ * цифры. Конец — полночь следующей пятницы, а не +7×24 ч: в неделе перевода часов
+ * на час больше или меньше. */
 export function weekBounds(): { start: number; end: number } {
   const start = weekStart()
-  return { start, end: start + 7 * 24 * 60 * 60 * 1000 }
+  return { start, end: weekAnchorOf(start + 10 * 86_400_000) }
 }
 
 /** The instant a load counts toward for weekly stats: the PICKUP date — the day the
@@ -82,10 +96,13 @@ export function loadWeekAnchorMs(pickupDate: string | null, createdAt: string): 
 }
 
 /** "21–27 июля 2026" (ru) / "Jul 21–27, 2026" (en) for a week starting at the given
- * Monday timestamp — each locale in its own natural date order, not a shared format. */
+ * Friday timestamp — each locale in its own natural date order, not a shared format.
+ * Пятница — по восточному времени, дни — от местного полудня: подпись одна в любом поясе
+ * сервера и браузера и не теряет день на переводе часов. */
 export function weekLabel(weekStartMs: number, locale: Locale): string {
-  const start = new Date(weekStartMs)
-  const end = new Date(weekStartMs + 6 * 24 * 60 * 60 * 1000)
+  const start = new Date(`${todayEt(new Date(weekStartMs))}T12:00:00`)
+  const end = new Date(start)
+  end.setDate(start.getDate() + 6)
   const sameMonth = start.getMonth() === end.getMonth()
   const day = (d: Date) => d.getDate()
   if (locale === 'ru') {

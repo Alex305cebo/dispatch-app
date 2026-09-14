@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Info } from '@/components/info'
 import { truckLabel, type TruckRecord } from '@/lib/map'
 import { usd, usDate } from '@/lib/fmt'
+import { todayEt } from '@/lib/payments'
 import { idleSummary, type IdleTruck } from '@/lib/idle-fleet'
 import { t, type Locale } from '@/lib/i18n'
 import { CopyPlace } from '@/components/copy-place'
@@ -108,7 +109,7 @@ export async function NeedsLoad({
                     удержать ставку. На телефоне и планшете — своей строкой под местом. */}
                 {snap && lt && heat && (
                   <span
-                    title={`${state} · ${t(locale, 'loadCard.marketAsOf').replace('{when}', usDate(new Date(snap.at)))}`}
+                    title={`${state} · ${t(locale, 'loadCard.marketAsOf').replace('{when}', usDate(todayEt(new Date(snap.at))))}`}
                     className="order-last basis-full text-[12px] text-white/55 lg:order-none lg:basis-auto"
                   >
                     {(() => {

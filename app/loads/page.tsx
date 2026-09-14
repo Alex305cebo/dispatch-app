@@ -93,7 +93,7 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
       hasRc: rateCons.has(load.id),
       nextStop: upcomingStop(load, marks.get(load.id)),
       market,
-      marketAt: market && snap && !(load.spotRpm && load.spotRpm > 0) ? usDate(new Date(snap.at)) : null,
+      marketAt: market && snap && !(load.spotRpm && load.spotRpm > 0) ? usDate(todayEt(new Date(snap.at))) : null,
     }
   }
 

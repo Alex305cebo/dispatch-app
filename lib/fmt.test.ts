@@ -1,11 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { weekAnchorOf, weekLabel, normalizeApptTime, shortName, usDate } from './fmt.ts'
+import { weekAnchorOf, weekLabel, loadWeekAnchorMs, normalizeApptTime, shortName, usDate } from './fmt.ts'
 
-// Relative to Date.now() rather than hardcoded ISO strings — a fixed UTC timestamp
-// can land on a different local calendar day depending on the machine's timezone,
-// which would make this brittle across dev/CI without actually testing the logic.
-const DAY = 24 * 60 * 60 * 1000
+const HOUR = 60 * 60 * 1000
+const DAY = 24 * HOUR
 
 test('shortName keeps the first name and initials the surname', () => {
   assert.equal(shortName('Alex Morgan'), 'Alex M.')
@@ -16,47 +14,33 @@ test('shortName keeps the first name and initials the surname', () => {
   assert.equal(shortName(null), '')
 })
 
-test('расчётная неделя всегда начинается в ПЯТНИЦУ (зарплата с пятницы по пятницу)', () => {
-  for (let offset = 0; offset < 14; offset++) {
-    assert.equal(new Date(weekAnchorOf(Date.now() + offset * DAY)).getDay(), 5, `offset ${offset} days`)
+// Зарплатная неделя — с пятницы 00:00 по восточному времени, а сервер Hostinger в UTC:
+// одни и те же проверки в обоих поясах процесса.
+test('неделя с пятницы по восточному — одна и та же на сервере в UTC и в New York', () => {
+  const saved = process.env.TZ
+  try {
+    for (const zone of ['UTC', 'America/New_York']) {
+      process.env.TZ = zone // Node меняет пояс процесса на лету
+      const friday = Date.parse('2026-09-11T04:00:00Z') // пятница, 00:00 EDT
+      for (let h = 0; h < 7 * 24; h++) assert.equal(weekAnchorOf(friday + h * HOUR), friday, `${zone} +${h}h`)
+      // Четверг 22:30 в New York — в UTC уже пятница, но неделя ещё эта.
+      assert.equal(weekAnchorOf(Date.parse('2026-09-18T02:30:00Z')), friday, zone)
+      assert.equal(weekAnchorOf(Date.parse('2026-09-18T04:00:00Z')), friday + 7 * DAY, zone)
+      // Пикап — день, а не момент: пятничный груз в неделе своей пятницы.
+      assert.equal(weekAnchorOf(loadWeekAnchorMs('2026-09-18', '2026-09-01T12:00:00Z')), friday + 7 * DAY, zone)
+      assert.equal(weekLabel(friday, 'en'), 'Sep 11–17, 2026', zone)
+
+      // Неделя перевода часов (1 ноября) на час длиннее: четверг 23:30 EST ещё в ней,
+      // конец для weekBounds — полночь следующей пятницы, подпись не теряет день.
+      const fall = Date.parse('2026-10-30T04:00:00Z')
+      assert.equal(weekAnchorOf(Date.parse('2026-11-06T04:30:00Z')), fall, zone)
+      assert.equal(weekAnchorOf(fall + 10 * DAY), fall + 7 * DAY + HOUR, zone)
+      assert.equal(weekLabel(fall, 'en'), 'Oct 30 – Nov 5, 2026', zone)
+    }
+  } finally {
+    if (saved === undefined) delete process.env.TZ
+    else process.env.TZ = saved
   }
-})
-
-test('все семь дней недели ложатся в одну и ту же пятницу', () => {
-  const friday = weekAnchorOf(Date.now())
-  for (let i = 0; i < 7; i++) {
-    assert.equal(weekAnchorOf(friday + i * DAY), friday, `day ${i} of the week`)
-  }
-})
-
-test('полночь пятницы отображается сама в себя', () => {
-  const friday = weekAnchorOf(Date.now())
-  assert.equal(weekAnchorOf(friday), friday)
-})
-
-test('соседние недели ровно в семи днях', () => {
-  const friday = weekAnchorOf(Date.now())
-  assert.equal(weekAnchorOf(friday - DAY), friday - 7 * DAY)
-  assert.equal(weekAnchorOf(friday + 7 * DAY + DAY), friday + 7 * DAY)
-})
-
-test('четверг — ещё прошлая неделя, пятница — уже новая', () => {
-  const friday = weekAnchorOf(Date.now())
-  const thursday = friday + 6 * DAY + 12 * 60 * 60 * 1000 // четверг, полдень
-  assert.equal(weekAnchorOf(thursday), friday)
-  assert.equal(weekAnchorOf(friday + 7 * DAY), friday + 7 * DAY)
-})
-
-test('weekLabel returns a non-empty label with a year', () => {
-  const label = weekLabel(weekAnchorOf(Date.now()), 'en')
-  assert.ok(label.length > 0)
-  assert.match(label, /\d{4}/)
-})
-
-test('weekLabel works in both locales', () => {
-  const monday = weekAnchorOf(Date.now())
-  assert.ok(weekLabel(monday, 'ru').length > 0)
-  assert.ok(weekLabel(monday, 'en').length > 0)
 })
 
 // normalizeApptTime cleans rate-con appointment strings the AI mashed together. The

@@ -16,7 +16,7 @@ import { factoringSettings, paymentsByLoad } from '@/lib/payments-server'
 import { PaymentsBoard, type PayRow } from './payments-board'
 import type { LoadRecord } from '@/lib/map'
 import { calcLoad, type Breakdown } from '@/lib/profit'
-import { usd, usd2, weekAnchorOf, weekLabel, weekStart, usDate } from '@/lib/fmt'
+import { usd, usd2, loadWeekAnchorMs, weekAnchorOf, weekLabel, weekStart, usDate } from '@/lib/fmt'
 import { truckLabel, type TruckRecord } from '@/lib/map'
 import { redirect } from 'next/navigation'
 import { companyScope, getCurrentUser } from '@/lib/session'
@@ -750,7 +750,8 @@ async function ByWeek({
 
   const weeks = new Map<number, GrossWeek>()
   for (const load of committed) {
-    const weekMs = weekAnchorOf(new Date(load.pickupDate ?? load.createdAt).getTime())
+    // Пикап — день, а не момент: new Date('yyyy-mm-dd') — полночь UTC, по восточному это ещё вчера.
+    const weekMs = weekAnchorOf(loadWeekAnchorMs(load.pickupDate, load.createdAt))
     let week = weeks.get(weekMs)
     if (!week) {
       week = { weekStartMs: weekMs, trucks: new Map(), gross: 0, miles: 0, count: 0 }

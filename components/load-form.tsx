@@ -9,6 +9,7 @@ import { truckLabel, type TruckRecord } from '@/lib/map'
 import { createLoad, fetchDatSnapshot, fetchRouteMiles } from '@/app/actions'
 import { originRate, type DatSnapshot } from '@/lib/dat-market-core'
 import { usd, usd2, usDate } from '@/lib/fmt'
+import { todayEt } from '@/lib/payments'
 import { humanError } from '@/lib/msg'
 import { notify } from '@/lib/notify'
 import { Analysis } from './analysis'
@@ -70,7 +71,7 @@ export function LoadForm({
     }
   }, [load.equipment, truckId])
   const datRate = datSnap ? originRate(datSnap, load.origin) : null
-  const dat = datRate && datSnap && { ...datRate, date: usDate(new Date(datSnap.at)) }
+  const dat = datRate && datSnap && { ...datRate, date: usDate(todayEt(new Date(datSnap.at))) }
 
   let result: ReturnType<typeof calcLoad> | null = null
   let calcError: string | null = null
