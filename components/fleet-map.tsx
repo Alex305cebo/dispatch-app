@@ -297,9 +297,9 @@ function popupHtml(m: MapMarker, openLabel: string): string {
   // «Открыть →» — как кнопка, с фоном и по центру: на телефоне это единственная
   // подсказка, что плашка нажимается.
   const open = m.href
-    ? `<div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:8px;padding:6px 10px;border-radius:8px;background:rgba(155,142,255,.16);color:${DEST};font-weight:700;font-size:12px">${esc(openLabel)} <span style="font-size:13px">→</span></div>`
+    ? `<div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:6px;padding:4px 8px;border-radius:7px;background:rgba(155,142,255,.16);color:${DEST};font-weight:700;font-size:12px">${esc(openLabel)} <span style="font-size:13px">→</span></div>`
     : ''
-  return `<div style="font:500 11px/1.45 system-ui,sans-serif;min-width:130px">
+  return `<div style="font:500 11px/1.4 system-ui,sans-serif;min-width:120px">
     <div style="font-weight:700;font-size:12.5px;letter-spacing:.01em">${esc(m.label)}</div>
     ${clock}${lines}${eta}${open}
   </div>`
@@ -717,6 +717,29 @@ export function FleetMap({
           direction: 'top',
           offset: [0, -8],
           opacity: 1,
+        })
+        // Плашка не должна уходить за край карты: карта обрезает всё снаружи, и у
+        // точки возле верхнего края пропадал верх плашки. В момент открытия меряем
+        // саму плашку и место вокруг точки: вверх — если помещается, иначе вниз;
+        // у боковых краёв — вбок. Работает на всех картах, где стоит этот компонент.
+        marker.on('tooltipopen', () => {
+          const tip = marker.getTooltip()
+          const el = tip?.getElement()
+          if (!tip || !el || !map) return
+          const p = map.latLngToContainerPoint(marker.getLatLng())
+          const size = map.getSize()
+          const w = el.offsetWidth
+          const h = el.offsetHeight
+          const gap = 14
+          let dir: 'top' | 'bottom' | 'left' | 'right' = 'top'
+          if (p.y - h - gap < 0) dir = size.y - p.y - h - gap >= 0 ? 'bottom' : p.x > size.x / 2 ? 'left' : 'right'
+          if ((dir === 'top' || dir === 'bottom') && p.x - w / 2 < 6) dir = 'right'
+          else if ((dir === 'top' || dir === 'bottom') && p.x + w / 2 > size.x - 6) dir = 'left'
+          const offset = { top: [0, -8], bottom: [0, 8], left: [-10, 0], right: [10, 0] }[dir] as [number, number]
+          if (tip.options.direction === dir) return
+          tip.options.direction = dir
+          tip.options.offset = L.point(offset[0], offset[1])
+          tip.update()
         })
         if (m.href) {
           const href = m.href

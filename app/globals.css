@@ -323,13 +323,13 @@
   border: 1px solid rgba(128, 128, 128, 0.3);
   border-radius: 10px;
   box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.65);
-  padding: 7px 11px;
+  padding: 6px 9px;
   /* Each fact in popupHtml is its own <div>, so nowrap keeps a line like "12 mi N
      from Ashland, VA" whole and lets the box grow to the widest line — instead of
      the default squeezing every word onto its own line. */
   white-space: nowrap;
   /* На телефоне плашка не шире экрана: длинные строки переносятся. */
-  max-width: min(280px, calc(100vw - 48px));
+  max-width: min(250px, calc(100vw - 48px));
   /* Leaflet tooltips default to pointer-events:none; ours carry a clickable
      "Открыть →" arrow (fleet-map.tsx), so the box must receive clicks/hover. */
   pointer-events: auto;
@@ -341,6 +341,15 @@
 }
 .fleet-map .leaflet-tooltip-top:before {
   border-top-color: var(--color-ink-900);
+}
+.fleet-map .leaflet-tooltip-bottom:before {
+  border-bottom-color: var(--color-ink-900);
+}
+.fleet-map .leaflet-tooltip-left:before {
+  border-left-color: var(--color-ink-900);
+}
+.fleet-map .leaflet-tooltip-right:before {
+  border-right-color: var(--color-ink-900);
 }
 
 /* Nav's top icon row on phones (locale/notifications/journal/theme). The BAR has no
