@@ -1310,8 +1310,15 @@ export async function setStatus(id: number, status: LoadStatus): Promise<{ error
     if (pay[0] && ['funded', 'closed', 'paid'].includes(pay[0].stage))
       return { error: t(await getLocale(), 'payments.err.paidInFinances') }
   }
+  // Ручная смена статуса главнее GPS. Автоматика (autoAdvanceLoadStatuses) двигает груз
+  // вперёд по отметкам «трак был у погрузки / у выгрузки» и уехал. Если диспетчер вернул
+  // груз назад, эти отметки больше не правда — без сброса через 3 минуты статус снова
+  // становился «Доставлен» (трак проехал в 12 милях от выгрузки, а сдал груз позже).
+  // Снова приедет и уедет — автоматика отметит заново.
   await sql`
     UPDATE loads SET status = ${status},
+      pickup_arrived_at = CASE WHEN ${status} IN ('quoted', 'booked') THEN NULL ELSE pickup_arrived_at END,
+      delivery_arrived_at = CASE WHEN ${status} IN ('quoted', 'booked', 'in_transit') THEN NULL ELSE delivery_arrived_at END,
       paid_at = CASE WHEN ${status} = 'paid' THEN COALESCE(paid_at, NOW(6))
                      WHEN paid_at IS NOT NULL THEN NULL
                      ELSE paid_at END
