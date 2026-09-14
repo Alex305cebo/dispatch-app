@@ -95,19 +95,23 @@ export function CopyPlace({
         {t(locale, 'tracking.copyBtn')}
       </button>
       {/* Открыть карту — то, ради чего адрес чаще всего и копировали. Одно нажатие
-          вместо «скопировал, открыл карты, вставил». */}
+          вместо «скопировал, открыл карты, вставил». Кнопка, а не <a>: место стоит и
+          внутри карточки-ссылки (обзор, «Парк»), а ссылку внутри ссылки браузер
+          разрывает ещё при разборе HTML — гидратация обзора падала при каждом открытии. */}
       {hasPoint && (
-        <a
-          href={mapsUrl(lat, lng)}
-          target="_blank"
-          rel="noreferrer"
-          onClick={(e) => e.stopPropagation()}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            window.open(mapsUrl(lat, lng), '_blank', 'noopener,noreferrer')
+          }}
           title={t(locale, 'tracking.openMapsTitle')}
           className={`${skin} ${btn}`}
         >
           <MapPin size={icon} />
           {t(locale, 'tracking.mapBtn')}
-        </a>
+        </button>
       )}
     </span>
   )
