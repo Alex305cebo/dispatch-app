@@ -1,6 +1,7 @@
 import { AlertTriangle, ListChecks } from 'lucide-react'
 import { t, type Locale } from '@/lib/i18n'
 import { usDate } from '@/lib/fmt'
+import { PartialButton } from '@/components/partial-button'
 
 /**
  * Что делать, когда следующий груз забукирован, а водитель ещё везёт текущий.
@@ -13,6 +14,7 @@ export function QueuedLoadHint({
   current,
   next,
   compact = false,
+  nextId,
 }: {
   locale: Locale
   current: {
@@ -22,6 +24,8 @@ export function QueuedLoadHint({
     deliveryTime: string | null
   }
   next: { pickupDate: string | null; pickupTime: string | null }
+  /** Следующий груз — кнопка «Едут вместе — это партиал» прямо здесь. */
+  nextId?: number
   /** Под строкой «Следующий груз» на карточке трака — без заголовка и рамки. */
   compact?: boolean
 }) {
@@ -54,6 +58,13 @@ export function QueuedLoadHint({
           <AlertTriangle size={13} strokeWidth={2.4} />
           {t(locale, 'queued.tight').replace('{delivery}', delivery).replace('{pickup}', pickup)}
         </p>
+      )}
+      {/* Партиал отмечается там, где возникает вопрос: галочку в «Деталях» груза не находили.
+          Отметили — груз встаёт в общее задание трака, а это предупреждение уходит. */}
+      {nextId != null && (
+        <div className="mb-2">
+          <PartialButton loadId={nextId} locale={locale} strong={tight} />
+        </div>
       )}
       <ol className="list-decimal space-y-0.5 pl-4 leading-relaxed text-white/70">
         {steps.map((s) => (

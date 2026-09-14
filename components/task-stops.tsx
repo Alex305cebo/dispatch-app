@@ -10,6 +10,7 @@ import { t, type Locale } from '@/lib/i18n'
 import { notify } from '@/lib/notify'
 import { Info } from '@/components/info'
 import { saveTaskOrder, setStopState } from '@/app/actions'
+import { PartialButton } from '@/components/partial-button'
 
 // Цвет груза в ленте: точка у строки и та же точка в подписи, чтобы в одном задании
 // было видно, какая точка чья. Больше двух партиалов в трейлере не бывает, но ряд
@@ -127,6 +128,7 @@ export function TaskStops({
               <span className="nums">#{l.referenceId ?? l.id}</span>
               {l.brokerName && <span>{l.brokerName}</span>}
               <span className="text-white/40">— {t(locale, 'task.stopsN').replace('{n}', String(stopsOf.get(l.id)?.length ?? 0))}</span>
+              {l.partial && <PartialButton loadId={l.id} locale={locale} undo />}
             </span>
           ))}
         </p>

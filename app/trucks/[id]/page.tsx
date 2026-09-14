@@ -479,7 +479,7 @@ export default async function Page({
                 <span className="nums ml-auto font-medium text-white/70">{usd.format(nextLoad.rate)}</span>
               </Link>
             )}
-            {nextLoad && <QueuedLoadHint compact locale={locale} current={activeLoad} next={nextLoad} />}
+            {nextLoad && <QueuedLoadHint compact locale={locale} current={activeLoad} next={nextLoad} nextId={nextLoad.id} />}
           </div>
         )}
         <div className="relative px-4 pb-4 pt-4 sm:px-5 sm:pb-5">

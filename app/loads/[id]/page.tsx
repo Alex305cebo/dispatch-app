@@ -311,7 +311,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <LoadMapSection load={load} truck={truck} fs={fs} locale={locale} driverMarked={!!stop} events={driverEvents} />
       </Suspense>
 
-      {queuedBehind && <QueuedLoadHint locale={locale} current={queuedBehind} next={load} />}
+      {queuedBehind && <QueuedLoadHint locale={locale} current={queuedBehind} next={load} nextId={load.id} />}
 
       {/* Мили оценены приблизительно: в рейт-коне город с опечаткой, точный адрес не
           нашёлся. Груз создан, но пробег надо вписать руками — иначе $/милю и зарплата
