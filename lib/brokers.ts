@@ -6,6 +6,7 @@ import { sql } from './db'
 import { emailDomain, foldReps, type BrokerRep } from './broker-key.ts'
 import { foldMoney, type MoneyRow } from './broker-money.ts'
 import { usDate } from './fmt.ts'
+import { todayEt } from './payments.ts'
 import { datCached, datEquipment, loadMarketRpm, versusMarket, type DatEquipment } from './dat-market'
 
 export type OurBroker = {
@@ -263,7 +264,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
     const m = byMoney.get(key)
     if (m) Object.assign(b, m)
     const vs = versusMarket(marketRows.get(key) ?? [])
-    if (vs) b.vsMarket = { ...vs, date: Number.isFinite(datAt) ? usDate(new Date(datAt)) : null }
+    if (vs) b.vsMarket = { ...vs, date: Number.isFinite(datAt) ? usDate(todayEt(new Date(datAt))) : null }
   }
 
   // Brokers with loads first (by count), then checked-only brokers newest first.

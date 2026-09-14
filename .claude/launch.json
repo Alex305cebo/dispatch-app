@@ -11,8 +11,9 @@
     {
       "name": "dispatch-dev-utc",
       "runtimeExecutable": "cmd",
-      "runtimeArgs": ["/c", "set TZ=UTC&& node node_modules/next/dist/bin/next dev --turbopack --port 3107"],
-      "port": 3107
+      "runtimeArgs": ["/c", "set TZ=UTC&& node node_modules/next/dist/bin/next dev --turbopack"],
+      "port": 3107,
+      "autoPort": true
     }
   ]
 }

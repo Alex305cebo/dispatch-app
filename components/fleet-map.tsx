@@ -20,6 +20,7 @@ import { useLocale } from '@/components/locale-provider'
 import { Info } from '@/components/info'
 import { t } from '@/lib/i18n'
 import { usDate, zoneTime } from '@/lib/fmt'
+import { todayEt } from '@/lib/payments'
 import { US_STATES } from '@/lib/us-states'
 import type { DatEquipment, DatHeat } from '@/lib/dat-market-core'
 
@@ -1159,7 +1160,7 @@ export function FleetMap({
             ))}
           </div>
           <div className="nums text-[10.5px] text-white/45">
-            {t(locale, 'loadCard.marketAsOf').replace('{when}', usDate(new Date(market.at)))}
+            {t(locale, 'loadCard.marketAsOf').replace('{when}', usDate(todayEt(new Date(market.at))))}
           </div>
         </div>
       )}

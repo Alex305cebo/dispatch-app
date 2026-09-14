@@ -182,7 +182,12 @@ export function paymentsCsv(rows: PayCsvRow[]): string {
   return [head.join(','), ...lines].join('\r\n')
 }
 
-/** Сегодня по восточному времени, yyyy-mm-dd — дата по умолчанию в формах оплаты. */
+// Один на модуль: todayEt зовут на каждый груз (недели в финансах), а новый
+// Intl.DateTimeFormat стоит около 0,1 мс.
+const etDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' })
+
+/** День момента по восточному времени, yyyy-mm-dd; без аргумента — сегодня (дата по
+ * умолчанию в формах оплаты). */
 export function todayEt(now = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+  return etDay.format(now)
 }

@@ -9,7 +9,7 @@ import { getCompany } from '@/lib/invoice'
 import { fleetStatusByUnit, getTruckMeta } from '@/lib/maintenance'
 import { companyScope, getCurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
-import { financesHref, payBadge } from '@/lib/payments'
+import { financesHref, payBadge, todayEt } from '@/lib/payments'
 import { paymentFor } from '@/lib/payments-server'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
@@ -261,7 +261,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             r={r}
             mpg={truck.mpg}
             spotRpm={load.spotRpm}
-            dat={datRate && datSnap && { ...datRate, date: usDate(new Date(datSnap.at)) }}
+            dat={datRate && datSnap && { ...datRate, date: usDate(todayEt(new Date(datSnap.at))) }}
           />
         </div>
       </section>

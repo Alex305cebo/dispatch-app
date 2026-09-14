@@ -2,7 +2,7 @@
 // остановка и стыковка рейсов. Без базы — см. loads-dashboard.test.ts.
 
 import type { LoadRecord, TruckRecord } from './map.ts'
-import { usDate, weekAnchorOf } from './fmt.ts'
+import { usDate } from './fmt.ts'
 import { stopsFrom, nextOpenStop, firstMinutes, type LoadStop, type StopEv } from './stops.ts'
 
 /** Локальная дата yyyy-mm-dd. Не через toISOString (UTC): вечерний груз уезжал бы на завтра. */
@@ -15,11 +15,7 @@ export function shiftDay(iso: string, n: number): string {
   return isoDay(date)
 }
 
-/** Первый день расчётной недели, в которую попадает дата, — пятница, как во всём
- * приложении (fmt.ts weekAnchorOf), а не календарный понедельник. */
-export function weekStartIso(iso: string): string {
-  return isoDay(new Date(weekAnchorOf(Date.parse(`${iso}T12:00:00`))))
-}
+export { weekStartIso } from './fmt.ts'
 
 export const confirmed = (l: LoadRecord) => l.status !== 'quoted' && l.status !== 'cancelled'
 const isOpen = (l: LoadRecord) => l.status === 'booked' || l.status === 'in_transit'
