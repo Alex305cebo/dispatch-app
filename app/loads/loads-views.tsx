@@ -466,6 +466,15 @@ function Calendar({
     paid: 'border-good-400/40 bg-good-400/15 text-good-400',
     cancelled: 'border-bad-400/30 bg-bad-400/10 text-bad-400',
   }
+  // Телефон: полоса — тонкая линия по дням, подпись груза целиком под ней.
+  const STRIP: Record<string, [string, string]> = {
+    quoted: ['bg-white/30', 'text-white/70'],
+    booked: ['bg-cyan-400', 'text-cyan-300'],
+    in_transit: ['bg-amber-400', 'text-amber-300'],
+    delivered: ['bg-fuchsia-400', 'text-fuchsia-300'],
+    paid: ['bg-good-400', 'text-good-400'],
+    cancelled: ['bg-bad-400', 'text-bad-400'],
+  }
   const city = (x: string | null) => (x ?? '—').replace(/,.*$/, '')
 
   return (
@@ -510,7 +519,60 @@ function Calendar({
       {weekCount === 0 ? (
         <Empty icon={CalendarDays} title={t(locale, 'loads.page.emptyDayTitle')} text={t(locale, 'loads.board.emptyWeek')} />
       ) : (
-        <div className="panel overflow-x-auto p-0">
+        <>
+        {/* Телефон — без горизонтальной прокрутки: семь узких дней на всю ширину, трак
+            строкой над своими грузами, у груза — линия по дням и подпись целиком. */}
+        <div className="panel p-0 md:hidden">
+          <div className="grid grid-cols-7 border-b border-white/8 px-2.5">
+            {days.map((d, i) => {
+              const isToday = weekIsos[i] === todayIso
+              return (
+                <div key={weekIsos[i]} className={`flex flex-col items-center py-1.5 ${isToday ? 'rounded-md bg-haul-500/10' : ''}`}>
+                  <span className={`text-[10px] font-medium capitalize ${isToday ? 'text-haul-300' : 'text-white/45'}`}>
+                    {weekdayLabel(weekIsos[i]!, locale)}
+                  </span>
+                  <span className={`nums text-[12.5px] font-semibold ${isToday ? 'text-haul-300' : 'text-white/80'}`}>{d.getDate()}</span>
+                </div>
+              )
+            })}
+          </div>
+          {rows.map((row) => (
+            <div key={row.key} className="border-b border-white/[0.06] px-2.5 py-2 last:border-b-0">
+              <div className="flex min-w-0 items-baseline gap-2">
+                {row.href ? (
+                  <Link href={row.href} className="nums shrink-0 text-[13px] font-semibold hover:text-haul-400">
+                    {row.label}
+                  </Link>
+                ) : (
+                  <span className="shrink-0 text-[13px] font-semibold text-white/70">{row.label}</span>
+                )}
+                {row.sub && <span className="min-w-0 truncate text-[11.5px] text-white/50">{row.sub}</span>}
+                {row.bars.length === 0 && <span className="ml-auto shrink-0 text-[11px] text-white/35">{t(locale, 'loads.board.free')}</span>}
+              </div>
+              {row.bars.length > 0 && (
+                <div className="mt-1.5 flex flex-col gap-1.5">
+                  {row.bars.map((b) => {
+                    const [strip, text] = STRIP[b.load.status] ?? STRIP.quoted!
+                    return (
+                      <Link key={b.load.id} href={`/loads/${b.load.id}`} className="block rounded-md">
+                        <div className="grid grid-cols-7">
+                          <div className={`mx-0.5 h-1.5 rounded-full ${strip}`} style={{ gridColumn: `${b.from + 1} / span ${b.to - b.from + 1}` }} />
+                        </div>
+                        <div className="mt-0.5 flex items-baseline gap-2 text-[12.5px] font-medium">
+                          <span className={`min-w-0 ${text}`}>
+                            {city(b.load.origin)} → {city(b.load.destination)}
+                          </span>
+                          <span className="nums ml-auto shrink-0 text-white/80">{usd.format(b.load.rate)}</span>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="panel overflow-x-auto p-0 max-md:hidden">
           <div className="min-w-[640px]">
             {/* Шапка дней */}
             <div className="grid grid-cols-[132px_repeat(7,minmax(0,1fr))] border-b border-white/8">
@@ -596,6 +658,7 @@ function Calendar({
             })}
           </div>
         </div>
+        </>
       )}
       <p className="mt-2 text-[11.5px] text-white/45">{t(locale, 'loads.board.hint')}</p>
     </div>
