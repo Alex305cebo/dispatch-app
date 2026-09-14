@@ -23,6 +23,7 @@ import { sql } from '@/lib/db'
 import { humanError } from '@/lib/msg'
 import type { LoadStatus } from '@/lib/map'
 import { directionsOf, stopsFrom, taskOrderKey, type LoadStop } from '@/lib/stops'
+import { todayEt } from '@/lib/payments'
 import type { QrLoad } from '@/lib/qr-load'
 import type { TruckSettings } from '@/lib/profit'
 import { checkBroker, checkBrokerByDot, type BrokerCheck, type RcContext } from '@/lib/fmcsa'
@@ -687,20 +688,14 @@ async function fillDeadhead(
   truckId: number,
   deadheadMiles: number,
   origin: string | null,
+  opts: { excludeLoadId?: number | null; pickupAddress?: string | null; pickupDate?: string | null } = {},
 ): Promise<number> {
-  if (deadheadMiles > 0 || !origin) return deadheadMiles
-  const rows = (await sql`
-    SELECT fs.lat, fs.lng FROM trucks t
-    LEFT JOIN fleet_status fs ON fs.unit = t.number
-    WHERE t.id = ${truckId} AND t.company_id = ${companyId}`) as {
-    lat: number | null
-    lng: number | null
-  }[]
-  const t = rows[0]
-  if (t?.lat == null || t?.lng == null) return deadheadMiles
-  const { deliveryInfo } = await import('@/lib/geo-routing')
-  const d = await deliveryInfo({ lat: t.lat, lng: t.lng }, origin)
-  return d ? d.miles : deadheadMiles
+  if (deadheadMiles > 0 || (!origin && !opts.pickupAddress)) return deadheadMiles
+  // Один расчёт на все пути заведения груза (deadheadCheck): раньше здесь был только GPS,
+  // и груз, заведённый задним числом, получал «порожний» от места, где трак стоял уже
+  // ПОСЛЕ рейса, — 634 мили у NAMPA → UNION CITY, 1842 у Olathe → Caldwell.
+  const dh = await deadheadCheck(companyId, truckId, opts.excludeLoadId ?? null, opts.pickupAddress ?? null, origin, opts.pickupDate ?? null)
+  return dh ? dh.miles : deadheadMiles
 }
 
 /** С какого порожнего пробега диспетчер получает предупреждение после рейт-кона. */
@@ -729,6 +724,8 @@ async function deadheadCheck(
   excludeLoadId: number | null,
   pickupAddress: string | null,
   origin: string | null,
+  /** yyyy-mm-dd; пикап уже прошёл — GPS не годится, считаем от прошлой выгрузки. */
+  pickupDate: string | null = null,
 ): Promise<DeadheadCheck | null> {
   if (!origin && !pickupAddress) return null
   const { cityCoordsBest, routeToPoint } = await import('@/lib/geo-routing')
@@ -753,6 +750,27 @@ async function deadheadCheck(
     const end = st?.length ? st[st.length - 1] : null
     const city = end?.city ?? prev[0].destination
     from = await cityCoordsBest(end?.address ?? prev[0].delivery_address, city)
+    kind = 'load'
+    fromLabel = city ?? null
+  }
+  // Груз заводят задним числом (пикап уже прошёл): трак его отвёз, и GPS показывает
+  // место ПОСЛЕ рейса — «порожний обратно к пикапу» выходил размером со весь рейс.
+  // Откуда трак на самом деле ехал к этому пикапу — выгрузка его предыдущего груза.
+  // Предыдущего нет — порожний не выдумываем.
+  if (!from && pickupDate && pickupDate.slice(0, 10) < todayEt()) {
+    const last = (await sql`
+      SELECT delivery_address, destination, stops FROM loads
+      WHERE company_id = ${companyId} AND truck_id = ${truckId}
+        AND status NOT IN ('quoted', 'cancelled') AND id <> ${excludeLoadId ?? 0}
+        AND delivery_date IS NOT NULL AND delivery_date <= ${pickupDate.slice(0, 10)}
+      ORDER BY delivery_date DESC, created_at DESC
+      LIMIT 1`) as typeof prev
+    if (!last[0]) return null
+    const st = typeof last[0].stops === 'string' ? JSON.parse(last[0].stops) : last[0].stops
+    const end = st?.length ? st[st.length - 1] : null
+    const city = end?.city ?? last[0].destination
+    from = await cityCoordsBest(end?.address ?? last[0].delivery_address, city)
+    if (!from) return null
     kind = 'load'
     fromLabel = city ?? null
   }
@@ -798,7 +816,10 @@ export async function createLoad(
   try {
     const companyId = await companyScope()
     if (!(await truckBelongs(companyId, load.truckId))) return { error: t(locale, 'actions.truckNotFound') }
-    const deadheadMiles = await fillDeadhead(companyId, load.truckId, load.deadheadMiles, load.origin)
+    const deadheadMiles = await fillDeadhead(companyId, load.truckId, load.deadheadMiles, load.origin, {
+      pickupAddress: load.pickupAddress ?? null,
+      pickupDate: load.pickupDate ?? null,
+    })
     // MC в документе есть не всегда, но если этот брокер уже возил у нас — он у нас
     // уже есть. Иначе тот же брокер снова заводится «без MC», и справочник пустеет
     // ровно там, где по нему и работают.
@@ -1117,7 +1138,7 @@ export async function createLoadFromRc(
       }
       // Порожний пробег считался до старого (неверного) пикапа — тоже заново.
       const deadhead = filled.includes('miles')
-        ? await fillDeadhead(companyId, truckId, 0, origin)
+        ? await fillDeadhead(companyId, truckId, 0, origin, { excludeLoadId: twin.id, pickupAddress, pickupDate: load.pickupDate ?? null })
         : twin.deadhead_miles
       await sql`
         UPDATE loads SET
@@ -1142,7 +1163,7 @@ export async function createLoadFromRc(
       revalidatePath(`/trucks/${truckId}`)
       revalidatePath('/loads')
       revalidatePath('/')
-      const dh = await deadheadCheck(companyId, truckId, twin.id, pickupAddress ?? load.pickupAddress ?? null, origin)
+      const dh = await deadheadCheck(companyId, truckId, twin.id, pickupAddress ?? load.pickupAddress ?? null, origin, load.pickupDate ?? null)
       return {
         loadId: twin.id,
         merged: true,
@@ -1185,7 +1206,7 @@ export async function createLoadFromRc(
     }
     // Порожний — по дороге и от правильной точки (deadheadCheck); напечатанный в
     // документе, если он там есть, важнее.
-    const dh = await deadheadCheck(companyId, truckId, null, load.pickupAddress ?? null, load.origin)
+    const dh = await deadheadCheck(companyId, truckId, null, load.pickupAddress ?? null, load.origin, load.pickupDate ?? null)
     const deadheadMiles = load.deadheadMiles > 0 ? load.deadheadMiles : (dh?.miles ?? load.deadheadMiles)
     // Тот же добор MC, что и при ручном заведении: рейт-кон о нём обычно молчит.
     const brokerMc = load.brokerMc || (await knownBrokerMc(companyId, load.brokerName, load.brokerEmail))
