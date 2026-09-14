@@ -1,6 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { weekStats, weekStartIso, shiftDay, upcomingStop, stopOrder, scheduleConnection, whenText } from './loads-dashboard.ts'
+import { weekLabel } from './fmt.ts'
+import { todayEt } from './payments.ts'
 import type { LoadRecord, TruckRecord } from './map.ts'
 import type { LoadStop } from './stops.ts'
 
@@ -20,6 +22,26 @@ test('расчётная неделя начинается в пятницу, к
   assert.equal(weekStartIso('2026-09-17'), '2026-09-11') // четверг — та же неделя
   assert.equal(weekStartIso('2026-11-01'), '2026-10-30') // через границу месяца и перевод часов
   assert.equal(shiftDay('2026-11-01', 1), '2026-11-02')
+})
+
+test('календарь недели одинаков на сервере в UTC и в браузере в Нью-Йорке (#418)', () => {
+  // Четверг 22:30 в Нью-Йорке — в UTC уже пятница, то есть новая неделя; и это неделя
+  // перевода часов, где сдвиг на 24 ч давал один день дважды.
+  const now = new Date('2026-11-06T03:30:00Z')
+  const render = (zone: string) => {
+    process.env.TZ = zone
+    const week = weekStartIso(todayEt(now))
+    return { week, days: [0, 1, 2, 3, 4, 5, 6].map((i) => shiftDay(week, i)), label: weekLabel(Date.parse(`${week}T12:00:00`), 'ru') }
+  }
+  const saved = process.env.TZ
+  try {
+    const server = render('UTC')
+    assert.deepEqual(render('America/New_York'), server)
+    assert.deepEqual(server.days, ['2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05'])
+  } finally {
+    if (saved === undefined) delete process.env.TZ
+    else process.env.TZ = saved
+  }
 })
 
 test('переходящий рейс занимает дни следующей недели, но не её выручку', () => {

@@ -11,8 +11,9 @@ import { datCached, datEquipment, loadMarketRpm, type DatEquipment } from '@/lib
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
-import { usd, usDate, weekAnchorOf, weekStart } from '@/lib/fmt'
-import { isoDay, upcomingStop } from '@/lib/loads-dashboard'
+import { usd, usDate } from '@/lib/fmt'
+import { upcomingStop, weekStartIso } from '@/lib/loads-dashboard'
+import { todayEt } from '@/lib/payments'
 import type { StopEv } from '@/lib/stops'
 import type { LoadMetrics } from '@/components/loads-toolbar'
 import type { AttentionEntry } from './loads-insights'
@@ -114,7 +115,10 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
     }
   }
 
-  const parsed = sp.week ? Date.parse(`${sp.week}T00:00:00`) : NaN
+  // Неделя уходит в клиент днём yyyy-mm-dd по восточному времени, а не моментом в ms:
+  // из одной и той же ms сервер в UTC и браузер в New York получали разные дни (#418).
+  const weekFrom = weekStartIso(todayEt())
+  const initialWeek = sp.week && !Number.isNaN(Date.parse(`${sp.week}T12:00:00`)) ? weekStartIso(sp.week) : weekFrom
   return (
     <>
       <div className="mb-4 flex items-end justify-between gap-4">
@@ -137,9 +141,9 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
         rateConPairs={[...rateCons]}
         photoTruckIds={[...photoIds]}
         attention={attention}
-        weekFrom={isoDay(new Date(weekStart()))}
+        weekFrom={weekFrom}
         initialView={sp.view === 'board' ? 'board' : sp.view === 'calendar' ? 'calendar' : 'driver'}
-        initialWeek={Number.isNaN(parsed) ? weekStart() : weekAnchorOf(parsed)}
+        initialWeek={initialWeek}
         initialDay={sp.day ?? null}
         initialQuery={sp.q ?? ''}
         mapPanel={
