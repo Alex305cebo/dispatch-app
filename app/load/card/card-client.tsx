@@ -570,7 +570,11 @@ export function CardClient() {
               <div className="mt-3">
                 <div className={`flex flex-wrap items-center gap-2 text-[14px] font-semibold ${toneText(verdict.tone)}`}>
                   <ToneIcon tone={verdict.tone} size={16} />
-                  {t(locale, verdict.tone === 'good' ? 'loadCard.marketAbove' : verdict.tone === 'bad' ? 'loadCard.marketBelow' : 'loadCard.marketIn').replace('{pct}', pct)}
+                  {/* «Ниже рынка на 12%» — без знака: направление уже в словах; было «на -12%». */}
+                  {t(locale, verdict.tone === 'good' ? 'loadCard.marketAbove' : verdict.tone === 'bad' ? 'loadCard.marketBelow' : 'loadCard.marketIn').replace(
+                    '{pct}',
+                    verdict.tone === 'warn' ? pct : pct.replace(/^[+-]/, ''),
+                  )}
                   <span className="nums font-medium text-white/55">
                     · {usd2.format(loadedRpm)} vs {usd2.format(marketRpm)}/mi
                   </span>
