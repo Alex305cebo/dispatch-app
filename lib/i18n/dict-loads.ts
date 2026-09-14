@@ -1139,6 +1139,7 @@ export const loadsDict = {
     kk: 'Жолдағы күндер (тиеу → бос)',
   },
   'loadForm.daysSuffix': { ru: 'дн', en: 'd', es: 'd', uk: 'дн', ro: 'z', kk: 'күн' },
+  'loadForm.datTotal': { ru: '≈ {total} за {miles} mi', en: '≈ {total} for {miles} mi', es: '≈ {total} por {miles} mi', uk: '≈ {total} за {miles} mi', ro: '≈ {total} pentru {miles} mi', kk: '{miles} mi үшін ≈ {total}' },
   'loadForm.originLabel': { ru: 'Откуда', en: 'Origin', es: 'Origen', uk: 'Звідки', ro: 'De la', kk: 'Қайдан' },
   'loadForm.destinationLabel': { ru: 'Куда', en: 'Destination', es: 'Destino', uk: 'Куди', ro: 'Până la', kk: 'Қайда' },
   'loadForm.phoneChipLabel': { ru: 'Тел', en: 'Ph', es: 'Tel', uk: 'Тел', ro: 'Tel', kk: 'Тел' },
@@ -2111,6 +2112,14 @@ export const loadsDict = {
     uk: '. Є на що тиснути в торгу.',
     ro: '. E loc de negociere.',
     kk: '. Саудаласуға негіз бар.',
+  },
+  'analysis.datRegion': {
+    ru: 'DAT, регион {region} · {date}',
+    en: 'DAT, {region} region · {date}',
+    es: 'DAT, región {region} · {date}',
+    uk: 'DAT, регіон {region} · {date}',
+    ro: 'DAT, regiunea {region} · {date}',
+    kk: 'DAT, {region} аймағы · {date}',
   },
   'analysis.clickToSeeExpenses': {
     ru: 'Нажмите, чтобы увидеть все расходы',

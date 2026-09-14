@@ -5,6 +5,7 @@ import { usd, usDate } from '@/lib/fmt'
 import { idleSummary, type IdleTruck } from '@/lib/idle-fleet'
 import { t, type Locale } from '@/lib/i18n'
 import { CopyPlace } from '@/components/copy-place'
+import { datCached, datEquipment, ltHeat, ltOf, stateFromPlace, type DatEquipment } from '@/lib/dat-market'
 
 /**
  * «Кому искать груз» — карта на месте календаря загрузки.
@@ -18,7 +19,7 @@ import { CopyPlace } from '@/components/copy-place'
  * Цифра простоя — не упрёк, а порядок величины: платёж за трак, страховка, ELD и
  * пермиты капают каждый день независимо от того, едет он или нет.
  */
-export function NeedsLoad({
+export async function NeedsLoad({
   rows,
   trucks,
   trailers,
@@ -31,6 +32,13 @@ export function NeedsLoad({
 }) {
   if (rows.length === 0) return null
   const { freeCount, burnPerDay } = idleSummary(rows)
+  // Насколько горячий рынок там, где стоит трак без груза: грузов на трак в штате по DAT.
+  // Серия — по трейлеру трака, иначе Van. Снимок из кэша — обзор DAT не ждёт.
+  const series = (truckId: number): DatEquipment => datEquipment(trailers.get(truckId)) ?? 'VAN'
+  const idle = rows.filter((r) => r.free && !r.unavailable)
+  const snaps = new Map(
+    await Promise.all([...new Set(idle.map((r) => series(r.truckId)))].map(async (eq) => [eq, await datCached(eq)] as const)),
+  )
 
   return (
     <section className="panel mb-6 p-4">
@@ -59,6 +67,10 @@ export function NeedsLoad({
         {rows.map((r) => {
           const truck = trucks.get(r.truckId)
           if (!truck) return null
+          const snap = r.free && !r.unavailable ? snaps.get(series(r.truckId)) : null
+          const state = stateFromPlace(r.place)
+          const lt = snap ? ltOf(snap, state) : null
+          const heat = snap && lt ? ltHeat(snap, lt.ratio) : null
           return (
             <li key={r.truckId}>
               <Link
@@ -89,6 +101,28 @@ export function NeedsLoad({
                       : r.free
                         ? t(locale, 'needsLoad.noPlace')
                         : `→ ${r.place ?? '—'}`}
+                  </span>
+                )}
+
+                {/* Рынок в штате стоянки: чем больше грузов на трак, тем проще найти груз и
+                    удержать ставку. На телефоне и планшете — своей строкой под местом. */}
+                {snap && lt && heat && (
+                  <span
+                    title={`${state} · ${t(locale, 'loadCard.marketAsOf').replace('{when}', usDate(new Date(snap.at)))}`}
+                    className="order-last basis-full text-[12px] text-white/55 lg:order-none lg:basis-auto"
+                  >
+                    {(() => {
+                      const [before, after] = t(locale, 'needsLoad.market').replace('{ratio}', lt.ratio.toFixed(1)).split('{heat}')
+                      return (
+                        <>
+                          {before}
+                          <span className={heat === 'hot' ? 'font-semibold text-good-400' : heat === 'cold' ? 'font-semibold text-bad-400' : 'text-white/70'}>
+                            {t(locale, heat === 'hot' ? 'needsLoad.heatHot' : heat === 'cold' ? 'needsLoad.heatCold' : 'needsLoad.heatWarm')}
+                          </span>
+                          {after}
+                        </>
+                      )
+                    })()}
                   </span>
                 )}
 

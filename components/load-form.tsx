@@ -1,12 +1,14 @@
 'use client'
 
 import { Button } from '@/components/button'
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { MotionConfig } from 'motion/react'
 import { calcLoad } from '@/lib/profit'
 import { EMPTY, type QrLoad } from '@/lib/qr-load'
 import { truckLabel, type TruckRecord } from '@/lib/map'
-import { createLoad, fetchRouteMiles } from '@/app/actions'
+import { createLoad, fetchDatSnapshot, fetchRouteMiles } from '@/app/actions'
+import { originRate, type DatSnapshot } from '@/lib/dat-market-core'
+import { usd, usd2, usDate } from '@/lib/fmt'
 import { humanError } from '@/lib/msg'
 import { notify } from '@/lib/notify'
 import { Analysis } from './analysis'
@@ -51,6 +53,24 @@ export function LoadForm({
   const attn = (k: string) => needsAttention.includes(k)
   // Analysis uses the SELECTED truck's economics — switching trucks re-costs the load.
   const truck = trucks.find((t) => t.id === truckId) ?? trucks[0]
+
+  // Рынок DAT у поля ставки. Снимок по серии приходит один раз (и заново при смене трака),
+  // а регион погрузки считается тут же, пока диспетчер печатает направление.
+  const [datSnap, setDatSnap] = useState<DatSnapshot | null>(null)
+  useEffect(() => {
+    let alive = true
+    fetchDatSnapshot(load.equipment ?? null, truckId).then(
+      (s) => {
+        if (alive) setDatSnap(s)
+      },
+      () => {},
+    )
+    return () => {
+      alive = false
+    }
+  }, [load.equipment, truckId])
+  const datRate = datSnap ? originRate(datSnap, load.origin) : null
+  const dat = datRate && datSnap && { ...datRate, date: usDate(new Date(datSnap.at)) }
 
   let result: ReturnType<typeof calcLoad> | null = null
   let calcError: string | null = null
@@ -113,6 +133,19 @@ export function LoadForm({
               big
               missing={attn('rate')}
             />
+            {/* Ориентир рынка прямо под ставкой: сколько за такой рейс даёт DAT по региону
+                погрузки — сравнить с предложением брокера одним взглядом. */}
+            {dat && (
+              <p className="mt-1.5 text-[12px] text-white/55">
+                <span className="nums font-semibold text-white/80">{usd2.format(dat.rpm)}</span>/mi
+                {load.loadedMiles > 0 &&
+                  ` ${tr(locale, 'loadForm.datTotal')
+                    .replace('{total}', usd.format(dat.rpm * load.loadedMiles))
+                    .replace('{miles}', Math.round(load.loadedMiles).toLocaleString('en-US'))}`}
+                {' · '}
+                {tr(locale, 'analysis.datRegion').replace('{region}', dat.region).replace('{date}', dat.date)}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -211,7 +244,7 @@ export function LoadForm({
             {tr(locale, 'loadDetail.rateHeading')}
           </h2>
           {calcError && <p className="text-sm text-bad-400">{calcError}</p>}
-          {result && truck && <Analysis r={result} mpg={truck.mpg} spotRpm={load.spotRpm} />}
+          {result && truck && <Analysis r={result} mpg={truck.mpg} spotRpm={load.spotRpm} dat={dat} />}
         </section>
       </div>
     </MotionConfig>

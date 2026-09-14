@@ -86,11 +86,14 @@ export function Analysis({
   r,
   mpg,
   spotRpm,
+  dat,
 }: {
   r: Breakdown
   mpg: number
   /** DAT's market rate. Answers "is this below market?" — the argument for haggling. */
   spotRpm?: number | null
+  /** Ставка DAT по региону погрузки — когда своей рыночной ставки у груза нет. */
+  dat?: { rpm: number; region: string; date: string } | null
 }) {
   const locale = useLocale()
   const good = r.net >= 0
@@ -102,7 +105,11 @@ export function Analysis({
   // не красивой цифрой: расход топлива у трака есть всегда, и ноль тут значит
   // ровно одно — настройки не заполнены.
   const notConfigured = r.totalCost === 0
-  const vsSpot = spotRpm && spotRpm > 0 ? r.loadedRpm - spotRpm : null
+  // Рыночная ставка, вписанная в груз, всегда главнее. Нет её — ставка DAT по региону
+  // погрузки, с подписью, откуда цифра и какого она дня.
+  const fromDat = spotRpm && spotRpm > 0 ? null : (dat ?? null)
+  const spot = fromDat ? fromDat.rpm : spotRpm
+  const vsSpot = spot && spot > 0 ? r.loadedRpm - spot : null
 
   return (
     <>
@@ -119,12 +126,17 @@ export function Analysis({
 
       {vsSpot !== null && (
         <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">
-          {t(locale, 'analysis.datMarket')} <span className="nums text-white/85">{usd2.format(spotRpm!)}</span>/mi
+          {t(locale, 'analysis.datMarket')} <span className="nums text-white/85">{usd2.format(spot!)}</span>/mi
           {vsSpot >= 0 ? t(locale, 'analysis.aboveMarketBy') : t(locale, 'analysis.belowMarketBy')}
           <span className={`nums ${vsSpot >= 0 ? 'text-good-400/80' : 'text-amber-400/90'}`}>
             {usd2.format(Math.abs(vsSpot))}
           </span>
           /mi{vsSpot < 0 ? t(locale, 'analysis.roomToNegotiate') : '.'}
+          {fromDat && (
+            <span className="block text-[12px] text-white/45">
+              {t(locale, 'analysis.datRegion').replace('{region}', fromDat.region).replace('{date}', fromDat.date)}
+            </span>
+          )}
         </p>
       )}
 
@@ -162,8 +174,8 @@ export function Analysis({
             {
               label: 'Spot rate / mi',
               node:
-                spotRpm && spotRpm > 0 ? (
-                  <Money value={spotRpm} format={usd2} />
+                spot && spot > 0 ? (
+                  <Money value={spot} format={usd2} />
                 ) : (
                   <span className="text-white/35">—</span>
                 ),
