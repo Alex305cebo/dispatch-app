@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { AnimatePresence, motion } from 'motion/react'
 import { clearNotes, markAllRead, useNotes, type NoteKind } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
@@ -91,19 +92,38 @@ export function Notifier({ collapsed = false }: { collapsed?: boolean }) {
                     layout
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="flex gap-2.5 border-b border-white/5 px-3 py-2.5 last:border-0"
+                    className="border-b border-white/5 last:border-0"
                   >
-                    <span className={`mt-1.5 size-1.5 shrink-0 rounded-full ${TONE[n.kind].dot}`} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[13px] leading-snug text-white/90">{n.text}</p>
-                      <p className="mt-0.5 text-[10px] text-white/55">
-                        {n.from ? `${n.from} · ` : ''}
-                        {new Date(n.at).toLocaleTimeString(locale === 'ru' ? 'ru-RU' : 'en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </p>
-                    </div>
+                    {/* С адресом — вся строка ведёт туда (груз, трак, «Финансы») и закрывает панель. */}
+                    {(() => {
+                      const body = (
+                        <>
+                          <span className={`mt-1.5 size-1.5 shrink-0 rounded-full ${TONE[n.kind].dot}`} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13px] leading-snug text-white/90">{n.text}</p>
+                            <p className="mt-0.5 text-[10px] text-white/55">
+                              {n.from ? `${n.from} · ` : ''}
+                              {new Date(n.at).toLocaleTimeString(locale === 'ru' ? 'ru-RU' : 'en-US', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </p>
+                          </div>
+                        </>
+                      )
+                      return n.href ? (
+                        <Link
+                          href={n.href}
+                          onClick={() => setOpen(false)}
+                          className="flex gap-2.5 px-3 py-2.5 transition-colors hover:bg-white/5"
+                        >
+                          {body}
+                          <span aria-hidden className="self-center text-[13px] text-white/35">›</span>
+                        </Link>
+                      ) : (
+                        <div className="flex gap-2.5 px-3 py-2.5">{body}</div>
+                      )
+                    })()}
                   </motion.div>
                 ))
               )}

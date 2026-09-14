@@ -7,6 +7,7 @@ import { fleetExpiryAlerts } from '@/lib/maintenance'
 import { listLoads, listReceivables } from '@/lib/loads'
 import { can } from '@/lib/capabilities-server'
 import { recentDriverNotes } from '@/lib/load-events'
+import { financesHref } from '@/lib/payments'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,7 +71,8 @@ export async function GET() {
           id: `overdue:${r.load.id}:${Math.floor(r.daysOut / 7)}`,
           kind: 'error',
           text: t(locale, 'alerts.overdue').replace('{route}', `${r.load.origin ?? '—'} → ${r.load.destination ?? '—'}`).replace('{days}', String(r.daysOut)),
-          href: `/loads/${r.load.id}`,
+          // Оплату отмечает бухгалтер — ведём туда, где это делается, сразу на этот груз.
+          href: financesHref(r.load),
         })
     }
 
