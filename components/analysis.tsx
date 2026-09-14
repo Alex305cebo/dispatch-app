@@ -86,11 +86,14 @@ export function Analysis({
   r,
   mpg,
   spotRpm,
+  spotSource,
 }: {
   r: Breakdown
   mpg: number
   /** DAT's market rate. Answers "is this below market?" — the argument for haggling. */
   spotRpm?: number | null
+  /** Откуда цифра, если её не вписал диспетчер: «DAT Van, регион North · 09/14/26». */
+  spotSource?: string | null
 }) {
   const locale = useLocale()
   const good = r.net >= 0
@@ -125,6 +128,7 @@ export function Analysis({
             {usd2.format(Math.abs(vsSpot))}
           </span>
           /mi{vsSpot < 0 ? t(locale, 'analysis.roomToNegotiate') : '.'}
+          {spotSource && <span className="block text-[12px] text-white/50">{spotSource}</span>}
         </p>
       )}
 

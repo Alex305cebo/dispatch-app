@@ -2112,6 +2112,15 @@ export const loadsDict = {
     ro: '. E loc de negociere.',
     kk: '. Саудаласуға негіз бар.',
   },
+  // Spot rate не вписан — вместо него ставка DAT по региону; подпись говорит, откуда цифра.
+  'analysis.spotDat': {
+    ru: 'DAT {eq}, регион {region} · {date}',
+    en: 'DAT {eq}, {region} region · {date}',
+    es: 'DAT {eq}, región {region} · {date}',
+    uk: 'DAT {eq}, регіон {region} · {date}',
+    ro: 'DAT {eq}, regiunea {region} · {date}',
+    kk: 'DAT {eq}, {region} аймағы · {date}',
+  },
   'analysis.clickToSeeExpenses': {
     ru: 'Нажмите, чтобы увидеть все расходы',
     en: 'Click to see all expenses',

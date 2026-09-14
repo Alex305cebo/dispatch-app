@@ -106,6 +106,7 @@ export const overviewDict = {
   'needsLoad.noPlace': { ru: 'нет данных GPS', en: 'no GPS data', es: 'sin datos de GPS', uk: 'немає даних GPS', ro: 'fără date GPS', kk: 'GPS дерегі жоқ' },
   'needsLoad.repair': { ru: 'в ремонте', en: 'in repair', es: 'en el taller', uk: 'у ремонті', ro: 'în service', kk: 'жөндеуде' },
   'needsLoad.vacation': { ru: 'в отпуске', en: 'on vacation', es: 'de vacaciones', uk: 'у відпустці', ro: 'în concediu', kk: 'демалыста' },
+  'needsLoad.market': { ru: '{ratio} груза на трак — {heat}', en: '{ratio} loads per truck — {heat}', es: '{ratio} cargas por camión — {heat}', uk: '{ratio} вантажу на трак — {heat}', ro: '{ratio} curse pe camion — {heat}', kk: 'бір тартқышқа {ratio} жүк — {heat}' },
   'overview.fleetHeading': { ru: 'Парк', en: 'Fleet', es: 'Flota', uk: 'Парк', ro: 'Flotă', kk: 'Парк' },
   'overview.fleetInfo': {
     ru: 'Все траки с живыми данными: где сейчас трак и сколько он заработал за неделю. Кружок слева — статус движения по GPS: зелёный едет, синий on-duty, серый стоит. Нажми на трак — вся его карточка.',

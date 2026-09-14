@@ -54,6 +54,11 @@ export function stateFromPlace(place: string | null | undefined): string | null 
   return bare ? bare[1]!.toUpperCase() : null
 }
 
+/** Коды DAT приходят капсом — NORTH, VAN; на экране «North», «Van». */
+export function datLabel(code: string): string {
+  return code.charAt(0) + code.slice(1).toLowerCase()
+}
+
 export function regionOf(snap: DatSnapshot, state: string | null): DatRegion | null {
   if (!state) return null
   const s = datState(state)
@@ -94,13 +99,16 @@ export function laneMarket(
 ): {
   origin: { state: string; region: DatRegion | null; lt: DatLt | null } | null
   dest: { state: string; region: DatRegion | null; lt: DatLt | null } | null
+  /** Регион, чья ставка взята за рынок, — чтобы подписать источник цифры. */
+  region: DatRegion | null
   rpm: number | null
 } {
   const os = stateFromPlace(origin)
   const ds = stateFromPlace(destination)
   const o = os ? { state: os, region: regionOf(snap, os), lt: ltOf(snap, os) } : null
   const d = ds ? { state: ds, region: regionOf(snap, ds), lt: ltOf(snap, ds) } : null
-  return { origin: o, dest: d, rpm: o?.region?.rpm ?? d?.region?.rpm ?? null }
+  const region = o?.region ?? d?.region ?? null
+  return { origin: o, dest: d, region, rpm: region?.rpm ?? null }
 }
 
 /** Ставка груза против рынка: разница в процентах и цвет. ±10% — ещё «в рынке». */

@@ -38,6 +38,7 @@ import { BackhaulList } from '@/components/backhaul-list'
 import { backhaulBrokers } from '@/lib/backhaul'
 import { brokerGradeFor } from '@/lib/brokers'
 import { fuelPlan } from '@/lib/fuel-plan'
+import { datLabel, datSnapshot, laneMarket } from '@/lib/dat-market'
 import { listLoadEvents } from '@/lib/load-events'
 import { DriverTimeline } from '@/components/driver-timeline'
 import { DriverInfoCard } from '@/components/driver-info-card'
@@ -89,7 +90,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           const proto = h.get('x-forwarded-proto') ?? 'https'
           return host ? `${proto}://${host}/d/${await driverTokenFor(truck.id)}` : null
         })()
-  const [truckMeta, laneAvgRpm, backhaul, brokerGrade, driverEvents, truckCurrent, truckLoads] = await Promise.all([
+  const [truckMeta, laneAvgRpm, backhaul, brokerGrade, driverEvents, truckCurrent, truckLoads, dat] = await Promise.all([
     getTruckMeta(truck.id),
     laneAvgRpmFor(companyId, load.origin, load.destination, load.id),
     wantBackhaul ? backhaulBrokers(companyId, load.destination, load.id) : Promise.resolve(null),
@@ -99,7 +100,20 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     load.status === 'booked' ? currentLoadForTruck(companyId, truck.id) : Promise.resolve(null),
     // Что ещё едет в этом же трейлере — чтобы показать одно задание на все грузы.
     listLoads(companyId, { truckId: truck.id }),
+    // Spot rate не вписан — рынок DAT вместо него. Типа трейлера у груза в базе нет,
+    // серия Van. Страница DAT не ждёт: снимок из кэша, свежий — в фоне.
+    load.spotRpm ? Promise.resolve(null) : datSnapshot('VAN', { background: true }).catch(() => null),
   ])
+  // Вписанное диспетчером главнее всегда; DAT — только подстановка с подписью источника.
+  const datRegion = dat ? laneMarket(dat, load.origin, load.destination).region : null
+  const spotRpm = load.spotRpm || (datRegion?.rpm ?? null)
+  const spotSource =
+    !load.spotRpm && dat && datRegion
+      ? t(locale, 'analysis.spotDat')
+          .replace('{eq}', datLabel(dat.equipment))
+          .replace('{region}', datLabel(datRegion.code))
+          .replace('{date}', usDate(new Date(dat.at)))
+      : null
   const mates = (activeLoadsByTruck(truckLoads).get(truck.id) ?? []).filter((l) => l.id !== load.id)
   const showBackhaul =
     backhaul &&
@@ -236,7 +250,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             {t(locale, 'loadDetail.rateHeading')}
             <Info text={t(locale, 'loadDetail.rateInfo')} />
           </h2>
-          <Analysis r={r} mpg={truck.mpg} spotRpm={load.spotRpm} />
+          <Analysis r={r} mpg={truck.mpg} spotRpm={spotRpm} spotSource={spotSource} />
         </div>
       </section>
 

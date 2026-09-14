@@ -31,7 +31,9 @@ import { getLocale } from '@/lib/i18n-server'
 import { fixPlace, placeCity } from '@/lib/place'
 import { t as tr, type Locale } from '@/lib/i18n'
 import { can } from '@/lib/capabilities-server'
-import { usd, usd2, driveTime, shortName, weekStart } from '@/lib/fmt'
+import { usd, usd2, driveTime, shortName, usDate, weekStart } from '@/lib/fmt'
+import { datSnapshot, ltHeat, ltOf, stateFromPlace } from '@/lib/dat-market'
+import { stateOf } from '@/lib/us-state'
 import { StatusBadge } from '@/components/status'
 import { NeedsLoad } from '@/components/needs-load'
 import { FleetHeatmap } from '@/components/fleet-heatmap'
@@ -75,7 +77,7 @@ export default async function Page() {
   const locale = await getLocale()
   const user = await getCurrentUser()
   const showFinances = await can(user, 'finances')
-  const [loads, trucks, fleetRaw, alerts, rateCons, photoIds, trailers, receivables, uninvoiced] =
+  const [loads, trucks, fleetRaw, alerts, rateCons, photoIds, trailers, receivables, uninvoiced, dat] =
     await Promise.all([
       listLoads(companyId),
       listTrucks(companyId),
@@ -90,6 +92,9 @@ export default async function Page() {
       // capability shouldn't see money figures even loaded, not just hidden by CSS.
       showFinances ? listReceivables(companyId) : Promise.resolve([]),
       showFinances ? listUninvoicedDelivered(companyId) : Promise.resolve([]),
+      // Рынок DAT для «Кому искать груз». Типа трейлера у трака в базе нет — серия Van.
+      // Обзор DAT не ждёт: снимок из кэша, свежий — в фоне.
+      datSnapshot('VAN', { background: true }).catch(() => null),
     ])
   // Строка места приходит из ELD с чужим штатом (см. lib/place.ts) — правим сразу
   // на входе, чтобы ни одна карточка ниже не показала «CA» для трака в Неваде.
@@ -102,6 +107,16 @@ export default async function Page() {
   const placeByTruck = new Map<number, string | null>(
     trucks.map((t) => [t.id, (t.number ? byUnit.get(t.number)?.location : null) ?? null]),
   )
+  // Насколько горячий рынок там, где трак стоит: грузов на трак в штате по DAT. Штат —
+  // по координатам: в строке места ELD бывает штат чужого ближайшего города.
+  const marketByTruck = new Map<number, { ratio: number; heat: 'hot' | 'warm' | 'cold' }>()
+  if (dat) {
+    for (const t of trucks) {
+      const fs = t.number ? byUnit.get(t.number) : undefined
+      const lt = ltOf(dat, stateOf(fs?.lat, fs?.lng) ?? stateFromPlace(fs?.location))
+      if (lt) marketByTruck.set(t.id, { ratio: lt.ratio, heat: ltHeat(dat, lt.ratio) })
+    }
+  }
 
   // Each load is costed against its own truck, then summed across the fleet.
   const live = loads.filter((l) => l.status !== 'cancelled')
@@ -352,6 +367,8 @@ export default async function Page() {
         rows={idleFleet(trucks, live, placeByTruck)}
         trucks={byId}
         trailers={trailers}
+        market={marketByTruck}
+        marketAsOf={dat ? usDate(new Date(dat.at)) : null}
         locale={locale}
       />
 

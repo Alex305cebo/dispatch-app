@@ -22,11 +22,17 @@ export function NeedsLoad({
   rows,
   trucks,
   trailers,
+  market,
+  marketAsOf,
   locale,
 }: {
   rows: IdleTruck[]
   trucks: Map<number, TruckRecord>
   trailers: Map<number, string>
+  /** Рынок DAT в штате, где стоит трак: грузов на трак и насколько это горячо. */
+  market: Map<number, { ratio: number; heat: 'hot' | 'warm' | 'cold' }>
+  /** Дата снимка DAT, MM/DD/YY. */
+  marketAsOf: string | null
   locale: Locale
 }) {
   if (rows.length === 0) return null
@@ -91,6 +97,33 @@ export function NeedsLoad({
                         : `→ ${r.place ?? '—'}`}
                   </span>
                 )}
+
+                {/* Горячий ли рынок там, где он стоит: в горячем штате груз найдётся
+                    сам, из холодного, может, дешевле уехать порожним. Только у
+                    простаивающих — у едущего место в строке не его. */}
+                {(() => {
+                  const m = r.free && !r.unavailable ? market.get(r.truckId) : undefined
+                  if (!m) return null
+                  return (
+                    <span
+                      title={marketAsOf ? t(locale, 'loadCard.marketAsOf').replace('{when}', marketAsOf) : undefined}
+                      className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
+                        m.heat === 'hot'
+                          ? 'bg-good-500/15 text-good-400'
+                          : m.heat === 'cold'
+                            ? 'bg-bad-500/15 text-bad-400'
+                            : 'bg-white/6 text-white/70'
+                      }`}
+                    >
+                      {t(locale, 'needsLoad.market')
+                        .replace('{ratio}', m.ratio.toFixed(1))
+                        .replace(
+                          '{heat}',
+                          t(locale, m.heat === 'hot' ? 'loadCard.heatHot' : m.heat === 'cold' ? 'loadCard.heatCold' : 'loadCard.heatWarm'),
+                        )}
+                    </span>
+                  )
+                })()}
 
                 {/* Правая часть — ответ на «когда». У стоящего это «сколько уже»,
                     у едущего «до какого числа занят». */}

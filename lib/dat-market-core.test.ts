@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   datEquipment,
+  datLabel,
   datState,
   stateFromPlace,
   laneMarket,
@@ -76,10 +77,20 @@ test('ориентир рынка — регион погрузки, регио�
   assert.equal(m.origin?.region?.code, 'NORTH')
   assert.equal(m.dest?.region?.code, 'SOUTHEAST')
   assert.equal(m.rpm, 3.1)
-  // Нет региона у погрузки — берём доставку, а не молчим
+  assert.equal(m.region?.code, 'NORTH')
+  // Нет региона у погрузки — берём доставку, а не молчим; подпись — тоже доставки
   assert.equal(laneMarket(snap(), 'Anchorage, AK', 'Cleveland, TN').rpm, 2.8)
+  assert.equal(laneMarket(snap(), 'Anchorage, AK', 'Cleveland, TN').region?.code, 'SOUTHEAST')
   // Нет ни того ни другого — честный null
   assert.equal(laneMarket(snap(), 'Anchorage, AK', 'Honolulu, HI').rpm, null)
+  assert.equal(laneMarket(snap(), 'Anchorage, AK', 'Honolulu, HI').region, null)
+  // Только направление без штата — рынка нет
+  assert.equal(laneMarket(snap(), 'Chicago', null).region, null)
+})
+
+test('коды DAT на экране — с большой буквы', () => {
+  assert.equal(datLabel('NORTHEAST'), 'Northeast')
+  assert.equal(datLabel('VAN'), 'Van')
 })
 
 test('вердикт по рынку: ±10% ещё в рынке', () => {

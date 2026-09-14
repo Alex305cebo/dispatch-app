@@ -7,7 +7,7 @@
 // и так проверяют по FMCSA (MC, почта, название). Деньги считаются в браузере.
 
 import { companyScope } from '@/lib/session'
-import { datEquipment, datSnapshot, laneMarket, ltHeat, type DatRegion } from '@/lib/dat-market'
+import { datEquipment, datSnapshot, laneMarket, ltHeat, type DatRegion, type DatSnapshot } from '@/lib/dat-market'
 import { backhaulBrokers } from '@/lib/backhaul'
 import type { StateBroker } from '@/lib/state-brokers'
 import { laneAvgRpmFor, listLoads, listTrucks } from '@/lib/loads'
@@ -193,6 +193,18 @@ export async function cardInsights(input: {
     truck: trucks[0] ? settingsOf(trucks[0]) : null,
     pickup,
   }
+}
+
+/**
+ * Рынок DAT для формы груза (/loads/new и /load). Направление вводят по буквам,
+ * поэтому сюда приходит только тип трейлера, а регион по штату ищется в браузере:
+ * один запрос на открытие формы, а не на каждую букву. Типа трейлера у ручного
+ * груза нет — серия Van; Power only и прочее без серии DAT — null.
+ * Форма DAT не ждёт: снимок из кэша, свежий подтягивается в фоне.
+ */
+export async function datMarketFor(equipment: string | null): Promise<DatSnapshot | null> {
+  const eq = equipment?.trim() ? datEquipment(equipment) : 'VAN'
+  return eq ? safe(datSnapshot(eq, { background: true }), null) : null
 }
 
 /** Дизель по пути — по линии маршрута, как на странице настоящего груза. Точки

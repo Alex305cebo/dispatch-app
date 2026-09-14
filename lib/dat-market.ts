@@ -1,3 +1,4 @@
+import { after } from 'next/server'
 import { getSetting, setSetting } from '@/lib/settings'
 import { parseFuel, parseLt, parseRegions, type DatEquipment, type DatSnapshot } from './dat-market-core.ts'
 
@@ -50,21 +51,44 @@ function readCache(raw: string | null): DatSnapshot | null {
   }
 }
 
+/** Когда этот процесс последний раз забирал снимок в фоне, по серии. */
+const backgroundAt = new Map<DatEquipment, number>()
+
 /**
  * Снимок рынка по серии. `force` — кнопка «Обновить» на странице: мимо суточного
  * кэша, но не чаще раза в пять минут. Если DAT не ответил, отдаём последний
  * сохранённый снимок с его датой — старые цифры с подписанной датой полезнее, чем
  * пустой блок, — и `stale: true`, чтобы страница это показала.
+ *
+ * `background` — для обзора, карточки груза и формы: они DAT не ждут. Отдаём снимок
+ * из кэша как есть (или null, если его ещё нет), а свежий забираем уже после ответа —
+ * не чаще раза в пять минут на процесс, чтобы лежащий DAT не получал по три запроса
+ * на каждое открытие обзора.
  */
 export async function datSnapshot(
   equipment: DatEquipment,
-  opts: { force?: boolean } = {},
+  opts: { force?: boolean; background?: boolean } = {},
 ): Promise<(DatSnapshot & { stale: boolean }) | null> {
   const key = `dat_trendlines_${equipment}`
   const cached = readCache(await getSetting(key))
   const age = cached ? Date.now() - cached.at : Infinity
   if (cached && (opts.force ? age < FORCE_FLOOR_MS : age < TTL_MS)) return { ...cached, stale: false }
 
+  if (opts.background) {
+    if (Date.now() - (backgroundAt.get(equipment) ?? 0) > FORCE_FLOOR_MS) {
+      backgroundAt.set(equipment, Date.now())
+      after(() => fetchSnapshot(equipment, key, cached))
+    }
+    return cached ? { ...cached, stale: false } : null
+  }
+  return fetchSnapshot(equipment, key, cached)
+}
+
+async function fetchSnapshot(
+  equipment: DatEquipment,
+  key: string,
+  cached: DatSnapshot | null,
+): Promise<(DatSnapshot & { stale: boolean }) | null> {
   const [regionsRaw, ltRaw, fuelRaw] = await Promise.all([
     getJson(`/${equipment}/regionalRates`),
     getJson(`/lt/${equipment}`),

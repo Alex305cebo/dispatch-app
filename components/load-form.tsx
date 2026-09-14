@@ -1,19 +1,22 @@
 'use client'
 
 import { Button } from '@/components/button'
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { MotionConfig } from 'motion/react'
 import { calcLoad } from '@/lib/profit'
 import { EMPTY, type QrLoad } from '@/lib/qr-load'
 import { truckLabel, type TruckRecord } from '@/lib/map'
 import { createLoad, fetchRouteMiles } from '@/app/actions'
+import { datMarketFor } from '@/app/load/card/actions'
+import { datLabel, laneMarket, marketVerdict, type DatSnapshot } from '@/lib/dat-market-core'
+import { usd, usd2, usDate } from '@/lib/fmt'
 import { humanError } from '@/lib/msg'
 import { notify } from '@/lib/notify'
 import { Analysis } from './analysis'
 import { Field, TextField } from './ui'
 import { Info } from './info'
 import { useLocale } from './locale-provider'
-import { t as tr } from '@/lib/i18n'
+import { t as tr, type Locale } from '@/lib/i18n'
 
 export function LoadForm({
   trucks,
@@ -46,6 +49,20 @@ export function LoadForm({
   const [pending, start] = useTransition()
   const [milesBusy, startMiles] = useTransition()
   const [error, setError] = useState<string | null>(null)
+
+  // Рынок DAT у поля ставки. Снимок — один раз на форму (серия по типу трейлера из
+  // QR, у ручного груза Van); регион по введённому штату ищется здесь же, без сервера.
+  const [dat, setDat] = useState<DatSnapshot | null>(null)
+  useEffect(() => {
+    let alive = true
+    datMarketFor(load.equipment ?? null).then(
+      (s) => alive && setDat(s),
+      () => {},
+    )
+    return () => {
+      alive = false
+    }
+  }, [load.equipment])
 
   const set = (patch: Partial<QrLoad>) => setLoad({ ...load, ...patch })
   const attn = (k: string) => needsAttention.includes(k)
@@ -113,6 +130,7 @@ export function LoadForm({
               big
               missing={attn('rate')}
             />
+            {dat && <DatHint snap={dat} load={load} locale={locale} />}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -215,6 +233,42 @@ export function LoadForm({
         </section>
       </div>
     </MotionConfig>
+  )
+}
+
+/** Подсказка у ставки: сколько DAT даёт за милю в регионе погрузки, во что это
+ * складывается на мили груза и где предложение брокера относительно рынка. */
+function DatHint({ snap, load, locale }: { snap: DatSnapshot; load: QrLoad; locale: Locale }) {
+  const region = laneMarket(snap, load.origin, load.destination).region
+  if (!region) return null
+  const verdict = load.rate > 0 && load.loadedMiles > 0 ? marketVerdict(load.rate / load.loadedMiles, region.rpm) : null
+  const n = verdict ? Math.round(verdict.diff) : 0
+  return (
+    <div className="mt-2 text-[12px] leading-5 text-white/60">
+      <div>
+        <span className="nums font-semibold text-white/85">{usd2.format(region.rpm)}/mi</span>
+        {load.loadedMiles > 0 && <span className="nums"> ≈ {usd.format(region.rpm * load.loadedMiles)}</span>}
+        {verdict && (
+          <span
+            className={`font-medium ${
+              verdict.tone === 'good' ? 'text-good-400' : verdict.tone === 'bad' ? 'text-bad-400' : 'text-warn-400'
+            }`}
+          >
+            {' · '}
+            {/* «Ниже рынка на 12%» — без знака: направление уже в словах. Знак только у «в рамках (−3%)». */}
+            {verdict.tone === 'warn'
+              ? tr(locale, 'loadCard.marketIn').replace('{pct}', `${n >= 0 ? '+' : ''}${n}%`)
+              : tr(locale, verdict.tone === 'good' ? 'loadCard.marketAbove' : 'loadCard.marketBelow').replace('{pct}', `${Math.abs(n)}%`)}
+          </span>
+        )}
+      </div>
+      <div className="text-white/45">
+        {tr(locale, 'analysis.spotDat')
+          .replace('{eq}', datLabel(snap.equipment))
+          .replace('{region}', datLabel(region.code))
+          .replace('{date}', usDate(new Date(snap.at)))}
+      </div>
+    </div>
   )
 }
 
