@@ -8,7 +8,8 @@
 
 import { companyScope } from '@/lib/session'
 import { datEquipment, datSnapshot, laneMarket, ltHeat, type DatRegion } from '@/lib/dat-market'
-import { backhaulBrokers, type BackhaulBroker } from '@/lib/backhaul'
+import { backhaulBrokers } from '@/lib/backhaul'
+import type { StateBroker } from '@/lib/state-brokers'
 import { laneAvgRpmFor, listLoads, listTrucks } from '@/lib/loads'
 import { brokerGradeFor } from '@/lib/brokers'
 import { cityCoords } from '@/lib/geo-routing'
@@ -56,7 +57,7 @@ export type CardInsights = {
   market: CardMarket | null
   /** Ваш собственный средний $/милю между этими штатами. */
   laneRpm: number | null
-  backhaul: { state: string; brokers: BackhaulBroker[] } | null
+  backhaul: { state: string; brokers: StateBroker[] } | null
   brokerGrade: { payGrade: 'good' | 'ok' | 'slow'; payDays: number | null; lateCount: number; paidCount: number } | null
   trucks: CardTruck[]
   weather: { origin: WeatherAlert | null; dest: WeatherAlert | null }
@@ -102,7 +103,9 @@ export async function cardInsights(input: {
   const [snap, laneRpm, backhaul, brokerGrade, trucks, loads, fleet, pickup, drop] = await Promise.all([
     eq ? safe(datSnapshot(eq, { force: input.force }), null) : Promise.resolve(null),
     safe(laneAvgRpmFor(companyId, input.origin, input.destination, 0), null),
-    safe(backhaulBrokers(companyId, input.destination), null),
+    // Третий аргумент — груз, который не считать в истории. У груза из ссылки
+    // записи в базе нет, исключать нечего.
+    safe(backhaulBrokers(companyId, input.destination, 0), null),
     safe(brokerGradeFor(companyId, input.brokerMc, input.brokerEmail, input.brokerName), null),
     safe(listTrucks(companyId), []),
     safe(listLoads(companyId), []),
