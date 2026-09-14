@@ -159,7 +159,9 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
       name: r.broker_name,
       email: r.broker_email,
       phone: r.broker_phone,
-      at: r.created_at ? String(r.created_at).slice(0, 10) : null,
+      // created_at приходит из драйвера объектом Date, а не строкой: String(Date).slice(0, 10)
+      // давал «Sun Sep 13». День — по восточному времени, yyyy-mm-dd: по нему и сортируют.
+      at: r.created_at ? todayEt(new Date(r.created_at)) : null,
     })
     repRows.set(key, seen)
 
@@ -181,7 +183,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
         email: r.broker_email,
         payVia: r.pay_via,
         loadCount: 1,
-        lastLoad: r.created_at ? String(r.created_at).slice(0, 10) : null,
+        lastLoad: r.created_at ? todayEt(new Date(r.created_at)) : null,
         gross: 0,
         rpm: 0,
         payDays: null,
@@ -223,7 +225,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
 
   for (const c of cached) {
     if (ownMc && c.mc === ownMc) continue
-    const checkedAt = c.checked_at ? String(c.checked_at).slice(0, 10) : null
+    const checkedAt = c.checked_at ? todayEt(new Date(c.checked_at)) : null
     const existing = byKey.get(c.mc)
     if (existing) {
       existing.authorityStatus = c.authority_status

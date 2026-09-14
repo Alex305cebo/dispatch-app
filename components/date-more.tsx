@@ -8,12 +8,6 @@ import { usDate } from '@/lib/fmt'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
-/** День yyyy-mm-dd по местному времени браузера — как дата, что видна в строке. */
-export const localDay = (iso: string) => {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
-
 /**
  * Длинный список: первые `limit` строк видны, остальное — не лентой «ещё N», а по дню.
  * Кнопка открывает мини-календарь, где нажимаются только дни, в которые что-то есть

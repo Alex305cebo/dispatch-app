@@ -29,8 +29,9 @@ import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale } from '@/lib/i18n'
 import { ShowMore } from '@/components/collapse'
-import { DateMore, localDay } from '@/components/date-more'
+import { DateMore } from '@/components/date-more'
 import { usDate } from '@/lib/fmt'
+import { todayEt } from '@/lib/payments'
 
 export function DocUpload({
   truckId,
@@ -355,7 +356,7 @@ function DocRow({
         {name !== doc.title && (
           <span className="hidden min-w-0 shrink truncate text-[11.5px] text-white/40 sm:block">{doc.title}</span>
         )}
-        <span className="nums ml-auto shrink-0 text-[11.5px] text-white/35">{usDate(doc.uploadedAt)}</span>
+        <span className="nums ml-auto shrink-0 text-[11.5px] text-white/35">{usDate(todayEt(new Date(doc.uploadedAt)))}</span>
         {showLinks && doc.truckId && (
           <a href={`/trucks/${doc.truckId}`} className="shrink-0 text-[11px] text-white/45 hover:text-white/85">
             {t(locale, 'docs.row.truck')}
@@ -397,7 +398,7 @@ function DocRow({
           <div className="text-xs text-white/45 [overflow-wrap:anywhere] sm:truncate">{doc.title}</div>
         )}
         <span className="nums block text-xs text-white/40">
-          {fmtSize(doc.sizeBytes)} · {usDate(doc.uploadedAt)}
+          {fmtSize(doc.sizeBytes)} · {usDate(todayEt(new Date(doc.uploadedAt)))}
         </span>
         {doc.loadId === null && doc.truckId && attachTargets && (
           <UnattachedActions
@@ -484,7 +485,7 @@ export function DocList({
           <DateMore
             limit={limit}
             items={docs.map((d) => ({
-              day: localDay(d.uploadedAt),
+              day: todayEt(new Date(d.uploadedAt)),
               node: <DocRow key={d.id} doc={d} showLinks={showLinks} onDelete={setDel} attachTargets={attachTargets} />,
             }))}
           />
@@ -635,7 +636,7 @@ export function DocTrash({ rows }: { rows: DocLibRow[] }) {
           <div className="min-w-0 flex-1">
             <span className="block truncate text-[14px] text-white/70">{d.title}</span>
             <span className="text-[11px] text-white/45">
-              {t(locale, 'docs.trash.deletedOn').replace('{d}', usDate(d.deletedAt))} · {fmtSize(d.sizeBytes)}
+              {t(locale, 'docs.trash.deletedOn').replace('{d}', usDate(d.deletedAt && todayEt(new Date(d.deletedAt))))} · {fmtSize(d.sizeBytes)}
             </span>
           </div>
           <button

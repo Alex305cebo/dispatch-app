@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { weekAnchorOf, weekLabel, loadWeekAnchorMs, normalizeApptTime, shortName, usDate } from './fmt.ts'
+import { agoText, weekAnchorOf, weekLabel, loadWeekAnchorMs, normalizeApptTime, shortName, usDate } from './fmt.ts'
 
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
@@ -77,6 +77,24 @@ test('usDate: ISO date and timestamp both come out as MM/DD/YY', () => {
   assert.equal(usDate('2026-09-08'), '09/08/26')
   assert.equal(usDate(new Date(2026, 8, 8, 15, 4)), '09/08/26')
   assert.equal(usDate(null), '')
+})
+
+// Сервер Hostinger в UTC, диспетчеры в New York: вечерний момент — день по восточному
+// времени в любом поясе процесса, а не завтрашний день сервера.
+test('agoText: день старого момента — по восточному и в UTC, и в New York', () => {
+  const saved = process.env.TZ
+  try {
+    for (const zone of ['UTC', 'America/New_York']) {
+      process.env.TZ = zone
+      assert.equal(agoText('2025-07-11T02:30:00Z', 'en'), '07/10/25', zone) // 22:30 EDT
+      assert.equal(agoText(new Date('2025-01-10T03:30:00Z'), 'ru'), '01/09/25', zone) // 22:30 EST
+      assert.equal(agoText('2025-07-11T04:00:00Z', 'en'), '07/11/25', zone) // полночь EDT
+      assert.equal(agoText('not a date', 'en'), '', zone)
+    }
+  } finally {
+    if (saved === undefined) delete process.env.TZ
+    else process.env.TZ = saved
+  }
 })
 
 test('empty and null collapse to null', () => {

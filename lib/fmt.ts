@@ -117,23 +117,24 @@ export function weekLabel(weekStartMs: number, locale: Locale): string {
     : `${month(start)} ${day(start)} – ${month(end)} ${day(end)}, ${end.getFullYear()}`
 }
 
-/** Timestamp → "5 мин назад" / "18.07" (ru) or "5 min ago" / "07/18" (en) once it's a
- * day+ stale. */
+/** Timestamp → "5 мин назад" (ru) / "5 min ago" (en), and once it's a day+ stale the day
+ * by Eastern time, "09/14/26" — not the server's own day, which runs ahead after 20:00 ET. */
 export function agoText(iso: string | Date, locale: Locale): string {
   const d = typeof iso === 'string' ? new Date(iso) : iso
+  if (Number.isNaN(d.getTime())) return ''
   const diffMin = Math.round((Date.now() - d.getTime()) / 60000)
   if (locale === 'ru') {
     if (diffMin < 1) return 'только что'
     if (diffMin < 60) return `${diffMin} мин назад`
     const diffH = Math.round(diffMin / 60)
     if (diffH < 24) return `${diffH} ч назад`
-    return usDate(d)
+    return usDate(todayEt(d))
   }
   if (diffMin < 1) return 'just now'
   if (diffMin < 60) return `${diffMin} min ago`
   const diffH = Math.round(diffMin / 60)
   if (diffH < 24) return `${diffH}h ago`
-  return usDate(d)
+  return usDate(todayEt(d))
 }
 
 /**

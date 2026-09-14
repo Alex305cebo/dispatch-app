@@ -408,7 +408,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </h2>
           {load.paidAt && (
             <span className="rounded-full bg-good-500/15 px-2 py-0.5 text-[11px] font-medium text-good-400">
-              {t(locale, 'loadDetail.paidOn').replace('{date}', usDate(load.paidAt))}
+              {t(locale, 'loadDetail.paidOn').replace('{date}', usDate(todayEt(new Date(load.paidAt))))}
             </span>
           )}
         </div>
