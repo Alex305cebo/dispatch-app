@@ -1,4 +1,5 @@
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
+import { isProductHost, PRODUCT_NAME } from '@/lib/brand'
 import { sql } from '@/lib/db'
 import { applyAdminReset, ensureSchema, schemaInstalled } from '@/lib/install'
 import { getSettings } from '@/lib/settings'
@@ -70,7 +71,9 @@ export default async function LoginPage() {
   const conf = installed
     ? await getSettings(['co_name', 'demo_public', 'demo_url'])
     : new Map<string, string>()
-  const companyName = conf.get('co_name') ?? ''
+  // На сайте продукта (dispatch4you.pro) — название продукта, а не перевозчика из базы.
+  const hdrs = await headers()
+  const companyName = isProductHost(hdrs.get('x-forwarded-host') ?? hdrs.get('host')) ? PRODUCT_NAME : (conf.get('co_name') ?? '')
   // Демо ДО входа — первое, что должен иметь возможность сделать человек, который
   // приложение ещё не купил. Два разных источника:
   //

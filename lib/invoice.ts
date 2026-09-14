@@ -8,6 +8,8 @@ import { revalidatePath } from 'next/cache'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { sql } from './db.ts'
 import { getSettings } from './settings.ts'
+import { companyScope } from './session.ts'
+import { DEMO_COMPANY } from './brand.ts'
 import { getLoad } from './loads.ts'
 import { isDone, stopsFrom, type StopEv } from './stops.ts'
 import type { LoadRecord } from './map.ts'
@@ -26,6 +28,9 @@ export type Company = {
 /** One query, not seven — and cache()d, because the root layout reads the company
  * name on every page render. Was 7 separate HTTPS round trips to Neon per page. */
 export const getCompany = cache(async function getCompany(): Promise<Company> {
+  // Демо — общая витрина: реквизиты настоящей компании (название, владелец, MC, почта)
+  // гостю не показываются. Вне запроса (фоновые задачи) сессии нет — это не демо.
+  if ((await companyScope().catch(() => 'default')) === 'demo') return DEMO_COMPANY
   const s = await getSettings([
     'co_name',
     'co_owner',
