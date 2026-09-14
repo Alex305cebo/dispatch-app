@@ -10,7 +10,7 @@ import { isDone, stopTitle, stopsFrom, type StopEv } from './stops.ts'
 import { liveTrail, trailLabels } from './eld'
 import { tripEta } from './trip-eta'
 import { distToPathMiles, haversineMiles } from './geo'
-import { driveTime, usDate } from './fmt'
+import { driveTime, etaAt, usDate } from './fmt'
 import { zoneFor } from './tz'
 import { t, type Locale } from './i18n.ts'
 import type { MapMarker, MapRoute } from '@/components/fleet-map'
@@ -239,7 +239,9 @@ export async function loadMapData(
         const mi = Math.round(legToNext.miles + (via?.miles ?? 0))
         const min = legToNext.etaMin + (via?.etaMin ?? 0)
         const to = a.st.role === 'pickup' ? 'tracking.toPickupSuffix' : 'tracking.toDelivery'
-        m.eta = `${mi} mi · ~${driveTime(min, locale)}${t(locale, to)}`
+        // Осталось миль от трака сейчас и ETA — с отдыхом водителя, в поясе точки.
+        const arrive = new Date(Date.now() + tripEta(min, Date.now(), null, null, null).realMin * 60_000)
+        m.eta = `${mi} mi${t(locale, to)} · ETA ${etaAt(zoneFor(a.p!.lat, a.p!.lng), arrive)}`
       }
     }
     markers.push(m)

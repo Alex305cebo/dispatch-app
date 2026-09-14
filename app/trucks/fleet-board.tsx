@@ -21,7 +21,8 @@ import { type TrackingRow } from '@/components/fleet-list'
 import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
 import { positionSignals } from '@/lib/eld'
 import { activeAlert, type WeatherAlert } from '@/lib/weather'
-import { agoText, driveTime, usDate } from '@/lib/fmt'
+import { agoText, driveTime, etaAt, usDate } from '@/lib/fmt'
+import { tripEta } from '@/lib/trip-eta'
 import { t as tr, type Locale } from '@/lib/i18n'
 import { companyScope } from '@/lib/session'
 
@@ -94,6 +95,10 @@ export async function FleetBoard({
       const pickup = await cityCoordsBest(load?.pickupAddress, load?.origin)
       let legToPickup: Awaited<ReturnType<typeof deliveryInfoBest>> = null
       let legToDelivery: Awaited<ReturnType<typeof deliveryInfoBest>> = null
+      // От трака прямо до выгрузки — для плашки точки «сколько осталось сейчас».
+      // У «забукированного» груза, который трак на деле уже везёт, путь через пикап
+      // давал тысячи миль назад к пикапу и обратно.
+      let directToDelivery: Awaited<ReturnType<typeof deliveryInfoBest>> = null
       let weather: WeatherAlert | null = null
       let idleAt: Date | null = null
       let heading: number | null = null
@@ -116,16 +121,18 @@ export async function FleetBoard({
           // deadhead) → delivery (the loaded miles) — never a straight line to
           // delivery that skips the pickup stop entirely.
           if (load.status === 'booked' && pickup) {
-            ;[legToPickup, legToDelivery] = await Promise.all([
+            ;[legToPickup, legToDelivery, directToDelivery] = await Promise.all([
               deliveryInfoBest(pt, load.pickupAddress, load.origin),
               deliveryInfoBest(pickup, load.deliveryAddress, load.destination),
+              deliveryInfoBest(pt, load.deliveryAddress, load.destination),
             ])
           } else {
             legToDelivery = await deliveryInfoBest(pt, load.deliveryAddress, load.destination)
+            directToDelivery = legToDelivery
           }
         }
       }
-      return { t, fs, load, pickup, legToPickup, legToDelivery, weather, idleAt, heading }
+      return { t, fs, load, pickup, legToPickup, legToDelivery, directToDelivery, weather, idleAt, heading }
     }),
   )
 
@@ -145,7 +152,15 @@ export async function FleetBoard({
   let underLoad = 0
   let stuck = 0
 
-  for (const { t, fs, load, pickup, legToPickup, legToDelivery, weather, idleAt, heading } of perTruck) {
+  // Плашка точки: сколько миль осталось от трака СЕЙЧАС и ETA — с отдыхом водителя,
+  // в поясе самой точки.
+  const stopEta = (leg: { lat: number; lng: number; miles: number; etaMin: number }, suffix: string) =>
+    `${Math.round(leg.miles)} mi${tr(locale, suffix as Parameters<typeof tr>[1])} · ETA ${etaAt(
+      zoneFor(leg.lat, leg.lng),
+      new Date(Date.now() + tripEta(leg.etaMin, Date.now(), null, null, null).realMin * 60_000),
+    )}`
+
+  for (const { t, fs, load, pickup, legToPickup, legToDelivery, directToDelivery, weather, idleAt, heading } of perTruck) {
     // Unconditional on load — a parked empty truck shouldn't say "moving" either.
     const idleHoursAny = idleAt ? Math.floor((Date.now() - idleAt.getTime()) / 3_600_000) : null
     const st = eldStatus(fs?.drive_status ?? null, idleHoursAny, locale)
@@ -174,10 +189,7 @@ export async function FleetBoard({
         label: `${tr(locale, 'tracking.pickupPrefix')}${load.origin}`,
         sub: [load.pickupTime || usDate(load.pickupDate) || null].filter(Boolean).join('\n'),
         // Сколько траку ехать до пикапа — тот же отрезок, что нарисован на карте.
-        eta:
-          hasGps && legToPickup
-            ? `${Math.round(legToPickup.miles)} mi · ~${driveTime(legToPickup.etaMin, locale)}${tr(locale, 'tracking.toPickupSuffix')}`
-            : undefined,
+        eta: hasGps && legToPickup ? stopEta(legToPickup, 'tracking.toPickupSuffix') : undefined,
         kind: 'pickup',
         href: `/loads/${load.id}`,
       })
@@ -206,8 +218,7 @@ export async function FleetBoard({
         lng: legToDelivery.lng,
         label: `Delivery · ${load.destination}`,
         sub: load.origin ? `${tr(locale, 'tracking.fromPrefix')}${load.origin}` : undefined,
-        // До выгрузки — весь путь трака: через пикап, если груз ещё не забран.
-        eta: `${Math.round(totalMiles)} mi · ~${driveTime(totalEtaMin, locale)}${tr(locale, 'tracking.toDelivery')}`,
+        eta: stopEta(directToDelivery ?? legToDelivery, 'tracking.toDelivery'),
         kind: 'dest',
         href: `/loads/${load.id}`,
       })

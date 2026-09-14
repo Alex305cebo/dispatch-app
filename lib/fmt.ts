@@ -217,6 +217,18 @@ export function usDatesIn(text: string): string {
  * Живёт здесь, а не в lib/tz.ts, потому что нужен и на клиенте: tz.ts тянет
  * полигоны поясов на 150 КБ, и импорт его в браузерный бандл был бы платой ни за что.
  */
+/** ETA в поясе точки: «09/14/26 18:40 MDT». Пояс неизвестен — центральный. */
+export function etaAt(zone: string | null | undefined, at: Date): string {
+  const z = zone || 'America/Chicago'
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: z, year: '2-digit', month: '2-digit', day: '2-digit' }).formatToParts(at)
+    const g = (type: string) => parts.find((p) => p.type === type)?.value ?? ''
+    return `${g('month')}/${g('day')}/${g('year')} ${zoneTime(z, at) ?? ''}`.trim()
+  } catch {
+    return usDate(at)
+  }
+}
+
 export function zoneTime(zone: string, now: Date): string | null {
   try {
     const time = new Intl.DateTimeFormat('en-US', {
