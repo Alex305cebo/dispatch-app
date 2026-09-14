@@ -57,6 +57,7 @@ function Icon({ d }: { d: string }) {
 function brandName(raw: string): string {
   const stripped = raw.replace(/\s+(inc\.?|llc\.?|corp\.?|co\.?)$/i, '').trim()
   if (!stripped) return 'Dispatch'
+  if (stripped !== stripped.toUpperCase() && stripped !== stripped.toLowerCase()) return stripped
   return stripped
     .toLowerCase()
     .split(' ')

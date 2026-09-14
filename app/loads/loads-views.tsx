@@ -419,7 +419,7 @@ function Calendar({
 
   // Полоса груза: от погрузки до выгрузки (без выгрузки — один день), обрезанная
   // границами недели. Грузы целиком вне недели не рисуются.
-  type Bar = { load: LoadRecord; from: number; to: number; lane: number }
+  type Bar = { load: LoadRecord; from: number; to: number; lane: number; start: string; end: string }
   const barsByTruck = new Map<number | null, Bar[]>()
   for (const l of loads) {
     if (l.status === 'cancelled') continue
@@ -430,7 +430,7 @@ function Calendar({
     const to = Math.min(6, weekIsos.indexOf(b > weekEnd ? weekEnd : b))
     const key = l.truckId !== null && byId.has(l.truckId) ? l.truckId : null
     if (!barsByTruck.has(key)) barsByTruck.set(key, [])
-    barsByTruck.get(key)!.push({ load: l, from, to, lane: 0 })
+    barsByTruck.get(key)!.push({ load: l, from, to, lane: 0, start: a, end: b })
   }
   // Пересекающиеся полосы одного трака — на разные дорожки, а не друг на друга.
   for (const bars of barsByTruck.values()) {
@@ -466,7 +466,7 @@ function Calendar({
     paid: 'border-good-400/40 bg-good-400/15 text-good-400',
     cancelled: 'border-bad-400/30 bg-bad-400/10 text-bad-400',
   }
-  // Телефон: полоса — тонкая линия по дням, подпись груза целиком под ней.
+  // Телефон: цвет клетки дня и точки у груза — по статусу.
   const STRIP: Record<string, [string, string]> = {
     quoted: ['bg-white/30', 'text-white/70'],
     booked: ['bg-cyan-400', 'text-cyan-300'],
@@ -476,6 +476,9 @@ function Calendar({
     cancelled: ['bg-bad-400', 'text-bad-400'],
   }
   const city = (x: string | null) => (x ?? '—').replace(/,.*$/, '')
+  // «Вт 15» или «Вт 15–Ср 16» — дни груза словами, шкала читается без клеток.
+  const dayLabel = (iso: string) => `${weekdayLabel(iso, locale)} ${Number(iso.slice(8, 10))}`
+  const dayRange = (a: string, b: string) => (a === b ? dayLabel(a) : `${dayLabel(a)}–${dayLabel(b)}`)
 
   return (
     <div>
@@ -520,8 +523,9 @@ function Calendar({
         <Empty icon={CalendarDays} title={t(locale, 'loads.page.emptyDayTitle')} text={t(locale, 'loads.board.emptyWeek')} />
       ) : (
         <>
-        {/* Телефон — без горизонтальной прокрутки: семь узких дней на всю ширину, трак
-            строкой над своими грузами, у груза — линия по дням и подпись целиком. */}
+        {/* Телефон — без горизонтальной прокрутки: семь дней на всю ширину, у трака
+            строка из семи клеток (закрашено — занят, пусто — свободен) и грузы списком
+            с днями словами. */}
         <div className="panel p-0 md:hidden">
           <div className="grid grid-cols-7 border-b border-white/8 px-2.5">
             {days.map((d, i) => {
@@ -536,41 +540,56 @@ function Calendar({
               )
             })}
           </div>
-          {rows.map((row) => (
-            <div key={row.key} className="border-b border-white/[0.06] px-2.5 py-2 last:border-b-0">
-              <div className="flex min-w-0 items-baseline gap-2">
-                {row.href ? (
-                  <Link href={row.href} className="nums shrink-0 text-[13px] font-semibold hover:text-haul-400">
-                    {row.label}
-                  </Link>
-                ) : (
-                  <span className="shrink-0 text-[13px] font-semibold text-white/70">{row.label}</span>
-                )}
-                {row.sub && <span className="min-w-0 truncate text-[11.5px] text-white/50">{row.sub}</span>}
-                {row.bars.length === 0 && <span className="ml-auto shrink-0 text-[11px] text-white/35">{t(locale, 'loads.board.free')}</span>}
-              </div>
-              {row.bars.length > 0 && (
-                <div className="mt-1.5 flex flex-col gap-1.5">
-                  {row.bars.map((b) => {
-                    const [strip, text] = STRIP[b.load.status] ?? STRIP.quoted!
-                    return (
-                      <Link key={b.load.id} href={`/loads/${b.load.id}`} className="block rounded-md">
-                        <div className="grid grid-cols-7">
-                          <div className={`mx-0.5 h-1.5 rounded-full ${strip}`} style={{ gridColumn: `${b.from + 1} / span ${b.to - b.from + 1}` }} />
-                        </div>
-                        <div className="mt-0.5 flex items-baseline gap-2 text-[12.5px] font-medium">
-                          <span className={`min-w-0 ${text}`}>
-                            {city(b.load.origin)} → {city(b.load.destination)}
-                          </span>
-                          <span className="nums ml-auto shrink-0 text-white/80">{usd.format(b.load.rate)}</span>
-                        </div>
-                      </Link>
-                    )
-                  })}
+          {/* Какой цвет что значит — только статусы, что есть на этой неделе. */}
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-white/[0.06] px-2.5 py-1.5 text-[11px] text-white/55">
+            {[...new Set(rows.flatMap((r) => r.bars.map((b) => b.load.status)))].map((s) => (
+              <span key={s} className="flex items-center gap-1">
+                <span className={`size-2 rounded-full ${(STRIP[s] ?? STRIP.quoted!)[0]}`} />
+                {statusLabel(locale, s)}
+              </span>
+            ))}
+          </div>
+          {rows.map((row) => {
+            // Клетка дня закрашена цветом груза, что в этот день у трака; пустая — свободен.
+            const cells = weekIsos.map((_, i) => row.bars.find((b) => b.from <= i && i <= b.to) ?? null)
+            return (
+              <div key={row.key} className="border-b border-white/[0.06] px-2.5 py-2 last:border-b-0">
+                <div className="flex min-w-0 items-baseline gap-2">
+                  {row.href ? (
+                    <Link href={row.href} className="nums shrink-0 text-[13px] font-semibold hover:text-haul-400">
+                      {row.label}
+                    </Link>
+                  ) : (
+                    <span className="shrink-0 text-[13px] font-semibold text-white/70">{row.label}</span>
+                  )}
+                  {row.sub && <span className="min-w-0 truncate text-[11.5px] text-white/50">{row.sub}</span>}
+                  {row.bars.length === 0 && <span className="ml-auto shrink-0 text-[11px] text-white/45">{t(locale, 'loads.board.free')}</span>}
                 </div>
-              )}
-            </div>
-          ))}
+                <div className="mt-1.5 grid grid-cols-7 gap-0.5">
+                  {cells.map((b, i) => (
+                    <span
+                      key={weekIsos[i]}
+                      className={`h-4 rounded-[3px] ${b ? (STRIP[b.load.status] ?? STRIP.quoted!)[0] : 'border border-white/10 bg-white/[0.04]'}`}
+                    />
+                  ))}
+                </div>
+                {row.bars.length > 0 && (
+                  <div className="mt-1 flex flex-col">
+                    {row.bars.map((b) => (
+                      <Link key={b.load.id} href={`/loads/${b.load.id}`} className="flex items-baseline gap-1.5 rounded py-0.5 text-[12.5px] hover:bg-white/5">
+                        <span className={`size-2 shrink-0 self-center rounded-full ${(STRIP[b.load.status] ?? STRIP.quoted!)[0]}`} />
+                        <span className="nums shrink-0 text-[11.5px] text-white/55">{dayRange(b.start, b.end)}</span>
+                        <span className="min-w-0 font-medium text-white/85">
+                          {city(b.load.origin)} → {city(b.load.destination)}
+                        </span>
+                        <span className="nums ml-auto shrink-0 font-semibold text-white/85">{usd.format(b.load.rate)}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
         <div className="panel overflow-x-auto p-0 max-md:hidden">
           <div className="min-w-[640px]">
