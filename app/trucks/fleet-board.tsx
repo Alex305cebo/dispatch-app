@@ -173,6 +173,11 @@ export async function FleetBoard({
         lng: pickup.lng,
         label: `${tr(locale, 'tracking.pickupPrefix')}${load.origin}`,
         sub: [load.pickupTime || usDate(load.pickupDate) || null].filter(Boolean).join('\n'),
+        // Сколько траку ехать до пикапа — тот же отрезок, что нарисован на карте.
+        eta:
+          hasGps && legToPickup
+            ? `${Math.round(legToPickup.miles)} mi · ~${driveTime(legToPickup.etaMin, locale)}${tr(locale, 'tracking.toPickupSuffix')}`
+            : undefined,
         kind: 'pickup',
         href: `/loads/${load.id}`,
       })
@@ -201,6 +206,8 @@ export async function FleetBoard({
         lng: legToDelivery.lng,
         label: `Delivery · ${load.destination}`,
         sub: load.origin ? `${tr(locale, 'tracking.fromPrefix')}${load.origin}` : undefined,
+        // До выгрузки — весь путь трака: через пикап, если груз ещё не забран.
+        eta: `${Math.round(totalMiles)} mi · ~${driveTime(totalEtaMin, locale)}${tr(locale, 'tracking.toDelivery')}`,
         kind: 'dest',
         href: `/loads/${load.id}`,
       })
