@@ -30,6 +30,7 @@ export function FuelPriceButton({
       size={size}
       variant={variant}
       loading={busy}
+      title={t(locale, 'trucks.form.dieselInfo')}
       icon={<Fuel size={14} strokeWidth={2.25} />}
       onClick={(e) => {
         // Внутри <summary> клик по кнопке не должен сворачивать блок.

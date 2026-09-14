@@ -599,8 +599,10 @@ export async function dieselPrice(locale: Locale = 'ru'): Promise<{ price: numbe
 
   const cached = await getSetting('diesel_cache')
   if (cached) {
-    const { price, asOf, at } = JSON.parse(cached) as { price: number; asOf: string; at: number }
-    if (Date.now() - at < 24 * 60 * 60 * 1000) return { price, asOf }
+    // EIA отдаёт value СТРОКОЙ («5.967») — так она и лежала в кэше. Строка вместо числа
+    // роняла .toFixed() в кнопке «Обновить цену» и обнуляла цену при сохранении формы.
+    const { price, asOf, at } = JSON.parse(cached) as { price: number | string; asOf: string; at: number }
+    if (Date.now() - at < 24 * 60 * 60 * 1000 && Number.isFinite(Number(price))) return { price: Number(price), asOf }
   }
   try {
     const url =
@@ -609,11 +611,12 @@ export async function dieselPrice(locale: Locale = 'ru'): Promise<{ price: numbe
       `&sort[0][column]=period&sort[0][direction]=desc&length=1`
     const res = await fetchSoon(url)
     if (!res.ok) return { error: `EIA HTTP ${res.status}` }
-    const data = (await res.json()) as { response?: { data?: { period: string; value: number }[] } }
+    const data = (await res.json()) as { response?: { data?: { period: string; value: number | string }[] } }
     const row = data.response?.data?.[0]
-    if (!row) return { error: t(locale, 'tracking.eiaNoPrice') }
-    await setSetting('diesel_cache', JSON.stringify({ price: row.value, asOf: row.period, at: Date.now() }))
-    return { price: row.value, asOf: row.period }
+    const price = Number(row?.value)
+    if (!row || !Number.isFinite(price) || price <= 0) return { error: t(locale, 'tracking.eiaNoPrice') }
+    await setSetting('diesel_cache', JSON.stringify({ price, asOf: row.period, at: Date.now() }))
+    return { price, asOf: row.period }
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) }
   }
