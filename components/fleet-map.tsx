@@ -752,8 +752,16 @@ export function FleetMap({
           // На телефоне наведения нет: первый тап по пину открывает плашку, второй —
           // карточку. Иначе тап по пину лишь закрывал и открывал плашку, и было не
           // понять, нажалось ли вообще.
+          // Плашку Leaflet открывает сам в ТОМ ЖЕ тапе (эмуляция mouseover и свой click
+          // на тач-устройствах) — раньше этого обработчика. Проверка «открыта ли» без
+          // времени видела её уже открытой и сразу уводила на карточку: данные точки на
+          // телефоне было не посмотреть. Карточка — только если плашка висела до тапа.
+          let openedAt = 0
+          marker.on('tooltipopen', () => {
+            openedAt = Date.now()
+          })
           marker.on('click', () => {
-            if (marker.isTooltipOpen() && window.matchMedia('(pointer: coarse)').matches) {
+            if (marker.isTooltipOpen() && Date.now() - openedAt > 500 && window.matchMedia('(pointer: coarse)').matches) {
               go()
               return
             }
