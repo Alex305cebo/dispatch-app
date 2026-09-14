@@ -80,9 +80,9 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
 /**
  * Every trucks/loads/documents query is filtered by this. Defaults to 'default' (the
- * real fleet) when there's no session at all — "open access" mode (admin toggle) and
- * the public /track/[id] link both run with no session, and both must keep behaving
- * exactly as before: only an actual signed-in demo session ever sees 'demo' data.
+ * real fleet) when there's no session at all — "open access" mode (admin toggle) runs
+ * with no session and must keep behaving exactly as before: only an actual signed-in
+ * demo session ever sees 'demo' data.
  */
 export async function companyScope(): Promise<'default' | 'demo'> {
   return (await getCurrentUser())?.companyId ?? 'default'

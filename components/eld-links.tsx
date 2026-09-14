@@ -40,7 +40,11 @@ export function EldLinks({ count, eldOn = false }: { count: number; eldOn?: bool
 
   function clear() {
     start(async () => {
-      await clearTracking()
+      const res = await clearTracking()
+      if (res && 'error' in res) {
+        notify('error', res.error)
+        return
+      }
       notify('ok', t(locale, 'tracking.cleared'))
     })
   }

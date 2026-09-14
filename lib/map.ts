@@ -168,8 +168,7 @@ export function truckShortLabel(t: TruckRecord): string {
   return [shortName(t.driverName), num].filter(Boolean).join(' · ')
 }
 
-/** ZigZag duty codes → a plain label + a colour bucket. Shared between /tracking
- * and the public /track/[id] link so both read a truck's status the same way.
+/** ZigZag duty codes → a plain label + a colour bucket for /tracking.
  *
  * `idleHours`, when given, is the REAL time-in-one-spot from the GPS breadcrumb
  * trail (lib/eld.ts idleSince) — it wins over a self-reported speed. Live Share's

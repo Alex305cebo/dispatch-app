@@ -1,4 +1,4 @@
-// Tracking domain: app/tracking/**, app/track/[id]/**, fleet-map/fleet-list/
+// Tracking domain: app/tracking/**, fleet-map/fleet-list/
 // eld-links/refresh-fleet-button/small-refresh-button, lib/map.ts, lib/load-map.ts,
 // lib/geo-routing.ts, lib/eld.ts.
 
@@ -60,25 +60,6 @@ export const trackingDict = {
     uk: 'знімків ще не було',
     ro: 'încă nu sunt capturi',
     kk: 'әзірге түсірілім жоқ',
-  },
-
-  // Public /track/[id] share link (no login).
-  'tracking.truckHash': { ru: 'Трак ', en: 'Truck ', es: 'Camión ', uk: 'Трак ', ro: 'Camion ', kk: 'Тракт ' },
-  'tracking.noData': {
-    ru: 'Нет данных',
-    en: 'No data',
-    es: 'Sin datos',
-    uk: 'Немає даних',
-    ro: 'Fără date',
-    kk: 'Дерек жоқ',
-  },
-  'tracking.noCoordsYet': {
-    ru: 'Координаты пока не пришли.',
-    en: 'No coordinates yet.',
-    es: 'Aún no llegan coordenadas.',
-    uk: 'Координати поки не надійшли.',
-    ro: 'Încă nu au venit coordonate.',
-    kk: 'Координаттар әлі келген жоқ.',
   },
 
   // app/tracking/page.tsx
