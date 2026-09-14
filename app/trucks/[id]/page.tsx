@@ -45,6 +45,8 @@ import { CopyPlace } from '@/components/copy-place'
 import { TruckPhoto } from '@/components/truck-photo'
 import { DateMore } from '@/components/date-more'
 import { MissingPodBanner } from '@/components/missing-pod-banner'
+import { StalePartialBanner } from '@/components/stale-partial-banner'
+import { todayEt } from '@/lib/payments'
 import { loadsMissingPod } from '@/lib/loads'
 
 export const dynamic = 'force-dynamic'
@@ -174,6 +176,17 @@ export default async function Page({
   const nextLoad = nextLoadsByTruck(live).get(truck.id) ?? null
   // Партиалы: едут вместе с текущим в одном трейлере.
   const partials = (activeLoadsByTruck(live).get(truck.id) ?? []).filter((l) => l.id !== activeLoad?.id)
+  // Забытый партиал: выгрузка прошла, а он всё ещё «в пути» — его точки попадают в
+  // задание нового груза (и у водителя). Предупреждение с кнопками — над заданием.
+  const staleToday = todayEt()
+  const stalePartials = partials
+    .filter((p) => p.deliveryDate && p.deliveryDate.slice(0, 10) < staleToday)
+    .map((p) => ({
+      id: p.id,
+      label: [p.brokerName, p.referenceId ? '#' + p.referenceId : null, (p.origin ?? '—') + ' → ' + (p.destination ?? '—')].filter(Boolean).join(' '),
+      deliveryDate: p.deliveryDate!,
+      lastSeq: [...stopsFrom(p)].reverse().find((s) => s.role === 'delivery')?.seq ?? 2,
+    }))
   const activeStops = activeLoad ? stopsFrom(activeLoad) : []
   const activeVia = activeLoad ? viaLabel(activeStops, locale) : null
 
@@ -320,6 +333,7 @@ export default async function Page({
             <Info text={t(locale, 'trucks.detail.currentAssignmentInfo')} />
           </h2>
           <MissingPodBanner loads={missingPod} locale={locale} className="mb-3" />
+          <StalePartialBanner items={stalePartials} locale={locale} />
           {activeLoad ? (
             <>
               {/* Статус — ВПЛОТНУЮ к маршруту. justify-between отбрасывал его к правому
