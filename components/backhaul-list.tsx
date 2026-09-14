@@ -30,18 +30,16 @@ export function BackhaulList({ state, brokers, locale }: { state: string; broker
           }}
         />
       )}
-      <ul className="flex flex-col gap-1.5">
+      <ul className="flex flex-col divide-y divide-white/[0.06]">
         {brokers.map((b) => (
-          <li key={b.key} className="rounded-xl border border-white/8 px-3 py-2">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              <div className="min-w-0 flex-1 basis-[12rem]">
-                <div className="flex flex-wrap items-baseline gap-x-2">
-                  <Link href={`/brokers?q=${encodeURIComponent(b.mc ?? b.name)}`} className="text-[13.5px] font-medium hover:underline">
-                    {b.name}
-                  </Link>
-                  {b.mc && <span className="nums text-[11px] text-white/45">MC {b.mc}</span>}
-                </div>
-                <div className="nums mt-0.5 text-[12px] text-white/60">
+          <li key={b.key} className="py-1.5 first:pt-0 last:pb-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <div className="flex min-w-0 flex-1 basis-[14rem] flex-wrap items-baseline gap-x-2">
+                <Link href={`/brokers?q=${encodeURIComponent(b.mc ?? b.name)}`} className="text-[13px] font-medium hover:underline">
+                  {b.name}
+                </Link>
+                {b.mc && <span className="nums text-[11px] text-white/40">MC {b.mc}</span>}
+                <span className="nums text-[11.5px] text-white/55">
                   {t(locale, 'backhaul.count').replace('{state}', state).replace('{n}', String(b.total))}
                   {b.payDays != null && (
                     <span className={b.payDays <= 30 ? ' text-good-400/80' : ' text-warn-400'}>
@@ -49,25 +47,25 @@ export function BackhaulList({ state, brokers, locale }: { state: string; broker
                       {t(locale, 'brokers.paysIn').replace('{n}', String(b.payDays))}
                     </span>
                   )}
-                </div>
+                </span>
               </div>
-              <div className="flex shrink-0 gap-1.5">
+              <div className="flex shrink-0 gap-1">
                 {b.phone && (
-                  <a href={`tel:${b.phone}`} className="rounded-lg bg-haul-500/15 px-3 py-1.5 text-[12.5px] font-semibold text-haul-300 hover:bg-haul-500/25">
+                  <a href={`tel:${b.phone}`} className="rounded-md bg-haul-500/15 px-2 py-0.5 text-[12px] font-semibold text-haul-300 hover:bg-haul-500/25 max-md:py-1.5">
                     📞 {b.phone}
                   </a>
                 )}
                 {b.email && (
-                  <a href={`mailto:${b.email}`} className="rounded-lg border border-white/12 px-3 py-1.5 text-[12.5px] font-medium text-white/75 hover:border-white/30">
+                  <a href={`mailto:${b.email}`} className="rounded-md border border-white/12 px-2 py-0.5 text-[12px] font-medium text-white/75 hover:border-white/30 max-md:py-1.5">
                     ✉
                   </a>
                 )}
               </div>
             </div>
-            <ul className="mt-1.5 flex flex-col gap-0.5 border-t border-white/[0.06] pt-1.5">
+            <ul className="mt-0.5 flex flex-col">
               {b.loads.map((l) => (
                 <li key={l.id}>
-                  <Link href={`/loads/${l.id}`} className="block rounded-md px-1 py-0.5 text-[11.5px] leading-4 text-white/55 hover:bg-white/5 hover:text-white/85">
+                  <Link href={`/loads/${l.id}`} className="block rounded px-1 text-[11.5px] leading-[18px] text-white/50 hover:bg-white/5 hover:text-white/85">
                     <span className="nums">{usDate(l.day)}</span> · {l.route} · <span className="nums">{usd.format(l.rate)}</span>
                     <span className="text-white/40">
                       {' · '}

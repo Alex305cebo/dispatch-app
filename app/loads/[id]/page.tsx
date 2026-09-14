@@ -327,8 +327,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         />
       )}
 
-      {showBackhaul && <BackhaulList state={backhaul.state} brokers={backhaul.brokers} locale={locale} />}
-
       <section className="panel mt-4 p-5">
         <h2 className="mb-4 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'loadDetail.detailsHeading')}
@@ -364,6 +362,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           }}
         />
       </section>
+
+      {showBackhaul && <BackhaulList state={backhaul.state} brokers={backhaul.brokers} locale={locale} />}
 
       <section className="panel mt-4 p-5">
         <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
