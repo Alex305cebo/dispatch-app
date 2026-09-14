@@ -603,11 +603,30 @@ export async function generateInvoice(
   return res
 }
 
+/**
+ * Прежняя кнопка «Оплачено» — оставлена для старых мест вызова, но пишет в учёт оплат
+ * (app/invoices/payment-actions.ts): «оплачено» = прямая оплата сегодня на всю ставку,
+ * «снять» = отменить последний шаг. Груз без записи оплаты, отмеченный оплаченным до
+ * учёта факторинга, снимается как раньше — прямо в грузе.
+ */
 export async function markPaid(loadId: number, paid: boolean): Promise<{ error: string } | void> {
   const denied = await assertCan('finances')
   if (denied) return denied
-  await sql`UPDATE loads SET paid_at = ${paid ? new Date() : null},
-            status = ${paid ? 'paid' : 'delivered'} WHERE id = ${loadId} AND company_id = ${await companyScope()}`
+  const { markPaidDirect, undoPaymentStep } = await import('@/app/invoices/payment-actions')
+  const { paymentFor } = await import('@/lib/payments-server')
+  const { todayEt } = await import('@/lib/payments')
+  const companyId = await companyScope()
+  if (paid) {
+    const res = await markPaidDirect(loadId, { via: 'other', on: todayEt() })
+    if ('error' in res) return res
+    return
+  }
+  if (await paymentFor(companyId, loadId)) {
+    const res = await undoPaymentStep(loadId)
+    if ('error' in res) return res
+    return
+  }
+  await sql`UPDATE loads SET paid_at = NULL, status = 'delivered' WHERE id = ${loadId} AND company_id = ${companyId} AND status = 'paid'`
   revalidatePath(`/loads/${loadId}`)
   revalidatePath('/invoices')
   revalidatePath('/')
@@ -1294,14 +1313,14 @@ export async function setStatus(id: number, status: LoadStatus): Promise<{ error
   //
   // «Оплачен» проверку сохраняет: это уже про деньги, и пакет для счёта (lib/invoice.ts)
   // без POD собрать нельзя — там запрет не раздражает, а спасает.
-  if (status === 'paid') {
-    const d = await deliveryDocs(id)
-    if (!d.bol || !d.pod) {
-      const missing = [!d.bol ? 'BOL' : null, !d.pod ? 'POD' : null].filter(Boolean).join(' + ')
-      return {
-        error: t(await getLocale(), 'actions.paidNeedsDocs').replace('{missing}', missing),
-      }
-    }
+  // «Оплачен» — только из «Финансов»: деньги отмечает бухгалтер, с датой, суммой и
+  // этапом факторинга (app/invoices/payment-actions.ts). Увести груз из «Оплачен»
+  // полосой тоже нельзя, если оплата записана, — иначе учёт и статус разойдутся.
+  if (status === 'paid') return { error: t(await getLocale(), 'payments.err.useFinances') }
+  {
+    const pay = (await sql`SELECT stage FROM load_payments WHERE load_id = ${id}`) as { stage: string }[]
+    if (pay[0] && ['funded', 'closed', 'paid'].includes(pay[0].stage))
+      return { error: t(await getLocale(), 'payments.err.paidInFinances') }
   }
   await sql`
     UPDATE loads SET status = ${status},

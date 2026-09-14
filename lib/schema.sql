@@ -363,5 +363,39 @@ ON DUPLICATE KEY UPDATE id = id;
 -- и больше точками, а указания бывают и у обычного груза.
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS directions JSON;
 
-INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-15')
+-- Деньги за груз: путь через факторинг (OTR Solutions) или прямая оплата (lib/payments.ts).
+-- Одна строка на груз. Этап и даты шагов; суммы аванса и комиссии — как пришли от
+-- факторинга. Груз «Оплачен» ставится, когда деньги у нас (профинансирован / оплачен
+-- напрямую) — прежние отчёты по loads.paid_at работают как раньше.
+CREATE TABLE IF NOT EXISTS load_payments (
+  load_id           INT NOT NULL PRIMARY KEY,
+  company_id        VARCHAR(64) NOT NULL DEFAULT 'default',
+  method            VARCHAR(16) NOT NULL DEFAULT 'factoring',
+  factor_name       TEXT,
+  stage             VARCHAR(16) NOT NULL,
+  submitted_on      DATE,
+  factor_ref        TEXT,
+  funded_on         DATE,
+  advance_amount    DOUBLE,
+  fee_amount        DOUBLE,
+  closed_on         DATE,
+  rejected_on       DATE,
+  reject_reason     TEXT,
+  chargeback_on     DATE,
+  chargeback_amount DOUBLE,
+  paid_via          VARCHAR(16),
+  paid_on           DATE,
+  paid_amount       DOUBLE,
+  paid_ref          TEXT,
+  note              TEXT,
+  updated_by        INT,
+  updated_at        DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  KEY load_payments_company (company_id, stage),
+  CONSTRAINT load_payments_stage_check CHECK (stage IN ('submitted', 'funded', 'closed', 'rejected', 'chargeback', 'paid')),
+  CONSTRAINT load_payments_method_check CHECK (method IN ('factoring', 'direct')),
+  CONSTRAINT load_payments_paid_via_check CHECK (paid_via IN ('ach', 'check', 'quickpay', 'other')),
+  CONSTRAINT load_payments_load_id_fkey FOREIGN KEY (load_id) REFERENCES loads (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
+
+INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-16')
 ON DUPLICATE KEY UPDATE value = VALUES(value);
