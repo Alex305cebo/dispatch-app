@@ -144,6 +144,16 @@
     overflow-wrap: anywhere;
   }
 
+  /* Пункты выпадающих списков рисует браузер, а цвет текста наследуется от <select>
+     (text-white) — на полупрозрачном фоне select'а (bg-ink-950/70) Chrome на Windows
+     раскрывал список белым, и пункты были белым по белому («Ведёт диспетчер»).
+     Непрозрачный фон и текст из темы — в обеих темах читается. */
+  select option,
+  select optgroup {
+    background-color: var(--color-ink-900);
+    color: var(--color-white);
+  }
+
   html {
     color-scheme: dark;
     -webkit-tap-highlight-color: transparent;
