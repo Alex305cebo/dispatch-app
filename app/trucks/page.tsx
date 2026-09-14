@@ -135,8 +135,11 @@ export default async function Page() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <div className="mb-4 flex items-end justify-between gap-4">
-        <div>
+      {/* Телефон: заголовок с цифрами на всю ширину, кнопки строкой под ним. В одну
+          строку длинная «Обновить цену топлива всем тракам» уезжала за край экрана и
+          зажимала заголовок в колонку шириной в слово. */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold tracking-tight">{t(locale, 'trucks.page.title')}</h1>
           <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-white/65">
             {/* Строка стояла отдельной панелью ПОД списком и повторяла плитки над
@@ -165,7 +168,7 @@ export default async function Page() {
             )}
           </p>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
           {trucks.length > 0 && <FuelPriceButton truckId={null} locale={locale} size="md" />}
           <Button href="/trucks/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
             {t(locale, 'trucks.page.addTruck')}
