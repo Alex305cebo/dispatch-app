@@ -174,7 +174,9 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
   // enriched; unseen ones are added with a zero load count.
   // ponytail: the FMCSA cache is shared across companies (public data); a truly
   // multi-tenant "who did WE check" needs a per-company checks table later.
-  const cached = (await sql`
+  // Демо этот кэш не видит: в нём брокеры, которых проверяла настоящая компания, и по
+  // нему видно, с кем она работает. В демо — только брокеры демо-грузов.
+  const cached = (companyId === 'demo' ? [] : await sql`
     SELECT mc, legal_name, dba_name, authority_status, phone, checked_at FROM brokers`) as {
     mc: string
     legal_name: string | null

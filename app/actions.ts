@@ -404,6 +404,9 @@ export async function applyDieselPrice(
 export async function saveTracking(
   text: string,
 ): Promise<{ saved: number; updated: number; errors: string[] } | { error: string }> {
+  // Ключи GPS общие для настоящего парка: из общей витрины демо их не меняют и не стирают.
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const locale = await getLocale()
   const { parseShareTokens, liveShareSnapshot } = await import('@/lib/eld')
   const { setSetting } = await import('@/lib/settings')
@@ -440,7 +443,9 @@ export async function saveTracking(
 }
 
 /** Отключить отслеживание: убрать и ссылки, и токен. */
-export async function clearTracking(): Promise<void> {
+export async function clearTracking(): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const { deleteSetting } = await import('@/lib/settings')
   await deleteSetting('eld_share_tokens')
   await deleteSetting('samsara_token')

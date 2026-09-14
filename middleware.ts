@@ -20,9 +20,8 @@ export async function middleware(req: NextRequest) {
   // адрес страницы, и на ПУБЛИЧНОМ адресе оно выполнилось бы без сессии: сами
   // действия личность не проверяют, они берут её из заголовков, которые ставит эта
   // функция, а companyScope() без сессии отвечает «основная компания». То есть
-  // POST на /track/1 с идентификатором действия прошёл бы как действие сотрудника.
-  // Публичные страницы своих действий не вызывают (кнопка на /track перечитывает
-  // страницу и только), поэтому запрет здесь ничего не ломает.
+  // POST на /d/… с идентификатором действия прошёл бы как действие сотрудника.
+  // Публичные страницы своих действий не вызывают, поэтому запрет здесь ничего не ломает.
   const isAction = req.method === 'POST' && req.headers.has('next-action')
 
   // Public, no session needed — signs the browser in as the demo account and
@@ -31,11 +30,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next({ request: { headers } })
   }
 
-  // Public, no session needed — a single truck's live map for sharing with a
-  // broker/customer, see app/track/[id]/page.tsx. Only truck number + location.
-  if (req.nextUrl.pathname.startsWith('/track/') && !isAction) {
-    return NextResponse.next({ request: { headers } })
-  }
+  // Публичной карты трака /track/[id] больше нет (закрыта 09/14/26): номера траков
+  // идут подряд, и перебором без входа открывалось, где сейчас каждый трак парка.
 
   // Страница водителя и её обработчик — по токену в адресе, без сессии
   // (app/d/[token], app/api/driver/[token]). Серверные экшены там так же запрещены.
@@ -65,7 +61,7 @@ export async function middleware(req: NextRequest) {
   if (!user) {
     // Действие без сессии на публичном адресе — отказ, а не переход на /login:
     // переход отдал бы 200 со страницей входа, и вызывающий счёл бы, что сработало.
-    if (isAction && (req.nextUrl.pathname.startsWith('/track/') || req.nextUrl.pathname.startsWith('/demo') || req.nextUrl.pathname.startsWith('/d/'))) {
+    if (isAction && (req.nextUrl.pathname.startsWith('/demo') || req.nextUrl.pathname.startsWith('/d/'))) {
       return new NextResponse('Unauthorized', { status: 401 })
     }
     // Open-access mode (admin-panel switch, app/admin/actions.ts): the whole app works
