@@ -222,6 +222,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             locale={locale}
             truckId={truck.id}
             order={parseTaskOrder(await getSetting(taskOrderKey(truck.id)))}
+            focusLoadId={load.id}
             className="mt-4"
           />
         )}

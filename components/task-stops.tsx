@@ -36,6 +36,7 @@ export function TaskStops({
   locale,
   truckId = null,
   order = null,
+  focusLoadId = null,
   className = '',
 }: {
   /** Грузы в одном трейлере: текущий и партиалы. */
@@ -47,6 +48,8 @@ export function TaskStops({
   truckId?: number | null
   /** Сохранённый ручной порядок (settings task_order:<truck>). */
   order?: string[] | null
+  /** Страница груза: его строки яркие, строки соседнего груза в трейлере приглушены. */
+  focusLoadId?: number | null
   className?: string
 }) {
   const [pending, start] = useTransition()
@@ -97,7 +100,37 @@ export function TaskStops({
         <span className="nums text-[12px] font-medium text-white/45">
           {t(locale, 'task.left').replace('{n}', String(left))}
         </span>
+        {truckId != null && !!keys?.length && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              start(async () => {
+                setKeys([])
+                const res = await saveTaskOrder(truckId, [])
+                if (res?.error) notify('error', res.error)
+              })
+            }
+            className="ml-auto text-[11.5px] font-medium text-white/45 transition-colors hover:text-white max-md:min-h-9"
+          >
+            {t(locale, 'task.resetOrder')}
+          </button>
+        )}
       </h3>
+      {/* Два груза в трейлере — сразу сказать, чьи строки: иначе лента из пяти точек
+          выглядела остановками одного груза, у которого в рейт-коне их две. */}
+      {loads.length > 1 && (
+        <p className="mb-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11.5px] text-white/55">
+          {loads.map((l, k) => (
+            <span key={l.id} className="flex items-center gap-1.5">
+              <span className={`size-2 rounded-full ${TONES[k % TONES.length]}`} aria-hidden />
+              <span className="nums">#{l.referenceId ?? l.id}</span>
+              {l.brokerName && <span>{l.brokerName}</span>}
+              <span className="text-white/40">— {t(locale, 'task.stopsN').replace('{n}', String(stopsOf.get(l.id)?.length ?? 0))}</span>
+            </span>
+          ))}
+        </p>
+      )}
       <ol className="space-y-1">
         {merged.map((m, i) => {
           const state = stateOf(m)
@@ -109,7 +142,7 @@ export function TaskStops({
               key={stopKey(m)}
               className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-2.5 py-1.5 text-[13px] ${
                 isNow ? 'bg-haul-500/[0.10] ring-1 ring-haul-400/30' : isPast ? 'bg-white/[0.02] text-white/45' : 'bg-white/[0.04]'
-              }`}
+              } ${focusLoadId != null && m.loadId !== focusLoadId ? 'opacity-55' : ''}`}
             >
               <span className={`nums w-4 shrink-0 text-[12px] ${isPast ? 'text-good-400' : 'text-white/45'}`}>
                 {isPast ? '✓' : i + 1}
