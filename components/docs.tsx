@@ -458,9 +458,12 @@ export function DocList({
   docs,
   showLinks,
   attachTargets,
+  limit = 3,
 }: {
   docs: DocMeta[]
   showLinks?: boolean
+  /** Сколько бумаг видно до «ещё N» (страница трака подгоняет под высоту списка грузов). */
+  limit?: number
   /** The truck's loads — passed on the truck page so an unattached doc can be
    * recognised into a load or linked to an existing one right from the list. */
   attachTargets?: { id: number; label: string }[]
@@ -474,7 +477,7 @@ export function DocList({
         {/* Первые три — остальное за «ещё N»: у трака бумаг десятки, и без этого
             панель документов уезжала на несколько экранов. */}
         <ShowMore
-          limit={3}
+          limit={limit}
           label={t(locale, 'docs.library.more')}
           items={docs.map((d) => (
             <DocRow key={d.id} doc={d} showLinks={showLinks} onDelete={setDel} attachTargets={attachTargets} />

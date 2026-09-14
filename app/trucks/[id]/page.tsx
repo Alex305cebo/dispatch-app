@@ -659,10 +659,11 @@ export default async function Page({
       />
 
       {/* ===== Around the truck: loads + documents ===== */}
-      {/* Высота каждой панели — по её содержимому (items-start), без внутренней
-          прокрутки: список из двух файлов не тянется до высоты семи грузов, а на
-          телефоне вложенный скролл не ловит палец. */}
-      <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
+      {/* Без внутренней прокрутки (на телефоне вложенный скролл не ловит палец). Рядом
+          на широком экране панели одной высоты, а документов показано столько, сколько
+          встаёт напротив видимых грузов (карточка груза выше строки файла), — иначе под
+          тремя файлами напротив четырёх грузов зияла пустота. */}
+      <div className="mt-4 grid gap-4 max-lg:items-start lg:grid-cols-2">
         <section className="panel flex min-w-0 flex-col p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-base leading-6 font-semibold text-white/90">
@@ -738,6 +739,7 @@ export default async function Page({
           <div>
             <DocList
               docs={docs}
+              limit={Math.max(3, Math.round(Math.min(rows.length, 4) * 1.25))}
               attachTargets={live.map((l) => ({
                 id: l.id,
                 label: `${l.origin ?? '—'} → ${l.destination ?? '—'}`,
