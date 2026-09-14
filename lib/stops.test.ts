@@ -7,6 +7,9 @@ import {
   eventSeq,
   isDone,
   mergeStops,
+  applyTaskOrder,
+  parseTaskOrder,
+  stopKey,
   nextOpenStop,
   stopTitle,
   stopsFrom,
@@ -177,4 +180,19 @@ test('directionsOf собирает только непустые указани
   // партиал: указания доезжают в общую ленту водителя
   const merged = mergeStops([{ ...legacy, id: 1, referenceId: 'A', brokerName: 'TQL', directions: [{ seq: 1, role: 'pickup', text: 'Gate 4' }] }])
   assert.equal(merged[0]!.directions, 'Gate 4')
+})
+
+test('ручной порядок задания: свои места, новые остаются на автоматических, мусор не ломает', () => {
+  const auto = [1, 2, 3, 4].map((seq) => ({ loadId: 7, seq }))
+  const keys = (xs: { loadId: number; seq: number }[]) => xs.map(stopKey)
+  assert.deepEqual(keys(applyTaskOrder(auto, null)), ['7:1', '7:2', '7:3', '7:4'])
+  assert.deepEqual(keys(applyTaskOrder(auto, ['7:2', '7:1', '7:4', '7:3'])), ['7:2', '7:1', '7:4', '7:3'])
+  // 7:3 в сохранённом порядке нет — остаётся третьей, остальные меняются местами
+  assert.deepEqual(keys(applyTaskOrder(auto, ['7:4', '7:2', '7:1'])), ['7:4', '7:2', '7:3', '7:1'])
+  // ключи грузов, которых уже нет, ничего не ломают
+  assert.deepEqual(keys(applyTaskOrder(auto, ['9:1', '7:4'])), ['7:1', '7:2', '7:3', '7:4'])
+  assert.equal(parseTaskOrder('["7:2","7:1"]')?.length, 2)
+  assert.equal(parseTaskOrder('{"a":1}'), null)
+  assert.equal(parseTaskOrder('not json'), null)
+  assert.equal(parseTaskOrder(null), null)
 })

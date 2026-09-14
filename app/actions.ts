@@ -22,7 +22,7 @@ import { shrinkPhoto } from '@/lib/photo'
 import { sql } from '@/lib/db'
 import { humanError } from '@/lib/msg'
 import type { LoadStatus } from '@/lib/map'
-import { directionsOf, type LoadStop } from '@/lib/stops'
+import { directionsOf, stopsFrom, taskOrderKey, type LoadStop } from '@/lib/stops'
 import type { QrLoad } from '@/lib/qr-load'
 import type { TruckSettings } from '@/lib/profit'
 import { checkBroker, checkBrokerByDot, type BrokerCheck, type RcContext } from '@/lib/fmcsa'
@@ -1520,6 +1520,72 @@ export async function addLoadEventManual(
   await sql`INSERT INTO load_events (company_id, load_id, truck_id, kind, note, at, stop_seq)
             VALUES (${companyId}, ${loadId}, ${rows[0]?.truck_id ?? null}, ${kind}, ${note?.trim() || null}, ${when}, ${stopSeq ?? null})`
   revalidatePath(`/loads/${loadId}`)
+}
+
+/** Ручной порядок остановок задания трака (стрелки в «Задании по порядку»). Лента
+ * в приложении водителя строится по нему же. */
+export async function saveTaskOrder(truckId: number, keys: string[]): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: 'truck' }
+  const clean = keys.filter((k) => typeof k === 'string' && /^\d+:\d+$/.test(k)).slice(0, 100)
+  await setSetting(taskOrderKey(truckId), JSON.stringify(clean))
+  revalidatePath(`/trucks/${truckId}`)
+  revalidatePath('/loads', 'layout')
+}
+
+/**
+ * Статус остановки из «Задания по порядку»: ожидается / приехал / загрузился-выгрузился.
+ * Пишет те же отметки, что водитель и полоса статусов, и двигает статус груза так же:
+ * первая отметка — «В пути», последняя выгрузка отмечена — «Доставлен», снята — снова
+ * «В пути». Оплаченный и отменённый груз статус не меняют.
+ */
+export async function setStopState(
+  loadId: number,
+  seq: number,
+  state: 'none' | 'arrived' | 'done',
+): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  if (!['none', 'arrived', 'done'].includes(state)) return { error: 'bad state' }
+  const companyId = await companyScope()
+  const load = await getLoad(companyId, loadId)
+  if (!load) return { error: t(await getLocale(), 'actions.loadNotFound') }
+  const stops = stopsFrom(load)
+  const stop = stops.find((s) => s.seq === seq)
+  if (!stop) return { error: 'stop' }
+  const arrive = stop.role === 'pickup' ? 'arrived_pickup' : 'arrived_delivery'
+  const done = stop.role === 'pickup' ? 'loaded' : 'delivered'
+  const lastDelivery = [...stops].reverse().find((s) => s.role === 'delivery')
+  // Отметки без номера относятся к первой погрузке и последней выгрузке (lib/stops.ts
+  // eventSeq) — их тоже снимаем, иначе точка осталась бы пройденной.
+  const isEnd = stop.role === 'pickup' ? stops.find((s) => s.role === 'pickup')?.seq === seq : lastDelivery?.seq === seq
+  // «Загрузился» сохраняет время прибытия (по нему считается простой); «приехал» и
+  // «ожидается» начинают точку заново.
+  const kinds = state === 'done' ? [done] : [arrive, done]
+  await sql`DELETE FROM load_events
+            WHERE company_id = ${companyId} AND load_id = ${loadId} AND kind IN (${kinds})
+              AND (stop_seq = ${seq} OR (${isEnd} AND stop_seq IS NULL))`
+  if (state !== 'none')
+    await sql`INSERT INTO load_events (company_id, load_id, truck_id, kind, note, at, stop_seq)
+              VALUES (${companyId}, ${loadId}, ${load.truckId}, ${state === 'done' ? done : arrive}, NULL, ${new Date()}, ${seq})`
+
+  let next: LoadStatus | null = null
+  if (load.status !== 'paid' && load.status !== 'cancelled') {
+    if (state !== 'none' && (load.status === 'quoted' || load.status === 'booked')) next = 'in_transit'
+    if (lastDelivery?.seq === seq) {
+      if (state === 'done') next = 'delivered'
+      else if (load.status === 'delivered') next = 'in_transit'
+    }
+  }
+  if (next && next !== load.status)
+    await sql`UPDATE loads SET status = ${next},
+                delivery_arrived_at = CASE WHEN ${next} = 'in_transit' THEN NULL ELSE delivery_arrived_at END
+              WHERE id = ${loadId} AND company_id = ${companyId}`
+  revalidatePath(`/loads/${loadId}`)
+  revalidatePath('/loads')
+  revalidatePath('/trucks', 'layout')
+  revalidatePath('/')
 }
 
 /** Снять отметку «загрузился/выгрузился» с промежуточной остановки — откат клика

@@ -809,6 +809,13 @@ export const commonDict = {
     ro: 'Toate opririle curselor care merg în aceeași remorcă, în ordinea în care le va face șoferul: după dată, apoi după fereastra de programare. În același oraș descărcarea vine înaintea încărcării — partialul intră în locul tocmai eliberat. Opririle făcute sunt bifate, următoarea este evidențiată. Punctul din dreapta arată cărei curse și cărui broker îi aparține oprirea.',
     kk: 'Бір тіркемеде кететін жүктердің барлық аялдамалары жүргізуші жүретін ретпен: күні бойынша, содан кейін қабылдау терезесі бойынша. Бір қалада алдымен түсіру, сосын тиеу — партиал босаған орынға тиеледі. Өткендері белгіленген, ең жақыны ерекшеленген. Оң жақтағы нүкте аялдама қай жүкке және брокерге тиесілі екенін көрсетеді.',
   },
+  'task.moveUp': { ru: 'Выше', en: 'Move up', es: 'Subir', uk: 'Вище', ro: 'Mai sus', kk: 'Жоғары' },
+  'task.moveDown': { ru: 'Ниже', en: 'Move down', es: 'Bajar', uk: 'Нижче', ro: 'Mai jos', kk: 'Төмен' },
+  'task.stState': { ru: 'Статус остановки', en: 'Stop status', es: 'Estado de la parada', uk: 'Статус зупинки', ro: 'Starea opririi', kk: 'Аялдама күйі' },
+  'task.stNone': { ru: 'ожидается', en: 'pending', es: 'pendiente', uk: 'очікується', ro: 'în așteptare', kk: 'күтілуде' },
+  'task.stArrived': { ru: 'приехал', en: 'arrived', es: 'llegó', uk: 'приїхав', ro: 'a sosit', kk: 'келді' },
+  'task.stLoaded': { ru: 'загрузился', en: 'loaded', es: 'cargado', uk: 'завантажився', ro: 'încărcat', kk: 'тиелді' },
+  'task.stUnloaded': { ru: 'выгрузился', en: 'unloaded', es: 'descargado', uk: 'розвантажився', ro: 'descărcat', kk: 'түсірілді' },
   'task.left': {
     ru: 'осталось {n}',
     en: '{n} left',

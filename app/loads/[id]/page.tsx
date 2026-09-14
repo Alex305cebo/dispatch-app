@@ -42,7 +42,7 @@ import { listLoadEvents } from '@/lib/load-events'
 import { DriverTimeline } from '@/components/driver-timeline'
 import { DriverInfoCard } from '@/components/driver-info-card'
 import { withAddresses, stopNames } from '@/lib/driver-info-zip'
-import { arrivedAt, isDone, stopsFrom, viaLabel, type StopEv } from '@/lib/stops'
+import { arrivedAt, isDone, parseTaskOrder, stopsFrom, taskOrderKey, viaLabel, type StopEv } from '@/lib/stops'
 import { TaskStops } from '@/components/task-stops'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
@@ -215,7 +215,16 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           />
         </div>
         {/* Груз едет не один: задание водителя — точки обоих грузов подряд. */}
-        {taskLoads.length > 1 && <TaskStops loads={taskLoads} events={taskEvents} locale={locale} className="mt-4" />}
+        {taskLoads.length > 1 && (
+          <TaskStops
+            loads={taskLoads}
+            events={taskEvents}
+            locale={locale}
+            truckId={truck.id}
+            order={parseTaskOrder(await getSetting(taskOrderKey(truck.id)))}
+            className="mt-4"
+          />
+        )}
         {/* Бумаги груза одной сеткой: rate con, BOL, POD — три кнопки одного размера,
             на телефоне 2×2 (четвёртая клетка — «Повторить груз»), на широком экране
             в один ряд. Раньше rate con и «Повторить» стояли своим рядом с разными

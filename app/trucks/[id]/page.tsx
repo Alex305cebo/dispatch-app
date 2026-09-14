@@ -35,7 +35,7 @@ import { companyScope, getCurrentUser } from '@/lib/session'
 import { getCompany } from '@/lib/invoice'
 import { dispatcherPhoneKey, getSetting, detentionTerms } from '@/lib/settings'
 import { stopWindows } from '@/lib/detention'
-import { stopsFrom, viaLabel, type StopEv } from '@/lib/stops'
+import { parseTaskOrder, stopsFrom, taskOrderKey, viaLabel, type StopEv } from '@/lib/stops'
 import { listLoadEvents } from '@/lib/load-events'
 import { DriverTimeline } from '@/components/driver-timeline'
 import { QueuedLoadHint } from '@/components/queued-load-hint'
@@ -452,7 +452,14 @@ export default async function Page({
             {/* Порядок точек нужен, только когда их больше двух: у обычного рейса
                 «откуда → куда» в строке выше и есть всё задание. */}
             {(taskLoads.length > 1 || activeStops.length > 2) && (
-              <TaskStops loads={taskLoads} events={taskEvents} locale={locale} className="mt-3" />
+              <TaskStops
+                loads={taskLoads}
+                events={taskEvents}
+                locale={locale}
+                truckId={truck.id}
+                order={parseTaskOrder(await getSetting(taskOrderKey(truck.id)))}
+                className="mt-3"
+              />
             )}
             {nextLoad && (
               <Link

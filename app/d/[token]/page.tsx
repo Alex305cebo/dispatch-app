@@ -4,9 +4,9 @@ import { truckByDriverToken } from '@/lib/driver-link'
 import { listDocs, listLoads } from '@/lib/loads'
 import { listLoadEvents } from '@/lib/load-events'
 import { activeLoadsByTruck, nextLoadsByTruck } from '@/lib/map'
-import { mergeStops } from '@/lib/stops'
+import { mergeStops, parseTaskOrder, taskOrderKey } from '@/lib/stops'
 import { getCompany } from '@/lib/invoice'
-import { setSetting } from '@/lib/settings'
+import { getSetting, setSetting } from '@/lib/settings'
 import { resolveLocale, t } from '@/lib/i18n'
 import { usDate } from '@/lib/fmt'
 import { DriverClient, LangSwitch, type DriverLoad } from './driver-client'
@@ -68,7 +68,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
           locale={locale}
           load={summary(load)}
           loads={active.map(summary)}
-          stops={mergeStops(active)}
+          stops={mergeStops(active, parseTaskOrder(await getSetting(taskOrderKey(truck.id))))}
           events={events}
           dispatcherPhone={company.phone}
         />

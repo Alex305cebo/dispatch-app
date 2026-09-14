@@ -187,6 +187,36 @@ export function firstMinutes(time: string | null): number {
 
 export type MergedStop = LoadStop & { loadId: number; ref: string | null; broker: string | null }
 
+/** Ключ остановки в ручном порядке задания: «груз:номер». */
+export const stopKey = (s: { loadId: number; seq: number }) => `${s.loadId}:${s.seq}`
+
+/** Где лежит ручной порядок задания трака (settings). */
+export const taskOrderKey = (truckId: number) => `task_order:${truckId}`
+
+/** Сохранённый порядок из settings → массив ключей; мусор — null. */
+export function parseTaskOrder(raw: string | null | undefined): string[] | null {
+  if (!raw) return null
+  try {
+    const v = JSON.parse(raw)
+    return Array.isArray(v) && v.every((k) => typeof k === 'string') ? v : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Ручной порядок диспетчера поверх автоматического. Остановки из сохранённого списка
+ * встают в его порядке — на те места, что они и так занимали; новых там нет (груз
+ * добавили позже) — остаются на своём автоматическом месте, а не улетают в конец.
+ */
+export function applyTaskOrder<T extends { loadId: number; seq: number }>(auto: T[], order: string[] | null | undefined): T[] {
+  if (!order?.length) return auto
+  const at = new Map(order.map((k, i) => [k, i]))
+  const known = auto.filter((s) => at.has(stopKey(s))).sort((a, b) => at.get(stopKey(a))! - at.get(stopKey(b))!)
+  let i = 0
+  return auto.map((s) => (at.has(stopKey(s)) ? known[i++]! : s))
+}
+
 /**
  * Партиалы: остановки нескольких грузов одной лентой — по дате, потом по времени
  * окна, потом по грузу и порядку. Водитель видит, куда ехать дальше, не выбирая
@@ -194,11 +224,17 @@ export type MergedStop = LoadStop & { loadId: number; ref: string | null; broker
  */
 export function mergeStops(
   loads: (StopSource & { id: number; referenceId: string | null; brokerName: string | null })[],
+  /** Ручной порядок диспетчера (applyTaskOrder) — поверх автоматического. */
+  order?: string[] | null,
 ): MergedStop[] {
   const all: MergedStop[] = []
   for (const l of loads)
     for (const s of stopsFrom(l)) all.push({ ...s, loadId: l.id, ref: l.referenceId, broker: l.brokerName })
-  if (loads.length < 2) return all
+  if (loads.length < 2) return applyTaskOrder(all, order)
+  return applyTaskOrder(autoSorted(all), order)
+}
+
+function autoSorted(all: MergedStop[]): MergedStop[] {
   return all.sort((a, b) => {
     const da = a.date ?? '9999',
       db = b.date ?? '9999'
