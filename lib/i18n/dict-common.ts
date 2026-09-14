@@ -22,6 +22,10 @@ export const commonDict = {
   },
   'alerts.on': { ru: 'включены', en: 'on', es: 'activadas', uk: 'увімкнено', ro: 'pornite', kk: 'қосулы' },
   'alerts.off': { ru: 'включить', en: 'turn on', es: 'activar', uk: 'увімкнути', ro: 'pornește', kk: 'қосу' },
+  'more.byDate': { ru: 'ещё {n} — выбрать дату', en: '{n} more — pick a date', es: '{n} más — elige una fecha', uk: 'ще {n} — обрати дату', ro: 'încă {n} — alege data', kk: 'тағы {n} — күнді таңда' },
+  'more.prevMonth': { ru: 'Предыдущий месяц', en: 'Previous month', es: 'Mes anterior', uk: 'Попередній місяць', ro: 'Luna anterioară', kk: 'Алдыңғы ай' },
+  'more.nextMonth': { ru: 'Следующий месяц', en: 'Next month', es: 'Mes siguiente', uk: 'Наступний місяць', ro: 'Luna următoare', kk: 'Келесі ай' },
+  'more.clear': { ru: 'Сбросить дату', en: 'Clear date', es: 'Quitar fecha', uk: 'Скинути дату', ro: 'Șterge data', kk: 'Күнді тазалау' },
   'common.more': { ru: 'Ещё', en: 'More', es: 'Más', uk: 'Ще', ro: 'Mai mult', kk: 'Тағы' },
   'alerts.blocked': {
     ru: 'запрещены в браузере',

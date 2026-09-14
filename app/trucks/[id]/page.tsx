@@ -43,7 +43,7 @@ import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { CopyPlace } from '@/components/copy-place'
 import { TruckPhoto } from '@/components/truck-photo'
-import { ShowMore } from '@/components/collapse'
+import { DateMore } from '@/components/date-more'
 import { MissingPodBanner } from '@/components/missing-pod-banner'
 import { loadsMissingPod } from '@/lib/loads'
 
@@ -678,9 +678,10 @@ export default async function Page({
             <p className="text-[13px] text-white/55">{t(locale, 'trucks.detail.noLoadsYet')}</p>
           ) : (
             <div className="flex flex-col gap-2">
-              <ShowMore limit={4} label={t(locale, 'docs.library.more')} items={rows.map(({ load, r }) => {
+              {/* Остальные грузы — не лентой, а по дню из мини-календаря (день пикапа). */}
+              <DateMore limit={4} items={rows.map(({ load, r }) => {
                 const rcId = rateCons.get(load.id)
-                return (
+                return { day: (load.pickupDate ?? load.createdAt).slice(0, 10), node: (
                   /* Two lines, not one. This card sits in a half-width column beside the
                      documents panel, and the old single row asked the route, the status
                      badge, the rate and the RC button to share ~330px — so every route
@@ -719,7 +720,7 @@ export default async function Page({
                       <span className="nums ml-auto shrink-0 text-md font-bold">{usd.format(load.rate)}</span>
                     </div>
                   </div>
-                )
+                ) }
               })} />
             </div>
           )}
@@ -739,6 +740,7 @@ export default async function Page({
           <div>
             <DocList
               docs={docs}
+              byDate
               limit={Math.max(3, Math.round(Math.min(rows.length, 4) * 1.25))}
               attachTargets={live.map((l) => ({
                 id: l.id,

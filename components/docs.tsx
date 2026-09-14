@@ -29,6 +29,7 @@ import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale } from '@/lib/i18n'
 import { ShowMore } from '@/components/collapse'
+import { DateMore, localDay } from '@/components/date-more'
 import { usDate } from '@/lib/fmt'
 
 export function DocUpload({
@@ -459,11 +460,14 @@ export function DocList({
   showLinks,
   attachTargets,
   limit = 3,
+  byDate = false,
 }: {
   docs: DocMeta[]
   showLinks?: boolean
   /** Сколько бумаг видно до «ещё N» (страница трака подгоняет под высоту списка грузов). */
   limit?: number
+  /** Остальные бумаги — по дню загрузки из мини-календаря, а не лентой «ещё N». */
+  byDate?: boolean
   /** The truck's loads — passed on the truck page so an unattached doc can be
    * recognised into a load or linked to an existing one right from the list. */
   attachTargets?: { id: number; label: string }[]
@@ -476,13 +480,23 @@ export function DocList({
       <ul className="mt-3 flex flex-col gap-1.5">
         {/* Первые три — остальное за «ещё N»: у трака бумаг десятки, и без этого
             панель документов уезжала на несколько экранов. */}
-        <ShowMore
-          limit={limit}
-          label={t(locale, 'docs.library.more')}
-          items={docs.map((d) => (
-            <DocRow key={d.id} doc={d} showLinks={showLinks} onDelete={setDel} attachTargets={attachTargets} />
-          ))}
-        />
+        {byDate ? (
+          <DateMore
+            limit={limit}
+            items={docs.map((d) => ({
+              day: localDay(d.uploadedAt),
+              node: <DocRow key={d.id} doc={d} showLinks={showLinks} onDelete={setDel} attachTargets={attachTargets} />,
+            }))}
+          />
+        ) : (
+          <ShowMore
+            limit={limit}
+            label={t(locale, 'docs.library.more')}
+            items={docs.map((d) => (
+              <DocRow key={d.id} doc={d} showLinks={showLinks} onDelete={setDel} attachTargets={attachTargets} />
+            ))}
+          />
+        )}
       </ul>
       {del && <DeleteDialog doc={del} onClose={() => setDel(null)} />}
     </>
