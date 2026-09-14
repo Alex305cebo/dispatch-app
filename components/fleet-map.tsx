@@ -625,7 +625,13 @@ export function FleetMap({
         })
         roRef.current.observe(el)
       }
-      const group = overlayRef.current!
+      // Слой мог так и не появиться: первый проход создаёт карту, уходит ждать
+      // подложку, и если за это время компонент перерисовался, этот проход выходит
+      // по disposed ДО строки с overlayRef. Карта при этом уже в mapRef, следующие
+      // проходы идут мимо инициализации — и падали на null.clearLayers(), рисуя
+      // карту без точек и маршрута. Досоздаём слой здесь.
+      if (!overlayRef.current) overlayRef.current = L.layerGroup().addTo(map)
+      const group = overlayRef.current
       group.clearLayers()
       if (trailRef.current) {
         map.removeLayer(trailRef.current)
