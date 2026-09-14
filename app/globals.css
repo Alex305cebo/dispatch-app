@@ -324,6 +324,29 @@
   stroke: #8b93a5;
   fill-opacity: 0.1;
 }
+/* Режим «Из штата» (Куда отправить трак): цвет направления — шкала выручки в день, его
+   ставит сам слой (fillColor в fleet-map.tsx); штат, откуда считаем, — акцент. Штат
+   нажимается: расчёт переходит на него. */
+.fleet-map path.mkt-plan,
+.fleet-map path.mkt-origin,
+.fleet-map path.mkt-none {
+  cursor: pointer;
+}
+.fleet-map path.mkt-plan {
+  fill-opacity: 0.42;
+}
+.fleet-map path.mkt-origin {
+  fill: var(--color-haul-400);
+  stroke: var(--color-haul-400);
+  fill-opacity: 0.5;
+  stroke-width: 2;
+  stroke-opacity: 0.9;
+}
+.fleet-map path.mkt-none {
+  fill: #8b93a5;
+  stroke: #8b93a5;
+  fill-opacity: 0.06;
+}
 /* Плашка штата едет за курсором — ловить мышь ей нельзя, иначе она мигает. */
 .fleet-map .leaflet-tooltip.mkt-tip {
   pointer-events: none;

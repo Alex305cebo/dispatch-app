@@ -14,15 +14,17 @@ import { sql } from '@/lib/db'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { currentLoadsByTruck, truckLabel, eldStatus } from '@/lib/map'
 import { zoneFor } from '@/lib/tz'
-import { fixPlace } from '@/lib/place'
-import { type MapMarker, type MapMarket, type MapRoute } from '@/components/fleet-map'
-import { datCached, ltStates } from '@/lib/dat-market'
+import { fixPlace, placeCity } from '@/lib/place'
+import { type MapMarker, type MapRoute } from '@/components/fleet-map'
+import { datCached, datEquipment, stateFromPlace } from '@/lib/dat-market'
 import { FleetPanel } from '@/components/fleet-panel'
+import type { PlanSnaps, PlanTruck } from '@/components/route-planner'
 import { type TrackingRow } from '@/components/fleet-list'
 import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
 import { positionSignals } from '@/lib/eld'
 import { activeAlert, type WeatherAlert } from '@/lib/weather'
 import { agoText, driveTime, etaAt, usDate } from '@/lib/fmt'
+import { todayEt } from '@/lib/payments'
 import { tripEta } from '@/lib/trip-eta'
 import { t as tr, type Locale } from '@/lib/i18n'
 import { companyScope } from '@/lib/session'
@@ -64,17 +66,15 @@ export async function FleetBoard({
     // Прицеп берём здесь же: запрос к truck_meta всё равно уже идёт, а номер
     // прицепа нужен подписи трака (truckLabel) — отдельного захода он не стоит.
     sql`SELECT truck_id, driver_phone, trailer_number FROM truck_meta`,
-    // Слой «Рынок DAT» на карте: суточный снимок из settings по всем трём сериям —
-    // серию переключает легенда. Только кэш: карта DAT не ждёт.
+    // Слой «Рынок DAT» на карте и «Куда отправить трак»: суточный снимок из settings по
+    // всем трём сериям. Только кэш: страница DAT не ждёт.
     Promise.all((['VAN', 'REEFER', 'FLATBED'] as const).map(async (eq) => [eq, await datCached(eq)] as const)),
   ])
-  const datShown = datSnaps.flatMap(([eq, snap]) => (snap ? [[eq, snap] as const] : []))
-  const market: MapMarket | null = datShown.length
-    ? {
-        at: Math.min(...datShown.map(([, snap]) => snap.at)),
-        series: Object.fromEntries(datShown.map(([eq, snap]) => [eq, ltStates(snap)])),
-      }
-    : null
+  // Дата снимка — строкой отсюда и днём по восточному времени: из миллисекунд её посчитали
+  // бы ещё и в браузере, в его поясе, а сервер Hostinger живёт в UTC.
+  const snaps: PlanSnaps = Object.fromEntries(
+    datSnaps.flatMap(([eq, snap]) => (snap ? [[eq, { ...snap, date: usDate(todayEt(new Date(snap.at))) }]] : [])),
+  )
   // One query for the whole fleet, instead of currentLoadForTruck() per truck.
   const currentByTruck = currentLoadsByTruck(loads)
   // Строка места приходит из ELD с чужим штатом (см. lib/place.ts) — правим сразу
@@ -286,6 +286,37 @@ export async function FleetBoard({
     })
   }
 
+  // «Куда отправить трак»: откуда трак поедет дальше — штат выгрузки текущего груза или
+  // штат стоянки у свободного (с GPS, чтобы мили первого плеча считались от него, а не
+  // от середины штата), серия DAT по прицепу и расходы трака для расчёта.
+  const planTrucks: PlanTruck[] = perTruck.map(({ t, fs, load }) => {
+    const trailer = trailerByTruck.get(t.id)
+    // Город, а не строка ELD «1.4mi WNW from Dallas, TX»: в предложении «Стоит в …» она читалась криво.
+    const place = load ? load.destination : placeCity(fs?.location ?? null)
+    return {
+      id: t.id,
+      label: truckLabel(t, trailer),
+      series: datEquipment(trailer) ?? 'VAN',
+      settings: {
+        mpg: t.mpg,
+        fuelPricePerGallon: t.fuelPricePerGallon,
+        driverPay: t.driverPay,
+        truckPaymentPerDay: t.truckPaymentPerDay,
+        insurancePerDay: t.insurancePerDay,
+        eldPermitsPerDay: t.eldPermitsPerDay,
+        maintenanceCostPerMile: t.maintenanceCostPerMile,
+        factoringPercent: t.factoringPercent,
+        dispatchPercent: t.dispatchPercent,
+      },
+      state: stateFromPlace(place),
+      place,
+      busy: !!load,
+      until: load?.deliveryDate ?? null,
+      ll: !load && fs?.lat != null && fs?.lng != null ? [fs.lat, fs.lng] : null,
+      unavailable: t.unavailable,
+    }
+  })
+
   // Trucks that need a dispatcher first. Insertion order is just the truck table's
   // order, which means the one stuck in detention for six hours can sit below five
   // that are driving along fine — the whole list has to be read to find it. Costs
@@ -304,7 +335,8 @@ export async function FleetBoard({
     <FleetPanel
       markers={markers}
       routes={routes}
-      market={market}
+      snaps={snaps}
+      planTrucks={planTrucks}
       rows={trackingRows}
       totals={{
         deliveryMiles: totalDeliveryMiles,

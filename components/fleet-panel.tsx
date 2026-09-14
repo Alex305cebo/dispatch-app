@@ -5,9 +5,11 @@
 // truck's own numbers, and its card in the list gets a ring. Server-rendered before
 // this, so nothing here refetches — the rows are already in hand.
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Truck, X } from 'lucide-react'
 import { FleetMap, type MapMarker, type MapMarket, type MapRoute } from '@/components/fleet-map'
+import { RoutePlanner, useRoutePlan, type PlanSnaps, type PlanTruck } from '@/components/route-planner'
+import { ltStates, type DatEquipment, type DatSnapshot } from '@/lib/dat-market-core'
 import { FleetList, type TrackingRow, type TruckMoney } from '@/components/fleet-list'
 import { RefreshFleetButton } from '@/components/refresh-fleet-button'
 import { Button } from '@/components/button'
@@ -42,7 +44,8 @@ function Tile({ value, label, tone }: TileData) {
 export function FleetPanel({
   markers,
   routes,
-  market = null,
+  snaps = {},
+  planTrucks = [],
   rows,
   totals,
   updatedText,
@@ -53,8 +56,10 @@ export function FleetPanel({
 }: {
   markers: MapMarker[]
   routes: MapRoute[]
-  /** Рынок DAT по штатам для слоя карты; null — снимка нет, кнопки «Рынок» тоже. */
-  market?: MapMarket | null
+  /** Суточные снимки DAT по сериям: слой «Рынок» на карте и «Куда отправить трак». */
+  snaps?: PlanSnaps
+  /** Траки для планировщика: откуда поедет, прицеп и расходы. */
+  planTrucks?: PlanTruck[]
   rows: TrackingRow[]
   totals: FleetTotals
   /** Pre-formatted on the server — "обновлено 3 мин назад" or the no-snapshot line. */
@@ -72,6 +77,15 @@ export function FleetPanel({
 }) {
   const locale = useLocale()
   const [selected, setSelected] = useState<number | null>(null)
+  // Слой «Рынок»: грузов на трак по штатам каждой серии — из тех же снимков, что у планировщика.
+  const market = useMemo<MapMarket | null>(() => {
+    const list = Object.entries(snaps) as [DatEquipment, DatSnapshot & { date: string }][]
+    if (!list.length) return null
+    // Дата в легенде — самого старого снимка из показанных: не обещать свежесть, которой нет.
+    const oldest = list.reduce((a, b) => (b[1].at < a[1].at ? b : a))
+    return { date: oldest[1].date, series: Object.fromEntries(list.map(([eq, s]) => [eq, ltStates(s)])) }
+  }, [snaps])
+  const plan = useRoutePlan(planTrucks, snaps, selected)
   const row = selected == null ? null : (rows.find((r) => r.id === selected) ?? null)
   // Выбор чипом ведёт карту к траку; выбор пином на карте — нет (он уже там).
   const [focus, setFocus] = useState<{ lat: number; lng: number } | null>(null)
@@ -129,7 +143,15 @@ export function FleetPanel({
   return (
     <>
       <div className="mb-2">
-        <FleetMap markers={markers} routes={routes} onSelect={setSelected} focus={focus} market={market} />
+        <FleetMap
+          markers={markers}
+          routes={routes}
+          onSelect={setSelected}
+          focus={focus}
+          market={market}
+          plan={plan.mapPlan}
+          onPickState={plan.setOrigin}
+        />
       </div>
 
       {/* Быстрый выбор трака — чипы прямо под картой: номер и цвет статуса. Нажатие
@@ -205,6 +227,10 @@ export function FleetPanel({
           <RefreshFleetButton staleMinutes={staleMinutes} />
         </div>
       </div>
+
+      {/* «Куда отправить трак» — сразу под картой и её цифрами: выбранный на карте трак
+          становится траком планировщика, а «На карте» красит штаты его выручкой в день. */}
+      {planTrucks.length > 0 && market && <RoutePlanner plan={plan} trucks={planTrucks} snaps={snaps} />}
 
       {between}
 

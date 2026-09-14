@@ -15,6 +15,12 @@ export type DatRegion = { code: string; states: string[]; rpm: number }
 /** Сколько грузов приходится на один трак в штате: чем выше, тем легче найти груз. */
 export type DatLt = { loads: number; trucks: number; ratio: number }
 
+/** Как рынок серии сдвинулся за неделю, %: грузов на трак и спотовая ставка. */
+export type DatTrend = { ltWoW: number | null; rateWoW: number | null }
+
+/** Грузов на трак по всей стране за неделю; `when` — конец недели, YYYY-MM-DD. */
+export type DatWeek = { when: string; ratio: number }
+
 export type DatSnapshot = {
   equipment: DatEquipment
   /** Когда забрали у DAT, мс. */
@@ -22,6 +28,10 @@ export type DatSnapshot = {
   regions: DatRegion[]
   lt: Record<string, DatLt>
   fuel: { when: string; price: number } | null
+  /** Тренд и история — только в суточном снимке из CI (scripts/dat-snapshot.mjs): живой
+   * запрос за ними не ходит и переносит их из прошлого снимка. У старых снимков их нет. */
+  trend?: DatTrend | null
+  history?: DatWeek[] | null
 }
 
 /**
@@ -80,15 +90,21 @@ export type DatHeat = 'hot' | 'warm' | 'cold'
  * и та же цифра значит противоположное.
  */
 export function ltHeat(snap: DatSnapshot, ratio: number): DatHeat {
+  const mid = ltMedian(snap)
+  if (!mid) return 'warm'
+  if (ratio >= mid * 1.25) return 'hot'
+  if (ratio <= mid * 0.8) return 'cold'
+  return 'warm'
+}
+
+/** Медиана грузов на трак по всем штатам серии — точка отсчёта горячести и простоя
+ * в «Куда отправить трак» (lib/route-plan-core.ts). 0 — соотношений в снимке нет. */
+export function ltMedian(snap: DatSnapshot): number {
   const all = Object.values(snap.lt)
     .map((x) => x.ratio)
     .filter((r) => Number.isFinite(r) && r > 0)
     .sort((a, b) => a - b)
-  if (!all.length) return 'warm'
-  const mid = all[Math.floor(all.length / 2)]!
-  if (ratio >= mid * 1.25) return 'hot'
-  if (ratio <= mid * 0.8) return 'cold'
-  return 'warm'
+  return all.length ? all[Math.floor(all.length / 2)]! : 0
 }
 
 /**
@@ -210,6 +226,36 @@ export function parseLt(raw: unknown): Record<string, DatLt> | null {
     out[code] = { loads: Number.isFinite(loads) ? loads : 0, trucks: Number.isFinite(trucks) ? trucks : 0, ratio }
   }
   return Object.keys(out).length ? out : null
+}
+
+/** /trends: недельный сдвиг грузов на трак и ставки для своей серии. Проценты вне ±1000 —
+ * поломка ответа, а не рынок. */
+export function parseTrend(raw: unknown, equipment: DatEquipment): DatTrend | null {
+  const name = equipment.charAt(0) + equipment.slice(1).toLowerCase()
+  const t = (raw as Record<string, Record<string, unknown> | undefined> | null)?.[`${name.toLowerCase()}Trends`]
+  const pct = (key: string) => {
+    const v = t?.[key]
+    return typeof v === 'number' && Number.isFinite(v) && Math.abs(v) < 1000 ? v : null
+  }
+  const trend = {
+    ltWoW: pct(`weekOverWeek${name}LoadToTruckRatioChangeInPercentage`),
+    rateWoW: pct(`weekOverWeek${name}SpotRateChangeInPercentage`),
+  }
+  return trend.ltWoW === null && trend.rateWoW === null ? null : trend
+}
+
+/** /{EQ}/loadAndTruckRatio: грузов на трак по стране понедельно — последние 52 недели. */
+export function parseHistory(raw: unknown): DatWeek[] | null {
+  const weekly = (raw as { oneMonthWeekly?: unknown } | null)?.oneMonthWeekly
+  if (!Array.isArray(weekly)) return null
+  const out: DatWeek[] = []
+  for (const w of weekly as Record<string, unknown>[]) {
+    const when = typeof w?.weekEndingWhen === 'string' ? w.weekEndingWhen.slice(0, 10) : ''
+    const ratio = Number(w?.ratio)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(when) && Number.isFinite(ratio) && ratio > 0) out.push({ when, ratio: Math.round(ratio * 100) / 100 })
+  }
+  out.sort((a, b) => a.when.localeCompare(b.when))
+  return out.length >= 2 ? out.slice(-52) : null
 }
 
 export function parseFuel(raw: unknown): { when: string; price: number } | null {

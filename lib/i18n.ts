@@ -20,6 +20,7 @@ import { overviewDict } from './i18n/dict-overview.ts'
 import { brokersDict } from './i18n/dict-brokers.ts'
 import { tollsDict } from './i18n/dict-tolls.ts'
 import { tourDict } from './i18n/dict-tour.ts'
+import { plannerDict } from './i18n/dict-planner.ts'
 
 export type Locale = 'en' | 'ru' | 'es' | 'uk' | 'ro' | 'kk'
 
@@ -60,6 +61,7 @@ const DICT = {
   ...brokersDict,
   ...tollsDict,
   ...tourDict,
+  ...plannerDict,
 } as const
 
 export type MsgKey = keyof typeof DICT

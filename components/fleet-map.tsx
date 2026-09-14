@@ -19,8 +19,7 @@ import { Flame } from 'lucide-react'
 import { useLocale } from '@/components/locale-provider'
 import { Info } from '@/components/info'
 import { t } from '@/lib/i18n'
-import { usDate, zoneTime } from '@/lib/fmt'
-import { todayEt } from '@/lib/payments'
+import { zoneTime } from '@/lib/fmt'
 import { US_STATES } from '@/lib/us-states'
 import type { DatEquipment, DatHeat } from '@/lib/dat-market-core'
 
@@ -63,13 +62,45 @@ export type MapRoute = {
  * медианы серии (ltStates в lib/dat-market-core.ts). Готовит сервер из суточного снимка,
  * карта только красит штаты. */
 export type MapMarket = {
-  /** Когда DAT отдал снимок, мс, — дата в легенде. */
-  at: number
+  /** Дата снимка DAT для легенды, MM/DD/YY — строкой с сервера, а не из миллисекунд в
+   * поясе браузера. */
+  date: string
   series: Partial<Record<DatEquipment, Record<string, { ratio: number; heat: DatHeat }>>>
+}
+
+/** Режим «Из штата» того же слоя: выручка в день из штата «Куда отправить трак»
+ * (components/route-planner.tsx). Подписи готовит планировщик — карта не знает ни цели,
+ * ни языка расчёта, только красит и зовёт onPickState на нажатие по штату. */
+export type MapPlan = {
+  origin: string
+  /** Код штата → место на шкале выручки в день (0 — 60% цели и ниже, 1 — 120% и выше)
+   * и строка для плашки. */
+  lanes: Record<string, { t: number; text: string }>
+  legend: { title: string; mode: string; from: string; low: string; high: string; hint: string }
+  /** Растёт на каждое «На карте» — карта включает слой в этом режиме и показывает себя. */
+  signal: number
 }
 
 const HEAT_KEY = { hot: 'needsLoad.heatHot', warm: 'needsLoad.heatWarm', cold: 'needsLoad.heatCold' } as const
 const HEAT_SWATCH = { hot: 'bg-good-400/60', warm: 'bg-white/20', cold: 'bg-bad-400/60' } as const
+/** Шкала выручки в день — та же, что у Route Planner на сайте: красный → янтарь →
+ * жёлто-зелёный → зелёный. Плавная, а не тремя корзинами: в слабый рынок все направления
+ * ниже цели, и корзины красили бы страну одним цветом. */
+const PLAN_RAMP: [number, number, number][] = [
+  [0, 70, 42],
+  [35, 75, 45],
+  [80, 60, 40],
+  [140, 60, 40],
+]
+function planColor(t: number): string {
+  const x = Math.min(1, Math.max(0, t)) * (PLAN_RAMP.length - 1)
+  const i = Math.min(PLAN_RAMP.length - 2, Math.floor(x))
+  const f = x - i
+  const a = PLAN_RAMP[i]!
+  const b = PLAN_RAMP[i + 1]!
+  return `hsl(${Math.round(a[0] + (b[0] - a[0]) * f)}, ${Math.round(a[1] + (b[1] - a[1]) * f)}%, ${Math.round(a[2] + (b[2] - a[2]) * f)}%)`
+}
+const PLAN_GRADIENT = `linear-gradient(90deg, ${[0, 1 / 3, 2 / 3, 1].map(planColor).join(', ')})`
 const SERIES_NAME: Record<DatEquipment, string> = { VAN: 'Van', REEFER: 'Reefer', FLATBED: 'Flatbed' }
 /** localStorage: включённый слой рынка остаётся включённым на следующих открытиях. */
 const MARKET_KEY = 'map:market'
@@ -462,6 +493,8 @@ export function FleetMap({
   onRoute,
   focus = null,
   market = null,
+  plan = null,
+  onPickState,
 }: {
   markers: MapMarker[]
   routes?: MapRoute[]
@@ -487,6 +520,10 @@ export function FleetMap({
   /** Рынок DAT по штатам. Есть — на карте кнопка «Рынок», которая красит штаты по тому,
    * сколько грузов приходится на трак, с легендой и датой снимка. */
   market?: MapMarket | null
+  /** Выручка в день из штата планировщика — второй режим слоя «Рынок». */
+  plan?: MapPlan | null
+  /** Нажатие по штату в режиме «Из штата»: считать уже из него. */
+  onPickState?: (code: string) => void
 }) {
   const locale = useLocale()
   // Узел, в котором живёт Leaflet. Создаётся ОДИН раз и кочует между обычным местом
@@ -549,7 +586,14 @@ export function FleetMap({
   const [series, setSeries] = useState<DatEquipment>('VAN')
   const seriesList = market ? (Object.keys(market.series) as DatEquipment[]) : []
   const shownSeries = seriesList.includes(series) ? series : (seriesList[0] ?? null)
-  const marketStates = marketOn && market && shownSeries ? (market.series[shownSeries] ?? null) : null
+  // Слой в двух режимах: «Рынок» — грузов на трак, «Из штата» — выручка в день из штата
+  // планировщика. Нет у страницы планировщика или штата в нём — остаётся «Рынок».
+  const [layerMode, setLayerMode] = useState<'heat' | 'plan'>('heat')
+  const planShown = marketOn && layerMode === 'plan' && plan ? plan : null
+  const marketStates = marketOn && !planShown && market && shownSeries ? (market.series[shownSeries] ?? null) : null
+  const layerOn = !!planShown || !!marketStates
+  const pickStateRef = useRef(onPickState)
+  pickStateRef.current = onPickState
 
   useEffect(() => {
     try {
@@ -558,6 +602,14 @@ export function FleetMap({
       /* хранилище закрыто — слой просто выключен */
     }
   }, [])
+  // «На карте» в планировщике: включить слой в режиме «Из штата» и показать саму карту.
+  const planSignal = plan?.signal ?? 0
+  useEffect(() => {
+    if (!planSignal) return
+    setMarketOn(true)
+    setLayerMode('plan')
+    hostRef.current?.closest('.fleet-map')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [planSignal])
   const toggleMarket = () => {
     const next = !marketOn
     setMarketOn(next)
@@ -573,7 +625,7 @@ export function FleetMap({
   // приезжают отдельным куском при первом включении.
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !marketStates) return
+    if (!map || (!marketStates && !planShown)) return
     let cancelled = false
     let group: import('leaflet').LayerGroup | null = null
     void (async () => {
@@ -582,13 +634,38 @@ export function FleetMap({
       if (!map.getPane('market')) map.createPane('market').style.zIndex = '350'
       group = L.layerGroup()
       for (const [code, name] of US_STATES) {
-        const s = marketStates[code]
         const shape = US_STATE_SHAPES[code]
-        if (!s || !shape) continue
-        const text = t(locale, 'needsLoad.market').replace('{ratio}', s.ratio.toFixed(1)).replace('{heat}', t(locale, HEAT_KEY[s.heat]))
-        L.polygon(shape, { pane: 'market', className: `mkt mkt-${s.heat}`, weight: 1 })
-          .bindTooltip(`<b>${esc(name)}</b> · ${esc(text)}`, { sticky: true, direction: 'top', offset: [0, -10], opacity: 1, className: 'mkt-tip' })
-          .addTo(group)
+        if (!shape) continue
+        let className: string
+        let text: string
+        let color: string | undefined
+        if (planShown) {
+          // Штат, откуда считаем, — акцентом; без направления (ближе 150 mi, нет региона
+          // DAT) — едва тонирован. Нажатие по любому — считать уже из него.
+          const lane = planShown.lanes[code]
+          const isOrigin = code === planShown.origin
+          className = isOrigin ? 'mkt mkt-origin' : lane ? 'mkt mkt-plan' : 'mkt mkt-none'
+          text = isOrigin ? planShown.legend.from : (lane?.text ?? '')
+          color = lane && !isOrigin ? planColor(lane.t) : undefined
+        } else {
+          const s = marketStates![code]
+          if (!s) continue
+          className = `mkt mkt-${s.heat}`
+          text = t(locale, 'needsLoad.market').replace('{ratio}', s.ratio.toFixed(1)).replace('{heat}', t(locale, HEAT_KEY[s.heat]))
+        }
+        // В режиме «Из штата» нажатие не всплывает до карты: там оно снимало бы выбор трака.
+        const poly = L.polygon(shape, {
+          pane: 'market',
+          className,
+          weight: 1,
+          bubblingMouseEvents: !planShown,
+          ...(color ? { color, fillColor: color } : {}),
+        }).bindTooltip(
+          `<b>${esc(name)}</b>${text ? ` · ${esc(text)}` : ''}`,
+          { sticky: true, direction: 'top', offset: [0, -10], opacity: 1, className: 'mkt-tip' },
+        )
+        if (planShown) poly.on('click', () => pickStateRef.current?.(code))
+        poly.addTo(group)
       }
       group.addTo(map)
     })()
@@ -596,7 +673,7 @@ export function FleetMap({
       cancelled = true
       group?.remove()
     }
-  }, [marketStates, locale, mapReady])
+  }, [marketStates, planShown, locale, mapReady])
 
   useEffect(() => {
     const map = mapRef.current
@@ -1058,7 +1135,7 @@ export function FleetMap({
             <span className="hidden sm:inline">{t(locale, 'tracking.trailLabel')}</span>
           </button>
         )}
-        {seriesList.length > 0 && (
+        {(seriesList.length > 0 || plan) && (
           <button
             type="button"
             onClick={toggleMarket}
@@ -1123,44 +1200,78 @@ export function FleetMap({
           many are moving / on duty / stopped. Nothing when no truck is on the map. */}
       {/* На телефоне легенде рынка и счётчику парка вдвоём внизу не хватает места —
           пока слой включён, счётчик уступает: те же цвета траков видны на самой карте. */}
-      <div className={marketStates ? 'max-sm:hidden' : undefined}>
+      <div className={layerOn ? 'max-sm:hidden' : undefined}>
         <LiveStatus trucks={markers.filter((m) => m.kind === 'truck')} locale={locale} />
       </div>
-      {marketStates && market && shownSeries && (
+      {layerOn && market && (
         <div className="absolute bottom-2.5 right-2.5 z-[1000] flex max-w-[calc(100%-20px)] flex-col gap-1 rounded-xl border border-white/15 bg-ink-950/85 px-2.5 py-2 text-[11px] text-white/70 backdrop-blur">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <span className="flex items-center gap-1 font-semibold text-white/85">
-              {t(locale, 'tracking.marketLegend')}
-              <Info text={t(locale, 'tracking.marketLegendInfo')} />
+              {planShown ? planShown.legend.title : t(locale, 'tracking.marketLegend')}
+              {!planShown && <Info text={t(locale, 'tracking.marketLegendInfo')} />}
             </span>
-            {seriesList.length > 1 && (
+            {/* Два режима одного слоя — переключатель только там, где страница дала планировщик. */}
+            {plan && (
               <span className="flex rounded-md bg-white/[0.06] p-0.5">
-                {seriesList.map((eq) => (
-                  <button
-                    key={eq}
-                    type="button"
-                    aria-pressed={eq === shownSeries}
-                    onClick={() => setSeries(eq)}
-                    className={`rounded px-1.5 py-0.5 text-[10.5px] font-semibold transition-colors max-md:min-h-8 max-md:px-2 ${
-                      eq === shownSeries ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-white/55 hover:text-white/85'
-                    }`}
-                  >
-                    {SERIES_NAME[eq]}
-                  </button>
-                ))}
+                {(['heat', 'plan'] as const).map((mode) => {
+                  const active = (mode === 'plan') === !!planShown
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setLayerMode(mode)}
+                      className={`rounded px-1.5 py-0.5 text-[10.5px] font-semibold transition-colors max-md:min-h-8 max-md:px-2 ${
+                        active ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-white/55 hover:text-white/85'
+                      }`}
+                    >
+                      {mode === 'heat' ? t(locale, 'plan.map.modeHeat') : plan.legend.mode}
+                    </button>
+                  )
+                })}
               </span>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-            {(['hot', 'warm', 'cold'] as const).map((h) => (
-              <span key={h} className="flex items-center gap-1">
-                <span className={`size-2.5 rounded-sm ${HEAT_SWATCH[h]}`} aria-hidden />
-                {t(locale, HEAT_KEY[h])}
-              </span>
-            ))}
-          </div>
+          {planShown ? (
+            <>
+              <div className="nums flex items-center gap-1.5">
+                <span>{planShown.legend.low}</span>
+                <span className="h-2 w-24 rounded-full opacity-80" style={{ background: PLAN_GRADIENT }} aria-hidden />
+                <span>{planShown.legend.high}</span>
+              </div>
+              <div className="text-[10.5px] text-white/45">{planShown.legend.hint}</div>
+            </>
+          ) : (
+            <>
+              {seriesList.length > 1 && (
+                <span className="flex self-start rounded-md bg-white/[0.06] p-0.5">
+                  {seriesList.map((eq) => (
+                    <button
+                      key={eq}
+                      type="button"
+                      aria-pressed={eq === shownSeries}
+                      onClick={() => setSeries(eq)}
+                      className={`rounded px-1.5 py-0.5 text-[10.5px] font-semibold transition-colors max-md:min-h-8 max-md:px-2 ${
+                        eq === shownSeries ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-white/55 hover:text-white/85'
+                      }`}
+                    >
+                      {SERIES_NAME[eq]}
+                    </button>
+                  ))}
+                </span>
+              )}
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+                {(['hot', 'warm', 'cold'] as const).map((h) => (
+                  <span key={h} className="flex items-center gap-1">
+                    <span className={`size-2.5 rounded-sm ${HEAT_SWATCH[h]}`} aria-hidden />
+                    {t(locale, HEAT_KEY[h])}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
           <div className="nums text-[10.5px] text-white/45">
-            {t(locale, 'loadCard.marketAsOf').replace('{when}', usDate(todayEt(new Date(market.at))))}
+            {t(locale, 'loadCard.marketAsOf').replace('{when}', market.date)}
           </div>
         </div>
       )}
