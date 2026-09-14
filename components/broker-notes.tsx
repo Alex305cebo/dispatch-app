@@ -24,6 +24,7 @@ import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale } from '@/lib/i18n'
 import { usDate } from '@/lib/fmt'
+import { todayEt } from '@/lib/payments'
 
 // The AI prompt (lib/ratecon-ai-contract.ts) tags each fact line with one of these —
 // lets the wall of prose from the RC render as a scannable list instead of one blob.
@@ -251,7 +252,7 @@ export function BrokerNotes({
         </span>
         <span className="min-w-0 flex-1 truncate text-[12px] text-white/45 group-open:hidden">{preview}</span>
         <span className="shrink-0 text-[11px] text-white/45">
-          {unread ? t(locale, 'brokerNotes.new') : t(locale, 'brokerNotes.readOn').replace('{date}', usDate(readAt))}
+          {unread ? t(locale, 'brokerNotes.new') : t(locale, 'brokerNotes.readOn').replace('{date}', usDate(todayEt(new Date(readAt))))}
         </span>
         {/* Explicit fold/unfold hint — this being a <details> (click to toggle) isn't
             obvious on its own, especially now that unread notes open by default. */}

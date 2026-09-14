@@ -508,7 +508,7 @@ async function Paid({
                         {load.origin ?? '—'} → {load.destination ?? '—'}
                       </div>
                       <div className="mt-0.5 text-[12px] text-white/60">
-                        {load.invoiceNumber} · {load.paidAt ? usDate(load.paidAt) : '—'}
+                        {load.invoiceNumber} · {load.paidAt ? usDate(todayEt(new Date(load.paidAt))) : '—'}
                         {r ? (
                           <>
                             {' '}
@@ -548,9 +548,11 @@ function groupByMonth<T extends { load: { paidAt: string | null } }>(rows: T[], 
   })
   const groups = new Map<string, { key: string; title: string; rows: T[]; gross: number }>()
   for (const row of rows) {
-    const d = row.load.paidAt ? new Date(row.load.paidAt) : null
-    const key = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : 'zzz-unknown'
-    const title = d ? fmt.format(d) : '—'
+    // Месяц дня оплаты по восточному времени, как дата в строке, а не в поясе сервера.
+    // Середина месяца — тот же месяц в любом поясе.
+    const month = row.load.paidAt ? todayEt(new Date(row.load.paidAt)).slice(0, 7) : null
+    const key = month ?? 'zzz-unknown'
+    const title = month ? fmt.format(new Date(`${month}-15T12:00:00Z`)) : '—'
     if (!groups.has(key)) groups.set(key, { key, title, rows: [], gross: 0 })
     const g = groups.get(key)!
     g.rows.push(row)

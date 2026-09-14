@@ -12,7 +12,7 @@ import { BrokerChecklist } from '@/components/broker-checklist'
 import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
-import { usd, usd2 } from '@/lib/fmt'
+import { usd, usd2, usDate } from '@/lib/fmt'
 import { pctText } from '@/lib/dat-market-core'
 import Link from 'next/link'
 
@@ -229,7 +229,7 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                         ) : (
                           <span>{t(locale, 'brokers.loadsCount').replace('{n}', String(b.loadCount))}</span>
                         )}
-                        {b.lastLoad && <span>{t(locale, 'brokers.lastLoad').replace('{date}', b.lastLoad)}</span>}
+                        {b.lastLoad && <span>{t(locale, 'brokers.lastLoad').replace('{date}', usDate(b.lastLoad))}</span>}
                       </div>
                       {/* Деньги отдельной строкой: справочник говорит, существует ли
                           брокер, а работать с ним или нет — решается вот этими цифрами.
@@ -331,7 +331,7 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                               )}
                               <span className="nums ml-auto shrink-0 text-white/35">
                                 {t(locale, 'brokers.repLoads').replace('{n}', String(p.loads))}
-                                {p.lastAt ? ` \u00b7 ${p.lastAt}` : ''}
+                                {p.lastAt ? ` \u00b7 ${usDate(p.lastAt)}` : ''}
                               </span>
                             </li>
                           ))}

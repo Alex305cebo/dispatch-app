@@ -21,6 +21,7 @@ import {
   PAY_VIA,
   daysBetween,
   paymentsCsv,
+  todayEt,
   type FactoringSettings,
   type LoadPayment,
   type PayGroup,
@@ -413,7 +414,7 @@ function StageLine({
       tone: 'good',
     })
   } else if (r.paidAt) {
-    parts.push({ text: fill(t(locale, 'payments.legacyPaid'), { date: usDate(r.paidAt) }), tone: 'good' })
+    parts.push({ text: fill(t(locale, 'payments.legacyPaid'), { date: usDate(todayEt(new Date(r.paidAt))) }), tone: 'good' })
   }
   if (p?.note) parts.push({ text: `✎ ${p.note}` })
   if (!parts.length) return null

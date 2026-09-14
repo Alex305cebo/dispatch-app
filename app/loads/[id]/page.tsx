@@ -9,7 +9,7 @@ import { getCompany } from '@/lib/invoice'
 import { fleetStatusByUnit, getTruckMeta } from '@/lib/maintenance'
 import { companyScope, getCurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
-import { financesHref, payBadge } from '@/lib/payments'
+import { financesHref, payBadge, todayEt } from '@/lib/payments'
 import { paymentFor } from '@/lib/payments-server'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
@@ -403,7 +403,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </h2>
           {load.paidAt && (
             <span className="rounded-full bg-good-500/15 px-2 py-0.5 text-[11px] font-medium text-good-400">
-              {t(locale, 'loadDetail.paidOn').replace('{date}', usDate(load.paidAt))}
+              {t(locale, 'loadDetail.paidOn').replace('{date}', usDate(todayEt(new Date(load.paidAt))))}
             </span>
           )}
         </div>
