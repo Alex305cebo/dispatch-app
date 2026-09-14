@@ -1,5 +1,15 @@
 import Link from 'next/link'
-import { listLoads, listLoadsByDispatcher, listPaidLoads, listTrucks, rateConByLoad, type LoadWithDispatcher } from '@/lib/loads'
+import {
+  listLoads,
+  listLoadsByDispatcher,
+  listPaidLoads,
+  listReceivables,
+  listTrucks,
+  listUninvoicedDelivered,
+  rateConByLoad,
+  type LoadWithDispatcher,
+  type Receivable,
+} from '@/lib/loads'
 import { sql } from '@/lib/db'
 import { daysBetween, defaultFee, factoringDoneDay, financesHref, payGroup, todayEt, type PayGroup } from '@/lib/payments'
 import { factoringSettings, paymentsByLoad } from '@/lib/payments-server'
@@ -16,7 +26,7 @@ import { getSetting } from '@/lib/settings'
 import { can } from '@/lib/capabilities-server'
 import { RateConButton } from '@/components/ratecon-button'
 import { Info } from '@/components/info'
-import { Wallet } from 'lucide-react'
+import { CircleCheckBig, Wallet } from 'lucide-react'
 import { Collapse } from '@/components/collapse'
 import { Empty } from '@/components/empty'
 
@@ -26,6 +36,7 @@ function tabDescription(locale: Locale): Record<string, string> {
   return {
     payments: t(locale, 'payments.tabDesc'),
     weeks: t(locale, 'finances.tabDesc.weeks'),
+    unpaid: t(locale, 'finances.tabDesc.unpaid'),
     paid: t(locale, 'finances.tabDesc.paid'),
     dispatchers: t(locale, 'finances.tabDesc.dispatchers'),
     drivers: t(locale, 'finances.tabDesc.drivers'),
@@ -42,12 +53,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   const { tab: tabParam, q } = await searchParams
   // «Оплата · факторинг» — по умолчанию: «Финансы» — место бухгалтера, и первое, что
   // ему нужно, — какие грузы отправить в факторинг и где застряли деньги. Старая ссылка
-  // ?tab=unpaid (обзор) ведёт сюда же — неоплаченные теперь здесь.
   const tab =
     tabParam === 'paid'
       ? 'paid'
       : tabParam === 'weeks'
         ? 'weeks'
+        : tabParam === 'unpaid'
+          ? 'unpaid'
         : tabParam === 'drivers'
           ? 'drivers'
           : tabParam === 'dispatchers' && canReport
@@ -86,6 +98,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
             {t(locale, 'finances.tab.dispatchers')}
           </Tab>
         )}
+        <Tab href="/invoices?tab=unpaid" active={tab === 'unpaid'}>
+          {t(locale, 'finances.tab.unpaid')}
+        </Tab>
         <Tab href="/invoices?tab=paid" active={tab === 'paid'}>
           {t(locale, 'finances.tab.paid')}
         </Tab>
@@ -98,6 +113,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         <Payments companyId={companyId} rateCons={rateCons} locale={locale} query={q ?? ''} />
       ) : tab === 'weeks' ? (
         <ByWeek companyId={companyId} rateCons={rateCons} locale={locale} />
+      ) : tab === 'unpaid' ? (
+        <Unpaid companyId={companyId} rateCons={rateCons} locale={locale} />
       ) : tab === 'paid' ? (
         <Paid companyId={companyId} rateCons={rateCons} locale={locale} />
       ) : tab === 'drivers' ? (
@@ -216,6 +233,206 @@ async function Payments({
     </>
   )
 }
+
+async function Unpaid({
+  companyId,
+  rateCons,
+  locale,
+}: {
+  companyId: 'default' | 'demo'
+  rateCons: Map<number, number>
+  locale: Locale
+}) {
+  const [rec, uninvoiced] = await Promise.all([listReceivables(companyId), listUninvoicedDelivered(companyId)])
+  const total = rec.reduce((s, r) => s + r.load.rate, 0)
+  const uninvoicedTotal = uninvoiced.reduce((s, l) => s + l.rate, 0)
+  const overdue = rec.filter((r) => r.overdue)
+  const buckets = {
+    '0-30': rec.filter((r) => r.bucket === '0-30'),
+    '31-45': rec.filter((r) => r.bucket === '31-45'),
+    '45+': rec.filter((r) => r.bucket === '45+'),
+  }
+
+  return (
+    <>
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat
+          label={t(locale, 'finances.stat.waitingTotal')}
+          value={usd.format(total + uninvoicedTotal)}
+          info={
+            uninvoicedTotal > 0
+              ? t(locale, 'finances.stat.waitingInfo').replace('{amt}', usd.format(uninvoicedTotal))
+              : undefined
+          }
+        />
+        <Stat
+          label={t(locale, 'finances.stat.bucket030')}
+          value={usd.format(buckets['0-30'].reduce((s, r) => s + r.load.rate, 0))}
+        />
+        <Stat
+          label={t(locale, 'finances.stat.bucket3145')}
+          value={usd.format(buckets['31-45'].reduce((s, r) => s + r.load.rate, 0))}
+          tone={buckets['31-45'].length ? 'warn' : undefined}
+        />
+        <Stat
+          label={t(locale, 'finances.stat.bucket45plus')}
+          value={usd.format(buckets['45+'].reduce((s, r) => s + r.load.rate, 0))}
+          tone={buckets['45+'].length || overdue.length ? 'bad' : undefined}
+        />
+      </div>
+
+      {/* Delivered but never invoiced — these used to just vanish: not in this list
+          (no invoiced_at yet), not visible anywhere else either. */}
+      {uninvoiced.length > 0 && (
+        <div className="mb-5">
+          <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+            {t(locale, 'finances.uninvoiced.heading')} · {usd.format(uninvoicedTotal)}
+            <Info text={t(locale, 'finances.uninvoiced.info')} />
+          </h2>
+          <div className="flex flex-col gap-2">
+            {uninvoiced.map((load) => (
+              <div key={load.id} className="panel p-4 border-warn-400/20">
+                <div className="flex items-center gap-4">
+                  <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
+                    <div className="text-[14px] font-medium leading-5">
+                      {load.origin ?? '—'} → {load.destination ?? '—'}
+                    </div>
+                    <div className="mt-0.5 text-[12px] text-white/60">
+                      {load.brokerMc ? `MC ${load.brokerMc} · ` : ''}
+                      {t(locale, 'finances.uninvoiced.cta')}
+                    </div>
+                  </Link>
+                  <span className="nums shrink-0 text-[15px] font-bold">{usd.format(load.rate)}</span>
+                  {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
+                </div>
+                {/* Статус меняется прямо здесь: платёж пришёл по квик-пею или через
+                    факторинг раньше инвойса — не ходить за этим на страницу груза. */}
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
+                  <Link
+                    href={financesHref(load)}
+                    className="inline-flex min-h-9 items-center rounded-lg bg-haul-500 px-3 text-[12px] font-semibold text-white hover:bg-haul-400 max-md:min-h-11"
+                  >
+                    {t(locale, 'payments.tab')} →
+                  </Link>
+                  <Link
+                    href={`/loads/${load.id}`}
+                    className="rounded-lg border border-white/15 px-3 py-1.5 text-[12px] font-semibold text-white/80 hover:border-white/35 hover:text-white"
+                  >
+                    {t(locale, 'finances.card.buildInvoice')}
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {rec.length === 0 ? (
+        uninvoiced.length === 0 && <Empty icon={CircleCheckBig} title={t(locale, 'finances.unpaid.empty')} />
+      ) : (
+        /* Was one flat column of every outstanding invoice — fine at eight rows, a
+           scrolling wall at eighty, with the overdue ones buried somewhere inside it.
+           Now grouped by how late the money is: overdue opens by default because it
+           is the only group that needs acting on today; the healthy buckets stay
+           collapsed but still state their count and total in the header. */
+        <div className="flex flex-col gap-2">
+          {AGING_GROUPS.map((g) => {
+            const rows = g.pick(rec, overdue)
+            if (rows.length === 0) return null
+            return (
+              <Collapse
+                key={g.key}
+                title={t(locale, g.labelKey)}
+                count={rows.length}
+                amount={usd.format(rows.reduce((s, r) => s + r.load.rate, 0))}
+                tone={g.tone}
+                defaultOpen={g.open}
+              >
+                <div className="flex flex-col gap-2">{rows.map((r) => renderReceivable(r))}</div>
+              </Collapse>
+            )
+          })}
+        </div>
+      )}
+    </>
+  )
+
+  function renderReceivable(r: Receivable) {
+    return (
+      <div key={r.load.id} className={`panel p-4 ${r.overdue ? 'border-bad-500/30' : ''}`}>
+        <div className="flex items-start gap-3">
+          <Link href={`/loads/${r.load.id}`} className="min-w-0 flex-1">
+            <div className="text-[14px] font-medium">
+              {r.load.origin ?? '—'} → {r.load.destination ?? '—'}
+            </div>
+            <div className="mt-0.5 text-[12px] text-white/60">
+              {r.load.invoiceNumber} · {r.load.brokerMc ? `MC ${r.load.brokerMc} · ` : ''}
+              <span className={r.overdue ? 'text-bad-400' : 'text-white/60'}>
+                {t(locale, 'finances.unpaid.daysOut')
+                  .replace('{d}', String(r.daysOut))
+                  .replace('{n}', String(r.load.paymentTermsDays))}
+                {r.overdue ? t(locale, 'finances.unpaid.overdue') : ''}
+              </span>
+            </div>
+          </Link>
+          <span className="nums shrink-0 text-[15px] font-bold">{usd.format(r.load.rate)}</span>
+          {rateCons.get(r.load.id) && <RateConButton docId={rateCons.get(r.load.id)!} compact />}
+        </div>
+        {/* Кнопки статуса — своей строкой под карточкой: на телефоне рядом с суммой
+            им не хватало места, и «Оплачено» приходилось искать. */}
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
+          <Link
+                    href={financesHref(r.load)}
+                    className="inline-flex min-h-9 items-center rounded-lg bg-haul-500 px-3 text-[12px] font-semibold text-white hover:bg-haul-400 max-md:min-h-11"
+                  >
+                    {t(locale, 'payments.tab')} →
+                  </Link>
+          <Link
+            href={`/loads/${r.load.id}`}
+            className="inline-flex min-h-9 items-center rounded-lg border border-white/15 px-3 text-[12px] font-semibold text-white/80 hover:border-white/35 hover:text-white max-md:min-h-11"
+          >
+            {t(locale, 'finances.card.openLoad')}
+          </Link>
+        </div>
+      </div>
+    )
+  }
+}
+
+/** Aging groups for the unpaid tab, in the order a dispatcher works them: what is
+ * already late first, then the healthy buckets by age. `overdue` is deliberately its
+ * own group rather than a tint inside the buckets — a 20-day-old invoice past its
+ * terms and a 20-day-old invoice inside them call for different actions. */
+const AGING_GROUPS = [
+  {
+    key: 'overdue',
+    labelKey: 'finances.group.overdue' as const,
+    tone: 'bad' as const,
+    open: true,
+    pick: (_rec: Receivable[], overdue: Receivable[]) => overdue,
+  },
+  {
+    key: '0-30',
+    labelKey: 'finances.stat.bucket030' as const,
+    tone: 'plain' as const,
+    open: false,
+    pick: (rec: Receivable[]) => rec.filter((r) => !r.overdue && r.bucket === '0-30'),
+  },
+  {
+    key: '31-45',
+    labelKey: 'finances.stat.bucket3145' as const,
+    tone: 'warn' as const,
+    open: false,
+    pick: (rec: Receivable[]) => rec.filter((r) => !r.overdue && r.bucket === '31-45'),
+  },
+  {
+    key: '45+',
+    labelKey: 'finances.stat.bucket45plus' as const,
+    tone: 'bad' as const,
+    open: true,
+    pick: (rec: Receivable[]) => rec.filter((r) => !r.overdue && r.bucket === '45+'),
+  },
+]
 
 async function Paid({
   companyId,

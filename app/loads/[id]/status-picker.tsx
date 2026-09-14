@@ -8,7 +8,6 @@ import { Ban, Check, RotateCcw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { addLoadEventManual, deleteLoad, setStatus, unmarkStop, uploadDocument } from '@/app/actions'
 import { DeleteButton } from '@/components/delete-button'
-import { PayChipView, type PayChip } from '@/components/invoice-actions'
 import { type LoadStatus } from '@/lib/map'
 import { notify } from '@/lib/notify'
 import { statusLabel, STATUS_ICON } from '@/components/status'
@@ -18,7 +17,8 @@ import { t } from '@/lib/i18n'
 // The pipeline a load actually walks, in order. `cancelled` is deliberately NOT in it:
 // it isn't a later stage of the same journey, it's the journey being abandoned, and
 // putting it sixth in a row of equal buttons implied a load progresses into it.
-const PIPELINE: LoadStatus[] = ['quoted', 'booked', 'in_transit', 'delivered', 'paid']
+// «Оплачен» здесь не шаг: деньги отмечает бухгалтер в «Финансах» (app/invoices).
+const PIPELINE: LoadStatus[] = ['quoted', 'booked', 'in_transit', 'delivered']
 
 // Each step's colour once reached. Matches components/status.tsx's badge hues so the
 // rail and the badge on the same page can never disagree about what "booked" looks like.
@@ -153,11 +153,8 @@ export function StatusPicker({
   stops = [],
   truckId = null,
   title = '',
-  pay = null,
 }: {
   id: number
-  /** Где деньги (lib/payments.ts payBadge): метка под «Оплачен»; сам шаг ставят «Финансы». */
-  pay?: PayChip | null
   current: LoadStatus
   /** Трак груза — куда вернуться после удаления ошибочного груза. */
   truckId?: number | null
@@ -176,8 +173,9 @@ export function StatusPicker({
   const router = useRouter()
   const [shown, setShown] = useOptimistic(current)
   const cancelled = shown === 'cancelled'
-  // -1 while cancelled, which correctly leaves every step unreached below.
-  const currentIdx = PIPELINE.indexOf(shown)
+  // -1 while cancelled, which correctly leaves every step unreached below; оплаченный
+  // прошёл все шаги полосы.
+  const currentIdx = shown === 'paid' ? PIPELINE.length : PIPELINE.indexOf(shown)
   const TRANSIT_IDX = PIPELINE.indexOf('in_transit')
 
   // Состояние точек, переключённых с полосы прямо сейчас — до того, как сервер
@@ -402,7 +400,7 @@ export function StatusPicker({
               <div className={STEP_W}>
                 <button
                   type="button"
-                  onClick={() => (s === shown ? same(s) : s === 'paid' && pay?.href ? router.push(pay.href) : go(s))}
+                  onClick={() => (s === shown ? same(s) : go(s))}
                   aria-current={isCurrent ? 'step' : undefined}
                   title={statusLabel(locale, s)}
                   className={`flex size-7 shrink-0 items-center justify-center rounded-full transition-all duration-150 disabled:cursor-default ${
@@ -420,12 +418,6 @@ export function StatusPicker({
                 </span>
                 {s === 'booked' && <DocChip label="BOL" docId={bolId} due={currentIdx >= 1} />}
                 {s === 'delivered' && <DocChip label="POD" docId={podId} due={currentIdx >= 2} />}
-                {s === 'paid' && pay && (
-                  <PayChipView
-                    pay={pay}
-                    className="mt-1 max-w-full truncate rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
-                  />
-                )}
               </div>
             </li>
           )

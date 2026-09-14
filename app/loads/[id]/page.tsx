@@ -187,7 +187,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             current={load.status}
             bolId={bolDoc?.id ?? null}
             podId={podDoc?.id ?? null}
-            pay={pay}
             stops={stops.slice(1, -1).map((s) => ({
               key: String(s.seq),
               seq: s.seq,
