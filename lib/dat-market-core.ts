@@ -45,9 +45,13 @@ export function datState(code: string): string {
   return c === 'KS' ? 'KA' : c
 }
 
-/** Штат из «Wapakoneta, OH» или «Cleveland TN 37312». */
+/** Штат из «Wapakoneta, OH» или «Cleveland TN 37312». У места трака бывает приставка
+ * «NV · 98.0mi ENE from Mammoth lakes, CA» (lib/place.ts: штат в строке вендора чужой) —
+ * тогда настоящий штат в приставке. */
 export function stateFromPlace(place: string | null | undefined): string | null {
   const s = (place ?? '').trim()
+  const fixed = /^([A-Z]{2})\s·\s/.exec(s)
+  if (fixed) return fixed[1]!
   const comma = /,\s*([A-Za-z]{2})\b/.exec(s)
   if (comma) return comma[1]!.toUpperCase()
   const bare = /\s([A-Za-z]{2})(?:\s+\d{5}(?:-\d{4})?)?$/.exec(s)
@@ -101,6 +105,16 @@ export function laneMarket(
   const o = os ? { state: os, region: regionOf(snap, os), lt: ltOf(snap, os) } : null
   const d = ds ? { state: ds, region: regionOf(snap, ds), lt: ltOf(snap, ds) } : null
   return { origin: o, dest: d, rpm: o?.region?.rpm ?? d?.region?.rpm ?? null }
+}
+
+/**
+ * Ставка DAT по региону погрузки — ориентир для груза, у которого своей рыночной ставки
+ * нет. Регион доставки сюда не подставляется: сравнивают с ценой грузов, выходящих из
+ * региона погрузки. Код региона DAT пишет капсом (NORTH) — людям показываем «North».
+ */
+export function originRate(snap: DatSnapshot, origin: string | null): { rpm: number; region: string } | null {
+  const region = laneMarket(snap, origin, null).origin?.region
+  return region ? { rpm: region.rpm, region: region.code.charAt(0) + region.code.slice(1).toLowerCase() } : null
 }
 
 /** Ставка груза против рынка: разница в процентах и цвет. ±10% — ещё «в рынке». */

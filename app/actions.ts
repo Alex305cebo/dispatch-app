@@ -346,6 +346,18 @@ export async function fetchDiesel() {
 }
 
 /**
+ * Рынок DAT для формы груза. Серия — тип трейлера груза (приходит в QR с биржи), иначе
+ * трейлер выбранного трака, иначе Van. Ставка брокера сюда не уходит: регион погрузки
+ * форма считает сама по этому снимку, пока диспетчер печатает направление.
+ */
+export async function fetchDatSnapshot(equipment: string | null, truckId: number) {
+  const { datEquipment, datSnapshot } = await import('@/lib/dat-market')
+  const { truckTrailerNumbers } = await import('@/lib/maintenance')
+  const trailer = (await truckTrailerNumbers(await companyScope())).get(truckId)
+  return datSnapshot(datEquipment(equipment) ?? datEquipment(trailer) ?? 'VAN').catch(() => null)
+}
+
+/**
  * Записать актуальную цену дизеля EIA в траки — один (truckId) или весь парк (null).
  * Кнопка в форме трака только подставляла цену в поле, и её ещё надо было сохранить;
  * здесь — сразу в базу, чтобы расчёты по всему парку не жили на цене полугодовой

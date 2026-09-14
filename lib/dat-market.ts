@@ -1,3 +1,4 @@
+import { after } from 'next/server'
 import { getSetting, setSetting } from '@/lib/settings'
 import { parseFuel, parseLt, parseRegions, type DatEquipment, type DatSnapshot } from './dat-market-core.ts'
 
@@ -21,6 +22,14 @@ const BASE = 'https://analytics.api.dat.com/v2/trendlines'
 const PAGE = 'https://iq.trendlines-prod.prod.dat.com'
 const TTL_MS = 6 * 3_600_000
 const FORCE_FLOOR_MS = 5 * 60_000
+const FAIL_PAUSE_MS = 10 * 60_000
+
+/** Когда DAT последний раз не ответил — по серии, в памяти процесса. Карточка груза
+ * перечитывает себя каждые полминуты, обзор открывают постоянно: без паузы каждый такой
+ * показ во время сбоя DAT уходил бы новыми запросами к чужому сервису. */
+const failedAt = new Map<DatEquipment, number>()
+
+const cacheKey = (equipment: DatEquipment) => `dat_trendlines_${equipment}`
 
 async function getJson(path: string): Promise<unknown> {
   const ctrl = new AbortController()
@@ -60,10 +69,11 @@ export async function datSnapshot(
   equipment: DatEquipment,
   opts: { force?: boolean } = {},
 ): Promise<(DatSnapshot & { stale: boolean }) | null> {
-  const key = `dat_trendlines_${equipment}`
+  const key = cacheKey(equipment)
   const cached = readCache(await getSetting(key))
   const age = cached ? Date.now() - cached.at : Infinity
   if (cached && (opts.force ? age < FORCE_FLOOR_MS : age < TTL_MS)) return { ...cached, stale: false }
+  if (!opts.force && Date.now() - (failedAt.get(equipment) ?? 0) < FAIL_PAUSE_MS) return cached ? { ...cached, stale: true } : null
 
   const [regionsRaw, ltRaw, fuelRaw] = await Promise.all([
     getJson(`/${equipment}/regionalRates`),
@@ -72,9 +82,27 @@ export async function datSnapshot(
   ])
   const regions = parseRegions(regionsRaw)
   const lt = parseLt(ltRaw)
-  if (!regions || !lt) return cached ? { ...cached, stale: true } : null
+  if (!regions || !lt) {
+    failedAt.set(equipment, Date.now())
+    return cached ? { ...cached, stale: true } : null
+  }
 
   const snap: DatSnapshot = { equipment, at: Date.now(), regions, lt, fuel: parseFuel(fuelRaw) ?? cached?.fuel ?? null }
   await setSetting(key, JSON.stringify(snap)).catch(() => {})
   return { ...snap, stale: false }
+}
+
+/**
+ * Снимок только из кэша — для страниц, которые рисуются на сервере (карточка груза,
+ * обзор): чужой сервис страницу держать не должен. Протух или его ещё нет — отдаём что
+ * есть, а за свежим идём уже после ответа: цифры получит следующий показ.
+ */
+export async function datCached(equipment: DatEquipment): Promise<DatSnapshot | null> {
+  try {
+    const cached = readCache(await getSetting(cacheKey(equipment)))
+    if (!cached || Date.now() - cached.at >= TTL_MS) after(() => datSnapshot(equipment).catch(() => null))
+    return cached
+  } catch {
+    return null
+  }
 }

@@ -50,6 +50,7 @@ import { MissingPodBanner } from '@/components/missing-pod-banner'
 import { loadsMissingPod } from '@/lib/loads'
 import { CopyPlace } from '@/components/copy-place'
 import { placeCity } from '@/lib/place'
+import { datCached, datEquipment, originRate } from '@/lib/dat-market'
 
 export const dynamic = 'force-dynamic'
 
@@ -108,7 +109,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         (l) => l.id !== load.id && l.status !== 'quoted' && l.status !== 'cancelled' && Date.parse(l.createdAt) > Date.parse(load.createdAt),
       ))
   // Прошлые грузы этого трака без POD — в шапку: пока везут этот, про тот забывают.
-  const missingPod = await loadsMissingPod(companyId, truckLoads.filter((l) => l.id !== load.id))
+  // Рядом — рынок DAT, если своей рыночной ставки у груза нет (почти всегда): серия по
+  // трейлеру трака, иначе Van. Только из кэша — страница DAT не ждёт.
+  const [missingPod, datSnap] = await Promise.all([
+    loadsMissingPod(companyId, truckLoads.filter((l) => l.id !== load.id)),
+    load.spotRpm ? null : datCached(datEquipment(truckMeta?.trailerNumber) ?? 'VAN'),
+  ])
+  const datRate = datSnap ? originRate(datSnap, load.origin) : null
   const taskLoads = mates.length ? [load, ...mates] : []
   const taskEvents: Record<number, StopEv[]> = { [load.id]: driverEvents }
   for (const m of mates) taskEvents[m.id] = await listLoadEvents(companyId, m.id)
@@ -236,7 +243,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             {t(locale, 'loadDetail.rateHeading')}
             <Info text={t(locale, 'loadDetail.rateInfo')} />
           </h2>
-          <Analysis r={r} mpg={truck.mpg} spotRpm={load.spotRpm} />
+          <Analysis
+            r={r}
+            mpg={truck.mpg}
+            spotRpm={load.spotRpm}
+            dat={datRate && datSnap && { ...datRate, date: usDate(new Date(datSnap.at)) }}
+          />
         </div>
       </section>
 

@@ -5,6 +5,7 @@ import {
   datState,
   stateFromPlace,
   laneMarket,
+  originRate,
   marketVerdict,
   ltHeat,
   parseRegions,
@@ -66,6 +67,9 @@ test('штат из места с запятой и без', () => {
   assert.equal(stateFromPlace('Cleveland TN 37312'), 'TN')
   assert.equal(stateFromPlace('Cleveland TN'), 'TN')
   assert.equal(stateFromPlace('Loudon, TN 37774-1234'), 'TN')
+  // Место трака, где штат вендора разошёлся с координатами: настоящий — в приставке
+  assert.equal(stateFromPlace('NV · 98.0mi ENE from Mammoth lakes, CA'), 'NV')
+  assert.equal(stateFromPlace('1.1mi SSW from Tonopah, NV'), 'NV')
   assert.equal(stateFromPlace(''), null)
   assert.equal(stateFromPlace(null), null)
 })
@@ -80,6 +84,14 @@ test('ориентир рынка — регион погрузки, регио�
   assert.equal(laneMarket(snap(), 'Anchorage, AK', 'Cleveland, TN').rpm, 2.8)
   // Нет ни того ни другого — честный null
   assert.equal(laneMarket(snap(), 'Anchorage, AK', 'Honolulu, HI').rpm, null)
+})
+
+test('груз без своей рыночной ставки: ставка DAT по региону погрузки', () => {
+  assert.deepEqual(originRate(snap(), 'Wapakoneta, OH'), { rpm: 3.1, region: 'North' })
+  assert.deepEqual(originRate(snap(), 'Wichita, KS'), { rpm: 3.1, region: 'North' })
+  // Регион доставки не подставляется — ориентир только погрузка
+  assert.equal(originRate(snap(), 'Anchorage, AK'), null)
+  assert.equal(originRate(snap(), null), null)
 })
 
 test('вердикт по рынку: ±10% ещё в рынке', () => {
