@@ -101,7 +101,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     // Что ещё едет в этом же трейлере — чтобы показать одно задание на все грузы.
     listLoads(companyId, { truckId: truck.id }),
   ])
-  const mates = (activeLoadsByTruck(truckLoads).get(truck.id) ?? []).filter((l) => l.id !== load.id)
+  // Соседи по трейлеру — только если этот груз сам в нём едет (текущий или открытый
+  // партиал). Иначе к доставленному или следующему грузу подмешивались остановки
+  // текущего: у Trinity показывалось общее задание, а у самого Tallgrass — нет.
+  const active = activeLoadsByTruck(truckLoads).get(truck.id) ?? []
+  const mates = active.some((l) => l.id === load.id) ? active.filter((l) => l.id !== load.id) : []
   const showBackhaul =
     backhaul &&
     (load.status !== 'delivered' ||
