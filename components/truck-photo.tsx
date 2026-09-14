@@ -102,7 +102,7 @@ export function TruckPhoto({
       <img
         src={src}
         alt={alt}
-        className={`${fill ? 'h-full w-full object-contain object-bottom p-2 sm:object-right sm:p-4' : 'w-full object-contain'} ${pending ? 'opacity-50' : ''}`}
+        className={`${fill ? 'h-full w-full object-contain object-center p-2 sm:p-3' : 'w-full object-contain'} ${pending ? 'opacity-50' : ''}`}
       />
       <button
         type="button"

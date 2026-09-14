@@ -222,14 +222,13 @@ export default async function Page({
         locale={locale}
       />
 
-      {/* ===== Шапка-баннер, как карточка товара: слева номер, водитель, где стоит;
-           справа трак крупно во всю высоту шапки, за ним мягкая подсветка. На
-           телефоне картинка — полосой сверху. Задание и цифры — ниже в той же
-           панели. ===== */}
+      {/* ===== Шапка-баннер, как карточка товара: слева номер, паспорт и текущий груз;
+           справа трак и где стоит; ниже во всю ширину — точки задания и цифры трака.
+           На телефоне картинка — полосой сверху. ===== */}
       <section className="panel relative mt-3 overflow-hidden">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-0 w-full bg-[radial-gradient(60%_90%_at_85%_45%,rgba(109,90,232,0.22),transparent_70%)] sm:w-3/5"
+          className="pointer-events-none absolute inset-y-0 right-0 w-full bg-[radial-gradient(60%_60%_at_80%_22%,rgba(109,90,232,0.22),transparent_70%)] sm:w-3/5"
         />
         <div className="relative grid sm:grid-cols-[minmax(0,1fr)_minmax(280px,44%)]">
           <div className="min-w-0 p-4 sm:p-5">
@@ -300,7 +299,7 @@ export default async function Page({
             {fs?.location && (
               /* Где сейчас: место — отдельной строкой во всю ширину, кнопки под ним.
                  Ответ на «где трак» почти всегда тут же уходит брокеру. */
-              <HeadField label={t(locale, 'trucks.head.location')} className="col-span-2 sm:col-span-3">
+              <HeadField label={t(locale, 'trucks.head.location')} className="col-span-2 sm:hidden">
                 <span className="block">{fs.location}</span>
                 <CopyPlace
                   text={fs.location}
@@ -375,30 +374,6 @@ export default async function Page({
                   <span className="nums ml-auto font-medium text-white/70">{usd.format(p.rate)}</span>
                 </Link>
               ))}
-              {/* Порядок точек нужен, только когда их больше двух: у обычного рейса
-                  «откуда → куда» в строке выше и есть всё задание. */}
-              {(taskLoads.length > 1 || activeStops.length > 2) && (
-                <TaskStops loads={taskLoads} events={taskEvents} locale={locale} className="mt-3" />
-              )}
-              {nextLoad && (
-                <Link
-                  href={`/loads/${nextLoad.id}`}
-                  className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[13px] hover:border-white/25"
-                >
-                  <span className="text-[13px] font-semibold text-white/75">
-                    {t(locale, 'trucks.detail.nextLoad')}
-                  </span>
-                  <span className="font-medium text-white/85">
-                    {nextLoad.origin ?? '—'} → {nextLoad.destination ?? '—'}
-                  </span>
-                  <span className="nums text-white/50">{nextLoad.pickupTime || usDate(nextLoad.pickupDate)}</span>
-                  {nextLoad.referenceId && (
-                    <span className="nums text-[12px] text-white/40">#{nextLoad.referenceId}</span>
-                  )}
-                  <span className="nums ml-auto font-medium text-white/70">{usd.format(nextLoad.rate)}</span>
-                </Link>
-              )}
-              {nextLoad && <QueuedLoadHint compact locale={locale} current={activeLoad} next={nextLoad} />}
             </>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-white/55">
@@ -437,73 +412,121 @@ export default async function Page({
             <DriverLinkButton url={driverLink} driverPhone={meta?.driverPhone ?? null} seenAt={driverSeen} />
           )}
         </div>
-
-        {/* Цифры трака — одной компактной строкой ПОД заданием: сроки текущего рейса
-            читаются раньше недельной ставки и масла. */}
-        <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10 sm:grid-cols-4">
-          <Chip
-            label={t(locale, 'trucks.chip.weekRate')}
-            value={usd.format(weekGross)}
-            tone={weekGross > 0 ? 'good' : undefined}
-            info={t(locale, 'trucks.chip.weekRateInfo')}
-          />
-          <Chip
-            label={t(locale, 'trucks.chip.weekMiles')}
-            value={`${Math.round(weekMiles).toLocaleString('en-US')} mi`}
-            info={t(locale, 'trucks.chip.weekMilesInfo')}
-          />
-          <Chip
-            label={t(locale, 'trucks.chip.rpm')}
-            value={`${usd2.format(avgRpm)}`}
-            info={t(locale, 'trucks.chip.rpmInfo')}
-          />
-          <Chip
-            label={t(locale, 'trucks.chip.deadhead')}
-            value={weekMiles > 0 ? `${Math.round(weekDeadhead).toLocaleString('en-US')} mi · ${weekDeadheadPct}%` : '—'}
-            tone={weekMiles > 0 ? (weekDeadheadPct >= 25 ? 'bad' : weekDeadheadPct >= 15 ? 'warn' : 'good') : undefined}
-            info={t(locale, 'trucks.chip.deadheadInfo')}
-          />
-          {fs?.odometer != null && (
-            <Chip
-              label={t(locale, 'trucks.chip.odometer')}
-              value={`${Math.round(fs.odometer).toLocaleString('en-US')} mi`}
-              info={t(locale, 'trucks.chip.odometerInfo')}
-            />
-          )}
-          <Chip
-            label={t(locale, 'trucks.chip.oilIn')}
-            value={oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—'}
-            tone={oil?.tone}
-            info={t(locale, 'trucks.chip.oilInInfo')}
-          />
-          {fs?.fuel != null && (
-            <Chip
-              label={t(locale, 'trucks.chip.fuel')}
-              value={`${Math.round(fs.fuel)}%`}
-              tone={fs.fuel <= 15 ? 'bad' : fs.fuel <= 30 ? 'warn' : undefined}
-              info={t(locale, 'trucks.chip.fuelInfo')}
-            />
-          )}
-          {activeLoad && (
-            <Chip
-              label={t(locale, 'trucks.chip.loadFuel')}
-              value={usd.format(calcLoad(activeLoad, truck).fuel)}
-              info={t(locale, 'trucks.chip.loadFuelInfo')}
-            />
-          )}
-        </div>
           </div>
-          {/* Трак — во всю высоту левой колонки: шапка, задание и цифры слева, машина
-              справа, пустого места под текстом больше нет. На телефоне — полосой сверху. */}
-          <div className="relative h-44 max-sm:order-first sm:h-auto">
-            <TruckPhoto
-              fill
-              truckId={truck.id}
-              hasPhoto={meta?.hasTruckPhoto ?? false}
-              model={meta?.truckModel ?? null}
-              demo={companyId === 'demo'}
-              alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
+          {/* Правая колонка — сама машина: фото на высоту левой колонки (по центру, а не
+              прижатое вниз под пустотой) и где стоит. На телефоне колонка раскладывается
+              (contents): фото полосой сверху, место — в паспорте. */}
+          <div className="flex min-w-0 flex-col gap-4 max-sm:contents sm:py-5 sm:pr-5">
+            <div className="relative h-44 max-sm:order-first sm:h-auto sm:min-h-44 sm:flex-1">
+              <TruckPhoto
+                fill
+                truckId={truck.id}
+                hasPhoto={meta?.hasTruckPhoto ?? false}
+                model={meta?.truckModel ?? null}
+                demo={companyId === 'demo'}
+                alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
+              />
+            </div>
+            {fs?.location && (
+              <dl className="max-sm:hidden">
+                <HeadField label={t(locale, 'trucks.head.location')}>
+                  <span className="block">{fs.location}</span>
+                  <CopyPlace
+                    text={fs.location}
+                    copy={cityOf(fs.location) ?? fs.location}
+                    coords={{ lat: fs.lat, lng: fs.lng }}
+                    variant="action"
+                    hideText
+                    className="mt-1.5"
+                  />
+                </HeadField>
+              </dl>
+            )}
+          </div>
+        </div>
+        {/* Во всю ширину под колонками: длинные части задания (точки по порядку,
+            следующий груз, предупреждение о стыковке) и цифры трака. В колонке они
+            делали её то длиннее соседней, то короче — пустота переезжала туда-сюда. */}
+        {activeLoad && (taskLoads.length > 1 || activeStops.length > 2 || nextLoad) && (
+          <div className="relative px-4 sm:px-5">
+            {/* Порядок точек нужен, только когда их больше двух: у обычного рейса
+                «откуда → куда» в строке выше и есть всё задание. */}
+            {(taskLoads.length > 1 || activeStops.length > 2) && (
+              <TaskStops loads={taskLoads} events={taskEvents} locale={locale} className="mt-3" />
+            )}
+            {nextLoad && (
+              <Link
+                href={`/loads/${nextLoad.id}`}
+                className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[13px] hover:border-white/25"
+              >
+                <span className="text-[13px] font-semibold text-white/75">
+                  {t(locale, 'trucks.detail.nextLoad')}
+                </span>
+                <span className="font-medium text-white/85">
+                  {nextLoad.origin ?? '—'} → {nextLoad.destination ?? '—'}
+                </span>
+                <span className="nums text-white/50">{nextLoad.pickupTime || usDate(nextLoad.pickupDate)}</span>
+                {nextLoad.referenceId && (
+                  <span className="nums text-[12px] text-white/40">#{nextLoad.referenceId}</span>
+                )}
+                <span className="nums ml-auto font-medium text-white/70">{usd.format(nextLoad.rate)}</span>
+              </Link>
+            )}
+            {nextLoad && <QueuedLoadHint compact locale={locale} current={activeLoad} next={nextLoad} />}
+          </div>
+        )}
+        <div className="relative px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10 sm:grid-cols-4">
+            <Chip
+              label={t(locale, 'trucks.chip.weekRate')}
+              value={usd.format(weekGross)}
+              tone={weekGross > 0 ? 'good' : undefined}
+              info={t(locale, 'trucks.chip.weekRateInfo')}
             />
+            <Chip
+              label={t(locale, 'trucks.chip.weekMiles')}
+              value={`${Math.round(weekMiles).toLocaleString('en-US')} mi`}
+              info={t(locale, 'trucks.chip.weekMilesInfo')}
+            />
+            <Chip
+              label={t(locale, 'trucks.chip.rpm')}
+              value={`${usd2.format(avgRpm)}`}
+              info={t(locale, 'trucks.chip.rpmInfo')}
+            />
+            <Chip
+              label={t(locale, 'trucks.chip.deadhead')}
+              value={weekMiles > 0 ? `${Math.round(weekDeadhead).toLocaleString('en-US')} mi · ${weekDeadheadPct}%` : '—'}
+              tone={weekMiles > 0 ? (weekDeadheadPct >= 25 ? 'bad' : weekDeadheadPct >= 15 ? 'warn' : 'good') : undefined}
+              info={t(locale, 'trucks.chip.deadheadInfo')}
+            />
+            {fs?.odometer != null && (
+              <Chip
+                label={t(locale, 'trucks.chip.odometer')}
+                value={`${Math.round(fs.odometer).toLocaleString('en-US')} mi`}
+                info={t(locale, 'trucks.chip.odometerInfo')}
+              />
+            )}
+            <Chip
+              label={t(locale, 'trucks.chip.oilIn')}
+              value={oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—'}
+              tone={oil?.tone}
+              info={t(locale, 'trucks.chip.oilInInfo')}
+            />
+            {fs?.fuel != null && (
+              <Chip
+                label={t(locale, 'trucks.chip.fuel')}
+                value={`${Math.round(fs.fuel)}%`}
+                tone={fs.fuel <= 15 ? 'bad' : fs.fuel <= 30 ? 'warn' : undefined}
+                info={t(locale, 'trucks.chip.fuelInfo')}
+              />
+            )}
+            {activeLoad && (
+              <Chip
+                label={t(locale, 'trucks.chip.loadFuel')}
+                value={usd.format(calcLoad(activeLoad, truck).fuel)}
+                info={t(locale, 'trucks.chip.loadFuelInfo')}
+              />
+            )}
           </div>
         </div>
       </section>
