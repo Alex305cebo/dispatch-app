@@ -1,15 +1,9 @@
 import Link from 'next/link'
-import {
-  listLoads,
-  listLoadsByDispatcher,
-  listPaidLoads,
-  listReceivables,
-  listTrucks,
-  listUninvoicedDelivered,
-  rateConByLoad,
-  type LoadWithDispatcher,
-  type Receivable,
-} from '@/lib/loads'
+import { listLoads, listLoadsByDispatcher, listPaidLoads, listTrucks, rateConByLoad, type LoadWithDispatcher } from '@/lib/loads'
+import { sql } from '@/lib/db'
+import { daysBetween, defaultFee, factoringDoneDay, payGroup, todayEt, type PayGroup } from '@/lib/payments'
+import { factoringSettings, paymentsByLoad } from '@/lib/payments-server'
+import { PaymentsBoard, type PayRow } from './payments-board'
 import type { LoadRecord } from '@/lib/map'
 import { calcLoad, type Breakdown } from '@/lib/profit'
 import { usd, usd2, weekAnchorOf, weekLabel, weekStart, usDate } from '@/lib/fmt'
@@ -24,7 +18,7 @@ import { PaidToggle } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
 import { MoreMenu } from '@/components/more-menu'
 import { Info } from '@/components/info'
-import { CircleCheckBig, Wallet } from 'lucide-react'
+import { Wallet } from 'lucide-react'
 import { Collapse } from '@/components/collapse'
 import { Empty } from '@/components/empty'
 
@@ -32,8 +26,8 @@ export const dynamic = 'force-dynamic'
 
 function tabDescription(locale: Locale): Record<string, string> {
   return {
+    payments: t(locale, 'payments.tabDesc'),
     weeks: t(locale, 'finances.tabDesc.weeks'),
-    unpaid: t(locale, 'finances.tabDesc.unpaid'),
     paid: t(locale, 'finances.tabDesc.paid'),
     dispatchers: t(locale, 'finances.tabDesc.dispatchers'),
     drivers: t(locale, 'finances.tabDesc.drivers'),
@@ -48,19 +42,19 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   // view. A user without it who lands on ?tab=dispatchers falls back to "unpaid".
   const canReport = await can(user, 'dispatcher_report')
   const tabParam = (await searchParams).tab
-  // «Недели» — по умолчанию: владельца в первую очередь интересует, сколько парк
-  // привёз за неделю (гросс) и из чего это сложилось. Оплачено/не оплачено — вопрос
-  // бухгалтера, он идёт за ним отдельной вкладкой.
+  // «Оплата · факторинг» — по умолчанию: «Финансы» — место бухгалтера, и первое, что
+  // ему нужно, — какие грузы отправить в факторинг и где застряли деньги. Старая ссылка
+  // ?tab=unpaid (обзор) ведёт сюда же — неоплаченные теперь здесь.
   const tab =
     tabParam === 'paid'
       ? 'paid'
-      : tabParam === 'unpaid'
-        ? 'unpaid'
+      : tabParam === 'weeks'
+        ? 'weeks'
         : tabParam === 'drivers'
           ? 'drivers'
           : tabParam === 'dispatchers' && canReport
             ? 'dispatchers'
-            : 'weeks'
+            : 'payments'
   const companyId = await companyScope()
   const locale = await getLocale()
   const rateCons = await rateConByLoad(companyId)
@@ -83,7 +77,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       </header>
 
       <div className="mb-5 flex flex-wrap gap-1.5 border-b border-white/8">
-        <Tab href="/invoices" active={tab === 'weeks'}>
+        <Tab href="/invoices" active={tab === 'payments'}>
+          {t(locale, 'payments.tab')}
+        </Tab>
+        <Tab href="/invoices?tab=weeks" active={tab === 'weeks'}>
           {t(locale, 'finances.tab.weeks')}
         </Tab>
         {canReport && (
@@ -91,9 +88,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
             {t(locale, 'finances.tab.dispatchers')}
           </Tab>
         )}
-        <Tab href="/invoices?tab=unpaid" active={tab === 'unpaid'}>
-          {t(locale, 'finances.tab.unpaid')}
-        </Tab>
         <Tab href="/invoices?tab=paid" active={tab === 'paid'}>
           {t(locale, 'finances.tab.paid')}
         </Tab>
@@ -102,10 +96,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         </Tab>
       </div>
 
-      {tab === 'weeks' ? (
+      {tab === 'payments' ? (
+        <Payments companyId={companyId} rateCons={rateCons} locale={locale} />
+      ) : tab === 'weeks' ? (
         <ByWeek companyId={companyId} rateCons={rateCons} locale={locale} />
-      ) : tab === 'unpaid' ? (
-        <Unpaid companyId={companyId} rateCons={rateCons} locale={locale} />
       ) : tab === 'paid' ? (
         <Paid companyId={companyId} rateCons={rateCons} locale={locale} />
       ) : tab === 'drivers' ? (
@@ -132,7 +126,11 @@ function Tab({ href, active, children }: { href: string; active: boolean; childr
   )
 }
 
-async function Unpaid({
+/** Закрытые грузы видны столько дней — дальше они в «Оплачено». */
+const DONE_DAYS = 45
+
+/** Учёт оплат: каждый не отменённый груз — в группе своего этапа денег. */
+async function Payments({
   companyId,
   rateCons,
   locale,
@@ -141,186 +139,83 @@ async function Unpaid({
   rateCons: Map<number, number>
   locale: Locale
 }) {
-  const [rec, uninvoiced] = await Promise.all([listReceivables(companyId), listUninvoicedDelivered(companyId)])
-  const total = rec.reduce((s, r) => s + r.load.rate, 0)
-  const uninvoicedTotal = uninvoiced.reduce((s, l) => s + l.rate, 0)
-  const overdue = rec.filter((r) => r.overdue)
-  const buckets = {
-    '0-30': rec.filter((r) => r.bucket === '0-30'),
-    '31-45': rec.filter((r) => r.bucket === '31-45'),
-    '45+': rec.filter((r) => r.bucket === '45+'),
+  const today = todayEt()
+  const [loads, trucks, payments, settings] = await Promise.all([
+    listLoads(companyId),
+    listTrucks(companyId),
+    paymentsByLoad(companyId),
+    factoringSettings(),
+  ])
+  const byTruckId = new Map<number, TruckRecord>(trucks.map((tr) => [tr.id, tr]))
+  const docs = (await sql`
+    SELECT load_id, kind, MAX(id) AS id FROM documents
+    WHERE company_id = ${companyId} AND deleted_at IS NULL AND load_id IS NOT NULL AND kind IN ('pod', 'bol', 'invoice')
+    GROUP BY load_id, kind`) as { load_id: number; kind: string; id: number }[]
+  const docIds = new Map(docs.map((d) => [`${d.load_id}:${d.kind}`, d.id]))
+  const docOf = (loadId: number, kind: string) => docIds.get(`${loadId}:${kind}`) ?? null
+
+  const rows: PayRow[] = []
+  for (const load of loads) {
+    const payment = payments.get(load.id) ?? null
+    const group = payGroup(load, payment, settings, today)
+    if (!group) continue
+    if (group === 'done') {
+      const day = factoringDoneDay(payment, load.paidAt)
+      if (!day || daysBetween(day, today) > DONE_DAYS) continue
+    }
+    const truck = load.truckId !== null ? byTruckId.get(load.truckId) : undefined
+    rows.push({
+      id: load.id,
+      ref: load.referenceId,
+      route: `${load.origin ?? '—'} → ${load.destination ?? '—'}`,
+      status: load.status,
+      rate: load.rate,
+      truck: truck ? truckLabel(truck) : t(locale, 'finances.noTruck'),
+      truckId: load.truckId,
+      broker: load.brokerName,
+      deliveryDate: load.deliveryDate,
+      paidAt: load.paidAt,
+      group,
+      payment,
+      rcId: rateCons.get(load.id) ?? null,
+      hasPod: docOf(load.id, 'pod') !== null,
+      hasBol: docOf(load.id, 'bol') !== null,
+      invoiceDocId: docOf(load.id, 'invoice'),
+      invoiceNumber: load.invoiceNumber,
+      feeDefault: defaultFee(load.rate, truck?.factoringPercent),
+    })
   }
+
+  const sum = (groups: PayGroup[]) => rows.filter((r) => groups.includes(r.group)).reduce((s, r) => s + r.rate, 0)
+  // Деньги этого месяца: аванс факторинга или прямая оплата, по дате поступления.
+  const month = today.slice(0, 7)
+  let inMonth = 0
+  let feesMonth = 0
+  for (const p of payments.values()) {
+    if (p.fundedOn?.startsWith(month)) {
+      inMonth += p.advanceAmount ?? 0
+      feesMonth += p.feeAmount ?? 0
+    }
+    if (p.stage === 'paid' && p.paidOn?.startsWith(month)) inMonth += p.paidAmount ?? 0
+  }
+  const risk = sum(['problems', 'atRisk'])
 
   return (
     <>
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat label={t(locale, 'payments.stat.toSubmit')} value={usd.format(sum(['toSubmit']))} tone={sum(['toSubmit']) ? 'warn' : undefined} />
+        <Stat label={t(locale, 'payments.stat.awaiting')} value={usd.format(sum(['awaitingFunding']))} />
         <Stat
-          label={t(locale, 'finances.stat.waitingTotal')}
-          value={usd.format(total + uninvoicedTotal)}
-          info={
-            uninvoicedTotal > 0
-              ? t(locale, 'finances.stat.waitingInfo').replace('{amt}', usd.format(uninvoicedTotal))
-              : undefined
-          }
+          label={t(locale, 'payments.stat.fundedMonth')}
+          value={usd.format(inMonth)}
+          info={`${t(locale, 'payments.stat.feesMonth')}: ${usd2.format(feesMonth)}`}
         />
-        <Stat
-          label={t(locale, 'finances.stat.bucket030')}
-          value={usd.format(buckets['0-30'].reduce((s, r) => s + r.load.rate, 0))}
-        />
-        <Stat
-          label={t(locale, 'finances.stat.bucket3145')}
-          value={usd.format(buckets['31-45'].reduce((s, r) => s + r.load.rate, 0))}
-          tone={buckets['31-45'].length ? 'warn' : undefined}
-        />
-        <Stat
-          label={t(locale, 'finances.stat.bucket45plus')}
-          value={usd.format(buckets['45+'].reduce((s, r) => s + r.load.rate, 0))}
-          tone={buckets['45+'].length || overdue.length ? 'bad' : undefined}
-        />
+        <Stat label={t(locale, 'payments.stat.risk')} value={usd.format(risk)} tone={risk ? 'bad' : undefined} />
       </div>
-
-      {/* Delivered but never invoiced — these used to just vanish: not in this list
-          (no invoiced_at yet), not visible anywhere else either. */}
-      {uninvoiced.length > 0 && (
-        <div className="mb-5">
-          <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
-            {t(locale, 'finances.uninvoiced.heading')} · {usd.format(uninvoicedTotal)}
-            <Info text={t(locale, 'finances.uninvoiced.info')} />
-          </h2>
-          <div className="flex flex-col gap-2">
-            {uninvoiced.map((load) => (
-              <div key={load.id} className="panel p-4 border-warn-400/20">
-                <div className="flex items-center gap-4">
-                  <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
-                    <div className="text-[14px] font-medium leading-5">
-                      {load.origin ?? '—'} → {load.destination ?? '—'}
-                    </div>
-                    <div className="mt-0.5 text-[12px] text-white/60">
-                      {load.brokerMc ? `MC ${load.brokerMc} · ` : ''}
-                      {t(locale, 'finances.uninvoiced.cta')}
-                    </div>
-                  </Link>
-                  <span className="nums shrink-0 text-[15px] font-bold">{usd.format(load.rate)}</span>
-                  {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
-                </div>
-                {/* Статус меняется прямо здесь: платёж пришёл по квик-пею или через
-                    факторинг раньше инвойса — не ходить за этим на страницу груза. */}
-                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
-                  <PaidToggle loadId={load.id} />
-                  <Link
-                    href={`/loads/${load.id}`}
-                    className="rounded-lg border border-white/15 px-3 py-1.5 text-[12px] font-semibold text-white/80 hover:border-white/35 hover:text-white"
-                  >
-                    {t(locale, 'finances.card.buildInvoice')}
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {rec.length === 0 ? (
-        uninvoiced.length === 0 && <Empty icon={CircleCheckBig} title={t(locale, 'finances.unpaid.empty')} />
-      ) : (
-        /* Was one flat column of every outstanding invoice — fine at eight rows, a
-           scrolling wall at eighty, with the overdue ones buried somewhere inside it.
-           Now grouped by how late the money is: overdue opens by default because it
-           is the only group that needs acting on today; the healthy buckets stay
-           collapsed but still state their count and total in the header. */
-        <div className="flex flex-col gap-2">
-          {AGING_GROUPS.map((g) => {
-            const rows = g.pick(rec, overdue)
-            if (rows.length === 0) return null
-            return (
-              <Collapse
-                key={g.key}
-                title={t(locale, g.labelKey)}
-                count={rows.length}
-                amount={usd.format(rows.reduce((s, r) => s + r.load.rate, 0))}
-                tone={g.tone}
-                defaultOpen={g.open}
-              >
-                <div className="flex flex-col gap-2">{rows.map((r) => renderReceivable(r))}</div>
-              </Collapse>
-            )
-          })}
-        </div>
-      )}
+      <PaymentsBoard rows={rows} settings={settings} today={today} />
     </>
   )
-
-  function renderReceivable(r: Receivable) {
-    return (
-      <div key={r.load.id} className={`panel p-4 ${r.overdue ? 'border-bad-500/30' : ''}`}>
-        <div className="flex items-start gap-3">
-          <Link href={`/loads/${r.load.id}`} className="min-w-0 flex-1">
-            <div className="text-[14px] font-medium">
-              {r.load.origin ?? '—'} → {r.load.destination ?? '—'}
-            </div>
-            <div className="mt-0.5 text-[12px] text-white/60">
-              {r.load.invoiceNumber} · {r.load.brokerMc ? `MC ${r.load.brokerMc} · ` : ''}
-              <span className={r.overdue ? 'text-bad-400' : 'text-white/60'}>
-                {t(locale, 'finances.unpaid.daysOut')
-                  .replace('{d}', String(r.daysOut))
-                  .replace('{n}', String(r.load.paymentTermsDays))}
-                {r.overdue ? t(locale, 'finances.unpaid.overdue') : ''}
-              </span>
-            </div>
-          </Link>
-          <span className="nums shrink-0 text-[15px] font-bold">{usd.format(r.load.rate)}</span>
-          {rateCons.get(r.load.id) && <RateConButton docId={rateCons.get(r.load.id)!} compact />}
-        </div>
-        {/* Кнопки статуса — своей строкой под карточкой: на телефоне рядом с суммой
-            им не хватало места, и «Оплачено» приходилось искать. */}
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
-          <PaidToggle loadId={r.load.id} />
-          <Link
-            href={`/loads/${r.load.id}`}
-            className="inline-flex min-h-9 items-center rounded-lg border border-white/15 px-3 text-[12px] font-semibold text-white/80 hover:border-white/35 hover:text-white max-md:min-h-11"
-          >
-            {t(locale, 'finances.card.openLoad')}
-          </Link>
-        </div>
-      </div>
-    )
-  }
 }
-
-/** Aging groups for the unpaid tab, in the order a dispatcher works them: what is
- * already late first, then the healthy buckets by age. `overdue` is deliberately its
- * own group rather than a tint inside the buckets — a 20-day-old invoice past its
- * terms and a 20-day-old invoice inside them call for different actions. */
-const AGING_GROUPS = [
-  {
-    key: 'overdue',
-    labelKey: 'finances.group.overdue' as const,
-    tone: 'bad' as const,
-    open: true,
-    pick: (_rec: Receivable[], overdue: Receivable[]) => overdue,
-  },
-  {
-    key: '0-30',
-    labelKey: 'finances.stat.bucket030' as const,
-    tone: 'plain' as const,
-    open: false,
-    pick: (rec: Receivable[]) => rec.filter((r) => !r.overdue && r.bucket === '0-30'),
-  },
-  {
-    key: '31-45',
-    labelKey: 'finances.stat.bucket3145' as const,
-    tone: 'warn' as const,
-    open: false,
-    pick: (rec: Receivable[]) => rec.filter((r) => !r.overdue && r.bucket === '31-45'),
-  },
-  {
-    key: '45+',
-    labelKey: 'finances.stat.bucket45plus' as const,
-    tone: 'bad' as const,
-    open: true,
-    pick: (rec: Receivable[]) => rec.filter((r) => !r.overdue && r.bucket === '45+'),
-  },
-]
 
 async function Paid({
   companyId,

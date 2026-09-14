@@ -4,6 +4,7 @@ import {
   DEFAULT_FACTORING,
   daysBetween,
   defaultFee,
+  factoringDoneDay,
   isIsoDay,
   moneyIn,
   payGroup,
@@ -75,6 +76,9 @@ test('комиссия по проценту трака, откат шагов, 
   assert.equal(isIsoDay('09/15/26'), false)
   assert.equal(moneyIn('funded'), true)
   assert.equal(moneyIn('submitted'), false)
+  assert.equal(factoringDoneDay(pay({ stage: 'closed', fundedOn: '2026-08-01', closedOn: '2026-09-10' }), null), '2026-09-10')
+  assert.equal(factoringDoneDay(null, '2026-09-15T02:30:00.000Z'), '2026-09-14')
+  assert.equal(factoringDoneDay(null, null), null)
 })
 
 test('CSV: кавычки и запятые экранируются, пустое — пусто', () => {

@@ -100,6 +100,13 @@ export function payGroup(
   }
 }
 
+/** День, когда груз закрылся по деньгам: брокер оплатил факторинг, прямая оплата
+ * или (для отмеченных до учёта) paid_at. null — даты нет. */
+export function factoringDoneDay(p: LoadPayment | null, paidAt: string | null): string | null {
+  if (p) return p.closedOn ?? p.paidOn ?? p.fundedOn
+  return paidAt ? todayEt(new Date(paidAt)) : null
+}
+
 /** Комиссия факторинга по проценту из экономики трака, до цента. */
 export function defaultFee(rate: number, factoringPercent: number | null | undefined): number {
   const pct = Number.isFinite(factoringPercent) && (factoringPercent ?? 0) > 0 ? factoringPercent! : 0
