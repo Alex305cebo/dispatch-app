@@ -29,8 +29,9 @@ import {
 } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { marketVerdict, pctText } from '@/lib/dat-market-core'
-import { usd, usd2, usDate, weekLabel, weekStart } from '@/lib/fmt'
-import { isoDay, scheduleConnection, stopOrder, whenText, type Connection } from '@/lib/loads-dashboard'
+import { usd, usd2, usDate, weekLabel } from '@/lib/fmt'
+import { scheduleConnection, shiftDay, stopOrder, weekStartIso, whenText, type Connection } from '@/lib/loads-dashboard'
+import { todayEt } from '@/lib/payments'
 import { StatusBadge, statusLabel } from '@/components/status'
 import { LoadsToolbar, useLoadsFilter, type LoadMetrics, activeRank } from '@/components/loads-toolbar'
 import { RateConButton } from '@/components/ratecon-button'
@@ -91,7 +92,8 @@ export function LoadsViews({
   /** Первый день текущей расчётной недели (yyyy-mm-dd) — с сервера, чтобы SSR и клиент сошлись. */
   weekFrom: string
   initialView: 'driver' | 'board' | 'calendar'
-  initialWeek: number
+  /** Пятница недели календаря (yyyy-mm-dd) — тоже днём, а не ms. */
+  initialWeek: string
   initialDay: string | null
   /** Поиск из адреса (?q=) — по нему открываются ссылки из свода направлений. */
   initialQuery: string
@@ -103,7 +105,7 @@ export function LoadsViews({
   // Календарь больше не вкладка — он всегда под картой; старая ссылка ?view=calendar
   // открывает обычный вид по водителю.
   const [view, setView] = useState<'driver' | 'board'>(initialView === 'board' ? 'board' : 'driver')
-  const [weekMonday, setWeekMonday] = useState(initialWeek)
+  const [week, setWeek] = useState(initialWeek)
   const [selectedDay, setSelectedDay] = useState(initialDay)
   // «В работе» по умолчанию; поиск из адреса смотрит на всё.
   const [scope, setScope] = useState<Scope>(initialQuery ? 'all' : 'working')
@@ -179,12 +181,12 @@ export function LoadsViews({
       <div className="mb-4">
         <Calendar
           loads={allLoads}
-          weekMonday={weekMonday}
+          week={week}
           selectedDay={selectedDay}
           byId={byId}
           rateCons={rateCons}
           locale={locale}
-          onWeek={setWeekMonday}
+          onWeek={setWeek}
           onDay={setSelectedDay}
         />
       </div>
@@ -401,8 +403,6 @@ function StatusBoard({
   )
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000
-
 /** History of every load (any status, including cancelled — this is a record, not
  * a work queue), one week at a time. Pickup date is the natural anchor — "what's
  * moving this day" — falling back to when the load was entered for anything the
@@ -419,27 +419,29 @@ const DAY_MS = 24 * 60 * 60 * 1000
  * На телефоне доска едет вбок, колонка с траками прибита слева. */
 function Calendar({
   loads,
-  weekMonday,
+  week,
   byId,
   rateCons,
   locale,
   onWeek,
 }: {
   loads: LoadRecord[]
-  weekMonday: number
+  week: string
   selectedDay: string | null
   byId: Map<number, TruckRecord>
   rateCons: Map<number, number>
   locale: Locale
-  onWeek: (mondayMs: number) => void
+  onWeek: (week: string) => void
   onDay: (iso: string | null) => void
 }) {
-  const days = Array.from({ length: 7 }, (_, i) => new Date(weekMonday + i * DAY_MS))
-  const weekIsos = days.map(isoDay)
-  const todayIso = isoDay(new Date())
+  // Дни — строками, «сегодня» — по восточному времени: так сервер и браузер в любых
+  // поясах рисуют одну неделю, и через перевод часов день не повторяется.
+  const weekIsos = Array.from({ length: 7 }, (_, i) => shiftDay(week, i))
+  const todayIso = todayEt()
   const weekEnd = weekIsos[6]!
   const weekBegin = weekIsos[0]!
-  const isCurrentWeek = weekMonday === weekStart()
+  const currentWeek = weekStartIso(todayIso)
+  const isCurrentWeek = week === currentWeek
 
   // Полоса груза: от погрузки до выгрузки (без выгрузки — один день), обрезанная
   // границами недели. Грузы целиком вне недели не рисуются.
@@ -509,18 +511,18 @@ function Calendar({
       <div className="mb-3 flex items-center justify-between gap-2">
         <button
           type="button"
-          onClick={() => onWeek(weekMonday - 7 * DAY_MS)}
+          onClick={() => onWeek(shiftDay(week, -7))}
           className="inline-flex min-h-9 items-center rounded-xl border border-white/10 px-3.5 text-[12px] font-semibold text-white/75 transition-colors hover:border-white/25 hover:bg-white/5 max-md:min-h-11"
         >
           {t(locale, 'loads.page.prevWeek')}
         </button>
         <span className="flex min-w-0 flex-col items-center gap-0.5 text-center">
           <span className="flex items-center gap-2 text-[13.5px] font-semibold capitalize text-white/90">
-            {weekLabel(weekMonday, locale)}
+            {weekLabel(Date.parse(`${week}T12:00:00`), locale)}
             {!isCurrentWeek && (
               <button
                 type="button"
-                onClick={() => onWeek(weekStart())}
+                onClick={() => onWeek(currentWeek)}
                 className="rounded-full bg-haul-500/15 px-2 py-0.5 text-[11px] font-semibold normal-case text-haul-400 transition-colors hover:bg-haul-500/25"
               >
                 {t(locale, 'loads.page.today')}
@@ -536,7 +538,7 @@ function Calendar({
         </span>
         <button
           type="button"
-          onClick={() => onWeek(weekMonday + 7 * DAY_MS)}
+          onClick={() => onWeek(shiftDay(week, 7))}
           className="inline-flex min-h-9 items-center rounded-xl border border-white/10 px-3.5 text-[12px] font-semibold text-white/75 transition-colors hover:border-white/25 hover:bg-white/5 max-md:min-h-11"
         >
           {t(locale, 'loads.page.nextWeek')}
@@ -552,14 +554,14 @@ function Calendar({
             с днями словами. */}
         <div className="panel p-0 md:hidden">
           <div className="grid grid-cols-7 border-b border-white/8 px-2.5">
-            {days.map((d, i) => {
-              const isToday = weekIsos[i] === todayIso
+            {weekIsos.map((iso) => {
+              const isToday = iso === todayIso
               return (
-                <div key={weekIsos[i]} className={`flex flex-col items-center py-1.5 ${isToday ? 'rounded-md bg-haul-500/10' : ''}`}>
+                <div key={iso} className={`flex flex-col items-center py-1.5 ${isToday ? 'rounded-md bg-haul-500/10' : ''}`}>
                   <span className={`text-[10px] font-medium capitalize ${isToday ? 'text-haul-300' : 'text-white/45'}`}>
-                    {weekdayLabel(weekIsos[i]!, locale)}
+                    {weekdayLabel(iso, locale)}
                   </span>
-                  <span className={`nums text-[12.5px] font-semibold ${isToday ? 'text-haul-300' : 'text-white/80'}`}>{d.getDate()}</span>
+                  <span className={`nums text-[12.5px] font-semibold ${isToday ? 'text-haul-300' : 'text-white/80'}`}>{Number(iso.slice(8, 10))}</span>
                 </div>
               )
             })}
@@ -622,18 +624,18 @@ function Calendar({
               <div className="sticky left-0 z-10 bg-ink-900 px-3 py-2 text-[11px] font-medium text-white/45">
                 {t(locale, 'loads.board.truck')}
               </div>
-              {days.map((d, i) => {
-                const isToday = weekIsos[i] === todayIso
+              {weekIsos.map((iso) => {
+                const isToday = iso === todayIso
                 return (
                   <div
-                    key={weekIsos[i]}
+                    key={iso}
                     className={`flex items-baseline justify-center gap-1 px-1 py-2 text-center ${isToday ? 'bg-haul-500/10' : ''}`}
                   >
                     <span className={`text-[11px] font-medium capitalize ${isToday ? 'text-haul-300' : 'text-white/45'}`}>
-                      {weekdayLabel(weekIsos[i]!, locale)}
+                      {weekdayLabel(iso, locale)}
                     </span>
                     <span className={`nums text-[13px] font-semibold ${isToday ? 'text-haul-300' : 'text-white/80'}`}>
-                      {d.getDate()}
+                      {Number(iso.slice(8, 10))}
                     </span>
                   </div>
                 )
