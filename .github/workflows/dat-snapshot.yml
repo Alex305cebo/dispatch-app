@@ -1,0 +1,61 @@
+name: DAT snapshot
+
+# Один снимок рынка DAT Trendlines в сутки на весь TMS: ставки по регионам и грузы на
+# трак по штатам для Van, Reefer и Flatbed плюс цена дизеля. Кладётся в settings под
+# теми же ключами, что и живой запрос lib/dat-market.ts, поэтому карточка груза, обзор,
+# грузы, брокеры и карта парка читают его первыми и к DAT сами не ходят. Живой запрос
+# остаётся запасным путём (снимок не пришёл) и для кнопки «Обновить».
+#
+# Сервис DAT неофициальный: семь запросов в сутки, не больше. Логи этого репозитория
+# публичные, а данные DAT показываются только внутри TMS — скрипт печатает лишь, сколько
+# чего пришло, строка подключения к базе не выводится.
+
+on:
+  schedule:
+    # 10:23 UTC — раннее утро по всем поясам США, до начала рабочего дня. Не ровный
+    # час: на :00 у GitHub очередь, и запуск уезжает на десятки минут. Cron работает
+    # только с ветки по умолчанию.
+    - cron: '23 10 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: dat-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # 24: скрипт импортирует lib/dat-market-core.ts напрямую — встроенное снятие
+          # типов Node, без npm ci.
+          node-version: 24
+
+      - name: Fetch DAT Trendlines
+        run: node scripts/dat-snapshot.mjs > dat.sql
+
+      - name: Install MariaDB client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mariadb-client
+
+      - name: Write snapshot to settings
+        env:
+          # mysql://user:password@host:3306/database — та же строка, что у DB backup.
+          MYSQL_URL: ${{ secrets.MYSQL_URL }}
+        run: |
+          test -n "$MYSQL_URL" || { echo "MYSQL_URL secret is not set"; exit 1; }
+          rest="${MYSQL_URL#*://}"
+          creds="${rest%%@*}"; hostpart="${rest#*@}"
+          user="${creds%%:*}"; pass="${creds#*:}"
+          hostport="${hostpart%%/*}"; db="${hostpart#*/}"; db="${db%%\?*}"
+          host="${hostport%%:*}"; port="${hostport##*:}"; [ "$port" = "$hostport" ] && port=3306
+          # Пароль в файле, а не в командной строке: так он не виден в списке процессов.
+          umask 077
+          printf '[client]\nuser=%s\npassword=%s\nhost=%s\nport=%s\n' "$user" "$pass" "$host" "$port" > "$HOME/.my.cnf"
+          mariadb --default-character-set=utf8mb4 "$db" < dat.sql
+          echo "snapshot written: $(grep -c '^INSERT' dat.sql) series"

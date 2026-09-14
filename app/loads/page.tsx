@@ -6,11 +6,12 @@ import { LaneStats } from '@/components/lane-stats'
 import { sql } from '@/lib/db'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { calcLoad } from '@/lib/profit'
-import { truckPhotoFlags } from '@/lib/maintenance'
+import { truckPhotoFlags, truckTrailerNumbers } from '@/lib/maintenance'
+import { datCached, datEquipment, loadMarketRpm, type DatEquipment } from '@/lib/dat-market'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
-import { usd, weekAnchorOf, weekStart } from '@/lib/fmt'
+import { usd, usDate, weekAnchorOf, weekStart } from '@/lib/fmt'
 import { isoDay, upcomingStop } from '@/lib/loads-dashboard'
 import type { StopEv } from '@/lib/stops'
 import type { LoadMetrics } from '@/components/loads-toolbar'
@@ -38,7 +39,7 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
   const sp = await searchParams
   const companyId = await companyScope()
   const locale = await getLocale()
-  const [loads, trucks, photoIds, docs, events] = await Promise.all([
+  const [loads, trucks, photoIds, docs, events, trailers] = await Promise.all([
     listLoads(companyId),
     listTrucks(companyId),
     truckPhotoFlags(companyId),
@@ -52,7 +53,14 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
         JOIN loads l ON l.id = e.load_id AND l.company_id = e.company_id
         WHERE e.company_id = ${companyId} AND l.status IN ('booked', 'in_transit')
         ORDER BY e.at ASC`,
+    truckTrailerNumbers(companyId),
   ])
+  // Рынок у каждого груза — по правилу карточки груза: вписанная ставка, иначе DAT по
+  // региону погрузки; серия — по трейлеру трака, иначе Van. Суточный снимок только из кэша.
+  const seriesOf = (truckId: number | null): DatEquipment => datEquipment(truckId == null ? null : trailers.get(truckId)) ?? 'VAN'
+  const snaps = new Map(
+    await Promise.all([...new Set(loads.map((l) => seriesOf(l.truckId)))].map(async (eq) => [eq, await datCached(eq)] as const)),
+  )
   const rateCons = new Map<number, number>()
   const podIds = new Set<number>()
   for (const doc of docs) {
@@ -75,12 +83,16 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
   const metrics: Record<number, LoadMetrics> = {}
   for (const { load, r } of priced) {
     const miles = load.loadedMiles + load.deadheadMiles
+    const snap = snaps.get(seriesOf(load.truckId)) ?? null
+    const market = loadMarketRpm(snap, load)
     metrics[load.id] = {
       net: r?.net ?? 0,
       rpm: miles > 0 ? load.rate / miles : 0,
       hasPod: podIds.has(load.id),
       hasRc: rateCons.has(load.id),
       nextStop: upcomingStop(load, marks.get(load.id)),
+      market,
+      marketAt: market && snap && !(load.spotRpm && load.spotRpm > 0) ? usDate(new Date(snap.at)) : null,
     }
   }
 

@@ -11,8 +11,10 @@ import type { LoadRecord, TruckRecord } from '@/lib/map'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
 import { weekStats, shiftDay } from '@/lib/loads-dashboard'
 import { usd, usd2 } from '@/lib/fmt'
+import { pctText, versusMarket } from '@/lib/dat-market-core'
 import { Info } from '@/components/info'
 import { Stat } from '@/components/stat'
+import type { LoadMetrics } from '@/components/loads-toolbar'
 
 /** Выборка для списка ниже: какие грузы показать и как подписать чип. */
 export type Selection = { ids: number[]; label: string } | null
@@ -47,12 +49,15 @@ function Spark({ values, tone }: { values: (number | null)[]; tone: keyof typeof
 export function LoadsKpis({
   loads,
   trucks,
+  metrics,
   weekFrom,
   locale,
   onSelect,
 }: {
   loads: LoadRecord[]
   trucks: TruckRecord[]
+  /** Рынок каждого груза (metrics[id].market) — для «к рынку DAT» у ставки недели. */
+  metrics: Record<number, LoadMetrics>
   /** Первый день текущей расчётной недели, yyyy-mm-dd. */
   weekFrom: string
   locale: Locale
@@ -62,6 +67,8 @@ export function LoadsKpis({
   const next = weekStats(loads, trucks, shiftDay(weekFrom, 7))
   // Тренд ставки — четыре ЗАВЕРШЁННЫЕ недели: текущая ещё не докатана и занижала бы линию.
   const trend = [-28, -21, -14, -7].map((n) => weekStats(loads, trucks, shiftDay(weekFrom, n)).rpm)
+  // Ставка недели против рынка тех же грузов — по гружёным милям, как DAT считает ставку.
+  const vs = versusMarket(week.rows.map((l) => ({ rate: l.rate, loadedMiles: l.loadedMiles, market: metrics[l.id]?.market ?? null })))
   const nextTrucks = next.coverage.filter((c) => c.days > 0).length
   const nextTone = nextTrucks === 0 ? 'warn' : 'haul'
   const pick = (key: MsgKey, rows: LoadRecord[]) => () => onSelect({ ids: rows.map((l) => l.id), label: t(locale, key) })
@@ -85,8 +92,16 @@ export function LoadsKpis({
         icon={<TrendingUp {...icon} />}
         label={t(locale, 'loads.dash.rpm')}
         value={week.rpm == null ? '—' : `${usd2.format(week.rpm)}/mi`}
-        sub={t(locale, 'loads.dash.historyTrend')}
-        info={t(locale, 'loads.dash.rpmInfo')}
+        sub={vs ? t(locale, 'loads.dash.rpmVsMarket').replace('{pct}', pctText(vs.diff)) : t(locale, 'loads.dash.historyTrend')}
+        subTone={vs?.tone === 'good' ? 'good' : vs?.tone === 'bad' ? 'bad' : undefined}
+        info={
+          vs
+            ? `${t(locale, 'loads.dash.rpmInfo')} ${t(locale, 'loads.dash.rpmVsMarketInfo')
+                .replace('{rpm}', usd2.format(vs.rpm))
+                .replace('{market}', usd2.format(vs.market))
+                .replace('{n}', String(vs.loads))}`
+            : t(locale, 'loads.dash.rpmInfo')
+        }
         onClick={pick('loads.dash.rpm', week.rows)}
       >
         <Spark values={trend} tone="good" />

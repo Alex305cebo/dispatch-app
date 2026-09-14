@@ -15,7 +15,8 @@ import { listLoads, listTrucks } from '@/lib/loads'
 import { currentLoadsByTruck, truckLabel, eldStatus } from '@/lib/map'
 import { zoneFor } from '@/lib/tz'
 import { fixPlace } from '@/lib/place'
-import { type MapMarker, type MapRoute } from '@/components/fleet-map'
+import { type MapMarker, type MapMarket, type MapRoute } from '@/components/fleet-map'
+import { datCached, ltStates } from '@/lib/dat-market'
 import { FleetPanel } from '@/components/fleet-panel'
 import { type TrackingRow } from '@/components/fleet-list'
 import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
@@ -56,14 +57,24 @@ export async function FleetBoard({
   // All four are independent, so they go together. The truck list and the share token
   // used to be awaited one after the other before this even started — two round trips
   // of dead time on a page that already has plenty.
-  const [trucks, loads, rowsRaw, phoneRowsRaw] = await Promise.all([
+  const [trucks, loads, rowsRaw, phoneRowsRaw, datSnaps] = await Promise.all([
     listTrucks(companyId),
     listLoads(companyId),
     sql`SELECT * FROM fleet_status`,
     // Прицеп берём здесь же: запрос к truck_meta всё равно уже идёт, а номер
     // прицепа нужен подписи трака (truckLabel) — отдельного захода он не стоит.
     sql`SELECT truck_id, driver_phone, trailer_number FROM truck_meta`,
+    // Слой «Рынок DAT» на карте: суточный снимок из settings по всем трём сериям —
+    // серию переключает легенда. Только кэш: карта DAT не ждёт.
+    Promise.all((['VAN', 'REEFER', 'FLATBED'] as const).map(async (eq) => [eq, await datCached(eq)] as const)),
   ])
+  const datShown = datSnaps.flatMap(([eq, snap]) => (snap ? [[eq, snap] as const] : []))
+  const market: MapMarket | null = datShown.length
+    ? {
+        at: Math.min(...datShown.map(([, snap]) => snap.at)),
+        series: Object.fromEntries(datShown.map(([eq, snap]) => [eq, ltStates(snap)])),
+      }
+    : null
   // One query for the whole fleet, instead of currentLoadForTruck() per truck.
   const currentByTruck = currentLoadsByTruck(loads)
   // Строка места приходит из ELD с чужим штатом (см. lib/place.ts) — правим сразу
@@ -293,6 +304,7 @@ export async function FleetBoard({
     <FleetPanel
       markers={markers}
       routes={routes}
+      market={market}
       rows={trackingRows}
       totals={{
         deliveryMiles: totalDeliveryMiles,

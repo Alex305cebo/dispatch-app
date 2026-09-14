@@ -206,6 +206,17 @@ export const brokersDict = {
   'brokers.lastLoad': { ru: 'последний {date}', en: 'last {date}', es: 'última {date}', uk: 'останній {date}', ro: 'ultima {date}', kk: 'соңғысы {date}' },
   'brokers.gross': { ru: 'привёз {sum}', en: 'gross {sum}', es: 'trajo {sum}', uk: 'привіз {sum}', ro: 'a adus {sum}', kk: 'әкелді {sum}' },
   'brokers.rpm': { ru: '{v}/миля', en: '{v}/mi', es: '{v}/milla', uk: '{v}/миля', ro: '{v}/milă', kk: '{v}/миль' },
+  'brokers.vsMarketBelow': { ru: 'платит на {pct}% ниже рынка', en: 'pays {pct}% below market', es: 'paga {pct}% por debajo del mercado', uk: 'платить на {pct}% нижче ринку', ro: 'plătește cu {pct}% sub piață', kk: 'нарықтан {pct}% төмен төлейді' },
+  'brokers.vsMarketAbove': { ru: 'платит на {pct}% выше рынка', en: 'pays {pct}% above market', es: 'paga {pct}% por encima del mercado', uk: 'платить на {pct}% вище ринку', ro: 'plătește cu {pct}% peste piață', kk: 'нарықтан {pct}% жоғары төлейді' },
+  'brokers.vsMarketIn': { ru: 'платит в рынке · {pct}', en: 'pays at market · {pct}', es: 'paga a precio de mercado · {pct}', uk: 'платить у ринку · {pct}', ro: 'plătește la nivelul pieței · {pct}', kk: 'нарық деңгейінде төлейді · {pct}' },
+  'brokers.vsMarketInfo': {
+    ru: 'Средняя ставка за гружёную милю по его грузам ({n}): {rpm} против {market} по рынку тех же грузов — вписанная в груз рыночная ставка, иначе DAT по региону погрузки. Снимок DAT {date}. ±10% — ещё в рынке.',
+    en: 'Average rate per loaded mile on their loads ({n}): {rpm} against {market} for the same loads — the market rate entered on the load, otherwise DAT for the pickup region. DAT snapshot {date}. Within ±10% counts as market.',
+    es: 'Tarifa media por milla cargada en sus cargas ({n}): {rpm} frente a {market} del mercado de esas mismas cargas — la tarifa de mercado anotada en la carga o, si no hay, DAT de la región de carga. Foto de DAT {date}. ±10% sigue siendo mercado.',
+    uk: 'Середня ставка за навантажену милю за його вантажами ({n}): {rpm} проти {market} за ринком тих самих вантажів — вписана у вантаж ринкова ставка, інакше DAT за регіоном завантаження. Знімок DAT {date}. ±10% — ще в ринку.',
+    ro: 'Tariful mediu pe milă încărcată la cursele lui ({n}): {rpm} față de {market} pe piață pentru aceleași curse — tariful de piață trecut pe cursă, altfel DAT pentru regiunea de încărcare. Date DAT {date}. ±10% încă e piață.',
+    kk: 'Оның жүктері ({n}) бойынша жүкті мильге орташа тариф: {rpm}, сол жүктердің нарығы {market} — жүкке жазылған нарықтық тариф, әйтпесе тиеу аймағы бойынша DAT. DAT деректері {date}. ±10% — әлі нарықта.',
+  },
   'brokers.paysIn': { ru: 'платит за {n} дн.', en: 'pays in {n} d.', es: 'paga en {n} d.', uk: 'платить за {n} дн.', ro: 'plătește în {n} z.', kk: '{n} күнде төлейді' },
   'brokers.owes': { ru: 'должен {sum}', en: 'owes {sum}', es: 'debe {sum}', uk: 'винен {sum}', ro: 'datorează {sum}', kk: 'қарызы {sum}' },
   'brokers.moneyInfo': {

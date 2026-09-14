@@ -39,7 +39,8 @@ export function datEquipment(equipment: string | null | undefined): DatEquipment
   return null
 }
 
-/** DAT пишет Канзас как KA, а не KS — без этого груз из Канзаса выпадал бы из регионов. */
+/** В регионах ставок DAT пишет Канзас как KA, а не KS — без этого груз из Канзаса выпадал
+ * бы из регионов. В соотношении грузов к тракам (/lt) у того же DAT уже обычный KS. */
 export function datState(code: string): string {
   const c = code.trim().toUpperCase()
   return c === 'KS' ? 'KA' : c
@@ -66,15 +67,19 @@ export function regionOf(snap: DatSnapshot, state: string | null): DatRegion | n
 
 export function ltOf(snap: DatSnapshot, state: string | null): DatLt | null {
   if (!state) return null
-  return snap.lt[datState(state)] ?? null
+  const code = state.trim().toUpperCase()
+  // /lt отдаёт KS, регионы — KA: искали по KA, и у Канзаса рынка не было вовсе.
+  return snap.lt[code] ?? snap.lt[datState(code)] ?? null
 }
+
+export type DatHeat = 'hot' | 'warm' | 'cold'
 
 /**
  * «Горячий» ли штат — относительно медианы по всем штатам этой же серии. Абсолютных
  * порогов нет и быть не может: у Van обычное соотношение 3–8, у Flatbed 20–60, одна
  * и та же цифра значит противоположное.
  */
-export function ltHeat(snap: DatSnapshot, ratio: number): 'hot' | 'warm' | 'cold' {
+export function ltHeat(snap: DatSnapshot, ratio: number): DatHeat {
   const all = Object.values(snap.lt)
     .map((x) => x.ratio)
     .filter((r) => Number.isFinite(r) && r > 0)
@@ -121,6 +126,58 @@ export function originRate(snap: DatSnapshot, origin: string | null): { rpm: num
 export function marketVerdict(loadRpm: number, marketRpm: number): { diff: number; tone: 'good' | 'warn' | 'bad' } {
   const diff = ((loadRpm - marketRpm) / marketRpm) * 100
   return { diff, tone: diff >= 10 ? 'good' : diff <= -10 ? 'bad' : 'warn' }
+}
+
+/** «+8%» / «-12%» — как пишет карточка груза, округлено до процента. */
+export function pctText(diff: number): string {
+  const n = Math.round(diff)
+  return `${n > 0 ? '+' : ''}${n}%`
+}
+
+/**
+ * Рыночная ставка груза — то же правило, что в карточке груза, чтобы список, брокер и
+ * карточка не расходились: вписанная в груз (spotRpm) главнее, иначе DAT по региону
+ * погрузки. Нет ни того ни другого — null, сравнивать не с чем.
+ */
+export function loadMarketRpm(snap: DatSnapshot | null, load: { spotRpm: number | null; origin: string | null }): number | null {
+  if (load.spotRpm && load.spotRpm > 0) return load.spotRpm
+  return snap ? (originRate(snap, load.origin)?.rpm ?? null) : null
+}
+
+/**
+ * Средняя ставка набора грузов против рынка тех же грузов — неделя парка, брокер.
+ * Вес — гружёные мили: DAT считает ставку за гружёную милю, а среднее от процентов дало
+ * бы короткому дорогому рейсу столько же голоса, сколько рейсу через полстраны. Грузы без
+ * рыночной ставки, миль или ставки не участвуют ни в числителе, ни в знаменателе.
+ */
+export function versusMarket(
+  rows: { rate: number; loadedMiles: number; market: number | null }[],
+): { rpm: number; market: number; diff: number; tone: 'good' | 'warn' | 'bad'; loads: number } | null {
+  let rate = 0
+  let miles = 0
+  let market = 0
+  let loads = 0
+  for (const r of rows) {
+    if (!r.market || !(r.loadedMiles > 0) || !(r.rate > 0)) continue
+    rate += r.rate
+    miles += r.loadedMiles
+    market += r.market * r.loadedMiles
+    loads++
+  }
+  if (!miles) return null
+  const rpm = rate / miles
+  return { rpm, market: market / miles, ...marketVerdict(rpm, market / miles), loads }
+}
+
+/**
+ * Штаты США для раскраски карты: грузов на трак и горячесть от медианы серии. Коды —
+ * почтовые, как у подписей карты (Канзас — KS, даже если DAT пришлёт KA); провинции Канады
+ * в ответе остаются — карте их рисовать нечем, а в медиану серии они входят и так.
+ */
+export function ltStates(snap: DatSnapshot): Record<string, { ratio: number; heat: DatHeat }> {
+  const out: Record<string, { ratio: number; heat: DatHeat }> = {}
+  for (const [code, lt] of Object.entries(snap.lt)) out[code === 'KA' ? 'KS' : code] = { ratio: lt.ratio, heat: ltHeat(snap, lt.ratio) }
+  return out
 }
 
 /**

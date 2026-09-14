@@ -7,7 +7,7 @@
 
 import { useState } from 'react'
 import { Truck, X } from 'lucide-react'
-import { FleetMap, type MapMarker, type MapRoute } from '@/components/fleet-map'
+import { FleetMap, type MapMarker, type MapMarket, type MapRoute } from '@/components/fleet-map'
 import { FleetList, type TrackingRow, type TruckMoney } from '@/components/fleet-list'
 import { RefreshFleetButton } from '@/components/refresh-fleet-button'
 import { Button } from '@/components/button'
@@ -42,6 +42,7 @@ function Tile({ value, label, tone }: TileData) {
 export function FleetPanel({
   markers,
   routes,
+  market = null,
   rows,
   totals,
   updatedText,
@@ -52,6 +53,8 @@ export function FleetPanel({
 }: {
   markers: MapMarker[]
   routes: MapRoute[]
+  /** Рынок DAT по штатам для слоя карты; null — снимка нет, кнопки «Рынок» тоже. */
+  market?: MapMarket | null
   rows: TrackingRow[]
   totals: FleetTotals
   /** Pre-formatted on the server — "обновлено 3 мин назад" or the no-snapshot line. */
@@ -126,7 +129,7 @@ export function FleetPanel({
   return (
     <>
       <div className="mb-2">
-        <FleetMap markers={markers} routes={routes} onSelect={setSelected} focus={focus} />
+        <FleetMap markers={markers} routes={routes} onSelect={setSelected} focus={focus} market={market} />
       </div>
 
       {/* Быстрый выбор трака — чипы прямо под картой: номер и цвет статуса. Нажатие

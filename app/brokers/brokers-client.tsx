@@ -13,6 +13,7 @@ import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 import { usd, usd2 } from '@/lib/fmt'
+import { pctText } from '@/lib/dat-market-core'
 import Link from 'next/link'
 
 const input =
@@ -241,6 +242,25 @@ export function BrokersClient({ ourBrokers, topBrokers }: { ourBrokers: OurBroke
                           {b.rpm > 0 && (
                             <span className={b.rpm >= 2 ? 'text-good-400' : b.rpm >= 1.5 ? 'text-white/60' : 'text-warn-400'}>
                               {t(locale, 'brokers.rpm').replace('{v}', usd2.format(b.rpm))}
+                            </span>
+                          )}
+                          {/* Против рынка тех же грузов: «платит на 12% ниже рынка» — довод
+                              в торге до того, как взят следующий груз. */}
+                          {b.vsMarket && (
+                            <span
+                              className={b.vsMarket.tone === 'good' ? 'text-good-400' : b.vsMarket.tone === 'bad' ? 'text-bad-400' : 'text-white/60'}
+                              title={t(locale, 'brokers.vsMarketInfo')
+                                .replace('{rpm}', usd2.format(b.vsMarket.rpm))
+                                .replace('{market}', usd2.format(b.vsMarket.market))
+                                .replace('{n}', String(b.vsMarket.loads))
+                                .replace('{date}', b.vsMarket.date ?? '—')}
+                            >
+                              {b.vsMarket.tone === 'warn'
+                                ? t(locale, 'brokers.vsMarketIn').replace('{pct}', pctText(b.vsMarket.diff))
+                                : t(locale, b.vsMarket.diff > 0 ? 'brokers.vsMarketAbove' : 'brokers.vsMarketBelow').replace(
+                                    '{pct}',
+                                    String(Math.abs(Math.round(b.vsMarket.diff))),
+                                  )}
                             </span>
                           )}
                           {b.payDays != null && (

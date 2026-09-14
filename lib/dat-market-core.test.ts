@@ -7,6 +7,11 @@ import {
   laneMarket,
   originRate,
   marketVerdict,
+  pctText,
+  loadMarketRpm,
+  versusMarket,
+  ltStates,
+  ltOf,
   ltHeat,
   parseRegions,
   parseLt,
@@ -24,7 +29,8 @@ const LT_VAN = [
   { code: 'OH', loads: 3100, trucks: 400, ratio: 7.75 },
   { code: 'TN', loads: 2000, trucks: 420, ratio: 4.76 },
   { code: 'TX', loads: 2600, trucks: 500, ratio: 5.2 },
-  { code: 'KA', loads: 900, trucks: 150, ratio: 6.0 },
+  // В /lt Канзас — KS (живой ответ 09/14/26), в регионах ставок — KA
+  { code: 'KS', loads: 900, trucks: 150, ratio: 6.0 },
   { code: 'FL', loads: 1200, trucks: 400, ratio: 3.0 },
 ]
 
@@ -54,12 +60,14 @@ test('тип трейлера из рейт-кона и биржи попада�
   assert.equal(datEquipment(null), null)
 })
 
-test('Канзас у DAT — KA, а не KS', () => {
+test('Канзас у DAT: в регионах KA, в грузах на трак KS', () => {
   assert.equal(datState('KS'), 'KA')
   assert.equal(datState('oh'), 'OH')
   const s = snap()
   assert.equal(laneMarket(s, 'Wichita, KS', 'Dallas, TX').origin?.region?.code, 'NORTH')
   assert.equal(laneMarket(s, 'Wichita, KS', 'Dallas, TX').origin?.lt?.ratio, 6)
+  // Пришлёт DAT однажды KA и в /lt — Канзас не пропадёт
+  assert.equal(ltOf({ ...s, lt: parseLt([{ code: 'KA', loads: 1, trucks: 1, ratio: 4 }])! }, 'KS')?.ratio, 4)
 })
 
 test('штат из места с запятой и без', () => {
@@ -99,6 +107,45 @@ test('вердикт по рынку: ±10% ещё в рынке', () => {
   assert.equal(marketVerdict(3.2, 3.1).tone, 'warn')
   assert.equal(marketVerdict(2.6, 3.1).tone, 'bad')
   assert.equal(Math.round(marketVerdict(3.41, 3.1).diff), 10)
+})
+
+test('процент к рынку — со знаком, как в карточке груза', () => {
+  assert.equal(pctText(8.4), '+8%')
+  assert.equal(pctText(-12.2), '-12%')
+  assert.equal(pctText(0.3), '0%')
+})
+
+test('рыночная ставка груза: вписанная главнее DAT, иначе регион погрузки', () => {
+  const s = snap()
+  assert.equal(loadMarketRpm(s, { spotRpm: 2.5, origin: 'Wapakoneta, OH' }), 2.5)
+  assert.equal(loadMarketRpm(s, { spotRpm: null, origin: 'Wapakoneta, OH' }), 3.1)
+  assert.equal(loadMarketRpm(s, { spotRpm: 0, origin: 'Dallas, TX' }), 2.77)
+  assert.equal(loadMarketRpm(s, { spotRpm: null, origin: 'Anchorage, AK' }), null)
+  assert.equal(loadMarketRpm(null, { spotRpm: null, origin: 'Wapakoneta, OH' }), null)
+})
+
+test('средняя к рынку: вес — гружёные мили, грузы без рынка не участвуют', () => {
+  const v = versusMarket([
+    { rate: 3000, loadedMiles: 1000, market: 2.5 }, // $3.00 при рынке $2.50
+    { rate: 1000, loadedMiles: 200, market: 4.0 }, // короткий дорогой: $5.00 при $4.00
+    { rate: 5000, loadedMiles: 900, market: null }, // рынка нет — мимо
+    { rate: 800, loadedMiles: 0, market: 3.0 }, // миль нет — мимо
+  ])!
+  assert.equal(v.loads, 2)
+  assert.equal(Math.round(v.rpm * 100), 333) // 4000 / 1200
+  assert.equal(Math.round(v.market * 100), 275) // (2.5·1000 + 4·200) / 1200
+  assert.equal(Math.round(v.diff), 21)
+  assert.equal(v.tone, 'good')
+  assert.equal(versusMarket([{ rate: 900, loadedMiles: 500, market: null }]), null)
+  assert.equal(versusMarket([]), null)
+})
+
+test('штаты для карты: горячесть от медианы, Канзас под почтовым кодом', () => {
+  const states = ltStates({ ...snap(), lt: parseLt(LT_VAN.map((r) => (r.code === 'KS' ? { ...r, code: 'KA' } : r)))! })
+  assert.deepEqual(states.OH, { ratio: 7.75, heat: 'hot' })
+  assert.equal(states.FL?.heat, 'cold')
+  assert.equal(states.KS?.ratio, 6)
+  assert.equal(states.KA, undefined)
 })
 
 test('горячий штат считается от медианы серии, а не от абсолютной цифры', () => {

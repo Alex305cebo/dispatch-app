@@ -28,6 +28,7 @@ import {
   type LoadRecord,
 } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
+import { marketVerdict, pctText } from '@/lib/dat-market-core'
 import { usd, usd2, usDate, weekLabel, weekStart } from '@/lib/fmt'
 import { isoDay, scheduleConnection, stopOrder, whenText, type Connection } from '@/lib/loads-dashboard'
 import { StatusBadge, statusLabel } from '@/components/status'
@@ -170,7 +171,7 @@ export function LoadsViews({
 
   return (
     <MetricsContext.Provider value={metrics}>
-      <LoadsKpis loads={allLoads} trucks={trucks} weekFrom={weekFrom} locale={locale} onSelect={select} />
+      <LoadsKpis loads={allLoads} trucks={trucks} metrics={metrics} weekFrom={weekFrom} locale={locale} onSelect={select} />
       {mapPanel}
       {/* Календарь недели — сразу под картой и виден с первого экрана: где каждый трак и
           что он везёт на неделю. Поиск и фильтры ниже его не сужают — это обзор парка,
@@ -282,6 +283,26 @@ export function LoadsViews({
   )
 }
 
+/** «+8% к рынку» у груза: гружёная ставка против рынка — вписанного в груз или DAT по
+ * региону погрузки (правило карточки груза). Нет рынка, миль или ставки — метки нет. */
+function MarketBadge({ load, locale }: { load: LoadRecord; locale: Locale }) {
+  const m = useContext(MetricsContext)[load.id]
+  if (!m?.market || !(load.loadedMiles > 0) || !(load.rate > 0)) return null
+  const rpm = load.rate / load.loadedMiles
+  const v = marketVerdict(rpm, m.market)
+  const source = m.marketAt ? t(locale, 'loads.dash.marketDat').replace('{date}', m.marketAt) : t(locale, 'loads.dash.marketSpot')
+  return (
+    <span
+      title={`${usd2.format(rpm)} vs ${usd2.format(m.market)}/mi · ${source}`}
+      className={`nums shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+        v.tone === 'good' ? 'bg-good-500/15 text-good-400' : v.tone === 'bad' ? 'bg-bad-500/15 text-bad-400' : 'bg-white/8 text-white/70'
+      }`}
+    >
+      {t(locale, 'loads.dash.vsMarket').replace('{pct}', pctText(v.diff))}
+    </span>
+  )
+}
+
 function StatusBoard({
   loads,
   byId,
@@ -366,6 +387,9 @@ function StatusBoard({
                         </span>
                       )}
                     </span>
+                  </div>
+                  <div className="mt-1 flex empty:hidden">
+                    <MarketBadge load={load} locale={locale} />
                   </div>
                 </div>
               )
@@ -817,6 +841,7 @@ function LoadRow({
             <span className="nums text-[11.5px] text-white/60">
               {Math.round(totalMiles)} mi · {usd2.format(totalMiles > 0 ? load.rate / totalMiles : 0)}/mi
             </span>
+            <MarketBadge load={load} locale={locale} />
           </div>
           {/* Номер, брокер и бумаги одной строкой: RC и POD — то, без чего не выставить счёт. */}
           <p className="mt-1 flex flex-wrap gap-x-2 text-[11px] text-white/60">

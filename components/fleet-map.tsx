@@ -15,10 +15,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
+import { Flame } from 'lucide-react'
 import { useLocale } from '@/components/locale-provider'
+import { Info } from '@/components/info'
 import { t } from '@/lib/i18n'
-import { zoneTime } from '@/lib/fmt'
+import { usDate, zoneTime } from '@/lib/fmt'
 import { US_STATES } from '@/lib/us-states'
+import type { DatEquipment, DatHeat } from '@/lib/dat-market-core'
 
 export type MapMarker = {
   lat: number
@@ -54,6 +57,21 @@ export type MapRoute = {
   /** Ключ варианта. Есть — по линии можно щёлкнуть и выбрать её (см. onRoute). */
   id?: string
 }
+
+/** Слой «Рынок DAT»: по каждой серии — сколько грузов на трак в штате и горячесть от
+ * медианы серии (ltStates в lib/dat-market-core.ts). Готовит сервер из суточного снимка,
+ * карта только красит штаты. */
+export type MapMarket = {
+  /** Когда DAT отдал снимок, мс, — дата в легенде. */
+  at: number
+  series: Partial<Record<DatEquipment, Record<string, { ratio: number; heat: DatHeat }>>>
+}
+
+const HEAT_KEY = { hot: 'needsLoad.heatHot', warm: 'needsLoad.heatWarm', cold: 'needsLoad.heatCold' } as const
+const HEAT_SWATCH = { hot: 'bg-good-400/60', warm: 'bg-white/20', cold: 'bg-bad-400/60' } as const
+const SERIES_NAME: Record<DatEquipment, string> = { VAN: 'Van', REEFER: 'Reefer', FLATBED: 'Flatbed' }
+/** localStorage: включённый слой рынка остаётся включённым на следующих открытиях. */
+const MARKET_KEY = 'map:market'
 
 // move=green/on=amber/rest=gray — the convergent pattern across Samsara, Verizon
 // Connect and Motive's fleet maps. move is ZigZag's own #5AC41D (see the icon()
@@ -442,6 +460,7 @@ export function FleetMap({
   onSelect,
   onRoute,
   focus = null,
+  market = null,
 }: {
   markers: MapMarker[]
   routes?: MapRoute[]
@@ -464,6 +483,9 @@ export function FleetMap({
    * показывает пункт оплаты, выбранный в списке. Меняется объектом, поэтому
    * повторный щелчок по той же строке снова ведёт карту к ней. */
   focus?: { lat: number; lng: number } | null
+  /** Рынок DAT по штатам. Есть — на карте кнопка «Рынок», которая красит штаты по тому,
+   * сколько грузов приходится на трак, с легендой и датой снимка. */
+  market?: MapMarket | null
 }) {
   const locale = useLocale()
   // Узел, в котором живёт Leaflet. Создаётся ОДИН раз и кочует между обычным местом
@@ -520,6 +542,60 @@ export function FleetMap({
   const [trailOn, setTrailOn] = useState(true)
   const trailOnRef = useRef(trailOn)
   trailOnRef.current = trailOn
+  // Карта строится асинхронно — слою рынка нужен сигнал, что ей уже есть куда рисовать.
+  const [mapReady, setMapReady] = useState(false)
+  const [marketOn, setMarketOn] = useState(false)
+  const [series, setSeries] = useState<DatEquipment>('VAN')
+  const seriesList = market ? (Object.keys(market.series) as DatEquipment[]) : []
+  const shownSeries = seriesList.includes(series) ? series : (seriesList[0] ?? null)
+  const marketStates = marketOn && market && shownSeries ? (market.series[shownSeries] ?? null) : null
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(MARKET_KEY) === '1') setMarketOn(true)
+    } catch {
+      /* хранилище закрыто — слой просто выключен */
+    }
+  }, [])
+  const toggleMarket = () => {
+    const next = !marketOn
+    setMarketOn(next)
+    try {
+      localStorage.setItem(MARKET_KEY, next ? '1' : '0')
+    } catch {
+      /* не запомнится — не беда */
+    }
+  }
+
+  // Слой рынка — своя группа в своей панели ПОД маршрутами и точками: включение, смена
+  // серии и язык перекрашивают только её, вид карты не трогают. Контуры штатов (~80 КБ)
+  // приезжают отдельным куском при первом включении.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !marketStates) return
+    let cancelled = false
+    let group: import('leaflet').LayerGroup | null = null
+    void (async () => {
+      const [L, { US_STATE_SHAPES }] = await Promise.all([import('leaflet').then((m) => m.default), import('@/lib/us-state-shapes')])
+      if (cancelled || mapRef.current !== map) return
+      if (!map.getPane('market')) map.createPane('market').style.zIndex = '350'
+      group = L.layerGroup()
+      for (const [code, name] of US_STATES) {
+        const s = marketStates[code]
+        const shape = US_STATE_SHAPES[code]
+        if (!s || !shape) continue
+        const text = t(locale, 'needsLoad.market').replace('{ratio}', s.ratio.toFixed(1)).replace('{heat}', t(locale, HEAT_KEY[s.heat]))
+        L.polygon(shape, { pane: 'market', className: `mkt mkt-${s.heat}`, weight: 1 })
+          .bindTooltip(`<b>${esc(name)}</b> · ${esc(text)}`, { sticky: true, direction: 'top', offset: [0, -10], opacity: 1, className: 'mkt-tip' })
+          .addTo(group)
+      }
+      group.addTo(map)
+    })()
+    return () => {
+      cancelled = true
+      group?.remove()
+    }
+  }, [marketStates, locale, mapReady])
 
   useEffect(() => {
     const map = mapRef.current
@@ -595,6 +671,8 @@ export function FleetMap({
           // сами не закрываются — см. scheduleClose у маркера).
           map!.eachLayer((l) => {
             const mk = l as import('leaflet').Marker
+            // Плашку штата (слой рынка) этот же тап только что открыл — её не закрываем.
+            if (mk.options.pane === 'market') return
             if (typeof mk.isTooltipOpen === 'function' && mk.isTooltipOpen()) mk.closeTooltip()
           })
         })
@@ -631,6 +709,7 @@ export function FleetMap({
       // проходы идут мимо инициализации — и падали на null.clearLayers(), рисуя
       // карту без точек и маршрута. Досоздаём слой здесь.
       if (!overlayRef.current) overlayRef.current = L.layerGroup().addTo(map)
+      setMapReady(true)
       const group = overlayRef.current
       group.clearLayers()
       if (trailRef.current) {
@@ -978,6 +1057,23 @@ export function FleetMap({
             <span className="hidden sm:inline">{t(locale, 'tracking.trailLabel')}</span>
           </button>
         )}
+        {seriesList.length > 0 && (
+          <button
+            type="button"
+            onClick={toggleMarket}
+            aria-pressed={marketOn}
+            title={t(locale, 'tracking.marketTitle')}
+            aria-label={t(locale, 'tracking.marketTitle')}
+            className={`flex h-[30px] items-center justify-center gap-1 rounded-lg border px-2 text-[11px] font-semibold backdrop-blur transition-colors sm:px-2.5 ${
+              marketOn
+                ? 'border-white/25 bg-ink-950/85 text-white'
+                : 'border-white/15 bg-ink-950/60 text-white/60 hover:text-white/85'
+            }`}
+          >
+            <Flame size={14} strokeWidth={2.2} className={marketOn ? 'text-good-400' : undefined} aria-hidden />
+            <span className="hidden sm:inline">{t(locale, 'tracking.marketLabel')}</span>
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setSatellite((v) => !v)}
@@ -1024,7 +1120,49 @@ export function FleetMap({
       {/* Live status, not a passive colour key: one truck shows its own state as a
           pulsing pill (the dot pings while it's rolling); several show a live tally of how
           many are moving / on duty / stopped. Nothing when no truck is on the map. */}
-      <LiveStatus trucks={markers.filter((m) => m.kind === 'truck')} locale={locale} />
+      {/* На телефоне легенде рынка и счётчику парка вдвоём внизу не хватает места —
+          пока слой включён, счётчик уступает: те же цвета траков видны на самой карте. */}
+      <div className={marketStates ? 'max-sm:hidden' : undefined}>
+        <LiveStatus trucks={markers.filter((m) => m.kind === 'truck')} locale={locale} />
+      </div>
+      {marketStates && market && shownSeries && (
+        <div className="absolute bottom-2.5 right-2.5 z-[1000] flex max-w-[calc(100%-20px)] flex-col gap-1 rounded-xl border border-white/15 bg-ink-950/85 px-2.5 py-2 text-[11px] text-white/70 backdrop-blur">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <span className="flex items-center gap-1 font-semibold text-white/85">
+              {t(locale, 'tracking.marketLegend')}
+              <Info text={t(locale, 'tracking.marketLegendInfo')} />
+            </span>
+            {seriesList.length > 1 && (
+              <span className="flex rounded-md bg-white/[0.06] p-0.5">
+                {seriesList.map((eq) => (
+                  <button
+                    key={eq}
+                    type="button"
+                    aria-pressed={eq === shownSeries}
+                    onClick={() => setSeries(eq)}
+                    className={`rounded px-1.5 py-0.5 text-[10.5px] font-semibold transition-colors max-md:min-h-8 max-md:px-2 ${
+                      eq === shownSeries ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-white/55 hover:text-white/85'
+                    }`}
+                  >
+                    {SERIES_NAME[eq]}
+                  </button>
+                ))}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+            {(['hot', 'warm', 'cold'] as const).map((h) => (
+              <span key={h} className="flex items-center gap-1">
+                <span className={`size-2.5 rounded-sm ${HEAT_SWATCH[h]}`} aria-hidden />
+                {t(locale, HEAT_KEY[h])}
+              </span>
+            ))}
+          </div>
+          <div className="nums text-[10.5px] text-white/45">
+            {t(locale, 'loadCard.marketAsOf').replace('{when}', usDate(new Date(market.at)))}
+          </div>
+        </div>
+      )}
     </div>
   )
 
