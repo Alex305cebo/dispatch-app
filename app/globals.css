@@ -80,6 +80,15 @@
      tint here, which is how the broker banner's heading came out near-invisible in
      light mode. On white the same job needs the dark end of the ramp. */
   --color-haul-300: #4e3ac4;
+  /* То же для цветов статусов (забукирован / в пути / доставлен): их 200–300 — только
+     цвет ТЕКСТА, светлый для тёмной страницы. На белом подписи на полосах календаря
+     грузов и в значках статусов сливались с фоном — берём тёмный конец шкалы. */
+  --color-cyan-200: #0e7490;
+  --color-cyan-300: #0e7490;
+  --color-amber-200: #a55a08;
+  --color-amber-300: #a55a08;
+  --color-fuchsia-200: #a21caf;
+  --color-fuchsia-300: #a21caf;
 }
 
 @layer base {
