@@ -72,9 +72,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   ])
   // Прицеп для кнопки трака + наш средний $/милю по этому направлению. Оба нужны
   // только для показа, поэтому идут вторым параллельным заходом, уже зная truck.id.
-  // Обратный груз ищут, пока трак едет: список «кому звонить» нужен только
-  // забукированному и едущему грузу, доставленному он ни к чему.
-  const wantBackhaul = load.status === 'booked' || load.status === 'in_transit'
+  // Следующий груз ищут, пока трак едет на выгрузку и когда он только что разгрузился:
+  // «прошлые грузы в штате — кому звонить». У доставленного — только если он у трака
+  // последний (решается ниже, когда известны грузы трака).
+  const wantBackhaul = load.status === 'booked' || load.status === 'in_transit' || load.status === 'delivered'
   // Страница водителя: адрес и когда он её открывал — как на карточке трака.
   // В демо ссылку не выдаём.
   const driverSeen = await getSetting(`driver_seen:${truck.id}`)
@@ -91,7 +92,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const [truckMeta, laneAvgRpm, backhaul, brokerGrade, driverEvents, truckCurrent, truckLoads] = await Promise.all([
     getTruckMeta(truck.id),
     laneAvgRpmFor(companyId, load.origin, load.destination, load.id),
-    wantBackhaul ? backhaulBrokers(companyId, load.destination) : Promise.resolve(null),
+    wantBackhaul ? backhaulBrokers(companyId, load.destination, load.id) : Promise.resolve(null),
     brokerGradeFor(companyId, load.brokerMc, load.brokerEmail, load.brokerName),
     listLoadEvents(companyId, load.id),
     // Этот груз забукирован, а трак ещё везёт другой — подсказка, что делать.
@@ -100,6 +101,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     listLoads(companyId, { truckId: truck.id }),
   ])
   const mates = (activeLoadsByTruck(truckLoads).get(truck.id) ?? []).filter((l) => l.id !== load.id)
+  const showBackhaul =
+    backhaul &&
+    (load.status !== 'delivered' ||
+      !truckLoads.some(
+        (l) => l.id !== load.id && l.status !== 'quoted' && l.status !== 'cancelled' && Date.parse(l.createdAt) > Date.parse(load.createdAt),
+      ))
   // Прошлые грузы этого трака без POD — в шапку: пока везут этот, про тот забывают.
   const missingPod = await loadsMissingPod(companyId, truckLoads.filter((l) => l.id !== load.id))
   const taskLoads = mates.length ? [load, ...mates] : []
@@ -320,7 +327,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         />
       )}
 
-      {backhaul && <BackhaulList state={backhaul.state} brokers={backhaul.brokers} locale={locale} />}
+      {showBackhaul && <BackhaulList state={backhaul.state} brokers={backhaul.brokers} locale={locale} />}
 
       <section className="panel mt-4 p-5">
         <h2 className="mb-4 text-base leading-6 font-semibold text-white/90">
