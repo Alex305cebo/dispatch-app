@@ -16,6 +16,8 @@ import {
   parseRegions,
   parseLt,
   parseFuel,
+  parseTrend,
+  parseHistory,
   type DatSnapshot,
 } from './dat-market-core.ts'
 
@@ -153,6 +155,34 @@ test('горячий штат считается от медианы серии,
   assert.equal(ltHeat(s, 7.75), 'hot') // OH
   assert.equal(ltHeat(s, 3.0), 'cold') // FL
   assert.equal(ltHeat(s, 5.2), 'warm') // TX — медиана
+})
+
+test('тренд за неделю — своей серии', () => {
+  // Форма живого ответа /trends от 09/14/26
+  const raw = {
+    vanTrends: { weekOverWeekVanLoadToTruckRatioChangeInPercentage: 22.601, weekOverWeekVanSpotRateChangeInPercentage: 3.114 },
+    reeferTrends: { weekOverWeekReeferLoadToTruckRatioChangeInPercentage: 11.215, weekOverWeekReeferSpotRateChangeInPercentage: -0.5 },
+    flatbedTrends: { weekOverWeekFlatbedLoadToTruckRatioChangeInPercentage: 16.811 },
+  }
+  assert.deepEqual(parseTrend(raw, 'VAN'), { ltWoW: 22.601, rateWoW: 3.114 })
+  assert.deepEqual(parseTrend(raw, 'REEFER'), { ltWoW: 11.215, rateWoW: -0.5 })
+  assert.deepEqual(parseTrend(raw, 'FLATBED'), { ltWoW: 16.811, rateWoW: null })
+  assert.equal(parseTrend({ statusCode: 401 }, 'VAN'), null)
+  assert.equal(parseTrend({ vanTrends: { weekOverWeekVanSpotRateChangeInPercentage: 40452 } }, 'VAN'), null)
+})
+
+test('история грузов на трак: по возрастанию, последние 52 недели', () => {
+  const weeks = Array.from({ length: 60 }, (_, i) => {
+    const d = new Date(Date.UTC(2025, 6, 19) + i * 7 * 86_400_000).toISOString().slice(0, 10)
+    return { truckCount: 1, loadCount: 1, ratio: 5 + i / 10, weekEndingWhen: d }
+  })
+  const h = parseHistory({ threeYearMonthly: [], oneMonthWeekly: [...weeks].reverse() })!
+  assert.equal(h.length, 52)
+  assert.equal(h[0]!.when, weeks[8]!.weekEndingWhen)
+  assert.equal(h[51]!.ratio, 10.9)
+  // Мусорные недели выпадают, одной недели для линии мало
+  assert.deepEqual(parseHistory({ oneMonthWeekly: [{ weekEndingWhen: '2026-09-12', ratio: 11.7 }, { weekEndingWhen: 'soon', ratio: 3 }] }), null)
+  assert.equal(parseHistory({ statusCode: 401 }), null)
 })
 
 test('поломанный ответ DAT не превращается в цифры', () => {

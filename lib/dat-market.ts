@@ -92,7 +92,16 @@ export async function datSnapshot(
     return cached ? { ...cached, stale: true } : null
   }
 
-  const snap: DatSnapshot = { equipment, at: Date.now(), regions, lt, fuel: parseFuel(fuelRaw) ?? cached?.fuel ?? null }
+  // Тренд и историю приносит только суточный снимок из CI — живой запрос их не теряет.
+  const snap: DatSnapshot = {
+    equipment,
+    at: Date.now(),
+    regions,
+    lt,
+    fuel: parseFuel(fuelRaw) ?? cached?.fuel ?? null,
+    trend: cached?.trend ?? null,
+    history: cached?.history ?? null,
+  }
   await setSetting(key, JSON.stringify(snap)).catch(() => {})
   return { ...snap, stale: false }
 }
