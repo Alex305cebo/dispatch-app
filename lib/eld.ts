@@ -343,6 +343,12 @@ type LastTrip = { tripId?: string; vehicleId?: string; points?: TripPoint[] }
  * keeps us a polite client. */
 const FUEL_EVERY_MS = 20 * 60 * 1000
 
+/** Пробег, которому можно верить. У части траков ZigZag присылает одометр 1 (09/14/26 —
+ * 1935 и 2235): датчик не читается. Отсчёт до замены масла считался от одной мили и горел
+ * зелёным «масло через 153,580 mi», а форма «Масло заменено» подставляла пробег 1.
+ * Меньше 10 миль у работающего трака не бывает. */
+const realOdometer = (v: unknown): number | null => (typeof v === 'number' && v >= 10 ? v : null)
+
 /**
  * Latest fuel + odometer per unit, read from each vehicle's last trip.
  *
@@ -391,7 +397,7 @@ async function fuelByUnit(
       const p = pts[pts.length - 1]!
       out.set(unit, {
         fuel: typeof p.fuel === 'number' ? p.fuel : null,
-        odometer: typeof p.odometer === 'number' && p.odometer > 0 ? p.odometer : null,
+        odometer: realOdometer(p.odometer),
       })
     } catch {
       // A single truck's trip call failing is not worth losing the others over.
@@ -462,7 +468,9 @@ export async function fleetSnapshot(
     // when present. COALESCE on the way in AND on conflict: fuel is refreshed on a
     // slower cadence than position, and a poll without it must not blank the last
     // known reading.
-    const odo = extra?.odometer ?? v.odometer ?? null
+    const odo = extra?.odometer ?? realOdometer(v.odometer)
+    // Одометр «1», записанный до этой проверки, при следующем опросе уходит (IF ниже), а не
+    // держится вечно из-за COALESCE.
     await sql`
       INSERT INTO fleet_status
         (unit, driver_name, drive_status, location, lat, lng, odometer, fuel, bearing,
@@ -476,7 +484,7 @@ export async function fleetSnapshot(
         driver_name = COALESCE(VALUES(driver_name), fleet_status.driver_name),
         drive_status = VALUES(drive_status), location = VALUES(location),
         lat = VALUES(lat), lng = VALUES(lng),
-        odometer = COALESCE(VALUES(odometer), fleet_status.odometer),
+        odometer = COALESCE(VALUES(odometer), IF(fleet_status.odometer >= 10, fleet_status.odometer, NULL)),
         fuel = COALESCE(VALUES(fuel), fleet_status.fuel),
         bearing = COALESCE(VALUES(bearing), fleet_status.bearing),
         eld_seen = VALUES(eld_seen), updated_at = NOW(6)`

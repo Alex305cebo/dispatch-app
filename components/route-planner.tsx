@@ -30,6 +30,7 @@ import {
   dayTone,
   parseBoardLoads,
   rankLanes,
+  rpmForTarget,
   scoreLane,
   stateName,
   type Lane,
@@ -207,6 +208,7 @@ function HeatTag({ heat, locale }: { heat: DatHeat | null; locale: Locale }) {
 
 export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks: PlanTruck[]; snaps: PlanSnaps }) {
   const locale = useLocale()
+  const [range, setRange] = useState<'all' | 'day' | 'long'>('all')
   const { truck, origin, series, snap, opts, lanes, from, planOpts } = plan
   if (!truck) return null
   const seriesList = Object.keys(snaps) as DatEquipment[]
@@ -216,6 +218,8 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
   const heat = snap && lt ? ltHeat(snap, lt.ratio) : null
   const originRpm = snap && origin ? (regionOf(snap, origin)?.rpm ?? null) : null
   const s = truck.settings
+  // «На 1 день»: груз вместе с порожним укладывается в «Миль в день» из настроек расчёта.
+  const shown = range === 'all' ? lanes : lanes.filter((l) => (l.miles + l.deadhead <= opts.mpd) === (range === 'day'))
 
   const place = truck.place
   const originLine = !place
@@ -384,19 +388,50 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
               {t(locale, 'plan.showOnMap')}
             </Button>
           </div>
-          <div className="mt-2 flex flex-col gap-1.5">
-            <ShowMore
-              limit={5}
-              label={t(locale, 'plan.more')}
-              items={lanes.slice(0, 10).map((lane, i) => (
-                <LaneRow key={lane.state} lane={lane} rank={i + 1} snap={snap} origin={origin} opts={opts} settings={s} locale={locale} />
-              ))}
-            />
+          {/* Сверху общего списка всегда дальние штаты: на длинном рейсе погрузка и простой
+              размазываются на много дней. Рейсы на один день — отдельным выбором. */}
+          <div className="mt-2 flex rounded-xl border border-white/10 bg-white/[0.04] p-0.5">
+            {(
+              [
+                ['all', 'plan.range.all'],
+                ['day', 'plan.range.day'],
+                ['long', 'plan.range.long'],
+              ] as const
+            ).map(([key, msg]) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={range === key}
+                onClick={() => setRange(key)}
+                className={`flex-1 rounded-lg px-2 py-1.5 text-[12.5px] font-semibold transition-colors max-md:min-h-10 ${
+                  range === key ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-white/55 hover:text-white/85'
+                }`}
+              >
+                {t(locale, msg)}
+              </button>
+            ))}
           </div>
-          {lanes.length > 10 && (
+          {range === 'day' && (
+            <p className="mt-1.5 text-[12px] text-white/55">{t(locale, 'plan.range.dayHint').replace('{mi}', String(opts.mpd))}</p>
+          )}
+          {shown.length ? (
+            <div className="mt-2 flex flex-col gap-1.5">
+              <ShowMore
+                key={range}
+                limit={5}
+                label={t(locale, 'plan.more')}
+                items={shown.slice(0, 10).map((lane, i) => (
+                  <LaneRow key={lane.state} lane={lane} rank={i + 1} snap={snap} origin={origin} opts={opts} settings={s} locale={locale} />
+                ))}
+              />
+            </div>
+          ) : (
+            <p className="mt-2 text-[13px] text-white/55">{t(locale, 'plan.noRange').replace('{state}', stateName(origin))}</p>
+          )}
+          {shown.length > 10 && (
             <p className="mt-2 text-[12px] text-white/55">
               <span className="font-semibold text-bad-400">{t(locale, 'plan.traps')}:</span>{' '}
-              {lanes
+              {shown
                 .slice(-3)
                 .reverse()
                 .map((l) => `${l.name} (${t(locale, 'plan.perDay').replace('{v}', usd.format(l.grossPerDay))})`)
@@ -499,6 +534,35 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
                 </div>
               )
             })}
+            {/* На телефоне столбцы по три, а регионов пять — место шестого пустовало. В нём
+                средняя ставка по регионам и что значат точки; с sm столбцов пять, и места нет.
+                ponytail: рассчитано на пять регионов DAT; при четырёх осталась бы одна дыра. */}
+            {snap.regions.length % 3 !== 0 && (
+              <div className="min-w-0 sm:hidden">
+                <div className="panel-inset px-2 py-1.5">
+                  <div className="truncate text-[11px] text-white/55">{t(locale, 'plan.market.avgRegions')}</div>
+                  <div className="nums text-[16px] font-bold leading-tight">
+                    {usd2.format(snap.regions.reduce((sum, r) => sum + r.rpm, 0) / snap.regions.length)}
+                    <span className="text-[11px] font-medium text-white/45">/mi</span>
+                  </div>
+                </div>
+                <ul className="mt-1.5 space-y-1 px-1 text-[11.5px] leading-snug text-white/60">
+                  {(
+                    [
+                      ['bg-good-400', 'plan.market.legendBest'],
+                      ['bg-white/30', 'plan.market.legendMid'],
+                      ['bg-bad-400', 'plan.market.legendWorst'],
+                    ] as const
+                  ).map(([dot, msg]) => (
+                    <li key={msg} className="flex items-center gap-1.5">
+                      <span className={`size-1.5 shrink-0 rounded-full ${dot}`} aria-hidden />
+                      {t(locale, msg)}
+                    </li>
+                  ))}
+                  <li className="pt-0.5 text-white/45">{t(locale, 'plan.market.legendUnit')}</li>
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -724,6 +788,7 @@ function LaneRow({
   board?: boolean
 }) {
   const tone = dayTone(lane.grossPerDay, opts.target)
+  const need = rpmForTarget(lane, opts.target)
   return (
     <details className="group rounded-lg border border-white/8 transition-colors open:border-white/15 hover:border-white/15">
       <summary className="flex cursor-pointer list-none items-center gap-2.5 px-3 py-2 max-md:min-h-11">
@@ -735,6 +800,14 @@ function LaneRow({
           </span>
           <span className="nums block break-words text-[11.5px] text-white/50">
             {lane.miles.toLocaleString('en-US')} mi · {usd2.format(lane.rpm)}/mi · {t(locale, 'plan.loadShort').replace('{v}', usd.format(lane.rate))}
+            {need > 0 && (
+              <>
+                {' · '}
+                <span className={lane.rpm >= need ? 'text-good-400/80' : 'text-warn-400/90'}>
+                  {t(locale, 'plan.needRpm').replace('{v}', usd2.format(need))}
+                </span>
+              </>
+            )}
           </span>
           {reasons && reasons.length > 0 && <span className="block text-[11.5px] text-white/60">{reasons.join(' · ')}</span>}
         </span>
@@ -845,8 +918,10 @@ function LaneCalc({
 }
 
 /** Конкретные грузы с доски — тем же расчётом, что направления: вместе с тем, где груз
- * оставит трак. Грузы — строками в поле: руками или со скриншота доски (ИИ пишет строки
- * туда же, поэтому видно, что он прочитал, и цифру можно поправить). Текст живёт только на
+ * оставит трак. Диспетчер ничего не печатает: делает скриншот доски и жмёт Ctrl+V на
+ * странице, перетаскивает картинку в рамку или выбирает файл — ИИ пишет грузы строками.
+ * Сами строки спрятаны в «Поправить цифры вручную»: поле с «TX 980 2450 60» на виду
+ * пользователь не понял, а нужно оно только если ИИ ошибся в цифре. Живёт только на
  * странице: это черновик под звонок брокеру. */
 function BoardCompare({
   snap,
@@ -863,6 +938,7 @@ function BoardCompare({
 }) {
   const [text, setText] = useState('')
   const [reading, setReading] = useState(false)
+  const [drag, setDrag] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const { rows, bad } = useMemo(() => {
     const rows = parseBoardLoads(text)
@@ -909,85 +985,153 @@ function BoardCompare({
       .finally(() => setReading(false))
   }
 
+  // Ctrl+V в любом месте страницы, кроме полей ввода: скриншот из буфера — сразу на чтение.
+  // Щёлкать сначала в поле диспетчер не станет.
+  const readRef = useRef(read)
+  useEffect(() => {
+    readRef.current = read
+  })
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (e.target instanceof Element && e.target.closest('input, textarea, [contenteditable="true"]')) return
+      const files = [...(e.clipboardData?.files ?? [])]
+      if (!files.some((f) => f.type.startsWith('image/'))) return
+      e.preventDefault()
+      readRef.current(files)
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+  }, [])
+
+  const pick = () => fileRef.current?.click()
+
   return (
     <div className="mt-4 border-t border-white/[0.06] pt-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-white/55">
-          {t(locale, 'plan.board')}
-          <Info text={t(locale, 'plan.boardInfo')} />
-        </h3>
-        <Button size="sm" icon={<ImagePlus size={13} />} loading={reading} onClick={() => fileRef.current?.click()}>
-          {t(locale, 'plan.boardShot')}
-        </Button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            read([...(e.target.files ?? [])])
-            e.target.value = ''
-          }}
-        />
-      </div>
-      <p className="mt-1 text-[12px] leading-snug text-white/55">{t(locale, 'plan.boardHint')}</p>
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        // Скриншот из буфера (Win+Shift+S → Ctrl+V) или перетащенный файл — сразу на чтение.
-        onPaste={(e) => {
-          const files = [...e.clipboardData.files]
-          if (!files.some((f) => f.type.startsWith('image/'))) return
-          e.preventDefault()
-          read(files)
+      <h3 className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-white/55">
+        {t(locale, 'plan.board')}
+        <Info text={t(locale, 'plan.boardInfo')} />
+      </h3>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          read([...(e.target.files ?? [])])
+          e.target.value = ''
         }}
-        onDragOver={(e) => {
-          if (e.dataTransfer.types.includes('Files')) e.preventDefault()
-        }}
-        onDrop={(e) => {
-          if (!e.dataTransfer.files.length) return
-          e.preventDefault()
-          read([...e.dataTransfer.files])
-        }}
-        rows={Math.min(8, Math.max(3, text.split('\n').length))}
-        wrap="off"
-        spellCheck={false}
-        placeholder={'TX 980 2450 60\nGA 640 1700'}
-        className={`${input} mt-2 font-mono text-[13px]`}
       />
-      {bad && (
-        <p className="mt-1 break-words text-[12px] text-warn-400">
-          {t(locale, 'plan.boardBad').replace('{line}', bad.length > 40 ? `${bad.slice(0, 40)}…` : bad)}
-        </p>
-      )}
-      {rows.length > 0 && (
-        <div className="mt-2 flex flex-col gap-1.5">
-          {rows.map(({ lane, label, market, pickup }, i) => {
-            const reasons = [
-              i === 0 && rows.length > 1 ? t(locale, 'plan.why.best') : null,
-              market ? t(locale, 'plan.why.market') : null,
-              lane.grossPerDay < opts.target ? t(locale, 'plan.why.belowTarget') : null,
-              lane.heat === 'cold' ? t(locale, 'plan.why.cold').replace('{days}', lane.wait.toFixed(1)) : null,
-              lane.heat === 'hot' ? t(locale, 'plan.why.hot') : null,
-              lane.net < 0 ? t(locale, 'plan.why.loss') : null,
-            ].filter((x): x is string => x !== null)
-            return (
-              <LaneRow
-                key={`${i}-${lane.state}-${lane.miles}-${lane.rate}`}
-                lane={lane}
-                title={label}
-                snap={snap}
-                origin={pickup}
-                opts={opts}
-                settings={planOpts.settings}
-                locale={locale}
-                reasons={reasons}
-                board={!market}
+
+      {!text.trim() ? (
+        <button
+          type="button"
+          onClick={pick}
+          disabled={reading}
+          aria-busy={reading || undefined}
+          onDragOver={(e) => {
+            if (!e.dataTransfer.types.includes('Files')) return
+            e.preventDefault()
+            setDrag(true)
+          }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={(e) => {
+            setDrag(false)
+            if (!e.dataTransfer.files.length) return
+            e.preventDefault()
+            read([...e.dataTransfer.files])
+          }}
+          className={`mt-2 flex w-full flex-col items-center gap-1 rounded-xl border border-dashed px-4 py-4 text-center transition-colors ${
+            drag ? 'border-haul-400 bg-haul-500/10' : 'border-white/15 hover:border-white/30 hover:bg-white/[0.03]'
+          }`}
+        >
+          {reading ? (
+            <span className="size-5 animate-spin rounded-full border-2 border-haul-400 border-t-transparent" aria-hidden />
+          ) : (
+            <ImagePlus size={22} className="text-haul-400" aria-hidden />
+          )}
+          <span className="text-[13.5px] font-semibold text-white/85">
+            {reading ? (
+              t(locale, 'plan.boardReading')
+            ) : (
+              <>
+                <span className="max-md:hidden">{t(locale, 'plan.boardDrop')}</span>
+                <span className="md:hidden">{t(locale, 'plan.boardDropTouch')}</span>
+              </>
+            )}
+          </span>
+          {!reading && <span className="text-[12px] text-white/50">{t(locale, 'plan.boardDropSub')}</span>}
+        </button>
+      ) : (
+        <>
+          {rows.length > 0 && (
+            <div className="mt-2 flex flex-col gap-1.5">
+              {rows.map(({ lane, label, market, pickup }, i) => {
+                const reasons = [
+                  i === 0 && rows.length > 1 ? t(locale, 'plan.why.best') : null,
+                  market ? t(locale, 'plan.why.market') : null,
+                  lane.grossPerDay < opts.target ? t(locale, 'plan.why.belowTarget') : null,
+                  lane.heat === 'cold' ? t(locale, 'plan.why.cold').replace('{days}', lane.wait.toFixed(1)) : null,
+                  lane.heat === 'hot' ? t(locale, 'plan.why.hot') : null,
+                  lane.net < 0 ? t(locale, 'plan.why.loss') : null,
+                ].filter((x): x is string => x !== null)
+                return (
+                  <LaneRow
+                    key={`${i}-${lane.state}-${lane.miles}-${lane.rate}`}
+                    lane={lane}
+                    title={label}
+                    snap={snap}
+                    origin={pickup}
+                    opts={opts}
+                    settings={planOpts.settings}
+                    locale={locale}
+                    reasons={reasons}
+                    board={!market}
+                  />
+                )
+              })}
+            </div>
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Button size="sm" icon={<ImagePlus size={13} />} loading={reading} onClick={pick}>
+              {t(locale, 'plan.boardMore')}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setText('')}>
+              {t(locale, 'plan.boardClear')}
+            </Button>
+          </div>
+          <details className="group mt-2 rounded-xl border border-white/8" open={Boolean(bad)}>
+            <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[12px] max-md:min-h-11">
+              <span className="text-white/40 transition-transform group-open:rotate-90" aria-hidden>
+                ▸
+              </span>
+              <span className="font-medium text-white/75">{t(locale, 'plan.boardEdit')}</span>
+            </summary>
+            <div className="border-t border-white/[0.06] px-3 pb-3 pt-2">
+              <p className="text-[12px] leading-snug text-white/55">{t(locale, 'plan.boardHint')}</p>
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                // Картинка, вставленная прямо в поле, — тоже на чтение, а не мимо.
+                onPaste={(e) => {
+                  const files = [...e.clipboardData.files]
+                  if (!files.some((f) => f.type.startsWith('image/'))) return
+                  e.preventDefault()
+                  read(files)
+                }}
+                rows={Math.min(8, Math.max(3, text.split('\n').length))}
+                wrap="off"
+                spellCheck={false}
+                className={`${input} mt-2 font-mono text-[13px]`}
               />
-            )
-          })}
-        </div>
+              {bad && (
+                <p className="mt-1 break-words text-[12px] text-warn-400">
+                  {t(locale, 'plan.boardBad').replace('{line}', bad.length > 40 ? `${bad.slice(0, 40)}…` : bad)}
+                </p>
+              )}
+            </div>
+          </details>
+        </>
       )}
     </div>
   )

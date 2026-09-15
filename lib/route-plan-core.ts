@@ -187,6 +187,16 @@ export function dayTone(grossPerDay: number, target: number): 'hit' | 'near' | '
   return grossPerDay >= target ? 'hit' : grossPerDay >= target * 0.85 ? 'near' : 'miss'
 }
 
+/**
+ * Какую ставку за милю должен платить груз, чтобы дни самого рейса — в пути, с погрузкой и
+ * выгрузкой — принесли цель выручки в день. Без простоя и следующего плеча из цикла: с ними
+ * рейсу на один день выходило «от $12/mi» — цифра, в которую диспетчер не поверит. Короткому
+ * рейсу ставка нужна выше: погрузка и выгрузка ложатся на меньшее число миль.
+ */
+export function rpmForTarget(lane: Lane, target: number): number {
+  return (target * lane.driveDays) / lane.miles
+}
+
 /** Груз с доски: штат доставки, мили, ставка (null — «?», на доске её нет) и, если была,
  * подпись после чисел — откуда, куда, брокер. */
 export type BoardLoad = { state: string; miles: number; rate: number | null; deadhead?: number; label?: string }

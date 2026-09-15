@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { parseLt, parseRegions, type DatSnapshot } from './dat-market-core.ts'
-import { dayTone, parseBoardLoads, rankLanes, roadMiles, scoreLane, waitDays, type PlanOptions } from './route-plan-core.ts'
+import { dayTone, parseBoardLoads, rankLanes, roadMiles, rpmForTarget, scoreLane, waitDays, type PlanOptions } from './route-plan-core.ts'
 import type { TruckSettings } from './profit.ts'
 
 // Регионы DAT Van (форма живого ответа 09/14/26) и грузы на трак по нескольким штатам.
@@ -139,4 +139,19 @@ test('грузы с доски строками', () => {
     { state: 'GA', miles: 781, rate: null, label: 'Dallas, TX' },
     { state: 'TX', miles: 980, rate: 2450, deadhead: 60, label: 'Dallas' },
   ])
+})
+
+test('ставка за милю, нужная для цели в день', () => {
+  const lane = scoreLane(snap, { state: 'IL' }, 'TX', opts)!
+  const need = rpmForTarget(lane, 1300)
+  // Груз ровно по этой ставке за дни рейса (в пути + погрузка и выгрузка) даёт ровно цель
+  assert.ok(Math.abs((need * lane.miles) / lane.driveDays - 1300) < 1e-6)
+  // 356 mi на один день: 406 mi по 500 в день + полдня на погрузку и выгрузку
+  const day = { ...lane, miles: 356, deadhead: 50, driveDays: 406 / 500 + 0.5 }
+  assert.equal(rpmForTarget(day, 1300).toFixed(2), '4.79')
+  // Рейсу на один день нужна ставка за милю выше, чем дальнему
+  const short = scoreLane(snap, { state: 'IL' }, 'OH', opts)!
+  const long = scoreLane(snap, { state: 'IL' }, 'CA', opts)!
+  assert.ok(short.miles + short.deadhead <= opts.milesPerDay && long.miles > 1500)
+  assert.ok(rpmForTarget(short, 1300) > rpmForTarget(long, 1300))
 })

@@ -98,6 +98,9 @@ export function oilStatus(
 ): { milesLeft: number; tone: 'good' | 'warn' | 'bad' } | null {
   if (!meta?.oilLastOdometer || currentOdometer === null) return null
   const milesLeft = Math.round(meta.oilLastOdometer + meta.oilIntervalMi - currentOdometer)
+  // Миль до замены больше самого интервала — значит, одометр сейчас ниже, чем в день
+  // прошлой замены. Одометр назад не крутится: показание неверное, считать не из чего.
+  if (milesLeft > meta.oilIntervalMi) return null
   const tone = milesLeft > 5000 ? 'good' : milesLeft > 1000 ? 'warn' : 'bad'
   return { milesLeft, tone }
 }

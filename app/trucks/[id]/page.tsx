@@ -498,58 +498,74 @@ export default async function Page({
           </div>
         )}
         <div className="relative px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
-          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10 sm:grid-cols-4">
-            <Chip
-              label={t(locale, 'trucks.chip.weekRate')}
-              value={usd.format(weekGross)}
-              tone={weekGross > 0 ? 'good' : undefined}
-              info={t(locale, 'trucks.chip.weekRateInfo')}
-            />
-            <Chip
-              label={t(locale, 'trucks.chip.weekMiles')}
-              value={`${Math.round(weekMiles).toLocaleString('en-US')} mi`}
-              info={t(locale, 'trucks.chip.weekMilesInfo')}
-            />
-            <Chip
-              label={t(locale, 'trucks.chip.rpm')}
-              value={`${usd2.format(avgRpm)}`}
-              info={t(locale, 'trucks.chip.rpmInfo')}
-            />
-            <Chip
-              label={t(locale, 'trucks.chip.deadhead')}
-              value={weekMiles > 0 ? `${Math.round(weekDeadhead).toLocaleString('en-US')} mi · ${weekDeadheadPct}%` : '—'}
-              tone={weekMiles > 0 ? (weekDeadheadPct >= 25 ? 'bad' : weekDeadheadPct >= 15 ? 'warn' : 'good') : undefined}
-              info={t(locale, 'trucks.chip.deadheadInfo')}
-            />
-            {fs?.odometer != null && (
-              <Chip
-                label={t(locale, 'trucks.chip.odometer')}
-                value={`${Math.round(fs.odometer).toLocaleString('en-US')} mi`}
-                info={t(locale, 'trucks.chip.odometerInfo')}
-              />
-            )}
-            <Chip
-              label={t(locale, 'trucks.chip.oilIn')}
-              value={oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—'}
-              tone={oil?.tone}
-              info={t(locale, 'trucks.chip.oilInInfo')}
-            />
-            {fs?.fuel != null && (
-              <Chip
-                label={t(locale, 'trucks.chip.fuel')}
-                value={`${Math.round(fs.fuel)}%`}
-                tone={fs.fuel <= 15 ? 'bad' : fs.fuel <= 30 ? 'warn' : undefined}
-                info={t(locale, 'trucks.chip.fuelInfo')}
-              />
-            )}
-            {activeLoad && (
-              <Chip
-                label={t(locale, 'trucks.chip.loadFuel')}
-                value={usd.format(calcLoad(activeLoad, truck).fuel)}
-                info={t(locale, 'trucks.chip.loadFuelInfo')}
-              />
-            )}
-          </div>
+          {(() => {
+            // Плиток то шесть, то восемь: пробег, топливо и топливо на рейс есть не у каждого
+            // трака. Линии между плитками — это фон сетки (gap-px), и на месте недостающей
+            // плитки он просвечивал пустым серым прямоугольником. Последняя забирает остаток строки.
+            const chips: ChipProps[] = [
+              {
+                label: t(locale, 'trucks.chip.weekRate'),
+                value: usd.format(weekGross),
+                tone: weekGross > 0 ? 'good' : undefined,
+                info: t(locale, 'trucks.chip.weekRateInfo'),
+              },
+              {
+                label: t(locale, 'trucks.chip.weekMiles'),
+                value: `${Math.round(weekMiles).toLocaleString('en-US')} mi`,
+                info: t(locale, 'trucks.chip.weekMilesInfo'),
+              },
+              { label: t(locale, 'trucks.chip.rpm'), value: usd2.format(avgRpm), info: t(locale, 'trucks.chip.rpmInfo') },
+              {
+                label: t(locale, 'trucks.chip.deadhead'),
+                value: weekMiles > 0 ? `${Math.round(weekDeadhead).toLocaleString('en-US')} mi · ${weekDeadheadPct}%` : '—',
+                tone: weekMiles > 0 ? (weekDeadheadPct >= 25 ? 'bad' : weekDeadheadPct >= 15 ? 'warn' : 'good') : undefined,
+                info: t(locale, 'trucks.chip.deadheadInfo'),
+              },
+              ...(fs?.odometer != null
+                ? [
+                    {
+                      label: t(locale, 'trucks.chip.odometer'),
+                      value: `${Math.round(fs.odometer).toLocaleString('en-US')} mi`,
+                      info: t(locale, 'trucks.chip.odometerInfo'),
+                    },
+                  ]
+                : []),
+              {
+                label: t(locale, 'trucks.chip.oilIn'),
+                value: oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—',
+                tone: oil?.tone,
+                info: t(locale, 'trucks.chip.oilInInfo'),
+              },
+              ...(fs?.fuel != null
+                ? [
+                    {
+                      label: t(locale, 'trucks.chip.fuel'),
+                      value: `${Math.round(fs.fuel)}%`,
+                      tone: fs.fuel <= 15 ? ('bad' as const) : fs.fuel <= 30 ? ('warn' as const) : undefined,
+                      info: t(locale, 'trucks.chip.fuelInfo'),
+                    },
+                  ]
+                : []),
+              ...(activeLoad
+                ? [
+                    {
+                      label: t(locale, 'trucks.chip.loadFuel'),
+                      value: usd.format(calcLoad(activeLoad, truck).fuel),
+                      info: t(locale, 'trucks.chip.loadFuelInfo'),
+                    },
+                  ]
+                : []),
+            ]
+            const n = chips.length
+            const tail = `${n % 2 ? 'col-span-2' : ''} ${['', 'sm:col-span-4', 'sm:col-span-3', 'sm:col-span-2'][n % 4]}`
+            return (
+              <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10 sm:grid-cols-4">
+                {chips.map((c, i) => (
+                  <Chip key={c.label} {...c} className={i === n - 1 ? tail : undefined} />
+                ))}
+              </div>
+            )
+          })()}
         </div>
       </section>
 
@@ -912,17 +928,15 @@ export default async function Page({
   )
 }
 
-function Chip({
-  label,
-  value,
-  tone,
-  info,
-}: {
+type ChipProps = {
   label: string
   value: string
   tone?: 'good' | 'bad' | 'warn'
   info?: string
-}) {
+  className?: string
+}
+
+function Chip({ label, value, tone, info, className = '' }: ChipProps) {
   const color =
     tone === 'good'
       ? 'text-good-400'
@@ -933,7 +947,7 @@ function Chip({
           : 'text-white'
   // Плитка: подпись сверху, число под ней — одинаковая высота во всей таблице.
   return (
-    <div className="flex min-w-0 flex-col justify-center gap-0.5 bg-ink-900 px-3 py-2.5">
+    <div className={`flex min-w-0 flex-col justify-center gap-0.5 bg-ink-900 px-3 py-2.5 ${className}`}>
       <span className="flex min-w-0 items-center gap-1 text-[12px] font-medium leading-4 text-white/55">
         <span className="truncate">{label}</span>
         {info && <Info text={info} />}
