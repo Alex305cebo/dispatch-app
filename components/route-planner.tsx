@@ -156,7 +156,7 @@ export function useRoutePlan(trucks: PlanTruck[], snaps: PlanSnaps, selectedId: 
           {
             t: (l.grossPerDay / opts.target - 0.6) / 0.6,
             text: t(locale, 'plan.map.tip')
-              .replace('{gross}', usd.format(l.grossPerDay))
+              .replace('{gross}', usd2.format(rpmForTarget(l, opts.target)))
               .replace('{miles}', l.miles.toLocaleString('en-US'))
               .replace('{heat}', l.ratio != null ? t(locale, HEAT_LEVEL_KEY[heatLevel(l.median, l.ratio)]) : '—'),
           },
@@ -350,16 +350,16 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
               accent="good"
               icon={<TrendingUp size={15} strokeWidth={2.5} />}
               label={t(locale, 'plan.best')}
-              value={usd.format(best.grossPerDay)}
-              sub={t(locale, 'plan.inDay').replace('{state}', best.name)}
+              value={best.name}
+              sub={t(locale, 'plan.fromRpm').replace('{v}', usd2.format(rpmForTarget(best, opts.target)))}
             />
             {worst && (
               <Stat
                 accent="bad"
                 icon={<TrendingDown size={15} strokeWidth={2.5} />}
                 label={t(locale, 'plan.worst')}
-                value={usd.format(worst.grossPerDay)}
-                sub={t(locale, 'plan.inDay').replace('{state}', worst.name)}
+                value={worst.name}
+                sub={t(locale, 'plan.fromRpm').replace('{v}', usd2.format(rpmForTarget(worst, opts.target)))}
               />
             )}
             <Stat
@@ -793,23 +793,24 @@ function LaneRow({
             <HeatTag heat={lane.heat} ratio={lane.ratio} median={lane.median} locale={locale} />
           </span>
           <span className="nums block break-words text-[11.5px] text-white/50">
-            {lane.miles.toLocaleString('en-US')} mi · {usd2.format(lane.rpm)}/mi · {t(locale, 'plan.loadShort').replace('{v}', usd.format(lane.rate))}
-            {need > 0 && (
-              <>
-                {' · '}
-                <span className={lane.rpm >= need ? 'text-good-400/80' : 'text-warn-400/90'}>
-                  {t(locale, 'plan.needRpm').replace('{v}', usd2.format(need))}
-                </span>
-              </>
-            )}
+            {lane.miles.toLocaleString('en-US')} mi · {t(locale, board ? 'plan.rateRpm' : 'plan.marketRpm').replace('{v}', usd2.format(lane.rpm))}
           </span>
           {reasons && reasons.length > 0 && <span className="block text-[11.5px] text-white/60">{reasons.join(' · ')}</span>}
         </span>
-        <span className="shrink-0 text-right">
-          <span className={`nums block text-[15px] font-bold leading-tight ${TONE_TEXT[tone]}`}>
-            {t(locale, 'plan.perDay').replace('{v}', usd.format(lane.grossPerDay))}
+        {/* Справа — сколько просить за груз, чтобы трак заработал цель, а не «выручка в день
+            за цикл»: её не понимали. Зелёный — рынок уже платит столько, жёлтый — чуть не
+            хватает, красный — далеко. Порядок направлений прежний — по выручке в день. */}
+        <span className="shrink-0 text-right" title={t(locale, 'plan.fromRpmHint')}>
+          <span
+            className={`nums block text-[15px] font-bold leading-tight ${
+              need > 0 ? TONE_TEXT[lane.rpm >= need ? 'hit' : lane.rpm >= need * 0.9 ? 'near' : 'miss'] : TONE_TEXT[tone]
+            }`}
+          >
+            {need > 0 ? t(locale, 'plan.fromRpm').replace('{v}', usd2.format(need)) : `${usd2.format(lane.rpm)}/mi`}
           </span>
-          <span className="nums block text-[11px] text-white/50">{t(locale, 'plan.netShort').replace('{v}', usd.format(lane.netPerDay))}</span>
+          <span className="nums block text-[11px] text-white/50">
+            {t(locale, board ? 'plan.loadShort' : 'plan.loadApprox').replace('{v}', usd.format(lane.rate))}
+          </span>
         </span>
       </summary>
       <LaneCalc lane={lane} snap={snap} origin={origin} opts={opts} settings={settings} locale={locale} board={board} tone={tone} />
