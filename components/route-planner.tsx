@@ -1040,16 +1040,19 @@ function BoardCompare({
       .finally(() => setReading(false))
   }
 
-  // Ctrl+V в любом месте страницы, кроме полей ввода: скриншот из буфера — сразу на чтение.
-  // Щёлкать сначала в поле диспетчер не станет.
+  // Ctrl+V в любом месте страницы: картинка из буфера — сразу на чтение. Фокус в поле ввода
+  // не мешает — картинку в поле всё равно не вставить, а молча пропущенный Ctrl+V выглядел
+  // как сломанная кнопка. Своё поле со строками грузов ловит вставку само.
   const readRef = useRef(read)
   useEffect(() => {
     readRef.current = read
   })
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
-      if (e.target instanceof Element && e.target.closest('input, textarea, [contenteditable="true"]')) return
-      const files = [...(e.clipboardData?.files ?? [])]
+      if (e.defaultPrevented) return
+      const files = [...(e.clipboardData?.items ?? [])]
+        .map((it) => (it.kind === 'file' ? it.getAsFile() : null))
+        .filter((f): f is File => !!f)
       if (!files.some((f) => f.type.startsWith('image/'))) return
       e.preventDefault()
       readRef.current(files)
@@ -1079,10 +1082,21 @@ function BoardCompare({
       />
 
       {!text.trim() ? (
-        <button
-          type="button"
-          onClick={pick}
-          disabled={reading}
+        // Не кнопка выбора файла: щелчок по зоне открывал окно «Открыть», и Ctrl+V уходил в
+        // него, а не на страницу. На компьютере щелчок ничего не открывает — Ctrl+V работает
+        // и так; файл — отдельной ссылкой. На телефоне Ctrl+V нет — там касание выбирает файл.
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => {
+            if (!reading && window.matchMedia('(pointer: coarse)').matches) pick()
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              pick()
+            }
+          }}
           aria-busy={reading || undefined}
           onDragOver={(e) => {
             if (!e.dataTransfer.types.includes('Files')) return
@@ -1096,7 +1110,7 @@ function BoardCompare({
             e.preventDefault()
             read([...e.dataTransfer.files])
           }}
-          className={`mt-2 flex w-full flex-col items-center gap-3 rounded-xl border border-dashed px-4 py-4 text-center transition-colors sm:flex-row sm:text-left ${
+          className={`mt-2 flex w-full cursor-default flex-col items-center gap-3 rounded-xl border border-dashed px-4 py-4 text-center outline-none transition-colors focus-visible:border-haul-400 max-md:cursor-pointer sm:flex-row sm:text-left ${
             drag ? 'border-haul-400 bg-haul-500/10' : 'border-white/15 hover:border-white/30 hover:bg-white/[0.03]'
           }`}
         >
@@ -1119,8 +1133,20 @@ function BoardCompare({
             )}
           </span>
           {!reading && <span className="text-[12px] text-white/50">{t(locale, 'plan.boardDropSub')}</span>}
+          {!reading && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                pick()
+              }}
+              className="mt-0.5 text-[12px] font-semibold text-haul-400 underline-offset-2 hover:underline max-md:hidden"
+            >
+              {t(locale, 'plan.boardPick')}
+            </button>
+          )}
           </span>
-        </button>
+        </div>
       ) : (
         <>
           {rows.length > 0 && (
