@@ -844,7 +844,7 @@ function LoadRow({
             <span className="nums text-[11.5px] text-white/60">
               {Math.round(totalMiles)} mi · {usd2.format(totalMiles > 0 ? load.rate / totalMiles : 0)}/mi
             </span>
-            <DeadheadFlag miles={load.deadheadMiles} locale={locale} />
+            <DeadheadFlag miles={load.deadheadMiles} okMiles={load.deadheadOkMiles} locale={locale} />
             <MarketBadge load={load} locale={locale} />
           </div>
           {/* Номер, брокер и бумаги одной строкой: RC и POD — то, без чего не выставить счёт. */}

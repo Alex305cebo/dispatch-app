@@ -193,7 +193,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           {load.referenceId && ` · ${t(locale, 'import.label.referenceId')} ${load.referenceId}`}
         </p>
         <MissingPodBanner loads={missingPod} locale={locale} className="mt-3" />
-        <DeadheadFlag miles={load.deadheadMiles} locale={locale} banner className="mt-3" />
+        <DeadheadFlag miles={load.deadheadMiles} okMiles={load.deadheadOkMiles} loadId={load.id} locale={locale} banner className="mt-3" />
         {/* Кнопка на трак живёт в полосе «Трак ⇄ Груз» наверху — второй раз здесь ни к чему. */}
 
         {/* The rail needs the full width to lay five labelled steps out; sharing a flex

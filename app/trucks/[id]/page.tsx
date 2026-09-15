@@ -776,7 +776,7 @@ export default async function Page({
                       <span className="nums text-sm text-white/60">
                         {Math.round(r.totalMiles)} mi · {usd2.format(r.allInRpm)}/mi
                       </span>
-                      <DeadheadFlag miles={load.deadheadMiles} locale={locale} className="relative z-10" />
+                      <DeadheadFlag miles={load.deadheadMiles} okMiles={load.deadheadOkMiles} locale={locale} className="relative z-10" />
                       {/* Headline is the load's actual RATE, never net — the owner reads
                           these cards as "what this load is worth". Net is the small line. */}
                       <span className="nums ml-auto shrink-0 text-md font-bold">{usd.format(load.rate)}</span>

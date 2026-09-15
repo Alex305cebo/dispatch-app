@@ -362,6 +362,9 @@ ON DUPLICATE KEY UPDATE id = id;
 -- Отдельной колонкой, а не внутри stops: JSON остановок хранится только у грузов с тремя
 -- и больше точками, а указания бывают и у обычного груза.
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS directions JSON;
+-- Deadhead, который диспетчер подтвердил или вписал сам: красный флаг «больше 150 миль»
+-- у такого груза не показывается, пока Deadhead снова не изменится.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS deadhead_ok_miles INT NULL;
 
 -- Деньги за груз: путь через факторинг (OTR Solutions) или прямая оплата (lib/payments.ts).
 -- Одна строка на груз. Этап и даты шагов; суммы аванса и комиссии — как пришли от
@@ -397,5 +400,5 @@ CREATE TABLE IF NOT EXISTS load_payments (
   CONSTRAINT load_payments_load_id_fkey FOREIGN KEY (load_id) REFERENCES loads (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
 
-INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-16')
+INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-17')
 ON DUPLICATE KEY UPDATE value = VALUES(value);

@@ -15,6 +15,8 @@ export const STATUSES: LoadStatus[] = ['quoted', 'booked', 'in_transit', 'delive
 // LoadRecord is a SUPERSET of Load, so calcLoad(record, truck) type-checks with no
 // adapter. rate/loadedMiles/deadheadMiles/transitDays stay declared once, in profit.ts.
 export type LoadRecord = Load & {
+  /** Deadhead, подтверждённый диспетчером, — флаг «больше 150 миль» по нему молчит. */
+  deadheadOkMiles?: number | null
   id: number
   truckId: number | null
   status: LoadStatus
@@ -203,6 +205,7 @@ export type LoadRow = {
   rate: number
   loaded_miles: number
   deadhead_miles: number
+  deadhead_ok_miles?: number | null
   transit_days: number
   origin: string | null
   destination: string | null
@@ -269,6 +272,7 @@ export function rowToLoad(r: LoadRow): LoadRecord {
     loadedMiles: r.loaded_miles,
     milesEstimated: r.miles_estimated === true,
     deadheadMiles: r.deadhead_miles,
+    deadheadOkMiles: r.deadhead_ok_miles ?? null,
     transitDays: r.transit_days,
     origin: r.origin,
     destination: r.destination,

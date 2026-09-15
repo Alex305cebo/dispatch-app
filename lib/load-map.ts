@@ -167,6 +167,18 @@ export async function loadMapData(
       routes.push({ from: [first.lat, first.lng], to: [last.lat, last.lng], coords: leg?.coords })
       miles = leg?.miles ?? (load.loadedMiles > 0 ? load.loadedMiles : null)
     }
+    // Где трак сейчас — просто точкой, без дороги от него к этому грузу.
+    if (!noGps)
+      markers.push({
+        lat: lat!,
+        lng: lng!,
+        zone: zoneFor(lat!, lng!) ?? undefined,
+        label: truck.number ?? truck.name,
+        sub: [fs?.location, fs?.driveStatus].filter(Boolean).join('\n') || undefined,
+        tone: statusTone(fs?.driveStatus ?? null),
+        kind: 'truck',
+        href: `/trucks/${truck.id}`,
+      })
     return { markers, routes, etaText, miles, etaMin, live }
   }
   if (noGps) return { markers, routes, etaText, miles, etaMin, live }

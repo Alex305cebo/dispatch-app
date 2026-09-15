@@ -133,7 +133,7 @@ export const actionsDict = {
     ru: 'Пустые мили не могут быть отрицательными.',
     en: 'Deadhead miles cannot be negative.',
     es: 'Las millas vacías no pueden ser negativas.',
-    uk: 'Порожні милі не можуть бути від\'ємними.',
+    uk: 'Deadhead не може бути від\'ємним.',
     ro: 'Milele goale nu pot fi negative.',
     kk: 'Бос миль теріс бола алмайды.',
   },

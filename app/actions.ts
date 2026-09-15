@@ -24,7 +24,7 @@ import { humanError } from '@/lib/msg'
 import type { LoadStatus } from '@/lib/map'
 import { directionsOf, stopsFrom, taskOrderKey, type LoadStop } from '@/lib/stops'
 import { todayEt } from '@/lib/payments'
-import { DEADHEAD_FLAG_MI } from '@/components/deadhead-flag'
+import { DEADHEAD_FLAG_MI } from '@/lib/load-status'
 import type { QrLoad } from '@/lib/qr-load'
 import type { TruckSettings } from '@/lib/profit'
 import { checkBroker, checkBrokerByDot, type BrokerCheck, type RcContext } from '@/lib/fmcsa'
@@ -1566,6 +1566,26 @@ export async function addLoadEventManual(
   await sql`INSERT INTO load_events (company_id, load_id, truck_id, kind, note, at, stop_seq)
             VALUES (${companyId}, ${loadId}, ${rows[0]?.truck_id ?? null}, ${kind}, ${note?.trim() || null}, ${when}, ${stopSeq ?? null})`
   revalidatePath(`/loads/${loadId}`)
+}
+
+/**
+ * Deadhead груза, вписанный или подтверждённый диспетчером с красного флага («Исправить» /
+ * «Всё верно»). Это его право: система считает от прошлой выгрузки и ошибается, когда
+ * груз не заведён или выгрузок в день две. Подтверждённое число флаг больше не трогает.
+ */
+export async function setDeadhead(loadId: number, miles: number): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const locale = await getLocale()
+  const mi = Math.round(Number(miles))
+  if (!Number.isFinite(mi) || mi < 0 || mi > 5000) return { error: t(locale, 'actions.deadheadNegative') }
+  const companyId = await companyScope()
+  if (!(await loadBelongs(companyId, loadId))) return { error: t(locale, 'actions.loadNotFound') }
+  await sql`UPDATE loads SET deadhead_miles = ${mi}, deadhead_ok_miles = ${mi} WHERE id = ${loadId} AND company_id = ${companyId}`
+  revalidatePath(`/loads/${loadId}`)
+  revalidatePath('/loads')
+  revalidatePath('/trucks', 'layout')
+  revalidatePath('/')
 }
 
 /** Ручной порядок остановок задания трака (стрелки в «Задании по порядку»). Лента
