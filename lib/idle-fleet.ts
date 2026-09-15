@@ -1,4 +1,5 @@
 import type { LoadRecord, TruckRecord } from './map.ts'
+import { daysBetween, isIsoDay, todayEt } from './payments.ts'
 
 /**
  * «Кому искать груз» — расчёт для одноимённой карты на обзоре.
@@ -37,26 +38,17 @@ export function costPerIdleDay(t: TruckRecord): number {
   return t.truckPaymentPerDay + t.insurancePerDay + t.eldPermitsPerDay
 }
 
-const DAY = 86_400_000
-const dayStart = (ms: number) => new Date(new Date(ms).setHours(0, 0, 0, 0)).getTime()
-
 /**
- * Дата выгрузки — календарный день, а не момент времени. Date.parse('2026-08-10')
- * читает строку как полночь UTC, и западнее Гринвича она превращается в 9 августа:
- * простой считался бы на сутки длиннее, а «ещё ехать» — на сутки короче. Берём
- * первые десять символов и собираем ЛОКАЛЬНУЮ полночь того же числа.
+ * Дата выгрузки — календарный день, а не момент, и «сегодня» — тоже день, по
+ * восточному времени. Полночь в поясе процесса врала дважды: Date.parse читает
+ * '2026-08-10' как полночь UTC (западнее Гринвича это 9 августа), а прод-сервер в
+ * UTC после 20:00 ET живёт уже завтрашним днём — простой рос на сутки, «ещё ехать»
+ * таял. Поэтому дни остаются строками yyyy-mm-dd: сравниваются как строки, разница —
+ * daysBetween.
  */
-function calendarDay(iso: string): number | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
-  if (!m) return null
-  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime()
-}
-
-/** Обратно в YYYY-MM-DD по ЛОКАЛЬНЫМ полям — toISOString здесь вернул бы день
- * назад ровно по той же причине, по которой Date.parse его туда и сдвигал. */
-function dayIso(ms: number): string {
-  const d = new Date(ms)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+function calendarDay(v: string | null): string | null {
+  const d = v?.slice(0, 10)
+  return isIsoDay(d) ? d : null
 }
 
 /**
@@ -74,7 +66,7 @@ export function idleFleet(
   placeByTruck: Map<number, string | null>,
   now = Date.now(),
 ): IdleTruck[] {
-  const today = dayStart(now)
+  const today = todayEt(new Date(now))
 
   const rows = trucks.map((t): IdleTruck => {
     const mine = loads.filter((l) => l.truckId === t.id && l.status !== 'cancelled')
@@ -86,13 +78,13 @@ export function idleFleet(
     if (active) {
       // Занят. «Свободен» — день выгрузки; отрицательные дни читаются как «ещё
       // столько ехать». Без даты выгрузки груз есть, а когда кончится — неизвестно.
-      const until = active.deliveryDate ? calendarDay(active.deliveryDate) : null
+      const until = calendarDay(active.deliveryDate)
       return {
         truckId: t.id,
         free: false,
         place: active.destination,
-        since: until === null ? null : dayIso(until),
-        days: until === null ? null : Math.round((today - until) / DAY),
+        since: until,
+        days: until === null ? null : daysBetween(until, today),
         costPerDay,
         idleCost: 0,
         unavailable: t.unavailable,
@@ -102,16 +94,17 @@ export function idleFleet(
     // Свободен. Считаем от последней выгрузки — это и есть «без груза с».
     // Берём дату выгрузки, а не создания: груз мог быть заведён неделей раньше.
     const lastEnd = mine
-      .map((l) => (l.deliveryDate ? calendarDay(l.deliveryDate) : null))
-      .filter((v): v is number => v !== null && v <= today)
-      .sort((a, b) => b - a)[0]
-    const days = lastEnd === undefined ? null : Math.round((today - lastEnd) / DAY)
+      .map((l) => calendarDay(l.deliveryDate))
+      .filter((v): v is string => v !== null && v <= today)
+      .sort()
+      .pop()
+    const days = lastEnd === undefined ? null : daysBetween(lastEnd, today)
 
     return {
       truckId: t.id,
       free: true,
       place: placeByTruck.get(t.id) ?? null,
-      since: lastEnd === undefined ? null : dayIso(lastEnd),
+      since: lastEnd ?? null,
       days,
       costPerDay,
       idleCost: days === null ? 0 : days * costPerDay,

@@ -5,6 +5,23 @@ import type { LoadRecord, TruckRecord } from './map.ts'
 
 const NOW = Date.parse('2026-08-16T12:00:00Z')
 
+// Прод-сервер в UTC, диспетчеры в New York, а в Kiritimati (UTC+14) уже завтра: дни
+// простоя считаются по восточному времени и в любом поясе процесса одинаковы.
+function zonedTest(name: string, fn: () => void) {
+  for (const zone of ['UTC', 'America/New_York', 'Pacific/Kiritimati']) {
+    test(`${name} [${zone}]`, () => {
+      // delete process.env.TZ на Windows пояс не сбрасывает — возвращаем по имени.
+      const saved = process.env.TZ ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+      process.env.TZ = zone
+      try {
+        fn()
+      } finally {
+        process.env.TZ = saved
+      }
+    })
+  }
+}
+
 function truck(id: number, over: Partial<TruckRecord> = {}): TruckRecord {
   return {
     id,
@@ -46,7 +63,7 @@ test('постоянные расходы в сутки — платёж, стр
   assert.equal(costPerIdleDay(truck(1)), 108)
 })
 
-test('стоящий трак: считает дни от последней выгрузки и цену простоя', () => {
+zonedTest('стоящий трак: считает дни от последней выгрузки и цену простоя', () => {
   const rows = idleFleet([truck(1)], [load({ truckId: 1 })], new Map([[1, 'York, NE']]), NOW)
   assert.equal(rows[0]!.free, true)
   assert.equal(rows[0]!.days, 6) // 10 → 16 августа
@@ -54,7 +71,7 @@ test('стоящий трак: считает дни от последней в�
   assert.equal(rows[0]!.place, 'York, NE')
 })
 
-test('едущий трак: место — город выгрузки, дни отрицательные (ещё ехать)', () => {
+zonedTest('едущий трак: место — город выгрузки, дни отрицательные (ещё ехать)', () => {
   const rows = idleFleet(
     [truck(1)],
     [load({ truckId: 1, status: 'in_transit', deliveryDate: '2026-08-19', destination: 'NEWARK, CA' })],
@@ -67,13 +84,13 @@ test('едущий трак: место — город выгрузки, дни 
   assert.equal(rows[0]!.idleCost, 0)
 })
 
-test('отменённый груз не считается работой', () => {
+zonedTest('отменённый груз не считается работой', () => {
   const rows = idleFleet([truck(1)], [load({ truckId: 1, status: 'cancelled' })], new Map(), NOW)
   assert.equal(rows[0]!.free, true)
   assert.equal(rows[0]!.days, null) // выгрузок не было вовсе
 })
 
-test('трак без единого рейса не занимает верх списка — там работающие', () => {
+zonedTest('трак без единого рейса не занимает верх списка — там работающие', () => {
   const rows = idleFleet(
     [truck(1), truck(2), truck(3)],
     [
@@ -87,7 +104,7 @@ test('трак без единого рейса не занимает верх �
   assert.deepEqual(rows.map((r) => r.truckId), [2, 3, 1])
 })
 
-test('порядок: дольше всех стоящий сверху, занятые ниже, ремонт в самом конце', () => {
+zonedTest('порядок: дольше всех стоящий сверху, занятые ниже, ремонт в самом конце', () => {
   const rows = idleFleet(
     [
       truck(1, { unavailable: 'repair' }),
@@ -107,7 +124,7 @@ test('порядок: дольше всех стоящий сверху, зан�
   assert.deepEqual(rows.map((r) => r.truckId), [3, 2, 4, 1])
 })
 
-test('в шапке — только те, кого реально можно загрузить', () => {
+zonedTest('в шапке — только те, кого реально можно загрузить', () => {
   const rows = idleFleet(
     [truck(1), truck(2), truck(3, { unavailable: 'repair' })],
     [load({ id: 2, truckId: 2, status: 'booked', deliveryDate: '2026-08-20' })],
@@ -119,7 +136,20 @@ test('в шапке — только те, кого реально можно з
   assert.equal(s.burnPerDay, 108)
 })
 
-test('дата «свободен с» не уезжает на день назад из-за часового пояса', () => {
+zonedTest('дата «свободен с» не уезжает на день назад из-за часового пояса', () => {
   const rows = idleFleet([truck(1)], [load({ truckId: 1, deliveryDate: '2026-08-10' })], new Map(), NOW)
   assert.equal(rows[0]!.since, '2026-08-10')
+})
+
+zonedTest('вечер по ET: у сервера в UTC уже завтра, а простой и «ещё ехать» — за сегодня', () => {
+  const rows = idleFleet(
+    [truck(1), truck(2)],
+    [
+      load({ id: 1, truckId: 1, deliveryDate: '2026-08-10' }),
+      load({ id: 2, truckId: 2, status: 'in_transit', deliveryDate: '2026-08-19' }),
+    ],
+    new Map(),
+    Date.parse('2026-08-17T01:30:00Z'), // 16 августа, 21:30 EDT
+  )
+  assert.deepEqual(rows.map((r) => [r.truckId, r.days, r.idleCost]), [[1, 6, 6 * 108], [2, -3, 0]])
 })
