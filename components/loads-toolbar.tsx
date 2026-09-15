@@ -19,6 +19,7 @@ import { Download, Search, X } from 'lucide-react'
 import type { LoadRecord, TruckRecord } from '@/lib/map'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
+import { todayEt } from '@/lib/payments'
 
 export type LoadFilter = 'all' | 'losing' | 'uninvoiced' | 'unpaid' | 'noPod' | 'ready'
 export type LoadSort = 'newest' | 'rate' | 'rpm' | 'net' | 'nearest'
@@ -240,7 +241,7 @@ export function LoadsToolbar({
 
         <button
           type="button"
-          onClick={() => download(toCsv(rows, trucks, metrics), `loads-${new Date().toISOString().slice(0, 10)}.csv`)}
+          onClick={() => download(toCsv(rows, trucks, metrics), `loads-${todayEt()}.csv`)}
           title={t(locale, 'loads.export.title')}
           className="flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-[12.5px] font-medium text-white/75 transition-colors hover:border-white/25 hover:text-white"
         >

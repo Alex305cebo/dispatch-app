@@ -12,6 +12,7 @@ const row = (over: Partial<StateLoadRow>): StateLoadRow => ({
   broker_phone: null,
   broker_email: null,
   day: '2026-09-04',
+  created_at: new Date('2026-09-04T16:00:00Z'),
   ...over,
 })
 
@@ -43,4 +44,28 @@ test('у брокера видно не больше трёх грузов, ит
   const [b] = stateBrokers(rows, 'TN', () => null)
   assert.equal(b!.total, 5)
   assert.deepEqual(b!.loads.map((l) => l.id), [5, 4, 3])
+})
+
+// Сервер в UTC, диспетчеры в New York: груз без даты пикапа, заведённый в 22:30 по
+// восточному, — в своём дне, а не в завтрашнем дне сервера.
+test('без даты пикапа — день заведения по восточному и в UTC, и в New York', () => {
+  const saved = process.env.TZ
+  try {
+    for (const zone of ['UTC', 'America/New_York']) {
+      process.env.TZ = zone
+      const [b] = stateBrokers(
+        [
+          row({ id: 1, day: null, created_at: new Date('2026-09-15T02:30:00Z') }), // 22:30 EDT
+          row({ id: 2, day: null, created_at: '2026-01-10T03:30:00.000Z' }), // 22:30 EST
+          row({ id: 3, day: '2026-09-15', created_at: new Date('2026-09-15T02:30:00Z') }), // пикап главнее
+        ],
+        'TN',
+        () => null,
+      )
+      assert.deepEqual(b!.loads.map((l) => [l.id, l.day]), [[3, '2026-09-15'], [1, '2026-09-14'], [2, '2026-01-09']], zone)
+    }
+  } finally {
+    if (saved === undefined) delete process.env.TZ
+    else process.env.TZ = saved
+  }
 })

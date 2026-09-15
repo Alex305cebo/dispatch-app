@@ -14,6 +14,8 @@ import { getLoad } from './loads.ts'
 import { isDone, stopsFrom, type StopEv } from './stops.ts'
 import type { LoadRecord } from './map.ts'
 import { t, type Locale } from './i18n.ts'
+import { usDate } from './fmt.ts'
+import { todayEt } from './payments.ts'
 
 export type Company = {
   name: string
@@ -81,7 +83,8 @@ async function invoicePdf(
   y -= 20
   page.drawText(`# ${invoiceNumber}`, { x: 440, y, size: 11, font, color: grey })
   y -= 14
-  page.drawText(new Date().toISOString().slice(0, 10), { x: 440, y, size: 11, font, color: grey })
+  // Сегодня по восточному времени: день UTC после 20:00 ET — уже завтра, а счёт уходит брокеру.
+  page.drawText(usDate(todayEt()), { x: 440, y, size: 11, font, color: grey })
 
   y = 650
   page.drawLine({ start: { x: 50, y: y + 10 }, end: { x: 562, y: y + 10 }, thickness: 1, color: rgb(0.85, 0.86, 0.88) })
@@ -94,7 +97,7 @@ async function invoicePdf(
   row('Load / Ref #', load.referenceId ?? String(load.id))
   row('Route', `${load.origin ?? '-'}  ->  ${load.destination ?? '-'}`)
   if (load.brokerMc) row('Broker MC', load.brokerMc)
-  row('Delivered', new Date().toISOString().slice(0, 10))
+  row('Delivered', usDate(todayEt()))
   row('Terms', `Net ${load.paymentTermsDays ?? 30}`)
 
   y -= 10

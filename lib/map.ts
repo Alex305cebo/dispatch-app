@@ -257,7 +257,7 @@ export type TruckRow = {
 }
 
 // pg returns DATE/TIMESTAMPTZ as Date objects; the UI wants plain ISO strings.
-const isoDate = (v: Date | string | null): string | null =>
+export const isoDate = (v: Date | string | null): string | null =>
   v === null ? null : v instanceof Date ? v.toISOString().slice(0, 10) : v
 
 export function rowToLoad(r: LoadRow): LoadRecord {

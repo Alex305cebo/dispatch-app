@@ -6,7 +6,8 @@ import { tollSpend, type TollLoad } from '@/lib/toll-spend'
 import { hereKey } from '@/lib/keys'
 import { hereUsage } from '@/lib/tolls-here'
 import { defaultTruck, listTrucks } from '@/lib/loads'
-import { truckLabel } from '@/lib/map'
+import { isoDate, truckLabel } from '@/lib/map'
+import { todayEt } from '@/lib/payments'
 import { tollLoadChoices } from '@/app/actions'
 import { citySuggestions } from '@/lib/city-suggest'
 import { sql } from '@/lib/db'
@@ -59,7 +60,10 @@ export default async function TollsPage() {
         origin: (r.origin as string) ?? null,
         destination: (r.destination as string) ?? null,
         status: String(r.status),
-        at: String(r.pickup_date ?? r.created_at ?? '').slice(0, 10) || null,
+        // DATE и DATETIME приходят из драйвера объектами Date: String(Date).slice(0, 10)
+        // давал «Mon Sep 14», и ни один рейс не попадал в период. Без пикапа — день
+        // заведения по восточному времени.
+        at: isoDate(r.pickup_date as Date | null) ?? todayEt(r.created_at as Date),
       }),
     ),
     SPEND_DAYS,

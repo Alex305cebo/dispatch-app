@@ -742,7 +742,7 @@ export default async function Page({
               {/* Остальные грузы — не лентой, а по дню из мини-календаря (день пикапа). */}
               <DateMore limit={4} items={rows.map(({ load, r }) => {
                 const rcId = rateCons.get(load.id)
-                return { day: (load.pickupDate ?? load.createdAt).slice(0, 10), node: (
+                return { day: load.pickupDate ?? todayEt(new Date(load.createdAt)), node: (
                   /* Two lines, not one. This card sits in a half-width column beside the
                      documents panel, and the old single row asked the route, the status
                      badge, the rate and the RC button to share ~330px — so every route

@@ -8,6 +8,7 @@ import { activeLoadsByTruck } from '@/lib/map'
 import { eventSeq, nextOpenStop, stopsFrom } from '@/lib/stops'
 import { autoInvoiceIfReady } from '@/lib/invoice'
 import { addLoadEvent, listLoadEvents } from '@/lib/load-events'
+import { todayEt } from '@/lib/payments'
 
 export const dynamic = 'force-dynamic'
 
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
       const hex = Buffer.from(await file.arrayBuffer()).toString('hex')
       // Название — от водителя: «BOL · 1590 · 2026-09-05.jpg», чтобы в списке было
       // видно, откуда пришло, а не «IMG_2041.jpg».
-      const title = `${kind.toUpperCase()} · ${truck.number ?? truck.id} · ${new Date().toISOString().slice(0, 10)}${ext(file)}`
+      const title = `${kind.toUpperCase()} · ${truck.number ?? truck.id} · ${todayEt()}${ext(file)}`
       const ins = await sql`
         INSERT INTO documents (truck_id, load_id, kind, title, mime, size_bytes, data, company_id)
         VALUES (${truck.id}, ${load?.id ?? null}, ${kind}, ${title},

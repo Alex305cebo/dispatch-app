@@ -2,6 +2,8 @@
 // в штате, сгруппированные по брокеру. У брокера там был фрахт — ему и звонят, пока трак
 // едет туда или только что освободился. Чистая функция; выборка — lib/backhaul.ts.
 
+import { todayEt } from './payments.ts'
+
 export type StateLoadRow = {
   id: number
   origin: string | null
@@ -11,8 +13,9 @@ export type StateLoadRow = {
   broker_mc: string | null
   broker_phone: string | null
   broker_email: string | null
-  /** yyyy-mm-dd — пикап, у старых грузов дата заведения. */
-  day: string
+  /** yyyy-mm-dd пикапа; у старых грузов его нет — тогда день заведения. */
+  day: string | null
+  created_at: Date | string
 }
 
 export type StateLoad = { id: number; day: string; route: string; rate: number; pickup: boolean; delivery: boolean }
@@ -65,7 +68,8 @@ export function stateBrokers(
     b.email ??= r.broker_email
     b.all.push({
       id: r.id,
-      day: r.day.slice(0, 10),
+      // Заведён — момент: его день по восточному времени, а не по UTC сервера.
+      day: r.day ?? todayEt(new Date(r.created_at)),
       route: `${r.origin ?? '—'} → ${r.destination ?? '—'}`,
       rate: Number(r.rate) || 0,
       pickup,

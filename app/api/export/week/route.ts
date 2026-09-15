@@ -5,6 +5,7 @@ import { listLoads, listTrucks } from '@/lib/loads'
 import { calcLoad } from '@/lib/profit'
 import { truckLabel } from '@/lib/map'
 import { loadWeekAnchorMs, weekAnchorOf } from '@/lib/fmt'
+import { todayEt } from '@/lib/payments'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,8 +66,9 @@ export async function GET(req: NextRequest) {
       miles > 0 ? (l.rate / miles).toFixed(2) : '',
       l.status,
       l.invoiceNumber ?? '',
-      l.invoicedAt?.slice(0, 10) ?? '',
-      l.paidAt?.slice(0, 10) ?? '',
+      // Счёт и оплата — моменты, их день — по восточному времени, а не по UTC.
+      l.invoicedAt ? todayEt(new Date(l.invoicedAt)) : '',
+      l.paidAt ? todayEt(new Date(l.paidAt)) : '',
       pay != null ? pay.toFixed(2) : '',
     ]
       .map(cell)

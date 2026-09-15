@@ -450,7 +450,7 @@ function Calendar({
   const barsByTruck = new Map<number | null, Bar[]>()
   for (const l of loads) {
     if (l.status === 'cancelled') continue
-    const a = l.pickupDate ?? l.createdAt.slice(0, 10)
+    const a = l.pickupDate ?? todayEt(new Date(l.createdAt))
     const b = l.deliveryDate && l.deliveryDate >= a ? l.deliveryDate : a
     if (b < weekBegin || a > weekEnd) continue
     const from = Math.max(0, weekIsos.indexOf(a < weekBegin ? weekBegin : a))
