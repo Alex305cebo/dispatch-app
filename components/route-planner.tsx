@@ -204,6 +204,50 @@ function HeatTag({ heat, ratio, median, locale }: { heat: DatHeat | null; ratio:
   )
 }
 
+/**
+ * Миниатюра «какой скриншот присылать»: схема выдачи грузов на доске — откуда, куда,
+ * мили и ставка в строке. Нарисована, а не снята с DAT: чужой интерфейс в приложении не
+ * показываем, а столбцы на любой доске те же.
+ */
+function BoardShotSample({ locale }: { locale: Locale }) {
+  const rows = [
+    ['2m', 'Nashville, TN', 'Atlanta, GA', '250', '$850'],
+    ['5m', 'Memphis, TN', 'Dallas, TX', '452', '$1,300'],
+    ['12m', 'Knoxville, TN', 'Chicago, IL', '540', '$1,450'],
+    ['1h', 'Jackson, TN', 'Houston, TX', '620', '$1,700'],
+  ]
+  const cols = [6, 26, 86, 146, 172]
+  return (
+    <span className="flex shrink-0 flex-col items-center gap-0.5" aria-hidden>
+      <svg viewBox="0 0 200 112" className="h-[84px] w-[150px] rounded-md border border-white/15 bg-ink-900 shadow-sm">
+        <rect x="0" y="0" width="200" height="16" className="fill-white/[0.07]" />
+        {['Age', 'Origin', 'Destination', 'Trip', 'Rate'].map((h, i) => (
+          <text key={h} x={cols[i]} y="11" className="fill-white/55" style={{ fontSize: 7, fontWeight: 600 }}>
+            {h}
+          </text>
+        ))}
+        {rows.map((r, j) => (
+          <g key={j}>
+            {j > 0 && <line x1="0" x2="200" y1={16 + j * 24} y2={16 + j * 24} className="stroke-white/[0.08]" />}
+            {r.map((cell, i) => (
+              <text
+                key={i}
+                x={cols[i]}
+                y={31 + j * 24}
+                className={i === 4 ? 'fill-good-400' : i === 0 ? 'fill-white/40' : 'fill-white/80'}
+                style={{ fontSize: 7, fontWeight: i === 4 ? 700 : 400 }}
+              >
+                {cell}
+              </text>
+            ))}
+          </g>
+        ))}
+      </svg>
+      <span className="text-[10.5px] text-white/45">{t(locale, 'plan.boardSample')}</span>
+    </span>
+  )
+}
+
 export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks: PlanTruck[]; snaps: PlanSnaps }) {
   const locale = useLocale()
   const [range, setRange] = useState<'all' | 'day' | 'long'>('all')
@@ -1034,10 +1078,13 @@ function BoardCompare({
             e.preventDefault()
             read([...e.dataTransfer.files])
           }}
-          className={`mt-2 flex w-full flex-col items-center gap-1 rounded-xl border border-dashed px-4 py-4 text-center transition-colors ${
+          className={`mt-2 flex w-full flex-col items-center gap-3 rounded-xl border border-dashed px-4 py-4 text-center transition-colors sm:flex-row sm:text-left ${
             drag ? 'border-haul-400 bg-haul-500/10' : 'border-white/15 hover:border-white/30 hover:bg-white/[0.03]'
           }`}
         >
+          {/* Какой скриншот присылать — маленький пример выдачи грузов, а не только слова. */}
+          {!reading && <BoardShotSample locale={locale} />}
+          <span className="flex min-w-0 flex-1 flex-col items-center gap-1 sm:items-start">
           {reading ? (
             <span className="size-5 animate-spin rounded-full border-2 border-haul-400 border-t-transparent" aria-hidden />
           ) : (
@@ -1054,6 +1101,7 @@ function BoardCompare({
             )}
           </span>
           {!reading && <span className="text-[12px] text-white/50">{t(locale, 'plan.boardDropSub')}</span>}
+          </span>
         </button>
       ) : (
         <>

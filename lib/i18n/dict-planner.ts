@@ -43,6 +43,7 @@ export const plannerDict = {
   'plan.needRpm': { ru: 'для цели от {v}/mi', en: 'target needs {v}/mi', es: 'meta: desde {v}/mi', uk: 'для цілі від {v}/mi', ro: 'țintă: de la {v}/mi', kk: 'мақсатқа {v}/mi бастап' },
   'plan.traps': { ru: 'Ловушки', en: 'Traps', es: 'Trampas', uk: 'Пастки', ro: 'Capcane', kk: 'Қақпандар' },
   'plan.more': { ru: 'Ещё направления · {n}', en: 'More directions · {n}', es: 'Más direcciones · {n}', uk: 'Ще напрямки · {n}', ro: 'Mai multe direcții · {n}', kk: 'Тағы бағыттар · {n}' },
+  'plan.boardSample': { ru: 'пример скриншота', en: 'sample screenshot', es: 'captura de ejemplo', uk: 'приклад скриншота', ro: 'exemplu de captură', kk: 'скриншот үлгісі' },
   'plan.fromRpm': { ru: 'от {v}/mi', en: 'from {v}/mi', es: 'desde {v}/mi', uk: 'від {v}/mi', ro: 'de la {v}/mi', kk: '{v}/mi бастап' },
   'plan.marketRpm': { ru: 'рынок {v}/mi', en: 'market {v}/mi', es: 'mercado {v}/mi', uk: 'ринок {v}/mi', ro: 'piață {v}/mi', kk: 'нарық {v}/mi' },
   'plan.rateRpm': { ru: 'ставка {v}/mi', en: 'rate {v}/mi', es: 'tarifa {v}/mi', uk: 'ставка {v}/mi', ro: 'tarif {v}/mi', kk: 'тариф {v}/mi' },
