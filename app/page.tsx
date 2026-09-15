@@ -12,7 +12,7 @@ import {
   Wrench,
 } from 'lucide-react'
 import { Button } from '@/components/button'
-import { Suspense } from 'react'
+import { Suspense } from '@/components/suspense'
 import Link from 'next/link'
 import {
   listLoads,

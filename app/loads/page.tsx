@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Suspense } from '@/components/suspense'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/button'
 import { Info } from '@/components/info'

@@ -1,7 +1,7 @@
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/button'
 import { FuelPriceButton } from '@/components/fuel-price-button'
-import { Suspense } from 'react'
+import { Suspense } from '@/components/suspense'
 import { EldLinks } from '@/components/eld-links'
 import { EldNewTrucks } from '@/components/eld-new-trucks'
 import { BoardSkeleton, FleetBoard } from './fleet-board'

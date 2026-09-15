@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Suspense } from 'react'
+import { Suspense } from '@/components/suspense'
 import { notFound } from 'next/navigation'
 import { currentLoadForTruck, getLoad, laneAvgRpmFor, listDocs, listLoads, truckForLoad } from '@/lib/loads'
 import { QueuedLoadHint } from '@/components/queued-load-hint'
