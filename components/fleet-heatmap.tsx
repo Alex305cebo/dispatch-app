@@ -25,6 +25,7 @@ import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 import { dayKey, type HeatDayLoad, type HeatRow } from '@/lib/heatmap'
+import { todayEt } from '@/lib/payments'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -88,8 +89,11 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
     return () => mq.removeEventListener('change', sync)
   }, [])
   const winDays = mobile ? 7 : days
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  // «Сегодня» — по восточному времени, а не в поясе, где идёт отрисовка: сервер в UTC
+  // после 20:00 ET живёт уже завтрашним днём, и его календарь расходился с браузерным
+  // на колонку — React #418 на обзоре и траках каждый вечер. От полудня, а не от
+  // полуночи: шаг в сутки от него не перескакивает дату на переводе часов.
+  const today = new Date(`${todayEt()}T12:00:00`)
   const anchor = today.getTime() - offset * winDays * DAY_MS
   const cols = Array.from({ length: winDays }, (_, i) => new Date(anchor - (winDays - 1 - i) * DAY_MS))
   const colKeys = cols.map(dayKey)
