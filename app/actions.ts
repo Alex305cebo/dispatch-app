@@ -757,7 +757,8 @@ async function deadheadCheck(
   // место ПОСЛЕ рейса — «порожний обратно к пикапу» выходил размером со весь рейс.
   // Откуда трак на самом деле ехал к этому пикапу — выгрузка его предыдущего груза.
   // Предыдущего нет — порожний не выдумываем.
-  if (!from && pickupDate && pickupDate.slice(0, 10) < todayEt()) {
+  const pastPickup = !!pickupDate && pickupDate.slice(0, 10) < todayEt()
+  if (!from && pastPickup) {
     const last = (await sql`
       SELECT delivery_address, destination, stops FROM loads
       WHERE company_id = ${companyId} AND truck_id = ${truckId}
@@ -791,6 +792,10 @@ async function deadheadCheck(
   }
   const leg = await routeToPoint(from, to)
   if (!leg) return null
+  // Задним числом «от прошлой выгрузки» дальше порога — это почти никогда не порожний:
+  // больше 120–150 миль пустыми тут не ездят, значит между грузами не заведён ещё один.
+  // Такое число не пишем — 0 честнее, чем 811 выдуманных миль.
+  if (kind === 'load' && pastPickup && leg.miles > DEADHEAD_WARN_MI) return null
   return {
     miles: leg.miles,
     from: kind,
