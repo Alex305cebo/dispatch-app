@@ -195,36 +195,34 @@ export function FleetPanel({
       <div className="panel mb-4 p-2.5">
         {/* Title line doubles as the "you are looking at one truck" indicator. Without
             a selection it says how to get one, so the interaction isn't hidden. */}
-        <div className="mb-2 flex items-center justify-between gap-2 px-1.5">
+        {/* «Обновлено · live · Обновить» — справа в этой же строке, а не отдельным рядом
+            под плитками: лишний ряд занимал высоту ради одной кнопки. */}
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 px-1.5">
           {row ? (
-            <>
-              <span className="flex min-w-0 items-baseline gap-2">
-                <span className="truncate text-[13px] font-semibold text-white">{row.label}</span>
-                {/* Время водителя, а не пятая плитка: плиток ровно четыре в обоих
-                    состояниях, и пятая ломала бы ряд именно при выборе трака. */}
-                {row.zone && <LocalTime zone={row.zone} className="nums shrink-0 text-[11.5px] text-white/45" />}
-              </span>
-              <Button size="sm" variant="ghost" icon={<X size={12} />} onClick={() => setSelected(null)}>
-                {t(locale, 'tracking.wholeFleet')}
-              </Button>
-            </>
+            <span className="flex min-w-0 items-baseline gap-2">
+              <span className="truncate text-[13px] font-semibold text-white">{row.label}</span>
+              {/* Время водителя, а не пятая плитка: плиток ровно четыре в обоих
+                  состояниях, и пятая ломала бы ряд именно при выборе трака. */}
+              {row.zone && <LocalTime zone={row.zone} className="nums shrink-0 text-[11.5px] text-white/45" />}
+            </span>
           ) : (
             <span className="truncate text-[11.5px] text-white/35">{t(locale, 'tracking.pickOnMap')}</span>
           )}
+          <span className="ml-auto flex min-w-0 items-center gap-2 text-[11px] text-white/40">
+            <span className="truncate">{updatedText}</span>
+            <RefreshFleetButton staleMinutes={staleMinutes} />
+            {row && (
+              <Button size="sm" variant="ghost" icon={<X size={12} />} onClick={() => setSelected(null)}>
+                {t(locale, 'tracking.wholeFleet')}
+              </Button>
+            )}
+          </span>
         </div>
 
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {tiles.map((tile) => (
             <Tile key={tile.label} {...tile} />
           ))}
-        </div>
-
-        {/* Its own line, not crammed onto the end of the row: at narrow widths the old
-            `ml-auto` pushed "updated · live · Refresh" into a ragged second line that
-            never lined up with anything. */}
-        <div className="mt-2.5 flex items-center justify-end gap-2 px-1.5 text-[11px] text-white/40">
-          <span className="truncate">{updatedText}</span>
-          <RefreshFleetButton staleMinutes={staleMinutes} />
         </div>
       </div>
 
