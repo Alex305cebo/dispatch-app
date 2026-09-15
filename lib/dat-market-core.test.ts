@@ -14,6 +14,7 @@ import {
   ltOf,
   regionStates,
   ltHeat,
+  heatLevel,
   parseRegions,
   parseLt,
   parseFuel,
@@ -213,4 +214,14 @@ test('штаты региона под его ставкой: 2 лучших, 2 
   assert.deepEqual([codes(south.best), codes(south.middle), codes(south.worst)], [['TX', 'AR'], ['OK'], ['NM', 'LA']])
   // Канзас в регионе — KA, в /lt — KS; штат без грузов на трак не показывается
   assert.deepEqual(regionStates(s, ['KA', 'ZZ']), { best: [{ code: 'KS', ratio: 12 }], middle: [], worst: [] })
+})
+
+test('уровень рынка словами — от медианы, без цифры «грузов на трак»', () => {
+  assert.equal(heatLevel(9.5, 19.7), 'veryHot')
+  assert.equal(heatLevel(9.5, 14.8), 'hot')
+  assert.equal(heatLevel(9.5, 9.5), 'warm')
+  assert.equal(heatLevel(9.5, 7.5), 'cold')
+  assert.equal(heatLevel(9.5, 4), 'veryCold')
+  assert.equal(heatLevel(0, 5), 'warm')
+  assert.equal(heatLevel(9.5, null), 'warm')
 })

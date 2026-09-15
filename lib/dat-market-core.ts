@@ -119,6 +119,26 @@ export function ltHeat(snap: DatSnapshot, ratio: number): DatHeat {
   return 'warm'
 }
 
+/** Насколько горячий рынок — пять ступеней от медианы серии. Цифру «грузов на трак»
+ * диспетчеры не читают; «очень горячий» / «холодный» понятно без расшифровки. Очень —
+ * вдвое выше или ниже медианы; горячий/холодный — те же пороги, что у ltHeat. */
+export type HeatLevel = 'veryHot' | 'hot' | 'warm' | 'cold' | 'veryCold'
+export function heatLevel(median: number, ratio: number | null | undefined): HeatLevel {
+  if (!(median > 0) || !(ratio != null && ratio > 0)) return 'warm'
+  const k = ratio / median
+  return k >= 2 ? 'veryHot' : k >= 1.25 ? 'hot' : k <= 0.5 ? 'veryCold' : k <= 0.8 ? 'cold' : 'warm'
+}
+/** Ключи словаря для уровня: «🔥🔥 очень горячий» … «❄️❄️ очень холодный». */
+export const HEAT_LEVEL_KEY = {
+  veryHot: 'heat.veryHot',
+  hot: 'heat.hot',
+  warm: 'heat.warm',
+  cold: 'heat.cold',
+  veryCold: 'heat.veryCold',
+} as const
+/** Коротко, для узких списков: только огоньки и снежинки. */
+export const HEAT_LEVEL_ICON: Record<HeatLevel, string> = { veryHot: '🔥🔥', hot: '🔥', warm: '·', cold: '❄️', veryCold: '❄️❄️' }
+
 /** Медиана грузов на трак по всем штатам серии — точка отсчёта горячести и простоя
  * в «Куда отправить трак» (lib/route-plan-core.ts). 0 — соотношений в снимке нет. */
 export function ltMedian(snap: DatSnapshot): number {

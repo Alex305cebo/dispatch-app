@@ -145,7 +145,7 @@ function MarketSide({ label, side, locale }: { label: string; side: CardMarketSi
       {side.ratio !== null && (
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-white/60">
           <span className="nums">
-            {t(locale, 'loadCard.loadsPerTruck').replace('{ratio}', side.ratio.toFixed(1)).replace('{state}', side.state)}
+            {t(locale, 'loadCard.loadsPerTruck').replace('{state}', side.state)}
           </span>
           {heat && <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${heatTone(side.heat)}`}>{heat}</span>}
         </div>

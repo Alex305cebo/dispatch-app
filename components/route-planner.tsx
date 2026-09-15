@@ -22,7 +22,7 @@ import { safeUploadFile } from '@/lib/upload-name'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
 import { usd, usd2, usDate } from '@/lib/fmt'
 import { US_STATES } from '@/lib/us-states'
-import { ltHeat, ltOf, regionOf, regionStates, stateFromPlace, type DatEquipment, type DatHeat, type DatSnapshot, type DatWeek } from '@/lib/dat-market-core'
+import { heatLevel, HEAT_LEVEL_ICON, HEAT_LEVEL_KEY, ltHeat, ltMedian, ltOf, regionOf, regionStates, stateFromPlace, type DatEquipment, type DatHeat, type DatSnapshot, type DatWeek } from '@/lib/dat-market-core'
 import type { TruckSettings } from '@/lib/profit'
 import {
   NEXT_LEG_MILES,
@@ -158,7 +158,7 @@ export function useRoutePlan(trucks: PlanTruck[], snaps: PlanSnaps, selectedId: 
             text: t(locale, 'plan.map.tip')
               .replace('{gross}', usd.format(l.grossPerDay))
               .replace('{miles}', l.miles.toLocaleString('en-US'))
-              .replace('{heat}', l.heat ? t(locale, HEAT_KEY[l.heat]) : '—'),
+              .replace('{heat}', l.ratio != null ? t(locale, HEAT_LEVEL_KEY[heatLevel(l.median, l.ratio)]) : '—'),
           },
         ]),
       ),
@@ -195,13 +195,11 @@ function clean(v: Partial<Opts>): Partial<Opts> {
   return out
 }
 
-function HeatTag({ heat, locale }: { heat: DatHeat | null; locale: Locale }) {
+function HeatTag({ heat, ratio, median, locale }: { heat: DatHeat | null; ratio: number | null; median: number; locale: Locale }) {
   if (heat !== 'hot' && heat !== 'cold') return null
-  const Icon = heat === 'hot' ? Flame : Snowflake
   return (
     <span className={`inline-flex items-center gap-0.5 text-[11px] font-medium ${heat === 'hot' ? 'text-good-400' : 'text-bad-400'}`}>
-      <Icon size={11} strokeWidth={2.4} aria-hidden />
-      {t(locale, HEAT_KEY[heat])}
+      {t(locale, HEAT_LEVEL_KEY[heatLevel(median, ratio)])}
     </span>
   )
 }
@@ -368,8 +366,7 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
               accent={heat === 'hot' ? 'good' : heat === 'cold' ? 'bad' : 'haul'}
               icon={<Flame size={15} strokeWidth={2.5} />}
               label={t(locale, 'plan.marketIn').replace('{state}', origin)}
-              value={lt ? lt.ratio.toFixed(1) : '—'}
-              sub={heat ? t(locale, 'plan.ltSub').replace('{heat}', t(locale, HEAT_KEY[heat])) : undefined}
+              value={lt && snap ? t(locale, HEAT_LEVEL_KEY[heatLevel(ltMedian(snap), lt.ratio)]) : '—'}
             />
             <Stat
               accent="haul"
@@ -494,6 +491,7 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
           <div className="mt-1.5 grid grid-cols-3 gap-x-1.5 gap-y-3 sm:grid-cols-5 sm:gap-x-2">
             {snap.regions.map((r) => {
               const groups = regionStates(snap, r.states)
+              const median = ltMedian(snap)
               return (
                 <div key={r.code} className="min-w-0">
                   <div className="panel-inset px-2 py-1.5 sm:px-2.5">
@@ -516,7 +514,7 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
                           {groups[key].map((st) => (
                             <li
                               key={st.code}
-                              title={`${stateName(st.code)} · ${st.ratio.toFixed(1)}`}
+                              title={`${stateName(st.code)} · ${t(locale, HEAT_LEVEL_KEY[heatLevel(median, st.ratio)])}`}
                               className="flex items-center gap-1.5 text-[12px]"
                             >
                               <span className={`size-1.5 shrink-0 rounded-full ${dot}`} aria-hidden />
@@ -524,7 +522,7 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
                                 <span className="lg:hidden">{st.code}</span>
                                 <span className="hidden lg:inline">{stateName(st.code)}</span>
                               </span>
-                              <span className="nums shrink-0 text-white/85">{st.ratio.toFixed(1)}</span>
+                              <span className="shrink-0 text-[11px]">{HEAT_LEVEL_ICON[heatLevel(median, st.ratio)]}</span>
                             </li>
                           ))}
                         </ul>
@@ -673,7 +671,7 @@ function LtChart({
   const avgText = t(locale, vsAvg >= 0 ? 'plan.market.aboveAvg' : 'plan.market.belowAvg')
     .replace('{pct}', Math.abs(vsAvg).toFixed(0))
     .replace('{avg}', avg.toFixed(1))
-  const range = `min ${lo.toFixed(1)} · max ${hi.toFixed(1)}`
+  const range = ''
 
   return (
     <figure className="mt-1.5">
@@ -702,9 +700,7 @@ function LtChart({
             {ticks.map((v) => (
               <g key={v}>
                 <line x1={L} x2={w - R} y1={y(v)} y2={y(v)} className="stroke-white/[0.07]" />
-                <text x={L - 6} y={y(v)} dy="0.32em" textAnchor="end" className="nums fill-white/40 text-[10px]">
-                  {Number.isInteger(v) ? v : v.toFixed(1)}
-                </text>
+
               </g>
             ))}
             {months.map((m) => (
@@ -732,9 +728,7 @@ function LtChart({
             {p && hover != null && (
               <circle cx={x(hover)} cy={y(p.ratio)} r={4.5} className="fill-haul-400 stroke-ink-900" strokeWidth={2} />
             )}
-            <text x={x(n - 1) + 7} y={y(last.ratio)} dy="0.32em" className="nums fill-white/85 text-[11px] font-semibold">
-              {last.ratio.toFixed(1)}
-            </text>
+
           </svg>
         )}
         {p && hover != null && w > 0 && (
@@ -744,7 +738,7 @@ function LtChart({
           >
             <div className="nums text-white/50">{t(locale, 'plan.market.week').replace('{date}', usDate(p.when))}</div>
             <div className="mt-0.5">
-              <span className="nums text-[14px] font-bold text-white">{p.ratio.toFixed(1)}</span>{' '}
+              <span className="nums text-[14px] font-bold text-white">{signedPct(((p.ratio - avg) / avg) * 100)}</span>{' '}
               <span className="text-white/60">{t(locale, 'plan.market.perTruck')}</span>
             </div>
             {change != null && (
@@ -757,7 +751,7 @@ function LtChart({
       </div>
       <figcaption className="nums mt-1 text-[11.5px] leading-snug text-white/55">
         <span className="font-semibold text-white/85">{nowText}</span> ·{' '}
-        <span className={vsAvg >= 0 ? 'text-good-400' : 'text-bad-400'}>{avgText}</span> · {range}
+        <span className={vsAvg >= 0 ? 'text-good-400' : 'text-bad-400'}>{avgText}</span>
       </figcaption>
     </figure>
   )
@@ -796,7 +790,7 @@ function LaneRow({
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-x-2">
             <span className="min-w-0 break-words text-[13.5px] font-semibold">{title ?? lane.name}</span>
-            <HeatTag heat={lane.heat} locale={locale} />
+            <HeatTag heat={lane.heat} ratio={lane.ratio} median={lane.median} locale={locale} />
           </span>
           <span className="nums block break-words text-[11.5px] text-white/50">
             {lane.miles.toLocaleString('en-US')} mi · {usd2.format(lane.rpm)}/mi · {t(locale, 'plan.loadShort').replace('{v}', usd.format(lane.rate))}
@@ -885,9 +879,7 @@ function LaneCalc({
         lane.ratio != null
           ? t(locale, 'plan.calc.wait')
               .replace('{state}', lane.state)
-              .replace('{ratio}', lane.ratio.toFixed(1))
-              .replace('{heat}', lane.heat ? t(locale, HEAT_KEY[lane.heat]) : '—')
-              .replace('{median}', lane.median.toFixed(1))
+              .replace('{heat}', t(locale, HEAT_LEVEL_KEY[heatLevel(lane.median, lane.ratio)]))
           : t(locale, 'plan.calc.waitNoLt').replace('{state}', lane.state),
         days(lane.wait),
       )}

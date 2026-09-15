@@ -24,6 +24,7 @@ import { t } from '@/lib/i18n'
 import { zoneTime } from '@/lib/fmt'
 import { US_STATES } from '@/lib/us-states'
 import type { DatEquipment, DatHeat } from '@/lib/dat-market-core'
+import { heatLevel, HEAT_LEVEL_KEY } from '@/lib/dat-market-core'
 
 export type MapMarker = {
   lat: number
@@ -653,6 +654,9 @@ export function FleetMap({
   useEffect(() => {
     const map = mapRef.current
     if (!map || (!marketStates && !planShown)) return
+    // Середина по штатам серии — от неё «очень горячий» … «очень холодный» в подсказке.
+    const ratios = marketStates ? Object.values(marketStates).map((x) => x.ratio).filter((r) => r > 0).sort((a, b) => a - b) : []
+    const marketMedian = ratios.length ? ratios[Math.floor(ratios.length / 2)]! : 0
     let cancelled = false
     let group: import('leaflet').LayerGroup | null = null
     void (async () => {
@@ -678,7 +682,7 @@ export function FleetMap({
           const s = marketStates![code]
           if (!s) continue
           className = `mkt mkt-${s.heat}`
-          text = t(locale, 'needsLoad.market').replace('{ratio}', s.ratio.toFixed(1)).replace('{heat}', t(locale, HEAT_KEY[s.heat]))
+          text = t(locale, 'needsLoad.market').replace('{heat}', t(locale, HEAT_LEVEL_KEY[heatLevel(marketMedian, s.ratio)]))
         }
         // В режиме «Из штата» нажатие не всплывает до карты: там оно снимало бы выбор трака.
         const poly = L.polygon(shape, {

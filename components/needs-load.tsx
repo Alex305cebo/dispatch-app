@@ -1,12 +1,12 @@
 import Link from 'next/link'
 import { Info } from '@/components/info'
 import { truckLabel, type TruckRecord } from '@/lib/map'
-import { usd, usDate } from '@/lib/fmt'
+import { usd, usd2, usDate } from '@/lib/fmt'
 import { todayEt } from '@/lib/payments'
 import { idleSummary, type IdleTruck } from '@/lib/idle-fleet'
 import { t, type Locale } from '@/lib/i18n'
 import { CopyPlace } from '@/components/copy-place'
-import { datCached, datEquipment, ltHeat, ltOf, stateFromPlace, type DatEquipment } from '@/lib/dat-market'
+import { datCached, datEquipment, heatLevel, HEAT_LEVEL_KEY, ltHeat, ltMedian, ltOf, regionOf, stateFromPlace, type DatEquipment } from '@/lib/dat-market'
 
 /**
  * «Кому искать груз» — карта на месте календаря загрузки.
@@ -113,12 +113,16 @@ export async function NeedsLoad({
                     className="order-last basis-full text-[12px] text-white/55 lg:order-none lg:basis-auto"
                   >
                     {(() => {
-                      const [before, after] = t(locale, 'needsLoad.market').replace('{ratio}', lt.ratio.toFixed(1)).split('{heat}')
+                      // Ставка за милю региона и насколько горячий штат словами — без цифры
+                      // «грузов на трак», которую никто не читал.
+                      const [before, after] = t(locale, 'needsLoad.market').split('{heat}')
+                      const rpm = regionOf(snap, state)?.rpm
                       return (
                         <>
+                          {rpm ? <span className="nums text-white/75">{usd2.format(rpm)}/mi · </span> : null}
                           {before}
                           <span className={heat === 'hot' ? 'font-semibold text-good-400' : heat === 'cold' ? 'font-semibold text-bad-400' : 'text-white/70'}>
-                            {t(locale, heat === 'hot' ? 'needsLoad.heatHot' : heat === 'cold' ? 'needsLoad.heatCold' : 'needsLoad.heatWarm')}
+                            {t(locale, HEAT_LEVEL_KEY[heatLevel(ltMedian(snap), lt.ratio)])}
                           </span>
                           {after}
                         </>

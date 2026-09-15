@@ -3036,12 +3036,12 @@ export const loadsDict = {
     kk: 'Жеткізу · {region}',
   },
   'loadCard.loadsPerTruck': {
-    ru: '{ratio} груза на трак в {state}',
-    en: '{ratio} loads per truck in {state}',
-    es: '{ratio} cargas por camión en {state}',
-    uk: '{ratio} вантажу на трак у {state}',
-    ro: '{ratio} curse pe camion în {state}',
-    kk: '{state}: бір тартқышқа {ratio} жүк',
+    ru: 'рынок в {state}',
+    en: '{state} market',
+    es: 'mercado en {state}',
+    uk: 'ринок у {state}',
+    ro: 'piața în {state}',
+    kk: '{state} нарығы',
   },
   'loadCard.heatHot': {
     ru: 'горячий рынок',
