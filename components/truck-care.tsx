@@ -28,6 +28,7 @@ import { DeleteButton } from '@/components/delete-button'
 import { Info } from '@/components/info'
 import { notify } from '@/lib/notify'
 import { usd } from '@/lib/fmt'
+import { todayEt } from '@/lib/payments'
 import { t, type Locale } from '@/lib/i18n'
 
 const input =
@@ -118,7 +119,7 @@ export function TruckCare({
   /* ---- «масло заменено» ---- */
   const [oilForm, setOilForm] = useState(false)
   const [oilOdo, setOilOdo] = useState<number | null>(currentOdometer ? Math.round(currentOdometer) : null)
-  const [oilDate, setOilDate] = useState(new Date().toISOString().slice(0, 10))
+  const [oilDate, setOilDate] = useState(todayEt())
   const [oilCost, setOilCost] = useState<number | null>(null)
   const saveOil = () =>
     run(
@@ -155,7 +156,7 @@ export function TruckCare({
     notes: '',
     cost: null,
     odometer: currentOdometer ? Math.round(currentOdometer) : null,
-    doneAt: new Date().toISOString().slice(0, 10),
+    doneAt: todayEt(),
   })
 
   const run = (fn: () => Promise<{ error: string } | void>, ok: string, after?: () => void) =>

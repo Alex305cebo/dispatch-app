@@ -3,6 +3,7 @@
 // live in lib/maintenance.ts (server only).
 
 import { t, type Locale } from './i18n.ts'
+import { daysBetween, todayEt } from './payments.ts'
 
 export type TruckMeta = {
   truckId: number
@@ -67,10 +68,12 @@ export type FleetStatus = {
 /** The five compliance dates as label + ISO date, for the expiry panel. */
 export type ExpiryItem = { label: string; date: string; daysLeft: number; tone: 'good' | 'warn' | 'bad' }
 
-export function expiries(meta: TruckMeta | null, locale: Locale = 'en'): ExpiryItem[] {
+export function expiries(meta: TruckMeta | null, locale: Locale = 'en', now = new Date()): ExpiryItem[] {
   if (!meta) return []
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  // Дни — от сегодня по восточному времени. Было: полночь в поясе процесса против
+  // полуночи UTC из 'yyyy-mm-dd' — сервер в UTC после 20:00 ET писал «45 d», браузер
+  // в New York «46 d», и страница трака падала в React #418.
+  const today = todayEt(now)
   const src: [string, string | null][] = [
     [t(locale, 'trucks.expiry.registration'), meta.registrationExpiry],
     [t(locale, 'trucks.expiry.inspection'), meta.inspectionExpiry],
@@ -81,7 +84,7 @@ export function expiries(meta: TruckMeta | null, locale: Locale = 'en'): ExpiryI
   return src
     .filter((x): x is [string, string] => !!x[1])
     .map(([label, date]) => {
-      const daysLeft = Math.round((new Date(date).getTime() - today.getTime()) / 86_400_000)
+      const daysLeft = daysBetween(today, date)
       const tone: 'good' | 'warn' | 'bad' = daysLeft <= 30 ? 'bad' : daysLeft <= 60 ? 'warn' : 'good'
       return { label, date, daysLeft, tone }
     })
