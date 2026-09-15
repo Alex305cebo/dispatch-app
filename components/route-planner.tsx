@@ -32,6 +32,7 @@ import {
   rankLanes,
   rpmForTarget,
   reachableRpm,
+  bestWorst,
   scoreLane,
   stateName,
   type Lane,
@@ -255,8 +256,9 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
   const { truck, origin, series, snap, opts, lanes, from, planOpts } = plan
   if (!truck) return null
   const seriesList = Object.keys(snaps) as DatEquipment[]
-  const best = lanes[0] ?? null
-  const worst = lanes.length > 1 ? lanes[lanes.length - 1]! : null
+  // Лучший и худший — среди дальних (lib/route-plan-core.ts bestWorst): короткий рейс
+  // в соседний штат не «худший штат», он просто короткий.
+  const { best, worst } = bestWorst(lanes, opts.mpd)
   const lt = snap && origin ? ltOf(snap, origin) : null
   const heat = snap && lt ? ltHeat(snap, lt.ratio) : null
   const originRpm = snap && origin ? (regionOf(snap, origin)?.rpm ?? null) : null
@@ -409,9 +411,11 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
                 label={t(locale, 'plan.worst')}
                 value={worst.name}
                 sub={
-                  reachableRpm(worst, opts.target) != null
+                  // Худший — где трак застрянет: сперва насколько холодный рынок, потом ставка.
+                  (worst.ratio != null ? t(locale, HEAT_LEVEL_KEY[heatLevel(worst.median, worst.ratio)]) + ' · ' : '') +
+                  (reachableRpm(worst, opts.target) != null
                     ? t(locale, 'plan.fromRpm').replace('{v}', usd2.format(reachableRpm(worst, opts.target)!))
-                    : t(locale, 'plan.noTarget')
+                    : t(locale, 'plan.noTarget'))
                 }
               />
             )}

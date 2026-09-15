@@ -182,6 +182,27 @@ export function rankLanes(snap: DatSnapshot, origin: PlanOrigin, opts: PlanOptio
   return out.sort((a, b) => b.grossPerDay - a.grossPerDay)
 }
 
+/**
+ * «Лучше всего» и «хуже всего».
+ *
+ * Лучший — по выручке в день за цикл среди дальних (длиннее дневного пробега).
+ *
+ * Худший — НЕ последний по выручке в день: эта цифра топит любой рейс короче (погрузка,
+ * выгрузка и простой — фиксированная добавка к каждому), и «худшим штатом» выходил сосед
+ * (из SC — North Carolina, из TN — снова она). Худший для диспетчера — штат, где трак
+ * застрянет: дольше всего ждать следующий груз (самый холодный рынок), при равенстве —
+ * слабее ставка на выезд. От длины рейса это не зависит.
+ */
+export function bestWorst(lanes: Lane[], milesPerDay: number): { best: Lane | null; worst: Lane | null } {
+  const long = lanes.filter((l) => l.miles + l.deadhead > milesPerDay)
+  const best = (long.length ? long : lanes)[0] ?? null
+  const rest = lanes.filter((l) => l !== best)
+  const worst = rest.length
+    ? rest.reduce((w, l) => (l.wait > w.wait || (l.wait === w.wait && (l.nextRpm ?? 0) < (w.nextRpm ?? 0)) ? l : w))
+    : null
+  return { best, worst }
+}
+
 /** Выручка в день против цели: в цели, рядом (от 85%) или ниже. */
 export function dayTone(grossPerDay: number, target: number): 'hit' | 'near' | 'miss' {
   return grossPerDay >= target ? 'hit' : grossPerDay >= target * 0.85 ? 'near' : 'miss'

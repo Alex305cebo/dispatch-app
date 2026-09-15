@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { parseLt, parseRegions, type DatSnapshot } from './dat-market-core.ts'
-import { dayTone, parseBoardLoads, rankLanes, reachableRpm, roadMiles, rpmForTarget, scoreLane, waitDays, type PlanOptions } from './route-plan-core.ts'
+import { bestWorst, dayTone, parseBoardLoads, rankLanes, reachableRpm, roadMiles, rpmForTarget, scoreLane, waitDays, type PlanOptions } from './route-plan-core.ts'
 import type { TruckSettings } from './profit.ts'
 
 // Регионы DAT Van (форма живого ответа 09/14/26) и грузы на трак по нескольким штатам.
@@ -163,4 +163,14 @@ test('нереальная ставка для цели не показывае�
   const short = { ...lane, miles: 200, deadhead: 50, rpm: 2.81, driveDays: 250 / 500 + 0.5 }
   assert.ok(rpmForTarget(short, 1300) > 2.81 * 1.6)
   assert.equal(reachableRpm(short, 1300), null)
+})
+
+test('хуже всего — штат, где трак застрянет (самый холодный), а не короткий сосед', () => {
+  const lanes = rankLanes(snap, { state: 'IL' }, opts)
+  const { best, worst } = bestWorst(lanes, opts.milesPerDay)
+  assert.ok(best && worst)
+  assert.ok(best.miles + best.deadhead > opts.milesPerDay)
+  // самый холодный штат фикстуры — MT (2.0 груза на трак): там ждать дольше всех
+  assert.equal(worst.state, 'MT')
+  assert.ok(lanes.every((l) => l.wait <= worst.wait))
 })
