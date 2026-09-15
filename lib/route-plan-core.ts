@@ -187,21 +187,34 @@ export function dayTone(grossPerDay: number, target: number): 'hit' | 'near' | '
   return grossPerDay >= target ? 'hit' : grossPerDay >= target * 0.85 ? 'near' : 'miss'
 }
 
+/** Груз с доски: штат доставки, мили, ставка (null — «?», на доске её нет) и, если была,
+ * подпись после чисел — откуда, куда, брокер. */
+export type BoardLoad = { state: string; miles: number; rate: number | null; deadhead?: number; label?: string }
+
 /**
- * Грузы с доски строками «ШТАТ МИЛИ СТАВКА [ПОРОЖНИЙ]»: «TX 980 2450 60», «ga 640 $1,700».
- * Штат — доставки. Нечитаемые строки пропускаются молча: это поле для быстрых заметок.
+ * Грузы с доски строками «ШТАТ МИЛИ СТАВКА [ПОРОЖНИЙ] [· ПОДПИСЬ]»: «TX 980 2450 60»,
+ * «ga 640 $1,700», «NV 139 ? 102 · W Sacramento, CA → Sparks, NV · TQL». Штат — доставки;
+ * «?» вместо ставки — на доске её нет; всё после чисел — подпись (так строки пишет разбор
+ * скриншота, lib/board-shot.ts). Нечитаемые строки пропускаются молча: это поле для заметок.
  */
-export function parseBoardLoads(text: string): { state: string; miles: number; rate: number; deadhead?: number }[] {
+export function parseBoardLoads(text: string): BoardLoad[] {
   const num = (v: string | undefined) => Number((v ?? '').replace(/[$,]/g, ''))
-  const out: { state: string; miles: number; rate: number; deadhead?: number }[] = []
+  const out: BoardLoad[] = []
   for (const line of text.split('\n')) {
-    const [code, milesRaw, rateRaw, dhRaw] = line.trim().split(/\s+/)
+    const [code, milesRaw, rateRaw, ...rest] = line.trim().split(/\s+/)
     const state = (code ?? '').toUpperCase()
     const miles = num(milesRaw)
-    const rate = num(rateRaw)
-    if (!POINT.has(state) || !(miles > 0) || !(rate > 0)) continue
-    const deadhead = num(dhRaw)
-    out.push(dhRaw && deadhead >= 0 ? { state, miles, rate, deadhead } : { state, miles, rate })
+    const rate = rateRaw === '?' ? null : num(rateRaw)
+    if (!POINT.has(state) || !(miles > 0) || (rate !== null && !(rate > 0))) continue
+    const load: BoardLoad = { state, miles, rate }
+    const deadhead = num(rest[0])
+    if (rest.length && deadhead >= 0) {
+      load.deadhead = deadhead
+      rest.shift()
+    }
+    const label = rest.join(' ').replace(/^·\s*/, '')
+    if (label) load.label = label
+    out.push(load)
   }
   return out
 }

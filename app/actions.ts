@@ -2568,6 +2568,43 @@ export async function tollsFromDocument(
 }
 
 /**
+ * Скриншот доски грузов → строки поля «Сравнить грузы с доски» в «Куда отправить трак».
+ *
+ * Отдаёт строки, а не грузы: они ложатся в то же поле, что и ручной ввод, — диспетчер
+ * видит, что именно прочитал ИИ, и неверную цифру поправит руками. Ничего не сохраняет,
+ * но тратит дневной лимит Gemini, поэтому в общей витрине демо выключено — как толлы по
+ * документу выше.
+ */
+export async function readBoardScreenshot(
+  fd: FormData,
+): Promise<{ lines: string[]; skipped: number } | { error: string }> {
+  const locale = await getLocale()
+  if ((await getCurrentUser())?.isDemo) return { error: t(locale, 'plan.boardDemo') }
+  // Список DAT не влезает в один экран — до четырёх скриншотов за раз.
+  const files = fd
+    .getAll('file')
+    .filter((f): f is File => f instanceof File && f.size > 0)
+    .slice(0, 4)
+  if (!files.length) return { error: t(locale, 'actions.noFileSelected') }
+  if (files.some((f) => !f.type.startsWith('image/'))) return { error: t(locale, 'actions.needImage') }
+  if (files.reduce((sum, f) => sum + f.size, 0) > 8 * 1024 * 1024) return { error: t(locale, 'tolls.docTooBig') }
+
+  const { geminiJson } = await import('@/lib/ratecon-gemini')
+  const { BOARD_SHOT_PROMPT, BOARD_SHOT_SCHEMA, boardShotLines } = await import('@/lib/board-shot')
+  const parts: unknown[] = [{ text: BOARD_SHOT_PROMPT }]
+  for (const f of files) parts.push({ inlineData: { mimeType: f.type, data: Buffer.from(await f.arrayBuffer()).toString('base64') } })
+  // Скриншот читается за секунды; зависшую модель ждём не дольше 35 с и идём к следующей.
+  const res = await geminiJson<import('@/lib/board-shot').BoardShotAnswer>(
+    parts,
+    BOARD_SHOT_SCHEMA,
+    (a) => Array.isArray(a?.loads),
+    35_000,
+  )
+  if ('error' in res) return { error: res.error === 'no_key' ? t(locale, 'actions.aiUnavailable') : res.error }
+  return boardShotLines(res.data)
+}
+
+/**
  * Записывает посчитанные толлы на груз — с этого момента они входят в прибыль.
  *
  * Отдельным действием, а не автоматически при расчёте: маршрут в разделе считают

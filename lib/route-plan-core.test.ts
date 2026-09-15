@@ -133,4 +133,10 @@ test('грузы с доски строками', () => {
     { state: 'GA', miles: 640, rate: 1700 },
     { state: 'PA', miles: 420, rate: 1260 },
   ])
+  // «?» — ставки на доске нет; всё после чисел — подпись груза.
+  assert.deepEqual(parseBoardLoads('NV 139 ? 102 · W Sacramento, CA → Sparks, NV · TQL\nGA 781 ? · Dallas, TX\nTX 980 2450 60 Dallas\nca-tx\nOH 500 0'), [
+    { state: 'NV', miles: 139, rate: null, deadhead: 102, label: 'W Sacramento, CA → Sparks, NV · TQL' },
+    { state: 'GA', miles: 781, rate: null, label: 'Dallas, TX' },
+    { state: 'TX', miles: 980, rate: 2450, deadhead: 60, label: 'Dallas' },
+  ])
 })

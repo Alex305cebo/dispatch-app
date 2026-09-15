@@ -10,22 +10,20 @@ import { geminiKey, aiModelPref } from './keys.ts'
 import { aiFailKind, aiFailMessage, worstFail, type AiFail } from './ai-error.ts'
 import { getLocale } from './i18n-server.ts'
 
-export async function geminiExtract(input: {
-  text?: string
-  pdfBase64?: string
-  mime?: string
-}): Promise<{ fields: AiFields; model: string } | { error: string }> {
+/**
+ * Лестница моделей с ответом JSON по схеме — общая для всего, что читает ИИ: рейт-конов
+ * и скриншотов доски грузов. Разница только в том, что спросить (parts, schema) и какой
+ * ответ считать ответом (ok).
+ */
+export async function geminiJson<T>(
+  parts: unknown[],
+  schema: unknown,
+  ok: (answer: T) => boolean,
+  /** Потолок на одну модель, мс. Без него ждём, сколько модель думает (так у рейт-конов). */
+  timeoutMs?: number,
+): Promise<{ data: T; model: string } | { error: string }> {
   const key = await geminiKey()
   if (!key) return { error: 'no_key' }
-
-  const parts: unknown[] = [{ text: AI_PROMPT }]
-  if (input.pdfBase64) {
-    parts.push({ inlineData: { mimeType: input.mime ?? 'application/pdf', data: input.pdfBase64 } })
-  } else if (input.text?.trim()) {
-    parts.push({ text: 'DOCUMENT TEXT:\n' + input.text.slice(0, 60_000) })
-  } else {
-    return { error: 'empty' }
-  }
 
   let lastErr = ''
   // Копим не последнюю беду, а самую объясняющую: отозванный ключ важнее квоты.
@@ -42,10 +40,11 @@ export async function geminiExtract(input: {
             contents: [{ role: 'user', parts }],
             generationConfig: {
               responseMimeType: 'application/json',
-              responseSchema: AI_SCHEMA,
+              responseSchema: schema,
               temperature: 0,
             },
           }),
+          signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
         },
       )
       if (!res.ok) {
@@ -58,11 +57,13 @@ export async function geminiExtract(input: {
         usageMetadata?: { totalTokenCount?: number }
       }
       const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
-      const fields = JSON.parse(text) as AiFields
-      if (!Array.isArray(fields.stops)) throw new Error('no stops')
+      const answer = JSON.parse(text) as T
+      if (!ok(answer)) throw new Error('unexpected answer')
       await bumpGeminiUsage(data.usageMetadata?.totalTokenCount ?? 0)
-      return { fields, model }
+      return { data: answer, model }
     } catch (e) {
+      // Модель не уложилась в срок — это «занята, повторите», а не непонятная ошибка.
+      if (e instanceof Error && e.name === 'TimeoutError') fail = worstFail(fail, 'busy')
       lastErr = `${model}: ${e instanceof Error ? e.message : 'error'}`
       continue
     }
@@ -70,6 +71,23 @@ export async function geminiExtract(input: {
   // Код HTTP остаётся в скобках для нас, а первое, что читает диспетчер, — что
   // делать: ждать сброса лимита, менять ключ или просто повторить.
   return { error: aiFailMessage(fail ?? 'other', await getLocale(), lastErr) }
+}
+
+export async function geminiExtract(input: {
+  text?: string
+  pdfBase64?: string
+  mime?: string
+}): Promise<{ fields: AiFields; model: string } | { error: string }> {
+  const parts: unknown[] = [{ text: AI_PROMPT }]
+  if (input.pdfBase64) {
+    parts.push({ inlineData: { mimeType: input.mime ?? 'application/pdf', data: input.pdfBase64 } })
+  } else if (input.text?.trim()) {
+    parts.push({ text: 'DOCUMENT TEXT:\n' + input.text.slice(0, 60_000) })
+  } else {
+    return { error: 'empty' }
+  }
+  const res = await geminiJson<AiFields>(parts, AI_SCHEMA, (f) => Array.isArray(f?.stops))
+  return 'error' in res ? res : { fields: res.data, model: res.model }
 }
 
 // gemini-3-flash-preview "thinks" before answering — fine for RC extraction (worth

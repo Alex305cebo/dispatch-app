@@ -9,17 +9,20 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { DollarSign, Flame, Fuel, MapPin, Snowflake, TrendingDown, TrendingUp } from 'lucide-react'
+import { DollarSign, Flame, Fuel, ImagePlus, MapPin, Snowflake, TrendingDown, TrendingUp } from 'lucide-react'
 import { Info } from '@/components/info'
 import { Stat } from '@/components/stat'
 import { Button } from '@/components/button'
 import { ShowMore } from '@/components/collapse'
 import { useLocale } from '@/components/locale-provider'
 import type { MapPlan } from '@/components/fleet-map'
+import { readBoardScreenshot } from '@/app/actions'
+import { notify } from '@/lib/notify'
+import { safeUploadFile } from '@/lib/upload-name'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
 import { usd, usd2, usDate } from '@/lib/fmt'
 import { US_STATES } from '@/lib/us-states'
-import { ltHeat, ltOf, regionOf, type DatEquipment, type DatHeat, type DatSnapshot, type DatWeek } from '@/lib/dat-market-core'
+import { ltHeat, ltOf, regionOf, stateFromPlace, type DatEquipment, type DatHeat, type DatSnapshot, type DatWeek } from '@/lib/dat-market-core'
 import type { TruckSettings } from '@/lib/profit'
 import {
   NEXT_LEG_MILES,
@@ -410,11 +413,11 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
   )
 }
 
-/** Рынок серии целиком — то, что на сайте было карточкой аналитики: дизель, сдвиг за
- * неделю, грузы на трак по стране за год, ставки регионов, горячие и холодные штаты.
- * Свёрнут: он для решения «куда вообще сейчас», а не для каждого груза. */
+/** Рынок серии целиком — то, что на сайте было карточкой аналитики: дизель, грузы на трак
+ * по стране за год, ставки регионов, горячие и холодные штаты. Раскрыт сразу; сдвиг за
+ * неделю стоит рядом с тем, что сдвинулось. На телефоне плотнее: регионы по три в ряд,
+ * горячие и холодные штаты двумя колонками. */
 function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: string }; series: DatEquipment; locale: Locale }) {
-  const pct = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1)}%`
   const trend = snap.trend
   // Штаты, куда возят по регионам DAT: без провинций Канады, DC, Аляски и Гавайев — те же,
   // что в списке направлений. Канзас — под почтовым кодом.
@@ -424,28 +427,11 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
     .filter(([code]) => us.has(code) && regionOf(snap, code))
     .sort((a, b) => b[1] - a[1])
   const top = states[0]?.[1] ?? 1
-  const chips: { key: string; icon: React.ReactNode; text: string; tone: string }[] = []
-  if (snap.fuel)
-    chips.push({ key: 'fuel', icon: <Fuel size={12} />, text: t(locale, 'plan.market.diesel').replace('{v}', usd2.format(snap.fuel.price)), tone: 'text-white/70' })
-  if (trend?.rateWoW != null)
-    chips.push({
-      key: 'rate',
-      icon: trend.rateWoW >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />,
-      text: t(locale, 'plan.market.rateWoW').replace('{v}', pct(trend.rateWoW)),
-      tone: trend.rateWoW >= 0 ? 'text-good-400' : 'text-bad-400',
-    })
-  if (trend?.ltWoW != null)
-    chips.push({
-      key: 'lt',
-      icon: trend.ltWoW >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />,
-      text: t(locale, 'plan.market.ltWoW').replace('{v}', pct(trend.ltWoW)),
-      tone: trend.ltWoW >= 0 ? 'text-good-400' : 'text-bad-400',
-    })
   const stateList = (rows: (readonly [string, number])[], bar: string) => (
-    <ul className="mt-1.5 space-y-1">
+    <ul className="mt-1 space-y-0.5 sm:space-y-1">
       {rows.map(([code, ratio]) => (
         <li key={code} className="flex items-center gap-2 text-[12.5px]">
-          <span className="w-12 shrink-0">
+          <span className="hidden w-12 shrink-0 sm:block">
             <span className={`block h-1.5 rounded-full ${bar}`} style={{ width: `${Math.max(8, (ratio / top) * 100)}%` }} aria-hidden />
           </span>
           <span className="min-w-0 flex-1 truncate text-white/80">{stateName(code)}</span>
@@ -456,52 +442,61 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
   )
   const sub = 'text-2xs font-semibold uppercase tracking-wide text-white/55'
   return (
-    <details className="group mt-4 rounded-xl border border-white/8">
+    <details open className="group mt-4 rounded-xl border border-white/8">
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2.5 gap-y-1 px-3 py-2 text-[12px] max-md:min-h-11">
         <span className="text-white/40 transition-transform group-open:rotate-90" aria-hidden>
           ▸
         </span>
         <span className="font-semibold text-white/80">{t(locale, 'plan.market.title').replace('{series}', SERIES_NAME[series])}</span>
-        {chips.map((c) => (
-          <span key={c.key} className={`nums inline-flex items-center gap-1 ${c.tone}`}>
-            {c.icon}
-            {c.text}
+        {snap.fuel && (
+          <span className="nums inline-flex items-center gap-1 text-white/70">
+            <Fuel size={12} aria-hidden />
+            {t(locale, 'plan.market.diesel').replace('{v}', usd2.format(snap.fuel.price))}
           </span>
-        ))}
+        )}
       </summary>
-      <div className="space-y-4 border-t border-white/[0.06] px-3 pb-3 pt-3">
+      <div className="space-y-3 border-t border-white/[0.06] px-3 pb-3 pt-2.5">
         {snap.history && snap.history.length > 1 && (
           <div>
-            <h4 className={`flex items-center gap-1.5 ${sub}`}>
-              {t(locale, 'plan.market.chart')}
-              <Info text={t(locale, 'plan.market.chartInfo')} />
-            </h4>
-            <LtChart weeks={snap.history} locale={locale} />
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
+              <h4 className={`flex items-center gap-1.5 ${sub}`}>
+                {t(locale, 'plan.market.chart')}
+                <Info text={t(locale, 'plan.market.chartInfo')} />
+              </h4>
+              <WeekChange v={trend?.ltWoW} locale={locale} />
+            </div>
+            <LtChart weeks={snap.history} lastChange={trend?.ltWoW} locale={locale} />
           </div>
         )}
         <div>
-          <h4 className={sub}>{t(locale, 'plan.market.regions')}</h4>
-          <div className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
+            <h4 className={sub}>{t(locale, 'plan.market.regions')}</h4>
+            <WeekChange v={trend?.rateWoW} locale={locale} />
+          </div>
+          <div className="mt-1.5 grid grid-cols-3 gap-1.5 sm:grid-cols-5 sm:gap-2">
             {snap.regions.map((r) => (
-              <div key={r.code} className="panel-inset px-3 py-2">
-                <div className="text-[11px] text-white/55">{r.code.charAt(0) + r.code.slice(1).toLowerCase()}</div>
-                <div className="nums text-[15px] font-bold">{usd2.format(r.rpm)}/mi</div>
+              <div key={r.code} className="panel-inset min-w-0 px-2.5 py-1.5">
+                <div className="truncate text-[11px] text-white/55">{r.code.charAt(0) + r.code.slice(1).toLowerCase()}</div>
+                <div className="nums text-[14px] font-bold sm:text-[15px]">
+                  {usd2.format(r.rpm)}
+                  <span className="text-[11px] font-medium text-white/45">/mi</span>
+                </div>
               </div>
             ))}
           </div>
         </div>
         {states.length >= 10 && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
+          <div className="grid grid-cols-2 gap-x-4">
+            <div className="min-w-0">
               <h4 className={`flex items-center gap-1 ${sub}`}>
-                <Flame size={12} className="text-good-400" aria-hidden />
+                <Flame size={12} className="shrink-0 text-good-400" aria-hidden />
                 {t(locale, 'plan.market.hot')}
               </h4>
               {stateList(states.slice(0, 5), 'bg-good-400/70')}
             </div>
-            <div>
+            <div className="min-w-0">
               <h4 className={`flex items-center gap-1 ${sub}`}>
-                <Snowflake size={12} className="text-bad-400" aria-hidden />
+                <Snowflake size={12} className="shrink-0 text-bad-400" aria-hidden />
                 {t(locale, 'plan.market.cold')}
               </h4>
               {stateList(states.slice(-5).reverse(), 'bg-bad-400/70')}
@@ -513,28 +508,194 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
   )
 }
 
-/** Грузы на трак по стране за год — линия без осей: форма и где рынок сейчас. */
-function LtChart({ weeks, locale }: { weeks: DatWeek[]; locale: Locale }) {
-  const W = 640
-  const H = 110
-  const P = 4
-  const values = weeks.map((w) => w.ratio)
+const signedPct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)}%`
+
+/** Сдвиг за неделю — у графика грузов на трак, у регионов ставок. */
+function WeekChange({ v, locale }: { v: number | null | undefined; locale: Locale }) {
+  if (v == null) return null
+  const Icon = v >= 0 ? TrendingUp : TrendingDown
+  return (
+    <span className={`nums inline-flex shrink-0 items-center gap-1 text-[11.5px] font-medium ${v >= 0 ? 'text-good-400' : 'text-bad-400'}`}>
+      <Icon size={12} aria-hidden />
+      {t(locale, 'plan.market.wow').replace('{v}', signedPct(v))}
+    </span>
+  )
+}
+
+/** Круглые значения оси: не больше четырёх делений с шагом 1, 2, 2.5 или 5 × 10ⁿ. */
+function niceTicks(lo: number, hi: number): number[] {
+  const mag = 10 ** Math.floor(Math.log10(hi - lo || 1))
+  let step = mag
+  for (const m of [0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10]) {
+    step = m * mag
+    if (Math.ceil(hi / step) - Math.floor(lo / step) <= 3) break
+  }
+  const out: number[] = []
+  for (let k = Math.floor(lo / step); k <= Math.ceil(hi / step); k++) out.push(Math.round(k * step * 100) / 100)
+  return out
+}
+
+/** Подписи месяцев под осью: где начинается месяц, у января — с годом; на узком графике
+ * через два месяца на третий. Первый, неполный месяц не подписываем — подпись легла бы на ось. */
+function monthTicks(weeks: DatWeek[], locale: Locale, every: number): { i: number; text: string }[] {
+  const fmt = new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' })
+  const out: { i: number; text: string }[] = []
+  let month = -1
+  weeks.forEach((wk, i) => {
+    const d = new Date(`${wk.when}T00:00:00Z`)
+    if (d.getUTCMonth() === month) return
+    const first = month === -1
+    month = d.getUTCMonth()
+    if (!first) out.push({ i, text: month === 0 ? `${fmt.format(d)} ${String(d.getUTCFullYear()).slice(2)}` : fmt.format(d) })
+  })
+  return out.filter((_, k) => k % every === 0)
+}
+
+/** Грузов на трак по стране за год. Ось с круглыми значениями, тонкая линия — среднее за
+ * год, последняя неделя подписана. Наведение, касание или стрелки — неделя, цифра и сдвиг к
+ * прошлой; главное (сейчас, против среднего, минимум и максимум) видно и без этого. */
+function LtChart({
+  weeks,
+  lastChange,
+  locale,
+}: {
+  weeks: DatWeek[]
+  /** Сдвиг последней недели от самого DAT: из округлённых точек вышло бы −7.3% рядом с его −7.2%. */
+  lastChange?: number | null
+  locale: Locale
+}) {
+  const box = useRef<HTMLDivElement>(null)
+  // Ширина в пикселях, чтобы точки были круглыми, а подписи не растягивались: SVG «на всю
+  // ширину» с preserveAspectRatio="none" сплющивал бы и то и другое. До замера (и на
+  // сервере) — пустое место той же высоты, страница не прыгает.
+  const [w, setW] = useState(0)
+  const [hover, setHover] = useState<number | null>(null)
+  useEffect(() => {
+    const el = box.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => setW(Math.round(entries[0]?.contentRect.width ?? 0)))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const n = weeks.length
+  const values = weeks.map((p) => p.ratio)
   const lo = Math.min(...values)
   const hi = Math.max(...values)
-  const pts = weeks.map((w, i) => `${((P + (i * (W - 2 * P)) / (weeks.length - 1))).toFixed(1)},${(H - P - ((w.ratio - lo) / (hi - lo || 1)) * (H - 2 * P)).toFixed(1)}`)
-  const last = weeks[weeks.length - 1]!
+  const avg = values.reduce((sum, v) => sum + v, 0) / n
+  const last = weeks[n - 1]!
+  const ticks = niceTicks(lo, hi)
+  const floor = ticks[0]!
+  const span = ticks[ticks.length - 1]! - floor || 1
+  // Поля: слева значения оси, справа последняя цифра, снизу месяцы.
+  const H = 128
+  const L = 24
+  const R = 34
+  const T = 6
+  const B = 18
+  const plotW = Math.max(1, w - L - R)
+  const x = (i: number) => L + (i * plotW) / (n - 1)
+  const y = (v: number) => T + (1 - (v - floor) / span) * (H - T - B)
+  const line = weeks.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.ratio).toFixed(1)}`).join('')
+  const months = w > 0 ? monthTicks(weeks, locale, plotW < 420 ? 3 : plotW < 760 ? 2 : 1) : []
+
+  const at = (clientX: number) => {
+    const rect = box.current?.getBoundingClientRect()
+    if (rect) setHover(Math.max(0, Math.min(n - 1, Math.round(((clientX - rect.left - L) / plotW) * (n - 1)))))
+  }
+  const p = hover == null ? null : weeks[hover]!
+  const prev = hover ? weeks[hover - 1]! : null
+  const change = hover === n - 1 && lastChange != null ? lastChange : p && prev ? ((p.ratio - prev.ratio) / prev.ratio) * 100 : null
+  const vsAvg = ((last.ratio - avg) / avg) * 100
+  const nowText = t(locale, 'plan.market.now').replace('{v}', last.ratio.toFixed(1)).replace('{date}', usDate(last.when))
+  const avgText = t(locale, vsAvg >= 0 ? 'plan.market.aboveAvg' : 'plan.market.belowAvg')
+    .replace('{pct}', Math.abs(vsAvg).toFixed(0))
+    .replace('{avg}', avg.toFixed(1))
+  const range = `min ${lo.toFixed(1)} · max ${hi.toFixed(1)}`
+
   return (
     <figure className="mt-1.5">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="block h-24 w-full" aria-hidden>
-        <polygon points={`${P},${H - P} ${pts.join(' ')} ${W - P},${H - P}`} className="fill-haul-400/15" />
-        <polyline points={pts.join(' ')} fill="none" className="stroke-haul-400" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-      </svg>
-      <figcaption className="nums mt-1 flex flex-wrap justify-between gap-x-3 text-[11px] text-white/50">
-        <span>{usDate(weeks[0]!.when)}</span>
-        <span>
-          min {lo.toFixed(1)} · max {hi.toFixed(1)} ·{' '}
-          <span className="font-semibold text-white/80">{t(locale, 'plan.market.now').replace('{v}', last.ratio.toFixed(1)).replace('{date}', usDate(last.when))}</span>
-        </span>
+      <div
+        ref={box}
+        tabIndex={0}
+        role="group"
+        aria-label={`${t(locale, 'plan.market.chart')}: ${nowText}, ${avgText}, ${range}`}
+        className="relative h-32 cursor-crosshair touch-pan-y select-none rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-haul-400/50"
+        onPointerDown={(e) => at(e.clientX)}
+        onPointerMove={(e) => at(e.clientX)}
+        // Мышь ушла — подсказка прячется; после касания остаётся, чтобы её успели прочитать.
+        onPointerLeave={(e) => {
+          if (e.pointerType === 'mouse') setHover(null)
+        }}
+        onFocus={() => setHover((h) => h ?? n - 1)}
+        onBlur={() => setHover(null)}
+        onKeyDown={(e) => {
+          if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+          e.preventDefault()
+          setHover((h) => Math.max(0, Math.min(n - 1, (h ?? n - 1) + (e.key === 'ArrowLeft' ? -1 : 1))))
+        }}
+      >
+        {w > 0 && (
+          <svg width={w} height={H} className="block overflow-visible" aria-hidden>
+            {ticks.map((v) => (
+              <g key={v}>
+                <line x1={L} x2={w - R} y1={y(v)} y2={y(v)} className="stroke-white/[0.07]" />
+                <text x={L - 6} y={y(v)} dy="0.32em" textAnchor="end" className="nums fill-white/40 text-[10px]">
+                  {Number.isInteger(v) ? v : v.toFixed(1)}
+                </text>
+              </g>
+            ))}
+            {months.map((m) => (
+              <text key={m.i} x={x(m.i)} y={H - 4} textAnchor="middle" className="fill-white/40 text-[10px]">
+                {m.text}
+              </text>
+            ))}
+            <path d={`${line}L${x(n - 1).toFixed(1)},${y(floor)}L${L},${y(floor)}Z`} className="fill-haul-400/10" />
+            <line x1={L} x2={w - R} y1={y(avg)} y2={y(avg)} className="stroke-white/30" />
+            <path d={line} fill="none" className="stroke-haul-400" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+            {/* У правого края и по другую сторону линии среднего, чем последняя неделя: слева
+                подпись ложилась на саму линию графика, а справа ей мешала бы только цифра «сейчас». */}
+            <text
+              x={w - R - 2}
+              y={last.ratio >= avg ? y(avg) + 12 : y(avg) - 5}
+              textAnchor="end"
+              className="fill-white/60 stroke-ink-900 text-[10px] [paint-order:stroke] [stroke-width:3px]"
+            >
+              {t(locale, 'plan.market.avg').replace('{v}', avg.toFixed(1))}
+            </text>
+            {p && hover != null && (
+              <line x1={x(hover)} x2={x(hover)} y1={T} y2={H - B} className="stroke-white/35" />
+            )}
+            <circle cx={x(n - 1)} cy={y(last.ratio)} r={4} className="fill-haul-400 stroke-ink-900" strokeWidth={2} />
+            {p && hover != null && (
+              <circle cx={x(hover)} cy={y(p.ratio)} r={4.5} className="fill-haul-400 stroke-ink-900" strokeWidth={2} />
+            )}
+            <text x={x(n - 1) + 7} y={y(last.ratio)} dy="0.32em" className="nums fill-white/85 text-[11px] font-semibold">
+              {last.ratio.toFixed(1)}
+            </text>
+          </svg>
+        )}
+        {p && hover != null && w > 0 && (
+          <div
+            className="pointer-events-none absolute z-10 whitespace-nowrap rounded-lg border border-white/10 bg-ink-950 px-2 py-1.5 text-[11px] leading-tight"
+            style={x(hover) > w / 2 ? { top: T, right: w - x(hover) + 10 } : { top: T, left: x(hover) + 10 }}
+          >
+            <div className="nums text-white/50">{t(locale, 'plan.market.week').replace('{date}', usDate(p.when))}</div>
+            <div className="mt-0.5">
+              <span className="nums text-[14px] font-bold text-white">{p.ratio.toFixed(1)}</span>{' '}
+              <span className="text-white/60">{t(locale, 'plan.market.perTruck')}</span>
+            </div>
+            {change != null && (
+              <div className={`nums mt-0.5 ${change >= 0 ? 'text-good-400' : 'text-bad-400'}`}>
+                {t(locale, 'plan.market.wow').replace('{v}', signedPct(change))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <figcaption className="nums mt-1 text-[11.5px] leading-snug text-white/55">
+        <span className="font-semibold text-white/85">{nowText}</span> ·{' '}
+        <span className={vsAvg >= 0 ? 'text-good-400' : 'text-bad-400'}>{avgText}</span> · {range}
       </figcaption>
     </figure>
   )
@@ -542,6 +703,7 @@ function LtChart({ weeks, locale }: { weeks: DatWeek[]; locale: Locale }) {
 
 function LaneRow({
   lane,
+  title,
   rank,
   snap,
   origin,
@@ -552,6 +714,8 @@ function LaneRow({
   board = false,
 }: {
   lane: Lane
+  /** Подпись вместо названия штата — у груза с доски: откуда, куда, брокер. */
+  title?: string
   rank?: number
   snap: DatSnapshot
   origin: string
@@ -568,7 +732,7 @@ function LaneRow({
         {rank != null && <span className="nums w-4 shrink-0 text-right text-[11px] text-white/40">{rank}</span>}
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-x-2">
-            <span className="text-[13.5px] font-semibold">{lane.name}</span>
+            <span className="min-w-0 break-words text-[13.5px] font-semibold">{title ?? lane.name}</span>
             <HeatTag heat={lane.heat} locale={locale} />
           </span>
           <span className="nums block break-words text-[11.5px] text-white/50">
@@ -683,7 +847,9 @@ function LaneCalc({
 }
 
 /** Конкретные грузы с доски — тем же расчётом, что направления: вместе с тем, где груз
- * оставит трак. Текст живёт только на странице: это черновик под звонок брокеру. */
+ * оставит трак. Грузы — строками в поле: руками или со скриншота доски (ИИ пишет строки
+ * туда же, поэтому видно, что он прочитал, и цифру можно поправить). Текст живёт только на
+ * странице: это черновик под звонок брокеру. */
 function BoardCompare({
   snap,
   from,
@@ -698,33 +864,111 @@ function BoardCompare({
   locale: Locale
 }) {
   const [text, setText] = useState('')
-  const rows = useMemo(
-    () =>
-      parseBoardLoads(text)
-        .map((b) => scoreLane(snap, from, b.state, planOpts, b))
-        .filter((x): x is Lane => x !== null)
-        .sort((a, b) => b.grossPerDay - a.grossPerDay),
-    [text, snap, from, planOpts],
-  )
+  const [reading, setReading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const { rows, bad } = useMemo(() => {
+    const rows = parseBoardLoads(text)
+      .map((b) => {
+        // Ставки на доске нет («?») — по рынку DAT региона погрузки: он в подписи груза
+        // со скриншота («Fresno, CA → Houston, TX»), у ручной строки — откуда поедет трак.
+        const fromLabel = b.label ? stateFromPlace(b.label.split('→')[0]) : null
+        const pickup = fromLabel && regionOf(snap, fromLabel) ? fromLabel : from.state
+        const marketRpm = regionOf(snap, pickup)?.rpm
+        const rate = b.rate ?? (marketRpm ? Math.round(b.miles * marketRpm) : null)
+        const lane = rate === null ? null : scoreLane(snap, from, b.state, planOpts, { miles: b.miles, rate, deadhead: b.deadhead })
+        return lane ? { lane, label: b.label, market: b.rate === null, pickup } : null
+      })
+      .filter((x): x is { lane: Lane; label: string | undefined; market: boolean; pickup: string } => x !== null)
+      .sort((a, b) => b.lane.grossPerDay - a.lane.grossPerDay)
+    // Первая строка, которую не понять, — вслух: молча пропущенная «ca-tx» выглядела так,
+    // будто поле не работает вовсе.
+    const bad = text
+      .split('\n')
+      .map((l) => l.trim())
+      .find((l) => l && !parseBoardLoads(l).length)
+    return { rows, bad }
+  }, [text, snap, from, planOpts])
+
+  const read = (list: File[]) => {
+    const files = list.filter((f) => f.type.startsWith('image/')).slice(0, 4)
+    if (!files.length || reading) return
+    if (files.reduce((sum, f) => sum + f.size, 0) > 8 * 1024 * 1024) return notify('error', t(locale, 'tolls.docTooBig'))
+    const fd = new FormData()
+    for (const f of files) fd.append('file', safeUploadFile(f))
+    setReading(true)
+    readBoardScreenshot(fd)
+      .then((res) => {
+        if ('error' in res) return notify('error', res.error)
+        if (!res.lines.length) return notify('warn', t(locale, 'plan.boardNone'))
+        setText((cur) => [cur.trim(), ...res.lines].filter(Boolean).join('\n'))
+        notify(
+          'ok',
+          t(locale, 'plan.boardRead').replace('{n}', String(res.lines.length)) +
+            (res.skipped ? t(locale, 'plan.boardSkipped').replace('{n}', String(res.skipped)) : ''),
+        )
+      })
+      .catch(() => notify('error', t(locale, 'plan.boardFail')))
+      .finally(() => setReading(false))
+  }
+
   return (
     <div className="mt-4 border-t border-white/[0.06] pt-3">
-      <h3 className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-white/55">
-        {t(locale, 'plan.board')}
-        <Info text={t(locale, 'plan.boardInfo')} />
-      </h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-white/55">
+          {t(locale, 'plan.board')}
+          <Info text={t(locale, 'plan.boardInfo')} />
+        </h3>
+        <Button size="sm" icon={<ImagePlus size={13} />} loading={reading} onClick={() => fileRef.current?.click()}>
+          {t(locale, 'plan.boardShot')}
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            read([...(e.target.files ?? [])])
+            e.target.value = ''
+          }}
+        />
+      </div>
+      <p className="mt-1 text-[12px] leading-snug text-white/55">{t(locale, 'plan.boardHint')}</p>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        rows={3}
+        // Скриншот из буфера (Win+Shift+S → Ctrl+V) или перетащенный файл — сразу на чтение.
+        onPaste={(e) => {
+          const files = [...e.clipboardData.files]
+          if (!files.some((f) => f.type.startsWith('image/'))) return
+          e.preventDefault()
+          read(files)
+        }}
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes('Files')) e.preventDefault()
+        }}
+        onDrop={(e) => {
+          if (!e.dataTransfer.files.length) return
+          e.preventDefault()
+          read([...e.dataTransfer.files])
+        }}
+        rows={Math.min(8, Math.max(3, text.split('\n').length))}
+        wrap="off"
         spellCheck={false}
         placeholder={'TX 980 2450 60\nGA 640 1700'}
         className={`${input} mt-2 font-mono text-[13px]`}
       />
+      {bad && (
+        <p className="mt-1 break-words text-[12px] text-warn-400">
+          {t(locale, 'plan.boardBad').replace('{line}', bad.length > 40 ? `${bad.slice(0, 40)}…` : bad)}
+        </p>
+      )}
       {rows.length > 0 && (
         <div className="mt-2 flex flex-col gap-1.5">
-          {rows.map((lane, i) => {
+          {rows.map(({ lane, label, market, pickup }, i) => {
             const reasons = [
               i === 0 && rows.length > 1 ? t(locale, 'plan.why.best') : null,
+              market ? t(locale, 'plan.why.market') : null,
               lane.grossPerDay < opts.target ? t(locale, 'plan.why.belowTarget') : null,
               lane.heat === 'cold' ? t(locale, 'plan.why.cold').replace('{days}', lane.wait.toFixed(1)) : null,
               lane.heat === 'hot' ? t(locale, 'plan.why.hot') : null,
@@ -734,13 +978,14 @@ function BoardCompare({
               <LaneRow
                 key={`${i}-${lane.state}-${lane.miles}-${lane.rate}`}
                 lane={lane}
+                title={label}
                 snap={snap}
-                origin={from.state}
+                origin={pickup}
                 opts={opts}
                 settings={planOpts.settings}
                 locale={locale}
                 reasons={reasons}
-                board
+                board={!market}
               />
             )
           })}
