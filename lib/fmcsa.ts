@@ -10,6 +10,7 @@
 import { sql } from './db'
 import { fmcsaKey } from './keys.ts'
 import { t, type Locale } from './i18n.ts'
+import { mcGrantDate } from './safer.ts'
 
 /** Чужая служба не должна держать наш ответ: без срока один зависший запрос
  * превращается в бесконечную загрузку страницы. 8 секунд — потолок, после
@@ -184,17 +185,13 @@ function computeFlags(c: BrokerCheck, ctx: RcContext, locale: Locale): BrokerFla
   return flags
 }
 
-/** Given a fetched record + its MC, make the authority-date call, cache by MC, parse. */
-async function buildFromRecord(mc: string | null, rec: any, key: string): Promise<BrokerCheck> {
-  let granted: string | null = null
-  if (rec.dotNumber) {
-    const auth = await fmcsaGet(`carriers/${rec.dotNumber}/authority`, key)
-    const a = Array.isArray(auth?.content) ? auth.content[0] : auth?.content
-    granted = a?.authGrantDate ?? a?.applicantDate ?? a?.originalActionDate ?? null
-  }
-  const base = parseRecord(rec, mc, granted, false)
+/** Given a fetched record + its MC, look up the MC grant date (FMCSA open data — QCMobile
+ * has none), cache by MC, parse. */
+async function buildFromRecord(mc: string | null, rec: any): Promise<BrokerCheck> {
+  const base = parseRecord(rec, mc, mc ? await mcGrantDate(mc) : null, false)
 
   if (mc) {
+    // Дата выдачи MC не меняется: не ответили открытые данные — в кэше остаётся прежняя.
     await sql`
       INSERT INTO brokers (mc, legal_name, dba_name, dot_number, authority_status,
                            bond_on_file, authority_granted, address, phone, raw, checked_at)
@@ -204,7 +201,7 @@ async function buildFromRecord(mc: string | null, rec: any, key: string): Promis
       ON DUPLICATE KEY UPDATE
         legal_name = VALUES(legal_name), dba_name = VALUES(dba_name),
         dot_number = VALUES(dot_number), authority_status = VALUES(authority_status),
-        bond_on_file = VALUES(bond_on_file), authority_granted = VALUES(authority_granted),
+        bond_on_file = VALUES(bond_on_file), authority_granted = COALESCE(VALUES(authority_granted), authority_granted),
         address = VALUES(address), phone = VALUES(phone), raw = VALUES(raw), checked_at = NOW(6)`
   }
   return base
@@ -238,7 +235,7 @@ export async function checkBroker(
     const data = await fmcsaGet(`carriers/docket-number/${mc}`, key)
     const rec = unwrapCarrier(data)
     if (!rec) return { error: t(locale, 'fmcsa.mcNotFound').replace('{mc}', mc) }
-    base = await buildFromRecord(mc, rec, key)
+    base = await buildFromRecord(mc, rec)
   }
 
   base.flags = computeFlags(base, ctx, locale)
@@ -318,7 +315,7 @@ export async function checkBrokerByDot(
     .find((d: string) => d)
   if (docket) mc = docket
 
-  const base = await buildFromRecord(mc, rec, key)
+  const base = await buildFromRecord(mc, rec)
   base.flags = computeFlags(base, ctx, locale)
   return base
 }

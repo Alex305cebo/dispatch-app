@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseSaferSearch, parseSaferSnapshot } from './safer.ts'
+import { earliestGrant, parseSaferSearch, parseSaferSnapshot } from './safer.ts'
 import { chooseCompany, type Candidate } from './broker-match.ts'
 
 // Куски настоящих страниц SAFER — по ним и писался разбор. Если FMCSA поменяет
@@ -103,4 +103,21 @@ test('частичное совпадение проходит, когда ег�
 
 test('пустой список кандидатов ничего не выбирает', () => {
   assert.equal(chooseCompany('Molo Solutions', null, []), null)
+})
+
+test('дата выдачи MC: самая ранняя выдача из обоих реестров, строкой YYYY-MM-DD', () => {
+  // Как отдают реестры: старый — «MM/DD/YYYY», Motus — «YYYYMMDD». Отзыв и заявка — не выдача.
+  const legacy = [
+    { original_action_desc: 'GRANTED', orig_served_date: '02/18/2022' },
+    { original_action_desc: 'INVOLUNTARY REVOCATION', orig_served_date: '10/01/2019' },
+  ]
+  const motus = [
+    { reason: 'Granted', status_change_date: '20210914' },
+    { reason: 'Initial Status', status_change_date: '20200902' },
+  ]
+  assert.equal(earliestGrant(legacy, motus), '2021-09-14')
+  // Один реестр не ответил — берём, что есть; в перенесённых строках Motus «GRANTED» заглавными.
+  assert.equal(earliestGrant(null, [{ reason: 'GRANTED', status_change_date: '19970828' }]), '1997-08-28')
+  // Мусор в базу не пишем: колонка DATE в строгом режиме уронила бы INSERT.
+  assert.equal(earliestGrant([{ original_action_desc: 'GRANTED', orig_served_date: '00/00/0000' }], [{ reason: 'Granted' }, null]), null)
 })
