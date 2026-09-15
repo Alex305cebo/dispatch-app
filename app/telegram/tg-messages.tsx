@@ -16,20 +16,12 @@ import { tgPollMessages } from './actions'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale } from '@/lib/i18n'
 import type { TgMsg } from '@/lib/telegram'
-import { usDate } from '@/lib/fmt'
+import { clockOrDate } from '@/lib/fmt'
 
 function humanSize(bytes: number, locale: Locale): string {
   if (bytes < 1024) return `${bytes} ${t(locale, 'telegram.page.bytesUnit')}`
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} ${t(locale, 'telegram.page.kbUnit')}`
   return `${(bytes / (1024 * 1024)).toFixed(1)} ${t(locale, 'telegram.page.mbUnit')}`
-}
-
-function when(iso: string | null, locale: Locale): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const today = new Date().toDateString() === d.toDateString()
-  const dl = locale === 'ru' ? 'ru-RU' : 'en-US'
-  return today ? d.toLocaleTimeString(dl, { hour: '2-digit', minute: '2-digit' }) : usDate(d)
 }
 
 const POLL_MS = 15_000
@@ -111,7 +103,7 @@ export function TgMessages({ chatId, phone, initial }: { chatId: string; phone: 
             <span className="text-white/45">{t(locale, 'telegram.page.attachment')}</span>
           )}
           {m.text}
-          <span className="mt-0.5 block text-right text-[10px] text-white/40">{when(m.at, locale)}</span>
+          <span className="mt-0.5 block text-right text-[10px] text-white/40">{clockOrDate(m.at, locale)}</span>
         </div>
       ))}
     </div>

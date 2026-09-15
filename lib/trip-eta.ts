@@ -29,15 +29,16 @@ export function apptMinutes(time: string | null | undefined): number | null {
 
 /** Момент (мс UTC) «эта дата, это время стены» в поясе выгрузки.
  *
- * Двухшаговый перевод через Intl: строим догадку в UTC, спрашиваем у пояса, какое
- * время стены она даёт, и сдвигаем на разницу. На границе перевода часов ошибка
- * не больше часа — для срока доставки это шум. */
+ * Перевод через Intl: строим догадку в UTC, спрашиваем у пояса, какое время стены
+ * она даёт, и сдвигаем на разницу. Второй раз сдвиг берётся уже у ответа: в ночь
+ * перевода часов у догадки он другой, и один проход ошибался на час — а по этой
+ * функции идёт и правка времени отметки водителя, от которой считается детеншен. */
 export function zonedMs(dateIso: string, minutesOfDay: number, zone: string): number | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateIso)
   if (!m) return null
   const guess = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 0, minutesOfDay)
   try {
-    const parts = new Intl.DateTimeFormat('en-US', {
+    const wallFmt = new Intl.DateTimeFormat('en-US', {
       timeZone: zone,
       hour12: false,
       year: 'numeric',
@@ -45,11 +46,14 @@ export function zonedMs(dateIso: string, minutesOfDay: number, zone: string): nu
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-    }).formatToParts(guess)
-    const get = (type: string) => Number(parts.find((p) => p.type === type)?.value)
-    // «hour: 24» Intl отдаёт для полуночи — нормализуем.
-    const wall = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'))
-    return guess - (wall - guess)
+    })
+    const offset = (ms: number) => {
+      const parts = wallFmt.formatToParts(ms)
+      const get = (type: string) => Number(parts.find((p) => p.type === type)?.value)
+      // «hour: 24» Intl отдаёт для полуночи — нормализуем.
+      return Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute')) - ms
+    }
+    return guess - offset(guess - offset(guess))
   } catch {
     return null // неизвестный пояс — лучше без срока, чем с неверным
   }

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { agoText, weekAnchorOf, weekLabel, loadWeekAnchorMs, normalizeApptTime, shortName, usDate } from './fmt.ts'
+import { agoText, clockEt, clockOrDate, weekAnchorOf, weekLabel, loadWeekAnchorMs, normalizeApptTime, shortName, usDate, usDateTime } from './fmt.ts'
 
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
@@ -17,7 +17,8 @@ test('shortName keeps the first name and initials the surname', () => {
 // Зарплатная неделя — с пятницы 00:00 по восточному времени, а сервер Hostinger в UTC:
 // одни и те же проверки в обоих поясах процесса.
 test('неделя с пятницы по восточному — одна и та же на сервере в UTC и в New York', () => {
-  const saved = process.env.TZ
+  // delete process.env.TZ на Windows пояс не возвращает — только явное имя.
+  const saved = process.env.TZ ?? Intl.DateTimeFormat().resolvedOptions().timeZone
   try {
     for (const zone of ['UTC', 'America/New_York']) {
       process.env.TZ = zone // Node меняет пояс процесса на лету
@@ -38,8 +39,7 @@ test('неделя с пятницы по восточному — одна и �
       assert.equal(weekLabel(fall, 'en'), 'Oct 30 – Nov 5, 2026', zone)
     }
   } finally {
-    if (saved === undefined) delete process.env.TZ
-    else process.env.TZ = saved
+    process.env.TZ = saved
   }
 })
 
@@ -82,7 +82,7 @@ test('usDate: ISO date and timestamp both come out as MM/DD/YY', () => {
 // Сервер Hostinger в UTC, диспетчеры в New York: вечерний момент — день по восточному
 // времени в любом поясе процесса, а не завтрашний день сервера.
 test('agoText: день старого момента — по восточному и в UTC, и в New York', () => {
-  const saved = process.env.TZ
+  const saved = process.env.TZ ?? Intl.DateTimeFormat().resolvedOptions().timeZone
   try {
     for (const zone of ['UTC', 'America/New_York']) {
       process.env.TZ = zone
@@ -92,8 +92,29 @@ test('agoText: день старого момента — по восточно�
       assert.equal(agoText('not a date', 'en'), '', zone)
     }
   } finally {
-    if (saved === undefined) delete process.env.TZ
-    else process.env.TZ = saved
+    process.env.TZ = saved
+  }
+})
+
+// Время суток — то же самое: страницу рисует сервер в UTC, гидратирует браузер в New York,
+// и строка обязана совпасть до символа, иначе React #418.
+test('время момента — по восточному в любом поясе процесса', () => {
+  const saved = process.env.TZ ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  try {
+    for (const zone of ['UTC', 'America/New_York', 'Pacific/Kiritimati']) {
+      process.env.TZ = zone
+      const evening = '2026-09-15T01:30:00Z' // 21:30 EDT 14-го, в UTC уже 15-е
+      assert.equal(usDateTime(evening), '09/14/26 9:30 PM', zone)
+      assert.equal(usDateTime(Date.parse('2026-01-10T05:05:00Z')), '01/10/26 12:05 AM', zone) // EST
+      assert.equal(usDateTime('not a date'), '', zone)
+      assert.equal(clockEt(evening, 'ru'), '21:30', zone)
+      assert.equal(clockEt(evening, 'en'), '09:30 PM', zone)
+      assert.equal(clockOrDate('2026-01-10T02:30:00Z', 'ru'), '01/09/26', zone) // давно: день по ET
+      assert.match(clockOrDate(new Date().toISOString(), 'ru'), /^\d\d:\d\d$/, zone) // сегодня: время
+      assert.equal(clockOrDate(null, 'en'), '', zone)
+    }
+  } finally {
+    process.env.TZ = saved
   }
 })
 

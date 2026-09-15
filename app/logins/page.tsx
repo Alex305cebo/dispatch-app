@@ -7,6 +7,7 @@ import { Name } from '@/components/name'
 import { getCurrentUser } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t, type Locale } from '@/lib/i18n'
+import { usDateTime } from '@/lib/fmt'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,16 +64,6 @@ function device(ua: string | null, locale: Locale): string {
             ? 'Safari'
             : '—'
   return `${os} · ${br}`
-}
-
-function when(at: string, locale: Locale): string {
-  return new Date(at).toLocaleString(locale === 'ru' ? 'ru-RU' : 'en-US', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 export default async function Page() {
@@ -189,7 +180,7 @@ export default async function Page() {
                 {e.detail && <span className="pl-3.5 text-[11px] text-white/45">{e.detail}</span>}
               </div>
               <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
-                <span className="nums text-[12px] text-white/55">{when(e.at, locale)}</span>
+                <span className="nums text-[12px] text-white/55">{usDateTime(e.at)}</span>
                 <span className="text-[11px] text-white/45">{e.where}</span>
               </div>
             </li>

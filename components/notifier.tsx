@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { clearNotes, markAllRead, useNotes, type NoteKind } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
+import { clockEt } from '@/lib/fmt'
 
 const TONE: Record<NoteKind, { dot: string; text: string }> = {
   ok: { dot: 'bg-good-400', text: 'text-good-400' },
@@ -103,10 +104,7 @@ export function Notifier({ collapsed = false }: { collapsed?: boolean }) {
                             <p className="text-[13px] leading-snug text-white/90">{n.text}</p>
                             <p className="mt-0.5 text-[10px] text-white/55">
                               {n.from ? `${n.from} · ` : ''}
-                              {new Date(n.at).toLocaleTimeString(locale === 'ru' ? 'ru-RU' : 'en-US', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
+                              {clockEt(n.at, locale)}
                             </p>
                           </div>
                         </>

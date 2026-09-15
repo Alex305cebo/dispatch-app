@@ -200,10 +200,31 @@ export function usDate(v: string | Date | null | undefined): string {
   return mdy(d.getMonth() + 1, d.getDate(), d.getFullYear())
 }
 
-/** Время «3:04 PM» — рядом с usDate, когда нужен момент, а не только день. */
-export function usTime(v: string | Date): string {
-  const d = typeof v === 'string' ? new Date(v) : v
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+const ET = 'America/New_York'
+
+/**
+ * Момент для диспетчера: «09/14/26 3:04 PM» — день и время по восточному времени.
+ *
+ * Пояс явный, а не процесса: сервер Hostinger рисует страницу в UTC, браузер
+ * диспетчера — в New York, и время расходилось на 4 часа — React #418 на каждом блоке
+ * с отметками. День и время — одной функцией: порознь их легко взять в разных поясах.
+ */
+export function usDateTime(v: string | number | Date): string {
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return ''
+  return `${usDate(todayEt(d))} ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: ET })}`
+}
+
+/** Время по восточному без дня: «15:04» (ru) / «03:04 PM» (en) — где день уже виден рядом. */
+export function clockEt(v: string | number | Date, locale: Locale): string {
+  return new Date(v).toLocaleTimeString(locale === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit', timeZone: ET })
+}
+
+/** Сегодня — время, раньше — дата: «15:04» / «09/12/26». «Сегодня» — тоже по восточному. */
+export function clockOrDate(iso: string | null, locale: Locale): string {
+  const d = new Date(iso ?? NaN)
+  if (Number.isNaN(d.getTime())) return ''
+  return todayEt(d) === todayEt() ? clockEt(d, locale) : usDate(todayEt(d))
 }
 
 /**

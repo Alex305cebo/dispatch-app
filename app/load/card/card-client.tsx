@@ -44,7 +44,7 @@ import { t, type Locale } from '@/lib/i18n'
 import { vetBroker } from '@/app/actions'
 import type { BrokerCheck } from '@/lib/fmcsa'
 import { calcLoad, type Breakdown } from '@/lib/profit'
-import { driveTime, usd, usd2 } from '@/lib/fmt'
+import { driveTime, usd, usd2, usDateTime } from '@/lib/fmt'
 import { directionsUrl, isRateCon, thinCoords, tripFit } from '@/lib/load-card-core'
 import { marketVerdict } from '@/lib/dat-market-core'
 import type { FuelPlan } from '@/lib/fuel-plan-core'
@@ -552,7 +552,7 @@ export function CardClient() {
             <span className="nums text-[12px] text-white/50">
               {t(locale, 'loadCard.marketAsOf').replace(
                 '{when}',
-                new Date(market.at).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }),
+                usDateTime(market.at),
               )}
             </span>
           )}

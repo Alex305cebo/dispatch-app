@@ -2,6 +2,8 @@
 // with long rests called out. Pure — no DB import — so it's cheap to unit test.
 
 import { haversineMiles } from './geo.ts'
+import { todayEt } from './payments.ts'
+import { zonedMs } from './trip-eta.ts'
 
 export type TrailPoint = {
   lat: number
@@ -91,12 +93,11 @@ export function segmentTrail(points: TrailPoint[]): HistoryLeg[] {
 
 export const DAY_MS = 24 * 60 * 60 * 1000
 
-/** Local midnight of the day containing `ms`. Local, not UTC: a driver's day ends at
- * their midnight, and a UTC boundary would slice it at 7pm in California. */
+/** Полночь по восточному времени того дня, где лежит `ms`. По ET, как и заголовки дней в
+ * ленте: в поясе процесса сервер в UTC резал сутки в 20:00, и лента, нарисованная на
+ * сервере, расходилась с браузером диспетчера (React #418). */
 export function startOfDay(ms: number): number {
-  const d = new Date(ms)
-  d.setHours(0, 0, 0, 0)
-  return d.getTime()
+  return zonedMs(todayEt(new Date(ms)), 0, 'America/New_York')!
 }
 
 export type DaySpan = { leg: HistoryLeg; fromMs: number; toMs: number; leftPct: number; widthPct: number }

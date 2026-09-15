@@ -9,9 +9,11 @@ import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
 import { notify } from '@/lib/notify'
 import { t } from '@/lib/i18n'
-import { usDate, usTime } from '@/lib/fmt'
+import { clockEt, usDateTime } from '@/lib/fmt'
 import type { LoadEvent } from '@/lib/load-events'
+import { todayEt } from '@/lib/payments'
 import { eventSeq, stopTitle, type LoadStop } from '@/lib/stops'
+import { zonedMs } from '@/lib/trip-eta'
 
 const KEY = {
   arrived_pickup: 'driver.ev.arrivedPickup',
@@ -40,13 +42,12 @@ const DOT = {
   photo: 'bg-white/40',
 } as const
 
-const clock = (iso: string) => `${usDate(iso)} ${usTime(iso)}`
-/** ISO → значение для <input type="datetime-local"> в местном времени браузера. */
-const toLocalInput = (iso: string) => {
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+/** Момент ↔ значение <input type="datetime-local"> — по восточному, как время в списке:
+ * иначе у диспетчера не из New York правка уезжала бы на разницу поясов. «ru» тут —
+ * ради 24-часового «15:04», которого ждёт поле. */
+const toEtInput = (iso: string) => `${todayEt(new Date(iso))}T${clockEt(iso, 'ru')}`
+const fromEtInput = (v: string) =>
+  new Date(zonedMs(v, Number(v.slice(11, 13)) * 60 + Number(v.slice(14, 16)), 'America/New_York')!).toISOString()
 
 export type DetentionProps = {
   at: 'pickup' | 'delivery'
@@ -125,7 +126,7 @@ export function DriverTimeline({
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-ink-950/50 px-2.5 py-0.5 text-[12px] text-white/80">
             <span className={`h-1.5 w-1.5 rounded-full ${DOT[last.kind].split(' ')[0]}`} />
             {t(locale, KEY[last.kind])}
-            <span className="nums text-white/45">· {clock(last.at)}</span>
+            <span className="nums text-white/45">· {usDateTime(last.at)}</span>
           </span>
         )}
         {events.length > 0 && (
@@ -176,12 +177,12 @@ export function DriverTimeline({
                   {timeOf === e.id ? (
                     <input
                       type="datetime-local"
-                      defaultValue={toLocalInput(e.at)}
+                      defaultValue={toEtInput(e.at)}
                       autoFocus
                       onBlur={(ev) => {
                         const v = ev.currentTarget.value
                         setTimeOf(null)
-                        if (v) run(() => setLoadEventTime(e.id, new Date(v).toISOString()))
+                        if (v) run(() => setLoadEventTime(e.id, fromEtInput(v)))
                       }}
                       className="nums rounded-md border border-haul-400/60 bg-ink-950/80 px-1.5 py-0.5 text-[12.5px] outline-none"
                     />
@@ -192,7 +193,7 @@ export function DriverTimeline({
                       onClick={() => setTimeOf(e.id)}
                       className={`nums w-[7.5rem] shrink-0 text-left text-[12px] text-white/45 ${editing ? 'rounded-md underline decoration-dotted underline-offset-2 hover:text-haul-300' : 'cursor-default'}`}
                     >
-                      {clock(e.at)}
+                      {usDateTime(e.at)}
                     </button>
                   )}
                   <span
@@ -292,7 +293,7 @@ function AddForm({
   onCancel: () => void
 }) {
   const [kind, setKind] = useState('arrived_pickup')
-  const [at, setAt] = useState(toLocalInput(new Date().toISOString()))
+  const [at, setAt] = useState(toEtInput(new Date().toISOString()))
   const [note, setNote] = useState('')
   const [seq, setSeq] = useState<number>(stops[0]?.seq ?? 0)
   // Остановка задаёт и вид отметки: у пикапа — приехал/загрузился, у выгрузки — приехал/выгрузился.
@@ -352,7 +353,7 @@ function AddForm({
         onClick={() =>
           onSave(
             kind,
-            new Date(at).toISOString(),
+            fromEtInput(at),
             note.trim() || undefined,
             chosen && kind !== 'note' ? chosen.seq : null,
           )

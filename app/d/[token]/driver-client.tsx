@@ -1,7 +1,7 @@
 'use client'
 
 import { safeUploadFile } from '@/lib/upload-name'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { t, type Locale } from '@/lib/i18n'
 import type { LoadStatus } from '@/lib/map'
@@ -79,6 +79,10 @@ export function DriverClient({
   const bolRef = useRef<HTMLInputElement>(null)
   const podRef = useRef<HTMLInputElement>(null)
   const photoRef = useRef<HTMLInputElement>(null)
+  // Время отметок — в поясе телефона водителя, а его знает только браузер: на сервере и
+  // при гидратации строки нет, иначе время сервера в UTC разошлось бы с телефоном (React #418).
+  const [onPhone, setOnPhone] = useState(false)
+  useEffect(() => setOnPhone(true), [])
 
   async function post(fd: FormData, key: string) {
     setBusy(key)
@@ -442,7 +446,7 @@ export function DriverClient({
                     : null
                 return (
                   <li key={e.id} className="flex items-baseline gap-2 text-white/70">
-                    <span className="nums shrink-0 text-white/45">{clock(e.at)}</span>
+                    <span className="nums shrink-0 text-white/45">{onPhone && clock(e.at)}</span>
                     <span>
                       {t(locale, EVENT_KEY[e.kind as keyof typeof EVENT_KEY] ?? 'driver.ev.note')}
                       {st?.city ? ` · ${st.city}` : ''}

@@ -23,20 +23,21 @@ import {
   type HistoryLeg,
   type LoadStop,
 } from '@/lib/trip-history'
-import { agoText, driveTime, usDate } from '@/lib/fmt'
+import { agoText, clockEt, driveTime, usDate } from '@/lib/fmt'
 import { t, type Locale } from '@/lib/i18n'
+import { todayEt } from '@/lib/payments'
 
-const loc = (locale: Locale) => (locale === 'ru' ? 'ru-RU' : 'en-US')
-const timeOf = (iso: string, locale: Locale) =>
-  new Date(iso).toLocaleTimeString(loc(locale), { hour: '2-digit', minute: '2-digit' })
-const dateOf = (iso: string, _locale: Locale) => usDate(iso)
+// Время и день — по восточному (clockEt, todayEt): ленту рисует сервер в UTC, а
+// гидратирует браузер диспетчера в New York — в поясе процесса строки расходились на
+// 4 часа (React #418). Сутки ленты — тоже по ET, см. startOfDay.
+const dateOf = (iso: string, _locale: Locale) => usDate(todayEt(new Date(iso)))
 // Короткая дата для отрезка, перешедшего полночь: заголовок дня показывает только
 // день НАЧАЛА, и одно время конца («15:34–15:00») читалось как бессмыслица.
-const dateShort = (iso: string, _locale: Locale) => usDate(iso)
+const dateShort = dateOf
 
 function rangeLabel(from: string, to: string, locale: Locale): string {
-  const tf = timeOf(from, locale)
-  const tt = timeOf(to, locale)
+  const tf = clockEt(from, locale)
+  const tt = clockEt(to, locale)
   return dateOf(from, locale) === dateOf(to, locale) ? `${tf}–${tt}` : `${tf}–${tt} (${dateShort(to, locale)})`
 }
 
@@ -111,10 +112,7 @@ function DayRibbon({
               key={i}
               type="button"
               onClick={() => onSelect(selected === idx ? null : idx)}
-              title={`${timeOf(new Date(s.fromMs).toISOString(), locale)}–${timeOf(
-                new Date(s.toMs).toISOString(),
-                locale,
-              )} · ${driveTime(Math.round((s.toMs - s.fromMs) / 60000), locale)}`}
+              title={`${clockEt(s.fromMs, locale)}–${clockEt(s.toMs, locale)} · ${driveTime(Math.round((s.toMs - s.fromMs) / 60000), locale)}`}
               className={`absolute inset-y-0 ${tone} ${selected === idx ? 'ring-1 ring-white/80' : ''}`}
               style={{ left: `${s.leftPct}%`, width: `${s.widthPct}%` }}
             />
@@ -187,7 +185,7 @@ export function TripHistory({
             {t(locale, isToday ? 'trucks.trip.freshToday' : 'trucks.trip.freshOld')}
           </span>
           <span className="nums text-white/45">
-            {timeOf(freshest, locale)} · {agoText(freshest, locale)}
+            {clockEt(freshest, locale)} · {agoText(freshest, locale)}
           </span>
         </p>
       )}

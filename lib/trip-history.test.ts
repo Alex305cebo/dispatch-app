@@ -97,26 +97,45 @@ const drive = (from: string, to: string): HistoryLeg => ({
   kind: 'drive', from, to, miles: 100, minutes: 60, fromLocation: null, toLocation: null,
 })
 const day = (s: string) => startOfDay(Date.parse(s))
+// Сутки ленты — по восточному (EDT в июле), поэтому моменты с явным сдвигом:
+// тесты не зависят от пояса машины, на которой их гоняют.
 
 test('a leg inside one day maps to its share of that day', () => {
-  const d = day('2026-07-20T00:00:00')
-  const [s] = daySpans([drive('2026-07-20T06:00:00', '2026-07-20T12:00:00')], d)
+  const d = day('2026-07-20T00:00:00-04:00')
+  const [s] = daySpans([drive('2026-07-20T06:00:00-04:00', '2026-07-20T12:00:00-04:00')], d)
   assert.ok(Math.abs(s!.leftPct - 25) < 0.01, 'starts a quarter into the day')
   assert.ok(Math.abs(s!.widthPct - 25) < 0.01, 'spans a quarter of the day')
 })
 
 test('a leg crossing midnight is clipped to each day, never overflowing', () => {
-  const leg = drive('2026-07-20T22:00:00', '2026-07-21T02:00:00')
-  const first = daySpans([leg], day('2026-07-20T00:00:00'))[0]!
-  const second = daySpans([leg], day('2026-07-21T00:00:00'))[0]!
+  const leg = drive('2026-07-20T22:00:00-04:00', '2026-07-21T02:00:00-04:00')
+  const first = daySpans([leg], day('2026-07-20T00:00:00-04:00'))[0]!
+  const second = daySpans([leg], day('2026-07-21T00:00:00-04:00'))[0]!
   assert.ok(Math.abs(first.leftPct + first.widthPct - 100) < 0.01, 'day one ends exactly at midnight')
   assert.equal(second.leftPct, 0, 'day two starts at midnight')
   assert.ok(Math.abs(second.widthPct - (2 / 24) * 100) < 0.01, 'day two keeps only its 2 hours')
 })
 
 test('legs from other days are dropped, not drawn at a negative offset', () => {
-  const d = day('2026-07-20T00:00:00')
-  assert.equal(daySpans([drive('2026-07-18T06:00:00', '2026-07-18T09:00:00')], d).length, 0)
+  const d = day('2026-07-20T00:00:00-04:00')
+  assert.equal(daySpans([drive('2026-07-18T06:00:00-04:00', '2026-07-18T09:00:00-04:00')], d).length, 0)
+})
+
+// Лента рисуется на сервере в UTC и гидратируется в New York: полночь обязана быть одна.
+test('полночь ленты — по восточному в любом поясе процесса, и в день перевода часов', () => {
+  // delete process.env.TZ на Windows пояс не возвращает — только явное имя.
+  const saved = process.env.TZ ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  try {
+    for (const zone of ['UTC', 'America/New_York', 'Pacific/Kiritimati']) {
+      process.env.TZ = zone
+      // 22:30 EDT 20 июля — в UTC уже 21-е, а день всё ещё 20-е по ET
+      assert.equal(startOfDay(Date.parse('2026-07-21T02:30:00Z')), Date.parse('2026-07-20T04:00:00Z'), zone)
+      assert.equal(startOfDay(Date.parse('2026-03-08T15:00:00Z')), Date.parse('2026-03-08T05:00:00Z'), zone) // ещё EST
+      assert.equal(startOfDay(Date.parse('2026-11-01T15:00:00Z')), Date.parse('2026-11-01T04:00:00Z'), zone) // ещё EDT
+    }
+  } finally {
+    process.env.TZ = saved
+  }
 })
 
 test('итог окна: мили, часы за рулём, стоянки и средняя по трассе', () => {
@@ -137,7 +156,7 @@ test('короткая поездка не выдаёт среднюю скор�
 })
 
 test('мили рейса через полночь делятся между днями, а не достаются одному', () => {
-  const start = new Date(2026, 7, 20, 22, 0, 0).getTime()
+  const start = Date.parse('2026-08-20T22:00:00-04:00') // 22:00 по восточному
   const legs: HistoryLeg[] = [
     {
       kind: 'drive',

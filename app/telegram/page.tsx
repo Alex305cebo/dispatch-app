@@ -24,7 +24,7 @@ import { TgAttachButton } from './tg-attach-button'
 import { TgImage } from './tg-image'
 import { TgChatSettings } from './tg-chat-settings'
 import { Info } from '@/components/info'
-import { usDate } from '@/lib/fmt'
+import { clockOrDate } from '@/lib/fmt'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,14 +37,6 @@ function humanSize(bytes: number, locale: Locale): string {
   if (bytes < 1024) return `${bytes} ${t(locale, 'telegram.page.bytesUnit')}`
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} ${t(locale, 'telegram.page.kbUnit')}`
   return `${(bytes / (1024 * 1024)).toFixed(1)} ${t(locale, 'telegram.page.mbUnit')}`
-}
-
-function when(iso: string | null, locale: Locale): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const today = new Date().toDateString() === d.toDateString()
-  const dl = locale === 'ru' ? 'ru-RU' : 'en-US'
-  return today ? d.toLocaleTimeString(dl, { hour: '2-digit', minute: '2-digit' }) : usDate(d)
 }
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ chat?: string }> }) {
@@ -209,7 +201,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
                             {d.unread}
                           </span>
                         )}
-                        <span className="shrink-0 text-[11px] text-white/40">{when(d.lastAt, locale)}</span>
+                        <span className="shrink-0 text-[11px] text-white/40">{clockOrDate(d.lastAt, locale)}</span>
                       </span>
                       <span className="truncate text-[12px] text-white/55">{d.last}</span>
                     </Link>
