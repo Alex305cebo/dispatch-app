@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { parseLt, parseRegions, type DatSnapshot } from './dat-market-core.ts'
-import { dayTone, parseBoardLoads, rankLanes, roadMiles, rpmForTarget, scoreLane, waitDays, type PlanOptions } from './route-plan-core.ts'
+import { dayTone, parseBoardLoads, rankLanes, reachableRpm, roadMiles, rpmForTarget, scoreLane, waitDays, type PlanOptions } from './route-plan-core.ts'
 import type { TruckSettings } from './profit.ts'
 
 // Регионы DAT Van (форма живого ответа 09/14/26) и грузы на трак по нескольким штатам.
@@ -154,4 +154,13 @@ test('ставка за милю, нужная для цели в день', () 
   const long = scoreLane(snap, { state: 'IL' }, 'CA', opts)!
   assert.ok(short.miles + short.deadhead <= opts.milesPerDay && long.miles > 1500)
   assert.ok(rpmForTarget(short, 1300) > rpmForTarget(long, 1300))
+})
+
+test('нереальная ставка для цели не показывается — «цель не набрать»', () => {
+  const lane = scoreLane(snap, { state: 'IL' }, 'CA', opts)!
+  assert.equal(reachableRpm(lane, 1300), rpmForTarget(lane, 1300))
+  // соседний штат на полдня пути: нужно больше рынка × 1.6 — цифру не показываем
+  const short = { ...lane, miles: 200, deadhead: 50, rpm: 2.81, driveDays: 250 / 500 + 0.5 }
+  assert.ok(rpmForTarget(short, 1300) > 2.81 * 1.6)
+  assert.equal(reachableRpm(short, 1300), null)
 })

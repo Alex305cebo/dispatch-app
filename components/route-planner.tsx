@@ -31,6 +31,7 @@ import {
   parseBoardLoads,
   rankLanes,
   rpmForTarget,
+  reachableRpm,
   scoreLane,
   stateName,
   type Lane,
@@ -155,8 +156,8 @@ export function useRoutePlan(trucks: PlanTruck[], snaps: PlanSnaps, selectedId: 
           l.state,
           {
             t: (l.grossPerDay / opts.target - 0.6) / 0.6,
-            text: t(locale, 'plan.map.tip')
-              .replace('{gross}', usd2.format(rpmForTarget(l, opts.target)))
+            text: t(locale, reachableRpm(l, opts.target) != null ? 'plan.map.tip' : 'plan.map.tipNo')
+              .replace('{gross}', usd2.format(reachableRpm(l, opts.target) ?? 0))
               .replace('{miles}', l.miles.toLocaleString('en-US'))
               .replace('{heat}', l.ratio != null ? t(locale, HEAT_LEVEL_KEY[heatLevel(l.median, l.ratio)]) : '—'),
           },
@@ -395,7 +396,11 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
               icon={<TrendingUp size={15} strokeWidth={2.5} />}
               label={t(locale, 'plan.best')}
               value={best.name}
-              sub={t(locale, 'plan.fromRpm').replace('{v}', usd2.format(rpmForTarget(best, opts.target)))}
+              sub={
+                reachableRpm(best, opts.target) != null
+                  ? t(locale, 'plan.fromRpm').replace('{v}', usd2.format(reachableRpm(best, opts.target)!))
+                  : t(locale, 'plan.noTarget')
+              }
             />
             {worst && (
               <Stat
@@ -403,7 +408,11 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
                 icon={<TrendingDown size={15} strokeWidth={2.5} />}
                 label={t(locale, 'plan.worst')}
                 value={worst.name}
-                sub={t(locale, 'plan.fromRpm').replace('{v}', usd2.format(rpmForTarget(worst, opts.target)))}
+                sub={
+                  reachableRpm(worst, opts.target) != null
+                    ? t(locale, 'plan.fromRpm').replace('{v}', usd2.format(reachableRpm(worst, opts.target)!))
+                    : t(locale, 'plan.noTarget')
+                }
               />
             )}
             <Stat
@@ -827,6 +836,7 @@ function LaneRow({
 }) {
   const tone = dayTone(lane.grossPerDay, opts.target)
   const need = rpmForTarget(lane, opts.target)
+  const reach = reachableRpm(lane, opts.target)
   return (
     <details className="group rounded-lg border border-white/8 transition-colors open:border-white/15 hover:border-white/15">
       <summary className="flex cursor-pointer list-none items-center gap-2.5 px-3 py-2 max-md:min-h-11">
@@ -844,13 +854,17 @@ function LaneRow({
         {/* Справа — сколько просить за груз, чтобы трак заработал цель, а не «выручка в день
             за цикл»: её не понимали. Зелёный — рынок уже платит столько, жёлтый — чуть не
             хватает, красный — далеко. Порядок направлений прежний — по выручке в день. */}
-        <span className="shrink-0 text-right" title={t(locale, 'plan.fromRpmHint')}>
+        <span className="shrink-0 text-right" title={t(locale, reach != null || !(need > 0) ? 'plan.fromRpmHint' : 'plan.noTargetHint')}>
           <span
             className={`nums block text-[15px] font-bold leading-tight ${
-              need > 0 ? TONE_TEXT[lane.rpm >= need ? 'hit' : lane.rpm >= need * 0.9 ? 'near' : 'miss'] : TONE_TEXT[tone]
+              reach != null ? TONE_TEXT[lane.rpm >= reach ? 'hit' : lane.rpm >= reach * 0.9 ? 'near' : 'miss'] : need > 0 ? TONE_TEXT.miss : TONE_TEXT[tone]
             }`}
           >
-            {need > 0 ? t(locale, 'plan.fromRpm').replace('{v}', usd2.format(need)) : `${usd2.format(lane.rpm)}/mi`}
+            {reach != null
+              ? t(locale, 'plan.fromRpm').replace('{v}', usd2.format(reach))
+              : need > 0
+                ? t(locale, 'plan.noTarget')
+                : `${usd2.format(lane.rpm)}/mi`}
           </span>
           <span className="nums block text-[11px] text-white/50">
             {t(locale, board ? 'plan.loadShort' : 'plan.loadApprox').replace('{v}', usd.format(lane.rate))}
