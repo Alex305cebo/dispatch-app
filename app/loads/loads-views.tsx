@@ -33,6 +33,7 @@ import { usd, usd2, usDate, weekLabel } from '@/lib/fmt'
 import { scheduleConnection, shiftDay, stopOrder, weekStartIso, whenText, type Connection } from '@/lib/loads-dashboard'
 import { todayEt } from '@/lib/payments'
 import { StatusBadge, statusLabel } from '@/components/status'
+import { DeadheadFlag } from '@/components/deadhead-flag'
 import { LoadsToolbar, useLoadsFilter, type LoadMetrics, activeRank } from '@/components/loads-toolbar'
 import { RateConButton } from '@/components/ratecon-button'
 import { DeleteButton } from '@/components/delete-button'
@@ -843,6 +844,7 @@ function LoadRow({
             <span className="nums text-[11.5px] text-white/60">
               {Math.round(totalMiles)} mi · {usd2.format(totalMiles > 0 ? load.rate / totalMiles : 0)}/mi
             </span>
+            <DeadheadFlag miles={load.deadheadMiles} locale={locale} />
             <MarketBadge load={load} locale={locale} />
           </div>
           {/* Номер, брокер и бумаги одной строкой: RC и POD — то, без чего не выставить счёт. */}

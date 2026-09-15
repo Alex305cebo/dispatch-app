@@ -47,6 +47,7 @@ import { TaskStops } from '@/components/task-stops'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
 import { MissingPodBanner } from '@/components/missing-pod-banner'
+import { DeadheadFlag } from '@/components/deadhead-flag'
 import { loadsMissingPod } from '@/lib/loads'
 import { CopyPlace } from '@/components/copy-place'
 import { placeCity } from '@/lib/place'
@@ -192,6 +193,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           {load.referenceId && ` · ${t(locale, 'import.label.referenceId')} ${load.referenceId}`}
         </p>
         <MissingPodBanner loads={missingPod} locale={locale} className="mt-3" />
+        <DeadheadFlag miles={load.deadheadMiles} locale={locale} banner className="mt-3" />
         {/* Кнопка на трак живёт в полосе «Трак ⇄ Груз» наверху — второй раз здесь ни к чему. */}
 
         {/* The rail needs the full width to lay five labelled steps out; sharing a flex

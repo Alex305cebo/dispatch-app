@@ -3380,6 +3380,14 @@ export const loadsDict = {
     ro: 'Ridicarea {pickup} e înainte de livrarea {delivery}. Ambele curse sunt în remorcă împreună? E parțial — marchează mai jos. Dacă nu, nu se poate: mută fereastra cu brokerul sau verifică datele.',
     kk: 'Тиеу {pickup} түсіруден {delivery} бұрын. Екі жүк тіркемеде бірге ме? Бұл партиал — төмендегі батырмамен белгіле. Жоқ болса — үлгеру мүмкін емес: брокермен терезені ауыстыр немесе күндерді тексер.',
   },
+  'dhFlag.text': {
+    ru: 'Порожний {n} миль — так далеко пустыми почти не ездят. Проверь: возможно, между прошлой выгрузкой и этим пикапом не заведён груз, или порожний посчитан неверно. Исправляется в «Деталях» груза.',
+    en: 'Deadhead {n} mi — trucks almost never run that far empty. Check: a load may be missing between the previous delivery and this pickup, or the deadhead was calculated wrong. Fix it in the load Details.',
+    es: 'Vacío {n} mi: casi nunca se viaja tan lejos sin carga. Revisa: puede faltar una carga entre la entrega anterior y esta recogida, o el vacío se calculó mal. Se corrige en Detalles de la carga.',
+    uk: 'Порожній {n} миль — так далеко порожніми майже не їздять. Перевір: можливо, між минулим вивантаженням і цим пікапом не заведено вантаж, або порожній пораховано неправильно. Виправляється в «Деталях» вантажу.',
+    ro: 'Gol {n} mi — aproape niciodată nu se merge atât de departe gol. Verifică: poate lipsește o cursă între livrarea anterioară și această ridicare sau golul e calculat greșit. Se corectează în Detaliile cursei.',
+    kk: 'Бос жүріс {n} миль — мұнша бос жүрмейді. Тексер: алдыңғы түсіру мен осы тиеу арасында жүк енгізілмеген болуы мүмкін немесе бос жүріс қате есептелген. Жүктің «Мәліметтерінде» түзетіледі.',
+  },
   'stalePartial.text': {
     ru: '{load} всё ещё «В пути» — выгрузка {date} прошла и не отмечена. Поэтому его остановки попадают в задание вместе с новым грузом, в том числе у водителя.',
     en: '{load} is still In transit — delivery {date} has passed and is not marked. Its stops are therefore mixed into the task with the new load, the driver sees them too.',

@@ -24,6 +24,7 @@ import { humanError } from '@/lib/msg'
 import type { LoadStatus } from '@/lib/map'
 import { directionsOf, stopsFrom, taskOrderKey, type LoadStop } from '@/lib/stops'
 import { todayEt } from '@/lib/payments'
+import { DEADHEAD_FLAG_MI } from '@/components/deadhead-flag'
 import type { QrLoad } from '@/lib/qr-load'
 import type { TruckSettings } from '@/lib/profit'
 import { checkBroker, checkBrokerByDot, type BrokerCheck, type RcContext } from '@/lib/fmcsa'
@@ -698,8 +699,9 @@ async function fillDeadhead(
   return dh ? dh.miles : deadheadMiles
 }
 
-/** С какого порожнего пробега диспетчер получает предупреждение после рейт-кона. */
-const DEADHEAD_WARN_MI = 150
+/** С какого порожнего пробега диспетчер получает предупреждение после рейт-кона — тот же
+ * порог, что у красного флага на грузе (components/deadhead-flag.tsx). */
+const DEADHEAD_WARN_MI = DEADHEAD_FLAG_MI
 
 export type DeadheadCheck = {
   miles: number
