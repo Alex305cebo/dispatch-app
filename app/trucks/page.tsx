@@ -191,6 +191,39 @@ export default async function Page() {
         <FleetBoard
           locale={locale}
           money={moneyByTruck}
+          // «Загрузка парка» — сразу под картой: кто когда освободится смотрят первым делом.
+          underMap={
+          <div className="mb-4">
+            <FleetHeatmap
+              today={todayEt()}
+              rows={perTruck.map(({ truck, working, current }) => {
+                const fs = truck.number ? byUnit.get(truck.number) : undefined
+                return {
+                  id: truck.id,
+                  label: truck.number?.trim() || truck.name,
+                  sub: shortName(truck.driverName),
+                  working,
+                  // Два правых столбца вместо полосы и процента: куда едет либо где
+                  // стоит, и когда освободится. Данные уже на странице — карточки
+                  // парка ниже читают ровно эти же current и byUnit.
+                  place: current
+                    ? `→ ${current.destination ?? '—'}`
+                    : (placeCity(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')),
+                  when: truck.unavailable
+                    ? { text: unavailableLabel(locale, truck.unavailable), tone: 'off' as const }
+                    : current
+                      ? {
+                          text: current.deliveryDate
+                            ? `${t(locale, 'trucks.heatmap.until')} ${shortDate(current.deliveryDate, locale)}`
+                            : t(locale, 'trucks.heatmap.onLoad'),
+                          tone: 'busy' as const,
+                        }
+                      : { text: t(locale, 'trucks.heatmap.free'), tone: 'free' as const },
+                }
+              })}
+            />
+          </div>
+          }
           // Справочник водителей — сразу под картой и счётчиками, ДО списка
           // траков: эти шесть полей брокер спрашивает в каждом звонке.
           between={
@@ -222,36 +255,6 @@ export default async function Page() {
                 })}
               />
 
-              <div className="mb-4">
-                <FleetHeatmap
-                  today={todayEt()}
-                  rows={perTruck.map(({ truck, working, current }) => {
-                    const fs = truck.number ? byUnit.get(truck.number) : undefined
-                    return {
-                      id: truck.id,
-                      label: truck.number?.trim() || truck.name,
-                      sub: shortName(truck.driverName),
-                      working,
-                      // Два правых столбца вместо полосы и процента: куда едет либо где
-                      // стоит, и когда освободится. Данные уже на странице — карточки
-                      // парка ниже читают ровно эти же current и byUnit.
-                      place: current
-                        ? `→ ${current.destination ?? '—'}`
-                        : (placeCity(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')),
-                      when: truck.unavailable
-                        ? { text: unavailableLabel(locale, truck.unavailable), tone: 'off' as const }
-                        : current
-                          ? {
-                              text: current.deliveryDate
-                                ? `${t(locale, 'trucks.heatmap.until')} ${shortDate(current.deliveryDate, locale)}`
-                                : t(locale, 'trucks.heatmap.onLoad'),
-                              tone: 'busy' as const,
-                            }
-                          : { text: t(locale, 'trucks.heatmap.free'), tone: 'free' as const },
-                    }
-                  })}
-                />
-              </div>
             </>
           }
           // Под карточками: подключение ELD — раз в жизни трака.

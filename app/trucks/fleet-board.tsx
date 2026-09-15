@@ -45,11 +45,13 @@ type FS = {
 /** Map, fleet counters and the truck list — the part that waits on routing. */
 export async function FleetBoard({
   locale,
+  underMap,
   between,
   after,
   money,
 }: {
   locale: Locale
+  underMap?: React.ReactNode
   between?: React.ReactNode
   after?: React.ReactNode
   /** Деньги и бумаги по траку: считает страница, показывает список. */
@@ -351,6 +353,7 @@ export async function FleetBoard({
           : tr(locale, 'tracking.noSnapshotYet')
       }
       staleMinutes={staleMinutes}
+      underMap={underMap}
       between={between}
       after={after}
       money={money}

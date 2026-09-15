@@ -50,6 +50,7 @@ export function FleetPanel({
   totals,
   updatedText,
   staleMinutes,
+  underMap,
   between,
   after,
   money,
@@ -65,6 +66,9 @@ export function FleetPanel({
   /** Pre-formatted on the server — "обновлено 3 мин назад" or the no-snapshot line. */
   updatedText: string
   staleMinutes: number | null
+  /** Сразу под картой и её цифрами, выше «Куда отправить трак»: «Загрузка парка» —
+   * кто когда освободится, первое, что смотрят после карты. */
+  underMap?: React.ReactNode
   /** Блоки, которые встают МЕЖДУ счётчиками и списком траков: справочник водителей и
    * календарь загрузки. Место выбрано не случайно — оба отвечают на вопросы, которые
    * задают до разбора отдельного трака: «что сказать брокеру» и «кто когда
@@ -226,7 +230,9 @@ export function FleetPanel({
         </div>
       </div>
 
-      {/* «Куда отправить трак» — сразу под картой и её цифрами: выбранный на карте трак
+      {underMap}
+
+      {/* «Куда отправить трак» — под картой и загрузкой парка: выбранный на карте трак
           становится траком планировщика, а «На карте» красит штаты его выручкой в день. */}
       {planTrucks.length > 0 && market && <RoutePlanner plan={plan} trucks={planTrucks} snaps={snaps} />}
 
