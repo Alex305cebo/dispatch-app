@@ -19,6 +19,7 @@ import { type MapMarker, type MapRoute } from '@/components/fleet-map'
 import { datCached, datEquipment, stateFromPlace } from '@/lib/dat-market'
 import { FleetPanel } from '@/components/fleet-panel'
 import type { PlanSnaps, PlanTruck } from '@/components/route-planner'
+import { ownStateRpm } from '@/lib/own-state-rpm'
 import { type TrackingRow } from '@/components/fleet-list'
 import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
 import { positionSignals } from '@/lib/eld'
@@ -74,8 +75,10 @@ export async function FleetBoard({
   ])
   // Дата снимка — строкой отсюда и днём по восточному времени: из миллисекунд её посчитали
   // бы ещё и в браузере, в его поясе, а сервер Hostinger живёт в UTC.
+  // Ставки наших грузов по штатам — одни на все серии (свои грузы, не DAT).
+  const own = ownStateRpm(loads)
   const snaps: PlanSnaps = Object.fromEntries(
-    datSnaps.flatMap(([eq, snap]) => (snap ? [[eq, { ...snap, date: usDate(todayEt(new Date(snap.at))) }]] : [])),
+    datSnaps.flatMap(([eq, snap]) => (snap ? [[eq, { ...snap, date: usDate(todayEt(new Date(snap.at))), own }]] : [])),
   )
   // One query for the whole fleet, instead of currentLoadForTruck() per truck.
   const currentByTruck = currentLoadsByTruck(loads)

@@ -20,6 +20,7 @@ import { readBoardScreenshot } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { safeUploadFile } from '@/lib/upload-name'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
+import type { OwnStateRpm } from '@/lib/own-state-rpm'
 import { usd, usd2, usDate } from '@/lib/fmt'
 import { US_STATES } from '@/lib/us-states'
 import { heatLevel, HEAT_LEVEL_ICON, HEAT_LEVEL_KEY, ltHeat, ltMedian, ltOf, regionOf, regionStates, stateFromPlace, type DatEquipment, type DatHeat, type DatSnapshot, type DatWeek } from '@/lib/dat-market-core'
@@ -58,7 +59,8 @@ export type PlanTruck = {
 
 /** Суточные снимки DAT по сериям; `date` — MM/DD/YY, отформатирован на сервере: на
  * сервере и в браузере разные пояса, и дата из миллисекунд разошлась бы при гидратации. */
-export type PlanSnaps = Partial<Record<DatEquipment, DatSnapshot & { date: string }>>
+/** Снимок DAT + дата + ставки наших грузов по штатам (lib/own-state-rpm.ts) — одни на все серии. */
+export type PlanSnaps = Partial<Record<DatEquipment, DatSnapshot & { date: string; own?: OwnStateRpm }>>
 
 type Opts = { target: number; mpd: number; deadhead: number }
 const DEFAULT_OPTS: Opts = { target: 1300, mpd: 500, deadhead: 50 }
@@ -505,8 +507,9 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
 /** Рынок серии целиком — то, что на сайте было карточкой аналитики: дизель, грузы на трак
  * по стране за год, ставки регионов и под каждой — штаты региона. Раскрыт сразу; сдвиг за
  * неделю стоит рядом с тем, что сдвинулось. На телефоне регионы по три в ряд, штаты кодами. */
-function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: string }; series: DatEquipment; locale: Locale }) {
+function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: string; own?: OwnStateRpm }; series: DatEquipment; locale: Locale }) {
   const trend = snap.trend
+  const own = snap.own ?? {}
   const sub = 'text-2xs font-semibold uppercase tracking-wide text-white/55'
   return (
     <details open className="group mt-4 rounded-xl border border-white/8">
@@ -544,7 +547,8 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
             <WeekChange v={trend?.rateWoW} locale={locale} />
           </div>
           {/* Столбец на регион: ставка за милю — главная цифра, под ней штаты региона по грузам
-              на трак (ставок по штатам в открытом DAT нет): 2 лучших, 2 средних, 2 худших. */}
+              на трак: 2 лучших, 2 средних, 2 худших. Напротив штата — ставка НАШИХ грузов
+              оттуда за год: ставок по штатам в открытом DAT нет, а придумывать нельзя. */}
           <div className="mt-1.5 grid grid-cols-3 gap-x-1.5 gap-y-3 sm:grid-cols-5 sm:gap-x-2">
             {snap.regions.map((r) => {
               const groups = regionStates(snap, r.states)
@@ -568,10 +572,15 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
                     ).map(([key, dot]) =>
                       groups[key].length ? (
                         <ul key={key} className="space-y-0.5">
-                          {groups[key].map((st) => (
+                          {groups[key].map((st) => {
+                            const o = own[st.code]
+                            const ownText = o
+                              ? t(locale, 'plan.market.ownRpm').replace('{n}', String(o.n)).replace('{rpm}', usd2.format(o.rpm))
+                              : t(locale, 'plan.market.ownNone')
+                            return (
                             <li
                               key={st.code}
-                              title={`${stateName(st.code)} · ${t(locale, HEAT_LEVEL_KEY[heatLevel(median, st.ratio)])}`}
+                              title={`${stateName(st.code)} · ${t(locale, HEAT_LEVEL_KEY[heatLevel(median, st.ratio)])}\n${ownText}`}
                               className="flex items-center gap-1.5 text-[12px]"
                             >
                               <span className={`size-1.5 shrink-0 rounded-full ${dot}`} aria-hidden />
@@ -579,9 +588,16 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
                                 <span className="lg:hidden">{st.code}</span>
                                 <span className="hidden lg:inline">{stateName(st.code)}</span>
                               </span>
+                              {o && (
+                                <span className="nums shrink-0 text-[11px] text-white/60">
+                                  {usd2.format(o.rpm)}
+                                  <span className="text-white/35">·{o.n}</span>
+                                </span>
+                              )}
                               <span className="shrink-0 text-[11px]">{HEAT_LEVEL_ICON[heatLevel(median, st.ratio)]}</span>
                             </li>
-                          ))}
+                            )
+                          })}
                         </ul>
                       ) : null,
                     )}
