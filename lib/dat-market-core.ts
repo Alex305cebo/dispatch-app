@@ -82,6 +82,28 @@ export function ltOf(snap: DatSnapshot, state: string | null): DatLt | null {
   return snap.lt[code] ?? snap.lt[datState(code)] ?? null
 }
 
+export type RegionState = { code: string; ratio: number }
+
+/**
+ * Штаты региона DAT по грузам на трак — столбец под ставкой региона: два лучших, два из
+ * середины и два худших. Ставок за милю по штатам в открытом DAT нет, только по регионам,
+ * поэтому штат оценивается тем, насколько легко там найти груз. В регионе меньше шести
+ * штатов (в South их пять) середина короче, и ни один штат не повторяется.
+ */
+export function regionStates(snap: DatSnapshot, states: string[]): Record<'best' | 'middle' | 'worst', RegionState[]> {
+  const rows = states
+    .map((s) => (s === 'KA' ? 'KS' : s))
+    .map((code) => ({ code, ratio: ltOf(snap, code)?.ratio }))
+    .filter((r): r is RegionState => r.ratio != null)
+    .sort((a, b) => b.ratio - a.ratio)
+  const best = rows.slice(0, 2)
+  const rest = rows.slice(best.length)
+  const worst = rest.slice(Math.max(0, rest.length - 2))
+  const inner = rest.slice(0, rest.length - worst.length)
+  const from = Math.max(0, Math.floor((inner.length - 2) / 2))
+  return { best, middle: inner.slice(from, from + 2), worst }
+}
+
 export type DatHeat = 'hot' | 'warm' | 'cold'
 
 /**

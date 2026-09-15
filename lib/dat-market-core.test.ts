@@ -12,6 +12,7 @@ import {
   versusMarket,
   ltStates,
   ltOf,
+  regionStates,
   ltHeat,
   parseRegions,
   parseLt,
@@ -194,4 +195,22 @@ test('поломанный ответ DAT не превращается в ци�
   assert.equal(parseLt({ statusCode: 401 }), null)
   assert.equal(parseFuel({ statusCode: 401 }), null)
   assert.equal(parseFuel({ when: '2026-09-07', pricePerGallonUSD: 0 }), null)
+})
+
+test('штаты региона под его ставкой: 2 лучших, 2 средних, 2 худших', () => {
+  const SE = ['AL', 'FL', 'GA', 'KY', 'MS', 'NC', 'SC', 'TN', 'VA', 'WV']
+  const lt = parseLt([
+    ...SE.map((code, i) => ({ code, loads: 1, trucks: 1, ratio: 10 - i })),
+    ...(['TX', 'AR', 'OK', 'NM', 'LA'] as const).map((code, i) => ({ code, loads: 1, trucks: 1, ratio: 9 - i })),
+    { code: 'KS', loads: 1, trucks: 1, ratio: 12 },
+  ])!
+  const s = { ...snap(), lt }
+  const codes = (g: { code: string }[]) => g.map((x) => x.code)
+  const se = regionStates(s, SE)
+  assert.deepEqual([codes(se.best), codes(se.middle), codes(se.worst)], [['AL', 'FL'], ['MS', 'NC'], ['VA', 'WV']])
+  // В South пять штатов: из середины — один, никто не повторяется
+  const south = regionStates(s, ['AR', 'LA', 'NM', 'OK', 'TX'])
+  assert.deepEqual([codes(south.best), codes(south.middle), codes(south.worst)], [['TX', 'AR'], ['OK'], ['NM', 'LA']])
+  // Канзас в регионе — KA, в /lt — KS; штат без грузов на трак не показывается
+  assert.deepEqual(regionStates(s, ['KA', 'ZZ']), { best: [{ code: 'KS', ratio: 12 }], middle: [], worst: [] })
 })

@@ -22,7 +22,7 @@ import { safeUploadFile } from '@/lib/upload-name'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
 import { usd, usd2, usDate } from '@/lib/fmt'
 import { US_STATES } from '@/lib/us-states'
-import { ltHeat, ltOf, regionOf, stateFromPlace, type DatEquipment, type DatHeat, type DatSnapshot, type DatWeek } from '@/lib/dat-market-core'
+import { ltHeat, ltOf, regionOf, regionStates, stateFromPlace, type DatEquipment, type DatHeat, type DatSnapshot, type DatWeek } from '@/lib/dat-market-core'
 import type { TruckSettings } from '@/lib/profit'
 import {
   NEXT_LEG_MILES,
@@ -414,32 +414,10 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
 }
 
 /** Рынок серии целиком — то, что на сайте было карточкой аналитики: дизель, грузы на трак
- * по стране за год, ставки регионов, горячие и холодные штаты. Раскрыт сразу; сдвиг за
- * неделю стоит рядом с тем, что сдвинулось. На телефоне плотнее: регионы по три в ряд,
- * горячие и холодные штаты двумя колонками. */
+ * по стране за год, ставки регионов и под каждой — штаты региона. Раскрыт сразу; сдвиг за
+ * неделю стоит рядом с тем, что сдвинулось. На телефоне регионы по три в ряд, штаты кодами. */
 function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: string }; series: DatEquipment; locale: Locale }) {
   const trend = snap.trend
-  // Штаты, куда возят по регионам DAT: без провинций Канады, DC, Аляски и Гавайев — те же,
-  // что в списке направлений. Канзас — под почтовым кодом.
-  const us = new Set(US_STATES.map(([code]) => code))
-  const states = Object.entries(snap.lt)
-    .map(([code, lt]) => [code === 'KA' ? 'KS' : code, lt.ratio] as const)
-    .filter(([code]) => us.has(code) && regionOf(snap, code))
-    .sort((a, b) => b[1] - a[1])
-  const top = states[0]?.[1] ?? 1
-  const stateList = (rows: (readonly [string, number])[], bar: string) => (
-    <ul className="mt-1 space-y-0.5 sm:space-y-1">
-      {rows.map(([code, ratio]) => (
-        <li key={code} className="flex items-center gap-2 text-[12.5px]">
-          <span className="hidden w-12 shrink-0 sm:block">
-            <span className={`block h-1.5 rounded-full ${bar}`} style={{ width: `${Math.max(8, (ratio / top) * 100)}%` }} aria-hidden />
-          </span>
-          <span className="min-w-0 flex-1 truncate text-white/80">{stateName(code)}</span>
-          <span className="nums shrink-0 font-semibold text-white/85">{ratio.toFixed(1)}</span>
-        </li>
-      ))}
-    </ul>
-  )
   const sub = 'text-2xs font-semibold uppercase tracking-wide text-white/55'
   return (
     <details open className="group mt-4 rounded-xl border border-white/8">
@@ -470,39 +448,59 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
         )}
         <div>
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
-            <h4 className={sub}>{t(locale, 'plan.market.regions')}</h4>
+            <h4 className={`flex items-center gap-1.5 ${sub}`}>
+              {t(locale, 'plan.market.regions')}
+              <Info text={t(locale, 'plan.market.regionsInfo')} />
+            </h4>
             <WeekChange v={trend?.rateWoW} locale={locale} />
           </div>
-          <div className="mt-1.5 grid grid-cols-3 gap-1.5 sm:grid-cols-5 sm:gap-2">
-            {snap.regions.map((r) => (
-              <div key={r.code} className="panel-inset min-w-0 px-2.5 py-1.5">
-                <div className="truncate text-[11px] text-white/55">{r.code.charAt(0) + r.code.slice(1).toLowerCase()}</div>
-                <div className="nums text-[14px] font-bold sm:text-[15px]">
-                  {usd2.format(r.rpm)}
-                  <span className="text-[11px] font-medium text-white/45">/mi</span>
+          {/* Столбец на регион: ставка за милю — главная цифра, под ней штаты региона по грузам
+              на трак (ставок по штатам в открытом DAT нет): 2 лучших, 2 средних, 2 худших. */}
+          <div className="mt-1.5 grid grid-cols-3 gap-x-1.5 gap-y-3 sm:grid-cols-5 sm:gap-x-2">
+            {snap.regions.map((r) => {
+              const groups = regionStates(snap, r.states)
+              return (
+                <div key={r.code} className="min-w-0">
+                  <div className="panel-inset px-2 py-1.5 sm:px-2.5">
+                    <div className="truncate text-[11px] text-white/55">{r.code.charAt(0) + r.code.slice(1).toLowerCase()}</div>
+                    <div className="nums text-[16px] font-bold leading-tight sm:text-[18px]">
+                      {usd2.format(r.rpm)}
+                      <span className="text-[11px] font-medium text-white/45">/mi</span>
+                    </div>
+                  </div>
+                  <div className="mt-1.5 space-y-1.5 px-1">
+                    {(
+                      [
+                        ['best', 'bg-good-400'],
+                        ['middle', 'bg-white/30'],
+                        ['worst', 'bg-bad-400'],
+                      ] as const
+                    ).map(([key, dot]) =>
+                      groups[key].length ? (
+                        <ul key={key} className="space-y-0.5">
+                          {groups[key].map((st) => (
+                            <li
+                              key={st.code}
+                              title={`${stateName(st.code)} · ${st.ratio.toFixed(1)}`}
+                              className="flex items-center gap-1.5 text-[12px]"
+                            >
+                              <span className={`size-1.5 shrink-0 rounded-full ${dot}`} aria-hidden />
+                              <span className="min-w-0 flex-1 truncate text-white/80">
+                                <span className="lg:hidden">{st.code}</span>
+                                <span className="hidden lg:inline">{stateName(st.code)}</span>
+                              </span>
+                              <span className="nums shrink-0 text-white/85">{st.ratio.toFixed(1)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null,
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
-        {states.length >= 10 && (
-          <div className="grid grid-cols-2 gap-x-4">
-            <div className="min-w-0">
-              <h4 className={`flex items-center gap-1 ${sub}`}>
-                <Flame size={12} className="shrink-0 text-good-400" aria-hidden />
-                {t(locale, 'plan.market.hot')}
-              </h4>
-              {stateList(states.slice(0, 5), 'bg-good-400/70')}
-            </div>
-            <div className="min-w-0">
-              <h4 className={`flex items-center gap-1 ${sub}`}>
-                <Snowflake size={12} className="shrink-0 text-bad-400" aria-hidden />
-                {t(locale, 'plan.market.cold')}
-              </h4>
-              {stateList(states.slice(-5).reverse(), 'bg-bad-400/70')}
-            </div>
-          </div>
-        )}
       </div>
     </details>
   )

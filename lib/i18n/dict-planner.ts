@@ -122,8 +122,14 @@ export const plannerDict = {
   'plan.market.week': { ru: 'неделя по {date}', en: 'week ending {date}', es: 'semana al {date}', uk: 'тиждень до {date}', ro: 'săptămâna până la {date}', kk: '{date} дейінгі апта' },
   'plan.market.perTruck': { ru: 'грузов на трак', en: 'loads per truck', es: 'cargas por camión', uk: 'вантажів на трак', ro: 'curse pe camion', kk: 'бір тартқышқа жүк' },
   'plan.market.regions': { ru: 'Ставки DAT по регионам', en: 'DAT rates by region', es: 'Tarifas DAT por región', uk: 'Ставки DAT за регіонами', ro: 'Tarife DAT pe regiuni', kk: 'Аймақтар бойынша DAT тарифтері' },
-  'plan.market.hot': { ru: 'Горячие штаты', en: 'Hottest states', es: 'Más calientes', uk: 'Гарячі штати', ro: 'State fierbinți', kk: 'Қызу штаттар' },
-  'plan.market.cold': { ru: 'Холодные штаты', en: 'Coldest states', es: 'Más fríos', uk: 'Холодні штати', ro: 'State reci', kk: 'Салқын штаттар' },
+  'plan.market.regionsInfo': {
+    ru: 'Главная цифра — ставка DAT за милю по региону. Под ней штаты региона по числу грузов на трак: зелёные — два лучших (груз найдётся быстрее), серые — два из середины, красные — два худших. Ставок за милю по отдельным штатам в открытых данных DAT нет — только по регионам.',
+    en: 'The main number is the DAT rate per mile for the region. Below it are the states of that region by loads per truck: green — the two best (a load turns up faster), gray — two from the middle, red — the two worst. Open DAT data has no per-mile rates for individual states — only for regions.',
+    es: 'La cifra principal es la tarifa DAT por milla de la región. Debajo, los estados de esa región por cargas por camión: verdes — los dos mejores (la carga aparece antes), grises — dos del medio, rojos — los dos peores. Los datos abiertos de DAT no tienen tarifas por milla por estado, solo por región.',
+    uk: 'Головна цифра — ставка DAT за милю по регіону. Під нею штати регіону за кількістю вантажів на трак: зелені — два найкращі (вантаж знайдеться швидше), сірі — два із середини, червоні — два найгірші. Ставок за милю по окремих штатах у відкритих даних DAT немає — лише по регіонах.',
+    ro: 'Cifra principală e tariful DAT pe milă al regiunii. Sub el, statele regiunii după cursele pe camion: verzi — cele mai bune două (cursa se găsește mai repede), gri — două de la mijloc, roșii — cele mai slabe două. Datele deschise DAT nu au tarife pe milă pentru state — doar pentru regiuni.',
+    kk: 'Басты сан — аймақ бойынша DAT-тың бір мильге тарифі. Астында аймақ штаттары бір тартқышқа келетін жүк саны бойынша: жасыл — ең жақсы екеуі (жүк тезірек табылады), сұр — ортадағы екеуі, қызыл — ең нашар екеуі. DAT ашық деректерінде жеке штаттар бойынша мильге тариф жоқ — тек аймақтар бойынша.',
+  },
   'plan.map.tip': { ru: '{gross} в день · {miles} mi · рынок {heat}', en: '{gross}/day · {miles} mi · {heat} market', es: '{gross}/día · {miles} mi · mercado {heat}', uk: '{gross} на день · {miles} mi · ринок {heat}', ro: '{gross}/zi · {miles} mi · piață {heat}', kk: 'күніне {gross} · {miles} mi · нарық {heat}' },
   'plan.map.pickHint': { ru: 'Нажмите на штат — посчитаю из него', en: 'Tap a state to plan from it', es: 'Toca un estado para calcular desde él', uk: 'Натисніть на штат — порахую з нього', ro: 'Apasă pe un stat ca să calculez din el', kk: 'Штатты басыңыз — сол жерден есептеймін' },
 } as const
