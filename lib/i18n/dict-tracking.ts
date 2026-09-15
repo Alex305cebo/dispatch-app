@@ -384,6 +384,8 @@ export const trackingDict = {
     ro: 'Câte curse publicate pe DAT revin unui camion liber din stat. Fierbinte înseamnă cu un sfert peste mediana statelor pentru acest tip de remorcă, rece — cu o cincime sub. Se compară cu mediana, nu cu o cifră fixă: la Van sunt de obicei 3–8 curse pe camion, la Flatbed 20–60. Apasă pe un stat pentru cifra exactă. Datele DAT se actualizează o dată pe zi.',
     kk: 'Штаттағы бір бос тартқышқа DAT биржасында қанша жүк келеді. Қызу — осы сериядағы штаттар медианасынан төрттен бірге көп, салқын — бестен бірге аз. Нақты саннан емес, медианадан есептеледі: Van-да әдетте бір тартқышқа 3–8 жүк, Flatbed-те 20–60. Нақты сан үшін штатты бас. DAT деректері тәулігіне бір рет жаңарады.',
   },
+  'tracking.marketClose': { ru: 'Закрыть слой рынка', en: 'Close market layer', es: 'Cerrar capa de mercado', uk: 'Закрити шар ринку', ro: 'Închide stratul pieței', kk: 'Нарық қабатын жабу' },
+  'tracking.marketNone': { ru: 'Данных рынка DAT пока нет — появятся после ночного обновления.', en: 'No DAT market data yet — it arrives with the nightly update.', es: 'Aún no hay datos de mercado DAT; llegarán con la actualización nocturna.', uk: 'Даних ринку DAT поки немає — з’являться після нічного оновлення.', ro: 'Încă nu există date de piață DAT — apar după actualizarea de noapte.', kk: 'DAT нарық деректері әзірге жоқ — түнгі жаңартудан кейін шығады.' },
   'tracking.trailTitle': {
     ru: 'Янтарные точки — GPS-отметки, где трак был последние 12 часов',
     en: 'Amber dots — GPS pings from the last 12 hours',

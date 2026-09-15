@@ -348,6 +348,24 @@ export async function fetchDiesel() {
 }
 
 /**
+ * Слой «Рынок DAT» для карт, которым страница его не дала (список грузов, груз, трак, толлы,
+ * карточка груза из бота): грузов на трак по штатам всех трёх серий из суточного снимка.
+ * Только кэш — карта DAT не ждёт. Дата — днём по восточному времени, строкой: в браузере
+ * из миллисекунд её посчитали бы в его поясе.
+ */
+export async function mapMarket(): Promise<import('@/components/fleet-map').MapMarket | null> {
+  const { datCached, ltStates } = await import('@/lib/dat-market')
+  const { usDate } = await import('@/lib/fmt')
+  const { todayEt } = await import('@/lib/payments')
+  const snaps = await Promise.all((['VAN', 'REEFER', 'FLATBED'] as const).map(async (eq) => [eq, await datCached(eq)] as const))
+  const have = snaps.flatMap(([eq, snap]) => (snap ? [[eq, snap] as const] : []))
+  if (!have.length) return null
+  // Дата в легенде — самого старого снимка из показанных: не обещать свежесть, которой нет.
+  const oldest = have.reduce((a, b) => (b[1].at < a[1].at ? b : a))
+  return { date: usDate(todayEt(new Date(oldest[1].at))), series: Object.fromEntries(have.map(([eq, snap]) => [eq, ltStates(snap)])) }
+}
+
+/**
  * Рынок DAT для формы груза. Серия — тип трейлера груза (приходит в QR с биржи), иначе
  * трейлер выбранного трака, иначе Van. Ставка брокера сюда не уходит: регион погрузки
  * форма считает сама по этому снимку, пока диспетчер печатает направление.
