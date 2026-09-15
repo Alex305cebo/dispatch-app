@@ -221,14 +221,17 @@ export async function checkBroker(
   if (!mc) return { error: t(locale, 'fmcsa.noMcToCheck') }
 
   // Fresh cache shows without a key — only refreshing needs FMCSA.
-  const cachedRow = (await sql`SELECT raw, authority_granted, checked_at FROM brokers WHERE mc = ${mc}`)[0] as any
+  // DATE — строкой yyyy-mm-dd: драйвер отдаёт его объектом Date, и String(Date).slice(0, 10)
+  // давал «Fri Mar 15» — флаг «молодой MC» по такой дате не срабатывал.
+  const cachedRow = (
+    await sql`SELECT raw, CAST(authority_granted AS CHAR) AS authority_granted, checked_at FROM brokers WHERE mc = ${mc}`
+  )[0] as any
   const fresh =
     cachedRow?.raw && Date.now() - new Date(cachedRow.checked_at).getTime() < 24 * 60 * 60 * 1000
 
   let base: BrokerCheck
   if (fresh) {
-    const granted = cachedRow.authority_granted ? String(cachedRow.authority_granted).slice(0, 10) : null
-    base = parseRecord(cachedRow.raw, mc, granted, true)
+    base = parseRecord(cachedRow.raw, mc, cachedRow.authority_granted, true)
   } else {
     const key = await fmcsaKey()
     if (!key) return { error: 'no_key' }
