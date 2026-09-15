@@ -37,6 +37,7 @@ import { NeedsLoad } from '@/components/needs-load'
 import { FleetHeatmap } from '@/components/fleet-heatmap'
 import { idleFleet } from '@/lib/idle-fleet'
 import { buildWorkingDays } from '@/lib/heatmap'
+import { todayEt } from '@/lib/payments'
 import { RateConButton } from '@/components/ratecon-button'
 import { DriverAvatar } from '@/components/driver-avatar'
 import { Info } from '@/components/info'
@@ -319,6 +320,7 @@ export default async function Page() {
       {trucks.length > 0 && live.length > 0 && (
         <div className="mb-4">
           <FleetHeatmap
+            today={todayEt()}
             rows={trucks.map((t) => {
               const cur = currentByTruck.get(t.id)
               return {

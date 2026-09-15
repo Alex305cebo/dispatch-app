@@ -12,6 +12,7 @@ import { DriverDirectory } from '@/components/driver-directory'
 import { dispatcherPhoneKey, getSetting } from '@/lib/settings'
 import { getCurrentUser } from '@/lib/session'
 import { buildWorkingDays } from '@/lib/heatmap'
+import { todayEt } from '@/lib/payments'
 import { getCompany } from '@/lib/invoice'
 import { expiries, truckMetas } from '@/lib/maintenance'
 import { sql } from '@/lib/db'
@@ -223,6 +224,7 @@ export default async function Page() {
 
               <div className="mb-4">
                 <FleetHeatmap
+                  today={todayEt()}
                   rows={perTruck.map(({ truck, working, current }) => {
                     const fs = truck.number ? byUnit.get(truck.number) : undefined
                     return {
