@@ -546,9 +546,10 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
             </h4>
             <WeekChange v={trend?.rateWoW} locale={locale} />
           </div>
-          {/* Столбец на регион: ставка за милю — главная цифра, под ней штаты региона по грузам
-              на трак: 2 лучших, 2 средних, 2 худших. Напротив штата — ставка НАШИХ грузов
-              оттуда за год: ставок по штатам в открытом DAT нет, а придумывать нельзя. */}
+          {/* Столбец на регион: ставка за милю — главная цифра, под ней хорошие штаты региона
+              по грузам на трак и один худший внизу (lib/dat-market-core.ts regionStates).
+              Напротив штата — значок горячести и ставка НАШИХ грузов оттуда за год: ставок
+              по штатам в открытом DAT нет, а придумывать нельзя. */}
           <div className="mt-1.5 grid grid-cols-3 gap-x-1.5 gap-y-3 sm:grid-cols-5 sm:gap-x-2">
             {snap.regions.map((r) => {
               const groups = regionStates(snap, r.states)
@@ -566,7 +567,6 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
                     {(
                       [
                         ['best', 'bg-good-400'],
-                        ['middle', 'bg-white/30'],
                         ['worst', 'bg-bad-400'],
                       ] as const
                     ).map(([key, dot]) =>
@@ -588,13 +588,13 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
                                 <span className="lg:hidden">{st.code}</span>
                                 <span className="hidden lg:inline">{stateName(st.code)}</span>
                               </span>
+                              <span className="shrink-0 text-[10px]">{HEAT_LEVEL_ICON[heatLevel(median, st.ratio)]}</span>
                               {o && (
                                 <span className="nums shrink-0 text-[11px] text-white/60">
                                   {usd2.format(o.rpm)}
                                   <span className="text-white/35">·{o.n}</span>
                                 </span>
                               )}
-                              <span className="shrink-0 text-[11px]">{HEAT_LEVEL_ICON[heatLevel(median, st.ratio)]}</span>
                             </li>
                             )
                           })}

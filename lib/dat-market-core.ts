@@ -90,18 +90,22 @@ export type RegionState = { code: string; ratio: number }
  * поэтому штат оценивается тем, насколько легко там найти груз. В регионе меньше шести
  * штатов (в South их пять) середина короче, и ни один штат не повторяется.
  */
-export function regionStates(snap: DatSnapshot, states: string[]): Record<'best' | 'middle' | 'worst', RegionState[]> {
+/**
+ * Штаты региона для столбца «Ставки DAT по регионам»: только хорошие — горячие по грузам
+ * на трак (от 1.25 медианы), но не меньше двух и не больше четырёх, — и один худший в самом
+ * низу, чтобы было видно, куда не ехать. Середина диспетчеру не нужна.
+ */
+export function regionStates(snap: DatSnapshot, states: string[]): Record<'best' | 'worst', RegionState[]> {
   const rows = states
     .map((s) => (s === 'KA' ? 'KS' : s))
     .map((code) => ({ code, ratio: ltOf(snap, code)?.ratio }))
     .filter((r): r is RegionState => r.ratio != null)
     .sort((a, b) => b.ratio - a.ratio)
-  const best = rows.slice(0, 2)
-  const rest = rows.slice(best.length)
-  const worst = rest.slice(Math.max(0, rest.length - 2))
-  const inner = rest.slice(0, rest.length - worst.length)
-  const from = Math.max(0, Math.floor((inner.length - 2) / 2))
-  return { best, middle: inner.slice(from, from + 2), worst }
+  const median = ltMedian(snap)
+  const hot = rows.filter((r) => ['veryHot', 'hot'].includes(heatLevel(median, r.ratio))).length
+  const best = rows.slice(0, Math.min(4, Math.max(2, hot)))
+  const worst = rows.length > best.length ? [rows[rows.length - 1]!] : []
+  return { best, worst }
 }
 
 export type DatHeat = 'hot' | 'warm' | 'cold'

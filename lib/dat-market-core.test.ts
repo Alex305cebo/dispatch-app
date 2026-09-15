@@ -207,13 +207,18 @@ test('штаты региона под его ставкой: 2 лучших, 2 
   ])!
   const s = { ...snap(), lt }
   const codes = (g: { code: string }[]) => g.map((x) => x.code)
+  // Горячих (от 1.25 медианы) нет — всё равно два лучших; худший — один, самый холодный
   const se = regionStates(s, SE)
-  assert.deepEqual([codes(se.best), codes(se.middle), codes(se.worst)], [['AL', 'FL'], ['MS', 'NC'], ['VA', 'WV']])
-  // В South пять штатов: из середины — один, никто не повторяется
+  assert.deepEqual([codes(se.best), codes(se.worst)], [['AL', 'FL'], ['WV']])
   const south = regionStates(s, ['AR', 'LA', 'NM', 'OK', 'TX'])
-  assert.deepEqual([codes(south.best), codes(south.middle), codes(south.worst)], [['TX', 'AR'], ['OK'], ['NM', 'LA']])
-  // Канзас в регионе — KA, в /lt — KS; штат без грузов на трак не показывается
-  assert.deepEqual(regionStates(s, ['KA', 'ZZ']), { best: [{ code: 'KS', ratio: 12 }], middle: [], worst: [] })
+  assert.deepEqual([codes(south.best), codes(south.worst)], [['TX', 'AR'], ['LA']])
+  // Канзас в регионе — KA, в /lt — KS; штат без грузов на трак не показывается; один штат — худшего нет
+  assert.deepEqual(regionStates(s, ['KA', 'ZZ']), { best: [{ code: 'KS', ratio: 12 }], worst: [] })
+  // Горячих больше двух — показываются все горячие, но не больше четырёх
+  const hotLt = Object.fromEntries(['A', 'B', 'C', 'D', 'E', 'F'].map((c, i) => [c + c, { code: c + c, loads: 1, trucks: 1, ratio: i < 5 ? 30 - i : 1 }]))
+  const hs = { ...snap(), lt: { ...lt, ...hotLt } }
+  const hot = regionStates(hs, Object.keys(hotLt))
+  assert.deepEqual([codes(hot.best), codes(hot.worst)], [['AA', 'BB', 'CC', 'DD'], ['FF']])
 })
 
 test('уровень рынка словами — от медианы, без цифры «грузов на трак»', () => {
