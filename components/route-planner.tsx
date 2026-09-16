@@ -7,7 +7,7 @@
 // Трак, выбранный на карте или чипом, сразу становится траком планировщика; «На карте»
 // красит штаты выручкой в день из выбранного штата (components/fleet-map.tsx).
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { DollarSign, Flame, Fuel, ImagePlus, MapPin, Snowflake, TrendingDown, TrendingUp } from 'lucide-react'
 import { Info } from '@/components/info'
@@ -154,7 +154,9 @@ export function useRoutePlan(trucks: PlanTruck[], snaps: PlanSnaps, selectedId: 
     () => (origin ? { state: origin, ll: truck && origin === truck.state ? truck.ll : null } : null),
     [origin, truck],
   )
-  const lanes = useMemo(() => (snap && from && planOpts ? rankLanes(snap, from, planOpts) : []), [snap, from, planOpts])
+  // Настоящая ставка по штату доставки (lib/rpm-bench-core.ts) — направления с ней сверху.
+  const rpmOf = useCallback((st: string) => (origin ? (benchmarkRpm(snap?.bench, origin, st)?.rpm ?? null) : null), [snap, origin])
+  const lanes = useMemo(() => (snap && from && planOpts ? rankLanes(snap, from, planOpts, rpmOf) : []), [snap, from, planOpts, rpmOf])
 
   const mapPlan = useMemo<MapPlan | null>(() => {
     if (!origin || !lanes.length) return null
@@ -198,6 +200,7 @@ export function useRoutePlan(trucks: PlanTruck[], snaps: PlanSnaps, selectedId: 
     planOpts,
     from,
     lanes,
+    rpmOf,
     mapPlan,
     showOnMap: () => setSignal((s) => s + 1),
   }
@@ -271,22 +274,24 @@ function BoardShotSample({ locale }: { locale: Locale }) {
 export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks: PlanTruck[]; snaps: PlanSnaps }) {
   const locale = useLocale()
   const [range, setRange] = useState<'all' | 'day' | 'long'>('all')
-  // «Со ставкой по штату»: только направления, где настоящая ставка есть — порядок прежний.
+  // «Со ставкой по штату»: только направления, где настоящая ставка есть.
   const [withRate, setWithRate] = useState(false)
-  const { truck, origin, series, snap, opts, lanes, from, planOpts } = plan
+  const { truck, origin, series, snap, opts, lanes, from, planOpts, rpmOf } = plan
   if (!truck) return null
   const seriesList = Object.keys(snaps) as DatEquipment[]
-  // Лучший и худший — среди дальних (lib/route-plan-core.ts bestWorst): короткий рейс
-  // в соседний штат не «худший штат», он просто короткий.
-  const { best, worst } = bestWorst(lanes, opts.mpd)
+  // Лучший и худший — по настоящей ставке по штату; без ставок — по циклу, и короткий рейс
+  // в соседний штат не «худший штат» (lib/route-plan-core.ts bestWorst).
+  const { best, worst } = bestWorst(lanes, opts.mpd, rpmOf)
   const lt = snap && origin ? ltOf(snap, origin) : null
   const heat = snap && lt ? ltHeat(snap, lt.ratio) : null
   const originRpm = snap && origin ? (regionOf(snap, origin)?.rpm ?? null) : null
   const s = truck.settings
   // «На 1 день»: груз вместе с порожним укладывается в «Миль в день» из настроек расчёта.
   const inRange = range === 'all' ? lanes : lanes.filter((l) => (l.miles + l.deadhead <= opts.mpd) === (range === 'day'))
-  const rated = inRange.filter((l) => benchmarkRpm(snap?.bench, origin ?? '', l.state) !== null)
+  const rated = inRange.filter((l) => rpmOf(l.state) !== null)
   const shown = withRate ? rated : inRange
+  // Ловушки — самые дешёвые штаты со ставкой из тех, что не попали в первые десять.
+  const traps = rated.slice(10).slice(-3).reverse()
 
   const place = truck.place
   const originLine = !place
@@ -472,8 +477,9 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
               {t(locale, 'plan.showOnMap')}
             </Button>
           </div>
-          {/* Сверху общего списка всегда дальние штаты: на длинном рейсе погрузка и простой
-              размазываются на много дней. Рейсы на один день — отдельным выбором. */}
+          {/* Сверху — штаты с настоящей ставкой; остальные по выручке в день за цикл, где
+              впереди дальние: погрузка и простой размазываются на много дней. Рейсы на один
+              день — отдельным выбором. */}
           <div className="mt-2 flex rounded-xl border border-white/10 bg-white/[0.04] p-0.5">
             {(
               [
@@ -528,14 +534,10 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
           ) : (
             <p className="mt-2 text-[13px] text-white/55">{t(locale, 'plan.noRange').replace('{state}', stateName(origin))}</p>
           )}
-          {shown.length > 10 && (
+          {traps.length > 0 && (
             <p className="mt-2 text-[12px] text-white/55">
               <span className="font-semibold text-bad-400">{t(locale, 'plan.traps')}:</span>{' '}
-              {shown
-                .slice(-3)
-                .reverse()
-                .map((l) => `${l.name} (${t(locale, 'plan.perDay').replace('{v}', usd.format(l.grossPerDay))})`)
-                .join(', ')}
+              {traps.map((l) => `${l.name} (${usd2.format(rpmOf(l.state) ?? 0)}/mi)`).join(', ')}
             </p>
           )}
 

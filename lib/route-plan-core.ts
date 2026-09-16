@@ -179,16 +179,24 @@ export function scoreLane(
   }
 }
 
+/** Настоящая средняя ставка по штату доставки, $/mi (lib/rpm-bench-core.ts benchmarkRpm),
+ * null — данных нет. Считать или оценивать её нельзя (правило пользователя 16.09.2026). */
+export type RpmOf = (state: string) => number | null
+
 /** Все направления из штата: без самого штата, ближе MIN_LANE_MILES и без региона DAT
- * (Аляска, Гавайи), лучшие по выручке в день — сверху. */
-export function rankLanes(snap: DatSnapshot, origin: PlanOrigin, opts: PlanOptions): Lane[] {
+ * (Аляска, Гавайи). Сверху — со ставкой по штату, дороже выше; без ставки — ниже, по
+ * выручке в день за цикл. */
+export function rankLanes(snap: DatSnapshot, origin: PlanOrigin, opts: PlanOptions, rpmOf: RpmOf = () => null): Lane[] {
   const out: Lane[] = []
   for (const [code] of US_STATES) {
     if (code === origin.state || !regionOf(snap, code) || opts.avoid?.includes(code)) continue
     const lane = scoreLane(snap, origin, code, opts)
     if (lane && lane.miles >= MIN_LANE_MILES) out.push(lane)
   }
-  out.sort((a, b) => b.grossPerDay - a.grossPerDay)
+  // Нет ставки — 0: ставки положительные, такие уходят под все направления со ставкой.
+  // ponytail: один груз в штат весит как сотня — порог по числу грузов, если выбросы полезут наверх.
+  const rpm = (l: Lane) => rpmOf(l.state) ?? 0
+  out.sort((a, b) => rpm(b) - rpm(a) || b.grossPerDay - a.grossPerDay)
   // Скоро домой — домашнее направление первым, даже если по деньгам оно не лучшее:
   // водитель всё равно туда поедет, вопрос только — с грузом или порожним.
   if (opts.preferHome) out.sort((a, b) => Number(b.home) - Number(a.home))
@@ -198,17 +206,23 @@ export function rankLanes(snap: DatSnapshot, origin: PlanOrigin, opts: PlanOptio
 /**
  * «Лучше всего» и «хуже всего».
  *
- * Лучший — по выручке в день за цикл среди дальних (длиннее дневного пробега).
+ * Есть настоящие ставки по штатам — по ним: лучший — самая высокая, худший — самая низкая
+ * (когда штатов со ставкой хотя бы два).
  *
- * Худший — НЕ последний по выручке в день: эта цифра топит любой рейс короче (погрузка,
+ * Без ставок лучший — по выручке в день за цикл среди дальних (длиннее дневного пробега).
+ *
+ * Худший без ставок — НЕ последний по выручке в день: эта цифра топит любой рейс короче (погрузка,
  * выгрузка и простой — фиксированная добавка к каждому), и «худшим штатом» выходил сосед
  * (из SC — North Carolina, из TN — снова она). Худший для диспетчера — штат, где трак
  * застрянет: дольше всего ждать следующий груз (самый холодный рынок), при равенстве —
  * слабее ставка на выезд. От длины рейса это не зависит.
  */
-export function bestWorst(lanes: Lane[], milesPerDay: number): { best: Lane | null; worst: Lane | null } {
+export function bestWorst(lanes: Lane[], milesPerDay: number, rpmOf: RpmOf = () => null): { best: Lane | null; worst: Lane | null } {
+  const rpm = (l: Lane) => rpmOf(l.state) ?? 0
+  const rated = lanes.filter((l) => rpm(l) > 0).sort((a, b) => rpm(b) - rpm(a))
   const long = lanes.filter((l) => l.miles + l.deadhead > milesPerDay)
-  const best = (long.length ? long : lanes)[0] ?? null
+  const best = rated[0] ?? (long.length ? long : lanes)[0] ?? null
+  if (rated.length > 1) return { best, worst: rated[rated.length - 1]! }
   const rest = lanes.filter((l) => l !== best)
   const worst = rest.length
     ? rest.reduce((w, l) => (l.wait > w.wait || (l.wait === w.wait && (l.nextRpm ?? 0) < (w.nextRpm ?? 0)) ? l : w))

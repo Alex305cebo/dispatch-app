@@ -164,3 +164,22 @@ test('профиль водителя: стоп-лист вырезан, дом�
   assert.equal(soon[0]!.state, 'MT')
   assert.equal(soon.length, home.length)
 })
+
+test('настоящая ставка по штату: со ставкой сверху, дороже выше; лучший и худший — по ней', () => {
+  const rates: Record<string, number> = { TX: 2.1, GA: 3.4, MT: 2.9 }
+  const rpmOf = (st: string) => rates[st] ?? null
+  const lanes = rankLanes(snap, { state: 'IL' }, opts, rpmOf)
+  assert.deepEqual(lanes.slice(0, 3).map((l) => l.state), ['GA', 'MT', 'TX'])
+  const rest = lanes.slice(3)
+  assert.ok(rest.length > 40 && rest.every((l, i) => i === 0 || rest[i - 1]!.grossPerDay >= l.grossPerDay))
+  const { best, worst } = bestWorst(lanes, opts.milesPerDay, rpmOf)
+  assert.equal(best?.state, 'GA')
+  assert.equal(worst?.state, 'TX')
+  // Ставка только у одного штата — худший прежний: самый холодный рынок
+  const one = (st: string) => (st === 'GA' ? 3.4 : null)
+  const single = bestWorst(rankLanes(snap, { state: 'IL' }, opts, one), opts.milesPerDay, one)
+  assert.equal(single.best?.state, 'GA')
+  assert.equal(single.worst?.state, 'MT')
+  // Домой скоро — домашний штат первым и при ставках
+  assert.equal(rankLanes(snap, { state: 'IL' }, { ...opts, homeState: 'CA', preferHome: true }, rpmOf)[0]!.state, 'CA')
+})
