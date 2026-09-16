@@ -178,7 +178,11 @@ export function FleetList({
                 ) : (
                   <span className="truncate">{t(locale, 'tracking.noEldData')}</span>
                 )}
-                {r.zone && <LocalTime zone={r.zone} className="nums shrink-0 text-[11.5px] text-white/40" />}
+                {r.zone && (
+                  <span className="shrink-0 text-[11.5px] text-white/55">
+                    {t(locale, 'trucks.head.driverTimeShort')} <LocalTime zone={r.zone} className="nums font-semibold text-white/80" />
+                  </span>
+                )}
               </span>
               {r.fuel !== null && (
                 <span
