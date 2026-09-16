@@ -1171,9 +1171,8 @@ export function FleetMap({
                 : 'border-white/15 bg-ink-950/60 text-white/45 hover:text-white/70'
             }`}
           >
-            <span className="inline-block size-2.5 rounded-full border border-white bg-[#f59e0b] sm:mr-1 sm:size-2 sm:align-[-1px]" />
+            <span className="inline-block size-2.5 rounded-full border border-white bg-[#f59e0b]" />
             {/* Слово — только на широком экране; на телефоне хватает точки. */}
-            <span className="hidden sm:inline">{t(locale, 'tracking.trailLabel')}</span>
           </button>
         )}
         {markers.some((m) => m.kind === 'truck') && (
@@ -1186,7 +1185,6 @@ export function FleetMap({
             className="flex h-[26px] items-center justify-center gap-1 rounded-lg border border-white/15 bg-ink-950/85 px-1.5 text-[10.5px] font-semibold text-white/85 backdrop-blur transition-colors hover:bg-ink-900 disabled:opacity-60 sm:px-2"
           >
             <RefreshCw size={12} strokeWidth={2.2} className={refreshing ? 'animate-spin' : undefined} aria-hidden />
-            <span className="hidden sm:inline">{refreshing ? t(locale, 'tracking.updating') : t(locale, 'tracking.refreshTrucks')}</span>
           </button>
         )}
         {/* Рынок — на каждой карте: не дала его страница — карта попросит сама при включении. */}
@@ -1203,7 +1201,6 @@ export function FleetMap({
           }`}
         >
           <Flame size={12} strokeWidth={2.2} className={marketOn ? 'text-good-400' : undefined} aria-hidden />
-          <span className="hidden sm:inline">{t(locale, 'tracking.marketLabel')}</span>
         </button>
         <button
           type="button"
