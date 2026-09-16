@@ -155,13 +155,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       return [d.id, (manual ? truckNumberById.get(manual) : undefined) ?? byPhone] as const
     }),
   )
-  // С карточки груза: «?truck=<id>» — чат, привязанный к этому траку.
-  if (!chatId && sp.truck) {
-    const num = truckNumberById.get(Number(sp.truck))
-    chatId = num ? dialogs.find((d) => truckByChat.get(d.id) === num)?.id : undefined
+  // С карточки груза: «?truck=<id>» — чат этого трака среди ВСЕХ чатов аккаунта, не только
+  // отмеченных в списке: ручная привязка, иначе телефон водителя из паспорта трака.
+  const wantTruck = sp.truck ? Number(sp.truck) : null
+  if (!chatId && wantTruck) {
+    const num = truckNumberById.get(wantTruck)
+    chatId =
+      allDialogs.find((d) => chatTruck[d.id] === wantTruck)?.id ??
+      allDialogs.find((d) => d.phone && num && phones.get(onlyDigits(d.phone).slice(-10))?.number === num)?.id
   }
   if (chatId && !error) msgs = await tgMessages(user.id, chatId).catch(() => null)
-  const open = chatId ? dialogs.find((d) => d.id === chatId) : undefined
+  const open = chatId ? allDialogs.find((d) => d.id === chatId) : undefined
+  const truckChatMissing = !!wantTruck && !open && !error
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -229,7 +234,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
         {/* Conversation */}
         <div className="panel flex min-h-[50vh] flex-col overflow-hidden">
           {!open ? (
-            <p className="m-auto p-8 text-[13px] text-white/50">{t(locale, 'telegram.page.pickDialog')}</p>
+            <p className="m-auto max-w-sm p-8 text-center text-[13px] text-white/50">
+              {truckChatMissing ? t(locale, 'telegram.page.noTruckChat') : t(locale, 'telegram.page.pickDialog')}
+            </p>
           ) : (
             <>
               <div className="flex items-center gap-3 border-b border-white/8 px-4 py-3">
