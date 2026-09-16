@@ -21,6 +21,7 @@ import { notify } from '@/lib/notify'
 import { safeUploadFile } from '@/lib/upload-name'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
 import type { OwnStateRpm } from '@/lib/own-state-rpm'
+import { benchmarkRpm, type Benchmark, type RpmBench, type RpmSource } from '@/lib/rpm-bench-core'
 import { usd, usd2, usDate } from '@/lib/fmt'
 import { US_STATES } from '@/lib/us-states'
 import { heatLevel, HEAT_LEVEL_ICON, HEAT_LEVEL_KEY, ltHeat, ltMedian, ltOf, regionOf, regionStates, stateFromPlace, type DatEquipment, type DatHeat, type DatSnapshot, type DatWeek } from '@/lib/dat-market-core'
@@ -31,8 +32,6 @@ import {
   dayTone,
   parseBoardLoads,
   rankLanes,
-  rpmForTarget,
-  reachableRpm,
   bestWorst,
   scoreLane,
   stateName,
@@ -65,7 +64,7 @@ export type PlanTruck = {
 /** Суточные снимки DAT по сериям; `date` — MM/DD/YY, отформатирован на сервере: на
  * сервере и в браузере разные пояса, и дата из миллисекунд разошлась бы при гидратации. */
 /** Снимок DAT + дата + ставки наших грузов по штатам (lib/own-state-rpm.ts) — одни на все серии. */
-export type PlanSnaps = Partial<Record<DatEquipment, DatSnapshot & { date: string; own?: OwnStateRpm; dat?: OwnStateRpm }>>
+export type PlanSnaps = Partial<Record<DatEquipment, DatSnapshot & { date: string; own?: OwnStateRpm; dat?: OwnStateRpm; bench?: RpmBench }>>
 
 type Opts = { target: number; mpd: number; deadhead: number }
 const DEFAULT_OPTS: Opts = { target: 1300, mpd: 500, deadhead: 50 }
@@ -74,6 +73,9 @@ const OPTS_KEY = 'plan:opts'
 const SERIES_NAME: Record<DatEquipment, string> = { VAN: 'Van', REEFER: 'Reefer', FLATBED: 'Flatbed' }
 const HEAT_KEY: Record<DatHeat, MsgKey> = { hot: 'needsLoad.heatHot', warm: 'needsLoad.heatWarm', cold: 'needsLoad.heatCold' }
 const TONE_TEXT = { hit: 'text-good-400', near: 'text-warn-400', miss: 'text-bad-400' } as const
+/** Плашка штата на карте: настоящая ставка по штату или честное «ставки нет». */
+const mapTip = (b: Benchmark | null, locale: Locale) =>
+  b ? t(locale, 'plan.map.tip').replace('{rpm}', usd2.format(b.rpm)) : t(locale, 'plan.map.tipNoRpm')
 const input =
   'w-full rounded-xl border border-white/10 bg-ink-950/70 px-3 py-2 text-[14px] text-white outline-none focus:border-haul-500 max-md:min-h-11'
 
@@ -174,15 +176,14 @@ export function useRoutePlan(trucks: PlanTruck[], snaps: PlanSnaps, selectedId: 
           l.state,
           {
             t: (l.grossPerDay / opts.target - 0.6) / 0.6,
-            text: t(locale, reachableRpm(l, opts.target) != null ? 'plan.map.tip' : 'plan.map.tipNo')
-              .replace('{gross}', usd2.format(reachableRpm(l, opts.target) ?? 0))
+            text: mapTip(benchmarkRpm(snap?.bench, origin, l.state), locale)
               .replace('{miles}', l.miles.toLocaleString('en-US'))
               .replace('{heat}', l.ratio != null ? t(locale, HEAT_LEVEL_KEY[heatLevel(l.median, l.ratio)]) : '—'),
           },
         ]),
       ),
     }
-  }, [origin, lanes, opts.target, signal, locale])
+  }, [origin, lanes, opts.target, signal, locale, snap])
 
   return {
     truck,
@@ -270,6 +271,8 @@ function BoardShotSample({ locale }: { locale: Locale }) {
 export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks: PlanTruck[]; snaps: PlanSnaps }) {
   const locale = useLocale()
   const [range, setRange] = useState<'all' | 'day' | 'long'>('all')
+  // «Со ставкой по штату»: только направления, где настоящая ставка есть — порядок прежний.
+  const [withRate, setWithRate] = useState(false)
   const { truck, origin, series, snap, opts, lanes, from, planOpts } = plan
   if (!truck) return null
   const seriesList = Object.keys(snaps) as DatEquipment[]
@@ -281,7 +284,9 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
   const originRpm = snap && origin ? (regionOf(snap, origin)?.rpm ?? null) : null
   const s = truck.settings
   // «На 1 день»: груз вместе с порожним укладывается в «Миль в день» из настроек расчёта.
-  const shown = range === 'all' ? lanes : lanes.filter((l) => (l.miles + l.deadhead <= opts.mpd) === (range === 'day'))
+  const inRange = range === 'all' ? lanes : lanes.filter((l) => (l.miles + l.deadhead <= opts.mpd) === (range === 'day'))
+  const rated = inRange.filter((l) => benchmarkRpm(snap?.bench, origin ?? '', l.state) !== null)
+  const shown = withRate ? rated : inRange
 
   const place = truck.place
   const originLine = !place
@@ -428,11 +433,7 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
               icon={<TrendingUp size={15} strokeWidth={2.5} />}
               label={t(locale, 'plan.best')}
               value={best.name}
-              sub={
-                reachableRpm(best, opts.target) != null
-                  ? t(locale, 'plan.fromRpm').replace('{v}', usd2.format(reachableRpm(best, opts.target)!))
-                  : t(locale, 'plan.noTarget')
-              }
+              sub={benchShort(benchmarkRpm(snap.bench, origin, best.state), best.state, locale)}
             />
             {worst && (
               <Stat
@@ -443,9 +444,7 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
                 sub={
                   // Худший — где трак застрянет: сперва насколько холодный рынок, потом ставка.
                   (worst.ratio != null ? t(locale, HEAT_LEVEL_KEY[heatLevel(worst.median, worst.ratio)]) + ' · ' : '') +
-                  (reachableRpm(worst, opts.target) != null
-                    ? t(locale, 'plan.fromRpm').replace('{v}', usd2.format(reachableRpm(worst, opts.target)!))
-                    : t(locale, 'plan.noTarget'))
+                  benchShort(benchmarkRpm(snap.bench, origin, worst.state), worst.state, locale)
                 }
               />
             )}
@@ -465,8 +464,9 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-2xs font-semibold uppercase tracking-wide text-white/55">
+            <h3 className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-white/55">
               {t(locale, 'plan.lanesFrom').replace('{state}', stateName(origin))}
+              <Info text={t(locale, 'plan.bench.info')} />
             </h3>
             <Button size="sm" variant="ghost" icon={<MapPin size={13} />} onClick={plan.showOnMap}>
               {t(locale, 'plan.showOnMap')}
@@ -498,6 +498,10 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
           {range === 'day' && (
             <p className="mt-1.5 text-[12px] text-white/55">{t(locale, 'plan.range.dayHint').replace('{mi}', String(opts.mpd))}</p>
           )}
+          <label className="mt-1.5 flex w-fit cursor-pointer items-center gap-2 text-[12px] text-white/70 max-md:min-h-9">
+            <input type="checkbox" checked={withRate} onChange={(e) => setWithRate(e.target.checked)} className="size-4 accent-haul-500" />
+            {t(locale, 'plan.range.withRate').replace('{n}', String(rated.length)).replace('{m}', String(inRange.length))}
+          </label>
           {shown.length ? (
             <div className="mt-2 flex flex-col gap-1.5">
               <ShowMore
@@ -515,6 +519,8 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
                     settings={s}
                     locale={locale}
                     reasons={lane.home ? [t(locale, 'plan.why.home')] : undefined}
+                    bench={snap.bench}
+                    originRpm={originRpm}
                   />
                 ))}
               />
@@ -533,7 +539,7 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
             </p>
           )}
 
-          {from && planOpts && <BoardCompare snap={snap} from={from} planOpts={planOpts} opts={opts} locale={locale} />}
+          {from && planOpts && <BoardCompare snap={snap} from={from} planOpts={planOpts} opts={opts} locale={locale} bench={snap.bench} />}
         </>
       )}
 
@@ -874,6 +880,37 @@ function LtChart({
   )
 }
 
+const SRC_SHORT: Record<RpmSource, MsgKey> = {
+  datLane: 'plan.bench.srcDat',
+  datInto: 'plan.bench.srcDat',
+  ownLane: 'plan.bench.srcOwn',
+  ownInto: 'plan.bench.srcOwn',
+  usdaLane: 'plan.bench.srcUsda',
+  usdaInto: 'plan.bench.srcUsda',
+}
+const SRC_LONG: Record<RpmSource, MsgKey> = {
+  datLane: 'plan.bench.datLane',
+  datInto: 'plan.bench.datInto',
+  ownLane: 'plan.bench.ownLane',
+  ownInto: 'plan.bench.ownInto',
+  usdaLane: 'plan.bench.usdaLane',
+  usdaInto: 'plan.bench.usdaInto',
+}
+
+/** Откуда цифра и сколько за ней данных: «DAT RateView · TX→GA · 3 напр. за 30 дн». */
+function benchSource(b: Benchmark, bench: RpmBench | undefined, locale: Locale): string {
+  return t(locale, SRC_LONG[b.source])
+    .replace('{from}', b.from ?? '')
+    .replace('{to}', b.to)
+    .replace('{n}', String(b.n))
+    .replace('{week}', bench?.usdaWeek ?? '')
+}
+
+/** Для плитки — коротко: «$3.22/mi · DAT RateView» или «по штату ME данных нет». */
+function benchShort(b: Benchmark | null, to: string, locale: Locale): string {
+  return b ? `${usd2.format(b.rpm)}/mi · ${t(locale, SRC_SHORT[b.source])}` : t(locale, 'plan.bench.none').replace('{to}', to)
+}
+
 function LaneRow({
   lane,
   title,
@@ -885,6 +922,8 @@ function LaneRow({
   locale,
   reasons,
   board = false,
+  bench,
+  originRpm = null,
 }: {
   lane: Lane
   /** Подпись вместо названия штата — у груза с доски: откуда, куда, брокер. */
@@ -897,10 +936,19 @@ function LaneRow({
   locale: Locale
   reasons?: string[]
   board?: boolean
+  /** Настоящие ставки по штатам (lib/rpm-bench-core.ts). */
+  bench?: RpmBench
+  /** Ставка DAT региона отправления — с чем сравнить ставку штата у направления. */
+  originRpm?: number | null
 }) {
   const tone = dayTone(lane.grossPerDay, opts.target)
-  const need = rpmForTarget(lane, opts.target)
-  const reach = reachableRpm(lane, opts.target)
+  // Справа — настоящая средняя ставка по штату доставки и откуда она. Не расчёт: рынок из
+  // формулы («от $X/mi», «груз ≈ $…») диспетчеру показывать нельзя (правило 16.09.2026).
+  // Цвет — из двух настоящих цифр: ставка штата против ставки DAT региона отправления, у
+  // груза с доски — его ставка против ставки штата.
+  const b = benchmarkRpm(bench, origin, lane.state)
+  const ratio = b ? (board ? lane.rpm / b.rpm : originRpm ? b.rpm / originRpm : null) : null
+  const cls = ratio == null ? 'text-white/85' : ratio >= 1.05 ? TONE_TEXT.hit : ratio <= 0.95 ? TONE_TEXT.miss : 'text-white/85'
   return (
     <details className="group rounded-lg border border-white/8 transition-colors open:border-white/15 hover:border-white/15">
       <summary className="flex cursor-pointer list-none items-center gap-2.5 px-3 py-2 max-md:min-h-11">
@@ -911,27 +959,15 @@ function LaneRow({
             <HeatTag heat={lane.heat} ratio={lane.ratio} median={lane.median} locale={locale} />
           </span>
           <span className="nums block break-words text-[11.5px] text-white/50">
-            {lane.miles.toLocaleString('en-US')} mi · {t(locale, board ? 'plan.rateRpm' : 'plan.marketRpm').replace('{v}', usd2.format(lane.rpm))}
+            {lane.miles.toLocaleString('en-US')} mi
+            {board && ` · ${t(locale, 'plan.bench.boardRate').replace('{v}', usd2.format(lane.rpm))}`}
           </span>
           {reasons && reasons.length > 0 && <span className="block text-[11.5px] text-white/60">{reasons.join(' · ')}</span>}
         </span>
-        {/* Справа — сколько просить за груз, чтобы трак заработал цель, а не «выручка в день
-            за цикл»: её не понимали. Зелёный — рынок уже платит столько, жёлтый — чуть не
-            хватает, красный — далеко. Порядок направлений прежний — по выручке в день. */}
-        <span className="shrink-0 text-right" title={t(locale, reach != null || !(need > 0) ? 'plan.fromRpmHint' : 'plan.noTargetHint')}>
-          <span
-            className={`nums block text-[15px] font-bold leading-tight ${
-              reach != null ? TONE_TEXT[lane.rpm >= reach ? 'hit' : lane.rpm >= reach * 0.9 ? 'near' : 'miss'] : need > 0 ? TONE_TEXT.miss : TONE_TEXT[tone]
-            }`}
-          >
-            {reach != null
-              ? t(locale, 'plan.fromRpm').replace('{v}', usd2.format(reach))
-              : need > 0
-                ? t(locale, 'plan.noTarget')
-                : `${usd2.format(lane.rpm)}/mi`}
-          </span>
-          <span className="nums block text-[11px] text-white/50">
-            {t(locale, board ? 'plan.loadShort' : 'plan.loadApprox').replace('{v}', usd.format(lane.rate))}
+        <span className="max-w-[46%] shrink-0 text-right sm:max-w-[40%]">
+          <span className={`nums block text-[15px] font-bold leading-tight ${cls}`}>{b ? `${usd2.format(b.rpm)}/mi` : '—'}</span>
+          <span className="block text-[10.5px] leading-snug text-white/50">
+            {b ? benchSource(b, bench, locale) : t(locale, 'plan.bench.none').replace('{to}', lane.state)}
           </span>
         </span>
       </summary>
@@ -1044,12 +1080,14 @@ function BoardCompare({
   planOpts,
   opts,
   locale,
+  bench,
 }: {
   snap: DatSnapshot
   from: PlanOrigin
   planOpts: PlanOptions
   opts: Opts
   locale: Locale
+  bench?: RpmBench
 }) {
   const [text, setText] = useState('')
   const [reading, setReading] = useState(false)
@@ -1212,7 +1250,15 @@ function BoardCompare({
           {rows.length > 0 && (
             <div className="mt-2 flex flex-col gap-1.5">
               {rows.map(({ lane, label, market, pickup }, i) => {
+                // Ставка груза против настоящей средней по штату — два настоящих числа, не оценка.
+                const b = market ? null : benchmarkRpm(bench, pickup, lane.state)
+                const vsState = b ? Math.round((lane.rpm / b.rpm - 1) * 100) : null
                 const reasons = [
+                  vsState == null
+                    ? null
+                    : Math.abs(vsState) < 5
+                      ? t(locale, 'plan.why.atState')
+                      : t(locale, vsState > 0 ? 'plan.why.aboveState' : 'plan.why.belowState').replace('{pct}', String(Math.abs(vsState))),
                   i === 0 && rows.length > 1 ? t(locale, 'plan.why.best') : null,
                   market ? t(locale, 'plan.why.market') : null,
                   lane.grossPerDay < opts.target ? t(locale, 'plan.why.belowTarget') : null,
@@ -1234,6 +1280,7 @@ function BoardCompare({
                     locale={locale}
                     reasons={reasons}
                     board={!market}
+                    bench={bench}
                   />
                 )
               })}

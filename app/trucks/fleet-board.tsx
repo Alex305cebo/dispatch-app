@@ -21,7 +21,9 @@ import { FleetPanel } from '@/components/fleet-panel'
 import type { PlanSnaps, PlanTruck } from '@/components/route-planner'
 import { homeSoon, parseStates } from '@/lib/maintenance-core'
 import { ownStateRpm, type OwnStateRpm } from '@/lib/own-state-rpm'
-import { datStateRpm } from '@/lib/dat-lanes'
+import { datRpmTables, datStateRpm } from '@/lib/dat-lanes'
+import { emptyTable, ownRpmTable, type RpmTable } from '@/lib/rpm-bench-core'
+import { usdaReeferCached } from '@/lib/usda-truck'
 import { type TrackingRow } from '@/components/fleet-list'
 import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
 import { liveTrail, trailLabels } from '@/lib/eld'
@@ -81,8 +83,35 @@ export async function FleetBoard({
   const own = ownStateRpm(loads)
   // Спот DAT RateView по штатам — из направлений с доски DAT One (lib/dat-lanes.ts).
   const dat = await datStateRpm(companyId).catch((): Record<string, OwnStateRpm> => ({}))
+  // Настоящие ставки по штатам для направлений (lib/rpm-bench-core.ts): DAT RateView по
+  // направлениям, наши рейт-коны, для рефрижератора — недельный отчёт USDA (только из кэша).
+  const [datTables, usda] = await Promise.all([
+    datRpmTables(companyId).catch((): Record<string, RpmTable> => ({})),
+    usdaReeferCached(),
+  ])
+  const ownTable = ownRpmTable(loads)
   const snaps: PlanSnaps = Object.fromEntries(
-    datSnaps.flatMap(([eq, snap]) => (snap ? [[eq, { ...snap, date: usDate(todayEt(new Date(snap.at))), own, dat: dat[eq] ?? {} }]] : [])),
+    datSnaps.flatMap(([eq, snap]) =>
+      snap
+        ? [
+            [
+              eq,
+              {
+                ...snap,
+                date: usDate(todayEt(new Date(snap.at))),
+                own,
+                dat: dat[eq] ?? {},
+                bench: {
+                  dat: datTables[eq] ?? emptyTable(),
+                  own: ownTable,
+                  usda: eq === 'REEFER' ? (usda?.table ?? null) : null,
+                  usdaWeek: eq === 'REEFER' && usda?.week ? usDate(usda.week) : null,
+                },
+              },
+            ],
+          ]
+        : [],
+    ),
   )
   // One query for the whole fleet, instead of currentLoadForTruck() per truck.
   const currentByTruck = currentLoadsByTruck(loads)

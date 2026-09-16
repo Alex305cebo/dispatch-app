@@ -221,29 +221,6 @@ export function dayTone(grossPerDay: number, target: number): 'hit' | 'near' | '
   return grossPerDay >= target ? 'hit' : grossPerDay >= target * 0.85 ? 'near' : 'miss'
 }
 
-/**
- * Какую ставку за милю должен платить груз, чтобы дни самого рейса — в пути, с погрузкой и
- * выгрузкой — принесли цель выручки в день. Без простоя и следующего плеча из цикла: с ними
- * рейсу на один день выходило «от $12/mi» — цифра, в которую диспетчер не поверит. Короткому
- * рейсу ставка нужна выше: погрузка и выгрузка ложатся на меньшее число миль.
- */
-export function rpmForTarget(lane: Lane, target: number): number {
-  return (target * lane.driveDays) / lane.miles
-}
-
-/** Во сколько раз выше рынка ставку ещё показываем: дальше это не ставка, а «цель не набрать». */
-export const NEED_MAX_FACTOR = 1.6
-
-/**
- * Ставка для цели, если её реально получить: не выше рынка × NEED_MAX_FACTOR. Короткому
- * рейсу (соседний штат) погрузка, выгрузка и порожний съедают почти весь день, и формула
- * честно требовала «от $7/mi» — таких ставок не бывает. null — на этом рейсе цель не набрать.
- */
-export function reachableRpm(lane: Lane, target: number): number | null {
-  const need = rpmForTarget(lane, target)
-  return need > 0 && lane.rpm > 0 && need <= lane.rpm * NEED_MAX_FACTOR ? need : null
-}
-
 /** Груз с доски: штат доставки, мили, ставка (null — «?», на доске её нет) и, если была,
  * подпись после чисел — откуда, куда, брокер. */
 export type BoardLoad = { state: string; miles: number; rate: number | null; deadhead?: number; label?: string }
