@@ -24,7 +24,7 @@ import { ownStateRpm, type OwnStateRpm } from '@/lib/own-state-rpm'
 import { datStateRpm } from '@/lib/dat-lanes'
 import { type TrackingRow } from '@/components/fleet-list'
 import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
-import { positionSignals } from '@/lib/eld'
+import { liveTrail, trailLabels } from '@/lib/eld'
 import { activeAlert, type WeatherAlert } from '@/lib/weather'
 import { agoText, driveTime, etaAt, usDate } from '@/lib/fmt'
 import { todayEt } from '@/lib/payments'
@@ -130,15 +130,17 @@ export async function FleetBoard({
       let weather: WeatherAlert | null = null
       let idleAt: Date | null = null
       let heading: number | null = null
+      let trail: Awaited<ReturnType<typeof liveTrail>> | null = null
       if (fs && fs.lat !== null && fs.lng !== null) {
         const pt = { lat: fs.lat, lng: fs.lng }
         // Idle time and heading come out of one read of the breadcrumb trail — they
         // used to be two queries per truck over overlapping windows of the same table.
         const [wx, signals] = await Promise.all([
           activeAlert(pt.lat, pt.lng).catch(() => null),
-          t.number ? positionSignals(t.number, pt.lat, pt.lng).catch(() => null) : Promise.resolve(null),
+          t.number ? liveTrail(t.number, pt.lat, pt.lng).catch(() => null) : Promise.resolve(null),
         ])
         weather = wx
+        trail = signals
         idleAt = signals?.idleAt ?? null
         // Device heading first. The inferred one needs the truck to have moved far
         // enough between two polls, so it is blank exactly when a truck is creeping
@@ -160,7 +162,7 @@ export async function FleetBoard({
           }
         }
       }
-      return { t, fs, load, pickup, legToPickup, legToDelivery, directToDelivery, weather, idleAt, heading }
+      return { t, fs, load, pickup, legToPickup, legToDelivery, directToDelivery, weather, idleAt, heading, trail }
     }),
   )
 
@@ -188,7 +190,16 @@ export async function FleetBoard({
       new Date(Date.now() + tripEta(leg.etaMin, Date.now(), null, null, null).realMin * 60_000),
     )}`
 
-  for (const { t, fs, load, pickup, legToPickup, legToDelivery, directToDelivery, weather, idleAt, heading } of perTruck) {
+  for (const { t, fs, load, pickup, legToPickup, legToDelivery, directToDelivery, weather, idleAt, heading, trail } of perTruck) {
+    // Хвост пути за 12 ч — янтарные точки за каждым траком, всегда (первым, чтобы дорога легла поверх).
+    if (trail && trail.coords.length > 2)
+      routes.push({
+        from: trail.coords[0]!,
+        to: trail.coords[trail.coords.length - 1]!,
+        coords: trail.coords,
+        labels: trailLabels(trail.coords, trail.ats, locale),
+        tone: 'trail',
+      })
     // Unconditional on load — a parked empty truck shouldn't say "moving" either.
     const idleHoursAny = idleAt ? Math.floor((Date.now() - idleAt.getTime()) / 3_600_000) : null
     const st = eldStatus(fs?.drive_status ?? null, idleHoursAny, locale)
