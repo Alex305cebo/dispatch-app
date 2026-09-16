@@ -1,9 +1,12 @@
 // Чистые расчёты страницы «Грузы»: расчётная неделя, занятость парка, ближайшая
 // остановка и стыковка рейсов. Без базы — см. loads-dashboard.test.ts.
 
-import type { LoadRecord, TruckRecord } from './map.ts'
+import type { LoadPriority, LoadRecord, TruckRecord } from './map.ts'
 import { usDate } from './fmt.ts'
-import { stopsFrom, nextOpenStop, firstMinutes, type LoadStop, type StopEv } from './stops.ts'
+import type { MsgKey } from './i18n.ts'
+import { stopsFrom, nextOpenStop, firstMinutes, lastMinutes, arrivedAt, type LoadStop, type StopEv } from './stops.ts'
+import { zonedMs } from './trip-eta.ts'
+import { zoneForPlace } from './us-zones.ts'
 
 /** Локальная дата yyyy-mm-dd. Не через toISOString (UTC): вечерний груз уезжал бы на завтра. */
 export const isoDay = (date: Date) =>
@@ -75,6 +78,39 @@ export function upcomingStop(load: LoadRecord, events: StopEv[] = []): LoadStop 
   // Старый груз без отметок: раз он «в пути», погрузка уже была.
   const candidates = !events.length && load.status === 'in_transit' ? stops.filter((s) => s.role === 'delivery') : stops
   return nextOpenStop(candidates, events)
+}
+
+export type LateStop = { stop: LoadStop; minutes: number }
+
+/**
+ * «Опаздывает»: окно ближайшей остановки закрылось (по поясу её штата), а трак там не
+ * был — ни отметки водителя «приехал», ни GPS у точки. Как Running late в Alvys: не
+ * ETA, а факт, что срок прошёл и никто ничего не отметил. Минуты — на сколько прошло.
+ */
+export function lateStop(load: LoadRecord, events: StopEv[], nowMs: number): LateStop | null {
+  const stop = upcomingStop(load, events)
+  if (!stop?.date) return null
+  const stops = stopsFrom(load)
+  if (arrivedAt(stop, events, stops)) return null
+  // GPS-приезд пишется только на первый пикап и последнюю выгрузку.
+  if (stop.role === 'pickup' && stop.seq === stops[0]?.seq && load.pickupArrivedAt) return null
+  if (stop.role === 'delivery' && stop.seq === stops[stops.length - 1]?.seq && load.deliveryArrivedAt) return null
+  const zone = zoneForPlace(stop.city) ?? zoneForPlace(stop.address) ?? 'America/Chicago'
+  const end = zonedMs(stop.date, lastMinutes(stop.time), zone)
+  if (end == null) return null
+  const minutes = Math.round((nowMs - end) / 60_000)
+  return minutes > 0 ? { stop, minutes } : null
+}
+
+export const PRIORITY_KEY: Record<LoadPriority, MsgKey> = {
+  caution: 'loads.priority.caution',
+  important: 'loads.priority.important',
+  critical: 'loads.priority.critical',
+}
+
+/** Вес флага для сортировки: critical выше important выше caution; без флага — 0. */
+export function priorityRank(p: LoadPriority | null | undefined): number {
+  return p === 'critical' ? 3 : p === 'important' ? 2 : p === 'caution' ? 1 : 0
 }
 
 /** Момент остановки для сортировки: без времени — конец дня, без даты — в самый конец. */

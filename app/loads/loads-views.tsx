@@ -29,11 +29,12 @@ import {
 } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { marketVerdict, pctText } from '@/lib/dat-market-core'
-import { usd, usd2, usDate, weekLabel } from '@/lib/fmt'
+import { driveTime, usd, usd2, usDate, weekLabel } from '@/lib/fmt'
 import { scheduleConnection, shiftDay, stopOrder, weekStartIso, whenText, type Connection } from '@/lib/loads-dashboard'
 import { todayEt } from '@/lib/payments'
 import { StatusBadge, statusLabel } from '@/components/status'
 import { DeadheadFlag } from '@/components/deadhead-flag'
+import { PriorityChip } from '@/components/priority-picker'
 import { LoadsToolbar, useLoadsFilter, type LoadMetrics, activeRank } from '@/components/loads-toolbar'
 import { RateConButton } from '@/components/ratecon-button'
 import { DeleteButton } from '@/components/delete-button'
@@ -846,6 +847,12 @@ function LoadRow({
             </span>
             <DeadheadFlag miles={load.deadheadMiles} okMiles={load.deadheadOkMiles} locale={locale} />
             <MarketBadge load={load} locale={locale} />
+            <PriorityChip priority={load.priority} locale={locale} />
+            {m?.lateMin != null && (
+              <span className="inline-flex items-center rounded-full bg-bad-500/15 px-2 py-0.5 text-[11px] font-semibold text-bad-400 ring-1 ring-bad-400/30">
+                {t(locale, 'loads.dash.late')} · {driveTime(m.lateMin, locale)}
+              </span>
+            )}
           </div>
           {/* Номер, брокер и бумаги одной строкой: RC и POD — то, без чего не выставить счёт. */}
           <p className="mt-1 flex flex-wrap gap-x-2 text-[11px] text-white/60">

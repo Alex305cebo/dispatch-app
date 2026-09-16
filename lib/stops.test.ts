@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   arrivedAt,
+  lastMinutes,
   directionsOf,
   withDirections,
   eventSeq,
@@ -195,4 +196,14 @@ test('ручной порядок задания: свои места, новы�
   assert.equal(parseTaskOrder('{"a":1}'), null)
   assert.equal(parseTaskOrder('not json'), null)
   assert.equal(parseTaskOrder(null), null)
+})
+
+test('lastMinutes: конец окна, без времени — конец дня', () => {
+  assert.equal(lastMinutes('8am-3pm'), 15 * 60)
+  assert.equal(lastMinutes('Appt 06:00'), 6 * 60)
+  assert.equal(lastMinutes('09/12/26 06:30 FCFS'), 6 * 60 + 30)
+  assert.equal(lastMinutes('12:00-14:00'), 14 * 60)
+  assert.equal(lastMinutes('12pm'), 12 * 60)
+  assert.equal(lastMinutes(null), 24 * 60 - 1)
+  assert.equal(lastMinutes('FCFS'), 24 * 60 - 1)
 })

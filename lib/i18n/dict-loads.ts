@@ -3927,4 +3927,55 @@ export const loadsDict = {
     ro: 'Curse care cer o acțiune: documente lipsă, facturare, urmărirea plății sau verificarea estimării. Cursele plătite și ciornele nu apar.',
     kk: 'Бірдеңе істеу керек жүктер: құжаттарды жинау, шот қою, төлемді еске салу немесе есепті тексеру. Төленгендер мен жобалар кірмейді.',
   },
+
+  // Флаг приоритета груза (components/priority-picker.tsx, очередь внимания).
+  'loads.priority.label': { ru: 'Приоритет', en: 'Priority', es: 'Prioridad', uk: 'Пріоритет', ro: 'Prioritate', kk: 'Басымдық' },
+  'loads.priority.none': { ru: 'Обычный', en: 'Normal', es: 'Normal', uk: 'Звичайний', ro: 'Normal', kk: 'Қалыпты' },
+  'loads.priority.caution': { ru: 'Внимание', en: 'Caution', es: 'Atención', uk: 'Увага', ro: 'Atenție', kk: 'Назар' },
+  'loads.priority.important': { ru: 'Важный', en: 'Important', es: 'Importante', uk: 'Важливий', ro: 'Important', kk: 'Маңызды' },
+  'loads.priority.critical': { ru: 'Критичный', en: 'Critical', es: 'Crítico', uk: 'Критичний', ro: 'Critic', kk: 'Сыни' },
+
+  // «Опаздывает»: окно остановки закрылось, отметки о приезде нет (lib/loads-dashboard.ts lateStop).
+  'loads.dash.late': { ru: 'Опаздывает', en: 'Running late', es: 'Con retraso', uk: 'Запізнюється', ro: 'Întârzie', kk: 'Кешігуде' },
+  'loads.dash.lateBy': {
+    ru: 'окно закрылось {t} назад',
+    en: 'window closed {t} ago',
+    es: 'la ventana cerró hace {t}',
+    uk: 'вікно закрилося {t} тому',
+    ro: 'fereastra s-a închis acum {t}',
+    kk: 'терезе {t} бұрын жабылды',
+  },
+  'loadDetail.lateHint': {
+    ru: 'Ни отметки «приехал», ни GPS у точки. Позвони водителю и предупреди брокера, пока он не позвонил сам.',
+    en: 'No "arrived" mark and no GPS at the stop. Call the driver and warn the broker before they call you.',
+    es: 'Sin marca de «llegó» ni GPS en la parada. Llama al conductor y avisa al bróker antes de que llame él.',
+    uk: 'Ні відмітки «приїхав», ні GPS біля точки. Подзвони водієві й попередь брокера, поки він не подзвонив сам.',
+    ro: 'Nicio marcare „a ajuns” și niciun GPS la oprire. Sună șoferul și anunță brokerul înainte să sune el.',
+    kk: '«Келді» белгісі де, нүктедегі GPS те жоқ. Жүргізушіге қоңырау шал, брокер өзі қоңырау шалғанша ескерт.',
+  },
+
+  // Доп. начисления брокеру (components/load-charges.tsx, lib/invoice.ts).
+  'loads.charges.heading': { ru: 'Доп. начисления', en: 'Extra charges', es: 'Cargos extra', uk: 'Дод. нарахування', ro: 'Taxe suplimentare', kk: 'Қосымша есептеулер' },
+  'loads.charges.info': {
+    ru: 'Detention, lumper, TONU, layover, stop-off — всё сверх ставки. Уходят строками в счёт, итог считается с ними; ставка груза из рейт-кона не меняется. Письмо брокеру — как и раньше, руками.',
+    en: 'Detention, lumper, TONU, layover, stop-off — anything on top of the rate. They go on the invoice as separate lines and the total includes them; the rate from the rate con stays as is. The broker email is still sent by hand.',
+    es: 'Detention, lumper, TONU, layover, stop-off: todo lo que va sobre la tarifa. Entran en la factura como líneas y el total los incluye; la tarifa del rate con no cambia. El correo al bróker sigue siendo manual.',
+    uk: 'Detention, lumper, TONU, layover, stop-off — усе понад ставку. Ідуть рядками в рахунок, підсумок рахується з ними; ставка з рейт-кону не змінюється. Лист брокеру — як і раніше, руками.',
+    ro: 'Detention, lumper, TONU, layover, stop-off — tot ce e peste tarif. Intră în factură ca linii separate și totalul le include; tariful din rate con rămâne. E-mailul către broker se trimite tot manual.',
+    kk: 'Detention, lumper, TONU, layover, stop-off — мөлшерлемеден тыс бәрі. Шотқа жеке жолдармен кіреді, жиынтық солармен есептеледі; рейт-кондағы мөлшерлеме өзгермейді. Брокерге хат бұрынғыдай қолмен жіберіледі.',
+  },
+  'loads.charges.kind.detention': { ru: 'Detention', en: 'Detention', es: 'Detention', uk: 'Detention', ro: 'Detention', kk: 'Detention' },
+  'loads.charges.kind.lumper': { ru: 'Lumper', en: 'Lumper', es: 'Lumper', uk: 'Lumper', ro: 'Lumper', kk: 'Lumper' },
+  'loads.charges.kind.tonu': { ru: 'TONU', en: 'TONU', es: 'TONU', uk: 'TONU', ro: 'TONU', kk: 'TONU' },
+  'loads.charges.kind.layover': { ru: 'Layover', en: 'Layover', es: 'Layover', uk: 'Layover', ro: 'Layover', kk: 'Layover' },
+  'loads.charges.kind.stop_off': { ru: 'Stop-off', en: 'Stop-off', es: 'Stop-off', uk: 'Stop-off', ro: 'Stop-off', kk: 'Stop-off' },
+  'loads.charges.kind.other': { ru: 'Другое', en: 'Other', es: 'Otro', uk: 'Інше', ro: 'Altele', kk: 'Басқа' },
+  'loads.charges.amount': { ru: 'Сумма, $', en: 'Amount, $', es: 'Importe, $', uk: 'Сума, $', ro: 'Sumă, $', kk: 'Сома, $' },
+  'loads.charges.note': { ru: 'Комментарий', en: 'Note', es: 'Nota', uk: 'Коментар', ro: 'Notă', kk: 'Ескерту' },
+  'loads.charges.add': { ru: 'Добавить', en: 'Add', es: 'Añadir', uk: 'Додати', ro: 'Adaugă', kk: 'Қосу' },
+  'loads.charges.total': { ru: 'Итого к оплате', en: 'Total due', es: 'Total a pagar', uk: 'Разом до сплати', ro: 'Total de plată', kk: 'Төлеуге жалпы' },
+  'loads.charges.empty': { ru: 'Начислений нет', en: 'No extra charges', es: 'Sin cargos extra', uk: 'Нарахувань немає', ro: 'Fără taxe suplimentare', kk: 'Есептеулер жоқ' },
+  'loads.charges.added': { ru: 'Начисление добавлено', en: 'Charge added', es: 'Cargo añadido', uk: 'Нарахування додано', ro: 'Taxă adăugată', kk: 'Есептеу қосылды' },
+  'loads.charges.removed': { ru: 'Начисление удалено', en: 'Charge removed', es: 'Cargo eliminado', uk: 'Нарахування видалено', ro: 'Taxă ștearsă', kk: 'Есептеу жойылды' },
+  'loads.charges.badAmount': { ru: 'Укажи сумму больше нуля', en: 'Enter an amount above zero', es: 'Indica un importe mayor que cero', uk: 'Вкажи суму більше нуля', ro: 'Introdu o sumă peste zero', kk: 'Нөлден үлкен сома енгіз' },
 } as const

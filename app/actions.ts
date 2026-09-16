@@ -21,7 +21,8 @@ import { headers } from 'next/headers'
 import { shrinkPhoto } from '@/lib/photo'
 import { sql } from '@/lib/db'
 import { humanError } from '@/lib/msg'
-import type { LoadStatus } from '@/lib/map'
+import { LOAD_PRIORITIES, type LoadPriority, type LoadStatus } from '@/lib/map'
+import { CHARGE_KINDS, type ChargeKind } from '@/lib/charges-core'
 import { directionsOf, stopsFrom, taskOrderKey, type LoadStop } from '@/lib/stops'
 import { todayEt } from '@/lib/payments'
 import { DEADHEAD_FLAG_MI } from '@/lib/load-status'
@@ -1893,6 +1894,52 @@ export async function setLoadPartial(loadId: number, partial: boolean): Promise<
   if (rows[0]?.truck_id) revalidatePath(`/trucks/${rows[0].truck_id}`)
   revalidatePath('/loads')
   revalidatePath('/', 'layout')
+}
+
+/** Флаг «следить» (caution / important / critical), как в Alvys: поднимает груз наверх
+ * очереди внимания на /loads. null — снять. */
+export async function setLoadPriority(loadId: number, priority: LoadPriority | null): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const companyId = await companyScope()
+  if (!(await loadBelongs(companyId, loadId))) return { error: t(await getLocale(), 'actions.loadNotFound') }
+  const value = priority !== null && LOAD_PRIORITIES.includes(priority) ? priority : null
+  await sql`UPDATE loads SET priority = ${value} WHERE id = ${loadId} AND company_id = ${companyId}`
+  revalidatePath(`/loads/${loadId}`)
+  revalidatePath('/loads')
+  revalidatePath('/', 'layout')
+}
+
+/** Доп. начисление брокеру (detention, lumper, TONU…) — строкой в счёт, ставка груза не
+ * меняется. Письмо брокеру — руками, как и всё остальное. */
+export async function addLoadCharge(
+  loadId: number,
+  kind: ChargeKind,
+  amount: number,
+  note: string,
+): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const locale = await getLocale()
+  const companyId = await companyScope()
+  if (!(await loadBelongs(companyId, loadId))) return { error: t(locale, 'actions.loadNotFound') }
+  if (!CHARGE_KINDS.includes(kind) || !Number.isFinite(amount) || amount <= 0) return { error: t(locale, 'loads.charges.badAmount') }
+  try {
+    await sql`INSERT INTO load_charges (company_id, load_id, kind, amount, note)
+              VALUES (${companyId}, ${loadId}, ${kind}, ${Math.round(amount * 100) / 100}, ${note.trim() || null})`
+  } catch (e) {
+    return { error: humanError(e, locale) }
+  }
+  revalidatePath(`/loads/${loadId}`)
+}
+
+export async function deleteLoadCharge(id: number, loadId: number): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const companyId = await companyScope()
+  if (!(await loadBelongs(companyId, loadId))) return { error: t(await getLocale(), 'actions.loadNotFound') }
+  await sql`DELETE FROM load_charges WHERE id = ${id} AND load_id = ${loadId} AND company_id = ${companyId}`
+  revalidatePath(`/loads/${loadId}`)
 }
 
 /** Save the broker's special-instructions text (the "must read" block). */

@@ -253,9 +253,11 @@ export function LoadsWeekChart({ loads, trucks, weekFrom, locale }: { loads: Loa
   )
 }
 
-export type AttentionCategory = 'documents' | 'ready' | 'overdue' | 'checks'
+export type AttentionCategory = 'priority' | 'late' | 'documents' | 'ready' | 'overdue' | 'checks'
 export type AttentionEntry = { id: number; route: string; category: AttentionCategory; detail: string }
 const CATEGORY_KEY: Record<AttentionCategory, MsgKey> = {
+  priority: 'loads.priority.label',
+  late: 'loads.dash.late',
   documents: 'loads.dash.documents',
   ready: 'loads.filter.ready',
   overdue: 'loads.dash.overdue',

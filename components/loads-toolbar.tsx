@@ -63,6 +63,9 @@ export type LoadMetrics = {
   hasRc: boolean
   /** Ближайшая непройденная остановка открытого груза; null у закрытых. */
   nextStop: LoadStop | null
+  /** На сколько минут закрылось окно ближайшей остановки без отметки о приезде
+   * (lib/loads-dashboard.ts lateStop); null — не опаздывает. */
+  lateMin: number | null
   /** Рыночная ставка за гружёную милю — как в карточке груза: вписанная в груз, иначе DAT
    * по региону погрузки. null — сравнивать не с чем. */
   market: number | null

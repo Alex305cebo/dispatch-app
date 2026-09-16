@@ -52,6 +52,10 @@ import { loadsMissingPod } from '@/lib/loads'
 import { CopyPlace } from '@/components/copy-place'
 import { placeCity } from '@/lib/place'
 import { datCached, datEquipment, originRate } from '@/lib/dat-market'
+import { lateStop } from '@/lib/loads-dashboard'
+import { listCharges } from '@/lib/charges'
+import { LoadCharges } from '@/components/load-charges'
+import { PriorityPicker } from '@/components/priority-picker'
 
 export const dynamic = 'force-dynamic'
 
@@ -91,7 +95,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           const proto = h.get('x-forwarded-proto') ?? 'https'
           return host ? `${proto}://${host}/d/${await driverTokenFor(truck.id)}` : null
         })()
-  const [truckMeta, laneAvgRpm, backhaul, brokerGrade, driverEvents, truckCurrent, truckLoads] = await Promise.all([
+  const [truckMeta, laneAvgRpm, backhaul, brokerGrade, driverEvents, truckCurrent, truckLoads, charges] = await Promise.all([
     getTruckMeta(truck.id),
     laneAvgRpmFor(companyId, load.origin, load.destination, load.id),
     wantBackhaul ? backhaulBrokers(companyId, load.destination, load.id) : Promise.resolve(null),
@@ -101,7 +105,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     load.status === 'booked' ? currentLoadForTruck(companyId, truck.id) : Promise.resolve(null),
     // Что ещё едет в этом же трейлере — чтобы показать одно задание на все грузы.
     listLoads(companyId, { truckId: truck.id }),
+    listCharges(companyId, load.id),
   ])
+  // Окно ближайшей остановки закрылось, а приезда нет — «опаздывает» в шапку.
+  const late = lateStop(load, driverEvents, Date.now())
   // Соседи по трейлеру — только если этот груз сам в нём едет (текущий или открытый
   // партиал). Иначе к доставленному или следующему грузу подмешивались остановки
   // текущего: у Trinity показывалось общее задание, а у самого Tallgrass — нет.
@@ -192,8 +199,23 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               груз ищут, называют по телефону и пишут в счёте. */}
           {load.referenceId && ` · ${t(locale, 'import.label.referenceId')} ${load.referenceId}`}
         </p>
+        {late && (
+          <div className="mt-3 rounded-xl border border-bad-500/30 bg-bad-500/[0.08] px-4 py-3 text-[13px]">
+            <span className="font-semibold text-bad-400">{t(locale, 'loads.dash.late')}</span>{' '}
+            <span className="text-white/75">
+              {t(locale, late.stop.role === 'pickup' ? 'stops.pickup' : 'stops.delivery')} · {late.stop.city ?? late.stop.address ?? '—'} ·{' '}
+              {t(locale, 'loads.dash.lateBy').replace('{t}', driveTime(late.minutes, locale))}. {t(locale, 'loadDetail.lateHint')}
+            </span>
+          </div>
+        )}
         <MissingPodBanner loads={missingPod} locale={locale} className="mt-3" />
         <DeadheadFlag miles={load.deadheadMiles} okMiles={load.deadheadOkMiles} loadId={load.id} locale={locale} banner className="mt-3" />
+        {/* Флаг «следить» — сразу под источником: ставится за секунду, поднимает груз в очереди. */}
+        {load.status !== 'paid' && load.status !== 'cancelled' && (
+          <div className="mt-3">
+            <PriorityPicker loadId={load.id} value={load.priority} />
+          </div>
+        )}
         {/* Кнопка на трак живёт в полосе «Трак ⇄ Груз» наверху — второй раз здесь ни к чему. */}
 
         {/* The rail needs the full width to lay five labelled steps out; sharing a flex
@@ -414,6 +436,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             </span>
           )}
         </div>
+        {/* Начисления сверх ставки — над счётом: они в него и попадают строками. */}
+        {load.status !== 'cancelled' && <LoadCharges loadId={load.id} rate={load.rate} charges={charges} />}
         <InvoiceBox
           loadId={load.id}
           invoiceNumber={load.invoiceNumber}

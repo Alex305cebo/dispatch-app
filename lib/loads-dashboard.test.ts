@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { weekStats, weekStartIso, shiftDay, upcomingStop, stopOrder, scheduleConnection, whenText } from './loads-dashboard.ts'
+import { weekStats, weekStartIso, shiftDay, upcomingStop, stopOrder, scheduleConnection, whenText, lateStop, priorityRank } from './loads-dashboard.ts'
+import { zonedMs } from './trip-eta.ts'
 import { weekLabel } from './fmt.ts'
 import { todayEt } from './payments.ts'
 import type { LoadRecord, TruckRecord } from './map.ts'
@@ -110,4 +111,26 @@ test('стыковка сравнивает даты и не обещает, ч�
   assert.equal(scheduleConnection(load(), load({ pickupDate: '2026-09-16' })), 'review')
   assert.equal(scheduleConnection(load(), load({ pickupDate: '2026-09-14' })), 'overlap')
   assert.equal(scheduleConnection(load({ deliveryDate: null }), load()), 'unknown')
+})
+
+test('lateStop: окно пикапа закрылось по поясу штата, приезда нет — опаздывает', () => {
+  const l = load({ origin: 'Olathe, KS', pickupDate: '2026-09-15', pickupTime: '8am-3pm' })
+  const at = (h: number) => zonedMs('2026-09-15', h * 60, 'America/Chicago')!
+  assert.equal(lateStop(l, [], at(14)), null)
+  assert.equal(lateStop(l, [], at(16))?.minutes, 60)
+  assert.equal(lateStop(l, [], at(16))?.stop.role, 'pickup')
+  // Отметка «приехал» или GPS у точки — не опаздывает.
+  assert.equal(lateStop(l, [{ kind: 'arrived_pickup', at: new Date(at(15)).toISOString() }], at(16)), null)
+  assert.equal(lateStop(load({ ...l, pickupArrivedAt: '2026-09-15T19:00:00Z' }), [], at(16)), null)
+  // Без даты и у закрытых грузов срока нет.
+  assert.equal(lateStop(load({ ...l, pickupDate: null }), [], at(16)), null)
+  assert.equal(lateStop(load({ ...l, status: 'delivered' }), [], at(16)), null)
+  // Пикап пройден → следующая точка выгрузка, её окно ещё открыто.
+  const loaded = [{ kind: 'loaded', at: new Date(at(12)).toISOString() }]
+  assert.equal(lateStop(load({ ...l, status: 'in_transit', deliveryTime: '18:00' }), loaded, at(16)), null)
+  assert.equal(lateStop(load({ ...l, status: 'in_transit', deliveryTime: '10:00' }), loaded, at(16))?.stop.role, 'delivery')
+})
+
+test('priorityRank: critical > important > caution > без флага', () => {
+  assert.deepEqual(['critical', 'important', 'caution', null].map((p) => priorityRank(p as never)), [3, 2, 1, 0])
 })

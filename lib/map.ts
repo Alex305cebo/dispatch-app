@@ -61,7 +61,16 @@ export type LoadRecord = Load & {
   directions?: StopDirection[] | null
   /** Едет в одном трейлере с другим грузом (два рейт-кона, один рейс). */
   partial: boolean
+  /** Флаг «следить»: поднимает груз наверх очереди внимания. */
+  priority: LoadPriority | null
+  /** GPS видел трак у пикапа / выгрузки (app/actions.ts autoAdvanceLoadStatuses) —
+   * по этому «опаздывает» молчит, когда трак уже стоит на точке без отметки. */
+  pickupArrivedAt: string | null
+  deliveryArrivedAt: string | null
 }
+
+export type LoadPriority = 'caution' | 'important' | 'critical'
+export const LOAD_PRIORITIES: LoadPriority[] = ['caution', 'important', 'critical']
 
 export type TruckRecord = TruckSettings & {
   id: number
@@ -238,6 +247,9 @@ export type LoadRow = {
   stops?: LoadStop[] | string | null
   directions?: StopDirection[] | string | null
   partial?: boolean | null
+  priority?: string | null
+  pickup_arrived_at?: Date | string | null
+  delivery_arrived_at?: Date | string | null
 }
 
 export type TruckRow = {
@@ -307,6 +319,9 @@ export function rowToLoad(r: LoadRow): LoadRecord {
     stops: typeof r.stops === 'string' ? (JSON.parse(r.stops) as LoadStop[]) : (r.stops ?? null),
     directions: typeof r.directions === 'string' ? (JSON.parse(r.directions) as StopDirection[]) : (r.directions ?? null),
     partial: r.partial === true,
+    priority: LOAD_PRIORITIES.includes(r.priority as LoadPriority) ? (r.priority as LoadPriority) : null,
+    pickupArrivedAt: r.pickup_arrived_at ? new Date(r.pickup_arrived_at).toISOString() : null,
+    deliveryArrivedAt: r.delivery_arrived_at ? new Date(r.delivery_arrived_at).toISOString() : null,
   }
 }
 

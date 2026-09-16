@@ -185,6 +185,23 @@ export function firstMinutes(time: string | null): number {
   return h * 60 + mm
 }
 
+/** Конец окна в минутах дня («8am-3pm» → 15:00, «Appt 06:00» → 6:00). Без времени —
+ * конец дня: «доставить такого-то числа» опоздание только назавтра. */
+export function lastMinutes(time: string | null): number {
+  if (!time) return 24 * 60 - 1
+  const all = [...time.matchAll(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/gi)]
+    // Дата в окне («09/12/26 06:30») тоже «числа» — берём только часы (0–23) с минутами или am/pm.
+    .filter((m) => Number(m[1]) <= 23 && (m[2] != null || m[3] != null))
+  const m = all[all.length - 1]
+  if (!m) return 24 * 60 - 1
+  let h = Number(m[1])
+  const mm = Number(m[2] ?? 0)
+  const ap = m[3]?.toLowerCase()
+  if (ap === 'pm' && h < 12) h += 12
+  if (ap === 'am' && h === 12) h = 0
+  return h * 60 + mm
+}
+
 export type MergedStop = LoadStop & { loadId: number; ref: string | null; broker: string | null }
 
 /** Ключ остановки в ручном порядке задания: «груз:номер». */

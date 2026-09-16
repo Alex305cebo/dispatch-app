@@ -365,6 +365,24 @@ ALTER TABLE loads ADD COLUMN IF NOT EXISTS directions JSON;
 -- Deadhead, который диспетчер подтвердил или вписал сам: красный флаг «больше 150 миль»
 -- у такого груза не показывается, пока Deadhead снова не изменится.
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS deadhead_ok_miles INT NULL;
+-- Флаг диспетчера «за этим грузом следить»: caution / important / critical (как в Alvys).
+-- Поднимает груз наверх очереди внимания; NULL — обычный груз.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS priority VARCHAR(16) NULL;
+
+-- Доп. начисления брокеру сверх ставки: detention, lumper, TONU, layover, stop-off.
+-- Строками уходят в счёт (lib/invoice.ts); ставка груза (loads.rate) не меняется.
+CREATE TABLE IF NOT EXISTS load_charges (
+  id         INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  company_id VARCHAR(64) NOT NULL DEFAULT 'default',
+  load_id    INT NOT NULL,
+  kind       VARCHAR(16) NOT NULL,
+  amount     DOUBLE NOT NULL,
+  note       TEXT,
+  created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  KEY load_charges_load (load_id),
+  CONSTRAINT load_charges_kind_check CHECK (kind IN ('detention', 'lumper', 'tonu', 'layover', 'stop_off', 'other')),
+  CONSTRAINT load_charges_load_id_fkey FOREIGN KEY (load_id) REFERENCES loads (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
 
 -- Деньги за груз: путь через факторинг (OTR Solutions) или прямая оплата (lib/payments.ts).
 -- Одна строка на груз. Этап и даты шагов; суммы аванса и комиссии — как пришли от
@@ -400,5 +418,5 @@ CREATE TABLE IF NOT EXISTS load_payments (
   CONSTRAINT load_payments_load_id_fkey FOREIGN KEY (load_id) REFERENCES loads (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
 
-INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-17')
+INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-18')
 ON DUPLICATE KEY UPDATE value = VALUES(value);
