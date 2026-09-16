@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { parseLt, parseRegions, type DatSnapshot } from './dat-market-core.ts'
-import { bestWorst, dayTone, parseBoardLoads, rankLanes, roadMiles, scoreLane, waitDays, type PlanOptions } from './route-plan-core.ts'
+import { bestWorst, dayTone, parseBoardLoads, rankLanes, roadMiles, scoreLane, waitDays, type Lane, type PlanOptions } from './route-plan-core.ts'
 import type { TruckSettings } from './profit.ts'
 
 // Регионы DAT Van (форма живого ответа 09/14/26) и грузы на трак по нескольким штатам.
@@ -97,12 +97,20 @@ test('простой стоит денег: постоянные расходы 
   assert.equal(lane.next!.gross, 600 * 2.8)
 })
 
+/** Без ставок по штатам: по ставке DAT региона штата, внутри региона — по выручке в день. */
+const byRegionThenDay = (ls: Lane[]) =>
+  ls.every((l, i) => {
+    const p = ls[i - 1]
+    return !p || p.nextRpm! > l.nextRpm! || (p.nextRpm === l.nextRpm && p.grossPerDay >= l.grossPerDay)
+  })
+
 test('направления из штата: без него самого, без Аляски и Гавайев, лучшие сверху', () => {
   const lanes = rankLanes(snap, { state: 'IL' }, opts)
   assert.ok(lanes.length > 40)
   assert.ok(!lanes.some((l) => l.state === 'IL' || l.state === 'AK' || l.state === 'HI'))
   assert.ok(lanes.every((l) => l.miles >= 150))
-  assert.ok(lanes.every((l, i) => i === 0 || lanes[i - 1]!.grossPerDay >= l.grossPerDay))
+  assert.ok(byRegionThenDay(lanes))
+  assert.equal(lanes[0]!.nextRpm, 3.1) // North — самый дорогой регион фикстуры
   // Ставка направления — DAT региона погрузки (North $3.10)
   assert.ok(lanes.every((l) => Math.abs(l.rpm - 3.1) < 0.01))
   // Канзас в /lt — KS, в регионах — KA: направление в Канзас есть и с соотношением
@@ -171,7 +179,7 @@ test('настоящая ставка по штату: со ставкой св�
   const lanes = rankLanes(snap, { state: 'IL' }, opts, rpmOf)
   assert.deepEqual(lanes.slice(0, 3).map((l) => l.state), ['GA', 'MT', 'TX'])
   const rest = lanes.slice(3)
-  assert.ok(rest.length > 40 && rest.every((l, i) => i === 0 || rest[i - 1]!.grossPerDay >= l.grossPerDay))
+  assert.ok(rest.length > 40 && byRegionThenDay(rest))
   const { best, worst } = bestWorst(lanes, opts.milesPerDay, rpmOf)
   assert.equal(best?.state, 'GA')
   assert.equal(worst?.state, 'TX')

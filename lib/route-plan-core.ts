@@ -184,8 +184,8 @@ export function scoreLane(
 export type RpmOf = (state: string) => number | null
 
 /** Все направления из штата: без самого штата, ближе MIN_LANE_MILES и без региона DAT
- * (Аляска, Гавайи). Сверху — со ставкой по штату, дороже выше; без ставки — ниже, по
- * выручке в день за цикл. */
+ * (Аляска, Гавайи). Сверху — со ставкой по штату, дороже выше; без неё — по ставке DAT
+ * региона штата, внутри региона — по выручке в день за цикл. */
 export function rankLanes(snap: DatSnapshot, origin: PlanOrigin, opts: PlanOptions, rpmOf: RpmOf = () => null): Lane[] {
   const out: Lane[] = []
   for (const [code] of US_STATES) {
@@ -194,9 +194,10 @@ export function rankLanes(snap: DatSnapshot, origin: PlanOrigin, opts: PlanOptio
     if (lane && lane.miles >= MIN_LANE_MILES) out.push(lane)
   }
   // Нет ставки — 0: ставки положительные, такие уходят под все направления со ставкой.
+  // Ниже — по ставке DAT региона штата: она видна справа в списке, цифры идут по убыванию.
   // ponytail: один груз в штат весит как сотня — порог по числу грузов, если выбросы полезут наверх.
   const rpm = (l: Lane) => rpmOf(l.state) ?? 0
-  out.sort((a, b) => rpm(b) - rpm(a) || b.grossPerDay - a.grossPerDay)
+  out.sort((a, b) => rpm(b) - rpm(a) || (b.nextRpm ?? 0) - (a.nextRpm ?? 0) || b.grossPerDay - a.grossPerDay)
   // Скоро домой — домашнее направление первым, даже если по деньгам оно не лучшее:
   // водитель всё равно туда поедет, вопрос только — с грузом или порожним.
   if (opts.preferHome) out.sort((a, b) => Number(b.home) - Number(a.home))
@@ -209,7 +210,8 @@ export function rankLanes(snap: DatSnapshot, origin: PlanOrigin, opts: PlanOptio
  * Есть настоящие ставки по штатам — по ним: лучший — самая высокая, худший — самая низкая
  * (когда штатов со ставкой хотя бы два).
  *
- * Без ставок лучший — по выручке в день за цикл среди дальних (длиннее дневного пробега).
+ * Без ставок по штатам лучший — первый дальний (длиннее дневного пробега) в порядке списка:
+ * регион с самой высокой ставкой DAT, в нём — больше выручки в день за цикл.
  *
  * Худший без ставок — НЕ последний по выручке в день: эта цифра топит любой рейс короче (погрузка,
  * выгрузка и простой — фиксированная добавка к каждому), и «худшим штатом» выходил сосед
