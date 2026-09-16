@@ -12,11 +12,11 @@
 // exactly what makes labels stack on top of each other. Identity lives in the click
 // popup and in the list underneath the map, same as every product researched does.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { Flame, X } from 'lucide-react'
-import { mapMarket } from '@/app/actions'
+import { Flame, RefreshCw, X } from 'lucide-react'
+import { mapMarket, refreshFleetStatus } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { Info } from '@/components/info'
@@ -550,6 +550,16 @@ export function FleetMap({
   const ref = hostRef
   const [satellite, setSatellite] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  // «Обновить траки» на каждой карте: свежий GPS от ELD и перерисовка страницы, не дожидаясь
+  // минутного опроса. Только там, где на карте есть трак.
+  const [refreshing, startRefresh] = useTransition()
+  const refreshTrucks = () =>
+    startRefresh(async () => {
+      const res = await refreshFleetStatus()
+      if (res.errors.length) notify('warn', res.errors.join(' · '))
+      else notify('ok', res.updated > 0 ? `${t(locale, 'tracking.updatedTrucksPrefix')}${res.updated}` : t(locale, 'tracking.noNewData'))
+      router.refresh()
+    })
   // Read inside the map-build effect without making `satellite` one of its deps —
   // that effect only re-runs when the DATA changes, not the basemap choice.
   const satelliteRef = useRef(satellite)
@@ -1164,6 +1174,19 @@ export function FleetMap({
             <span className="inline-block size-2.5 rounded-full border border-white bg-[#f59e0b] sm:mr-1 sm:size-2 sm:align-[-1px]" />
             {/* Слово — только на широком экране; на телефоне хватает точки. */}
             <span className="hidden sm:inline">{t(locale, 'tracking.trailLabel')}</span>
+          </button>
+        )}
+        {markers.some((m) => m.kind === 'truck') && (
+          <button
+            type="button"
+            onClick={refreshTrucks}
+            disabled={refreshing}
+            title={t(locale, 'tracking.refreshTrucksTitle')}
+            aria-label={t(locale, 'tracking.refreshTrucksTitle')}
+            className="flex h-[30px] items-center justify-center gap-1 rounded-lg border border-white/15 bg-ink-950/85 px-2 text-[11px] font-semibold text-white/85 backdrop-blur transition-colors hover:bg-ink-900 disabled:opacity-60 sm:px-2.5"
+          >
+            <RefreshCw size={14} strokeWidth={2.2} className={refreshing ? 'animate-spin' : undefined} aria-hidden />
+            <span className="hidden sm:inline">{refreshing ? t(locale, 'tracking.updating') : t(locale, 'tracking.refreshTrucks')}</span>
           </button>
         )}
         {/* Рынок — на каждой карте: не дала его страница — карта попросит сама при включении. */}

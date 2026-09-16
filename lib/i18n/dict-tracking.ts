@@ -690,6 +690,15 @@ export const trackingDict = {
     ro: 'Se actualizează…',
     kk: 'Жаңартылуда…',
   },
+  'tracking.refreshTrucks': { ru: 'Траки', en: 'Trucks', es: 'Camiones', uk: 'Траки', ro: 'Camioane', kk: 'Тракттар' },
+  'tracking.refreshTrucksTitle': {
+    ru: 'Обновить положение траков на карте — запросить свежий GPS у ELD',
+    en: 'Refresh truck positions on the map — pull fresh GPS from the ELD',
+    es: 'Actualizar la posición de los camiones en el mapa — pedir GPS fresco al ELD',
+    uk: 'Оновити положення траків на карті — запросити свіжий GPS у ELD',
+    ro: 'Actualizează poziția camioanelor pe hartă — cere GPS proaspăt de la ELD',
+    kk: 'Картадағы трактар орнын жаңарту — ELD-ден жаңа GPS сұрау',
+  },
   'tracking.refresh': {
     ru: 'Обновить',
     en: 'Refresh',
