@@ -65,6 +65,13 @@ export function TgChatSettings({
     })
   }
 
+  // Список длинный — кнопка и сверху (рядом с поиском), и снизу, чтобы не листать обратно.
+  const saveButton = (
+    <Button variant="primary" size="sm" className="mt-3" disabled={pending || !dirty} onClick={save}>
+      {pending ? t(locale, 'telegram.settings.saving') : t(locale, 'telegram.settings.save')}
+    </Button>
+  )
+
   return (
     <details className="panel p-4" open={shown.length === 0}>
       <summary className="cursor-pointer text-[13px] font-semibold text-white/85">
@@ -78,6 +85,7 @@ export function TgChatSettings({
         {t(locale, 'telegram.settings.explain')}
       </p>
 
+      {dialogs.length > 8 && saveButton}
       {dialogs.length > 8 && (
         <input
           value={q}
@@ -131,10 +139,7 @@ export function TgChatSettings({
         </div>
       )}
 
-      <Button variant="primary" size="sm" className="mt-3" disabled={pending || !dirty}
-        onClick={save}>
-        {pending ? t(locale, 'telegram.settings.saving') : t(locale, 'telegram.settings.save')}
-      </Button>
+      {saveButton}
     </details>
   )
 }
