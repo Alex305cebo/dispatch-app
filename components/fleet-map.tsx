@@ -1141,7 +1141,7 @@ export function FleetMap({
           )}
         </div>
       )}
-      <div className="absolute right-2.5 top-2.5 z-[1000] flex items-center gap-1.5">
+      <div className="absolute right-2 top-2 z-[1000] flex items-center gap-1">
         {/* «Показать всё»: вписать трак и маршрут обратно в кадр. Иконка-прицел,
             без слов — на телефоне ряд кнопок и так впритык. */}
         <button
@@ -1153,7 +1153,7 @@ export function FleetMap({
           }}
           title={t(locale, 'tracking.fitAll')}
           aria-label={t(locale, 'tracking.fitAll')}
-          className="flex size-[30px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 text-white/85 backdrop-blur transition-colors hover:bg-ink-900"
+          className="flex size-[26px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 text-white/85 backdrop-blur transition-colors hover:bg-ink-900"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4" aria-hidden>
             <circle cx="12" cy="12" r="3" />
@@ -1165,7 +1165,7 @@ export function FleetMap({
             type="button"
             onClick={() => setTrailOn((v) => !v)}
             title={t(locale, 'tracking.trailTitle')}
-            className={`flex h-[30px] items-center justify-center rounded-lg border px-2 text-[11px] font-semibold backdrop-blur transition-colors sm:px-2.5 ${
+            className={`flex h-[26px] items-center justify-center rounded-lg border px-1.5 text-[10.5px] font-semibold backdrop-blur transition-colors sm:px-2 ${
               trailOn
                 ? 'border-white/25 bg-ink-950/85 text-white'
                 : 'border-white/15 bg-ink-950/60 text-white/45 hover:text-white/70'
@@ -1183,9 +1183,9 @@ export function FleetMap({
             disabled={refreshing}
             title={t(locale, 'tracking.refreshTrucksTitle')}
             aria-label={t(locale, 'tracking.refreshTrucksTitle')}
-            className="flex h-[30px] items-center justify-center gap-1 rounded-lg border border-white/15 bg-ink-950/85 px-2 text-[11px] font-semibold text-white/85 backdrop-blur transition-colors hover:bg-ink-900 disabled:opacity-60 sm:px-2.5"
+            className="flex h-[26px] items-center justify-center gap-1 rounded-lg border border-white/15 bg-ink-950/85 px-1.5 text-[10.5px] font-semibold text-white/85 backdrop-blur transition-colors hover:bg-ink-900 disabled:opacity-60 sm:px-2"
           >
-            <RefreshCw size={14} strokeWidth={2.2} className={refreshing ? 'animate-spin' : undefined} aria-hidden />
+            <RefreshCw size={12} strokeWidth={2.2} className={refreshing ? 'animate-spin' : undefined} aria-hidden />
             <span className="hidden sm:inline">{refreshing ? t(locale, 'tracking.updating') : t(locale, 'tracking.refreshTrucks')}</span>
           </button>
         )}
@@ -1196,13 +1196,13 @@ export function FleetMap({
           aria-pressed={marketOn}
           title={t(locale, 'tracking.marketTitle')}
           aria-label={t(locale, 'tracking.marketTitle')}
-          className={`flex h-[30px] items-center justify-center gap-1 rounded-lg border px-2 text-[11px] font-semibold backdrop-blur transition-colors sm:px-2.5 ${
+          className={`flex h-[26px] items-center justify-center gap-1 rounded-lg border px-1.5 text-[10.5px] font-semibold backdrop-blur transition-colors sm:px-2 ${
             marketOn
               ? 'border-white/25 bg-ink-950/85 text-white'
               : 'border-white/15 bg-ink-950/60 text-white/60 hover:text-white/85'
           }`}
         >
-          <Flame size={14} strokeWidth={2.2} className={marketOn ? 'text-good-400' : undefined} aria-hidden />
+          <Flame size={12} strokeWidth={2.2} className={marketOn ? 'text-good-400' : undefined} aria-hidden />
           <span className="hidden sm:inline">{t(locale, 'tracking.marketLabel')}</span>
         </button>
         <button
@@ -1210,7 +1210,7 @@ export function FleetMap({
           onClick={() => setSatellite((v) => !v)}
           title={satellite ? t(locale, 'tracking.mapLabel') : t(locale, 'tracking.satelliteLabel')}
           aria-label={satellite ? t(locale, 'tracking.mapLabel') : t(locale, 'tracking.satelliteLabel')}
-          className="flex h-[30px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 px-2 text-[11px] font-semibold text-white/85 backdrop-blur transition-colors hover:bg-ink-900 sm:px-2.5"
+          className="flex h-[26px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 px-1.5 text-[10.5px] font-semibold text-white/85 backdrop-blur transition-colors hover:bg-ink-900 sm:px-2"
         >
           {/* На телефоне — иконка слоёв, на широком экране — слово. */}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 sm:hidden" aria-hidden>
@@ -1227,7 +1227,7 @@ export function FleetMap({
           onClick={() => setExpanded((v) => !v)}
           title={t(locale, expanded ? 'tracking.mapCollapse' : 'tracking.mapExpand')}
           aria-label={t(locale, expanded ? 'tracking.mapCollapse' : 'tracking.mapExpand')}
-          className="flex size-[30px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 text-white/85 backdrop-blur transition-colors hover:bg-ink-900"
+          className="flex size-[26px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 text-white/85 backdrop-blur transition-colors hover:bg-ink-900"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4" aria-hidden>
             {expanded ? (
