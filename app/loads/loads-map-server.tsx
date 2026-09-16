@@ -3,7 +3,7 @@ import { fleetStatusByUnit } from '@/lib/maintenance'
 import { routeVia } from '@/lib/geo-routing'
 import { liveTrail, trailLabels } from '@/lib/eld'
 import { STALE_GPS_MS, statusTone } from '@/lib/load-map'
-import { activeLoadsByTruck, truckLabel, type LoadRecord, type TruckRecord } from '@/lib/map'
+import { activeLoadsByTruck, truckLabel, truckShortLabel, type LoadRecord, type TruckRecord } from '@/lib/map'
 import { stopsFrom, type LoadStop } from '@/lib/stops'
 import { agoText, usd, usd2, usDate } from '@/lib/fmt'
 import { t, type Locale } from '@/lib/i18n'
@@ -109,10 +109,16 @@ export async function LoadsMapServer({
           lng: pt[1],
           label: stopLabel(s),
           // На конечной выгрузке — ещё ставка груза и за милю: пин читается без списка.
+          // Чей груз — последней строкой: пины разных траков на одной карте иначе не различить.
           sub:
-            [when, s === lastDrop ? rpm : null, s.directions ? `⚠ ${t(locale, 'loads.dash.hasDirections')}` : null]
+            [
+              [when, s === lastDrop ? rpm : null, s.directions ? `⚠ ${t(locale, 'loads.dash.hasDirections')}` : null]
+                .filter(Boolean)
+                .join(' · '),
+              `🚚 ${truck ? truckShortLabel(truck) : t(locale, 'loads.dash.unassigned')}`,
+            ]
               .filter(Boolean)
-              .join(' · ') || undefined,
+              .join('\n') || undefined,
           kind: s.role === 'pickup' ? 'pickup' : 'dest',
           truckId: load.id,
         })

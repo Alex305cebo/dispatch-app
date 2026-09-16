@@ -126,7 +126,7 @@ export function LoadsMap({ rows, locale }: { rows: LoadsMapRow[]; locale: Locale
                   </span>
                   <Link
                     href={`/loads/${row.load.id}`}
-                    className="inline-flex min-h-8 items-center gap-1 text-[12px] font-medium text-haul-400 hover:underline max-md:min-h-11"
+                    className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-haul-500 px-3 text-[12px] font-semibold text-white transition-colors hover:bg-haul-400 max-md:h-10"
                   >
                     {t(locale, 'loads.dash.open')}
                     <ArrowUpRight size={13} />
