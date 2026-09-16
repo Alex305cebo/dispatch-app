@@ -3,7 +3,7 @@
 // load's own page (this specific load, regardless of whether it's currently the
 // truck's "active" one).
 
-import type { LoadRecord, TruckRecord } from './map'
+import { truckShortLabel, type LoadRecord, type TruckRecord } from './map'
 import type { FleetStatus } from './maintenance-core'
 import { cityCoordsBest, routeToPoint, routeVia } from './geo-routing'
 import { isDone, stopTitle, stopsFrom, type StopEv } from './stops.ts'
@@ -173,7 +173,7 @@ export async function loadMapData(
         lat: lat!,
         lng: lng!,
         zone: zoneFor(lat!, lng!) ?? undefined,
-        label: truck.number ?? truck.name,
+        label: truckShortLabel(truck),
         sub: [fs?.location, fs?.driveStatus].filter(Boolean).join('\n') || undefined,
         tone: statusTone(fs?.driveStatus ?? null),
         kind: 'truck',
@@ -207,7 +207,7 @@ export async function loadMapData(
     lat,
     lng,
     zone: zoneFor(lat, lng) ?? undefined,
-    label: truck.number ?? truck.name,
+    label: truckShortLabel(truck),
     sub: [
       fs?.location,
       fs?.driveStatus,

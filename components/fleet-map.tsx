@@ -330,7 +330,7 @@ const esc = (s: string) =>
 
 // Compact popup — tight type scale, no wasted margin. Leaflet's own chrome
 // (wrapper bg, tip, close button, maxWidth) is styled/sized in globals.css.
-function popupHtml(m: MapMarker, openLabel: string): string {
+function popupHtml(m: MapMarker, openLabel: string, driverTimeLabel: string): string {
   // Каждая строка — иконка в свою колонку + текст: раньше всё лепилось сплошным
   // столбцом одинакового серого, и адрес не отличался от даты. Ширина плавает от
   // содержимого до потолка из globals.css — плашка не распирает узкий экран.
@@ -351,7 +351,9 @@ function popupHtml(m: MapMarker, openLabel: string): string {
   // Считается в момент открытия плашки (bindTooltip получает функцию), а не при
   // создании маркера: карта живёт открытой минутами, и вшитое время успело бы соврать.
   const local = m.zone ? zoneTime(m.zone, new Date()) : null
-  const clock = local ? row('🕒', local, 'inherit', 600, 1) : ''
+  const clock = local
+    ? row('🕒', m.kind === 'truck' ? `${local} · ${driverTimeLabel}` : local, 'inherit', 600, 1)
+    : ''
   // The arrow: a clear "open the card" affordance. The tooltip is made interactive
   // and the whole plaque navigates (see the marker loop), so this doubles as the hint
   // and the visible click target.
@@ -918,7 +920,7 @@ export function FleetMap({
         // routes the click through Leaflet's target system, which swallowed our own
         // handler. Instead the plaque gets pointer-events via CSS (globals.css) and a
         // plain DOM click listener below — simplest thing that actually fires.
-        marker.bindTooltip(() => popupHtml(m, t(locale, 'tracking.openArrow')), {
+        marker.bindTooltip(() => popupHtml(m, t(locale, 'tracking.openArrow'), t(locale, 'trucks.head.driverTimeShort')), {
           direction: 'top',
           offset: [0, -8],
           opacity: 1,
