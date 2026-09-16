@@ -26,6 +26,7 @@ import { CHARGE_KINDS, type ChargeKind } from '@/lib/charges-core'
 import { directionsOf, stopsFrom, taskOrderKey, type LoadStop } from '@/lib/stops'
 import { todayEt } from '@/lib/payments'
 import { DEADHEAD_FLAG_MI } from '@/lib/load-status'
+import { parseStates } from '@/lib/maintenance-core'
 import type { QrLoad } from '@/lib/qr-load'
 import type { TruckSettings } from '@/lib/profit'
 import { checkBroker, checkBrokerByDot, type BrokerCheck, type RcContext } from '@/lib/fmcsa'
@@ -2216,6 +2217,14 @@ export type TruckMetaInput = {
   insuranceExpiry: string | null
   cdlExpiry: string | null
   medcardExpiry: string | null
+  /** Профиль водителя для планировщика (lib/maintenance-core.ts DriverProfile). */
+  homeState: string
+  homeFrom: string | null
+  homeTo: string | null
+  weekTargetMiles: number | null
+  weekTargetGross: number | null
+  /** «NY, CA» — как ввёл диспетчер; коды вычищает parseStates. */
+  avoidStates: string
 }
 
 const d = (s: string | null) => (s && s.trim() ? s : null)
@@ -2364,13 +2373,18 @@ export async function saveTruckMeta(truckId: number, m: TruckMetaInput): Promise
       INSERT INTO truck_meta (truck_id, vin, plate, trailer_number, year, make, model,
                               oil_interval_mi, oil_last_odometer, driver_phone, notes,
                               registration_expiry, inspection_expiry, insurance_expiry,
-                              cdl_expiry, medcard_expiry)
+                              cdl_expiry, medcard_expiry,
+                              home_state, home_from, home_to, week_target_miles, week_target_gross, avoid_states)
       VALUES (${truckId}, ${m.vin.trim() || null}, ${m.plate.trim() || null},
               ${m.trailerNumber.trim() || null}, ${m.year},
               ${m.make.trim() || null}, ${m.model.trim() || null}, ${m.oilIntervalMi},
               ${m.oilLastOdometer}, ${m.driverPhone.trim() || null}, ${m.notes.trim() || null},
               ${d(m.registrationExpiry)}, ${d(m.inspectionExpiry)}, ${d(m.insuranceExpiry)},
-              ${d(m.cdlExpiry)}, ${d(m.medcardExpiry)})
+              ${d(m.cdlExpiry)}, ${d(m.medcardExpiry)},
+              ${parseStates(m.homeState)[0] ?? null}, ${d(m.homeFrom)}, ${d(m.homeTo)},
+              ${m.weekTargetMiles && m.weekTargetMiles > 0 ? Math.round(m.weekTargetMiles) : null},
+              ${m.weekTargetGross && m.weekTargetGross > 0 ? Math.round(m.weekTargetGross) : null},
+              ${parseStates(m.avoidStates).join(',') || null})
       ON DUPLICATE KEY UPDATE
         vin = VALUES(vin), plate = VALUES(plate), trailer_number = VALUES(trailer_number), year = VALUES(year),
         make = VALUES(make), model = VALUES(model),
@@ -2380,7 +2394,10 @@ export async function saveTruckMeta(truckId: number, m: TruckMetaInput): Promise
         registration_expiry = VALUES(registration_expiry),
         inspection_expiry = VALUES(inspection_expiry),
         insurance_expiry = VALUES(insurance_expiry),
-        cdl_expiry = VALUES(cdl_expiry), medcard_expiry = VALUES(medcard_expiry)`
+        cdl_expiry = VALUES(cdl_expiry), medcard_expiry = VALUES(medcard_expiry),
+        home_state = VALUES(home_state), home_from = VALUES(home_from), home_to = VALUES(home_to),
+        week_target_miles = VALUES(week_target_miles), week_target_gross = VALUES(week_target_gross),
+        avoid_states = VALUES(avoid_states)`
   } catch (e) {
     return { error: humanError(e, locale) }
   }

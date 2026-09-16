@@ -19,6 +19,7 @@ import { type MapMarker, type MapRoute } from '@/components/fleet-map'
 import { datCached, datEquipment, stateFromPlace } from '@/lib/dat-market'
 import { FleetPanel } from '@/components/fleet-panel'
 import type { PlanSnaps, PlanTruck } from '@/components/route-planner'
+import { homeSoon, parseStates } from '@/lib/maintenance-core'
 import { ownStateRpm } from '@/lib/own-state-rpm'
 import { type TrackingRow } from '@/components/fleet-list'
 import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
@@ -68,7 +69,7 @@ export async function FleetBoard({
     sql`SELECT * FROM fleet_status`,
     // Прицеп берём здесь же: запрос к truck_meta всё равно уже идёт, а номер
     // прицепа нужен подписи трака (truckLabel) — отдельного захода он не стоит.
-    sql`SELECT truck_id, driver_phone, trailer_number FROM truck_meta`,
+    sql`SELECT truck_id, driver_phone, trailer_number, home_state, home_from, home_to, avoid_states FROM truck_meta`,
     // Слой «Рынок DAT» на карте и «Куда отправить трак»: суточный снимок из settings по
     // всем трём сериям. Только кэш: страница DAT не ждёт.
     Promise.all((['VAN', 'REEFER', 'FLATBED'] as const).map(async (eq) => [eq, await datCached(eq)] as const)),
@@ -89,8 +90,16 @@ export async function FleetBoard({
     truck_id: number
     driver_phone: string | null
     trailer_number: string | null
+    home_state: string | null
+    home_from: Date | string | null
+    home_to: Date | string | null
+    avoid_states: string | null
   }[]
   const trailerByTruck = new Map(phoneRows.filter((r) => r.trailer_number).map((r) => [r.truck_id, r.trailer_number!]))
+  // Профиль водителя для планировщика: домашний штат, «домой скоро», стоп-лист штатов.
+  const iso = (v: Date | string | null) => (!v ? null : v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10))
+  const profileByTruck = new Map(phoneRows.map((r) => [r.truck_id, r]))
+  const today = todayEt()
   const byUnit = new Map(rows.map((r) => [r.unit, r]))
   const phoneById = new Map(phoneRows.map((r) => [r.truck_id, r.driver_phone]))
   // Freshest row, not an arbitrary one — SELECT * has no ORDER BY, so rows[0] was
@@ -319,6 +328,9 @@ export async function FleetBoard({
       until: load?.deliveryDate ?? null,
       ll: !load && fs?.lat != null && fs?.lng != null ? [fs.lat, fs.lng] : null,
       unavailable: t.unavailable,
+      homeState: profileByTruck.get(t.id)?.home_state ?? null,
+      homeBy: homeSoon({ homeFrom: iso(profileByTruck.get(t.id)?.home_from ?? null), homeTo: iso(profileByTruck.get(t.id)?.home_to ?? null) }, today),
+      avoid: parseStates(profileByTruck.get(t.id)?.avoid_states),
     }
   })
 

@@ -10,3 +10,19 @@ test('масло: пробег ниже, чем при прошлой замен
   assert.equal(oilStatus(meta, 1), null)
   assert.equal(oilStatus(meta, null), null)
 })
+
+import { homeSoon, homeUntil, parseStates } from './maintenance-core.ts'
+
+test('профиль водителя: коды штатов, «дома до», «домой скоро»', () => {
+  assert.deepEqual(parseStates('ny, ca; tx ny'), ['NY', 'CA', 'TX'])
+  assert.deepEqual(parseStates(null), [])
+  const p = { homeFrom: '2026-09-20', homeTo: '2026-09-23' }
+  assert.equal(homeUntil(p, '2026-09-19'), null)
+  assert.equal(homeUntil(p, '2026-09-20'), '2026-09-23')
+  assert.equal(homeUntil(p, '2026-09-23'), '2026-09-23')
+  assert.equal(homeUntil(p, '2026-09-24'), null)
+  assert.equal(homeUntil({ homeFrom: null, homeTo: null }, '2026-09-20'), null)
+  assert.equal(homeSoon(p, '2026-09-15'), '2026-09-20')
+  assert.equal(homeSoon(p, '2026-09-10'), null)
+  assert.equal(homeSoon(p, '2026-09-21'), null)
+})

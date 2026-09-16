@@ -25,7 +25,8 @@ import { currentLoadsByTruck, truckLabel, type TruckRecord } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { sql } from '@/lib/db'
 import { deliveryInfo } from '@/lib/geo-routing'
-import { fleetExpiryAlerts, truckPhotoFlags, truckTrailerNumbers } from '@/lib/maintenance'
+import { fleetExpiryAlerts, truckPhotoFlags, truckProfiles, truckTrailerNumbers } from '@/lib/maintenance'
+import { homeUntil } from '@/lib/maintenance-core'
 import { companyScope, getCurrentUser } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { fixPlace, placeCity } from '@/lib/place'
@@ -76,7 +77,7 @@ export default async function Page() {
   const locale = await getLocale()
   const user = await getCurrentUser()
   const showFinances = await can(user, 'finances')
-  const [loads, trucks, fleetRaw, alerts, rateCons, photoIds, trailers, receivables, uninvoiced] =
+  const [loads, trucks, fleetRaw, alerts, rateCons, photoIds, trailers, receivables, uninvoiced, profiles] =
     await Promise.all([
       listLoads(companyId),
       listTrucks(companyId),
@@ -91,7 +92,10 @@ export default async function Page() {
       // capability shouldn't see money figures even loaded, not just hidden by CSS.
       showFinances ? listReceivables(companyId) : Promise.resolve([]),
       showFinances ? listUninvoicedDelivered(companyId) : Promise.resolve([]),
+      truckProfiles(companyId),
     ])
+  // Кто дома до какого числа (профиль водителя) — «Кому искать груз» их не считает.
+  const homeByTruck = new Map([...profiles].map(([id, p]) => [id, homeUntil(p, todayEt())]))
   // Строка места приходит из ELD с чужим штатом (см. lib/place.ts) — правим сразу
   // на входе, чтобы ни одна карточка ниже не показала «CA» для трака в Неваде.
   const fleet = (fleetRaw as FS[]).map((r) => ({ ...r, location: fixPlace(r.location, r.lat, r.lng) }))
@@ -351,7 +355,7 @@ export default async function Page() {
       {/* «Кому искать груз» — под «Загрузкой парка» (просьба пользователя): сначала
           картина по дням, кто когда освободится, потом список, кому искать сейчас. */}
       <NeedsLoad
-        rows={idleFleet(trucks, live, placeByTruck)}
+        rows={idleFleet(trucks, live, placeByTruck, Date.now(), homeByTruck)}
         trucks={byId}
         trailers={trailers}
         locale={locale}

@@ -123,3 +123,16 @@ test('дата «свободен с» не уезжает на день наз�
   const rows = idleFleet([truck(1)], [load({ truckId: 1, deliveryDate: '2026-08-10' })], new Map(), NOW)
   assert.equal(rows[0]!.since, '2026-08-10')
 })
+
+test('водитель дома — в конце списка и не в счётчике свободных', () => {
+  const rows = idleFleet(
+    [truck(1), truck(2)],
+    [load({ id: 1, truckId: 1, deliveryDate: '2026-08-10' }), load({ id: 2, truckId: 2, deliveryDate: '2026-08-12' })],
+    new Map(),
+    NOW,
+    new Map([[1, '2026-08-20']]),
+  )
+  assert.deepEqual(rows.map((r) => r.truckId), [2, 1])
+  assert.equal(rows[1]!.homeUntil, '2026-08-20')
+  assert.equal(idleSummary(rows).freeCount, 1)
+})

@@ -32,6 +32,12 @@ export type PlanOptions = {
   milesPerDay: number
   /** Порожний до погрузки, мили. */
   deadhead: number
+  /** Стоп-лист водителя: в эти штаты направления не предлагаются (профиль в паспорте трака). */
+  avoid?: string[]
+  /** Домашний штат водителя: направление к дому помечается; с preferHome — встаёт первым. */
+  homeState?: string | null
+  /** Водителю скоро домой (отпуск в ближайшие дни) — домашнее направление наверх. */
+  preferHome?: boolean
 }
 
 /** Откуда считаем: штат и, если известна, точная точка трака (GPS). */
@@ -66,6 +72,8 @@ export type Lane = {
   netPerDay: number
   /** Выручка в день за цикл — главная цифра диспетчера. */
   grossPerDay: number
+  /** Направление в домашний штат водителя. */
+  home: boolean
 }
 
 const POINT = new Map(US_STATES.map(([code, name, lat, lng]) => [code, { name, ll: [lat, lng] as const }]))
@@ -167,6 +175,7 @@ export function scoreLane(
     net,
     netPerDay: net / cycleDays,
     grossPerDay: (rate + NEXT_WEIGHT * (next?.gross ?? 0)) / cycleDays,
+    home: dest === opts.homeState,
   }
 }
 
@@ -175,11 +184,15 @@ export function scoreLane(
 export function rankLanes(snap: DatSnapshot, origin: PlanOrigin, opts: PlanOptions): Lane[] {
   const out: Lane[] = []
   for (const [code] of US_STATES) {
-    if (code === origin.state || !regionOf(snap, code)) continue
+    if (code === origin.state || !regionOf(snap, code) || opts.avoid?.includes(code)) continue
     const lane = scoreLane(snap, origin, code, opts)
     if (lane && lane.miles >= MIN_LANE_MILES) out.push(lane)
   }
-  return out.sort((a, b) => b.grossPerDay - a.grossPerDay)
+  out.sort((a, b) => b.grossPerDay - a.grossPerDay)
+  // Скоро домой — домашнее направление первым, даже если по деньгам оно не лучшее:
+  // водитель всё равно туда поедет, вопрос только — с грузом или порожним.
+  if (opts.preferHome) out.sort((a, b) => Number(b.home) - Number(a.home))
+  return out
 }
 
 /**

@@ -8,7 +8,8 @@ import { mergeStops, parseTaskOrder, taskOrderKey } from '@/lib/stops'
 import { getCompany } from '@/lib/invoice'
 import { getSetting, setSetting } from '@/lib/settings'
 import { resolveLocale, t } from '@/lib/i18n'
-import { usDate } from '@/lib/fmt'
+import { loadWeekAnchorMs, usd, usDate, weekBounds } from '@/lib/fmt'
+import { getTruckMeta } from '@/lib/maintenance'
 import { DriverClient, LangSwitch, type DriverLoad } from './driver-client'
 
 // Страница водителя — без логина и без приложения. Открывается по ссылке из карточки
@@ -26,7 +27,22 @@ export default async function Page({ params }: { params: Promise<{ token: string
   if (!truck) notFound()
   const jar = await cookies()
   const locale = resolveLocale(jar.get('driver_locale')?.value ?? 'en')
-  const [loads, company] = await Promise.all([listLoads(truck.companyId, { truckId: truck.id }), getCompany()])
+  const [loads, company, meta] = await Promise.all([listLoads(truck.companyId, { truckId: truck.id }), getCompany(), getTruckMeta(truck.id)])
+  // Цель недели водителя (профиль в паспорте трака): мили или деньги по грузам этой недели.
+  const { start: weekBegin, end: weekEnd } = weekBounds()
+  const weekLoads = loads.filter((l) => {
+    if (l.status === 'quoted' || l.status === 'cancelled') return false
+    const ms = loadWeekAnchorMs(l.pickupDate, l.createdAt)
+    return ms >= weekBegin && ms < weekEnd
+  })
+  const weekMiles = weekLoads.reduce((s, l) => s + l.loadedMiles + l.deadheadMiles, 0)
+  const weekGross = weekLoads.reduce((s, l) => s + l.rate, 0)
+  const target =
+    meta?.weekTargetMiles
+      ? { done: Math.round(weekMiles), goal: meta.weekTargetMiles, text: `${Math.round(weekMiles).toLocaleString('en-US')} / ${meta.weekTargetMiles.toLocaleString('en-US')} mi` }
+      : meta?.weekTargetGross
+        ? { done: weekGross, goal: meta.weekTargetGross, text: `${usd.format(weekGross)} / ${usd.format(meta.weekTargetGross)}` }
+        : null
   // Текущий груз и партиалы — одной лентой остановок (lib/stops.ts mergeStops).
   const active = activeLoadsByTruck(loads).get(truck.id) ?? []
   const load = active[0] ?? null
@@ -61,6 +77,20 @@ export default async function Page({ params }: { params: Promise<{ token: string
       <h1 className="mt-1 text-[22px] font-bold">
         {truck.driverName || t(locale, 'driver.noName')} · {truck.number ?? truck.id}
       </h1>
+      {target && (
+        <section className="panel mt-3 px-4 py-3">
+          <div className="flex items-baseline justify-between gap-3 text-[13px]">
+            <span className="text-white/70">{t(locale, 'driver.weekTarget')}</span>
+            <span className={`nums font-semibold ${target.done >= target.goal ? 'text-good-400' : 'text-white/90'}`}>{target.text}</span>
+          </div>
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/8">
+            <div
+              className={`h-full rounded-full ${target.done >= target.goal ? 'bg-good-500' : 'bg-haul-500'}`}
+              style={{ width: `${Math.min(100, Math.round((target.done / target.goal) * 100))}%` }}
+            />
+          </div>
+        </section>
+      )}
 
       {load ? (
         <DriverClient

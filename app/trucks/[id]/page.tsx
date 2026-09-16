@@ -521,6 +521,27 @@ export default async function Page({
                 tone: weekMiles > 0 ? (weekDeadheadPct >= 25 ? 'bad' : weekDeadheadPct >= 15 ? 'warn' : 'good') : undefined,
                 info: t(locale, 'trucks.chip.deadheadInfo'),
               },
+              // Цель недели из профиля водителя: сколько уже проехал / заработал против цели.
+              ...(meta?.weekTargetMiles
+                ? [
+                    {
+                      label: t(locale, 'trucks.chip.weekTarget'),
+                      value: `${Math.round(weekMiles).toLocaleString('en-US')} / ${meta.weekTargetMiles.toLocaleString('en-US')} mi · ${Math.round((weekMiles / meta.weekTargetMiles) * 100)}%`,
+                      tone: weekMiles >= meta.weekTargetMiles ? ('good' as const) : undefined,
+                      info: t(locale, 'trucks.chip.weekTargetInfo'),
+                    },
+                  ]
+                : []),
+              ...(meta?.weekTargetGross
+                ? [
+                    {
+                      label: t(locale, 'trucks.chip.weekTargetGross'),
+                      value: `${usd.format(weekGross)} / ${usd.format(meta.weekTargetGross)} · ${Math.round((weekGross / meta.weekTargetGross) * 100)}%`,
+                      tone: weekGross >= meta.weekTargetGross ? ('good' as const) : undefined,
+                      info: t(locale, 'trucks.chip.weekTargetInfo'),
+                    },
+                  ]
+                : []),
               ...(fs?.odometer != null
                 ? [
                     {

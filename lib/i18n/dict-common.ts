@@ -402,6 +402,7 @@ export const commonDict = {
     ro: 'Cursa ta',
     kk: 'Сенің жүгің',
   },
+  'driver.weekTarget': { ru: 'Цель недели', en: 'Weekly goal', es: 'Meta de la semana', uk: 'Ціль тижня', ro: 'Ținta săptămânii', kk: 'Апта мақсаты' },
   'driver.nextLoad': {
     ru: 'Следующий груз',
     en: 'Next load',

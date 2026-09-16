@@ -369,6 +369,15 @@ ALTER TABLE loads ADD COLUMN IF NOT EXISTS deadhead_ok_miles INT NULL;
 -- Поднимает груз наверх очереди внимания; NULL — обычный груз.
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS priority VARCHAR(16) NULL;
 
+-- Профиль водителя для планировщика (идея LoadOps Load AI / Uber «go home»): домашний
+-- штат, дома с… по…, цель недели и стоп-лист штатов «не возить в…» (коды через запятую).
+ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS home_state VARCHAR(2) NULL;
+ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS home_from DATE NULL;
+ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS home_to DATE NULL;
+ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS week_target_miles INT NULL;
+ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS week_target_gross INT NULL;
+ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS avoid_states TEXT NULL;
+
 -- Доп. начисления брокеру сверх ставки: detention, lumper, TONU, layover, stop-off.
 -- Строками уходят в счёт (lib/invoice.ts); ставка груза (loads.rate) не меняется.
 CREATE TABLE IF NOT EXISTS load_charges (
@@ -418,5 +427,5 @@ CREATE TABLE IF NOT EXISTS load_payments (
   CONSTRAINT load_payments_load_id_fkey FOREIGN KEY (load_id) REFERENCES loads (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
 
-INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-18')
+INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-19')
 ON DUPLICATE KEY UPDATE value = VALUES(value);

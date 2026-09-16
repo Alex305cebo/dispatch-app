@@ -36,7 +36,7 @@ export async function NeedsLoad({
   // Насколько горячий рынок там, где стоит трак без груза: грузов на трак в штате по DAT.
   // Серия — по трейлеру трака, иначе Van. Снимок из кэша — обзор DAT не ждёт.
   const series = (truckId: number): DatEquipment => datEquipment(trailers.get(truckId)) ?? 'VAN'
-  const idle = rows.filter((r) => r.free && !r.unavailable)
+  const idle = rows.filter((r) => r.free && !r.unavailable && !r.homeUntil)
   const snaps = new Map(
     await Promise.all([...new Set(idle.map((r) => series(r.truckId)))].map(async (eq) => [eq, await datCached(eq)] as const)),
   )
@@ -68,7 +68,9 @@ export async function NeedsLoad({
         {rows.map((r) => {
           const truck = trucks.get(r.truckId)
           if (!truck) return null
-          const snap = r.free && !r.unavailable ? snaps.get(series(r.truckId)) : null
+          // Водитель дома — как отпуск: место и рынок не нужны, груз ему не искать.
+          const off = !!r.unavailable || !!r.homeUntil
+          const snap = r.free && !off ? snaps.get(series(r.truckId)) : null
           const state = stateFromPlace(r.place)
           const lt = snap ? ltOf(snap, state) : null
           const heat = snap && lt ? ltHeat(snap, lt.ratio) : null
@@ -77,7 +79,7 @@ export async function NeedsLoad({
               <Link
                 href={`/trucks/${r.truckId}`}
                 className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2 transition-colors ${
-                  r.unavailable
+                  off
                     ? 'border-white/6 bg-white/[0.02] opacity-60 hover:opacity-100'
                     : r.free
                       ? 'border-warn-400/25 bg-warn-500/[0.06] hover:border-warn-400/50'
@@ -93,11 +95,13 @@ export async function NeedsLoad({
                 {/* У стоящего трака место — это ответ брокеру «где он сейчас», и его
                     копируют. У едущего в этой колонке город ВЫГРУЗКИ, а не место
                     трака, — там копировать нечего. */}
-                {r.free && !r.unavailable && r.place ? (
+                {r.free && !off && r.place ? (
                   <CopyPlace text={r.place} size="sm" className="min-w-0 text-[12px] text-white/70" />
                 ) : (
                   <span className="min-w-0 truncate text-[12px] text-white/55">
-                    {r.unavailable
+                    {r.homeUntil
+                      ? t(locale, 'needsLoad.home').replace('{date}', usDate(r.homeUntil))
+                      : r.unavailable
                       ? t(locale, r.unavailable === 'repair' ? 'needsLoad.repair' : 'needsLoad.vacation')
                       : r.free
                         ? t(locale, 'needsLoad.noPlace')
@@ -142,7 +146,7 @@ export async function NeedsLoad({
                         <span className={r.days >= 5 ? 'font-semibold text-bad-400' : 'text-warn-400'}>
                           {t(locale, 'needsLoad.idleDays').replace('{n}', String(r.days))}
                         </span>
-                        {!r.unavailable && r.idleCost > 0 && (
+                        {!off && r.idleCost > 0 && (
                           <span className="ml-2 text-white/45">−{usd.format(r.idleCost)}</span>
                         )}
                       </>

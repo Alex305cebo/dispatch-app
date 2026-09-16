@@ -106,6 +106,7 @@ export const overviewDict = {
   'needsLoad.noPlace': { ru: 'нет данных GPS', en: 'no GPS data', es: 'sin datos de GPS', uk: 'немає даних GPS', ro: 'fără date GPS', kk: 'GPS дерегі жоқ' },
   'needsLoad.repair': { ru: 'в ремонте', en: 'in repair', es: 'en el taller', uk: 'у ремонті', ro: 'în service', kk: 'жөндеуде' },
   'needsLoad.vacation': { ru: 'в отпуске', en: 'on vacation', es: 'de vacaciones', uk: 'у відпустці', ro: 'în concediu', kk: 'демалыста' },
+  'needsLoad.home': { ru: 'дома до {date}', en: 'home until {date}', es: 'en casa hasta {date}', uk: 'вдома до {date}', ro: 'acasă până pe {date}', kk: '{date} дейін үйде' },
   'needsLoad.market': {
     ru: 'рынок {heat}',
     en: '{heat} market',

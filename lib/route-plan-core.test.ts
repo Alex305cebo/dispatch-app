@@ -174,3 +174,17 @@ test('хуже всего — штат, где трак застрянет (са
   assert.equal(worst.state, 'MT')
   assert.ok(lanes.every((l) => l.wait <= worst.wait))
 })
+
+test('профиль водителя: стоп-лист вырезан, домашний штат помечен и первым, когда домой скоро', () => {
+  const all = rankLanes(snap, { state: 'IL' }, opts)
+  assert.ok(all.some((l) => l.state === 'CA') && all.some((l) => l.state === 'TX'))
+  const cut = rankLanes(snap, { state: 'IL' }, { ...opts, avoid: ['CA', 'TX'] })
+  assert.ok(!cut.some((l) => l.state === 'CA' || l.state === 'TX'))
+  assert.equal(cut.length, all.length - 2)
+  const home = rankLanes(snap, { state: 'IL' }, { ...opts, homeState: 'MT' })
+  assert.equal(home.find((l) => l.state === 'MT')?.home, true)
+  assert.notEqual(home[0]!.state, 'MT') // холодный штат по деньгам не первый
+  const soon = rankLanes(snap, { state: 'IL' }, { ...opts, homeState: 'MT', preferHome: true })
+  assert.equal(soon[0]!.state, 'MT')
+  assert.equal(soon.length, home.length)
+})

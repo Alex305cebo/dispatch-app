@@ -26,6 +26,50 @@ export type TruckMeta = {
   insuranceExpiry: string | null
   cdlExpiry: string | null
   medcardExpiry: string | null
+  /** Профиль водителя для планировщика — см. DriverProfile. */
+  homeState: string | null
+  homeFrom: string | null
+  homeTo: string | null
+  weekTargetMiles: number | null
+  weekTargetGross: number | null
+  /** Штаты «не возить в…», коды. */
+  avoidStates: string[]
+}
+
+/** Что планировщик и «Кому искать груз» знают о водителе: домашний штат, когда он дома,
+ * цель недели и стоп-лист штатов. Всё необязательное — пустой профиль ничего не меняет. */
+export type DriverProfile = Pick<TruckMeta, 'homeState' | 'homeFrom' | 'homeTo' | 'weekTargetMiles' | 'weekTargetGross' | 'avoidStates'>
+
+export const EMPTY_PROFILE: DriverProfile = {
+  homeState: null,
+  homeFrom: null,
+  homeTo: null,
+  weekTargetMiles: null,
+  weekTargetGross: null,
+  avoidStates: [],
+}
+
+/** «ny, ca; tx» → ['NY', 'CA', 'TX']: только двухбуквенные коды, без повторов. */
+export function parseStates(raw: string | null | undefined): string[] {
+  const out: string[] = []
+  for (const m of (raw ?? '').toUpperCase().matchAll(/\b([A-Z]{2})\b/g)) if (!out.includes(m[1]!)) out.push(m[1]!)
+  return out
+}
+
+/** Водитель дома сегодня (today — yyyy-mm-dd)? Возвращает, до какого числа; null — в строю. */
+export function homeUntil(p: Pick<DriverProfile, 'homeFrom' | 'homeTo'> | null | undefined, today: string): string | null {
+  if (!p?.homeFrom || !p.homeTo) return null
+  return p.homeFrom <= today && today <= p.homeTo ? p.homeTo : null
+}
+
+/** Домой скоро: отпуск начинается в ближайшие `days` дней — планировщику пора вести к дому.
+ * Возвращает дату начала; null — не скоро или дат нет. */
+export function homeSoon(p: Pick<DriverProfile, 'homeFrom' | 'homeTo'> | null | undefined, today: string, days = 7): string | null {
+  if (!p?.homeFrom) return null
+  const from = Date.parse(`${p.homeFrom}T12:00:00`)
+  const now = Date.parse(`${today}T12:00:00`)
+  const diff = (from - now) / 86_400_000
+  return diff >= 0 && diff <= days ? p.homeFrom : null
 }
 
 export type MaintenanceRecord = {

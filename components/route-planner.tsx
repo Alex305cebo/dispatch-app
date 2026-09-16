@@ -55,6 +55,11 @@ export type PlanTruck = {
   /** GPS свободного трака — мили первого плеча точнее, чем от середины штата. */
   ll: [number, number] | null
   unavailable: 'repair' | 'vacation' | null
+  /** Профиль водителя (паспорт трака): домашний штат, «домой к» (дата, если отпуск в
+   * ближайшие дни) и стоп-лист штатов. */
+  homeState: string | null
+  homeBy: string | null
+  avoid: string[]
 }
 
 /** Суточные снимки DAT по сериям; `date` — MM/DD/YY, отформатирован на сервере: на
@@ -130,7 +135,17 @@ export function useRoutePlan(trucks: PlanTruck[], snaps: PlanSnaps, selectedId: 
 
   const snap = series ? (snaps[series] ?? null) : null
   const planOpts = useMemo<PlanOptions | null>(
-    () => (truck ? { settings: truck.settings, milesPerDay: opts.mpd, deadhead: opts.deadhead } : null),
+    () =>
+      truck
+        ? {
+            settings: truck.settings,
+            milesPerDay: opts.mpd,
+            deadhead: opts.deadhead,
+            avoid: truck.avoid,
+            homeState: truck.homeState,
+            preferHome: !!truck.homeBy,
+          }
+        : null,
     [truck, opts.mpd, opts.deadhead],
   )
   const from = useMemo<PlanOrigin | null>(
@@ -338,6 +353,19 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
         )}
       </div>
       <p className="mt-1.5 break-words text-[12px] text-white/55">{originLine}</p>
+      {/* Профиль водителя: скоро домой — домашнее направление первым; стоп-лист штатов
+          вырезан из списка. Обе строки только когда в паспорте это заполнено. */}
+      {(truck.homeBy || truck.avoid.length > 0) && (
+        <p className="mt-1 break-words text-[12px] text-white/55">
+          {truck.homeBy && truck.homeState && (
+            <span className="text-haul-300">
+              🏠 {t(locale, 'plan.homeBy').replace('{state}', stateName(truck.homeState)).replace('{date}', usDate(truck.homeBy))}
+            </span>
+          )}
+          {truck.homeBy && truck.homeState && truck.avoid.length > 0 && ' · '}
+          {truck.avoid.length > 0 && t(locale, 'plan.avoid').replace('{states}', truck.avoid.join(', '))}
+        </p>
+      )}
 
       <details className="group mt-2 rounded-xl border border-white/8">
         <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 text-[12px] text-white/55 max-md:min-h-11">
@@ -477,7 +505,17 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
                 limit={5}
                 label={t(locale, 'plan.more')}
                 items={shown.slice(0, 10).map((lane, i) => (
-                  <LaneRow key={lane.state} lane={lane} rank={i + 1} snap={snap} origin={origin} opts={opts} settings={s} locale={locale} />
+                  <LaneRow
+                    key={lane.state}
+                    lane={lane}
+                    rank={i + 1}
+                    snap={snap}
+                    origin={origin}
+                    opts={opts}
+                    settings={s}
+                    locale={locale}
+                    reasons={lane.home ? [t(locale, 'plan.why.home')] : undefined}
+                  />
                 ))}
               />
             </div>
@@ -1175,6 +1213,8 @@ function BoardCompare({
                   lane.heat === 'cold' ? t(locale, 'plan.why.cold').replace('{days}', lane.wait.toFixed(1)) : null,
                   lane.heat === 'hot' ? t(locale, 'plan.why.hot') : null,
                   lane.net < 0 ? t(locale, 'plan.why.loss') : null,
+                  lane.home ? t(locale, 'plan.why.home') : null,
+                  planOpts.avoid?.includes(lane.state) ? t(locale, 'plan.why.avoid') : null,
                 ].filter((x): x is string => x !== null)
                 return (
                   <LaneRow
