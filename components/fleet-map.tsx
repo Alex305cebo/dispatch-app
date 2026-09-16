@@ -598,7 +598,8 @@ export function FleetMap({
   // Слой хвоста и его видимость. Ref, а не завязка эффекта на state: переключение
   // не должно пересобирать карту — только снять/надеть группу точек.
   const trailRef = useRef<import('leaflet').LayerGroup | null>(null)
-  const [trailOn, setTrailOn] = useState(true)
+  // След за 12 ч (янтарные точки) показывается всегда — кнопки-переключателя больше нет.
+  const [trailOn] = useState(true)
   const trailOnRef = useRef(trailOn)
   trailOnRef.current = trailOn
   // Карта строится асинхронно — слою рынка нужен сигнал, что ей уже есть куда рисовать.
@@ -1160,21 +1161,6 @@ export function FleetMap({
             <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
           </svg>
         </button>
-        {routes.some((r) => r.tone === 'trail') && (
-          <button
-            type="button"
-            onClick={() => setTrailOn((v) => !v)}
-            title={t(locale, 'tracking.trailTitle')}
-            className={`flex h-[26px] items-center justify-center rounded-lg border px-1.5 text-[10.5px] font-semibold backdrop-blur transition-colors sm:px-2 ${
-              trailOn
-                ? 'border-white/25 bg-ink-950/85 text-white'
-                : 'border-white/15 bg-ink-950/60 text-white/45 hover:text-white/70'
-            }`}
-          >
-            <span className="inline-block size-2.5 rounded-full border border-white bg-[#f59e0b]" />
-            {/* Слово — только на широком экране; на телефоне хватает точки. */}
-          </button>
-        )}
         {markers.some((m) => m.kind === 'truck') && (
           <button
             type="button"
