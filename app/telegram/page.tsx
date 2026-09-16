@@ -47,7 +47,7 @@ function when(iso: string | null, locale: Locale): string {
   return today ? d.toLocaleTimeString(dl, { hour: '2-digit', minute: '2-digit' }) : usDate(d)
 }
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ chat?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ chat?: string; truck?: string }> }) {
   const user = await getCurrentUser()
   const locale = await getLocale()
 
@@ -115,7 +115,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     )
   }
 
-  const chatId = (await searchParams).chat
+  const sp = await searchParams
+  let chatId = sp.chat
   let allDialogs: TgDialog[] = []
   let msgs: TgMsg[] | null = null
   let error: string | null = null
@@ -129,7 +130,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       tgChatTruckMap(user.id),
       tgAccountInfo(user.id),
     ])
-    if (chatId) msgs = await tgMessages(user.id, chatId)
   } catch (e) {
     error = e instanceof Error ? e.message : String(e)
   }
@@ -155,6 +155,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       return [d.id, (manual ? truckNumberById.get(manual) : undefined) ?? byPhone] as const
     }),
   )
+  // С карточки груза: «?truck=<id>» — чат, привязанный к этому траку.
+  if (!chatId && sp.truck) {
+    const num = truckNumberById.get(Number(sp.truck))
+    chatId = num ? dialogs.find((d) => truckByChat.get(d.id) === num)?.id : undefined
+  }
+  if (chatId && !error) msgs = await tgMessages(user.id, chatId).catch(() => null)
   const open = chatId ? dialogs.find((d) => d.id === chatId) : undefined
 
   return (

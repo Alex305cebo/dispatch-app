@@ -33,6 +33,8 @@ import { DetentionTile } from '@/components/detention-tile'
 import { detentionTerms, getSetting } from '@/lib/settings'
 import { headers } from 'next/headers'
 import { DriverLinkButton } from '@/components/driver-link-button'
+import { Send } from 'lucide-react'
+import { tgConnected } from '@/lib/telegram'
 import { stopWindows } from '@/lib/detention'
 import { BackhaulList } from '@/components/backhaul-list'
 import { backhaulBrokers } from '@/lib/backhaul'
@@ -129,6 +131,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     load.spotRpm ? null : datCached(datEquipment(truckMeta?.trailerNumber) ?? 'VAN'),
   ])
   const datRate = datSnap ? originRate(datSnap, load.origin) : null
+  // Кнопка «Чат Telegram» — только у того, чей Telegram подключён (демо — никогда).
+  const me = await getCurrentUser()
+  const tgUserId = me && !me.isDemo && (await tgConnected(me.id).catch(() => false)) ? me.id : null
   const taskLoads = mates.length ? [load, ...mates] : []
   const taskEvents: Record<number, StopEv[]> = { [load.id]: driverEvents }
   for (const m of mates) taskEvents[m.id] = await listLoadEvents(companyId, m.id)
@@ -267,6 +272,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           )}
           <DocButton label="BOL" kind="bol" docId={bolDoc?.id ?? null} loadId={load.id} />
           <DocButton label="POD" kind="pod" docId={podDoc?.id ?? null} loadId={load.id} />
+          {/* Чат водителя в Telegram одним нажатием: BOL/POD и фото водитель шлёт туда, а
+              «В груз» у сообщения кладёт файл сюда. Только если Telegram подключён. */}
+          {tgUserId != null && (
+            <Link
+              href={`/telegram?truck=${truck.id}`}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-sky-400/35 bg-sky-500/10 px-3 py-2 text-[12.5px] font-semibold text-sky-300 transition-colors hover:bg-sky-500/20"
+            >
+              <Send size={14} aria-hidden />
+              {t(locale, 'loadDetail.tgChat')}
+            </Link>
+          )}
           {/* Тот же брокер, то же направление, новые даты. Регулярный рейс заводился
               заново каждую неделю — вместе с перепечатыванием почты брокера и миль. */}
           <Link

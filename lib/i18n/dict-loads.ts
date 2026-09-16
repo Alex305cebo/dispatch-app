@@ -1545,6 +1545,7 @@ export const loadsDict = {
     ro: '✓ Cursă creată · verificată de IA',
     kk: '✓ Жүк құрылды · ЖИ тексерді',
   },
+  'loadDetail.tgChat': { ru: 'Чат Telegram', en: 'Telegram chat', es: 'Chat de Telegram', uk: 'Чат Telegram', ro: 'Chat Telegram', kk: 'Telegram чаты' },
   'rcDrop.openLoad': {
     ru: 'Открыть груз',
     en: 'Open load',
