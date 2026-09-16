@@ -20,7 +20,8 @@ import { datCached, datEquipment, stateFromPlace } from '@/lib/dat-market'
 import { FleetPanel } from '@/components/fleet-panel'
 import type { PlanSnaps, PlanTruck } from '@/components/route-planner'
 import { homeSoon, parseStates } from '@/lib/maintenance-core'
-import { ownStateRpm } from '@/lib/own-state-rpm'
+import { ownStateRpm, type OwnStateRpm } from '@/lib/own-state-rpm'
+import { datStateRpm } from '@/lib/dat-lanes'
 import { type TrackingRow } from '@/components/fleet-list'
 import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
 import { positionSignals } from '@/lib/eld'
@@ -78,8 +79,10 @@ export async function FleetBoard({
   // бы ещё и в браузере, в его поясе, а сервер Hostinger живёт в UTC.
   // Ставки наших грузов по штатам — одни на все серии (свои грузы, не DAT).
   const own = ownStateRpm(loads)
+  // Спот DAT RateView по штатам — из направлений с доски DAT One (lib/dat-lanes.ts).
+  const dat = await datStateRpm(companyId).catch((): Record<string, OwnStateRpm> => ({}))
   const snaps: PlanSnaps = Object.fromEntries(
-    datSnaps.flatMap(([eq, snap]) => (snap ? [[eq, { ...snap, date: usDate(todayEt(new Date(snap.at))), own }]] : [])),
+    datSnaps.flatMap(([eq, snap]) => (snap ? [[eq, { ...snap, date: usDate(todayEt(new Date(snap.at))), own, dat: dat[eq] ?? {} }]] : [])),
   )
   // One query for the whole fleet, instead of currentLoadForTruck() per truck.
   const currentByTruck = currentLoadsByTruck(loads)

@@ -427,5 +427,26 @@ CREATE TABLE IF NOT EXISTS load_payments (
   CONSTRAINT load_payments_load_id_fkey FOREIGN KEY (load_id) REFERENCES loads (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
 
-INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-19')
+-- Спот-ставки DAT RateView по направлениям с доски DAT One — присылает расширение
+-- DispatchPro (app/api/dat-lanes). Одно направление в день — одна строка.
+CREATE TABLE IF NOT EXISTS dat_lanes (
+  id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+  company_id   VARCHAR(64) NOT NULL DEFAULT 'default',
+  origin       VARCHAR(120) NOT NULL,
+  dest         VARCHAR(120) NOT NULL,
+  origin_state CHAR(2),
+  dest_state   CHAR(2),
+  equipment    VARCHAR(16) NOT NULL DEFAULT 'VAN',
+  miles        INT NOT NULL,
+  spot_rate    INT NOT NULL,
+  spot_rpm     DOUBLE NOT NULL,
+  spot_low     INT,
+  spot_high    INT,
+  seen_on      DATE NOT NULL,
+  seen_at      DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  UNIQUE KEY dat_lanes_day (company_id, origin, dest, equipment, seen_on),
+  KEY dat_lanes_state (company_id, origin_state, seen_on)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
+
+INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-20')
 ON DUPLICATE KEY UPDATE value = VALUES(value);

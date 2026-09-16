@@ -223,6 +223,14 @@ export const plannerDict = {
     ro: '🔥 fierbinte · ❄️ rece',
     kk: '🔥 қызу · ❄️ салқын',
   },
+  'plan.market.datRpm': {
+    ru: 'DAT RateView: спот из штата {rpm}/mi по {n} направл. с доски DAT One за 30 дней (синим) — настоящие ставки DAT через DispatchPro',
+    en: 'DAT RateView: spot out of the state {rpm}/mi over {n} lanes seen on the DAT One board in 30 days (blue) — real DAT rates via DispatchPro',
+    es: 'DAT RateView: spot desde el estado {rpm}/mi en {n} rutas vistas en DAT One en 30 días (azul) — tarifas reales de DAT vía DispatchPro',
+    uk: 'DAT RateView: спот зі штату {rpm}/mi за {n} напрямками з дошки DAT One за 30 днів (синім) — справжні ставки DAT через DispatchPro',
+    ro: 'DAT RateView: spot din stat {rpm}/mi pe {n} rute văzute pe DAT One în 30 de zile (albastru) — tarife reale DAT prin DispatchPro',
+    kk: 'DAT RateView: штаттан спот {rpm}/mi, 30 күнде DAT One тақтасында көрінген {n} бағыт (көк) — DispatchPro арқылы DAT нақты тарифтері',
+  },
   'plan.market.ownRpm': {
     ru: 'Наши грузы из штата за 12 мес.: {n}, ставка {rpm}/mi по гружёным милям — из наших рейт-конов, не оценка',
     en: 'Our loads out of this state, 12 months: {n}, {rpm}/mi on loaded miles — from our rate cons, not an estimate',
@@ -240,8 +248,8 @@ export const plannerDict = {
     kk: 'Соңғы жылы осы штаттан жүгіміз болмады — ашық DAT штат бойынша тариф бермейді',
   },
   'plan.market.regionsInfo': {
-    ru: 'Главная цифра — ставка DAT за милю по региону. Под ней хорошие штаты региона по грузам на трак (зелёные, от горячего к менее горячему) и один худший внизу (красный) — куда лучше не ехать. Значок: 🔥🔥 очень горячий, 🔥 горячий, · средний, ❄️ холодный, ❄️❄️ очень холодный. Правее — ставка за милю и число наших грузов оттуда за 12 мес. по нашим рейт-конам; ставок по штатам открытый DAT не даёт, приблизительные не показываем.',
-    en: 'The main number is the DAT rate per mile for the region. Below it: the good states of the region by loads per truck (green, hottest first) and one worst state at the bottom (red) — where not to go. Icon: 🔥🔥 very hot, 🔥 hot, · average, ❄️ cold, ❄️❄️ very cold. To the right: rate per mile and count of our own loads out of that state in 12 months, from our rate cons; free DAT has no per-state rates and we show no estimates.',
+    ru: 'Главная цифра — ставка DAT за милю по региону. Под ней хорошие штаты региона по грузам на трак (зелёные, от горячего к менее горячему) и один худший внизу (красный) — куда лучше не ехать. Значок: 🔥🔥 очень горячий, 🔥 горячий, · средний, ❄️ холодный, ❄️❄️ очень холодный. Правее: синим — спот DAT RateView из этого штата по направлениям с доски DAT One за 30 дней (их присылает расширение DispatchPro), серым — ставка за милю и число наших грузов оттуда за 12 мес. по нашим рейт-конам. Приблизительные цифры не показываем.',
+    en: 'The main number is the DAT rate per mile for the region. Below it: the good states of the region by loads per truck (green, hottest first) and one worst state at the bottom (red) — where not to go. Icon: 🔥🔥 very hot, 🔥 hot, · average, ❄️ cold, ❄️❄️ very cold. To the right: in blue — DAT RateView spot out of that state over lanes seen on the DAT One board in 30 days (sent by the DispatchPro extension); in gray — rate per mile and count of our own loads out of it in 12 months, from our rate cons. No estimates.',
     es: 'La cifra principal es la tarifa DAT por milla de la región. Debajo: los buenos estados de la región por cargas por camión (verdes, del más caliente) y uno peor abajo (rojo), adonde no conviene ir. Icono: 🔥🔥 muy caliente, 🔥 caliente, · medio, ❄️ frío, ❄️❄️ muy frío. A la derecha: tarifa por milla y número de nuestras cargas desde ese estado en 12 meses, de nuestros rate cons; el DAT gratuito no da tarifas por estado y no mostramos estimaciones.',
     uk: 'Головна цифра — ставка DAT за милю по регіону. Під нею хороші штати регіону за вантажами на трак (зелені, від гарячого) і один найгірший унизу (червоний) — куди краще не їхати. Значок: 🔥🔥 дуже гарячий, 🔥 гарячий, · середній, ❄️ холодний, ❄️❄️ дуже холодний. Правіше — ставка за милю і число наших вантажів звідти за 12 міс. за нашими рейт-конами; ставок по штатах відкритий DAT не дає, приблизних не показуємо.',
     ro: 'Cifra principală e tariful DAT pe milă al regiunii. Dedesubt: statele bune ale regiunii după curse per camion (verzi, de la cel mai fierbinte) și unul cel mai slab jos (roșu) — unde nu merită să mergi. Simbol: 🔥🔥 foarte fierbinte, 🔥 fierbinte, · mediu, ❄️ rece, ❄️❄️ foarte rece. În dreapta: tariful pe milă și numărul curselor noastre din acel stat în 12 luni, din rate con-urile noastre; DAT gratuit nu dă tarife pe stat, estimări nu arătăm.',
