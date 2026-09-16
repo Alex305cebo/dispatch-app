@@ -1,4 +1,5 @@
 import { sql } from '@/lib/db'
+import type { StopEv } from '@/lib/stops'
 
 export type LoadEventKind = 'arrived_pickup' | 'loaded' | 'arrived_delivery' | 'delivered' | 'note' | 'photo'
 
@@ -52,6 +53,23 @@ export async function listLoadEvents(companyId: 'default' | 'demo', loadId: numb
     at: String(r.at),
     stopSeq: r.stop_seq ?? null,
   }))
+}
+
+/** Отметки «приехал / загрузился / выгрузился» по ВСЕМ грузам компании — для справочника
+ * складов (lib/facilities.ts): стоянки у склада считаются по ним. Заметки и фото не нужны. */
+export async function allStopEvents(companyId: 'default' | 'demo'): Promise<Map<number, StopEv[]>> {
+  const rows = (await sql`
+    SELECT load_id, kind, at, stop_seq FROM load_events
+    WHERE company_id = ${companyId} AND load_id IS NOT NULL
+      AND kind IN ('arrived_pickup', 'loaded', 'arrived_delivery', 'delivered')
+    ORDER BY at ASC, id ASC`) as { load_id: number; kind: string; at: Date | string; stop_seq: number | null }[]
+  const out = new Map<number, StopEv[]>()
+  for (const r of rows) {
+    const list = out.get(r.load_id) ?? []
+    list.push({ kind: r.kind, at: r.at instanceof Date ? r.at.toISOString() : String(r.at), stopSeq: r.stop_seq })
+    out.set(r.load_id, list)
+  }
+  return out
 }
 
 /** Последние сообщения водителей за сутки — для уведомлений диспетчеру. */

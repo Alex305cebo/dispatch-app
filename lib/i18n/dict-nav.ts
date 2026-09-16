@@ -10,6 +10,7 @@ export const navDict = {
   'nav.tracking': { ru: 'Трекинг', en: 'Track', es: 'Rastreo', uk: 'Трекінг', ro: 'Urmărire', kk: 'Бақылау' },
   'nav.docs': { ru: 'Файлы', en: 'Docs', es: 'Archivos', uk: 'Файли', ro: 'Fișiere', kk: 'Файлдар' },
   'nav.brokers': { ru: 'Брокеры', en: 'Brokers', es: 'Brókers', uk: 'Брокери', ro: 'Brokeri', kk: 'Брокерлер' },
+  'nav.facilities': { ru: 'Склады', en: 'Facilities', es: 'Almacenes', uk: 'Склади', ro: 'Depozite', kk: 'Қоймалар' },
   // В боковом меню «Платные дороги» переносилось на две строки и толкало соседей.
   // «Толлы» — то самое слово, которым это и называют вслух в диспетчерской, и оно
   // втрое короче. Полное название осталось заголовком самого раздела.

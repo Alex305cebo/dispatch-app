@@ -6,7 +6,9 @@ import { listLoadEvents } from '@/lib/load-events'
 import { activeLoadsByTruck, nextLoadsByTruck } from '@/lib/map'
 import { mergeStops, parseTaskOrder, taskOrderKey } from '@/lib/stops'
 import { getCompany } from '@/lib/invoice'
-import { getSetting, setSetting } from '@/lib/settings'
+import { getSetting, getSettings, setSetting } from '@/lib/settings'
+import { allStopEvents } from '@/lib/load-events'
+import { facilityIndex, facilityKey, facilityNoteKey } from '@/lib/facilities'
 import { resolveLocale, t } from '@/lib/i18n'
 import { loadWeekAnchorMs, usd, usDate, weekBounds } from '@/lib/fmt'
 import { getTruckMeta } from '@/lib/maintenance'
@@ -28,6 +30,22 @@ export default async function Page({ params }: { params: Promise<{ token: string
   const jar = await cookies()
   const locale = resolveLocale(jar.get('driver_locale')?.value ?? 'en')
   const [loads, company, meta] = await Promise.all([listLoads(truck.companyId, { truckId: truck.id }), getCompany(), getTruckMeta(truck.id)])
+  // «Как заехать» с прошлого раза и заметка о складе — водителю, если у этого груза
+  // своих указаний нет (lib/facilities.ts). Считается по всем грузам компании.
+  const inheritDirections = async <T extends { address: string | null; name: string | null; city: string | null; directions?: string | null }>(stops: T[]): Promise<T[]> => {
+    if (!stops.some((s) => !s.directions)) return stops
+    const [all, events] = await Promise.all([listLoads(truck.companyId), allStopEvents(truck.companyId)])
+    const index = facilityIndex(all, events)
+    const keys = stops.map((s) => facilityKey(s)).filter((k): k is string => !!k)
+    const notes = await getSettings(keys.map(facilityNoteKey))
+    return stops.map((s) => {
+      if (s.directions) return s
+      const key = facilityKey(s)
+      const f = key ? index.get(key) : undefined
+      const text = [f?.directions, key ? notes.get(facilityNoteKey(key)) : null].filter(Boolean).join(' · ')
+      return text ? { ...s, directions: text } : s
+    })
+  }
   // Цель недели водителя (профиль в паспорте трака): мили или деньги по грузам этой недели.
   const { start: weekBegin, end: weekEnd } = weekBounds()
   const weekLoads = loads.filter((l) => {
@@ -98,7 +116,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
           locale={locale}
           load={summary(load)}
           loads={active.map(summary)}
-          stops={mergeStops(active, parseTaskOrder(await getSetting(taskOrderKey(truck.id))))}
+          stops={await inheritDirections(mergeStops(active, parseTaskOrder(await getSetting(taskOrderKey(truck.id)))))}
           events={events}
           dispatcherPhone={company.phone}
         />

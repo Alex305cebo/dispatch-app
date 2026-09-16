@@ -27,7 +27,7 @@ const field =
  * в счёт. Список, «Итого к оплате» и одна строка добавления. Удаление — крестиком без
  * слова-подтверждения: строка восстанавливается за пять секунд, это не документ.
  */
-export function LoadCharges({ loadId, rate, charges }: { loadId: number; rate: number; charges: LoadCharge[] }) {
+export function LoadCharges({ loadId, rate, charges, stopsCount = 2 }: { loadId: number; rate: number; charges: LoadCharge[]; stopsCount?: number }) {
   const locale = useLocale()
   const [busy, start] = useTransition()
   const [kind, setKind] = useState<ChargeKind>('detention')
@@ -79,6 +79,11 @@ export function LoadCharges({ loadId, rate, charges }: { loadId: number; rate: n
         </ul>
       ) : (
         <p className="mt-1 text-[12px] text-white/45">{t(locale, 'loads.charges.empty')}</p>
+      )}
+      {/* Больше двух остановок, а stop-off не начислен — подсказка, как в AscendTMS
+          («у тебя лишняя остановка»). */}
+      {stopsCount > 2 && !charges.some((c) => c.kind === 'stop_off') && (
+        <p className="mt-1.5 text-[12px] text-warn-400">{t(locale, 'loads.charges.stopOffHint').replace('{n}', String(stopsCount))}</p>
       )}
       {/* Итог: ставка + начисления. Ставка груза не меняется — она из рейт-кона. */}
       {charges.length > 0 && (

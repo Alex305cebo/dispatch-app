@@ -16,6 +16,7 @@ import { t, type MsgKey } from '@/lib/i18n'
 // to render seven paths.
 const icons: Record<string, string> = {
   dash: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',
+  pin: 'M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
   loads: 'M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10',
   add: 'M12 5v14M5 12h14',
   doc: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5 M12 12v6 M9 15l3-3 3 3',
@@ -104,6 +105,7 @@ const ITEMS: Item[] = [
   { href: '/trucks', labelKey: 'nav.trucks', icon: 'settings', primary: true },
   { href: '/docs', labelKey: 'nav.docs', icon: 'docs', primary: true },
   { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield' },
+  { href: '/facilities', labelKey: 'nav.facilities', icon: 'pin' },
   { href: '/tolls', labelKey: 'nav.tolls', icon: 'toll' },
   { href: '/telegram', labelKey: 'nav.telegram', icon: 'chat' },
   { href: '/invoices', labelKey: 'nav.finances', icon: 'money' },

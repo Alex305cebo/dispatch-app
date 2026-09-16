@@ -56,6 +56,7 @@ import { lateStop } from '@/lib/loads-dashboard'
 import { listCharges } from '@/lib/charges'
 import { LoadCharges } from '@/components/load-charges'
 import { PriorityPicker } from '@/components/priority-picker'
+import { FacilityHints } from '@/components/facility-hints'
 
 export const dynamic = 'force-dynamic'
 
@@ -377,6 +378,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         />
       )}
 
+      {/* «Мы здесь уже были» — история по адресам груза: считается по всем грузам
+          компании, поэтому в своей границе и после основного. */}
+      {load.status !== 'cancelled' && (
+        <Suspense fallback={null}>
+          <FacilityHints companyId={companyId} load={load} locale={locale} />
+        </Suspense>
+      )}
+
       <section className="panel mt-4 p-5">
         <h2 className="mb-4 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'loadDetail.detailsHeading')}
@@ -437,7 +446,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           )}
         </div>
         {/* Начисления сверх ставки — над счётом: они в него и попадают строками. */}
-        {load.status !== 'cancelled' && <LoadCharges loadId={load.id} rate={load.rate} charges={charges} />}
+        {load.status !== 'cancelled' && <LoadCharges loadId={load.id} rate={load.rate} charges={charges} stopsCount={stops.length} />}
         <InvoiceBox
           loadId={load.id}
           invoiceNumber={load.invoiceNumber}

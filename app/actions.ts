@@ -39,7 +39,8 @@ import { docBelongs, getLoad, loadBelongs, truckBelongs } from '@/lib/loads'
 import { knownBrokerMc } from '@/lib/brokers'
 import type { HistoryLeg } from '@/lib/trip-history'
 import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
-import { dispatcherPhoneKey, getSetting, setSetting } from '@/lib/settings'
+import { deleteSetting, dispatcherPhoneKey, getSetting, setSetting } from '@/lib/settings'
+import { facilityNoteKey } from '@/lib/facilities'
 import { companyScope, confirmDelete, demoReadOnly, getCurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
 import type { CapabilityKey } from '@/lib/capabilities'
@@ -1941,6 +1942,20 @@ export async function deleteLoadCharge(id: number, loadId: number): Promise<{ er
   if (!(await loadBelongs(companyId, loadId))) return { error: t(await getLocale(), 'actions.loadNotFound') }
   await sql`DELETE FROM load_charges WHERE id = ${id} AND load_id = ${loadId} AND company_id = ${companyId}`
   revalidatePath(`/loads/${loadId}`)
+}
+
+/** Заметка о складе (справочник складов, lib/facilities.ts): часы, ворота, кому звонить.
+ * Пустая строка стирает. Ключ — нормализованный адрес, поэтому без проверки владельца:
+ * settings и так общие на компанию. */
+export async function saveFacilityNote(key: string, text: string): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  if (!key || key.length > 120) return { error: 'bad key' }
+  const value = text.trim().slice(0, 500)
+  if (value) await setSetting(facilityNoteKey(key), value)
+  else await deleteSetting(facilityNoteKey(key))
+  revalidatePath('/facilities')
+  revalidatePath('/loads', 'layout')
 }
 
 /** Save the broker's special-instructions text (the "must read" block). */
