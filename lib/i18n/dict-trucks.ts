@@ -1601,6 +1601,8 @@ export const trucksDict = {
     ro: 'Poza camionului a fost salvată',
     kk: 'Трак суреті сақталды',
   },
+  'trucks.head.driverTime': { ru: 'Время у водителя', en: 'Driver local time', es: 'Hora del conductor', uk: 'Час у водія', ro: 'Ora șoferului', kk: 'Жүргізуші уақыты' },
+  'trucks.head.driverTimeShort': { ru: 'у водителя', en: 'driver time', es: 'hora conductor', uk: 'у водія', ro: 'ora șoferului', kk: 'жүргізушіде' },
   'trucks.head.location': {
     ru: 'Где сейчас',
     en: 'Current location',

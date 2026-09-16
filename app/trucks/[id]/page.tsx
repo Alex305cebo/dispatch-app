@@ -15,6 +15,8 @@ import { fleetStatusByUnit, getTruckMeta, listMaintenance, listTodos, oilStatus 
 import { tripHistory } from '@/lib/eld'
 import { loadMapData, statusTone } from '@/lib/load-map'
 import { usd, usd2, weekBounds, loadWeekAnchorMs, usDate } from '@/lib/fmt'
+import { zoneFor } from '@/lib/tz'
+import { LocalTime } from '@/components/local-time'
 import { FleetMap } from '@/components/fleet-map'
 import { StatusBadge, statusLabel } from '@/components/status'
 import { TruckForm } from '@/components/truck-form'
@@ -315,6 +317,11 @@ export default async function Page({
                  Ответ на «где трак» почти всегда тут же уходит брокеру. */
               <HeadField label={t(locale, 'trucks.head.location')} className="col-span-2 sm:hidden">
                 <span className="block">{fs.location}</span>
+                {zoneFor(fs.lat, fs.lng) && (
+                  <span className="mt-0.5 block text-[12px] text-white/60">
+                    {t(locale, 'trucks.head.driverTime')}: <LocalTime zone={zoneFor(fs.lat, fs.lng)!} className="nums font-semibold text-white/85" />
+                  </span>
+                )}
                 <CopyPlace
                   text={fs.location}
                   copy={cityOf(fs.location) ?? fs.location}
@@ -446,6 +453,11 @@ export default async function Page({
               <dl className="max-sm:hidden">
                 <HeadField label={t(locale, 'trucks.head.location')}>
                   <span className="block">{fs.location}</span>
+                  {zoneFor(fs.lat, fs.lng) && (
+                    <span className="mt-0.5 block text-[12px] text-white/60">
+                      {t(locale, 'trucks.head.driverTime')}: <LocalTime zone={zoneFor(fs.lat, fs.lng)!} className="nums font-semibold text-white/85" />
+                    </span>
+                  )}
                   <CopyPlace
                     text={fs.location}
                     copy={cityOf(fs.location) ?? fs.location}

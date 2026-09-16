@@ -207,7 +207,11 @@ export function FleetPanel({
               <span className="truncate text-[13px] font-semibold text-white">{row.label}</span>
               {/* Время водителя, а не пятая плитка: плиток ровно четыре в обоих
                   состояниях, и пятая ломала бы ряд именно при выборе трака. */}
-              {row.zone && <LocalTime zone={row.zone} className="nums shrink-0 text-[11.5px] text-white/45" />}
+              {row.zone && (
+                <span className="shrink-0 text-[11.5px] text-white/55">
+                  {t(locale, 'trucks.head.driverTimeShort')} <LocalTime zone={row.zone} className="nums font-semibold text-white/80" />
+                </span>
+              )}
             </span>
           ) : (
             <span className="truncate text-[11.5px] text-white/35">{t(locale, 'tracking.pickOnMap')}</span>
