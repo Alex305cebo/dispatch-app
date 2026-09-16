@@ -932,6 +932,7 @@ function LaneRow({
   locale,
   reasons,
   board = false,
+  pickup = false,
   bench,
   originRpm = null,
 }: {
@@ -946,6 +947,9 @@ function LaneRow({
   locale: Locale
   reasons?: string[]
   board?: boolean
+  /** Строка «Сравнить грузы с доски»: без ставки по штату справа — ставка DAT региона
+   * погрузки (`origin`), с ней сравнивают ставку груза; у направления — региона доставки. */
+  pickup?: boolean
   /** Настоящие ставки по штатам (lib/rpm-bench-core.ts). */
   bench?: RpmBench
   /** Ставка DAT региона отправления — с чем сравнить ставку штата у направления. */
@@ -954,12 +958,13 @@ function LaneRow({
   const tone = dayTone(lane.grossPerDay, opts.target)
   // Справа — настоящая средняя ставка по штату доставки и откуда она. Не расчёт: рынок из
   // формулы («от $X/mi», «груз ≈ $…») диспетчеру показывать нельзя (правило 16.09.2026).
-  // Ставки по штату нет — ставка DAT региона штата (Trendlines, 5 регионов) с подписью; у
-  // груза с доски — нет: его ставку сравниваем только со штатом.
+  // Ставки по штату нет — ставка DAT по региону (Trendlines, 5 регионов) с подписью: у
+  // направления — региона штата доставки, у груза с доски — региона погрузки.
   // Цвет — из двух настоящих цифр: ставка справа против ставки DAT региона отправления, у
-  // груза с доски — его ставка против ставки штата.
+  // груза с доски — его ставка против цифры справа.
   const b = benchmarkRpm(bench, origin, lane.state)
-  const regionRpm = b || board ? null : lane.nextRpm
+  const regionState = pickup ? origin : lane.state
+  const regionRpm = b ? null : (regionOf(snap, regionState)?.rpm ?? null)
   const rpm = b?.rpm ?? regionRpm
   const ratio = rpm == null ? null : board ? lane.rpm / rpm : originRpm ? rpm / originRpm : null
   const cls = ratio == null ? 'text-white/85' : ratio >= 1.05 ? TONE_TEXT.hit : ratio <= 0.95 ? TONE_TEXT.miss : 'text-white/85'
@@ -984,7 +989,7 @@ function LaneRow({
             {b
               ? benchSource(b, bench, locale)
               : regionRpm != null
-                ? `DAT · ${t(locale, 'plan.region').replace('{region}', regionName(snap, lane.state))}`
+                ? `DAT · ${t(locale, 'plan.region').replace('{region}', regionName(snap, regionState))}${pickup ? ` · ${t(locale, 'plan.bench.pickup')}` : ''}`
                 : t(locale, 'plan.bench.none').replace('{to}', lane.state)}
           </span>
         </span>
@@ -1268,15 +1273,17 @@ function BoardCompare({
           {rows.length > 0 && (
             <div className="mt-2 flex flex-col gap-1.5">
               {rows.map(({ lane, label, market, pickup }, i) => {
-                // Ставка груза против настоящей средней по штату — два настоящих числа, не оценка.
+                // Ставка груза против настоящей средней по штату, а нет её — против ставки DAT
+                // региона погрузки (та же цифра справа): два настоящих числа, не оценка. У груза
+                // без ставки на доске сравнивать нечего — его ставка и есть рынок региона.
                 const b = market ? null : benchmarkRpm(bench, pickup, lane.state)
-                const vsState = b ? Math.round((lane.rpm / b.rpm - 1) * 100) : null
+                const base = market ? null : (b?.rpm ?? regionOf(snap, pickup)?.rpm ?? null)
+                const vs = base ? Math.round((lane.rpm / base - 1) * 100) : null
+                const [at, above, below] = b
+                  ? (['plan.why.atState', 'plan.why.aboveState', 'plan.why.belowState'] as const)
+                  : (['plan.why.atRegion', 'plan.why.aboveRegion', 'plan.why.belowRegion'] as const)
                 const reasons = [
-                  vsState == null
-                    ? null
-                    : Math.abs(vsState) < 5
-                      ? t(locale, 'plan.why.atState')
-                      : t(locale, vsState > 0 ? 'plan.why.aboveState' : 'plan.why.belowState').replace('{pct}', String(Math.abs(vsState))),
+                  vs == null ? null : Math.abs(vs) < 5 ? t(locale, at) : t(locale, vs > 0 ? above : below).replace('{pct}', String(Math.abs(vs))),
                   i === 0 && rows.length > 1 ? t(locale, 'plan.why.best') : null,
                   market ? t(locale, 'plan.why.market') : null,
                   lane.grossPerDay < opts.target ? t(locale, 'plan.why.belowTarget') : null,
@@ -1298,6 +1305,7 @@ function BoardCompare({
                     locale={locale}
                     reasons={reasons}
                     board={!market}
+                    pickup
                     bench={bench}
                   />
                 )
