@@ -872,10 +872,12 @@ function LtChart({
 const SRC_SHORT: Record<RpmSource, MsgKey> = {
   datLane: 'plan.bench.srcDat',
   usdaLane: 'plan.bench.srcUsda',
+  warpLane: 'plan.bench.srcWarp',
 }
 const SRC_LONG: Record<RpmSource, MsgKey> = {
   datLane: 'plan.bench.datLane',
   usdaLane: 'plan.bench.usdaLane',
+  warpLane: 'plan.bench.warpLane',
 }
 
 /** Откуда цифра и сколько за ней данных: «DAT RateView · TX→GA · 3 напр. за 30 дн». */

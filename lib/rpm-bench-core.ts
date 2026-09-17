@@ -3,7 +3,10 @@
 // или опубликовали, и НЕ по нашим прошлым грузам (один рейт-кон давал $7/mi на весь штат).
 // Источники:
 //   • DAT RateView — спот с доски DAT One за 30 дней (таблица dat_lanes, расширение DispatchPro);
-//   • USDA AMS — недельный отчёт по рефрижераторным продуктовым рейсам (только Reefer).
+//   • USDA AMS — недельный отчёт по рефрижераторным продуктовым рейсам (только Reefer);
+//   • Warp — открытый API котировок (scripts/lane-rates.mjs, тот же dat_lanes с source='warp').
+//     Это цена ГРУЗООТПРАВИТЕЛЯ: на наших доставленных грузах она вышла примерно в 1.2 раза
+//     выше того, что получил трак. Поэтому она последняя в очереди и всегда с подписью.
 // Средняя «в штат откуда угодно» не берётся: это смесь чужих маршрутов, а не ставка этого.
 // Нет ставки по маршруту — null, и планировщик показывает ставку DAT по региону штата.
 // Без сети и базы — проверяется тестом.
@@ -11,13 +14,15 @@
 export type RpmStat = { rpm: number; n: number }
 /** lane — «TX>GA», into — штат доставки. */
 export type RpmTable = { lane: Record<string, RpmStat>; into: Record<string, RpmStat> }
-export type RpmSource = 'datLane' | 'usdaLane'
+export type RpmSource = 'datLane' | 'usdaLane' | 'warpLane'
 export type RpmBench = {
   dat: RpmTable
   /** Только у рефрижератора: у USDA — продуктовые рейсы. */
   usda: RpmTable | null
   /** Неделя отчёта USDA, MM/DD/YY — для подписи. */
   usdaWeek: string | null
+  /** Котировки Warp — цена грузоотправителя, берётся последней. */
+  warp?: RpmTable | null
 }
 export type Benchmark = { rpm: number; n: number; source: RpmSource; from: string | null; to: string }
 
@@ -49,12 +54,13 @@ export function rpmTableFrom(rows: Iterable<RpmRow>): RpmTable {
   return { lane: done(lane), into: done(into) }
 }
 
-const ORDER: [keyof Pick<RpmBench, 'dat' | 'usda'>, RpmSource][] = [
+const ORDER: [keyof Pick<RpmBench, 'dat' | 'usda' | 'warp'>, RpmSource][] = [
   ['dat', 'datLane'],
   ['usda', 'usdaLane'],
+  ['warp', 'warpLane'],
 ]
 
-/** Ставка по самому маршруту from→to: DAT с доски точнее, иначе USDA. Нет — null. */
+/** Ставка по самому маршруту from→to: DAT с доски точнее, потом USDA, потом Warp. Нет — null. */
 export function benchmarkRpm(bench: RpmBench | null | undefined, from: string | null, to: string): Benchmark | null {
   if (!bench || !from) return null
   for (const [src, source] of ORDER) {

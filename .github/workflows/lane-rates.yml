@@ -1,0 +1,41 @@
+name: Lane rates (Warp)
+
+# Раз в сутки — котировки по направлениям, которыми флот реально ездил: открытый API
+# wearewarp.com без ключа, по паре ZIP из адресов груза, мили настоящие (loaded_miles).
+# Строки ложатся в dat_lanes с source='warp' и в «Куда отправить трак» показываются только
+# с подписью «Warp · цена грузоотправителя»: в этой цене маржа брокера, трак получает меньше.
+#
+# Сорок запросов в сутки — чужой сервис не грузим. Логи репозитория публичные: скрипт
+# печатает направления и цены, строку подключения к базе — нет.
+
+on:
+  schedule:
+    # 11:07 UTC — после снимка DAT (10:23), чтобы две работы не толкались за базу.
+    - cron: '7 11 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: lane-rates
+  cancel-in-progress: false
+
+jobs:
+  quotes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # Одна зависимость вместо всего npm ci: скрипту нужен только драйвер базы.
+      - name: Install MariaDB driver
+        run: npm i mysql2@3 --no-save --no-audit --no-fund
+
+      - name: Collect lane quotes
+        env:
+          DATABASE_URL: ${{ secrets.MYSQL_URL }}
+        run: |
+          test -n "$DATABASE_URL" || { echo "MYSQL_URL secret is not set"; exit 1; }
+          node scripts/lane-rates.mjs --loads 40

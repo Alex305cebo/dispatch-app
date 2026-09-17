@@ -15,14 +15,17 @@ test('таблица: весь гросс на все мили, направле
   assert.deepEqual(t.into, { GA: { rpm: 2.84, n: 6 } })
 })
 
-test('ставка — только по самому маршруту: DAT с доски, иначе USDA; «в штат откуда угодно» не считается', () => {
+test('ставка — только по самому маршруту: DAT с доски, иначе USDA, иначе Warp; «в штат откуда угодно» не считается', () => {
   const bench: RpmBench = {
     dat: { lane: { 'TX>GA': { rpm: 2.9, n: 3 } }, into: { FL: { rpm: 2.5, n: 4 } } },
     usda: { lane: { 'TX>GA': { rpm: 3.3, n: 1 }, 'TX>NC': { rpm: 4.0, n: 2 } }, into: { NC: { rpm: 4.2, n: 6 } } },
     usdaWeek: '09/08/26',
+    // Котировка грузоотправителя: только там, где нет ни DAT, ни USDA
+    warp: { lane: { 'TX>GA': { rpm: 5.1, n: 1 }, 'TX>NC': { rpm: 5.2, n: 1 }, 'TX>OH': { rpm: 3.7, n: 1 } }, into: {} },
   }
   assert.deepEqual(benchmarkRpm(bench, 'TX', 'GA'), { rpm: 2.9, n: 3, source: 'datLane', from: 'TX', to: 'GA' })
   assert.deepEqual(benchmarkRpm(bench, 'TX', 'NC'), { rpm: 4, n: 2, source: 'usdaLane', from: 'TX', to: 'NC' })
+  assert.deepEqual(benchmarkRpm(bench, 'TX', 'OH'), { rpm: 3.7, n: 1, source: 'warpLane', from: 'TX', to: 'OH' })
   // Средние «в штат» из других штатов — не ставка этого маршрута
   assert.equal(benchmarkRpm(bench, 'CA', 'FL'), null)
   assert.equal(benchmarkRpm(bench, 'CA', 'NC'), null)
