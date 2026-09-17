@@ -12,6 +12,34 @@ const EARTH_MILES = 3958.8
  * ELD изредка присылает 0,0 — это Гвинейский залив, и от трака через Атлантику
  * тянулась линия следа (замечено 09/17/26 у трака 1705). Такие точки не наши.
  */
+/** Где след рвётся: 25 миль между соседними крошками — это уже не «шёл рядом»,
+ * а пропавшая связь (у 1705 09/17/26 было 74 мили за 2 часа без единой точки). */
+const TRAIL_GAP_MI = 25
+
+/**
+ * Хвост пути — куски по непрерывным участкам. Одна линия через всю дыру выглядела
+ * как проеханная дорога по прямой через поля, чего не было. Куски короче двух точек
+ * рисовать нечего.
+ */
+export function trailSegments(
+  coords: [number, number][],
+  ats: (string | null)[],
+): { coords: [number, number][]; ats: (string | null)[] }[] {
+  const out: { coords: [number, number][]; ats: (string | null)[] }[] = []
+  let cur: { coords: [number, number][]; ats: (string | null)[] } = { coords: [], ats: [] }
+  coords.forEach((c, i) => {
+    const prev = cur.coords[cur.coords.length - 1]
+    if (prev && haversineMiles({ lat: prev[0], lng: prev[1] }, { lat: c[0], lng: c[1] }) > TRAIL_GAP_MI) {
+      if (cur.coords.length > 1) out.push(cur)
+      cur = { coords: [], ats: [] }
+    }
+    cur.coords.push(c)
+    cur.ats.push(ats[i] ?? null)
+  })
+  if (cur.coords.length > 1) out.push(cur)
+  return out
+}
+
 export function plausibleNaFix(lat: number | null | undefined, lng: number | null | undefined): boolean {
   return (
     lat != null &&

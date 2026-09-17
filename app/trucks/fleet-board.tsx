@@ -26,6 +26,7 @@ import { usdaReeferCached } from '@/lib/usda-truck'
 import { type TrackingRow } from '@/components/fleet-list'
 import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
 import { liveTrail, trailLabels } from '@/lib/eld'
+import { trailSegments } from '@/lib/geo'
 import { activeAlert, type WeatherAlert } from '@/lib/weather'
 import { agoText, driveTime, etaAt, usDate } from '@/lib/fmt'
 import { todayEt } from '@/lib/payments'
@@ -214,14 +215,15 @@ export async function FleetBoard({
 
   for (const { t, fs, load, pickup, legToPickup, legToDelivery, directToDelivery, weather, idleAt, heading, trail } of perTruck) {
     // Хвост пути за 12 ч — янтарные точки за каждым траком, всегда (первым, чтобы дорога легла поверх).
-    if (trail && trail.coords.length > 2)
-      routes.push({
-        from: trail.coords[0]!,
-        to: trail.coords[trail.coords.length - 1]!,
-        coords: trail.coords,
-        labels: trailLabels(trail.coords, trail.ats, locale),
-        tone: 'trail',
-      })
+    if (trail)
+      for (const seg of trailSegments(trail.coords, trail.ats))
+        routes.push({
+          from: seg.coords[0]!,
+          to: seg.coords[seg.coords.length - 1]!,
+          coords: seg.coords,
+          labels: trailLabels(seg.coords, seg.ats, locale),
+          tone: 'trail',
+        })
     // Unconditional on load — a parked empty truck shouldn't say "moving" either.
     const idleHoursAny = idleAt ? Math.floor((Date.now() - idleAt.getTime()) / 3_600_000) : null
     const st = eldStatus(fs?.drive_status ?? null, idleHoursAny, locale)

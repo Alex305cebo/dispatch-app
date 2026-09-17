@@ -8,6 +8,7 @@ import type { FleetStatus } from './maintenance-core'
 import { cityCoordsBest, routeToPoint, routeVia } from './geo-routing'
 import { isDone, stopTitle, stopsFrom, type StopEv } from './stops.ts'
 import { liveTrail, trailLabels } from './eld'
+import { trailSegments } from './geo'
 import { tripEta } from './trip-eta'
 import { distToPathMiles, haversineMiles } from './geo'
 import { driveTime, etaAt, usDate } from './fmt'
@@ -194,15 +195,15 @@ export async function loadMapData(
   // Хвост пути за 12 часов — серой линией ЗА траком: видно, ехал ли ночью, где
   // стоял и не крутится ли на месте. Первым в списке, чтобы дорога рисовалась
   // поверх него.
-  if (trail && trail.coords.length > 2) {
-    routes.push({
-      from: trail.coords[0]!,
-      to: trail.coords[trail.coords.length - 1]!,
-      coords: trail.coords,
-      labels: trailLabels(trail.coords, trail.ats, locale),
-      tone: 'trail',
-    })
-  }
+  if (trail)
+    for (const seg of trailSegments(trail.coords, trail.ats))
+      routes.push({
+        from: seg.coords[0]!,
+        to: seg.coords[seg.coords.length - 1]!,
+        coords: seg.coords,
+        labels: trailLabels(seg.coords, seg.ats, locale),
+        tone: 'trail',
+      })
   const truckM: MapMarker = {
     lat,
     lng,
