@@ -9,6 +9,7 @@ import { avgDwell, facilityIndex, facilityNoteKey, filterFacilities } from '@/li
 import { driveTime, usDate } from '@/lib/fmt'
 import { FacilityNote } from '@/components/facility-note'
 import { Info } from '@/components/info'
+import { BrokersSection } from '@/components/brokers-section'
 import { Empty } from '@/components/empty'
 import { Warehouse } from 'lucide-react'
 
@@ -32,11 +33,12 @@ export default async function FacilitiesPage({ searchParams }: { searchParams: P
 
   return (
     <main className="mx-auto max-w-3xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <h1 className="flex items-center gap-1.5 text-xl font-bold tracking-tight">
-        {t(locale, 'facilities.title')}
+      <BrokersSection active="facilities" locale={locale} />
+      {/* div, а не p: внутри Info — всплывающий блок, div в p ломает гидратацию. */}
+      <div className="mb-4 flex items-center gap-1.5 text-[13px] text-white/65">
+        {t(locale, 'facilities.subtitle').replace('{n}', String(all.length))}
         <Info side="bottom" text={t(locale, 'facilities.info')} />
-      </h1>
-      <p className="mb-4 text-[13px] text-white/65">{t(locale, 'facilities.subtitle').replace('{n}', String(all.length))}</p>
+      </div>
 
       <form className="mb-4">
         <input

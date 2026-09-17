@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Tab } from '@/components/tab-link'
 import {
   listLoads,
   listLoadsByDispatcher,
@@ -125,19 +126,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
 
       {/* Реквизиты компании — в Админе (одно место, а не два); IFTA-заглушка убрана. */}
     </main>
-  )
-}
-
-function Tab({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className={`-mb-px border-b-2 px-3 py-2 text-[13px] font-medium transition-colors ${
-        active ? 'border-haul-500 text-white' : 'border-transparent text-white/55 hover:text-white/85'
-      }`}
-    >
-      {children}
-    </Link>
   )
 }
 
