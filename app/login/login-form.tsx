@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/button'
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { bootstrapAdmin, registerRequest, resetWithRecovery, signIn } from './actions'
 import { LOCALE_COOKIE, LOCALES, t, type Locale } from '@/lib/i18n'
 import { GoogleButton } from './google-button'
@@ -40,6 +40,7 @@ export function LoginForm({
   demoUrl,
   googleClientId,
   askLocale,
+  saveLocale = false,
   initialLocale,
 }: {
   bootstrap: boolean
@@ -59,6 +60,8 @@ export function LoginForm({
   googleClientId: string
   /** No locale cookie yet — greet with the language choice before anything else. */
   askLocale: boolean
+  /** Куки языка ещё нет: записать язык, показанный по браузеру, чтобы он остался после входа. */
+  saveLocale?: boolean
   initialLocale: Locale
 }) {
   const [mode, setMode] = useState<Mode>('signin')
@@ -79,6 +82,11 @@ export function LoginForm({
   function writeLocaleCookie(l: Locale) {
     document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`
   }
+
+  useEffect(() => {
+    if (saveLocale) writeLocaleCookie(initialLocale)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function chooseLocale(l: Locale) {
     setLocale(l)
