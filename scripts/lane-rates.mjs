@@ -22,6 +22,8 @@ import mysql from 'mysql2/promise'
 
 const QUOTE = 'https://www.wearewarp.com/api/v1/ftl/quote'
 const args = process.argv.slice(2)
+/** --company demo — те же ставки для демо-компании: в демо тоже видно живой рынок. */
+const company = args[args.indexOf('--company') + 1] === 'demo' ? 'demo' : 'default'
 const url = process.env.DATABASE_URL
 if (!url) {
   console.error('Нет DATABASE_URL (--env-file=.env.local)')
@@ -62,28 +64,45 @@ async function quote(originZip, destZip, date) {
 const db = await mysql.createConnection(url)
 await db.query('SET SESSION wait_timeout = 900')
 
+/** Индекс города, когда в адресе груза его не было: открытый справочник zippopotam. */
+async function zipOfCity(city) {
+  const m = String(city ?? '').match(/^(.*),\s*([A-Za-z]{2})$/)
+  if (!m) return null
+  try {
+    const res = await fetch(`https://api.zippopotam.us/us/${m[2].toLowerCase()}/${encodeURIComponent(m[1].trim())}`, {
+      signal: AbortSignal.timeout(20_000),
+    })
+    if (!res.ok) return null
+    return (await res.json())?.places?.[0]?.['post code'] ?? null
+  } catch {
+    return null
+  }
+}
+
 /** Город с индексом, куда и откуда наш флот реально ездит: по одному на штат, чаще всего. */
 async function hubs() {
   const [rows] = await db.query(
-    `SELECT origin AS city, pickup_address AS addr FROM loads WHERE company_id = 'default' AND pickup_address <> ''
+    `SELECT origin AS city, pickup_address AS addr FROM loads WHERE company_id = ? AND pickup_address <> ''
      UNION ALL
-     SELECT destination AS city, delivery_address AS addr FROM loads WHERE company_id = 'default' AND delivery_address <> ''`,
+     SELECT destination AS city, delivery_address AS addr FROM loads WHERE company_id = ? AND delivery_address <> ''`,
+    [company, company],
   )
   const byState = new Map()
   for (const r of rows) {
     const st = stateOf(r.city)
-    const zip = zipOf(r.addr)
-    if (!st || !zip) continue
+    if (!st) continue
     const list = byState.get(st) ?? new Map()
-    const key = `${r.city}|${zip}`
+    // Индекс из адреса; нет его в адресе — «City, ST|», доберём по справочнику ниже.
+    const key = `${r.city}|${zipOf(r.addr) ?? ''}`
     list.set(key, (list.get(key) ?? 0) + 1)
     byState.set(st, list)
   }
   const out = []
   for (const [st, list] of byState) {
     const [key] = [...list].sort((a, b) => b[1] - a[1])[0]
-    const [city, zip] = key.split('|')
-    out.push({ state: st, city, zip })
+    const [city, addrZip] = key.split('|')
+    const zip = addrZip || (await zipOfCity(city))
+    if (zip) out.push({ state: st, city, zip })
   }
   return out
 }
@@ -154,9 +173,9 @@ async function lanes() {
   const [rows] = await db.query(
     `SELECT origin, destination, loaded_miles, pickup_address, delivery_address
        FROM loads
-      WHERE company_id = 'default' AND loaded_miles > 100 AND pickup_address <> '' AND delivery_address <> ''
+      WHERE company_id = ? AND loaded_miles > 100 AND pickup_address <> '' AND delivery_address <> ''
       ORDER BY pickup_date DESC LIMIT ?`,
-    [limit],
+    [company, limit],
   )
   const seen = new Set()
   const out = []
@@ -191,9 +210,9 @@ for (const l of (await lanes()).slice(0, max)) {
   await db.query(
     `INSERT INTO dat_lanes
        (company_id, source, origin, dest, origin_state, dest_state, equipment, miles, spot_rate, spot_rpm, seen_on, seen_at)
-     VALUES ('default', 'warp', ?, ?, ?, ?, 'VAN', ?, ?, ?, CURDATE(), NOW(6))
+     VALUES (?, 'warp', ?, ?, ?, ?, 'VAN', ?, ?, ?, CURDATE(), NOW(6))
      ON DUPLICATE KEY UPDATE miles = VALUES(miles), spot_rate = VALUES(spot_rate), spot_rpm = VALUES(spot_rpm), seen_at = NOW(6)`,
-    [l.origin.slice(0, 120), l.dest.slice(0, 120), stateOf(l.origin), stateOf(l.dest), l.miles, rate, rpm],
+    [company, l.origin.slice(0, 120), l.dest.slice(0, 120), stateOf(l.origin), stateOf(l.dest), l.miles, rate, rpm],
   )
   saved++
   console.log(`${l.origin} → ${l.dest}`.padEnd(42), `${l.miles} mi`.padEnd(9), `$${rate}`.padEnd(8), `$${rpm.toFixed(2)}/mi`)
