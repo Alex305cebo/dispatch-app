@@ -7,6 +7,24 @@ export type LatLng = { lat: number; lng: number }
 const EARTH_MILES = 3958.8
 
 /** Great-circle (straight-line) distance between two points, in miles. */
+/**
+ * Похожи ли координаты на настоящую точку в Северной Америке (США, Канада, Мексика).
+ * ELD изредка присылает 0,0 — это Гвинейский залив, и от трака через Атлантику
+ * тянулась линия следа (замечено 09/17/26 у трака 1705). Такие точки не наши.
+ */
+export function plausibleNaFix(lat: number | null | undefined, lng: number | null | undefined): boolean {
+  return (
+    lat != null &&
+    lng != null &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= 14 &&
+    lat <= 72 &&
+    lng >= -170 &&
+    lng <= -52
+  )
+}
+
 export function haversineMiles(a: LatLng, b: LatLng): number {
   const toRad = (d: number) => (d * Math.PI) / 180
   const dLat = toRad(b.lat - a.lat)

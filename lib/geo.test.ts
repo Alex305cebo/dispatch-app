@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { distToPathMiles, haversineMiles, simplifyPath, deadheadEstimate, bearing, type LatLng } from './geo.ts'
+import { distToPathMiles, haversineMiles, simplifyPath, deadheadEstimate, bearing, type LatLng, plausibleNaFix} from './geo.ts'
 
 const CHICAGO: LatLng = { lat: 41.8781, lng: -87.6298 }
 const DALLAS: LatLng = { lat: 32.7767, lng: -96.797 }
@@ -94,4 +94,14 @@ test('simplifyPath: точки ложатся на прежнюю дорогу �
     const d = segDist(p)
     assert.ok(d < 0.05, `точка ушла на ${d.toFixed(3)} миль`)
   }
+})
+
+test('0,0 от ELD — не место трака, а Гвинейский залив', () => {
+  assert.equal(plausibleNaFix(0, 0), false)
+  assert.equal(plausibleNaFix(null, null), false)
+  assert.equal(plausibleNaFix(43.8, 200), false)
+  // настоящие точки парка: Айдахо, Техас, Аляска
+  assert.equal(plausibleNaFix(43.78, -116.94), true)
+  assert.equal(plausibleNaFix(27.52, -99.5), true)
+  assert.equal(plausibleNaFix(61.2, -149.9), true)
 })

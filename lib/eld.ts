@@ -27,7 +27,7 @@
 
 import { sql } from './db.ts'
 import { getSetting, setSetting } from './settings.ts'
-import { haversineMiles, bearing } from './geo.ts'
+import { haversineMiles, bearing, plausibleNaFix } from './geo.ts'
 import { fixPlace } from './place.ts'
 import { segmentTrail, type HistoryLeg } from './trip-history.ts'
 import { zoneFor as zoneForRaw } from './tz.ts'
@@ -60,7 +60,9 @@ export async function logPosition(
   driveStatus: string | null,
   location: string | null,
 ) {
-  if (lat === null || lng === null) return
+  // 0,0 и прочая чепуха от ELD в журнал не попадает: одна такая точка рисует след
+  // трака через океан (lib/geo.ts plausibleNaFix).
+  if (!plausibleNaFix(lat, lng)) return
   await sql`INSERT INTO truck_position_log (unit, lat, lng, drive_status, location) VALUES (${unit}, ${lat}, ${lng}, ${driveStatus}, ${location})`
   await sql`DELETE FROM truck_position_log WHERE unit = ${unit} AND at < NOW(6) - INTERVAL 100 DAY`
 }
@@ -80,10 +82,12 @@ export type TrailPoint = { lat: number; lng: number; at: string }
 
 /** The truck's breadcrumb trail, newest first. 12 h covers every reader below. */
 async function recentTrail(unit: string): Promise<TrailPoint[]> {
-  return (await sql`
+  const rows = (await sql`
     SELECT lat, lng, at FROM truck_position_log
     WHERE unit = ${unit} AND at >= NOW(6) - INTERVAL 12 HOUR
     ORDER BY at DESC`) as TrailPoint[]
+  // Старые записи с 0,0 уже лежат в базе — отбрасываем их и при чтении.
+  return rows.filter((r) => plausibleNaFix(r.lat, r.lng))
 }
 
 /**
@@ -191,10 +195,11 @@ export async function headingOf(unit: string, lat: number, lng: number): Promise
 
 /** The truck's day as drive/stop legs — what /trucks/[id] shows under "История пути". */
 export async function tripHistory(unit: string, hours = 24): Promise<HistoryLeg[]> {
-  const rows = (await sql`
+  const all = (await sql`
     SELECT lat, lng, at, location FROM truck_position_log
     WHERE unit = ${unit} AND at >= NOW(6) - INTERVAL ${hours} HOUR
     ORDER BY at ASC`) as { lat: number; lng: number; at: string; location: string | null }[]
+  const rows = all.filter((r) => plausibleNaFix(r.lat, r.lng))
   // Тот же разбор штата, что и для снимка парка: в логе лежит сырая строка вендора,
   // и в истории пути она врала ровно так же, как на карте.
   return segmentTrail(rows.map((r) => ({ ...r, location: fixPlace(r.location, r.lat, r.lng) })))
@@ -469,6 +474,8 @@ export async function fleetSnapshot(
     // slower cadence than position, and a poll without it must not blank the last
     // known reading.
     const odo = extra?.odometer ?? realOdometer(v.odometer)
+    // Координаты 0,0 от вендора — не место трака (см. plausibleNaFix): прошлый пин важнее.
+    const okFix = plausibleNaFix(v.location?.latitude, v.location?.longitude)
     // Одометр «1», записанный до этой проверки, при следующем опросе уходит (IF ниже), а не
     // держится вечно из-за COALESCE.
     await sql`
@@ -477,13 +484,13 @@ export async function fleetSnapshot(
          eld_seen, updated_at)
       VALUES (${unit}, ${v.driverName ?? null},
               ${status}, ${v.location?.description ?? null},
-              ${v.location?.latitude ?? null}, ${v.location?.longitude ?? null},
+              ${okFix ? (v.location?.latitude ?? null) : null}, ${okFix ? (v.location?.longitude ?? null) : null},
               ${odo}, ${extra?.fuel ?? null}, ${v.location?.bearing ?? null},
               ${seen}, NOW(6))
       ON DUPLICATE KEY UPDATE
         driver_name = COALESCE(VALUES(driver_name), fleet_status.driver_name),
         drive_status = VALUES(drive_status), location = VALUES(location),
-        lat = VALUES(lat), lng = VALUES(lng),
+        lat = COALESCE(VALUES(lat), fleet_status.lat), lng = COALESCE(VALUES(lng), fleet_status.lng),
         odometer = COALESCE(VALUES(odometer), IF(fleet_status.odometer >= 10, fleet_status.odometer, NULL)),
         fuel = COALESCE(VALUES(fuel), fleet_status.fuel),
         bearing = COALESCE(VALUES(bearing), fleet_status.bearing),
@@ -635,8 +642,12 @@ export async function liveShareSnapshot(): Promise<
       }
 
       const loc = data.location ?? data
-      const lat = numOrNull(loc.latitude ?? loc.lat ?? data.latitude)
-      const lng = numOrNull(loc.longitude ?? loc.lng ?? loc.lon ?? data.longitude)
+      const rawLat = numOrNull(loc.latitude ?? loc.lat ?? data.latitude)
+      const rawLng = numOrNull(loc.longitude ?? loc.lng ?? loc.lon ?? data.longitude)
+      // 0,0 от Live Share — не место трака: колонки не перезаписываем (COALESCE ниже).
+      const ok = plausibleNaFix(rawLat, rawLng)
+      const lat = ok ? rawLat : null
+      const lng = ok ? rawLng : null
       const desc = loc.description ?? loc.address ?? data.description ?? null
       const speed = numOrNull(data.speed ?? loc.speed)
       const status = speed && speed > 3 ? `${Math.round(speed)} mi/h` : null
@@ -648,7 +659,7 @@ export async function liveShareSnapshot(): Promise<
         VALUES (${unit}, ${desc}, ${lat}, ${lng}, ${status}, ${'live share'}, NOW(6))
         ON DUPLICATE KEY UPDATE
           location = COALESCE(VALUES(location), fleet_status.location),
-          lat = VALUES(lat), lng = VALUES(lng),
+          lat = COALESCE(VALUES(lat), fleet_status.lat), lng = COALESCE(VALUES(lng), fleet_status.lng),
           drive_status = COALESCE(VALUES(drive_status), fleet_status.drive_status),
           eld_seen = VALUES(eld_seen), updated_at = NOW(6)`
       await logPosition(unit, lat, lng, status, desc)
