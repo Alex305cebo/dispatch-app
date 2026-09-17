@@ -148,3 +148,20 @@ export function calcLoad(load: Load, s: TruckSettings): Breakdown {
         (s.driverPay.mode === 'cpm' ? s.driverPay.centsPerMile / 100 : 0)),
   }
 }
+
+export type TargetVerdict = { kind: 'ok' } | { kind: 'short' | 'loss'; dollars: number }
+
+/**
+ * Груз против цели диспетчера по ставке ($/mi гружёных миль) — только из ставки груза,
+ * его миль, цели и безубыточности, без рыночных догадок. Цели нет — null.
+ * Убыток главнее цели: груз «в цели», но ниже безубыточности (длинный Deadhead), —
+ * это убыток, а не успех.
+ */
+export function targetVerdict(r: Breakdown, targetRpm: number | null | undefined): TargetVerdict | null {
+  const miles = r.totalMiles - r.deadheadMiles
+  if (!targetRpm || !(targetRpm > 0) || !(miles > 0)) return null
+  const loss = Math.round(r.breakEvenRate - r.gross)
+  if (loss > 0) return { kind: 'loss', dollars: loss }
+  const short = Math.round(targetRpm * miles - r.gross)
+  return short > 0 ? { kind: 'short', dollars: short } : { kind: 'ok' }
+}

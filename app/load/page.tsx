@@ -1,4 +1,5 @@
 import { listTrucks } from '@/lib/loads'
+import { truckMetas } from '@/lib/maintenance'
 import { QrClient } from './qr-client'
 import { BackButton } from '@/components/back-button'
 import { companyScope } from '@/lib/session'
@@ -9,14 +10,15 @@ import { t } from '@/lib/i18n'
 export const dynamic = 'force-dynamic'
 
 export default async function Page() {
-  const trucks = await listTrucks(await companyScope())
+  const companyId = await companyScope()
+  const [trucks, metas] = await Promise.all([listTrucks(companyId), truckMetas(companyId)])
   const locale = await getLocale()
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <BackButton href="/loads" label={t(locale, 'loads.page.title')} />
       <h1 className="mb-1 mt-3 text-xl font-bold tracking-tight">{t(locale, 'loadQr.title')}</h1>
       <p className="mb-6 text-[13px] text-white/65">{t(locale, 'loadQr.subtitle')}</p>
-      <QrClient trucks={trucks} />
+      <QrClient trucks={trucks} metaByTruck={Object.fromEntries(metas)} />
     </main>
   )
 }

@@ -377,6 +377,8 @@ ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS home_to DATE NULL;
 ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS week_target_miles INT NULL;
 ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS week_target_gross INT NULL;
 ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS avoid_states TEXT NULL;
+-- Цель по ставке, $/mi гружёных миль: вписывает диспетчер, груз показывает «в цели» или сколько не хватает.
+ALTER TABLE truck_meta ADD COLUMN IF NOT EXISTS target_rpm DOUBLE NULL;
 
 -- Доп. начисления брокеру сверх ставки: detention, lumper, TONU, layover, stop-off.
 -- Строками уходят в счёт (lib/invoice.ts); ставка груза (loads.rate) не меняется.
@@ -448,5 +450,5 @@ CREATE TABLE IF NOT EXISTS dat_lanes (
   KEY dat_lanes_state (company_id, origin_state, seen_on)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
 
-INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-20')
+INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-21')
 ON DUPLICATE KEY UPDATE value = VALUES(value);

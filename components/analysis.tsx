@@ -1,6 +1,6 @@
 'use client'
 
-import type { Breakdown } from '@/lib/profit'
+import { targetVerdict, type Breakdown } from '@/lib/profit'
 import { usd, usd2 } from '@/lib/fmt'
 import { CostBar, Money } from './ui'
 import { Info } from './info'
@@ -87,6 +87,7 @@ export function Analysis({
   mpg,
   spotRpm,
   dat,
+  targetRpm,
 }: {
   r: Breakdown
   mpg: number
@@ -94,9 +95,12 @@ export function Analysis({
   spotRpm?: number | null
   /** Ставка DAT по региону погрузки — когда своей рыночной ставки у груза нет. */
   dat?: { rpm: number; region: string; date: string } | null
+  /** Цель по ставке из паспорта трака, $/mi; нет — строки нет. */
+  targetRpm?: number | null
 }) {
   const locale = useLocale()
   const good = r.net >= 0
+  const target = targetVerdict(r, targetRpm)
   // Свежая установка сеет трак-заглушку со всеми расходами по нулям
   // (lib/schema.sql): без единого трака defaultTruck() бросает исключение, а
   // чужие цифры в заглушке были бы хуже нулей. Но и нули врут — при нулевой
@@ -121,6 +125,22 @@ export function Analysis({
       {notConfigured && (
         <p className="mt-1.5 rounded-xl border border-warn-400/30 bg-warn-500/[0.08] px-3 py-2 text-[13px] leading-relaxed text-warn-400">
           {t(locale, 'analysis.notConfigured')}
+        </p>
+      )}
+
+      {target && (
+        <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">
+          {t(locale, 'analysis.target').replace('{target}', usd2.format(targetRpm!))}{' '}
+          <span
+            className={`font-semibold ${target.kind === 'ok' ? 'text-good-400' : target.kind === 'short' ? 'text-warn-400' : 'text-bad-400'}`}
+          >
+            {target.kind === 'ok'
+              ? t(locale, 'analysis.targetOk')
+              : t(locale, target.kind === 'short' ? 'analysis.targetShort' : 'analysis.targetLoss').replace(
+                  '{usd}',
+                  usd.format(target.dollars),
+                )}
+          </span>
         </p>
       )}
 

@@ -53,6 +53,7 @@ const metaOf = (r: any): TruckMeta => ({
   weekTargetMiles: r.week_target_miles ?? null,
   weekTargetGross: r.week_target_gross ?? null,
   avoidStates: parseStates(r.avoid_states),
+  targetRpm: r.target_rpm ?? null,
 })
 
 /** Профили водителей всего парка — одним лёгким запросом, для обзора и планировщика. */
@@ -90,7 +91,7 @@ export async function getTruckMeta(truckId: number): Promise<TruckMeta | null> {
     SELECT truck_id, vin, plate, trailer_number, year, make, model, oil_interval_mi,
       oil_last_odometer, driver_phone, notes, registration_expiry, inspection_expiry,
       insurance_expiry, cdl_expiry, medcard_expiry, driver_photo_mime, truck_photo_mime, truck_model,
-      home_state, home_from, home_to, week_target_miles, week_target_gross, avoid_states
+      home_state, home_from, home_to, week_target_miles, week_target_gross, avoid_states, target_rpm
     FROM truck_meta WHERE truck_id = ${truckId}`
   return rows[0] ? metaOf(rows[0]) : null
 }
@@ -141,7 +142,7 @@ export async function truckMetas(companyId: CompanyId): Promise<Map<number, Truc
       m.oil_interval_mi, m.oil_last_odometer, m.driver_phone, m.notes,
       m.registration_expiry, m.inspection_expiry, m.insurance_expiry, m.cdl_expiry,
       m.medcard_expiry, m.driver_photo_mime,
-      m.home_state, m.home_from, m.home_to, m.week_target_miles, m.week_target_gross, m.avoid_states
+      m.home_state, m.home_from, m.home_to, m.week_target_miles, m.week_target_gross, m.avoid_states, m.target_rpm
     FROM truck_meta m JOIN trucks t ON t.id = m.truck_id
     WHERE t.company_id = ${companyId}`
   return new Map((rows as any[]).map((r) => [r.truck_id as number, metaOf(r)]))

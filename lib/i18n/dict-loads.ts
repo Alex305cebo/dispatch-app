@@ -2082,6 +2082,25 @@ export const loadsDict = {
     ro: ' — sub asta e pierdere',
     kk: ' — одан төмені шығын',
   },
+  // Цель по ставке из паспорта трака (lib/profit.ts targetVerdict).
+  'analysis.target': { ru: 'Цель {target}/mi:', en: 'Goal {target}/mi:', es: 'Meta {target}/mi:', uk: 'Ціль {target}/mi:', ro: 'Țintă {target}/mi:', kk: 'Мақсат {target}/mi:' },
+  'analysis.targetOk': { ru: 'в цели', en: 'on target', es: 'en la meta', uk: 'у цілі', ro: 'în țintă', kk: 'мақсатта' },
+  'analysis.targetShort': {
+    ru: 'до цели не хватает {usd}',
+    en: '{usd} short of goal',
+    es: 'faltan {usd} para la meta',
+    uk: 'до цілі бракує {usd}',
+    ro: 'mai lipsesc {usd} până la țintă',
+    kk: 'мақсатқа {usd} жетпейді',
+  },
+  'analysis.targetLoss': {
+    ru: 'ниже безубыточности на {usd}',
+    en: '{usd} below break-even',
+    es: '{usd} por debajo del punto de equilibrio',
+    uk: 'нижче беззбитковості на {usd}',
+    ro: 'cu {usd} sub pragul de rentabilitate',
+    kk: 'шығынсыздықтан {usd} төмен',
+  },
   'analysis.datMarket': {
     ru: 'Рынок DAT',
     en: 'DAT market',

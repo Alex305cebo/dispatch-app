@@ -2122,6 +2122,8 @@ export type TruckMetaInput = {
   weekTargetGross: number | null
   /** «NY, CA» — как ввёл диспетчер; коды вычищает parseStates. */
   avoidStates: string
+  /** Цель по ставке, $/mi; пусто или 0 — цели нет. */
+  targetRpm: number | null
 }
 
 const d = (s: string | null) => (s && s.trim() ? s : null)
@@ -2271,7 +2273,8 @@ export async function saveTruckMeta(truckId: number, m: TruckMetaInput): Promise
                               oil_interval_mi, oil_last_odometer, driver_phone, notes,
                               registration_expiry, inspection_expiry, insurance_expiry,
                               cdl_expiry, medcard_expiry,
-                              home_state, home_from, home_to, week_target_miles, week_target_gross, avoid_states)
+                              home_state, home_from, home_to, week_target_miles, week_target_gross, avoid_states,
+                              target_rpm)
       VALUES (${truckId}, ${m.vin.trim() || null}, ${m.plate.trim() || null},
               ${m.trailerNumber.trim() || null}, ${m.year},
               ${m.make.trim() || null}, ${m.model.trim() || null}, ${m.oilIntervalMi},
@@ -2281,7 +2284,8 @@ export async function saveTruckMeta(truckId: number, m: TruckMetaInput): Promise
               ${parseStates(m.homeState)[0] ?? null}, ${d(m.homeFrom)}, ${d(m.homeTo)},
               ${m.weekTargetMiles && m.weekTargetMiles > 0 ? Math.round(m.weekTargetMiles) : null},
               ${m.weekTargetGross && m.weekTargetGross > 0 ? Math.round(m.weekTargetGross) : null},
-              ${parseStates(m.avoidStates).join(',') || null})
+              ${parseStates(m.avoidStates).join(',') || null},
+              ${m.targetRpm && m.targetRpm > 0 ? Math.round(m.targetRpm * 100) / 100 : null})
       ON DUPLICATE KEY UPDATE
         vin = VALUES(vin), plate = VALUES(plate), trailer_number = VALUES(trailer_number), year = VALUES(year),
         make = VALUES(make), model = VALUES(model),
@@ -2294,7 +2298,7 @@ export async function saveTruckMeta(truckId: number, m: TruckMetaInput): Promise
         cdl_expiry = VALUES(cdl_expiry), medcard_expiry = VALUES(medcard_expiry),
         home_state = VALUES(home_state), home_from = VALUES(home_from), home_to = VALUES(home_to),
         week_target_miles = VALUES(week_target_miles), week_target_gross = VALUES(week_target_gross),
-        avoid_states = VALUES(avoid_states)`
+        avoid_states = VALUES(avoid_states), target_rpm = VALUES(target_rpm)`
   } catch (e) {
     return { error: humanError(e, locale) }
   }

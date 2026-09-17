@@ -13,6 +13,7 @@ import { Button } from '@/components/button'
 
 import { useRef, useState } from 'react'
 import type { TruckRecord } from '@/lib/map'
+import type { TruckMeta } from '@/lib/maintenance-core'
 import { extractPdf, looksScanned } from '@/lib/pdf-text'
 import { missingFields, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import type { QrLoad } from '@/lib/qr-load'
@@ -28,11 +29,13 @@ import { t } from '@/lib/i18n'
 export function NewLoadClient({
   trucks,
   placeByTruck,
+  metaByTruck,
   defaultTruckId,
   repeat,
 }: {
   trucks: TruckRecord[]
   placeByTruck?: Record<number, string>
+  metaByTruck?: Record<number, TruckMeta>
   defaultTruckId?: number
   /** Заполнение по прошлому рейсу («Повторить груз»). Скан документа его перебивает:
    * если человек всё-таки принёс рейт-кон, бумага главнее памяти. */
@@ -197,6 +200,7 @@ export function NewLoadClient({
         key={scanKey}
         trucks={trucks}
         placeByTruck={placeByTruck}
+        metaByTruck={metaByTruck}
         defaultTruckId={defaultTruckId}
         initial={fields ? toQrLoad(fields) : repeat}
         source={fields ? 'qr' : 'manual'}

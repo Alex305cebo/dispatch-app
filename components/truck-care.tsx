@@ -27,7 +27,7 @@ import { Field, TextField } from '@/components/ui'
 import { DeleteButton } from '@/components/delete-button'
 import { Info } from '@/components/info'
 import { notify } from '@/lib/notify'
-import { usd, usDate } from '@/lib/fmt'
+import { usd, usd2, usDate } from '@/lib/fmt'
 import { t, type Locale } from '@/lib/i18n'
 import { US_STATES } from '@/lib/us-states'
 
@@ -117,6 +117,7 @@ export function TruckCare({
     weekTargetMiles: meta?.weekTargetMiles ?? null,
     weekTargetGross: meta?.weekTargetGross ?? null,
     avoidStates: meta?.avoidStates.join(', ') ?? '',
+    targetRpm: meta?.targetRpm ?? null,
   })
   // Профиль водителя одной строкой — когда хоть что-то заполнено.
   const profileLine = meta
@@ -127,6 +128,7 @@ export function TruckCare({
           : null,
         meta.weekTargetMiles ? t(locale, 'trucks.care.profileTargetMiles').replace('{n}', meta.weekTargetMiles.toLocaleString('en-US')) : null,
         meta.weekTargetGross ? t(locale, 'trucks.care.profileTargetGross').replace('{v}', usd.format(meta.weekTargetGross)) : null,
+        meta.targetRpm ? t(locale, 'trucks.care.profileTargetRpm').replace('{v}', usd2.format(meta.targetRpm)) : null,
         meta.avoidStates.length ? t(locale, 'trucks.care.profileAvoid').replace('{states}', meta.avoidStates.join(', ')) : null,
       ].filter(Boolean)
     : []
@@ -450,6 +452,14 @@ export function TruckCare({
               value={m.avoidStates}
               onChange={(v) => setM({ ...m, avoidStates: v })}
               placeholder="NY, CA"
+            />
+            <Field
+              label={t(locale, 'trucks.care.targetRpmLabel')}
+              value={m.targetRpm ?? NaN}
+              onChange={(n) => setM({ ...m, targetRpm: Number.isNaN(n) ? null : n })}
+              step={0.05}
+              prefix="$"
+              suffix="/mi"
             />
 
             <div className="sm:col-span-3">

@@ -303,6 +303,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             mpg={truck.mpg}
             spotRpm={load.spotRpm}
             dat={datRate && datSnap && { ...datRate, date: usDate(todayEt(new Date(datSnap.at))) }}
+            targetRpm={truckMeta?.targetRpm}
           />
         </div>
       </section>

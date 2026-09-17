@@ -6,6 +6,7 @@ import { MotionConfig } from 'motion/react'
 import { calcLoad } from '@/lib/profit'
 import { EMPTY, type QrLoad } from '@/lib/qr-load'
 import { truckLabel, type TruckRecord } from '@/lib/map'
+import type { TruckMeta } from '@/lib/maintenance-core'
 import { createLoad, fetchDatSnapshot, fetchRouteMiles } from '@/app/actions'
 import { originRate, type DatSnapshot } from '@/lib/dat-market-core'
 import { usd, usd2, usDate } from '@/lib/fmt'
@@ -28,6 +29,7 @@ export function LoadForm({
   needsAttention = [],
   docId,
   driverInfo,
+  metaByTruck = {},
 }: {
   trucks: TruckRecord[]
   /** Город, где трак стоит сейчас (по GPS), — в подписи варианта. Выбирать трак
@@ -42,6 +44,8 @@ export function LoadForm({
   /** The "Driver Information" block already rendered from the AI read (/import) —
    * omitted for manual entry, which has nothing to render. */
   driverInfo?: string
+  /** Паспорт каждого трака (lib/maintenance.ts truckMetas): цель по ставке для расчёта. */
+  metaByTruck?: Record<number, TruckMeta>
 }) {
   const locale = useLocale()
   const [load, setLoad] = useState<QrLoad>(initial)
@@ -245,7 +249,9 @@ export function LoadForm({
             {tr(locale, 'loadDetail.rateHeading')}
           </h2>
           {calcError && <p className="text-sm text-bad-400">{calcError}</p>}
-          {result && truck && <Analysis r={result} mpg={truck.mpg} spotRpm={load.spotRpm} dat={dat} />}
+          {result && truck && (
+            <Analysis r={result} mpg={truck.mpg} spotRpm={load.spotRpm} dat={dat} targetRpm={metaByTruck[truck.id]?.targetRpm} />
+          )}
         </section>
       </div>
     </MotionConfig>

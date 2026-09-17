@@ -300,11 +300,11 @@ async function resetDemoData(dispatcherId: number, locale: Locale): Promise<void
     await sql`
       INSERT INTO truck_meta (truck_id, driver_phone, trailer_number, vin, plate, year, make, model,
                               oil_last_odometer, registration_expiry, inspection_expiry,
-                              insurance_expiry, cdl_expiry, medcard_expiry, driver_photo, driver_photo_mime)
+                              insurance_expiry, cdl_expiry, medcard_expiry, driver_photo, driver_photo_mime, target_rpm)
       VALUES (${id}, ${t.phone}, ${'TR-' + t.number.slice(-3)}, ${t.vin}, ${t.plate}, ${t.year},
               ${t.make}, ${t.model}, ${t.oilLastOdometer}, ${t.registrationExpiry}, ${t.inspectionExpiry},
               ${t.insuranceExpiry}, ${t.cdlExpiry}, ${t.medcardExpiry},
-              UNHEX(${photoHex}), 'image/jpeg')`
+              UNHEX(${photoHex}), 'image/jpeg', 2.5)`
     // fleet_status is normally filled by the ELD poller (lib/eld.ts) — faking one row
     // per demo truck is what makes the map pin, live location and oil countdown (it
     // needs a CURRENT odometer, not just the last-change one) show up at all.

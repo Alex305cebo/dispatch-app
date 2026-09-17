@@ -34,6 +34,8 @@ export type TruckMeta = {
   weekTargetGross: number | null
   /** Штаты «не возить в…», коды. */
   avoidStates: string[]
+  /** Цель по ставке, $/mi гружёных миль, — вписал диспетчер (lib/profit.ts targetVerdict). */
+  targetRpm: number | null
 }
 
 /** Что планировщик и «Кому искать груз» знают о водителе: домашний штат, когда он дома,
