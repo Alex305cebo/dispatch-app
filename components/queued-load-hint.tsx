@@ -1,6 +1,6 @@
 import { AlertTriangle, ListChecks } from 'lucide-react'
 import { t, type Locale } from '@/lib/i18n'
-import { usDate } from '@/lib/fmt'
+import { driveTime, usDate } from '@/lib/fmt'
 import { PartialButton } from '@/components/partial-button'
 
 /**
@@ -13,6 +13,7 @@ export function QueuedLoadHint({
   locale,
   current,
   next,
+  fit,
   compact = false,
   nextId,
 }: {
@@ -24,6 +25,8 @@ export function QueuedLoadHint({
     deliveryTime: string | null
   }
   next: { pickupDate: string | null; pickupTime: string | null }
+  /** Успевает ли трак на этот пикап (lib/queue-fit-core.ts). Null — нечем считать. */
+  fit?: { lateMin: number; slackMin: number } | null
   /** Следующий груз — кнопка «Едут вместе — это партиал» прямо здесь. */
   nextId?: number
   /** Под строкой «Следующий груз» на карточке трака — без заголовка и рамки. */
@@ -44,13 +47,25 @@ export function QueuedLoadHint({
   return (
     <div
       className={`${compact ? 'mt-2' : 'mt-4'} rounded-xl border px-3 py-2.5 text-[12.5px] ${
-        tight ? 'border-bad-500/35 bg-bad-500/[0.07]' : 'border-haul-500/30 bg-haul-500/[0.06]'
+        tight || (fit && fit.lateMin > 0) ? 'border-bad-500/35 bg-bad-500/[0.07]' : 'border-haul-500/30 bg-haul-500/[0.06]'
       }`}
     >
       {!compact && (
         <p className="mb-1 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
           <ListChecks size={13} strokeWidth={2.2} className="text-haul-300" />
           {t(locale, 'queued.title').replace('{route}', `${current.origin ?? '—'} → ${current.destination ?? '—'}`)}
+        </p>
+      )}
+      {fit && fit.lateMin > 0 && (
+        <p className="mb-1 flex items-center gap-1.5 font-semibold text-bad-300">
+          <AlertTriangle size={13} strokeWidth={2.4} />
+          {t(locale, 'queued.wontMake').replace('{t}', driveTime(fit.lateMin, locale))}
+        </p>
+      )}
+      {fit && fit.lateMin === 0 && fit.slackMin < 180 && (
+        <p className="mb-1 flex items-center gap-1.5 font-semibold text-warn-400">
+          <AlertTriangle size={13} strokeWidth={2.4} />
+          {t(locale, 'queued.tightFit').replace('{t}', driveTime(fit.slackMin, locale))}
         </p>
       )}
       {tight && (

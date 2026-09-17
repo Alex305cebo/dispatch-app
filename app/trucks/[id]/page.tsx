@@ -39,7 +39,8 @@ import { dispatcherPhoneKey, getSetting, detentionTerms } from '@/lib/settings'
 import { stopWindows } from '@/lib/detention'
 import { parseTaskOrder, stopsFrom, taskOrderKey, viaLabel, type StopEv } from '@/lib/stops'
 import { allStopEvents, listLoadEvents } from '@/lib/load-events'
-import { onTimeStats } from '@/lib/loads-dashboard'
+import { onTimeStats, stopDeadlineMs } from '@/lib/loads-dashboard'
+import { queueFit } from '@/lib/queue-fit-core'
 import { DriverTimeline } from '@/components/driver-timeline'
 import { QueuedLoadHint } from '@/components/queued-load-hint'
 import { getLocale } from '@/lib/i18n-server'
@@ -211,6 +212,18 @@ export default async function Page({
   const taskEvents: Record<number, StopEv[]> = activeLoad ? { [activeLoad.id]: driverEvents } : {}
   for (const p of partials) taskEvents[p.id] = await listLoadEvents(companyId, p.id)
   const mapData = await loadMapData(activeLoad, truck, fs, locale, driverEvents)
+  // Успевает ли трак на следующий пикап (lib/queue-fit-core.ts): путь до выгрузки + разгрузка
+  // + Deadhead против закрытия окна пикапа. Одних дат мало: «выгрузка и пикап в один день»
+  // выглядело нормой даже через полстраны.
+  const nextPickupStop = nextLoad ? stopsFrom(nextLoad)[0] : null
+  const queueFitNext = nextLoad
+    ? queueFit({
+        nowMs: Date.now(),
+        etaMin: mapData.etaMin,
+        deadheadMi: nextLoad.deadheadMiles || null,
+        pickupEndMs: nextPickupStop ? stopDeadlineMs(nextPickupStop) : null,
+      })
+    : null
   // Партиалы — теми же пинами и линиями, без второго трака (fs не передаём).
   for (const p of partials) {
     const extra = await loadMapData(p, truck, undefined, locale)
@@ -513,7 +526,9 @@ export default async function Page({
                 <span className="nums ml-auto font-medium text-white/70">{usd.format(nextLoad.rate)}</span>
               </Link>
             )}
-            {nextLoad && <QueuedLoadHint compact locale={locale} current={activeLoad} next={nextLoad} nextId={nextLoad.id} />}
+            {nextLoad && (
+              <QueuedLoadHint compact locale={locale} current={activeLoad} next={nextLoad} nextId={nextLoad.id} fit={queueFitNext} />
+            )}
           </div>
         )}
         <div className="relative px-4 pb-4 pt-4 sm:px-5 sm:pb-5">

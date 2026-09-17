@@ -106,7 +106,7 @@ function gpsArrival(load: LoadRecord, stop: LoadStop, stops: LoadStop[]): string
 }
 
 /** Конец окна остановки в мс: дата и последнее время окна по поясу её штата; без даты — null. */
-function stopDeadlineMs(stop: LoadStop): number | null {
+export function stopDeadlineMs(stop: LoadStop): number | null {
   if (!stop.date) return null
   const zone = zoneForPlace(stop.city) ?? zoneForPlace(stop.address) ?? 'America/Chicago'
   return zonedMs(stop.date, lastMinutes(stop.time), zone)

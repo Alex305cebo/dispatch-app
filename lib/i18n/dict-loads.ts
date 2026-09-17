@@ -3396,6 +3396,22 @@ export const loadsDict = {
     ro: 'Șoferul vede deja cursa următoare pe pagina lui. Trimite-i oricum Driver Info cu adrese și telefoane — asta citește la poartă.',
     kk: 'Жүргізуші келесі жүкті өз бетінде көріп тұр. Мекенжай мен телефондары бар Driver Info-ны бәрібір жібер: ол қақпада соны оқиды.',
   },
+  'queued.wontMake': {
+    ru: 'Не успевает на этот пикап примерно на {t} — считаем по пути до выгрузки, разгрузке и Deadhead',
+    en: 'Will miss this pickup by about {t} — counting the drive to delivery, unloading and deadhead',
+    es: 'No llega a esta recogida por unos {t} — contando el viaje a la entrega, la descarga y el deadhead',
+    uk: 'Не встигає на цей пікап приблизно на {t} — рахуємо шлях до вивантаження, вивантаження і Deadhead',
+    ro: 'Nu prinde această ridicare cu circa {t} — socotim drumul la livrare, descărcarea și deadhead-ul',
+    kk: 'Осы тиеуге шамамен {t} кешігеді — түсіруге дейінгі жол, түсіру және Deadhead есебімен',
+  },
+  'queued.tightFit': {
+    ru: 'Впритык: запас всего {t} до закрытия пикапа',
+    en: 'Tight: only {t} of slack before the pickup closes',
+    es: 'Justo: solo {t} de margen antes de que cierre la recogida',
+    uk: 'Впритул: запас лише {t} до закриття пікапа',
+    ro: 'La limită: doar {t} rezervă până se închide ridicarea',
+    kk: 'Тығыз: тиеу жабылғанға дейін небәрі {t} қор',
+  },
   'queued.tight': {
     ru: 'Пикап {pickup} раньше выгрузки {delivery}. Оба груза едут в трейлере вместе? Это партиал — отметь кнопкой ниже. Если нет — так не успеть: перенеси окно у брокера или проверь даты.',
     en: 'Pickup {pickup} is before delivery {delivery}. Are both loads in the trailer together? That is a partial — mark it below. If not, it cannot be made: move the window with the broker or check the dates.',
