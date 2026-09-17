@@ -82,9 +82,9 @@ async function zipOfCity(city) {
 /** Город с индексом, куда и откуда наш флот реально ездит: по одному на штат, чаще всего. */
 async function hubs() {
   const [rows] = await db.query(
-    `SELECT origin AS city, pickup_address AS addr FROM loads WHERE company_id = ? AND pickup_address <> ''
+    `SELECT origin AS city, pickup_address AS addr FROM loads WHERE company_id = ? AND origin <> ''
      UNION ALL
-     SELECT destination AS city, delivery_address AS addr FROM loads WHERE company_id = ? AND delivery_address <> ''`,
+     SELECT destination AS city, delivery_address AS addr FROM loads WHERE company_id = ? AND destination <> ''`,
     [company, company],
   )
   const byState = new Map()
