@@ -40,6 +40,16 @@ export const loginDict = {
   },
   'login.submit': { ru: 'Войти', en: 'Sign in', es: 'Entrar', uk: 'Увійти', ro: 'Intră', kk: 'Кіру' },
   'login.checking': { ru: 'Проверяю…', en: 'Checking…', es: 'Comprobando…', uk: 'Перевіряю…', ro: 'Se verifică…', kk: 'Тексерілуде…' },
+  'login.demoTitle': { ru: 'Живое демо', en: 'Live demo', es: 'Demo en vivo', uk: 'Живе демо', ro: 'Demo live', kk: 'Тірі демо' },
+  'login.demoBadge': { ru: 'без регистрации', en: 'no sign-up', es: 'sin registro', uk: 'без реєстрації', ro: 'fără cont', kk: 'тіркелусіз' },
+  'login.demoSub': {
+    ru: 'Парк с траками на карте, грузы, счета и финансы — вход в один клик',
+    en: 'A fleet on the map, loads, invoices and finances — one click in',
+    es: 'Flota en el mapa, cargas, facturas y finanzas — entra con un clic',
+    uk: 'Парк із траками на мапі, вантажі, рахунки й фінанси — вхід в один клік',
+    ro: 'Flotă pe hartă, curse, facturi și finanțe — intri dintr-un clic',
+    kk: 'Картадағы парк, жүктер, шоттар мен қаржы — бір басумен кіру',
+  },
   'login.demo': {
     ru: '🧪 Посмотреть живое демо — без регистрации',
     en: '🧪 View live demo — no sign-up',
