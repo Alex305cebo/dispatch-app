@@ -455,6 +455,22 @@ CREATE TABLE IF NOT EXISTS dat_lanes (
   KEY dat_lanes_state (company_id, origin_state, seen_on)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
 
+-- Своя история рынка DAT по штатам: строка на штат, серию и день из суточного снимка
+-- Trendlines (scripts/dat-daily.mjs). У DAT в открытом виде истории по штатам нет, а
+-- планировщику нужно видеть сезон: сколько грузов на трак было в этом штате месяц назад.
+CREATE TABLE IF NOT EXISTS dat_state_daily (
+  snapshot_date DATE NOT NULL,
+  equipment     VARCHAR(16) NOT NULL,
+  state         CHAR(2) NOT NULL,
+  loads         INT NOT NULL,
+  trucks        INT NOT NULL,
+  ratio         DOUBLE NOT NULL,
+  region        VARCHAR(16),
+  region_rpm    DOUBLE,
+  diesel        DOUBLE,
+  PRIMARY KEY (snapshot_date, equipment, state)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
+
 -- Недельный отчёт USDA AMS «Refrigerated Truck Rates and Availability» — открытые данные
 -- без ключа (agtransport.usda.gov, набор acar-e3r8). Настоящие деньги за рейс: район
 -- погрузки, город выгрузки, мили и вилка ставки за неделю. Копим историю у себя, чтобы

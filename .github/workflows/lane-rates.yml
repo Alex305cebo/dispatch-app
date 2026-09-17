@@ -48,3 +48,10 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.MYSQL_URL }}
         run: node scripts/usda-history.mjs
+
+      # Снимок DAT в settings хранит только сегодняшний день — свою историю по штатам
+      # копим сами, строкой на штат и серию (dat_state_daily).
+      - name: Append DAT state history
+        env:
+          DATABASE_URL: ${{ secrets.MYSQL_URL }}
+        run: node scripts/dat-daily.mjs
