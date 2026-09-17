@@ -18,6 +18,14 @@ const load = (id: number, patch: Partial<FacilityLoad> = {}): FacilityLoad => ({
   ...patch,
 })
 
+test('старый груз без JSON-остановок: название склада — из текста водителю', () => {
+  const info =
+    'LOAD ID: #1\n\nPick up Address:\n\nWalmart DC 6094\n1234 N Dale Mabry Hwy, Tampa, FL 33607\n\nDelivery Address:\n\nKroger DC\n500 Commerce St, Dallas, TX 75201\n'
+  const idx = facilityIndex([load(1, { driverInfo: info })], new Map())
+  assert.equal(idx.get(facilityKey({ address: '1234 N Dale Mabry Hwy, Tampa, FL 33607', name: null, city: null })!)?.name, 'Walmart DC 6094')
+  assert.equal(idx.get(facilityKey({ address: '500 Commerce St, Dallas, TX 75201', name: null, city: null })!)?.name, 'Kroger DC')
+})
+
 test('ключ склада: адрес без регистра и пунктуации, иначе название + город', () => {
   assert.equal(facilityKey({ address: '1234 N. Dale-Mabry Hwy, Tampa, FL 33607', name: null, city: null }), '1234 n dale mabry hwy tampa fl 33607')
   assert.equal(facilityKey({ address: null, name: 'Home Depot', city: 'Tampa, FL' }), 'home depot | tampa fl')

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { stopNames } from '@/lib/driver-info-zip'
 import { listLoads } from '@/lib/loads'
 import { allStopEvents } from '@/lib/load-events'
 import { detentionTerms, getSettings } from '@/lib/settings'
@@ -20,7 +21,7 @@ export async function FacilityHints({ companyId, load, locale }: { companyId: 'd
   const hints = facilitiesForLoad(facilityIndex(loads, events, terms.free), load)
   if (!hints.length) return null
   const notes = await getSettings(hints.map((h) => facilityNoteKey(h.facility.key)))
-  const stops = stopsFrom(load)
+  const stops = stopsFrom(load, stopNames(load.driverInfo))
   return (
     <section className="panel mt-4 p-4">
       <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">

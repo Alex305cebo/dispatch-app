@@ -142,7 +142,7 @@ for (const locale of LOCALES) {
     // В демо просроченных может не быть — берём плитки и первый список под ними.
     await shot('invoices', '/invoices', [page.locator('main .grid').first(), page.locator('main details.panel').first()], { maxH: 600 })
     // Брокеры и склады: поиск, фильтры и оба списка — верх раздела.
-    await shot('brokers', '/brokers', [page.locator('main').first()], { maxH: 620 })
+    await shot('brokers', '/brokers', [page.locator('main h1').first(), page.locator('main div.grid').first()], { maxH: 620 })
     // Толлы: форма маршрута и результат под ней.
     await shot('tolls', '/tolls', [page.locator('main section').first(), page.locator('main section').nth(1)], { wait: 3000, maxH: 620 })
   }

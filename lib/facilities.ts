@@ -9,6 +9,7 @@
 
 import { stopsFrom, type LoadStop, type StopEv, type StopSource } from './stops.ts'
 import { stopWindows } from './detention.ts'
+import { stopNames } from './driver-info-zip.ts'
 
 export type Facility = {
   key: string
@@ -28,7 +29,8 @@ export type Facility = {
   directions: string | null
 }
 
-export type FacilityLoad = StopSource & { id: number; status: string; createdAt: string }
+/** driverInfo — текст водителю: у старых грузов (без JSON-остановок) только в нём название склада. */
+export type FacilityLoad = StopSource & { id: number; status: string; createdAt: string; driverInfo?: string | null }
 
 /** Ключ склада: адрес без пунктуации и регистра; без адреса — название + город. */
 export function facilityKey(stop: Pick<LoadStop, 'address' | 'name' | 'city'>): string | null {
@@ -64,7 +66,7 @@ export function facilityIndex(loads: FacilityLoad[], eventsByLoad: Map<number, S
     .filter((l) => l.status !== 'quoted' && l.status !== 'cancelled')
     .sort((a, b) => (b.pickupDate ?? b.createdAt).localeCompare(a.pickupDate ?? a.createdAt))
   for (const load of sorted) {
-    const stops = stopsFrom(load)
+    const stops = stopsFrom(load, stopNames(load.driverInfo))
     const windows = stopWindows(eventsByLoad.get(load.id) ?? [], stops)
     for (const s of stops) {
       const key = facilityKey(s)
@@ -101,9 +103,12 @@ export function facilityIndex(loads: FacilityLoad[], eventsByLoad: Map<number, S
 }
 
 /** Склады, где были не по этому грузу, — для подсказок на его карточке. */
-export function facilitiesForLoad(index: Map<string, Facility>, load: StopSource & { id: number }): { stop: LoadStop; facility: Facility }[] {
+export function facilitiesForLoad(
+  index: Map<string, Facility>,
+  load: StopSource & { id: number; driverInfo?: string | null },
+): { stop: LoadStop; facility: Facility }[] {
   const out: { stop: LoadStop; facility: Facility }[] = []
-  for (const stop of stopsFrom(load)) {
+  for (const stop of stopsFrom(load, stopNames(load.driverInfo))) {
     const key = facilityKey(stop)
     const f = key ? index.get(key) : undefined
     if (!f) continue
