@@ -453,9 +453,9 @@ export function LoginForm({
               </svg>
             </span>
             <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-1.5 text-[15px] font-bold text-white">
+              <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[15px] font-bold whitespace-nowrap text-white">
                 {t(locale, 'login.demoTitle')}
-                <span className="rounded-full bg-good-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-good-300">
+                <span className="rounded-full bg-good-500/20 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide whitespace-nowrap text-good-500">
                   {t(locale, 'login.demoBadge')}
                 </span>
               </span>
