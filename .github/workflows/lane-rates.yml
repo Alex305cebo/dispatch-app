@@ -1,7 +1,11 @@
-name: Lane rates (Warp)
+name: Lane rates
 
-# Раз в сутки — котировки по направлениям, которыми флот реально ездил: открытый API
-# wearewarp.com без ключа, по паре ZIP из адресов груза, мили настоящие (loaded_miles).
+# Раз в сутки — ставки по направлениям из открытых источников:
+#  • Warp (wearewarp.com, без ключа) — котировки по направлениям, которыми флот ездил;
+#  • USDA AMS (agtransport.usda.gov) — свежие недели отчёта по рефрижераторным рейсам
+#    в свою таблицу usda_truck_rates (настоящие деньги за рейс, история для планировщика).
+#
+# Про Warp: мили настоящие (loaded_miles из груза),
 # Строки ложатся в dat_lanes с source='warp' и в «Куда отправить трак» показываются только
 # с подписью «Warp · цена грузоотправителя»: в этой цене маржа брокера, трак получает меньше.
 #
@@ -39,3 +43,8 @@ jobs:
         run: |
           test -n "$DATABASE_URL" || { echo "MYSQL_URL secret is not set"; exit 1; }
           node scripts/lane-rates.mjs --loads 40
+
+      - name: Refresh USDA reefer rates
+        env:
+          DATABASE_URL: ${{ secrets.MYSQL_URL }}
+        run: node scripts/usda-history.mjs

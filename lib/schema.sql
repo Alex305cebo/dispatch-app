@@ -455,6 +455,28 @@ CREATE TABLE IF NOT EXISTS dat_lanes (
   KEY dat_lanes_state (company_id, origin_state, seen_on)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
 
+-- Недельный отчёт USDA AMS «Refrigerated Truck Rates and Availability» — открытые данные
+-- без ключа (agtransport.usda.gov, набор acar-e3r8). Настоящие деньги за рейс: район
+-- погрузки, город выгрузки, мили и вилка ставки за неделю. Копим историю у себя, чтобы
+-- планировщик считал по ней, а не ходил к чужому сервису на каждый экран
+-- (scripts/usda-history.mjs).
+CREATE TABLE IF NOT EXISTS usda_truck_rates (
+  id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+  report_date  DATE NOT NULL,
+  region       VARCHAR(64) NOT NULL,
+  origin       VARCHAR(255) NOT NULL,
+  destination  VARCHAR(120) NOT NULL,
+  commodity    TEXT,
+  distance     INT NOT NULL,
+  low_rate     INT,
+  high_rate    INT,
+  midpoint     INT NOT NULL,
+  rpm          DOUBLE NOT NULL,
+  availability VARCHAR(16),
+  UNIQUE KEY usda_rate_row (report_date, region, origin(120), destination, distance),
+  KEY usda_rate_date (report_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
+
 -- Источник ставки в dat_lanes: старые базы завели таблицу только под DAT, теперь в ней
 -- живут и другие источники, и ключ «одно направление в день» стал ключом с источником.
 ALTER TABLE dat_lanes ADD COLUMN IF NOT EXISTS source VARCHAR(16) NOT NULL DEFAULT 'dat';

@@ -10,8 +10,12 @@
 // Мили — только настоящие: из груза (loaded_miles) или из аргумента. Ничего не оцениваем
 // и не пересчитываем (правило пользователя 16.09.2026).
 //
-//   node --env-file=.env.local scripts/lane-rates.mjs --loads 20
+//   node --env-file=.env.local scripts/lane-rates.mjs --loads 20      ← маршруты последних грузов
+//   node --env-file=.env.local scripts/lane-rates.mjs --grid TN,CA    ← из этих штатов во все наши города
 //   node --env-file=.env.local scripts/lane-rates.mjs "37421>60616:571:Chattanooga, TN>Chicago, IL"
+//
+// В режиме сетки города берутся из наших же адресов (по одному на штат, самый частый), а
+// мили считает открытый OSRM — настоящие дорожные, как в карточке груза.
 //
 // Запускать можно хоть каждый день: одно направление в день от источника — одна строка.
 import mysql from 'mysql2/promise'
@@ -58,7 +62,51 @@ async function quote(originZip, destZip, date) {
 const db = await mysql.createConnection(url)
 await db.query('SET SESSION wait_timeout = 900')
 
-/** Маршруты: из аргументов «ZIP>ZIP:мили:Город, ST>Город, ST» или из последних грузов. */
+/** Город с индексом, куда и откуда наш флот реально ездит: по одному на штат, чаще всего. */
+async function hubs() {
+  const [rows] = await db.query(
+    `SELECT origin AS city, pickup_address AS addr FROM loads WHERE company_id = 'default' AND pickup_address <> ''
+     UNION ALL
+     SELECT destination AS city, delivery_address AS addr FROM loads WHERE company_id = 'default' AND delivery_address <> ''`,
+  )
+  const byState = new Map()
+  for (const r of rows) {
+    const st = stateOf(r.city)
+    const zip = zipOf(r.addr)
+    if (!st || !zip) continue
+    const list = byState.get(st) ?? new Map()
+    const key = `${r.city}|${zip}`
+    list.set(key, (list.get(key) ?? 0) + 1)
+    byState.set(st, list)
+  }
+  const out = []
+  for (const [st, list] of byState) {
+    const [key] = [...list].sort((a, b) => b[1] - a[1])[0]
+    const [city, zip] = key.split('|')
+    out.push({ state: st, city, zip })
+  }
+  return out
+}
+
+/** Настоящие мили по дорогам между городами — открытый OSRM (тот же, что у карточки груза). */
+async function driveMiles(fromZip, toZip) {
+  const at = async (zip) => {
+    const res = await fetch(`https://api.zippopotam.us/us/${zip}`, { signal: AbortSignal.timeout(20_000) })
+    if (!res.ok) throw new Error(`индекс ${zip}: HTTP ${res.status}`)
+    const p = (await res.json()).places?.[0]
+    return `${p.longitude},${p.latitude}`
+  }
+  const [a, b] = [await at(fromZip), await at(toZip)]
+  const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${a};${b}?overview=false`, {
+    signal: AbortSignal.timeout(30_000),
+  })
+  if (!res.ok) throw new Error(`OSRM: HTTP ${res.status}`)
+  const m = (await res.json())?.routes?.[0]?.distance
+  if (!(m > 0)) throw new Error('OSRM: нет маршрута')
+  return Math.round(m / 1609.344)
+}
+
+/** Маршруты: из аргументов «ZIP>ZIP:мили:Город, ST>Город, ST», сеткой или из последних грузов. */
 async function lanes() {
   const explicit = args.filter((a) => a.includes('>'))
   if (explicit.length) {
@@ -68,6 +116,32 @@ async function lanes() {
       const [origin = oz, dest = dz] = names.split('>')
       return { oz, dz, miles: Number(miles), origin, dest }
     })
+  }
+  // --grid ST,ST: из этих штатов во все остальные наши города. Мили — по дорогам (OSRM).
+  const gridAt = args.indexOf('--grid')
+  if (gridAt >= 0) {
+    const from = (args[gridAt + 1] ?? '').toUpperCase().split(',').filter(Boolean)
+    const all = await hubs()
+    const out = []
+    for (const o of all.filter((h) => from.includes(h.state))) {
+      for (const d of all) {
+        if (d.state === o.state) continue
+        // Мили этой пары уже считали в прошлый раз — чужой роутер второй раз не трогаем.
+        const [[hit]] = await db.query('SELECT miles FROM dat_lanes WHERE origin = ? AND dest = ? AND miles > 0 LIMIT 1', [o.city, d.city])
+        let miles = hit?.miles
+        if (!miles) {
+          try {
+            miles = await driveMiles(o.zip, d.zip)
+          } catch (e) {
+            console.error(`пропуск ${o.city} → ${d.city}: ${e.message}`)
+            continue
+          }
+          await new Promise((r) => setTimeout(r, 1100)) // OSRM и zippopotam — не чаще раза в секунду
+        }
+        out.push({ oz: o.zip, dz: d.zip, miles, origin: `${o.city}`, dest: `${d.city}` })
+      }
+    }
+    return out
   }
   const limit = Number(args[args.indexOf('--loads') + 1]) || 20
   const [rows] = await db.query(
@@ -91,8 +165,9 @@ async function lanes() {
 }
 
 const date = pickupDate()
+const max = Number(args[args.indexOf('--max') + 1]) || 50
 let saved = 0
-for (const l of (await lanes()).slice(0, 50)) {
+for (const l of (await lanes()).slice(0, max)) {
   if (!(l.miles > 0)) {
     console.error(`пропуск ${l.origin} → ${l.dest}: нет настоящих миль`)
     continue
