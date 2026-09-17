@@ -73,20 +73,27 @@ const OPTS_KEY = 'plan:opts'
 const SERIES_NAME: Record<DatEquipment, string> = { VAN: 'Van', REEFER: 'Reefer', FLATBED: 'Flatbed' }
 const HEAT_KEY: Record<DatHeat, MsgKey> = { hot: 'needsLoad.heatHot', warm: 'needsLoad.heatWarm', cold: 'needsLoad.heatCold' }
 const TONE_TEXT = { hit: 'text-good-400', near: 'text-warn-400', miss: 'text-bad-400' } as const
-/** Плашка штата на карте: ставка по самому маршруту, иначе ставка DAT региона штата, иначе
- * честное «ставки нет»; дальше — рынок штата с грузами на трак, как справа в списке. */
-const mapTip = (b: Benchmark | null, region: string, regionRpm: number | null, locale: Locale) =>
-  b
-    ? t(locale, 'plan.map.tip').replace('{rpm}', usd2.format(b.rpm))
-    : regionRpm
-      ? t(locale, 'plan.map.tipRegion').replace('{rpm}', usd2.format(regionRpm)).replace('{region}', region)
-      : t(locale, 'plan.map.tipNoRpm')
 const input =
   'w-full rounded-xl border border-white/10 bg-ink-950/70 px-3 py-2 text-[14px] text-white outline-none focus:border-haul-500 max-md:min-h-11'
 
 /** Регион DAT по-человечески: NORTHEAST → Northeast. */
 const regionTitle = (code: string) => code.charAt(0) + code.slice(1).toLowerCase()
 const regionName = (snap: DatSnapshot, state: string) => regionTitle(regionOf(snap, state)?.code ?? '')
+
+/**
+ * Ставка, на которую диспетчеру торговаться, $/mi: цель по самому маршруту (цена
+ * грузоотправителя минус доля брокера), иначе ставка DAT региона штата доставки.
+ * Ноль — цифры нет. По ней и порядок в списке, и цвет штата на карте.
+ */
+function targetRate(snap: (DatSnapshot & { bench?: RpmBench }) | null, origin: string | null, state: string): number {
+  if (!snap || !origin) return 0
+  const b = benchmarkRpm(snap.bench, origin, state)
+  if (b) {
+    const band = b.source === 'warpLane' && snap.bench?.cut ? targetBand(b.rpm, snap.bench.cut) : null
+    return band ? band.low : b.rpm
+  }
+  return regionOf(snap, state)?.rpm ?? 0
+}
 
 /** Ставка по направлению для плитки: цель торга по маршруту, иначе ставка DAT региона. */
 const rateLine = (lane: Lane, snap: DatSnapshot, origin: string, bench: RpmBench | undefined, locale: Locale) => {
@@ -178,8 +185,11 @@ export function useRoutePlan(trucks: PlanTruck[], snaps: PlanSnaps, selectedId: 
 
   const mapPlan = useMemo<MapPlan | null>(() => {
     if (!origin || !lanes.length) return null
-    // Шкала карты — от 60% до 120% цели, как на сайте: в слабый рынок направления ниже цели
-    // всё равно различаются цветом, а не сливаются в один красный.
+    // Цвет штата — ставка, на которую отсюда можно торговаться. Шкала от середины по
+    // показанным штатам: ±40%, красный — где платят заметно меньше, зелёный — больше.
+    // Абсолютная шкала не годится: в слабый рынок вся страна была бы красной.
+    const rates = lanes.map((l) => targetRate(snap, origin, l.state)).filter((r) => r > 0).sort((a, b) => a - b)
+    const mid = rates.length ? rates[Math.floor(rates.length / 2)]! : 0
     return {
       origin,
       signal,
@@ -187,23 +197,30 @@ export function useRoutePlan(trucks: PlanTruck[], snaps: PlanSnaps, selectedId: 
         title: t(locale, 'plan.map.title').replace('{state}', stateName(origin)),
         mode: t(locale, 'plan.map.modePlan').replace('{state}', origin),
         from: t(locale, 'plan.from'),
-        low: usd.format(opts.target * 0.6),
-        high: `${usd.format(opts.target * 1.2)}+`,
-        hint: `${t(locale, 'plan.map.target').replace('{v}', usd.format(opts.target))} · ${t(locale, 'plan.map.pickHint')}`,
+        low: mid ? usd2.format(mid * 0.7) : '—',
+        high: mid ? `${usd2.format(mid * 1.4)}+` : '—',
+        hint: `${t(locale, 'plan.map.target').replace('{v}', mid ? `${usd2.format(mid)}/mi` : '—')} · ${t(locale, 'plan.map.pickHint')}`,
       },
       lanes: Object.fromEntries(
-        lanes.map((l) => [
-          l.state,
-          {
-            t: (l.grossPerDay / opts.target - 0.6) / 0.6,
-            text: mapTip(benchmarkRpm(snap?.bench, origin, l.state), snap ? regionName(snap, l.state) : '', l.nextRpm, locale)
-              .replace('{miles}', l.miles.toLocaleString('en-US'))
-              .replace('{heat}', l.ratio != null ? ltLine(l, locale) : '—'),
-          },
-        ]),
+        lanes.map((l) => {
+          const rate = targetRate(snap, origin, l.state)
+          return [
+            l.state,
+            {
+              t: mid && rate ? (Math.log2(rate / mid) + 0.5) / 1 : 0.5,
+              text: [
+                rate ? `${usd2.format(rate)}/mi` : t(locale, 'plan.map.noRate'),
+                `${l.miles.toLocaleString('en-US')} mi`,
+                l.ratio != null ? ltLine(l, locale) : null,
+              ]
+                .filter(Boolean)
+                .join(' · '),
+            },
+          ]
+        }),
       ),
     }
-  }, [origin, lanes, opts.target, signal, locale, snap])
+  }, [origin, lanes, signal, locale, snap])
 
   return {
     truck,
@@ -290,7 +307,7 @@ function BoardShotSample({ locale }: { locale: Locale }) {
 
 export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks: PlanTruck[]; snaps: PlanSnaps }) {
   const locale = useLocale()
-  const [range, setRange] = useState<'all' | 'day' | 'long'>('all')
+  const [range, setRange] = useState<'all' | 'day' | 'mid' | 'long'>('all')
   const { truck, origin, series, snap, opts, lanes, from, planOpts } = plan
   if (!truck) return null
   const seriesList = Object.keys(snaps) as DatEquipment[]
@@ -301,10 +318,22 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
   const heat = snap && lt ? ltHeat(snap, lt.ratio) : null
   const originRpm = snap && origin ? (regionOf(snap, origin)?.rpm ?? null) : null
   const s = truck.settings
-  // «На 1 день»: груз вместе с порожним укладывается в «Миль в день» из настроек расчёта.
-  const inRange = range === 'all' ? lanes : lanes.filter((l) => (l.miles + l.deadhead <= opts.mpd) === (range === 'day'))
-  // Ловушки — хвост списка: самые холодные штаты. Штат без данных DAT ловушкой не считаем.
-  const rated = inRange.filter((l) => l.ratio != null)
+  // Плечи, которыми думает диспетчер: «на 1 день» — груз с порожним укладывается в «Миль
+  // в день»; средние — до 1200 миль; дальние — дальше. В каждом плече свой топ: ставки на
+  // коротком и дальнем рейсе несравнимы, и один общий список всегда показывал бы короткие.
+  const dayTrip = (l: Lane) => l.miles + l.deadhead <= opts.mpd
+  const BANDS = [
+    { key: 'day' as const, has: dayTrip },
+    { key: 'mid' as const, has: (l: Lane) => !dayTrip(l) && l.miles <= 1200 },
+    { key: 'long' as const, has: (l: Lane) => !dayTrip(l) && l.miles > 1200 },
+  ]
+  const rateOf = (l: Lane) => targetRate(snap, origin, l.state)
+  // Внутри плеча — сперва где больше платят, при равной ставке горячее рынок.
+  const byRate = (a: Lane, b: Lane) => rateOf(b) - rateOf(a) || (b.ratio ?? 0) - (a.ratio ?? 0)
+  const bandOf = (key: 'day' | 'mid' | 'long') => lanes.filter(BANDS.find((b) => b.key === key)!.has).sort(byRate)
+  const inRange = range === 'all' ? [...lanes].sort(byRate) : bandOf(range)
+  // Ловушки — самые холодные штаты. Штат без данных DAT ловушкой не считаем.
+  const rated = lanes.filter((l) => l.ratio != null)
   const traps = rated.length > 10 ? rated.slice(-3).reverse() : []
 
   const place = truck.place
@@ -333,17 +362,30 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
         {snap && <span className="nums text-[11.5px] text-white/45">{t(locale, 'loadCard.marketAsOf').replace('{when}', snap.date)}</span>}
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1.2fr)_auto] sm:items-end">
-        <label className="block min-w-0">
-          <span className={label}>{t(locale, 'plan.truck')}</span>
-          <select value={truck.id} onChange={(e) => plan.pickTruck(Number(e.target.value))} className={input}>
-            {trucks.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.label}
-              </option>
-            ))}
-          </select>
-        </label>
+      {/* Трак — кнопками, а не списком: диспетчер жмёт трак и весь расчёт ниже
+          пересобирается под него. Списком это было незаметно. */}
+      <div className="mt-3">
+        <span className={label}>{t(locale, 'plan.truck')}</span>
+        <div className="flex flex-wrap gap-1.5">
+          {trucks.map((x) => (
+            <button
+              key={x.id}
+              type="button"
+              aria-pressed={x.id === truck.id}
+              onClick={() => plan.pickTruck(x.id)}
+              className={`rounded-xl border px-2.5 py-1.5 text-[12.5px] font-semibold transition-colors max-md:min-h-10 ${
+                x.id === truck.id
+                  ? 'border-haul-500/60 bg-haul-500/15 text-white'
+                  : 'border-white/10 bg-white/[0.04] text-white/60 hover:border-white/20 hover:text-white/85'
+              }`}
+            >
+              {x.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1.2fr)_auto] sm:items-end">
         <label className="block min-w-0">
           <span className={label}>{t(locale, 'plan.from')}</span>
           <select value={origin ?? ''} onChange={(e) => plan.setOrigin(e.target.value || null)} className={input}>
@@ -500,12 +542,13 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
                 .join(' · '),
             )}
           </p>
-          {/* Рейсы на один день — отдельным выбором. */}
+          {/* Плечи: на день, среднее и дальнее — в каждом свой топ по ставке. */}
           <div className="mt-2 flex rounded-xl border border-white/10 bg-white/[0.04] p-0.5">
             {(
               [
                 ['all', 'plan.range.all'],
                 ['day', 'plan.range.day'],
+                ['mid', 'plan.range.mid'],
                 ['long', 'plan.range.long'],
               ] as const
             ).map(([key, msg]) => (
@@ -525,13 +568,43 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
           {range === 'day' && (
             <p className="mt-1.5 text-[12px] text-white/55">{t(locale, 'plan.range.dayHint').replace('{mi}', String(opts.mpd))}</p>
           )}
-          {inRange.length ? (
+          {/* «Все» — не один длинный список, а по четыре лучших в каждом плече: диспетчеру
+              нужны разные варианты, а не десять соседних штатов подряд. */}
+          {range === 'all' ? (
+            <div className="mt-2 flex flex-col gap-3">
+              {BANDS.map(({ key }) => {
+                const list = bandOf(key).slice(0, 4)
+                if (!list.length) return null
+                return (
+                  <div key={key}>
+                    <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wide text-white/45">{t(locale, `plan.range.${key}` as MsgKey)}</p>
+                    <div className="flex flex-col gap-1.5">
+                      {list.map((lane, i) => (
+                        <LaneRow
+                          key={lane.state}
+                          lane={lane}
+                          rank={i + 1}
+                          snap={snap}
+                          origin={origin}
+                          opts={opts}
+                          settings={s}
+                          locale={locale}
+                          reasons={lane.home ? [t(locale, 'plan.why.home')] : undefined}
+                          bench={snap.bench}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : inRange.length ? (
             <div className="mt-2 flex flex-col gap-1.5">
               <ShowMore
                 key={range}
                 limit={5}
                 label={t(locale, 'plan.more')}
-                items={inRange.slice(0, 10).map((lane, i) => (
+                items={inRange.slice(0, 12).map((lane, i) => (
                   <LaneRow
                     key={lane.state}
                     lane={lane}
@@ -561,7 +634,7 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
         </>
       )}
 
-      {snap && series && <MarketDetails snap={snap} series={series} locale={locale} />}
+      {snap && series && <MarketDetails snap={snap} snaps={snaps} series={series} locale={locale} />}
     </section>
   )
 }
@@ -569,7 +642,17 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
 /** Рынок серии целиком — то, что на сайте было карточкой аналитики: дизель, грузы на трак
  * по стране за год, ставки регионов и под каждой — штаты региона. Раскрыт сразу; сдвиг за
  * неделю стоит рядом с тем, что сдвинулось. На телефоне регионы по три в ряд, штаты кодами. */
-function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: string }; series: DatEquipment; locale: Locale }) {
+function MarketDetails({
+  snap,
+  snaps,
+  series,
+  locale,
+}: {
+  snap: DatSnapshot & { date: string }
+  snaps: PlanSnaps
+  series: DatEquipment
+  locale: Locale
+}) {
   const trend = snap.trend
   const sub = 'text-2xs font-semibold uppercase tracking-wide text-white/55'
   return (
@@ -687,8 +770,124 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
             )}
           </div>
         </div>
+        <StatesTable snaps={snaps} series={series} locale={locale} />
       </div>
     </details>
+  )
+}
+
+/**
+ * Все штаты таблицей: грузов на трак, ставка региона и — по кнопке — сразу три прицепа
+ * рядом. Свой выбор прицепа: диспетчер смотрит рынок рефрижератора, не трогая расчёт
+ * наверху. Сортировка по любому столбцу — по нажатию на заголовок.
+ */
+function StatesTable({ snaps, series, locale }: { snaps: PlanSnaps; series: DatEquipment; locale: Locale }) {
+  const [eq, setEq] = useState<DatEquipment>(series)
+  const [compare, setCompare] = useState(false)
+  const [sort, setSort] = useState<'lt' | 'state' | 'rate'>('lt')
+  const list = Object.keys(snaps) as DatEquipment[]
+  const snap = snaps[list.includes(eq) ? eq : (list[0] as DatEquipment)]
+  if (!snap) return null
+  const median = ltMedian(snap)
+  const rows = Object.entries(snap.lt)
+    .map(([code, lt]) => ({
+      code,
+      name: stateName(code),
+      ratio: lt.ratio,
+      rate: regionOf(snap, code)?.rpm ?? 0,
+      region: regionName(snap, code),
+      byEq: Object.fromEntries(list.map((e) => [e, ltOf(snaps[e] ?? snap, code)?.ratio ?? null])) as Record<DatEquipment, number | null>,
+    }))
+    .filter((r) => r.ratio > 0)
+    .sort((a, b) => (sort === 'state' ? a.name.localeCompare(b.name) : sort === 'rate' ? b.rate - a.rate : b.ratio - a.ratio))
+  const th = 'cursor-pointer select-none px-2 py-1 text-left font-semibold text-white/55 hover:text-white/85'
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h4 className="text-2xs font-semibold uppercase tracking-wide text-white/55">{t(locale, 'plan.market.states')}</h4>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {list.length > 1 && (
+            <div className="flex rounded-lg border border-white/10 bg-white/[0.04] p-0.5">
+              {list.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  aria-pressed={e === eq}
+                  onClick={() => setEq(e)}
+                  className={`rounded px-2 py-1 text-[11.5px] font-semibold transition-colors max-md:min-h-9 ${
+                    e === eq ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-white/55 hover:text-white/85'
+                  }`}
+                >
+                  {SERIES_NAME[e]}
+                </button>
+              ))}
+            </div>
+          )}
+          {list.length > 1 && (
+            <button
+              type="button"
+              aria-pressed={compare}
+              onClick={() => setCompare((v) => !v)}
+              className={`rounded-lg border px-2 py-1 text-[11.5px] font-semibold transition-colors max-md:min-h-9 ${
+                compare ? 'border-haul-500/60 bg-haul-500/15 text-white' : 'border-white/10 text-white/55 hover:text-white/85'
+              }`}
+            >
+              {t(locale, 'plan.market.compare')}
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="mt-1.5 max-h-80 overflow-auto rounded-xl border border-white/8">
+        <table className="w-full border-collapse text-[12px]">
+          <thead className="sticky top-0 bg-ink-950/95 backdrop-blur">
+            <tr>
+              <th className={th} onClick={() => setSort('state')}>
+                {t(locale, 'plan.market.colState')}
+              </th>
+              {compare ? (
+                list.map((e) => (
+                  <th key={e} className={`${th} text-right`} onClick={() => setEq(e)}>
+                    {SERIES_NAME[e]}
+                  </th>
+                ))
+              ) : (
+                <th className={`${th} text-right`} onClick={() => setSort('lt')}>
+                  {t(locale, 'plan.market.colLt')}
+                </th>
+              )}
+              <th className={`${th} text-right`} onClick={() => setSort('rate')}>
+                {t(locale, 'plan.market.colRate')}
+              </th>
+            </tr>
+          </thead>
+          <tbody className="nums">
+            {rows.map((r) => (
+              <tr key={r.code} className="border-t border-white/[0.06]">
+                <td className="px-2 py-1 text-white/80">
+                  <span className="lg:hidden">{r.code}</span>
+                  <span className="hidden lg:inline">{r.name}</span>
+                </td>
+                {compare ? (
+                  list.map((e) => (
+                    <td key={e} className="px-2 py-1 text-right text-white/75">
+                      {r.byEq[e] != null ? r.byEq[e]!.toFixed(1) : '—'}
+                    </td>
+                  ))
+                ) : (
+                  <td className="px-2 py-1 text-right">
+                    <span className="mr-1 text-[10px]">{HEAT_LEVEL_ICON[heatLevel(median, r.ratio)]}</span>
+                    <span className="text-white/85">{r.ratio.toFixed(1)}</span>
+                  </td>
+                )}
+                <td className="px-2 py-1 text-right text-white/60" title={r.region}>
+                  {r.rate ? usd2.format(r.rate) : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   )
 }
 
