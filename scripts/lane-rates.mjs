@@ -117,10 +117,17 @@ async function lanes() {
       return { oz, dz, miles: Number(miles), origin, dest }
     })
   }
-  // --grid ST,ST: из этих штатов во все остальные наши города. Мили — по дорогам (OSRM).
+  // --grid ST,ST (или auto — где стоят траки): из этих штатов во все остальные наши
+  // города. Мили — настоящие, по дорогам (OSRM), и один раз: дальше берутся из базы.
   const gridAt = args.indexOf('--grid')
   if (gridAt >= 0) {
-    const from = (args[gridAt + 1] ?? '').toUpperCase().split(',').filter(Boolean)
+    const arg = (args[gridAt + 1] ?? '').toUpperCase()
+    let from = arg.split(',').filter(Boolean)
+    if (arg === 'AUTO') {
+      const [live] = await db.query('SELECT DISTINCT location FROM fleet_status WHERE location <> ?', [''])
+      from = [...new Set(live.map((r) => stateOf(r.location)).filter(Boolean))]
+      console.error(`штаты траков: ${from.join(', ') || '—'}`)
+    }
     const all = await hubs()
     const out = []
     for (const o of all.filter((h) => from.includes(h.state))) {

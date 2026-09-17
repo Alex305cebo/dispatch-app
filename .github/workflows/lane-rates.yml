@@ -55,3 +55,12 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.MYSQL_URL }}
         run: node scripts/dat-daily.mjs
+
+      # Раз в неделю — сетка направлений из штатов, где сейчас стоят траки. Каждый день
+      # её гонять незачем: чужой сервис бесплатный, и ставка за неделю так не меняется.
+      - name: Weekly grid from where the trucks are
+        env:
+          DATABASE_URL: ${{ secrets.MYSQL_URL }}
+        run: |
+          [ "$(date -u +%u)" = "7" ] || { echo "не воскресенье — сетку пропускаем"; exit 0; }
+          node scripts/lane-rates.mjs --grid auto --max 120
