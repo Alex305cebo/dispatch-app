@@ -80,13 +80,13 @@ export async function backfillBrokerMc(
     await sql`
       UPDATE loads SET broker_mc = NULL
       WHERE company_id = ${companyId}
-        AND regexp_replace(coalesce(broker_mc, ''), '[^0-9]', '', 'g') = ${mine}`
+        AND regexp_replace(coalesce(broker_mc, ''), '[^0-9]', '') = ${mine}`
   }
 
   // Брокеры, у которых MC нет ни на одном грузе. Имя — ключ: именно по нему потом
   // проставляем, и именно им брокер записан в документе.
   const rows = (await sql`
-    SELECT lower(trim(broker_name)) AS key,
+    SELECT lower(trim(broker_name)) AS "key",
            max(broker_name) AS name,
            max(broker_email) AS email,
            max(broker_phone) AS phone,
@@ -204,12 +204,12 @@ export async function backfillBrokerMc(
           : null
       await sql`
         INSERT INTO brokers (mc, legal_name, dba_name, dot_number, authority_status, phone, checked_at)
-        VALUES (${found}, ${best.legalName}, ${best.dbaName}, ${best.dot}, ${authority}, ${best.phone}, now())
-        ON CONFLICT (mc) DO UPDATE SET
-          legal_name = EXCLUDED.legal_name, dba_name = EXCLUDED.dba_name,
-          dot_number = EXCLUDED.dot_number,
-          authority_status = coalesce(EXCLUDED.authority_status, brokers.authority_status),
-          phone = coalesce(EXCLUDED.phone, brokers.phone), checked_at = now()`
+        VALUES (${found}, ${best.legalName}, ${best.dbaName}, ${best.dot}, ${authority}, ${best.phone}, NOW(6))
+        ON DUPLICATE KEY UPDATE
+          legal_name = VALUES(legal_name), dba_name = VALUES(dba_name),
+          dot_number = VALUES(dot_number),
+          authority_status = coalesce(VALUES(authority_status), brokers.authority_status),
+          phone = coalesce(VALUES(phone), brokers.phone), checked_at = NOW(6)`
       out.filled++
       mark('ok')
     } catch {
@@ -229,8 +229,8 @@ export async function backfillBrokerMc(
 /** Сколько брокеров ещё без MC и ждут подбора — чтобы интерфейс знал, звать ли ещё. */
 export async function brokersMissingMc(companyId: 'default' | 'demo'): Promise<number> {
   const rows = (await sql`
-    SELECT count(*)::int AS n FROM (
-      SELECT lower(trim(broker_name)) AS key
+    SELECT count(*) AS n FROM (
+      SELECT lower(trim(broker_name)) AS "key"
       FROM loads
       WHERE company_id = ${companyId} AND coalesce(trim(broker_name), '') <> ''
       GROUP BY 1

@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import type { TruckRecord } from '@/lib/map'
+import type { TruckMeta } from '@/lib/maintenance-core'
 import { parseLoadHash, type QrLoad } from '@/lib/qr-load'
 import { LoadForm } from '@/components/load-form'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 
-export function QrClient({ trucks }: { trucks: TruckRecord[] }) {
+export function QrClient({ trucks, metaByTruck }: { trucks: TruckRecord[]; metaByTruck: Record<number, TruckMeta> }) {
   const locale = useLocale()
   // The hash never reaches the server — by design, and also by HTTP. So the load
   // only exists after hydration.
@@ -45,7 +46,7 @@ export function QrClient({ trucks }: { trucks: TruckRecord[] }) {
       <p className="mb-4 rounded-xl border border-haul-500/25 bg-haul-500/8 px-4 py-2.5 text-[13px] text-haul-400">
         {t(locale, 'loadQr.bannerText')}
       </p>
-      <LoadForm trucks={trucks} initial={load} source="qr" needsAttention={needsAttention} />
+      <LoadForm trucks={trucks} metaByTruck={metaByTruck} initial={load} source="qr" needsAttention={needsAttention} />
     </>
   )
 }

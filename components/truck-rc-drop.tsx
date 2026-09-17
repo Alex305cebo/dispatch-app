@@ -1,5 +1,6 @@
 'use client'
 
+import { safeUploadFile } from '@/lib/upload-name'
 import { DocLink } from '@/components/doc-link'
 
 import { Button } from '@/components/button'
@@ -106,7 +107,7 @@ export function TruckRcDrop({
 
       async function fileDoc(f: File, kind: string, loadId?: number) {
         const fd = new FormData()
-        fd.append('file', f)
+        fd.append('file', safeUploadFile(f))
         fd.append('kind', kind)
         fd.append('truckId', String(truckId))
         if (loadId) fd.append('loadId', String(loadId))
@@ -134,7 +135,7 @@ export function TruckRcDrop({
       // 2) save the RC as a document on this truck
       setStage(t(locale, 'rcDrop.stageSaving'))
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', safeUploadFile(file))
       fd.append('kind', sourceKind)
       fd.append('truckId', String(truckId))
       const up = await uploadDocument(fd)

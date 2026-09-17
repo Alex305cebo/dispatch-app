@@ -1,0 +1,68 @@
+name: Lane rates
+
+# Раз в сутки — ставки по направлениям из открытых источников:
+#  • Warp (wearewarp.com, без ключа) — котировки по направлениям, которыми флот ездил;
+#  • USDA AMS (agtransport.usda.gov) — свежие недели отчёта по рефрижераторным рейсам
+#    в свою таблицу usda_truck_rates (настоящие деньги за рейс, история для планировщика).
+#
+# Про Warp: мили настоящие (loaded_miles из груза),
+# Строки ложатся в dat_lanes с source='warp' и в «Куда отправить трак» показываются только
+# с подписью «Warp · цена грузоотправителя»: в этой цене маржа брокера, трак получает меньше.
+#
+# Сорок запросов в сутки — чужой сервис не грузим. Логи репозитория публичные: скрипт
+# печатает направления и цены, строку подключения к базе — нет.
+
+on:
+  schedule:
+    # После каждого снимка DAT (10:23 и 22:23 UTC), чтобы две работы не толкались за базу
+    # и суточная история по штатам дописывалась свежими цифрами.
+    - cron: '7 11 * * *'
+    - cron: '7 23 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: lane-rates
+  cancel-in-progress: false
+
+jobs:
+  quotes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # Одна зависимость вместо всего npm ci: скрипту нужен только драйвер базы.
+      - name: Install MariaDB driver
+        run: npm i mysql2@3 --no-save --no-audit --no-fund
+
+      - name: Collect lane quotes
+        env:
+          DATABASE_URL: ${{ secrets.MYSQL_URL }}
+        run: |
+          test -n "$DATABASE_URL" || { echo "MYSQL_URL secret is not set"; exit 1; }
+          node scripts/lane-rates.mjs --loads 40
+
+      - name: Refresh USDA reefer rates
+        env:
+          DATABASE_URL: ${{ secrets.MYSQL_URL }}
+        run: node scripts/usda-history.mjs
+
+      # Снимок DAT в settings хранит только сегодняшний день — свою историю по штатам
+      # копим сами, строкой на штат и серию (dat_state_daily).
+      - name: Append DAT state history
+        env:
+          DATABASE_URL: ${{ secrets.MYSQL_URL }}
+        run: node scripts/dat-daily.mjs
+
+      # Раз в неделю — сетка направлений из штатов, где сейчас стоят траки. Каждый день
+      # её гонять незачем: чужой сервис бесплатный, и ставка за неделю так не меняется.
+      - name: Weekly grid from where the trucks are
+        env:
+          DATABASE_URL: ${{ secrets.MYSQL_URL }}
+        run: |
+          [ "$(date -u +%u)" = "7" ] || { echo "не воскресенье — сетку пропускаем"; exit 0; }
+          node scripts/lane-rates.mjs --grid auto --max 120

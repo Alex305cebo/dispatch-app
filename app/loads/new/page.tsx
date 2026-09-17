@@ -1,5 +1,5 @@
 import { getLoad, listTrucks } from '@/lib/loads'
-import { fleetStatusByUnit } from '@/lib/maintenance'
+import { fleetStatusByUnit, truckMetas } from '@/lib/maintenance'
 import { cityOf } from '@/lib/maintenance-core'
 import { NewLoadClient } from '@/components/new-load-client'
 import { BackButton } from '@/components/back-button'
@@ -15,7 +15,11 @@ export default async function Page({
 }: {
   searchParams: Promise<{ truck?: string; repeat?: string }>
 }) {
-  const [trucks, fleet] = await Promise.all([listTrucks(await companyScope()), fleetStatusByUnit()])
+  const [trucks, fleet, metas] = await Promise.all([
+    listTrucks(await companyScope()),
+    fleetStatusByUnit(),
+    truckMetas(await companyScope()),
+  ])
   // Где каждый трак стоит сейчас — в подпись варианта в списке выбора.
   const placeByTruck: Record<number, string> = {}
   for (const tr of trucks) {
@@ -67,6 +71,7 @@ export default async function Page({
       <NewLoadClient
         trucks={trucks}
         placeByTruck={placeByTruck}
+        metaByTruck={Object.fromEntries(metas)}
         defaultTruckId={defaultTruckId}
         repeat={repeat}
       />

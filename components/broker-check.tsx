@@ -10,6 +10,7 @@ import type { RateConFields } from '@/lib/ratecon'
 import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
+import { usDate } from '@/lib/fmt'
 
 export function BrokerCheckPanel({ fields }: { fields: RateConFields }) {
   const locale = useLocale()
@@ -84,7 +85,7 @@ export function BrokerCheckPanel({ fields }: { fields: RateConFields }) {
               />
             )}
             {data.authorityGranted && (
-              <span className="text-white/55">{t(locale, 'brokerCheck.grantedOn').replace('{date}', data.authorityGranted)}</span>
+              <span className="text-white/55">{t(locale, 'brokerCheck.grantedOn').replace('{date}', usDate(data.authorityGranted))}</span>
             )}
           </div>
           {data.address && <p className="mt-1 text-[12px] text-white/50">{data.address}</p>}

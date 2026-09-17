@@ -2,7 +2,7 @@ import { cityOf } from '@/lib/maintenance-core'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
-import { Plus } from 'lucide-react'
+import { Phone, Plus } from 'lucide-react'
 import { BackButton } from '@/components/back-button'
 import { Button } from '@/components/button'
 import { PairBar } from '@/components/pair-bar'
@@ -15,9 +15,12 @@ import { fleetStatusByUnit, getTruckMeta, listMaintenance, listTodos, oilStatus 
 import { tripHistory } from '@/lib/eld'
 import { loadMapData, statusTone } from '@/lib/load-map'
 import { usd, usd2, weekBounds, loadWeekAnchorMs, usDate } from '@/lib/fmt'
+import { zoneFor } from '@/lib/tz'
+import { LocalTime } from '@/components/local-time'
 import { FleetMap } from '@/components/fleet-map'
 import { StatusBadge, statusLabel } from '@/components/status'
 import { TruckForm } from '@/components/truck-form'
+import { FuelPriceButton } from '@/components/fuel-price-button'
 import { TruckCare } from '@/components/truck-care'
 import { DriverCard } from '@/components/driver-card'
 import { TruckRcDrop } from '@/components/truck-rc-drop'
@@ -34,15 +37,21 @@ import { companyScope, getCurrentUser } from '@/lib/session'
 import { getCompany } from '@/lib/invoice'
 import { dispatcherPhoneKey, getSetting, detentionTerms } from '@/lib/settings'
 import { stopWindows } from '@/lib/detention'
-import { stopsFrom, viaLabel, type StopEv } from '@/lib/stops'
-import { listLoadEvents } from '@/lib/load-events'
+import { parseTaskOrder, stopsFrom, taskOrderKey, viaLabel, type StopEv } from '@/lib/stops'
+import { allStopEvents, listLoadEvents } from '@/lib/load-events'
+import { onTimeStats } from '@/lib/loads-dashboard'
 import { DriverTimeline } from '@/components/driver-timeline'
 import { QueuedLoadHint } from '@/components/queued-load-hint'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { CopyPlace } from '@/components/copy-place'
 import { TruckPhoto } from '@/components/truck-photo'
-import { ShowMore } from '@/components/collapse'
+import { DateMore } from '@/components/date-more'
+import { MissingPodBanner } from '@/components/missing-pod-banner'
+import { StalePartialBanner } from '@/components/stale-partial-banner'
+import { DeadheadFlag } from '@/components/deadhead-flag'
+import { todayEt } from '@/lib/payments'
+import { loadsMissingPod } from '@/lib/loads'
 
 export const dynamic = 'force-dynamic'
 
@@ -94,7 +103,7 @@ export default async function Page({
   // диспетчер копирует брокеру прямо из карточки водителя. Оба запроса кэшированы и
   // идут в общей пачке, отдельного захода в базу это не стоит.
   const user = await getCurrentUser()
-  const [loads, meta, records, todos, fleet, docs, rateCons, history, company, dispatcherPhone] = await Promise.all([
+  const [loads, meta, records, todos, fleet, docs, rateCons, history, company, dispatcherPhone, stopEvents] = await Promise.all([
     listLoads(companyId, { truckId: truck.id }),
     getTruckMeta(truck.id),
     listMaintenance(truck.id),
@@ -107,6 +116,9 @@ export default async function Page({
     // Номер того, кто закреплён за траком, а не того, кто открыл страницу:
     // траки распределены между диспетчерами, и брокеру нужен человек по машине.
     dispatcherId || user ? getSetting(dispatcherPhoneKey(dispatcherId ?? user!.id)) : Promise.resolve(null),
+    // Отметки «приехал» — для плитки «Вовремя».
+    // ponytail: отметки всей компании одним запросом (как справочник складов); фильтр по траку — если парк вырастет.
+    allStopEvents(companyId),
   ])
   const fs = truck.number ? fleet.get(truck.number) : undefined
   // Когда водитель последний раз открывал свою страницу — видно, что ссылка живая.
@@ -125,6 +137,8 @@ export default async function Page({
         })()
 
   const live = loads.filter((l) => l.status !== 'cancelled')
+  // Доставленные грузы без POD — первой строкой «Текущего задания».
+  const missingPod = await loadsMissingPod(companyId, live)
   const rows = live.map((l) => ({ load: l, r: calcLoad(l, truck) }))
   const active = live.filter((l) => l.status === 'booked' || l.status === 'in_transit').length
 
@@ -142,6 +156,20 @@ export default async function Page({
   const weekGross = weekRows.reduce((s, x) => s + x.load.rate, 0)
   const weekMiles = weekRows.reduce((s, x) => s + x.r.totalMiles, 0)
   const avgRpm = weekMiles > 0 ? weekRows.reduce((s, x) => s + x.r.gross, 0) / weekMiles : 0
+  const weekDeadhead = weekRows.reduce((s, x) => s + x.r.deadheadMiles, 0)
+  const weekDeadheadPct = weekMiles > 0 ? Math.round((weekDeadhead / weekMiles) * 100) : 0
+  // Сколько дней стоит без груза: от плановой даты последней доставки. Дата
+  // доставки, а не статус, потому что груз могут отметить «доставлен» и через
+  // неделю — а трак всё это время уже искал работу.
+  const lastDelivery = live
+    .filter((l) => (l.status === 'delivered' || l.status === 'paid') && l.deliveryDate)
+    .map((l) => l.deliveryDate!)
+    .sort()
+    .pop()
+  const idleDays = lastDelivery ? Math.max(0, Math.floor((Date.now() - Date.parse(lastDelivery)) / 86_400_000)) : null
+  // Вовремя за 90 дней; меньше трёх остановок с окном и приездом — «мало данных».
+  const onTime = onTimeStats(live, stopEvents, Date.now())
+  const onTimePct = onTime.total >= 3 ? Math.round((onTime.onTime / onTime.total) * 100) : null
   const openTodos = todos.filter((t) => !t.doneAt).length
   const hasUrgentTodo = todos.some((t) => !t.doneAt && t.priority === 'urgent')
   const oil = oilStatus(meta, fs?.odometer ?? null)
@@ -158,6 +186,17 @@ export default async function Page({
   const nextLoad = nextLoadsByTruck(live).get(truck.id) ?? null
   // Партиалы: едут вместе с текущим в одном трейлере.
   const partials = (activeLoadsByTruck(live).get(truck.id) ?? []).filter((l) => l.id !== activeLoad?.id)
+  // Забытый партиал: выгрузка прошла, а он всё ещё «в пути» — его точки попадают в
+  // задание нового груза (и у водителя). Предупреждение с кнопками — над заданием.
+  const staleToday = todayEt()
+  const stalePartials = partials
+    .filter((p) => p.deliveryDate && p.deliveryDate.slice(0, 10) < staleToday)
+    .map((p) => ({
+      id: p.id,
+      label: [p.brokerName, p.referenceId ? '#' + p.referenceId : null, (p.origin ?? '—') + ' → ' + (p.destination ?? '—')].filter(Boolean).join(' '),
+      deliveryDate: p.deliveryDate!,
+      lastSeq: [...stopsFrom(p)].reverse().find((s) => s.role === 'delivery')?.seq ?? 2,
+    }))
   const activeStops = activeLoad ? stopsFrom(activeLoad) : []
   const activeVia = activeLoad ? viaLabel(activeStops, locale) : null
 
@@ -206,93 +245,101 @@ export default async function Page({
         locale={locale}
       />
 
-      {/* ===== Шапка-баннер, как карточка товара: слева номер, водитель, где стоит;
-           справа трак крупно во всю высоту шапки, за ним мягкая подсветка. На
-           телефоне картинка — полосой сверху. Задание и цифры — ниже в той же
-           панели. ===== */}
+      {/* ===== Шапка-баннер, как карточка товара: слева номер, паспорт и текущий груз;
+           справа трак и где стоит; ниже во всю ширину — точки задания и цифры трака.
+           На телефоне картинка — полосой сверху. ===== */}
       <section className="panel relative mt-3 overflow-hidden">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-0 w-full bg-[radial-gradient(60%_90%_at_85%_45%,rgba(109,90,232,0.22),transparent_70%)] sm:w-3/5"
+          className="pointer-events-none absolute inset-y-0 right-0 w-full bg-[radial-gradient(60%_60%_at_80%_22%,rgba(109,90,232,0.22),transparent_70%)] sm:w-3/5"
         />
         <div className="relative grid sm:grid-cols-[minmax(0,1fr)_minmax(280px,44%)]">
           <div className="min-w-0 p-4 sm:p-5">
-          <h1 className="text-[22px] font-semibold leading-7 sm:text-[26px] sm:leading-8">{truck.number ?? truck.name}</h1>
-
-          {/* One wrapping row instead of a stack of full-width lines — trailer,
-              driver, phone and live GPS all read as one compact block on any width,
-              wrapping to extra lines on narrow phones instead of stretching tall. */}
-          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-[13px]">
-            {meta?.trailerNumber && (
-              <>
-                <span className="text-white/55">
-                  {t(locale, 'trucks.detail.trailer')} {meta.trailerNumber}
+          {/* Строка трака: номер, статус ELD значком, справа — доступность трака.
+              Всё, что нажимается в шапке, одного вида: кнопка h-8 с рамкой и иконкой. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <h1 className="nums text-[26px] font-semibold leading-8">{truck.number ?? truck.name}</h1>
+              {fs?.driveStatus && (
+                <span
+                  className={`inline-flex h-6 items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 text-[12px] font-semibold ${toneClass[statusTone(fs.driveStatus)]}`}
+                  title="ELD"
+                >
+                  <span aria-hidden className="size-1.5 rounded-full bg-current" />
+                  {fs.driveStatus}
                 </span>
-                <span aria-hidden className="text-white/25">
-                  ·
-                </span>
-              </>
-            )}
-            <span className="font-medium text-white/85">{truck.driverName || t(locale, 'trucks.detail.noDriver')}</span>
-            <span aria-hidden className="hidden text-white/25 sm:inline">
-              ·
-            </span>
-            {/* Driver contact — the number a dispatcher actually needs at hand. */}
-            {meta?.driverPhone ? (
-              <a
-                href={`tel:${meta.driverPhone}`}
-                className="inline-flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1 font-medium text-white/85 transition-colors hover:bg-white/12"
-              >
-                📞 {meta.driverPhone}
-              </a>
-            ) : (
-              <span className="text-white/40">{t(locale, 'trucks.detail.noPhone')}</span>
-            )}
-          </div>
-          {fs?.location && (
-            /* Место — своей строкой под именем и телефоном: в общем ряду на телефоне
-               кнопки «Копировать» и «Карта» уезжали на разные строки, а статус «ON»
-               оставался один посреди пустоты. Место — кнопка: ответ на «где сейчас
-               трак» почти всегда тут же уходит брокеру. Копируется «город, штат». */
-            <div
-              className={`mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] ${toneClass[statusTone(fs.driveStatus)]}`}
-            >
-              <CopyPlace
-                text={`📍 ${fs.location}`}
-                copy={cityOf(fs.location) ?? fs.location}
-                coords={{ lat: fs.lat, lng: fs.lng }}
-                size="sm"
-              />
-              {fs.driveStatus && <span className="font-semibold">· {fs.driveStatus}</span>}
+              )}
             </div>
-          )}
-
-          {(meta?.vin || meta?.plate) && (
-            <p className="mt-1.5 text-[11px] text-white/45">
-              {[meta.plate && `${t(locale, 'trucks.detail.plateLabel')} ${meta.plate}`, meta.vin && `VIN ${meta.vin}`]
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
-          )}
-          {/* Кто ведёт эту машину. Закрепление живёт в админке, а нужно оно здесь: на
-              странице трака и спрашивают «кто им занимается». */}
-          {user?.role === 'admin' ? (
-            <div className="mt-2">
-              <TruckDispatcher truckId={truck.id} current={dispatcherId} users={staff} />
-            </div>
-          ) : (
-            dispatcherName && (
-              <p className="mt-1.5 text-[11px] text-white/45">
-                {t(locale, 'trucks.detail.dispatcher').replace('{name}', dispatcherName)}
-              </p>
-            )
-          )}
-
-          {/* Manual availability — dims the truck across the app and pulls it out of
-              the "free" counters until it's flipped back. */}
-          <div className="mt-2.5">
+            {/* Manual availability — dims the truck across the app and pulls it out of
+                the "free" counters until it's flipped back. */}
             <TruckAvailability truckId={truck.id} current={truck.unavailable} locale={locale} />
           </div>
+
+          {/* Паспорт одной сеткой подписанных полей: подпись сверху, значение под ней.
+              Раньше это была строка через точки, где имя, номер трейлера и телефон
+              сливались в одно предложение. */}
+          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+            <HeadField label={t(locale, 'trucks.driverCard.heading')}>
+              {truck.driverName || <span className="text-white/40">{t(locale, 'trucks.detail.noDriver')}</span>}
+            </HeadField>
+            <HeadField label={t(locale, 'trucks.driverCard.phoneRowLabel')} className="max-sm:col-span-2">
+              {meta?.driverPhone ? (
+                <a
+                  href={`tel:${meta.driverPhone}`}
+                  className="nums mt-0.5 inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-[13px] font-medium text-white/90 transition-colors hover:border-white/30 hover:bg-white/[0.08] max-md:h-10"
+                >
+                  <Phone size={14} strokeWidth={2.2} className="text-haul-300" />
+                  {meta.driverPhone}
+                </a>
+              ) : (
+                <span className="text-white/40">{t(locale, 'trucks.detail.noPhone')}</span>
+              )}
+            </HeadField>
+            <HeadField label={t(locale, 'trucks.driverCard.trailerRowLabel')}>
+              {meta?.trailerNumber ? <span className="nums">{meta.trailerNumber}</span> : <span className="text-white/40">—</span>}
+            </HeadField>
+            {/* Кто ведёт эту машину. Закрепление живёт в админке, а нужно оно здесь: на
+                странице трака и спрашивают «кто им занимается». */}
+            {(user?.role === 'admin' || dispatcherName) && (
+              <HeadField label={t(locale, 'trucks.detail.dispatcherPick')}>
+                {user?.role === 'admin' ? (
+                  <TruckDispatcher bare truckId={truck.id} current={dispatcherId} users={staff} />
+                ) : (
+                  dispatcherName
+                )}
+              </HeadField>
+            )}
+            {meta?.plate && (
+              <HeadField label={t(locale, 'trucks.detail.plateLabel')}>
+                <span className="nums">{meta.plate}</span>
+              </HeadField>
+            )}
+            {meta?.vin && (
+              <HeadField label="VIN">
+                <span className="nums text-[13px] text-white/75">{meta.vin}</span>
+              </HeadField>
+            )}
+            {fs?.location && (
+              /* Где сейчас: место — отдельной строкой во всю ширину, кнопки под ним.
+                 Ответ на «где трак» почти всегда тут же уходит брокеру. */
+              <HeadField label={t(locale, 'trucks.head.location')} className="col-span-2 sm:hidden">
+                <span className="block">{fs.location}</span>
+                {zoneFor(fs.lat, fs.lng) && (
+                  <span className="mt-0.5 block text-[12px] text-white/60">
+                    {t(locale, 'trucks.head.driverTime')}: <LocalTime zone={zoneFor(fs.lat, fs.lng)!} className="nums font-semibold text-white/85" />
+                  </span>
+                )}
+                <CopyPlace
+                  text={fs.location}
+                  copy={cityOf(fs.location) ?? fs.location}
+                  coords={{ lat: fs.lat, lng: fs.lng }}
+                  variant="action"
+                  hideText
+                  className="mt-1.5"
+                />
+              </HeadField>
+            )}
+          </dl>
 
         {/* ===== Current assignment: route, pickup/delivery dates, at a glance ===== */}
         <div className="mt-4 border-t border-white/8 pt-4">
@@ -300,56 +347,43 @@ export default async function Page({
             {t(locale, 'trucks.detail.currentAssignment')}
             <Info text={t(locale, 'trucks.detail.currentAssignmentInfo')} />
           </h2>
+          <MissingPodBanner loads={missingPod} locale={locale} className="mb-3" />
+          <StalePartialBanner items={stalePartials} locale={locale} />
           {activeLoad ? (
             <>
               {/* Статус — ВПЛОТНУЮ к маршруту. justify-between отбрасывал его к правому
                   краю, и посреди строки зияла пустая полоса в пол-экрана. */}
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Кнопка, а не текст-ссылка: маршрут — единственный переход с трака на
-                    его груз, и подчёркиванием при наведении он себя не выдавал. */}
-                <Link
-                  href={`/loads/${activeLoad.id}`}
-                  className="group flex min-w-0 items-center gap-2 rounded-xl border border-haul-500/35 bg-haul-500/[0.10] px-3 py-1.5 transition-colors hover:border-haul-400/60 hover:bg-haul-500/20"
-                >
-                  <span className="truncate text-[16px] font-semibold">
+              {/* Груз — одна карточка-ссылка: маршрут крупно, под ним статус, номер
+                  и брокер. Вся карточка нажимается и ведёт на груз. */}
+              <Link
+                href={`/loads/${activeLoad.id}`}
+                className="group block rounded-xl border border-haul-500/30 bg-haul-500/[0.07] px-3.5 py-2.5 transition-colors hover:border-haul-400/60 hover:bg-haul-500/[0.14]"
+              >
+                <span className="flex items-start justify-between gap-3">
+                  <span className="min-w-0 text-[17px] font-semibold leading-6">
                     {activeLoad.origin ?? '—'} → {activeLoad.destination ?? '—'}
                     {activeVia && <span className="ml-1.5 text-[13px] font-medium text-white/50">· {activeVia}</span>}
                   </span>
-                  <span className="shrink-0 text-[14px] text-haul-300 transition-transform group-hover:translate-x-0.5">
+                  <span className="mt-0.5 shrink-0 text-[15px] text-haul-300 transition-transform group-hover:translate-x-0.5">
                     ↗
                   </span>
-                </Link>
-                <StatusBadge status={activeLoad.status} locale={locale} />
-                {activeLoad.referenceId && (
-                  <span className="nums text-[12px] text-white/45">#{activeLoad.referenceId}</span>
-                )}
-                {activeLoad.brokerName && (
-                  <span className="truncate text-[12px] text-white/45">· {activeLoad.brokerName}</span>
-                )}
-              </div>
-              <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] sm:grid-cols-3">
-                <div>
-                  <dt className="text-xs text-white/60 font-medium">
-                    {t(locale, 'trucks.detail.pickup')}
-                  </dt>
-                  <dd className="font-medium text-white/85">
-                    {activeLoad.pickupTime || usDate(activeLoad.pickupDate) || '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-white/60 font-medium">
-                    {t(locale, 'trucks.detail.delivery')}
-                  </dt>
-                  <dd className="font-medium text-white/85">
-                    {activeLoad.deliveryTime || usDate(activeLoad.deliveryDate) || '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-white/60 font-medium">
-                    {t(locale, 'trucks.detail.rate')}
-                  </dt>
-                  <dd className="font-medium text-white/85">{usd.format(activeLoad.rate)}</dd>
-                </div>
+                </span>
+                <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-white/55">
+                  <StatusBadge status={activeLoad.status} locale={locale} />
+                  {activeLoad.referenceId && <span className="nums">#{activeLoad.referenceId}</span>}
+                  {activeLoad.brokerName && <span className="min-w-0 truncate">{activeLoad.brokerName}</span>}
+                </span>
+              </Link>
+              <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+                <HeadField label={t(locale, 'trucks.detail.pickup')}>
+                  <span className="nums">{activeLoad.pickupTime || usDate(activeLoad.pickupDate) || '—'}</span>
+                </HeadField>
+                <HeadField label={t(locale, 'trucks.detail.delivery')}>
+                  <span className="nums">{activeLoad.deliveryTime || usDate(activeLoad.deliveryDate) || '—'}</span>
+                </HeadField>
+                <HeadField label={t(locale, 'trucks.detail.rate')}>
+                  <span className="nums text-[16px] font-semibold">{usd.format(activeLoad.rate)}</span>
+                </HeadField>
               </dl>
               {partials.map((p) => (
                 <Link
@@ -369,38 +403,27 @@ export default async function Page({
                   <span className="nums ml-auto font-medium text-white/70">{usd.format(p.rate)}</span>
                 </Link>
               ))}
-              {/* Порядок точек нужен, только когда их больше двух: у обычного рейса
-                  «откуда → куда» в строке выше и есть всё задание. */}
-              {(taskLoads.length > 1 || activeStops.length > 2) && (
-                <TaskStops loads={taskLoads} events={taskEvents} locale={locale} className="mt-3" />
-              )}
-              {nextLoad && (
-                <Link
-                  href={`/loads/${nextLoad.id}`}
-                  className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[13px] hover:border-white/25"
-                >
-                  <span className="text-[13px] font-semibold text-white/75">
-                    {t(locale, 'trucks.detail.nextLoad')}
-                  </span>
-                  <span className="font-medium text-white/85">
-                    {nextLoad.origin ?? '—'} → {nextLoad.destination ?? '—'}
-                  </span>
-                  <span className="nums text-white/50">{nextLoad.pickupTime || usDate(nextLoad.pickupDate)}</span>
-                  {nextLoad.referenceId && (
-                    <span className="nums text-[12px] text-white/40">#{nextLoad.referenceId}</span>
-                  )}
-                  <span className="nums ml-auto font-medium text-white/70">{usd.format(nextLoad.rate)}</span>
-                </Link>
-              )}
-              {nextLoad && <QueuedLoadHint compact locale={locale} current={activeLoad} next={nextLoad} />}
             </>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-white/55">
               {/* Не просто «свободен», а ГДЕ стоит: это и есть ответ, в каком городе
                   искать ему груз. Без GPS остаётся прежняя фраза. */}
-              {cityOf(fs?.location)
-                ? t(locale, 'trucks.detail.idleAt').replace('{place}', cityOf(fs?.location)!)
-                : t(locale, 'trucks.detail.noActiveLoad')}
+              <span className="flex flex-wrap items-center gap-2">
+                {idleDays != null && (
+                  <span
+                    className={`nums rounded-md px-1.5 py-0.5 text-[12px] font-semibold ${
+                      idleDays >= 4 ? 'bg-bad-500/15 text-bad-400' : idleDays >= 2 ? 'bg-warn-500/15 text-warn-400' : 'bg-white/[0.06] text-white/70'
+                    }`}
+                  >
+                    {t(locale, 'trucks.detail.idleDays').replace('{n}', String(idleDays))}
+                  </span>
+                )}
+                <span>
+                  {cityOf(fs?.location)
+                    ? t(locale, 'trucks.detail.idleAt').replace('{place}', cityOf(fs?.location)!)
+                    : t(locale, 'trucks.detail.noActiveLoad')}
+                </span>
+              </span>
               {/* Свободный трак — главное действие на карточке: завести ему груз.
                   Была текстовая ссылка «+ груз» в углу, её не находили. */}
               <Button
@@ -418,49 +441,180 @@ export default async function Page({
             <DriverLinkButton url={driverLink} driverPhone={meta?.driverPhone ?? null} seenAt={driverSeen} />
           )}
         </div>
-
-        {/* Цифры трака — одной компактной строкой ПОД заданием: сроки текущего рейса
-            читаются раньше недельной ставки и масла. */}
-        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-white/8 pt-3">
-          <Chip
-            label={t(locale, 'trucks.chip.weekRate')}
-            value={usd.format(weekGross)}
-            tone={weekGross > 0 ? 'good' : undefined}
-            info={t(locale, 'trucks.chip.weekRateInfo')}
-          />
-          <Chip
-            label={t(locale, 'trucks.chip.rpm')}
-            value={`${usd2.format(avgRpm)}`}
-            info={t(locale, 'trucks.chip.rpmInfo')}
-          />
-          <Chip
-            label={t(locale, 'trucks.chip.oilIn')}
-            value={oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—'}
-            tone={oil?.tone}
-            info={t(locale, 'trucks.chip.oilInInfo')}
-          />
-          {fs?.fuel != null && (
-            <Chip
-              label={t(locale, 'trucks.chip.fuel')}
-              value={`${Math.round(fs.fuel)}%`}
-              tone={fs.fuel <= 15 ? 'bad' : fs.fuel <= 30 ? 'warn' : undefined}
-              info={t(locale, 'trucks.chip.fuelInfo')}
-            />
-          )}
+          </div>
+          {/* Правая колонка — сама машина: фото на высоту левой колонки (по центру, а не
+              прижатое вниз под пустотой) и где стоит. На телефоне колонка раскладывается
+              (contents): фото полосой сверху, место — в паспорте. */}
+          <div className="flex min-w-0 flex-col gap-4 max-sm:contents sm:py-5 sm:pr-5">
+            <div className="relative h-44 max-sm:order-first sm:h-auto sm:min-h-44 sm:flex-1">
+              <TruckPhoto
+                fill
+                truckId={truck.id}
+                hasPhoto={meta?.hasTruckPhoto ?? false}
+                model={meta?.truckModel ?? null}
+                demo={companyId === 'demo'}
+                alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
+              />
+            </div>
+            {fs?.location && (
+              <dl className="max-sm:hidden">
+                <HeadField label={t(locale, 'trucks.head.location')}>
+                  <span className="block">{fs.location}</span>
+                  {zoneFor(fs.lat, fs.lng) && (
+                    <span className="mt-0.5 block text-[12px] text-white/60">
+                      {t(locale, 'trucks.head.driverTime')}: <LocalTime zone={zoneFor(fs.lat, fs.lng)!} className="nums font-semibold text-white/85" />
+                    </span>
+                  )}
+                  <CopyPlace
+                    text={fs.location}
+                    copy={cityOf(fs.location) ?? fs.location}
+                    coords={{ lat: fs.lat, lng: fs.lng }}
+                    variant="action"
+                    hideText
+                    className="mt-1.5"
+                  />
+                </HeadField>
+              </dl>
+            )}
+          </div>
         </div>
+        {/* Во всю ширину под колонками: длинные части задания (точки по порядку,
+            следующий груз, предупреждение о стыковке) и цифры трака. В колонке они
+            делали её то длиннее соседней, то короче — пустота переезжала туда-сюда. */}
+        {activeLoad && (taskLoads.length > 1 || activeStops.length > 2 || nextLoad) && (
+          <div className="relative px-4 sm:px-5">
+            {/* Порядок точек нужен, только когда их больше двух: у обычного рейса
+                «откуда → куда» в строке выше и есть всё задание. */}
+            {(taskLoads.length > 1 || activeStops.length > 2) && (
+              <TaskStops
+                loads={taskLoads}
+                events={taskEvents}
+                locale={locale}
+                truckId={truck.id}
+                order={parseTaskOrder(await getSetting(taskOrderKey(truck.id)))}
+                className="mt-3"
+              />
+            )}
+            {nextLoad && (
+              <Link
+                href={`/loads/${nextLoad.id}`}
+                className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[13px] hover:border-white/25"
+              >
+                <span className="text-[13px] font-semibold text-white/75">
+                  {t(locale, 'trucks.detail.nextLoad')}
+                </span>
+                <span className="font-medium text-white/85">
+                  {nextLoad.origin ?? '—'} → {nextLoad.destination ?? '—'}
+                </span>
+                <span className="nums text-white/50">{nextLoad.pickupTime || usDate(nextLoad.pickupDate)}</span>
+                {nextLoad.referenceId && (
+                  <span className="nums text-[12px] text-white/40">#{nextLoad.referenceId}</span>
+                )}
+                <span className="nums ml-auto font-medium text-white/70">{usd.format(nextLoad.rate)}</span>
+              </Link>
+            )}
+            {nextLoad && <QueuedLoadHint compact locale={locale} current={activeLoad} next={nextLoad} nextId={nextLoad.id} />}
           </div>
-          {/* Трак — во всю высоту левой колонки: шапка, задание и цифры слева, машина
-              справа, пустого места под текстом больше нет. На телефоне — полосой сверху. */}
-          <div className="relative h-44 max-sm:order-first sm:h-auto">
-            <TruckPhoto
-              fill
-              truckId={truck.id}
-              hasPhoto={meta?.hasTruckPhoto ?? false}
-              model={meta?.truckModel ?? null}
-              demo={companyId === 'demo'}
-              alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
-            />
-          </div>
+        )}
+        <div className="relative px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
+          {(() => {
+            // Плиток то шесть, то восемь: пробег, топливо и топливо на рейс есть не у каждого
+            // трака. Линии между плитками — это фон сетки (gap-px), и на месте недостающей
+            // плитки он просвечивал пустым серым прямоугольником. Последняя забирает остаток строки.
+            const chips: ChipProps[] = [
+              {
+                label: t(locale, 'trucks.chip.weekRate'),
+                value: usd.format(weekGross),
+                tone: weekGross > 0 ? 'good' : undefined,
+                info: t(locale, 'trucks.chip.weekRateInfo'),
+              },
+              {
+                label: t(locale, 'trucks.chip.weekMiles'),
+                value: `${Math.round(weekMiles).toLocaleString('en-US')} mi`,
+                info: t(locale, 'trucks.chip.weekMilesInfo'),
+              },
+              { label: t(locale, 'trucks.chip.rpm'), value: usd2.format(avgRpm), info: t(locale, 'trucks.chip.rpmInfo') },
+              {
+                label: t(locale, 'trucks.chip.deadhead'),
+                value: weekMiles > 0 ? `${Math.round(weekDeadhead).toLocaleString('en-US')} mi · ${weekDeadheadPct}%` : '—',
+                tone: weekMiles > 0 ? (weekDeadheadPct >= 25 ? 'bad' : weekDeadheadPct >= 15 ? 'warn' : 'good') : undefined,
+                info: t(locale, 'trucks.chip.deadheadInfo'),
+              },
+              // Цель недели из профиля водителя: сколько уже проехал / заработал против цели.
+              ...(meta?.weekTargetMiles
+                ? [
+                    {
+                      label: t(locale, 'trucks.chip.weekTarget'),
+                      value: `${Math.round(weekMiles).toLocaleString('en-US')} / ${meta.weekTargetMiles.toLocaleString('en-US')} mi · ${Math.round((weekMiles / meta.weekTargetMiles) * 100)}%`,
+                      tone: weekMiles >= meta.weekTargetMiles ? ('good' as const) : undefined,
+                      info: t(locale, 'trucks.chip.weekTargetInfo'),
+                    },
+                  ]
+                : []),
+              ...(meta?.weekTargetGross
+                ? [
+                    {
+                      label: t(locale, 'trucks.chip.weekTargetGross'),
+                      value: `${usd.format(weekGross)} / ${usd.format(meta.weekTargetGross)} · ${Math.round((weekGross / meta.weekTargetGross) * 100)}%`,
+                      tone: weekGross >= meta.weekTargetGross ? ('good' as const) : undefined,
+                      info: t(locale, 'trucks.chip.weekTargetInfo'),
+                    },
+                  ]
+                : []),
+              {
+                label: `${t(locale, 'trucks.chip.onTime')}${truck.driverName ? ` · ${truck.driverName}` : ''}`,
+                value:
+                  onTimePct == null
+                    ? t(locale, 'trucks.chip.onTimeFew')
+                    : t(locale, 'trucks.chip.onTimeValue').replace('{pct}', String(onTimePct)).replace('{n}', String(onTime.total)),
+                tone: onTimePct == null ? undefined : onTimePct >= 90 ? 'good' : onTimePct < 80 ? 'warn' : undefined,
+                info: t(locale, 'trucks.chip.onTimeInfo'),
+              },
+              ...(fs?.odometer != null
+                ? [
+                    {
+                      label: t(locale, 'trucks.chip.odometer'),
+                      value: `${Math.round(fs.odometer).toLocaleString('en-US')} mi`,
+                      info: t(locale, 'trucks.chip.odometerInfo'),
+                    },
+                  ]
+                : []),
+              {
+                label: t(locale, 'trucks.chip.oilIn'),
+                value: oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—',
+                tone: oil?.tone,
+                info: t(locale, 'trucks.chip.oilInInfo'),
+              },
+              ...(fs?.fuel != null
+                ? [
+                    {
+                      label: t(locale, 'trucks.chip.fuel'),
+                      value: `${Math.round(fs.fuel)}%`,
+                      tone: fs.fuel <= 15 ? ('bad' as const) : fs.fuel <= 30 ? ('warn' as const) : undefined,
+                      info: t(locale, 'trucks.chip.fuelInfo'),
+                    },
+                  ]
+                : []),
+              ...(activeLoad
+                ? [
+                    {
+                      label: t(locale, 'trucks.chip.loadFuel'),
+                      value: usd.format(calcLoad(activeLoad, truck).fuel),
+                      info: t(locale, 'trucks.chip.loadFuelInfo'),
+                    },
+                  ]
+                : []),
+            ]
+            const n = chips.length
+            const tail = `${n % 2 ? 'col-span-2' : ''} ${['', 'sm:col-span-4', 'sm:col-span-3', 'sm:col-span-2'][n % 4]}`
+            return (
+              <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10 sm:grid-cols-4">
+                {chips.map((c, i) => (
+                  <Chip key={c.label} {...c} className={i === n - 1 ? tail : undefined} />
+                ))}
+              </div>
+            )
+          })()}
         </div>
       </section>
 
@@ -615,10 +769,11 @@ export default async function Page({
       />
 
       {/* ===== Around the truck: loads + documents ===== */}
-      {/* Высота каждой панели — по её содержимому (items-start), без внутренней
-          прокрутки: список из двух файлов не тянется до высоты семи грузов, а на
-          телефоне вложенный скролл не ловит палец. */}
-      <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
+      {/* Без внутренней прокрутки (на телефоне вложенный скролл не ловит палец). Рядом
+          на широком экране панели одной высоты, а документов показано столько, сколько
+          встаёт напротив видимых грузов (карточка груза выше строки файла), — иначе под
+          тремя файлами напротив четырёх грузов зияла пустота. */}
+      <div className="mt-4 grid gap-4 max-lg:items-start lg:grid-cols-2">
         <section className="panel flex min-w-0 flex-col p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-base leading-6 font-semibold text-white/90">
@@ -633,9 +788,10 @@ export default async function Page({
             <p className="text-[13px] text-white/55">{t(locale, 'trucks.detail.noLoadsYet')}</p>
           ) : (
             <div className="flex flex-col gap-2">
-              <ShowMore limit={4} label={t(locale, 'docs.library.more')} items={rows.map(({ load, r }) => {
+              {/* Остальные грузы — не лентой, а по дню из мини-календаря (день пикапа). */}
+              <DateMore limit={4} items={rows.map(({ load, r }) => {
                 const rcId = rateCons.get(load.id)
-                return (
+                return { day: (load.pickupDate ?? load.createdAt).slice(0, 10), node: (
                   /* Two lines, not one. This card sits in a half-width column beside the
                      documents panel, and the old single row asked the route, the status
                      badge, the rate and the RC button to share ~330px — so every route
@@ -651,27 +807,31 @@ export default async function Page({
                       aria-label={`${load.origin ?? '—'} → ${load.destination ?? '—'}`}
                       className="absolute inset-0 rounded-[inherit]"
                     />
-                    <div className="flex items-center gap-2">
-                      <span className="min-w-0 flex-1 truncate text-md font-medium">
+                    {/* Маршрут — первой строкой ЦЕЛИКОМ, с переносом: рядом с ним стоит
+                        только маленькая кнопка RC. Статус переехал во вторую строку —
+                        на телефоне он отнимал у маршрута половину ширины. */}
+                    <div className="flex items-start gap-2">
+                      <span className="min-w-0 flex-1 text-md font-medium leading-5">
                         {load.origin ?? '—'} → {load.destination ?? '—'}
                       </span>
-                      <StatusBadge status={load.status} locale={locale} />
                       {rcId && (
-                        <span className="relative z-10">
+                        <span className="relative z-10 -mt-0.5 shrink-0">
                           <RateConButton docId={rcId} compact />
                         </span>
                       )}
                     </div>
-                    <div className="mt-1 flex items-baseline justify-between gap-2">
-                      <span className="nums min-w-0 truncate text-sm text-white/60">
+                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <StatusBadge status={load.status} locale={locale} />
+                      <span className="nums text-sm text-white/60">
                         {Math.round(r.totalMiles)} mi · {usd2.format(r.allInRpm)}/mi
                       </span>
+                      <DeadheadFlag miles={load.deadheadMiles} okMiles={load.deadheadOkMiles} locale={locale} className="relative z-10" />
                       {/* Headline is the load's actual RATE, never net — the owner reads
                           these cards as "what this load is worth". Net is the small line. */}
-                      <span className="nums shrink-0 text-md font-bold">{usd.format(load.rate)}</span>
+                      <span className="nums ml-auto shrink-0 text-md font-bold">{usd.format(load.rate)}</span>
                     </div>
                   </div>
-                )
+                ) }
               })} />
             </div>
           )}
@@ -691,6 +851,8 @@ export default async function Page({
           <div>
             <DocList
               docs={docs}
+              byDate
+              limit={Math.max(3, Math.round(Math.min(rows.length, 4) * 1.25))}
               attachTargets={live.map((l) => ({
                 id: l.id,
                 label: `${l.origin ?? '—'} → ${l.destination ?? '—'}`,
@@ -767,6 +929,7 @@ export default async function Page({
             <span>{truck.mpg} mpg</span>
             <span aria-hidden>·</span>
             <span>{usd2.format(truck.fuelPricePerGallon)}/gal</span>
+            <FuelPriceButton truckId={truck.id} locale={locale} />
             <span aria-hidden>·</span>
             <span>
               {t(locale, 'trucks.econ.driver')}{' '}
@@ -814,17 +977,15 @@ export default async function Page({
   )
 }
 
-function Chip({
-  label,
-  value,
-  tone,
-  info,
-}: {
+type ChipProps = {
   label: string
   value: string
   tone?: 'good' | 'bad' | 'warn'
   info?: string
-}) {
+  className?: string
+}
+
+function Chip({ label, value, tone, info, className = '' }: ChipProps) {
   const color =
     tone === 'good'
       ? 'text-good-400'
@@ -833,13 +994,32 @@ function Chip({
         : tone === 'warn'
           ? 'text-warn-400'
           : 'text-white'
+  // Плитка: подпись сверху, число под ней — одинаковая высота во всей таблице.
   return (
-    <div className="flex items-baseline gap-1.5">
-      <span className={`nums text-[15px] font-semibold ${color}`}>{value}</span>
-      <span className="flex items-center gap-1 text-xs font-medium text-white/60">
-        {label}
+    <div className={`flex min-w-0 flex-col justify-center gap-0.5 bg-ink-900 px-3 py-2.5 ${className}`}>
+      <span className="flex min-w-0 items-center gap-1 text-[12px] font-medium leading-4 text-white/55">
+        <span className="truncate">{label}</span>
         {info && <Info text={info} />}
       </span>
+      <span className={`nums text-[17px] font-semibold leading-6 ${color}`}>{value}</span>
+    </div>
+  )
+}
+
+/** Поле шапки трака: мелкая подпись сверху, значение под ней. */
+function HeadField({
+  label,
+  children,
+  className = '',
+}: {
+  label: string
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div className={`min-w-0 ${className}`}>
+      <dt className="text-[12px] font-medium leading-4 text-white/50">{label}</dt>
+      <dd className="mt-1 text-[14px] font-medium leading-5 text-white/90">{children}</dd>
     </div>
   )
 }

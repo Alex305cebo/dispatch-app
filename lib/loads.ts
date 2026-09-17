@@ -195,11 +195,31 @@ export async function listPaidLoads(companyId: CompanyId): Promise<LoadRecord[]>
  * loadId → id of that load's rate con document (newest one, if it has several).
  * Lets every load list show an "open the rate con" button without an N+1 query.
  */
+/**
+ * Доставленные грузы без POD — из переданного списка (обычно грузы одного трака),
+ * свежие первыми. Правило то же, что у колокольчика (app/api/alerts): любой
+ * неудалённый POD считается. Оплаченные не берутся — деньги уже пришли.
+ */
+export async function loadsMissingPod(companyId: CompanyId, loads: LoadRecord[]): Promise<LoadRecord[]> {
+  const delivered = loads.filter((l) => l.status === 'delivered')
+  if (!delivered.length) return []
+  const rows = (await sql`
+    SELECT DISTINCT load_id FROM documents
+    WHERE kind = 'pod' AND deleted_at IS NULL AND company_id = ${companyId}
+      AND load_id IN (${delivered.map((l) => l.id)})`) as { load_id: number }[]
+  const has = new Set(rows.map((r) => r.load_id))
+  return delivered
+    .filter((l) => !has.has(l.id))
+    .sort((a, b) => (b.deliveryDate ?? b.createdAt).localeCompare(a.deliveryDate ?? a.createdAt))
+}
+
 export async function rateConByLoad(companyId: CompanyId): Promise<Map<number, number>> {
   const rows = await sql`
-    SELECT DISTINCT ON (load_id) load_id, id FROM documents
-    WHERE company_id = ${companyId} AND kind = 'ratecon' AND load_id IS NOT NULL
-    ORDER BY load_id, uploaded_at DESC`
+    SELECT load_id, id FROM (
+      SELECT load_id, id, ROW_NUMBER() OVER (PARTITION BY load_id ORDER BY uploaded_at DESC) AS rn
+      FROM documents
+      WHERE company_id = ${companyId} AND kind = 'ratecon' AND load_id IS NOT NULL
+    ) x WHERE rn = 1`
   /* eslint-disable @typescript-eslint/no-explicit-any */
   return new Map(rows.map((r: any) => [r.load_id as number, r.id as number]))
 }
@@ -234,7 +254,7 @@ export async function currentLoadForTruck(companyId: CompanyId, truckId: number)
   const rows = (await sql`
     SELECT * FROM loads
     WHERE company_id = ${companyId} AND truck_id = ${truckId} AND status IN ('in_transit', 'booked') AND partial = false
-    ORDER BY (status = 'in_transit') DESC, pickup_date ASC NULLS LAST, created_at ASC
+    ORDER BY (status = 'in_transit') DESC, pickup_date IS NULL, pickup_date ASC, created_at ASC
     LIMIT 1`) as LoadRow[]
   return rows[0] ? rowToLoad(rows[0]) : null
 }
@@ -320,7 +340,7 @@ export async function laneAvgRpmFor(
     FROM loads
     WHERE company_id = ${companyId} AND id <> ${exceptLoadId}
       AND status <> 'cancelled' AND loaded_miles > 0
-      AND origin ILIKE ${'%, ' + from} AND destination ILIKE ${'%, ' + to}`) as {
+      AND LOWER(origin) LIKE LOWER(${'%, ' + from}) AND LOWER(destination) LIKE LOWER(${'%, ' + to})`) as {
     rpm: string | number | null
     n: string | number
   }[]

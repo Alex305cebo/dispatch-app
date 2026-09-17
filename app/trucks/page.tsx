@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/button'
+import { FuelPriceButton } from '@/components/fuel-price-button'
 import { Suspense } from 'react'
 import { EldLinks } from '@/components/eld-links'
 import { EldNewTrucks } from '@/components/eld-new-trucks'
@@ -11,6 +12,7 @@ import { DriverDirectory } from '@/components/driver-directory'
 import { dispatcherPhoneKey, getSetting } from '@/lib/settings'
 import { getCurrentUser } from '@/lib/session'
 import { buildWorkingDays } from '@/lib/heatmap'
+import { todayEt } from '@/lib/payments'
 import { getCompany } from '@/lib/invoice'
 import { expiries, truckMetas } from '@/lib/maintenance'
 import { sql } from '@/lib/db'
@@ -65,7 +67,7 @@ export default async function Page() {
     sql`SELECT t.id, u.name, s.value AS phone
         FROM trucks t
         JOIN users u ON u.id = t.dispatcher_id
-        LEFT JOIN settings s ON s.key = 'disp_phone:' || u.id::text
+        LEFT JOIN settings s ON s.key = 'disp_phone:' || u.id
         WHERE t.company_id = ${companyId}`,
   ])
   const dispByTruck = new Map(
@@ -134,8 +136,11 @@ export default async function Page() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <div className="mb-4 flex items-end justify-between gap-4">
-        <div>
+      {/* Телефон: заголовок с цифрами на всю ширину, кнопки строкой под ним. В одну
+          строку длинная «Обновить цену топлива всем тракам» уезжала за край экрана и
+          зажимала заголовок в колонку шириной в слово. */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold tracking-tight">{t(locale, 'trucks.page.title')}</h1>
           <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-white/65">
             {/* Строка стояла отдельной панелью ПОД списком и повторяла плитки над
@@ -164,9 +169,12 @@ export default async function Page() {
             )}
           </p>
         </div>
-        <Button href="/trucks/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
-          {t(locale, 'trucks.page.addTruck')}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
+          {trucks.length > 0 && <FuelPriceButton truckId={null} locale={locale} size="md" />}
+          <Button href="/trucks/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
+            {t(locale, 'trucks.page.addTruck')}
+          </Button>
+        </div>
       </div>
 
       {/* Вторая половина строки списка: деньги за неделю, число грузов и ближайший
@@ -183,6 +191,39 @@ export default async function Page() {
         <FleetBoard
           locale={locale}
           money={moneyByTruck}
+          // «Загрузка парка» — сразу под картой: кто когда освободится смотрят первым делом.
+          underMap={
+          <div className="mb-4">
+            <FleetHeatmap
+              today={todayEt()}
+              rows={perTruck.map(({ truck, working, current }) => {
+                const fs = truck.number ? byUnit.get(truck.number) : undefined
+                return {
+                  id: truck.id,
+                  label: truck.number?.trim() || truck.name,
+                  sub: shortName(truck.driverName),
+                  working,
+                  // Два правых столбца вместо полосы и процента: куда едет либо где
+                  // стоит, и когда освободится. Данные уже на странице — карточки
+                  // парка ниже читают ровно эти же current и byUnit.
+                  place: current
+                    ? `→ ${current.destination ?? '—'}`
+                    : (placeCity(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')),
+                  when: truck.unavailable
+                    ? { text: unavailableLabel(locale, truck.unavailable), tone: 'off' as const }
+                    : current
+                      ? {
+                          text: current.deliveryDate
+                            ? `${t(locale, 'trucks.heatmap.until')} ${shortDate(current.deliveryDate, locale)}`
+                            : t(locale, 'trucks.heatmap.onLoad'),
+                          tone: 'busy' as const,
+                        }
+                      : { text: t(locale, 'trucks.heatmap.free'), tone: 'free' as const },
+                }
+              })}
+            />
+          </div>
+          }
           // Справочник водителей — сразу под картой и счётчиками, ДО списка
           // траков: эти шесть полей брокер спрашивает в каждом звонке.
           between={
@@ -214,35 +255,6 @@ export default async function Page() {
                 })}
               />
 
-              <div className="mb-4">
-                <FleetHeatmap
-                  rows={perTruck.map(({ truck, working, current }) => {
-                    const fs = truck.number ? byUnit.get(truck.number) : undefined
-                    return {
-                      id: truck.id,
-                      label: truck.number?.trim() || truck.name,
-                      sub: shortName(truck.driverName),
-                      working,
-                      // Два правых столбца вместо полосы и процента: куда едет либо где
-                      // стоит, и когда освободится. Данные уже на странице — карточки
-                      // парка ниже читают ровно эти же current и byUnit.
-                      place: current
-                        ? `→ ${current.destination ?? '—'}`
-                        : (placeCity(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')),
-                      when: truck.unavailable
-                        ? { text: unavailableLabel(locale, truck.unavailable), tone: 'off' as const }
-                        : current
-                          ? {
-                              text: current.deliveryDate
-                                ? `${t(locale, 'trucks.heatmap.until')} ${shortDate(current.deliveryDate, locale)}`
-                                : t(locale, 'trucks.heatmap.onLoad'),
-                              tone: 'busy' as const,
-                            }
-                          : { text: t(locale, 'trucks.heatmap.free'), tone: 'free' as const },
-                    }
-                  })}
-                />
-              </div>
             </>
           }
           // Под карточками: подключение ELD — раз в жизни трака.

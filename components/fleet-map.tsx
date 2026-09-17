@@ -12,13 +12,19 @@
 // exactly what makes labels stack on top of each other. Identity lives in the click
 // popup and in the list underneath the map, same as every product researched does.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
+import { Flame, RefreshCw, X } from 'lucide-react'
+import { mapMarket, refreshFleetStatus } from '@/app/actions'
+import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
+import { Info } from '@/components/info'
 import { t } from '@/lib/i18n'
 import { zoneTime } from '@/lib/fmt'
 import { US_STATES } from '@/lib/us-states'
+import type { DatEquipment, DatHeat } from '@/lib/dat-market-core'
+import { heatLevel, HEAT_LEVEL_KEY } from '@/lib/dat-market-core'
 
 export type MapMarker = {
   lat: number
@@ -54,6 +60,65 @@ export type MapRoute = {
   /** Ключ варианта. Есть — по линии можно щёлкнуть и выбрать её (см. onRoute). */
   id?: string
 }
+
+/** Слой «Рынок DAT»: по каждой серии — сколько грузов на трак в штате и горячесть от
+ * медианы серии (ltStates в lib/dat-market-core.ts). Готовит сервер из суточного снимка,
+ * карта только красит штаты. */
+export type MapMarket = {
+  /** Дата снимка DAT для легенды, MM/DD/YY — строкой с сервера, а не из миллисекунд в
+   * поясе браузера. */
+  date: string
+  series: Partial<Record<DatEquipment, Record<string, { ratio: number; heat: DatHeat }>>>
+}
+
+/** Режим «Из штата» того же слоя: выручка в день из штата «Куда отправить трак»
+ * (components/route-planner.tsx). Подписи готовит планировщик — карта не знает ни цели,
+ * ни языка расчёта, только красит и зовёт onPickState на нажатие по штату. */
+export type MapPlan = {
+  origin: string
+  /** Код штата → место на шкале ставки (0 — заметно ниже середины, 1 — заметно выше) и
+   * строка для плашки. t = null — ставки по этому штату нет, и красить его нечем. */
+  lanes: Record<string, { t: number | null; text: string }>
+  legend: { title: string; mode: string; from: string; low: string; high: string; hint: string }
+  /** Растёт на каждое «На карте» — карта включает слой в этом режиме и показывает себя. */
+  signal: number
+}
+
+/** Шкала выручки в день — та же, что у Route Planner на сайте: красный → янтарь →
+ * жёлто-зелёный → зелёный. Плавная, а не тремя корзинами: в слабый рынок все направления
+ * ниже цели, и корзины красили бы страну одним цветом. Ею же красится «Рынок» — грузы на
+ * трак (пользователю так нравится больше, 17.09.2026). */
+const PLAN_RAMP: [number, number, number][] = [
+  [0, 70, 42],
+  [35, 75, 45],
+  [80, 60, 40],
+  [140, 60, 40],
+]
+function planColor(t: number): string {
+  const x = Math.min(1, Math.max(0, t)) * (PLAN_RAMP.length - 1)
+  const i = Math.min(PLAN_RAMP.length - 2, Math.floor(x))
+  const f = x - i
+  const a = PLAN_RAMP[i]!
+  const b = PLAN_RAMP[i + 1]!
+  return `hsl(${Math.round(a[0] + (b[0] - a[0]) * f)}, ${Math.round(a[1] + (b[1] - a[1]) * f)}%, ${Math.round(a[2] + (b[2] - a[2]) * f)}%)`
+}
+const PLAN_GRADIENT = `linear-gradient(90deg, ${[0, 1 / 3, 2 / 3, 1].map(planColor).join(', ')})`
+/** Середина грузов на трак по штатам серии: от неё шкала «Рынка» и «очень горячий» … «очень холодный». */
+function medianRatio(states: Record<string, { ratio: number }> | null): number {
+  const ratios = states ? Object.values(states).map((x) => x.ratio).filter((r) => r > 0).sort((a, b) => a - b) : []
+  return ratios.length ? ratios[Math.floor(ratios.length / 2)]! : 0
+}
+const SERIES_NAME: Record<DatEquipment, string> = { VAN: 'Van', REEFER: 'Reefer', FLATBED: 'Flatbed' }
+/** localStorage: включённый слой рынка остаётся включённым на следующих открытиях. */
+const MARKET_KEY = 'map:market'
+/** Рынок для карт, которым страница его не дала: один запрос на все карты, пока открыта
+ * вкладка. Не вышло (сеть) — забываем, следующее включение спросит снова. */
+let marketPromise: Promise<MapMarket | null> | null = null
+const loadMarket = (): Promise<MapMarket | null> =>
+  (marketPromise ??= mapMarket().catch(() => {
+    marketPromise = null
+    return null
+  }))
 
 // move=green/on=amber/rest=gray — the convergent pattern across Samsara, Verizon
 // Connect and Motive's fleet maps. move is ZigZag's own #5AC41D (see the icon()
@@ -269,7 +334,7 @@ const esc = (s: string) =>
 
 // Compact popup — tight type scale, no wasted margin. Leaflet's own chrome
 // (wrapper bg, tip, close button, maxWidth) is styled/sized in globals.css.
-function popupHtml(m: MapMarker, openLabel: string): string {
+function popupHtml(m: MapMarker, openLabel: string, driverTimeLabel: string): string {
   // Каждая строка — иконка в свою колонку + текст: раньше всё лепилось сплошным
   // столбцом одинакового серого, и адрес не отличался от даты. Ширина плавает от
   // содержимого до потолка из globals.css — плашка не распирает узкий экран.
@@ -290,16 +355,18 @@ function popupHtml(m: MapMarker, openLabel: string): string {
   // Считается в момент открытия плашки (bindTooltip получает функцию), а не при
   // создании маркера: карта живёт открытой минутами, и вшитое время успело бы соврать.
   const local = m.zone ? zoneTime(m.zone, new Date()) : null
-  const clock = local ? row('🕒', local, 'inherit', 600, 1) : ''
+  const clock = local
+    ? row('🕒', m.kind === 'truck' ? `${local} · ${driverTimeLabel}` : local, 'inherit', 600, 1)
+    : ''
   // The arrow: a clear "open the card" affordance. The tooltip is made interactive
   // and the whole plaque navigates (see the marker loop), so this doubles as the hint
   // and the visible click target.
   // «Открыть →» — как кнопка, с фоном и по центру: на телефоне это единственная
   // подсказка, что плашка нажимается.
   const open = m.href
-    ? `<div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:8px;padding:6px 10px;border-radius:8px;background:rgba(155,142,255,.16);color:${DEST};font-weight:700;font-size:12px">${esc(openLabel)} <span style="font-size:13px">→</span></div>`
+    ? `<div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:6px;padding:4px 8px;border-radius:7px;background:rgba(155,142,255,.16);color:${DEST};font-weight:700;font-size:12px">${esc(openLabel)} <span style="font-size:13px">→</span></div>`
     : ''
-  return `<div style="font:500 11px/1.45 system-ui,sans-serif;min-width:130px">
+  return `<div style="font:500 11px/1.4 system-ui,sans-serif;min-width:120px">
     <div style="font-weight:700;font-size:12.5px;letter-spacing:.01em">${esc(m.label)}</div>
     ${clock}${lines}${eta}${open}
   </div>`
@@ -442,6 +509,9 @@ export function FleetMap({
   onSelect,
   onRoute,
   focus = null,
+  market = null,
+  plan = null,
+  onPickState,
 }: {
   markers: MapMarker[]
   routes?: MapRoute[]
@@ -464,6 +534,13 @@ export function FleetMap({
    * показывает пункт оплаты, выбранный в списке. Меняется объектом, поэтому
    * повторный щелчок по той же строке снова ведёт карту к ней. */
   focus?: { lat: number; lng: number } | null
+  /** Рынок DAT по штатам. Есть — на карте кнопка «Рынок», которая красит штаты по тому,
+   * сколько грузов приходится на трак, с легендой и датой снимка. */
+  market?: MapMarket | null
+  /** Выручка в день из штата планировщика — второй режим слоя «Рынок». */
+  plan?: MapPlan | null
+  /** Нажатие по штату в режиме «Из штата»: считать уже из него. */
+  onPickState?: (code: string) => void
 }) {
   const locale = useLocale()
   // Узел, в котором живёт Leaflet. Создаётся ОДИН раз и кочует между обычным местом
@@ -479,6 +556,16 @@ export function FleetMap({
   const ref = hostRef
   const [satellite, setSatellite] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  // «Обновить траки» на каждой карте: свежий GPS от ELD и перерисовка страницы, не дожидаясь
+  // минутного опроса. Только там, где на карте есть трак.
+  const [refreshing, startRefresh] = useTransition()
+  const refreshTrucks = () =>
+    startRefresh(async () => {
+      const res = await refreshFleetStatus()
+      if (res.errors.length) notify('warn', res.errors.join(' · '))
+      else notify('ok', res.updated > 0 ? `${t(locale, 'tracking.updatedTrucksPrefix')}${res.updated}` : t(locale, 'tracking.noNewData'))
+      router.refresh()
+    })
   // Read inside the map-build effect without making `satellite` one of its deps —
   // that effect only re-runs when the DATA changes, not the basemap choice.
   const satelliteRef = useRef(satellite)
@@ -517,9 +604,127 @@ export function FleetMap({
   // Слой хвоста и его видимость. Ref, а не завязка эффекта на state: переключение
   // не должно пересобирать карту — только снять/надеть группу точек.
   const trailRef = useRef<import('leaflet').LayerGroup | null>(null)
-  const [trailOn, setTrailOn] = useState(true)
+  // След за 12 ч (янтарные точки) показывается всегда — кнопки-переключателя больше нет.
+  const [trailOn] = useState(true)
   const trailOnRef = useRef(trailOn)
   trailOnRef.current = trailOn
+  // Карта строится асинхронно — слою рынка нужен сигнал, что ей уже есть куда рисовать.
+  const [mapReady, setMapReady] = useState(false)
+  const [marketOn, setMarketOn] = useState(false)
+  const [series, setSeries] = useState<DatEquipment>('VAN')
+  // Рынок страница может дать сама («Траки» — вместе с планировщиком); остальные карты
+  // забирают его при первом включении слоя.
+  const [loadedMarket, setLoadedMarket] = useState<MapMarket | null>(null)
+  const mk = market ?? loadedMarket
+  const seriesList = mk ? (Object.keys(mk.series) as DatEquipment[]) : []
+  const shownSeries = seriesList.includes(series) ? series : (seriesList[0] ?? null)
+  // Слой в двух режимах: «Рынок» — грузов на трак, «Из штата» — выручка в день из штата
+  // планировщика. Нет у страницы планировщика или штата в нём — остаётся «Рынок».
+  const [layerMode, setLayerMode] = useState<'heat' | 'plan'>('heat')
+  const planShown = marketOn && layerMode === 'plan' && plan ? plan : null
+  const marketStates = marketOn && !planShown && mk && shownSeries ? (mk.series[shownSeries] ?? null) : null
+  const marketMedian = medianRatio(marketStates)
+  const layerOn = !!planShown || !!marketStates
+  const pickStateRef = useRef(onPickState)
+  pickStateRef.current = onPickState
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(MARKET_KEY) === '1') setMarketOn(true)
+    } catch {
+      /* хранилище закрыто — слой просто выключен */
+    }
+  }, [])
+  // «На карте» в планировщике: включить слой в режиме «Из штата» и показать саму карту.
+  const planSignal = plan?.signal ?? 0
+  useEffect(() => {
+    if (!planSignal) return
+    setMarketOn(true)
+    setLayerMode('plan')
+    hostRef.current?.closest('.fleet-map')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [planSignal])
+  const toggleMarket = () => {
+    const next = !marketOn
+    setMarketOn(next)
+    try {
+      localStorage.setItem(MARKET_KEY, next ? '1' : '0')
+    } catch {
+      /* не запомнится — не беда */
+    }
+  }
+  useEffect(() => {
+    if (!marketOn || market || loadedMarket) return
+    let cancelled = false
+    void loadMarket().then((m) => {
+      if (cancelled) return
+      if (m) return setLoadedMarket(m)
+      setMarketOn(false)
+      notify('warn', t(locale, 'tracking.marketNone'))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [marketOn, market, loadedMarket, locale])
+
+  // Слой рынка — своя группа в своей панели ПОД маршрутами и точками: включение, смена
+  // серии и язык перекрашивают только её, вид карты не трогают. Контуры штатов (~80 КБ)
+  // приезжают отдельным куском при первом включении.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || (!marketStates && !planShown)) return
+    let cancelled = false
+    let group: import('leaflet').LayerGroup | null = null
+    void (async () => {
+      const [L, { US_STATE_SHAPES }] = await Promise.all([import('leaflet').then((m) => m.default), import('@/lib/us-state-shapes')])
+      if (cancelled || mapRef.current !== map) return
+      if (!map.getPane('market')) map.createPane('market').style.zIndex = '350'
+      group = L.layerGroup()
+      for (const [code, name] of US_STATES) {
+        const shape = US_STATE_SHAPES[code]
+        if (!shape) continue
+        let className: string
+        let text: string
+        let color: string | undefined
+        if (planShown) {
+          // Штат, откуда считаем, — акцентом; без направления (ближе 150 mi, нет региона
+          // DAT) — едва тонирован. Нажатие по любому — считать уже из него.
+          const lane = planShown.lanes[code]
+          const isOrigin = code === planShown.origin
+          // Без ставки штат не красим: жёлтая середина там, где цифры нет, — враньё.
+          const rated = lane?.t != null
+          className = isOrigin ? 'mkt mkt-origin' : rated ? 'mkt mkt-plan' : 'mkt mkt-none'
+          text = isOrigin ? planShown.legend.from : (lane?.text ?? '')
+          color = rated && !isOrigin ? planColor(lane!.t!) : undefined
+        } else {
+          const s = marketStates![code]
+          if (!s) continue
+          // Шкала от середины: вдвое меньше грузов на трак и ниже — красный, середина —
+          // жёлтый, вдвое больше и выше — зелёный.
+          className = 'mkt mkt-scale'
+          color = marketMedian > 0 ? planColor((Math.log2(s.ratio / marketMedian) + 1) / 2) : undefined
+          text = `${t(locale, 'needsLoad.market').replace('{heat}', t(locale, HEAT_LEVEL_KEY[heatLevel(marketMedian, s.ratio)]))} · ${s.ratio.toFixed(1)} ${t(locale, 'plan.perTruck')}`
+        }
+        // В режиме «Из штата» нажатие не всплывает до карты: там оно снимало бы выбор трака.
+        const poly = L.polygon(shape, {
+          pane: 'market',
+          className,
+          weight: 1,
+          bubblingMouseEvents: !planShown,
+          ...(color ? { color, fillColor: color } : {}),
+        }).bindTooltip(
+          `<b>${esc(name)}</b>${text ? ` · ${esc(text)}` : ''}`,
+          { sticky: true, direction: 'top', offset: [0, -10], opacity: 1, className: 'mkt-tip' },
+        )
+        if (planShown) poly.on('click', () => pickStateRef.current?.(code))
+        poly.addTo(group)
+      }
+      group.addTo(map)
+    })()
+    return () => {
+      cancelled = true
+      group?.remove()
+    }
+  }, [marketStates, marketMedian, planShown, locale, mapReady])
 
   useEffect(() => {
     const map = mapRef.current
@@ -595,6 +800,8 @@ export function FleetMap({
           // сами не закрываются — см. scheduleClose у маркера).
           map!.eachLayer((l) => {
             const mk = l as import('leaflet').Marker
+            // Плашку штата (слой рынка) этот же тап только что открыл — её не закрываем.
+            if (mk.options.pane === 'market') return
             if (typeof mk.isTooltipOpen === 'function' && mk.isTooltipOpen()) mk.closeTooltip()
           })
         })
@@ -625,7 +832,14 @@ export function FleetMap({
         })
         roRef.current.observe(el)
       }
-      const group = overlayRef.current!
+      // Слой мог так и не появиться: первый проход создаёт карту, уходит ждать
+      // подложку, и если за это время компонент перерисовался, этот проход выходит
+      // по disposed ДО строки с overlayRef. Карта при этом уже в mapRef, следующие
+      // проходы идут мимо инициализации — и падали на null.clearLayers(), рисуя
+      // карту без точек и маршрута. Досоздаём слой здесь.
+      if (!overlayRef.current) overlayRef.current = L.layerGroup().addTo(map)
+      setMapReady(true)
+      const group = overlayRef.current
       group.clearLayers()
       if (trailRef.current) {
         map.removeLayer(trailRef.current)
@@ -713,10 +927,33 @@ export function FleetMap({
         // routes the click through Leaflet's target system, which swallowed our own
         // handler. Instead the plaque gets pointer-events via CSS (globals.css) and a
         // plain DOM click listener below — simplest thing that actually fires.
-        marker.bindTooltip(() => popupHtml(m, t(locale, 'tracking.openArrow')), {
+        marker.bindTooltip(() => popupHtml(m, t(locale, 'tracking.openArrow'), t(locale, 'trucks.head.driverTimeShort')), {
           direction: 'top',
           offset: [0, -8],
           opacity: 1,
+        })
+        // Плашка не должна уходить за край карты: карта обрезает всё снаружи, и у
+        // точки возле верхнего края пропадал верх плашки. В момент открытия меряем
+        // саму плашку и место вокруг точки: вверх — если помещается, иначе вниз;
+        // у боковых краёв — вбок. Работает на всех картах, где стоит этот компонент.
+        marker.on('tooltipopen', () => {
+          const tip = marker.getTooltip()
+          const el = tip?.getElement()
+          if (!tip || !el || !map) return
+          const p = map.latLngToContainerPoint(marker.getLatLng())
+          const size = map.getSize()
+          const w = el.offsetWidth
+          const h = el.offsetHeight
+          const gap = 14
+          let dir: 'top' | 'bottom' | 'left' | 'right' = 'top'
+          if (p.y - h - gap < 0) dir = size.y - p.y - h - gap >= 0 ? 'bottom' : p.x > size.x / 2 ? 'left' : 'right'
+          if ((dir === 'top' || dir === 'bottom') && p.x - w / 2 < 6) dir = 'right'
+          else if ((dir === 'top' || dir === 'bottom') && p.x + w / 2 > size.x - 6) dir = 'left'
+          const offset = { top: [0, -8], bottom: [0, 8], left: [-10, 0], right: [10, 0] }[dir] as [number, number]
+          if (tip.options.direction === dir) return
+          tip.options.direction = dir
+          tip.options.offset = L.point(offset[0], offset[1])
+          tip.update()
         })
         if (m.href) {
           const href = m.href
@@ -729,8 +966,16 @@ export function FleetMap({
           // На телефоне наведения нет: первый тап по пину открывает плашку, второй —
           // карточку. Иначе тап по пину лишь закрывал и открывал плашку, и было не
           // понять, нажалось ли вообще.
+          // Плашку Leaflet открывает сам в ТОМ ЖЕ тапе (эмуляция mouseover и свой click
+          // на тач-устройствах) — раньше этого обработчика. Проверка «открыта ли» без
+          // времени видела её уже открытой и сразу уводила на карточку: данные точки на
+          // телефоне было не посмотреть. Карточка — только если плашка висела до тапа.
+          let openedAt = 0
+          marker.on('tooltipopen', () => {
+            openedAt = Date.now()
+          })
           marker.on('click', () => {
-            if (marker.isTooltipOpen() && window.matchMedia('(pointer: coarse)').matches) {
+            if (marker.isTooltipOpen() && Date.now() - openedAt > 500 && window.matchMedia('(pointer: coarse)').matches) {
               go()
               return
             }
@@ -906,7 +1151,7 @@ export function FleetMap({
           )}
         </div>
       )}
-      <div className="absolute right-2.5 top-2.5 z-[1000] flex items-center gap-1.5">
+      <div className="absolute right-2 top-2 z-[1000] flex items-center gap-1">
         {/* «Показать всё»: вписать трак и маршрут обратно в кадр. Иконка-прицел,
             без слов — на телефоне ряд кнопок и так впритык. */}
         <button
@@ -918,35 +1163,46 @@ export function FleetMap({
           }}
           title={t(locale, 'tracking.fitAll')}
           aria-label={t(locale, 'tracking.fitAll')}
-          className="flex size-[30px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 text-white/85 backdrop-blur transition-colors hover:bg-ink-900"
+          className="flex size-[26px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 text-white/85 backdrop-blur transition-colors hover:bg-ink-900"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4" aria-hidden>
             <circle cx="12" cy="12" r="3" />
             <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
           </svg>
         </button>
-        {routes.some((r) => r.tone === 'trail') && (
+        {markers.some((m) => m.kind === 'truck') && (
           <button
             type="button"
-            onClick={() => setTrailOn((v) => !v)}
-            title={t(locale, 'tracking.trailTitle')}
-            className={`flex h-[30px] items-center justify-center rounded-lg border px-2 text-[11px] font-semibold backdrop-blur transition-colors sm:px-2.5 ${
-              trailOn
-                ? 'border-white/25 bg-ink-950/85 text-white'
-                : 'border-white/15 bg-ink-950/60 text-white/45 hover:text-white/70'
-            }`}
+            onClick={refreshTrucks}
+            disabled={refreshing}
+            title={t(locale, 'tracking.refreshTrucksTitle')}
+            aria-label={t(locale, 'tracking.refreshTrucksTitle')}
+            className="flex h-[26px] items-center justify-center gap-1 rounded-lg border border-white/15 bg-ink-950/85 px-1.5 text-[10.5px] font-semibold text-white/85 backdrop-blur transition-colors hover:bg-ink-900 disabled:opacity-60 sm:px-2"
           >
-            <span className="inline-block size-2.5 rounded-full border border-white bg-[#f59e0b] sm:mr-1 sm:size-2 sm:align-[-1px]" />
-            {/* Слово — только на широком экране; на телефоне хватает точки. */}
-            <span className="hidden sm:inline">{t(locale, 'tracking.trailLabel')}</span>
+            <RefreshCw size={12} strokeWidth={2.2} className={refreshing ? 'animate-spin' : undefined} aria-hidden />
           </button>
         )}
+        {/* Рынок — на каждой карте: не дала его страница — карта попросит сама при включении. */}
+        <button
+          type="button"
+          onClick={toggleMarket}
+          aria-pressed={marketOn}
+          title={t(locale, 'tracking.marketTitle')}
+          aria-label={t(locale, 'tracking.marketTitle')}
+          className={`flex h-[26px] items-center justify-center gap-1 rounded-lg border px-1.5 text-[10.5px] font-semibold backdrop-blur transition-colors sm:px-2 ${
+            marketOn
+              ? 'border-white/25 bg-ink-950/85 text-white'
+              : 'border-white/15 bg-ink-950/60 text-white/60 hover:text-white/85'
+          }`}
+        >
+          <Flame size={12} strokeWidth={2.2} className={marketOn ? 'text-good-400' : undefined} aria-hidden />
+        </button>
         <button
           type="button"
           onClick={() => setSatellite((v) => !v)}
           title={satellite ? t(locale, 'tracking.mapLabel') : t(locale, 'tracking.satelliteLabel')}
           aria-label={satellite ? t(locale, 'tracking.mapLabel') : t(locale, 'tracking.satelliteLabel')}
-          className="flex h-[30px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 px-2 text-[11px] font-semibold text-white/85 backdrop-blur transition-colors hover:bg-ink-900 sm:px-2.5"
+          className="flex h-[26px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 px-1.5 text-[10.5px] font-semibold text-white/85 backdrop-blur transition-colors hover:bg-ink-900 sm:px-2"
         >
           {/* На телефоне — иконка слоёв, на широком экране — слово. */}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 sm:hidden" aria-hidden>
@@ -963,7 +1219,7 @@ export function FleetMap({
           onClick={() => setExpanded((v) => !v)}
           title={t(locale, expanded ? 'tracking.mapCollapse' : 'tracking.mapExpand')}
           aria-label={t(locale, expanded ? 'tracking.mapCollapse' : 'tracking.mapExpand')}
-          className="flex size-[30px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 text-white/85 backdrop-blur transition-colors hover:bg-ink-900"
+          className="flex size-[26px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 text-white/85 backdrop-blur transition-colors hover:bg-ink-900"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4" aria-hidden>
             {expanded ? (
@@ -987,7 +1243,93 @@ export function FleetMap({
       {/* Live status, not a passive colour key: one truck shows its own state as a
           pulsing pill (the dot pings while it's rolling); several show a live tally of how
           many are moving / on duty / stopped. Nothing when no truck is on the map. */}
-      <LiveStatus trucks={markers.filter((m) => m.kind === 'truck')} locale={locale} />
+      {/* На телефоне легенде рынка и счётчику парка вдвоём внизу не хватает места —
+          пока слой включён, счётчик уступает: те же цвета траков видны на самой карте. */}
+      <div className={layerOn ? 'max-sm:hidden' : undefined}>
+        <LiveStatus trucks={markers.filter((m) => m.kind === 'truck')} locale={locale} />
+      </div>
+      {layerOn && mk && (
+        <div className="absolute bottom-2.5 right-2.5 z-[1000] flex max-w-[calc(100%-20px)] flex-col gap-1 rounded-xl border border-white/15 bg-ink-950/85 px-2.5 py-2 text-[11px] text-white/70 backdrop-blur">
+          <div className="flex items-start gap-2">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <span className="flex items-center gap-1 font-semibold text-white/85">
+                {planShown ? planShown.legend.title : t(locale, 'tracking.marketLegend')}
+                {!planShown && <Info text={t(locale, 'tracking.marketLegendInfo')} />}
+              </span>
+              {/* Два режима одного слоя — переключатель только там, где страница дала планировщик. */}
+              {plan && (
+                <span className="flex rounded-md bg-white/[0.06] p-0.5">
+                  {(['heat', 'plan'] as const).map((mode) => {
+                    const active = (mode === 'plan') === !!planShown
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setLayerMode(mode)}
+                        className={`rounded px-1.5 py-0.5 text-[10.5px] font-semibold transition-colors max-md:min-h-8 max-md:px-2 ${
+                          active ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-white/55 hover:text-white/85'
+                        }`}
+                      >
+                        {mode === 'heat' ? t(locale, 'plan.map.modeHeat') : plan.legend.mode}
+                      </button>
+                    )
+                  })}
+                </span>
+              )}
+            </div>
+            {/* Панель закрывает карту заметный кусок, а огонёк сверху как «закрыть» не читается. */}
+            <button
+              type="button"
+              onClick={toggleMarket}
+              title={t(locale, 'tracking.marketClose')}
+              aria-label={t(locale, 'tracking.marketClose')}
+              className="-mr-1 -mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md text-white/50 transition-colors hover:bg-white/10 hover:text-white max-md:size-8"
+            >
+              <X size={14} strokeWidth={2.4} aria-hidden />
+            </button>
+          </div>
+          {planShown ? (
+            <>
+              <div className="nums flex items-center gap-1.5">
+                <span>{planShown.legend.low}</span>
+                <span className="h-2 w-24 rounded-full opacity-80" style={{ background: PLAN_GRADIENT }} aria-hidden />
+                <span>{planShown.legend.high}</span>
+              </div>
+              <div className="text-[10.5px] text-white/45">{planShown.legend.hint}</div>
+            </>
+          ) : (
+            <>
+              {seriesList.length > 1 && (
+                <span className="flex self-start rounded-md bg-white/[0.06] p-0.5">
+                  {seriesList.map((eq) => (
+                    <button
+                      key={eq}
+                      type="button"
+                      aria-pressed={eq === shownSeries}
+                      onClick={() => setSeries(eq)}
+                      className={`rounded px-1.5 py-0.5 text-[10.5px] font-semibold transition-colors max-md:min-h-8 max-md:px-2 ${
+                        eq === shownSeries ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-white/55 hover:text-white/85'
+                      }`}
+                    >
+                      {SERIES_NAME[eq]}
+                    </button>
+                  ))}
+                </span>
+              )}
+              <div className="nums flex items-center gap-1.5">
+                <span>{(marketMedian / 2).toFixed(1)}</span>
+                <span className="h-2 w-24 rounded-full opacity-80" style={{ background: PLAN_GRADIENT }} aria-hidden />
+                <span>{(marketMedian * 2).toFixed(1)}+</span>
+              </div>
+              <div className="nums text-[10.5px] text-white/45">{t(locale, 'tracking.marketScale').replace('{m}', marketMedian.toFixed(1))}</div>
+            </>
+          )}
+          <div className="nums text-[10.5px] text-white/45">
+            {t(locale, 'loadCard.marketAsOf').replace('{when}', mk.date)}
+          </div>
+        </div>
+      )}
     </div>
   )
 

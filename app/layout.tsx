@@ -1,8 +1,12 @@
+import { after } from 'next/server'
+import { ensureDocTitles } from '@/lib/doc-title'
 import type { Metadata, Viewport } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import { Nav } from '@/components/nav'
 import { getCompany } from '@/lib/invoice'
 import { getCurrentUser } from '@/lib/session'
+import { headers } from 'next/headers'
+import { isProductHost, PRODUCT_NAME } from '@/lib/brand'
 import { getLocale } from '@/lib/i18n-server'
 import { LocaleProvider } from '@/components/locale-provider'
 import { can } from '@/lib/capabilities-server'
@@ -43,12 +47,19 @@ const mono = JetBrains_Mono({
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale()
+  const name = (await onProductSite()) ? PRODUCT_NAME : 'Dispatch'
   return {
-    title: 'Dispatch',
+    title: name,
     description: t(locale, 'app.description'),
-    applicationName: 'Dispatch',
-    appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Dispatch' },
+    applicationName: name,
+    appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: name },
   }
+}
+
+/** dispatch4you.pro — сайт продукта: название там своё, не перевозчика из настроек. */
+async function onProductSite() {
+  const h = await headers()
+  return isProductHost(h.get('x-forwarded-host') ?? h.get('host'))
 }
 
 export const viewport: Viewport = {
@@ -66,6 +77,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // wave instead — one round trip's latency off EVERY page in the app, this layout
   // being the one thing every route renders through.
   const [user, locale] = [await getCurrentUser(), await getLocale()]
+  // Разовое переименование старых документов по новому правилу (lib/doc-title.ts) —
+  // после ответа, страница его не ждёт; дальше это одна проверка флага на процесс.
+  after(() => ensureDocTitles())
   const companyId = user?.companyId ?? 'default'
   // .catch — из-за установки. Все четыре запроса здесь оформительские: имя компании
   // в шапке, значок просроченных документов, два пункта меню. Но макет общий для
@@ -106,7 +120,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               so `user` is null here and Nav just doesn't render the account row —
               harmless anyway, since the login form covers the nav completely. */}
           <Nav
-            companyName={chrome?.[0].name ?? ''}
+            companyName={(await onProductSite()) ? PRODUCT_NAME : (chrome?.[0].name ?? '')}
             user={user}
             showTelegram={chrome?.[2] ?? false}
             showFinances={chrome?.[3] ?? false}

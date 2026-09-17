@@ -2,9 +2,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   arrivedAt,
+  lastMinutes,
+  directionsOf,
+  withDirections,
   eventSeq,
   isDone,
   mergeStops,
+  applyTaskOrder,
+  parseTaskOrder,
+  stopKey,
   nextOpenStop,
   stopTitle,
   stopsFrom,
@@ -154,4 +160,50 @@ test('партиал разных брокеров: точки обоих гру
   // у Tallgrass и не делает пройденной погрузку партиала в том же городе.
   const done = merged.filter((s) => isDone(s, s.loadId === 1779 ? [{ kind: 'delivered', at: '2026-09-11', stopSeq: 2 }] : [], stopsFrom(s.loadId === 1779 ? tallgrass : trinity)))
   assert.deepEqual(done.map((s) => [s.loadId, s.city]), [[1779, 'Omaha, NE']])
+})
+
+test('указания «как заехать» из колонки подкладываются к своей остановке — и у двухточечного груза', () => {
+  const dirs = [{ seq: 2, role: 'delivery' as const, text: 'Exit 20, left on 20th St NE, 2nd left onto Old Tasso Rd' }]
+  const s = stopsFrom({ ...legacy, directions: dirs })
+  assert.equal(s[0]!.directions, undefined)
+  assert.equal(s[1]!.directions, 'Exit 20, left on 20th St NE, 2nd left onto Old Tasso Rd')
+  // из базы JSON может прийти строкой
+  assert.equal(stopsFrom({ ...legacy, directions: JSON.stringify(dirs) })[1]!.directions, dirs[0]!.text)
+  // роль не совпала — не подкладываем чужой маршрут
+  assert.equal(stopsFrom({ ...legacy, directions: [{ ...dirs[0]!, role: 'pickup' }] })[1]!.directions, undefined)
+  assert.equal(withDirections(three, 'not json')[0], three[0])
+})
+
+test('directionsOf собирает только непустые указания, иначе null', () => {
+  assert.equal(directionsOf(three), null)
+  const withDir = three.map((s) => (s.seq === 3 ? { ...s, directions: '  Truck entrance on N 3rd Ave  ' } : s))
+  assert.deepEqual(directionsOf(withDir), [{ seq: 3, role: 'delivery', text: 'Truck entrance on N 3rd Ave' }])
+  // партиал: указания доезжают в общую ленту водителя
+  const merged = mergeStops([{ ...legacy, id: 1, referenceId: 'A', brokerName: 'TQL', directions: [{ seq: 1, role: 'pickup', text: 'Gate 4' }] }])
+  assert.equal(merged[0]!.directions, 'Gate 4')
+})
+
+test('ручной порядок задания: свои места, новые остаются на автоматических, мусор не ломает', () => {
+  const auto = [1, 2, 3, 4].map((seq) => ({ loadId: 7, seq }))
+  const keys = (xs: { loadId: number; seq: number }[]) => xs.map(stopKey)
+  assert.deepEqual(keys(applyTaskOrder(auto, null)), ['7:1', '7:2', '7:3', '7:4'])
+  assert.deepEqual(keys(applyTaskOrder(auto, ['7:2', '7:1', '7:4', '7:3'])), ['7:2', '7:1', '7:4', '7:3'])
+  // 7:3 в сохранённом порядке нет — остаётся третьей, остальные меняются местами
+  assert.deepEqual(keys(applyTaskOrder(auto, ['7:4', '7:2', '7:1'])), ['7:4', '7:2', '7:3', '7:1'])
+  // ключи грузов, которых уже нет, ничего не ломают
+  assert.deepEqual(keys(applyTaskOrder(auto, ['9:1', '7:4'])), ['7:1', '7:2', '7:3', '7:4'])
+  assert.equal(parseTaskOrder('["7:2","7:1"]')?.length, 2)
+  assert.equal(parseTaskOrder('{"a":1}'), null)
+  assert.equal(parseTaskOrder('not json'), null)
+  assert.equal(parseTaskOrder(null), null)
+})
+
+test('lastMinutes: конец окна, без времени — конец дня', () => {
+  assert.equal(lastMinutes('8am-3pm'), 15 * 60)
+  assert.equal(lastMinutes('Appt 06:00'), 6 * 60)
+  assert.equal(lastMinutes('09/12/26 06:30 FCFS'), 6 * 60 + 30)
+  assert.equal(lastMinutes('12:00-14:00'), 14 * 60)
+  assert.equal(lastMinutes('12pm'), 12 * 60)
+  assert.equal(lastMinutes(null), 24 * 60 - 1)
+  assert.equal(lastMinutes('FCFS'), 24 * 60 - 1)
 })

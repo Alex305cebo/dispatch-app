@@ -1,4 +1,5 @@
 import { sql } from '@/lib/db'
+import type { StopEv } from '@/lib/stops'
 
 export type LoadEventKind = 'arrived_pickup' | 'loaded' | 'arrived_delivery' | 'delivered' | 'note' | 'photo'
 
@@ -54,6 +55,23 @@ export async function listLoadEvents(companyId: 'default' | 'demo', loadId: numb
   }))
 }
 
+/** Отметки «приехал / загрузился / выгрузился» по ВСЕМ грузам компании — для справочника
+ * складов (lib/facilities.ts): стоянки у склада считаются по ним. Заметки и фото не нужны. */
+export async function allStopEvents(companyId: 'default' | 'demo'): Promise<Map<number, StopEv[]>> {
+  const rows = (await sql`
+    SELECT load_id, kind, at, stop_seq FROM load_events
+    WHERE company_id = ${companyId} AND load_id IS NOT NULL
+      AND kind IN ('arrived_pickup', 'loaded', 'arrived_delivery', 'delivered')
+    ORDER BY at ASC, id ASC`) as { load_id: number; kind: string; at: Date | string; stop_seq: number | null }[]
+  const out = new Map<number, StopEv[]>()
+  for (const r of rows) {
+    const list = out.get(r.load_id) ?? []
+    list.push({ kind: r.kind, at: r.at instanceof Date ? r.at.toISOString() : String(r.at), stopSeq: r.stop_seq })
+    out.set(r.load_id, list)
+  }
+  return out
+}
+
 /** Последние сообщения водителей за сутки — для уведомлений диспетчеру. */
 export async function recentDriverNotes(
   companyId: 'default' | 'demo',
@@ -61,7 +79,7 @@ export async function recentDriverNotes(
   const rows = (await sql`
     SELECT e.id, e.load_id, e.truck_id, e.kind, e.note, e.at, t.number
     FROM load_events e LEFT JOIN trucks t ON t.id = e.truck_id
-    WHERE e.company_id = ${companyId} AND e.kind = 'note' AND e.at > now() - interval '24 hours'
+    WHERE e.company_id = ${companyId} AND e.kind = 'note' AND e.at > NOW(6) - INTERVAL 24 HOUR
     ORDER BY e.at DESC LIMIT 20`) as {
     id: number
     load_id: number | null
@@ -99,9 +117,10 @@ export async function updateLoadEventAt(
   id: number,
   atIso: string,
 ): Promise<number | null> {
-  const rows =
-    (await sql`UPDATE load_events SET at = ${atIso} WHERE id = ${id} AND company_id = ${companyId} RETURNING load_id`) as {
-      load_id: number | null
-    }[]
+  const upd = await sql`UPDATE load_events SET at = ${new Date(atIso)} WHERE id = ${id} AND company_id = ${companyId}`
+  if (!upd.affectedRows) return null
+  const rows = (await sql`SELECT load_id FROM load_events WHERE id = ${id} AND company_id = ${companyId}`) as {
+    load_id: number | null
+  }[]
   return rows[0]?.load_id ?? null
 }

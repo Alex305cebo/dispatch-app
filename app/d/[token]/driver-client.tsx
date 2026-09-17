@@ -1,5 +1,6 @@
 'use client'
 
+import { safeUploadFile } from '@/lib/upload-name'
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { t, type Locale } from '@/lib/i18n'
@@ -106,7 +107,7 @@ export function DriverClient({
     const fd = new FormData()
     fd.append('action', 'photo')
     fd.append('kind', kind)
-    for (const f of Array.from(files)) fd.append('file', f)
+    for (const f of Array.from(files)) fd.append('file', safeUploadFile(f))
     void post(fd, kind)
   }
 
@@ -165,6 +166,17 @@ export function DriverClient({
             </span>
           )}
         </div>
+        {/* Как заехать — первым, выше адреса и кнопки карты: навигатор к таким складам
+            ведёт не туда, а прочитать это нужно до того, как тронулся. */}
+        {s.directions && !finished && (
+          <div className="mt-2 rounded-lg border border-warn-400/45 bg-warn-500/15 px-3 py-2">
+            <div className="text-[12px] font-bold uppercase tracking-wide text-warn-400">
+              ⚠ {t(locale, 'driver.directionsTitle')}
+            </div>
+            <p className="mt-1 text-[14px] leading-snug text-white/90">{s.directions}</p>
+            <p className="mt-1 text-[12px] font-semibold text-warn-400">{t(locale, 'driver.directionsGps')}</p>
+          </div>
+        )}
         {s.name && <div className="mt-0.5 text-[13px] font-semibold text-white/80">{s.name}</div>}
         <div className="mt-0.5 text-[15px] font-semibold leading-snug">{where}</div>
         {(s.date || s.time) && (

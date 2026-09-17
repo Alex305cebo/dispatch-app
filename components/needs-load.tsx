@@ -1,10 +1,12 @@
 import Link from 'next/link'
 import { Info } from '@/components/info'
 import { truckLabel, type TruckRecord } from '@/lib/map'
-import { usd, usDate } from '@/lib/fmt'
+import { usd, usd2, usDate } from '@/lib/fmt'
+import { todayEt } from '@/lib/payments'
 import { idleSummary, type IdleTruck } from '@/lib/idle-fleet'
 import { t, type Locale } from '@/lib/i18n'
 import { CopyPlace } from '@/components/copy-place'
+import { datCached, datEquipment, heatLevel, HEAT_LEVEL_KEY, ltHeat, ltMedian, ltOf, regionOf, stateFromPlace, type DatEquipment } from '@/lib/dat-market'
 
 /**
  * «Кому искать груз» — карта на месте календаря загрузки.
@@ -18,7 +20,7 @@ import { CopyPlace } from '@/components/copy-place'
  * Цифра простоя — не упрёк, а порядок величины: платёж за трак, страховка, ELD и
  * пермиты капают каждый день независимо от того, едет он или нет.
  */
-export function NeedsLoad({
+export async function NeedsLoad({
   rows,
   trucks,
   trailers,
@@ -31,6 +33,13 @@ export function NeedsLoad({
 }) {
   if (rows.length === 0) return null
   const { freeCount, burnPerDay } = idleSummary(rows)
+  // Насколько горячий рынок там, где стоит трак без груза: грузов на трак в штате по DAT.
+  // Серия — по трейлеру трака, иначе Van. Снимок из кэша — обзор DAT не ждёт.
+  const series = (truckId: number): DatEquipment => datEquipment(trailers.get(truckId)) ?? 'VAN'
+  const idle = rows.filter((r) => r.free && !r.unavailable && !r.homeUntil)
+  const snaps = new Map(
+    await Promise.all([...new Set(idle.map((r) => series(r.truckId)))].map(async (eq) => [eq, await datCached(eq)] as const)),
+  )
 
   return (
     <section className="panel mb-6 p-4">
@@ -59,12 +68,18 @@ export function NeedsLoad({
         {rows.map((r) => {
           const truck = trucks.get(r.truckId)
           if (!truck) return null
+          // Водитель дома — как отпуск: место и рынок не нужны, груз ему не искать.
+          const off = !!r.unavailable || !!r.homeUntil
+          const snap = r.free && !off ? snaps.get(series(r.truckId)) : null
+          const state = stateFromPlace(r.place)
+          const lt = snap ? ltOf(snap, state) : null
+          const heat = snap && lt ? ltHeat(snap, lt.ratio) : null
           return (
             <li key={r.truckId}>
               <Link
                 href={`/trucks/${r.truckId}`}
                 className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2 transition-colors ${
-                  r.unavailable
+                  off
                     ? 'border-white/6 bg-white/[0.02] opacity-60 hover:opacity-100'
                     : r.free
                       ? 'border-warn-400/25 bg-warn-500/[0.06] hover:border-warn-400/50'
@@ -80,15 +95,43 @@ export function NeedsLoad({
                 {/* У стоящего трака место — это ответ брокеру «где он сейчас», и его
                     копируют. У едущего в этой колонке город ВЫГРУЗКИ, а не место
                     трака, — там копировать нечего. */}
-                {r.free && !r.unavailable && r.place ? (
+                {r.free && !off && r.place ? (
                   <CopyPlace text={r.place} size="sm" className="min-w-0 text-[12px] text-white/70" />
                 ) : (
                   <span className="min-w-0 truncate text-[12px] text-white/55">
-                    {r.unavailable
+                    {r.homeUntil
+                      ? t(locale, 'needsLoad.home').replace('{date}', usDate(r.homeUntil))
+                      : r.unavailable
                       ? t(locale, r.unavailable === 'repair' ? 'needsLoad.repair' : 'needsLoad.vacation')
                       : r.free
                         ? t(locale, 'needsLoad.noPlace')
                         : `→ ${r.place ?? '—'}`}
+                  </span>
+                )}
+
+                {/* Рынок в штате стоянки: чем больше грузов на трак, тем проще найти груз и
+                    удержать ставку. На телефоне и планшете — своей строкой под местом. */}
+                {snap && lt && heat && (
+                  <span
+                    title={`${state} · ${t(locale, 'loadCard.marketAsOf').replace('{when}', usDate(todayEt(new Date(snap.at))))}`}
+                    className="order-last basis-full text-[12px] text-white/55 lg:order-none lg:basis-auto"
+                  >
+                    {(() => {
+                      // Ставка за милю региона и насколько горячий штат словами — без цифры
+                      // «грузов на трак», которую никто не читал.
+                      const [before, after] = t(locale, 'needsLoad.market').split('{heat}')
+                      const rpm = regionOf(snap, state)?.rpm
+                      return (
+                        <>
+                          {rpm ? <span className="nums text-white/75">{usd2.format(rpm)}/mi · </span> : null}
+                          {before}
+                          <span className={heat === 'hot' ? 'font-semibold text-good-400' : heat === 'cold' ? 'font-semibold text-bad-400' : 'text-white/70'}>
+                            {t(locale, HEAT_LEVEL_KEY[heatLevel(ltMedian(snap), lt.ratio)])}
+                          </span>
+                          {after}
+                        </>
+                      )
+                    })()}
                   </span>
                 )}
 
@@ -103,7 +146,7 @@ export function NeedsLoad({
                         <span className={r.days >= 5 ? 'font-semibold text-bad-400' : 'text-warn-400'}>
                           {t(locale, 'needsLoad.idleDays').replace('{n}', String(r.days))}
                         </span>
-                        {!r.unavailable && r.idleCost > 0 && (
+                        {!off && r.idleCost > 0 && (
                           <span className="ml-2 text-white/45">−{usd.format(r.idleCost)}</span>
                         )}
                       </>

@@ -2,6 +2,7 @@
 // these, and Intl is pure — it behaves identically on either side.
 
 import type { Locale } from './i18n.ts'
+import { todayEt } from './payments.ts'
 
 export const usd = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -43,15 +44,27 @@ export function driveTime(min: number, locale: Locale): string {
  *
  * Один этот якорь задаёт неделю во всём приложении (обзор, траки, грузы, финансы),
  * чтобы «за неделю» везде значило одно и то же.
+ *
+ * Пятница — по восточному времени, а не в поясе процесса: сервер Hostinger не в
+ * New York, и в его поясе неделя начиналась в четверг вечером — груз, заведённый в
+ * четверг в 22:00 по восточному, уезжал в следующую неделю.
  */
-const PAY_WEEK_DAY = 5 // пятница (getDay: Вс=0 … Пт=5)
+const PAY_WEEK_DAY = 5 // пятница (getUTCDay: Вс=0 … Пт=5)
+const nyHour = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' })
 
 export function weekAnchorOf(ms: number): number {
-  const d = new Date(ms)
-  const since = (d.getDay() - PAY_WEEK_DAY + 7) % 7
-  d.setHours(0, 0, 0, 0)
-  d.setDate(d.getDate() - since)
-  return d.getTime()
+  const noon = Date.parse(`${weekStartIso(todayEt(new Date(ms)))}T12:00:00Z`)
+  // Полночь этой пятницы в New York: полдень UTC там — 8 утра летом и 7 зимой.
+  // Часы переводят в воскресенье, пятницу это не задевает.
+  return noon - Number(nyHour.format(noon)) * 3_600_000
+}
+
+/** Пятница расчётной недели дня yyyy-mm-dd. Арифметика над датой, без часовых поясов, —
+ * одинаково на сервере и в браузере. */
+export function weekStartIso(iso: string): string {
+  const d = new Date(`${iso}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() - PAY_WEEK_DAY + 7) % 7))
+  return d.toISOString().slice(0, 10)
 }
 
 /** Полночь пятницы текущей расчётной недели — «за неделю» отсчитывается от неё,
@@ -62,10 +75,11 @@ export function weekStart(): number {
 
 /** Неделя как полуоткрытый промежуток [пятница, следующая пятница). Верхняя граница
  * важна: груз, забронированный на следующую неделю, не должен попадать в текущие
- * цифры. */
+ * цифры. Конец — полночь следующей пятницы, а не +7×24 ч: в неделе перевода часов
+ * на час больше или меньше. */
 export function weekBounds(): { start: number; end: number } {
   const start = weekStart()
-  return { start, end: start + 7 * 24 * 60 * 60 * 1000 }
+  return { start, end: weekAnchorOf(start + 10 * 86_400_000) }
 }
 
 /** The instant a load counts toward for weekly stats: the PICKUP date — the day the
@@ -82,10 +96,13 @@ export function loadWeekAnchorMs(pickupDate: string | null, createdAt: string): 
 }
 
 /** "21–27 июля 2026" (ru) / "Jul 21–27, 2026" (en) for a week starting at the given
- * Monday timestamp — each locale in its own natural date order, not a shared format. */
+ * Friday timestamp — each locale in its own natural date order, not a shared format.
+ * Пятница — по восточному времени, дни — от местного полудня: подпись одна в любом поясе
+ * сервера и браузера и не теряет день на переводе часов. */
 export function weekLabel(weekStartMs: number, locale: Locale): string {
-  const start = new Date(weekStartMs)
-  const end = new Date(weekStartMs + 6 * 24 * 60 * 60 * 1000)
+  const start = new Date(`${todayEt(new Date(weekStartMs))}T12:00:00`)
+  const end = new Date(start)
+  end.setDate(start.getDate() + 6)
   const sameMonth = start.getMonth() === end.getMonth()
   const day = (d: Date) => d.getDate()
   if (locale === 'ru') {
@@ -100,23 +117,24 @@ export function weekLabel(weekStartMs: number, locale: Locale): string {
     : `${month(start)} ${day(start)} – ${month(end)} ${day(end)}, ${end.getFullYear()}`
 }
 
-/** Timestamp → "5 мин назад" / "18.07" (ru) or "5 min ago" / "07/18" (en) once it's a
- * day+ stale. */
+/** Timestamp → "5 мин назад" (ru) / "5 min ago" (en), and once it's a day+ stale the day
+ * by Eastern time, "09/14/26" — not the server's own day, which runs ahead after 20:00 ET. */
 export function agoText(iso: string | Date, locale: Locale): string {
   const d = typeof iso === 'string' ? new Date(iso) : iso
+  if (Number.isNaN(d.getTime())) return ''
   const diffMin = Math.round((Date.now() - d.getTime()) / 60000)
   if (locale === 'ru') {
     if (diffMin < 1) return 'только что'
     if (diffMin < 60) return `${diffMin} мин назад`
     const diffH = Math.round(diffMin / 60)
     if (diffH < 24) return `${diffH} ч назад`
-    return usDate(d)
+    return usDate(todayEt(d))
   }
   if (diffMin < 1) return 'just now'
   if (diffMin < 60) return `${diffMin} min ago`
   const diffH = Math.round(diffMin / 60)
   if (diffH < 24) return `${diffH}h ago`
-  return usDate(d)
+  return usDate(todayEt(d))
 }
 
 /**
@@ -217,6 +235,18 @@ export function usDatesIn(text: string): string {
  * Живёт здесь, а не в lib/tz.ts, потому что нужен и на клиенте: tz.ts тянет
  * полигоны поясов на 150 КБ, и импорт его в браузерный бандл был бы платой ни за что.
  */
+/** ETA в поясе точки: «09/14/26 18:40 MDT». Пояс неизвестен — центральный. */
+export function etaAt(zone: string | null | undefined, at: Date): string {
+  const z = zone || 'America/Chicago'
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: z, year: '2-digit', month: '2-digit', day: '2-digit' }).formatToParts(at)
+    const g = (type: string) => parts.find((p) => p.type === type)?.value ?? ''
+    return `${g('month')}/${g('day')}/${g('year')} ${zoneTime(z, at) ?? ''}`.trim()
+  } catch {
+    return usDate(at)
+  }
+}
+
 export function zoneTime(zone: string, now: Date): string | null {
   try {
     const time = new Intl.DateTimeFormat('en-US', {

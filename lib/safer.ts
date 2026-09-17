@@ -12,6 +12,8 @@
 // разбор вынесен в чистые функции и накрыт тестами на настоящих кусках страницы —
 // сломается разметка, упадут тесты, а не подбор молча.
 
+import { isIsoDay } from './payments.ts'
+
 /** Что нашлось по названию. Больше в списке SAFER ничего и нет. */
 export type SaferHit = { dot: string; legalName: string }
 
@@ -173,4 +175,48 @@ export async function saferByMc(mc: string): Promise<SaferCompany | null> {
   // Номер DOT в ответе свой — вытаскиваем его со страницы, а не подставляем чужой.
   const dot = /USDOT Number:?\s*<\/th>\s*<td[^>]*>\s*(\d+)/i.exec(html)?.[1] ?? ''
   return parseSaferSnapshot(html, dot)
+}
+
+/** Дата выдачи MC — самый ранний GRANTED в истории разрешений FMCSA, 'YYYY-MM-DD'.
+ *
+ * В QCMobile этой даты нет: carriers/{dot}/authority отдаёт одни статусы, поэтому
+ * authority_granted стоял пустым у всех брокеров и флаг «молодой MC» молчал. Источник —
+ * открытые данные FMCSA на data.transportation.gov, без ключа, обновляются ежедневно.
+ * Реестров два, и нужны оба (проверено 09/14/26): старый «AuthHist» кончается маем
+ * 2026-го и знает все наши MC, а выдачи с июня есть только в «Motus AuthHist» — новой
+ * системе регистрации, где у новых номеров по восемь цифр. Молодой MC — это Motus.
+ *
+ * ponytail: что ответило, то и берём. Снимут старый реестр — у старых MC пропадёт
+ * возраст, флаг молодых останется; тогда хватит одного Motus. */
+export async function mcGrantDate(mc: string): Promise<string | null> {
+  // Номер в обоих — «MC» и не меньше шести цифр: «MC033160».
+  const q = new URLSearchParams({ docket_number: `MC${String(Number(mc)).padStart(6, '0')}` })
+  const [legacy, motus] = await Promise.all(
+    ['9mw4-x3tu', 'yu5v-wbh6'].map(async (id) => {
+      try {
+        return JSON.parse((await get(`https://data.transportation.gov/resource/${id}.json?${q}`)) ?? 'null')
+      } catch {
+        return null
+      }
+    }),
+  )
+  return earliestGrant(legacy, motus)
+}
+
+type AuthRow = Record<string, unknown> | null
+
+/** Строки обоих реестров → самая ранняя выдача. В старом дата «MM/DD/YYYY», в Motus
+ * «YYYYMMDD», а колонка DATE в строгом режиме MariaDB примет только 'YYYY-MM-DD' —
+ * иначе INSERT падает вместе со всей проверкой брокера. */
+export function earliestGrant(legacy: unknown, motus: unknown): string | null {
+  const rows = (v: unknown) => (Array.isArray(v) ? (v as AuthRow[]) : [])
+  const days = [
+    ...rows(legacy)
+      .filter((r) => r?.original_action_desc === 'GRANTED')
+      .map((r) => String(r?.orig_served_date).replace(/^(\d{2})\/(\d{2})\/(\d{4})$/, '$3-$1-$2')),
+    ...rows(motus)
+      .filter((r) => /^granted$/i.test(String(r?.reason)))
+      .map((r) => String(r?.status_change_date).replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3')),
+  ].filter(isIsoDay)
+  return days.sort()[0] ?? null
 }

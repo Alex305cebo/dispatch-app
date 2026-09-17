@@ -9,6 +9,9 @@ export type ActiveStatus = 'booked' | 'in_transit'
  * arrivals; too wide and a highway passing nearby trips it. 12 mi is the balance. */
 export const GEOFENCE_MI = 12
 
+/** С какого Deadhead это красный флаг: больше 120–150 миль без груза не ездят. */
+export const DEADHEAD_FLAG_MI = 150
+
 /**
  * Forward-only, and only ever fires AFTER an arrival was recorded — a truck merely driving
  * TOWARD the pickup is also "far from pickup", so distance alone would falsely flip it to

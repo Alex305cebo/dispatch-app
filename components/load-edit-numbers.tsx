@@ -266,6 +266,12 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
                 <Fragment key={s.seq}>
                   <Row label={stopTitle(s, stops, locale)} value={s.time || usDate(s.date) || '—'} />
                   {s.address && <Addr text={s.address} name={s.name} city={s.city} />}
+                  {s.directions && (
+                    <div className="rounded-lg border border-warn-400/35 bg-warn-500/10 px-2.5 py-1.5 text-[12.5px] leading-snug text-white/85">
+                      <span className="font-semibold text-warn-400">⚠ {t(locale, 'loadEdit.directions')}: </span>
+                      {s.directions}
+                    </div>
+                  )}
                 </Fragment>
               ))}
             </dl>

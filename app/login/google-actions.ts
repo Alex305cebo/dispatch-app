@@ -96,7 +96,7 @@ export async function signInWithGoogle(idToken: string): Promise<GoogleResult> {
 
   const created = (await sql`
     INSERT INTO users (name, email, password_hash, role, pending_since)
-    VALUES (${g.name}, ${g.email}, '', ${first ? 'admin' : 'dispatcher'}, ${first ? null : new Date().toISOString()})
+    VALUES (${g.name}, ${g.email}, '', ${first ? 'admin' : 'dispatcher'}, ${first ? null : new Date()})
     RETURNING id`) as { id: number }[]
   const id = created[0]!.id
 

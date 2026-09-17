@@ -4,7 +4,7 @@ import { can } from '@/lib/capabilities-server'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { calcLoad } from '@/lib/profit'
 import { truckLabel } from '@/lib/map'
-import { weekAnchorOf } from '@/lib/fmt'
+import { loadWeekAnchorMs, weekAnchorOf } from '@/lib/fmt'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,15 +23,18 @@ const cell = (v: unknown) => {
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser()
   if (!user || !(await can(user, 'finances'))) return new NextResponse('Forbidden', { status: 403 })
-  const start = Number(req.nextUrl.searchParams.get('start'))
-  if (!Number.isFinite(start)) return new NextResponse('start?', { status: 400 })
+  const param = Number(req.nextUrl.searchParams.get('start'))
+  if (!Number.isFinite(param)) return new NextResponse('start?', { status: 400 })
+  // Полдень той пятницы — в той же неделе и для полуночи по восточному времени, и для
+  // ссылок, выданных до перевода недели на восточное время (там полночь по UTC).
+  const start = weekAnchorOf(param + 12 * 3_600_000)
   const companyId = await companyScope()
   const [loads, trucks] = await Promise.all([listLoads(companyId), listTrucks(companyId)])
   const byId = new Map(trucks.map((t) => [t.id, t]))
 
   const rows = loads
     .filter((l) => l.status !== 'quoted' && l.status !== 'cancelled')
-    .filter((l) => weekAnchorOf(new Date(l.pickupDate ?? l.createdAt).getTime()) === start)
+    .filter((l) => weekAnchorOf(loadWeekAnchorMs(l.pickupDate, l.createdAt)) === start)
     .sort((a, b) => (a.pickupDate ?? a.createdAt).localeCompare(b.pickupDate ?? b.createdAt))
 
   const head = ['Pickup', 'Delivery', 'Truck', 'Driver', 'From', 'To', 'Broker', 'MC', 'Ref', 'Loaded mi', 'Deadhead mi', 'Rate', '$/mi', 'Status', 'Invoice', 'Invoiced', 'Paid', 'Driver pay']

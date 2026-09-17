@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { calcLoad, type TruckSettings } from './profit.ts'
+import { calcLoad, targetVerdict, type TruckSettings } from './profit.ts'
 
 /** Копейки: сравниваем деньги, а не двоичное представление float. */
 const r2 = (n: number) => Math.round(n * 100) / 100
@@ -150,6 +150,17 @@ test('при проценте от гросса порожняк не тянет
   })
   // 200 × (0.7 + 0.15) = 170 — без зарплаты, она считается от ставки
   assert.equal(Math.round(pct.deadheadCost), 170)
+})
+
+test('цель по ставке: в цели, сколько не хватает, ниже безубыточности', () => {
+  const at = (rate: number) => calcLoad({ ...load, rate }, cpmTruck) // безубыточность ≈ $2,076
+  assert.deepEqual(targetVerdict(at(2400), 2.4), { kind: 'ok' })
+  assert.deepEqual(targetVerdict(at(2400), 2.5), { kind: 'short', dollars: 100 })
+  assert.deepEqual(targetVerdict(at(2000), 2.5), { kind: 'loss', dollars: 76 })
+  // $2/mi выше цели $1.50, но в убыток — убыток главнее.
+  assert.deepEqual(targetVerdict(at(2000), 1.5), { kind: 'loss', dollars: 76 })
+  assert.equal(targetVerdict(at(2400), null), null)
+  assert.equal(targetVerdict(at(2400), 0), null)
 })
 
 test('нет порожняка — нет и его цены', () => {

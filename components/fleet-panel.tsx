@@ -5,9 +5,11 @@
 // truck's own numbers, and its card in the list gets a ring. Server-rendered before
 // this, so nothing here refetches — the rows are already in hand.
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Truck, X } from 'lucide-react'
-import { FleetMap, type MapMarker, type MapRoute } from '@/components/fleet-map'
+import { FleetMap, type MapMarker, type MapMarket, type MapRoute } from '@/components/fleet-map'
+import { RoutePlanner, useRoutePlan, type PlanSnaps, type PlanTruck } from '@/components/route-planner'
+import { ltStates, type DatEquipment, type DatSnapshot } from '@/lib/dat-market-core'
 import { FleetList, type TrackingRow, type TruckMoney } from '@/components/fleet-list'
 import { RefreshFleetButton } from '@/components/refresh-fleet-button'
 import { Button } from '@/components/button'
@@ -42,21 +44,31 @@ function Tile({ value, label, tone }: TileData) {
 export function FleetPanel({
   markers,
   routes,
+  snaps = {},
+  planTrucks = [],
   rows,
   totals,
   updatedText,
   staleMinutes,
+  underMap,
   between,
   after,
   money,
 }: {
   markers: MapMarker[]
   routes: MapRoute[]
+  /** Суточные снимки DAT по сериям: слой «Рынок» на карте и «Куда отправить трак». */
+  snaps?: PlanSnaps
+  /** Траки для планировщика: откуда поедет, прицеп и расходы. */
+  planTrucks?: PlanTruck[]
   rows: TrackingRow[]
   totals: FleetTotals
   /** Pre-formatted on the server — "обновлено 3 мин назад" or the no-snapshot line. */
   updatedText: string
   staleMinutes: number | null
+  /** Сразу под картой и её цифрами, выше «Куда отправить трак»: «Загрузка парка» —
+   * кто когда освободится, первое, что смотрят после карты. */
+  underMap?: React.ReactNode
   /** Блоки, которые встают МЕЖДУ счётчиками и списком траков: справочник водителей и
    * календарь загрузки. Место выбрано не случайно — оба отвечают на вопросы, которые
    * задают до разбора отдельного трака: «что сказать брокеру» и «кто когда
@@ -69,6 +81,15 @@ export function FleetPanel({
 }) {
   const locale = useLocale()
   const [selected, setSelected] = useState<number | null>(null)
+  // Слой «Рынок»: грузов на трак по штатам каждой серии — из тех же снимков, что у планировщика.
+  const market = useMemo<MapMarket | null>(() => {
+    const list = Object.entries(snaps) as [DatEquipment, DatSnapshot & { date: string }][]
+    if (!list.length) return null
+    // Дата в легенде — самого старого снимка из показанных: не обещать свежесть, которой нет.
+    const oldest = list.reduce((a, b) => (b[1].at < a[1].at ? b : a))
+    return { date: oldest[1].date, series: Object.fromEntries(list.map(([eq, s]) => [eq, ltStates(s)])) }
+  }, [snaps])
+  const plan = useRoutePlan(planTrucks, snaps, selected)
   const row = selected == null ? null : (rows.find((r) => r.id === selected) ?? null)
   // Выбор чипом ведёт карту к траку; выбор пином на карте — нет (он уже там).
   const [focus, setFocus] = useState<{ lat: number; lng: number } | null>(null)
@@ -126,7 +147,15 @@ export function FleetPanel({
   return (
     <>
       <div className="mb-2">
-        <FleetMap markers={markers} routes={routes} onSelect={setSelected} focus={focus} />
+        <FleetMap
+          markers={markers}
+          routes={routes}
+          onSelect={setSelected}
+          focus={focus}
+          market={market}
+          plan={plan.mapPlan}
+          onPickState={plan.setOrigin}
+        />
       </div>
 
       {/* Быстрый выбор трака — чипы прямо под картой: номер и цвет статуса. Нажатие
@@ -170,22 +199,32 @@ export function FleetPanel({
       <div className="panel mb-4 p-2.5">
         {/* Title line doubles as the "you are looking at one truck" indicator. Without
             a selection it says how to get one, so the interaction isn't hidden. */}
-        <div className="mb-2 flex items-center justify-between gap-2 px-1.5">
+        {/* «Обновлено · live · Обновить» — справа в этой же строке, а не отдельным рядом
+            под плитками: лишний ряд занимал высоту ради одной кнопки. */}
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 px-1.5">
           {row ? (
-            <>
-              <span className="flex min-w-0 items-baseline gap-2">
-                <span className="truncate text-[13px] font-semibold text-white">{row.label}</span>
-                {/* Время водителя, а не пятая плитка: плиток ровно четыре в обоих
-                    состояниях, и пятая ломала бы ряд именно при выборе трака. */}
-                {row.zone && <LocalTime zone={row.zone} className="nums shrink-0 text-[11.5px] text-white/45" />}
-              </span>
-              <Button size="sm" variant="ghost" icon={<X size={12} />} onClick={() => setSelected(null)}>
-                {t(locale, 'tracking.wholeFleet')}
-              </Button>
-            </>
+            <span className="flex min-w-0 items-baseline gap-2">
+              <span className="truncate text-[13px] font-semibold text-white">{row.label}</span>
+              {/* Время водителя, а не пятая плитка: плиток ровно четыре в обоих
+                  состояниях, и пятая ломала бы ряд именно при выборе трака. */}
+              {row.zone && (
+                <span className="shrink-0 text-[11.5px] text-white/55">
+                  {t(locale, 'trucks.head.driverTimeShort')} <LocalTime zone={row.zone} className="nums font-semibold text-white/80" />
+                </span>
+              )}
+            </span>
           ) : (
             <span className="truncate text-[11.5px] text-white/35">{t(locale, 'tracking.pickOnMap')}</span>
           )}
+          <span className="ml-auto flex min-w-0 items-center gap-2 text-[11px] text-white/40">
+            <span className="truncate">{updatedText}</span>
+            <RefreshFleetButton staleMinutes={staleMinutes} />
+            {row && (
+              <Button size="sm" variant="ghost" icon={<X size={12} />} onClick={() => setSelected(null)}>
+                {t(locale, 'tracking.wholeFleet')}
+              </Button>
+            )}
+          </span>
         </div>
 
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
@@ -193,15 +232,13 @@ export function FleetPanel({
             <Tile key={tile.label} {...tile} />
           ))}
         </div>
-
-        {/* Its own line, not crammed onto the end of the row: at narrow widths the old
-            `ml-auto` pushed "updated · live · Refresh" into a ragged second line that
-            never lined up with anything. */}
-        <div className="mt-2.5 flex items-center justify-end gap-2 px-1.5 text-[11px] text-white/40">
-          <span className="truncate">{updatedText}</span>
-          <RefreshFleetButton staleMinutes={staleMinutes} />
-        </div>
       </div>
+
+      {underMap}
+
+      {/* «Куда отправить трак» — под картой и загрузкой парка: выбранный на карте трак
+          становится траком планировщика, а «На карте» красит штаты его выручкой в день. */}
+      {planTrucks.length > 0 && market && <RoutePlanner plan={plan} trucks={planTrucks} snaps={snaps} />}
 
       {between}
 

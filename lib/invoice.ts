@@ -2,15 +2,20 @@
 // from a load, then merges it with that load's rate con + POD into one PDF the
 // dispatcher sends (or emails). SERVER ONLY (DB + pdf-lib).
 
+import { retitleDocuments } from './doc-title.ts'
 import { cache } from 'react'
 import { revalidatePath } from 'next/cache'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { sql } from './db.ts'
 import { getSettings } from './settings.ts'
+import { companyScope } from './session.ts'
+import { DEMO_COMPANY } from './brand.ts'
 import { getLoad } from './loads.ts'
 import { isDone, stopsFrom, type StopEv } from './stops.ts'
 import type { LoadRecord } from './map.ts'
 import { t, type Locale } from './i18n.ts'
+import { listCharges } from './charges.ts'
+import { chargeLabel, chargesTotal, type LoadCharge } from './charges-core.ts'
 
 export type Company = {
   name: string
@@ -25,6 +30,9 @@ export type Company = {
 /** One query, not seven — and cache()d, because the root layout reads the company
  * name on every page render. Was 7 separate HTTPS round trips to Neon per page. */
 export const getCompany = cache(async function getCompany(): Promise<Company> {
+  // Демо — общая витрина: реквизиты настоящей компании (название, владелец, MC, почта)
+  // гостю не показываются. Вне запроса (фоновые задачи) сессии нет — это не демо.
+  if ((await companyScope().catch(() => 'default')) === 'demo') return DEMO_COMPANY
   const s = await getSettings([
     'co_name',
     'co_owner',
@@ -52,6 +60,7 @@ async function invoicePdf(
   load: LoadRecord,
   co: Company,
   invoiceNumber: string,
+  charges: LoadCharge[],
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.create()
   const page = pdf.addPage([612, 792]) // US Letter
@@ -96,9 +105,15 @@ async function invoicePdf(
   y -= 10
   page.drawText('Line haul', { x: 50, y, size: 12, font, color: ink })
   page.drawText(money(load.rate), { x: 470, y, size: 12, font, color: ink })
+  // Доп. начисления (detention, lumper, TONU…) — по строке под line haul; итог с ними.
+  for (const c of charges) {
+    y -= 20
+    page.drawText([chargeLabel(c.kind), c.note].filter(Boolean).join(' — ').slice(0, 70), { x: 50, y, size: 12, font, color: ink })
+    page.drawText(money(c.amount), { x: 470, y, size: 12, font, color: ink })
+  }
   y -= 26
   page.drawText('TOTAL DUE', { x: 50, y, size: 14, font: bold, color: ink })
-  page.drawText(money(load.rate), { x: 460, y, size: 14, font: bold, color: ink })
+  page.drawText(money(load.rate + chargesTotal(charges)), { x: 460, y, size: 14, font: bold, color: ink })
 
   y -= 50
   if (co.remitTo) {
@@ -148,7 +163,7 @@ export async function buildInvoicePacket(
 
   // POD gate.
   const docs = (await sql`
-    SELECT kind, mime, encode(data,'base64') AS b64 FROM documents
+    SELECT kind, mime, REPLACE(TO_BASE64(data), CHAR(10 USING ascii), '') AS b64 FROM documents
     WHERE load_id = ${load.id} AND company_id = ${load.companyId} ORDER BY kind`) as { kind: string; mime: string; b64: string }[]
   if (!docs.some((d) => d.kind === 'pod'))
     return { error: t(locale, 'finances.err.noPod') }
@@ -157,7 +172,7 @@ export async function buildInvoicePacket(
   const packet = await PDFDocument.create()
 
   // 1) invoice sheet
-  const invBytes = await invoicePdf(load, co, invoiceNumber)
+  const invBytes = await invoicePdf(load, co, invoiceNumber, await listCharges(load.companyId, load.id))
   const invDoc = await PDFDocument.load(invBytes)
   ;(await packet.copyPages(invDoc, invDoc.getPageIndices())).forEach((p) => packet.addPage(p))
 
@@ -174,14 +189,15 @@ export async function buildInvoicePacket(
   const rows = await sql`
     INSERT INTO documents (load_id, truck_id, kind, title, mime, size_bytes, data, company_id)
     VALUES (${load.id}, ${load.truckId}, 'invoice', ${`${invoiceNumber} packet.pdf`},
-            'application/pdf', ${bytes.length}, decode(${hex}, 'hex'), ${load.companyId})
+            'application/pdf', ${bytes.length}, UNHEX(${hex}), ${load.companyId})
     RETURNING id`
   const docId = (rows[0] as { id: number }).id
 
   await sql`
-    UPDATE loads SET invoice_number = ${invoiceNumber}, invoiced_at = now(),
+    UPDATE loads SET invoice_number = ${invoiceNumber}, invoiced_at = NOW(6),
       status = CASE WHEN status IN ('quoted','booked','in_transit','delivered') THEN 'delivered' ELSE status END
     WHERE id = ${load.id} AND company_id = ${load.companyId}`
+  await retitleDocuments({ ids: [docId] })
 
   return { docId, invoiceNumber }
 }

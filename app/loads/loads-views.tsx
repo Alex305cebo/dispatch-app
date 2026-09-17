@@ -28,9 +28,13 @@ import {
   type LoadRecord,
 } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
-import { usd, usd2, usDate, weekLabel, weekStart } from '@/lib/fmt'
-import { isoDay, scheduleConnection, stopOrder, whenText, type Connection } from '@/lib/loads-dashboard'
+import { marketVerdict, pctText } from '@/lib/dat-market-core'
+import { driveTime, usd, usd2, usDate, weekLabel } from '@/lib/fmt'
+import { scheduleConnection, shiftDay, stopOrder, weekStartIso, whenText, type Connection } from '@/lib/loads-dashboard'
+import { todayEt } from '@/lib/payments'
 import { StatusBadge, statusLabel } from '@/components/status'
+import { DeadheadFlag } from '@/components/deadhead-flag'
+import { PriorityChip } from '@/components/priority-picker'
 import { LoadsToolbar, useLoadsFilter, type LoadMetrics, activeRank } from '@/components/loads-toolbar'
 import { RateConButton } from '@/components/ratecon-button'
 import { DeleteButton } from '@/components/delete-button'
@@ -90,7 +94,8 @@ export function LoadsViews({
   /** Первый день текущей расчётной недели (yyyy-mm-dd) — с сервера, чтобы SSR и клиент сошлись. */
   weekFrom: string
   initialView: 'driver' | 'board' | 'calendar'
-  initialWeek: number
+  /** Пятница недели календаря (yyyy-mm-dd) — тоже днём, а не ms. */
+  initialWeek: string
   initialDay: string | null
   /** Поиск из адреса (?q=) — по нему открываются ссылки из свода направлений. */
   initialQuery: string
@@ -99,11 +104,13 @@ export function LoadsViews({
   // Поиск и фильтры стоят НАД видами и общие для всех трёх: искать груз, а потом
   // гадать, в какой из вкладок он теперь виден, — это не поиск.
   const { query, setQuery, filter, setFilter, sort, setSort, result: filtered } = useLoadsFilter(allLoads, trucks, metrics, initialQuery)
-  const [view, setView] = useState(initialView)
-  const [weekMonday, setWeekMonday] = useState(initialWeek)
+  // Календарь больше не вкладка — он всегда под картой; старая ссылка ?view=calendar
+  // открывает обычный вид по водителю.
+  const [view, setView] = useState<'driver' | 'board'>(initialView === 'board' ? 'board' : 'driver')
+  const [week, setWeek] = useState(initialWeek)
   const [selectedDay, setSelectedDay] = useState(initialDay)
-  // «В работе» по умолчанию; поиск из адреса и календарь смотрят на всё.
-  const [scope, setScope] = useState<Scope>(initialQuery || initialView === 'calendar' ? 'all' : 'working')
+  // «В работе» по умолчанию; поиск из адреса смотрит на всё.
+  const [scope, setScope] = useState<Scope>(initialQuery ? 'all' : 'working')
   // Выборка от плитки KPI или очереди внимания: список показывает только эти грузы.
   const [selection, setSelection] = useState<Selection>(null)
   const listRef = useRef<HTMLDivElement>(null)
@@ -168,8 +175,23 @@ export function LoadsViews({
 
   return (
     <MetricsContext.Provider value={metrics}>
-      <LoadsKpis loads={allLoads} trucks={trucks} weekFrom={weekFrom} locale={locale} onSelect={select} />
+      <LoadsKpis loads={allLoads} trucks={trucks} metrics={metrics} weekFrom={weekFrom} locale={locale} onSelect={select} />
       {mapPanel}
+      {/* Календарь недели — сразу под картой и виден с первого экрана: где каждый трак и
+          что он везёт на неделю. Поиск и фильтры ниже его не сужают — это обзор парка,
+          а не список; отменённые грузы календарь не рисует сам. */}
+      <div className="mb-4">
+        <Calendar
+          loads={allLoads}
+          week={week}
+          selectedDay={selectedDay}
+          byId={byId}
+          rateCons={rateCons}
+          locale={locale}
+          onWeek={setWeek}
+          onDay={setSelectedDay}
+        />
+      </div>
       <LoadsAttention entries={attention} locale={locale} onSelect={select} />
 
       <div ref={listRef} className="scroll-mt-4" />
@@ -181,16 +203,6 @@ export function LoadsViews({
           </button>
           <button type="button" onClick={() => setView('board')} className={tabClass(view === 'board')}>
             {t(locale, 'loads.page.tabByStatus')}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setView('calendar')
-              setScope('all')
-            }}
-            className={tabClass(view === 'calendar')}
-          >
-            {t(locale, 'loads.page.tabCalendar')}
           </button>
         </div>
         <div className="mb-1.5 flex rounded-lg bg-white/[0.05] p-0.5">
@@ -244,17 +256,6 @@ export function LoadsViews({
 
       {view === 'board' ? (
         <StatusBoard loads={loads} byId={byId} rateCons={rateCons} locale={locale} />
-      ) : view === 'calendar' ? (
-        <Calendar
-          loads={loads}
-          weekMonday={weekMonday}
-          selectedDay={selectedDay}
-          byId={byId}
-          rateCons={rateCons}
-          locale={locale}
-          onWeek={setWeekMonday}
-          onDay={setSelectedDay}
-        />
       ) : (
         <div className="stagger flex flex-col gap-3">
           {unassigned.length > 0 && (
@@ -283,6 +284,26 @@ export function LoadsViews({
 
       <LoadsWeekChart loads={allLoads} trucks={trucks} weekFrom={weekFrom} locale={locale} />
     </MetricsContext.Provider>
+  )
+}
+
+/** «+8% к рынку» у груза: гружёная ставка против рынка — вписанного в груз или DAT по
+ * региону погрузки (правило карточки груза). Нет рынка, миль или ставки — метки нет. */
+function MarketBadge({ load, locale }: { load: LoadRecord; locale: Locale }) {
+  const m = useContext(MetricsContext)[load.id]
+  if (!m?.market || !(load.loadedMiles > 0) || !(load.rate > 0)) return null
+  const rpm = load.rate / load.loadedMiles
+  const v = marketVerdict(rpm, m.market)
+  const source = m.marketAt ? t(locale, 'loads.dash.marketDat').replace('{date}', m.marketAt) : t(locale, 'loads.dash.marketSpot')
+  return (
+    <span
+      title={`${usd2.format(rpm)} vs ${usd2.format(m.market)}/mi · ${source}`}
+      className={`nums shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+        v.tone === 'good' ? 'bg-good-500/15 text-good-400' : v.tone === 'bad' ? 'bg-bad-500/15 text-bad-400' : 'bg-white/8 text-white/70'
+      }`}
+    >
+      {t(locale, 'loads.dash.vsMarket').replace('{pct}', pctText(v.diff))}
+    </span>
   )
 }
 
@@ -344,7 +365,7 @@ function StatusBoard({
                 <div key={load.id} className="rounded-lg border border-white/6 p-2.5">
                   <div className="flex items-start gap-2">
                     <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
-                      <div className="truncate text-base font-medium">
+                      <div className="text-base font-medium leading-5">
                         {load.origin ?? '—'} → {load.destination ?? '—'}
                       </div>
                     </Link>
@@ -371,6 +392,9 @@ function StatusBoard({
                       )}
                     </span>
                   </div>
+                  <div className="mt-1 flex empty:hidden">
+                    <MarketBadge load={load} locale={locale} />
+                  </div>
                 </div>
               )
             })} />
@@ -380,8 +404,6 @@ function StatusBoard({
     </div>
   )
 }
-
-const DAY_MS = 24 * 60 * 60 * 1000
 
 /** History of every load (any status, including cancelled — this is a record, not
  * a work queue), one week at a time. Pickup date is the natural anchor — "what's
@@ -399,31 +421,33 @@ const DAY_MS = 24 * 60 * 60 * 1000
  * На телефоне доска едет вбок, колонка с траками прибита слева. */
 function Calendar({
   loads,
-  weekMonday,
+  week,
   byId,
   rateCons,
   locale,
   onWeek,
 }: {
   loads: LoadRecord[]
-  weekMonday: number
+  week: string
   selectedDay: string | null
   byId: Map<number, TruckRecord>
   rateCons: Map<number, number>
   locale: Locale
-  onWeek: (mondayMs: number) => void
+  onWeek: (week: string) => void
   onDay: (iso: string | null) => void
 }) {
-  const days = Array.from({ length: 7 }, (_, i) => new Date(weekMonday + i * DAY_MS))
-  const weekIsos = days.map(isoDay)
-  const todayIso = isoDay(new Date())
+  // Дни — строками, «сегодня» — по восточному времени: так сервер и браузер в любых
+  // поясах рисуют одну неделю, и через перевод часов день не повторяется.
+  const weekIsos = Array.from({ length: 7 }, (_, i) => shiftDay(week, i))
+  const todayIso = todayEt()
   const weekEnd = weekIsos[6]!
   const weekBegin = weekIsos[0]!
-  const isCurrentWeek = weekMonday === weekStart()
+  const currentWeek = weekStartIso(todayIso)
+  const isCurrentWeek = week === currentWeek
 
   // Полоса груза: от погрузки до выгрузки (без выгрузки — один день), обрезанная
   // границами недели. Грузы целиком вне недели не рисуются.
-  type Bar = { load: LoadRecord; from: number; to: number; lane: number }
+  type Bar = { load: LoadRecord; from: number; to: number; lane: number; start: string; end: string }
   const barsByTruck = new Map<number | null, Bar[]>()
   for (const l of loads) {
     if (l.status === 'cancelled') continue
@@ -434,7 +458,7 @@ function Calendar({
     const to = Math.min(6, weekIsos.indexOf(b > weekEnd ? weekEnd : b))
     const key = l.truckId !== null && byId.has(l.truckId) ? l.truckId : null
     if (!barsByTruck.has(key)) barsByTruck.set(key, [])
-    barsByTruck.get(key)!.push({ load: l, from, to, lane: 0 })
+    barsByTruck.get(key)!.push({ load: l, from, to, lane: 0, start: a, end: b })
   }
   // Пересекающиеся полосы одного трака — на разные дорожки, а не друг на друга.
   for (const bars of barsByTruck.values()) {
@@ -470,25 +494,37 @@ function Calendar({
     paid: 'border-good-400/40 bg-good-400/15 text-good-400',
     cancelled: 'border-bad-400/30 bg-bad-400/10 text-bad-400',
   }
+  // Телефон: цвет клетки дня и точки у груза — по статусу.
+  const STRIP: Record<string, [string, string]> = {
+    quoted: ['bg-white/30', 'text-white/70'],
+    booked: ['bg-cyan-400', 'text-cyan-300'],
+    in_transit: ['bg-amber-400', 'text-amber-300'],
+    delivered: ['bg-fuchsia-400', 'text-fuchsia-300'],
+    paid: ['bg-good-400', 'text-good-400'],
+    cancelled: ['bg-bad-400', 'text-bad-400'],
+  }
   const city = (x: string | null) => (x ?? '—').replace(/,.*$/, '')
+  // «Вт 15» или «Вт 15–Ср 16» — дни груза словами, шкала читается без клеток.
+  const dayLabel = (iso: string) => `${weekdayLabel(iso, locale)} ${Number(iso.slice(8, 10))}`
+  const dayRange = (a: string, b: string) => (a === b ? dayLabel(a) : `${dayLabel(a)}–${dayLabel(b)}`)
 
   return (
     <div>
       <div className="mb-3 flex items-center justify-between gap-2">
         <button
           type="button"
-          onClick={() => onWeek(weekMonday - 7 * DAY_MS)}
+          onClick={() => onWeek(shiftDay(week, -7))}
           className="inline-flex min-h-9 items-center rounded-xl border border-white/10 px-3.5 text-[12px] font-semibold text-white/75 transition-colors hover:border-white/25 hover:bg-white/5 max-md:min-h-11"
         >
           {t(locale, 'loads.page.prevWeek')}
         </button>
         <span className="flex min-w-0 flex-col items-center gap-0.5 text-center">
           <span className="flex items-center gap-2 text-[13.5px] font-semibold capitalize text-white/90">
-            {weekLabel(weekMonday, locale)}
+            {weekLabel(Date.parse(`${week}T12:00:00`), locale)}
             {!isCurrentWeek && (
               <button
                 type="button"
-                onClick={() => onWeek(weekStart())}
+                onClick={() => onWeek(currentWeek)}
                 className="rounded-full bg-haul-500/15 px-2 py-0.5 text-[11px] font-semibold normal-case text-haul-400 transition-colors hover:bg-haul-500/25"
               >
                 {t(locale, 'loads.page.today')}
@@ -504,7 +540,7 @@ function Calendar({
         </span>
         <button
           type="button"
-          onClick={() => onWeek(weekMonday + 7 * DAY_MS)}
+          onClick={() => onWeek(shiftDay(week, 7))}
           className="inline-flex min-h-9 items-center rounded-xl border border-white/10 px-3.5 text-[12px] font-semibold text-white/75 transition-colors hover:border-white/25 hover:bg-white/5 max-md:min-h-11"
         >
           {t(locale, 'loads.page.nextWeek')}
@@ -514,25 +550,94 @@ function Calendar({
       {weekCount === 0 ? (
         <Empty icon={CalendarDays} title={t(locale, 'loads.page.emptyDayTitle')} text={t(locale, 'loads.board.emptyWeek')} />
       ) : (
-        <div className="panel overflow-x-auto p-0">
+        <>
+        {/* Телефон — без горизонтальной прокрутки: семь дней на всю ширину, у трака
+            строка из семи клеток (закрашено — занят, пусто — свободен) и грузы списком
+            с днями словами. */}
+        <div className="panel p-0 md:hidden">
+          <div className="grid grid-cols-7 border-b border-white/8 px-2.5">
+            {weekIsos.map((iso) => {
+              const isToday = iso === todayIso
+              return (
+                <div key={iso} className={`flex flex-col items-center py-1.5 ${isToday ? 'rounded-md bg-haul-500/10' : ''}`}>
+                  <span className={`text-[10px] font-medium capitalize ${isToday ? 'text-haul-300' : 'text-white/45'}`}>
+                    {weekdayLabel(iso, locale)}
+                  </span>
+                  <span className={`nums text-[12.5px] font-semibold ${isToday ? 'text-haul-300' : 'text-white/80'}`}>{Number(iso.slice(8, 10))}</span>
+                </div>
+              )
+            })}
+          </div>
+          {/* Какой цвет что значит — только статусы, что есть на этой неделе. */}
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-white/[0.06] px-2.5 py-1.5 text-[11px] text-white/55">
+            {[...new Set(rows.flatMap((r) => r.bars.map((b) => b.load.status)))].map((s) => (
+              <span key={s} className="flex items-center gap-1">
+                <span className={`size-2 rounded-full ${(STRIP[s] ?? STRIP.quoted!)[0]}`} />
+                {statusLabel(locale, s)}
+              </span>
+            ))}
+          </div>
+          {rows.map((row) => {
+            // Клетка дня закрашена цветом груза, что в этот день у трака; пустая — свободен.
+            const cells = weekIsos.map((_, i) => row.bars.find((b) => b.from <= i && i <= b.to) ?? null)
+            return (
+              <div key={row.key} className="border-b border-white/[0.06] px-2.5 py-2 last:border-b-0">
+                <div className="flex min-w-0 items-baseline gap-2">
+                  {row.href ? (
+                    <Link href={row.href} className="nums shrink-0 text-[13px] font-semibold hover:text-haul-400">
+                      {row.label}
+                    </Link>
+                  ) : (
+                    <span className="shrink-0 text-[13px] font-semibold text-white/70">{row.label}</span>
+                  )}
+                  {row.sub && <span className="min-w-0 truncate text-[11.5px] text-white/50">{row.sub}</span>}
+                  {row.bars.length === 0 && <span className="ml-auto shrink-0 text-[11px] text-white/45">{t(locale, 'loads.board.free')}</span>}
+                </div>
+                <div className="mt-1.5 grid grid-cols-7 gap-0.5">
+                  {cells.map((b, i) => (
+                    <span
+                      key={weekIsos[i]}
+                      className={`h-4 rounded-[3px] ${b ? (STRIP[b.load.status] ?? STRIP.quoted!)[0] : 'border border-white/10 bg-white/[0.04]'}`}
+                    />
+                  ))}
+                </div>
+                {row.bars.length > 0 && (
+                  <div className="mt-1 flex flex-col">
+                    {row.bars.map((b) => (
+                      <Link key={b.load.id} href={`/loads/${b.load.id}`} className="flex items-baseline gap-1.5 rounded py-0.5 text-[12.5px] hover:bg-white/5">
+                        <span className={`size-2 shrink-0 self-center rounded-full ${(STRIP[b.load.status] ?? STRIP.quoted!)[0]}`} />
+                        <span className="nums shrink-0 text-[11.5px] text-white/55">{dayRange(b.start, b.end)}</span>
+                        <span className="min-w-0 font-medium text-white/85">
+                          {city(b.load.origin)} → {city(b.load.destination)}
+                        </span>
+                        <span className="nums ml-auto shrink-0 font-semibold text-white/85">{usd.format(b.load.rate)}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        <div className="panel overflow-x-auto p-0 max-md:hidden">
           <div className="min-w-[640px]">
             {/* Шапка дней */}
             <div className="grid grid-cols-[132px_repeat(7,minmax(0,1fr))] border-b border-white/8">
               <div className="sticky left-0 z-10 bg-ink-900 px-3 py-2 text-[11px] font-medium text-white/45">
                 {t(locale, 'loads.board.truck')}
               </div>
-              {days.map((d, i) => {
-                const isToday = weekIsos[i] === todayIso
+              {weekIsos.map((iso) => {
+                const isToday = iso === todayIso
                 return (
                   <div
-                    key={weekIsos[i]}
+                    key={iso}
                     className={`flex items-baseline justify-center gap-1 px-1 py-2 text-center ${isToday ? 'bg-haul-500/10' : ''}`}
                   >
                     <span className={`text-[11px] font-medium capitalize ${isToday ? 'text-haul-300' : 'text-white/45'}`}>
-                      {weekdayLabel(weekIsos[i]!, locale)}
+                      {weekdayLabel(iso, locale)}
                     </span>
                     <span className={`nums text-[13px] font-semibold ${isToday ? 'text-haul-300' : 'text-white/80'}`}>
-                      {d.getDate()}
+                      {Number(iso.slice(8, 10))}
                     </span>
                   </div>
                 )
@@ -600,6 +705,7 @@ function Calendar({
             })}
           </div>
         </div>
+        </>
       )}
       <p className="mt-2 text-[11.5px] text-white/45">{t(locale, 'loads.board.hint')}</p>
     </div>
@@ -739,6 +845,14 @@ function LoadRow({
             <span className="nums text-[11.5px] text-white/60">
               {Math.round(totalMiles)} mi · {usd2.format(totalMiles > 0 ? load.rate / totalMiles : 0)}/mi
             </span>
+            <DeadheadFlag miles={load.deadheadMiles} okMiles={load.deadheadOkMiles} locale={locale} />
+            <MarketBadge load={load} locale={locale} />
+            <PriorityChip priority={load.priority} locale={locale} />
+            {m?.lateMin != null && (
+              <span className="inline-flex items-center rounded-full bg-bad-500/15 px-2 py-0.5 text-[11px] font-semibold text-bad-400 ring-1 ring-bad-400/30">
+                {t(locale, 'loads.dash.late')} · {driveTime(m.lateMin, locale)}
+              </span>
+            )}
           </div>
           {/* Номер, брокер и бумаги одной строкой: RC и POD — то, без чего не выставить счёт. */}
           <p className="mt-1 flex flex-wrap gap-x-2 text-[11px] text-white/60">

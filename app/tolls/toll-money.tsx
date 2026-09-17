@@ -57,11 +57,11 @@ export function TollMoney({
           {spend.top.map((l) => (
             <li
               key={l.id}
-              className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-[12.5px] hover:bg-white/5"
+              className="flex items-start gap-2 rounded-lg px-1.5 py-1.5 text-[12.5px] hover:bg-white/5"
             >
               <Link
                 href={`/loads/${l.id}`}
-                className="min-w-0 flex-1 truncate text-white/75 hover:text-white hover:underline"
+                className="min-w-0 flex-1 leading-4 text-white/75 hover:text-white hover:underline"
               >
                 {l.origin ?? "—"} → {l.destination ?? "—"}
               </Link>

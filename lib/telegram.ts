@@ -26,7 +26,7 @@ const k = (base: string, uid: number) => `${base}:${uid}`
 /** Every user id that has a stored Telegram session — the intake/POD-chase jobs
  * loop over all of them so a driver can message whichever dispatcher they know. */
 export async function connectedTgUserIds(): Promise<number[]> {
-  const rows = (await sql`SELECT key FROM settings WHERE key LIKE 'tg_session:%'`) as { key: string }[]
+  const rows = (await sql`SELECT "key" FROM settings WHERE "key" LIKE 'tg_session:%'`) as { key: string }[]
   return rows.map((r) => Number(r.key.slice('tg_session:'.length))).filter((n) => Number.isFinite(n))
 }
 

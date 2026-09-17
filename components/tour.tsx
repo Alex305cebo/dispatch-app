@@ -102,6 +102,16 @@ export function Tour({
     }
   }, [open, place, pathname])
 
+  // Escape — как «Закрыть», а не «Готово»: finish() отметил бы экскурсию пройденной
+  // на сервере. preventDefault не зовём — у полей страницы Escape остаётся своим.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
   function go(next: number) {
     setI(next)
     store().setItem(POS, String(next))
@@ -190,10 +200,10 @@ export function Tour({
         left: Math.min(Math.max(box.left + box.width / 2 - card / 2, 12), Math.max(12, vw - card - 12)),
         width: card,
       }
-    : { top: 12, left: Math.max(12, vw / 2 - card / 2), width: card, maxHeight: vh - 24, overflowY: 'auto' }
+    : { top: 12, left: Math.max(12, vw / 2 - card / 2), width: card, maxHeight: vh - 24 }
 
   const nav = (
-    <div className="mt-3.5 flex items-center gap-2">
+    <div className="mt-3.5 flex flex-wrap items-center gap-2">
       {i > 0 && (
         <Button variant="secondary" size="sm" onClick={() => go(i - 1)}>
           {t(locale, 'tour.back')}
@@ -237,26 +247,40 @@ export function Tour({
         <div aria-hidden className="fixed inset-0 z-[195] bg-black/55" onClick={close} />
       )}
 
-      <div className="panel fixed z-[196] p-4" style={cardStyle}>
-        <p className="text-[13px] font-semibold text-white/75">
-          {t(locale, 'tour.stepOf')
-            .replace('{n}', String(i + 1))
-            .replace('{total}', String(steps.length))}
-          {step.done ? ' · ' + t(locale, 'tour.doneMark') : ''}
-        </p>
-        <h2 className="mt-1 text-[15px] font-semibold">{step.title}</h2>
-        {step.image && imgOk && (
-          // Снимок настоящего экрана. Нет файла (снимок ещё не снят) — картинка
-          // молча исчезает, карточка сужается, текст остаётся.
-          <img
-            src={`/guide/${locale}/${step.image}.jpg`}
-            alt=""
-            onError={() => setImgOk(false)}
-            className="mt-3 w-full rounded-lg border border-white/10"
-          />
-        )}
-        <p className="mt-2.5 text-[13px] leading-relaxed text-white/72">{step.text}</p>
-        {nav}
+      {/* Прокручивается только тело карточки, шапка с ✕ — нет: на низком экране снимок
+          с текстом выше окна, а выход должен оставаться на виду. */}
+      <div className="panel fixed z-[196] flex flex-col" style={cardStyle}>
+        <div className="flex items-center gap-2 pl-4 pr-2.5 pt-3">
+          <p className="min-w-0 flex-1 text-[13px] font-semibold text-white/75">
+            {t(locale, 'tour.stepOf')
+              .replace('{n}', String(i + 1))
+              .replace('{total}', String(steps.length))}
+            {step.done ? ' · ' + t(locale, 'tour.doneMark') : ''}
+          </p>
+          <button
+            type="button"
+            onClick={close}
+            aria-label={t(locale, 'tour.skip')}
+            className="flex size-7 shrink-0 items-center justify-center rounded-full text-[15px] text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="min-h-0 overflow-y-auto px-4 pb-4">
+          <h2 className="text-[15px] font-semibold">{step.title}</h2>
+          {step.image && imgOk && (
+            // Снимок настоящего экрана. Нет файла (снимок ещё не снят) — картинка
+            // молча исчезает, карточка сужается, текст остаётся.
+            <img
+              src={`/guide/${locale}/${step.image}.jpg`}
+              alt=""
+              onError={() => setImgOk(false)}
+              className="mt-3 w-full rounded-lg border border-white/10"
+            />
+          )}
+          <p className="mt-2.5 text-[13px] leading-relaxed text-white/72">{step.text}</p>
+          {nav}
+        </div>
       </div>
     </>,
     document.body,

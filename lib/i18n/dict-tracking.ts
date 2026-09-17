@@ -1,4 +1,4 @@
-// Tracking domain: app/tracking/**, app/track/[id]/**, fleet-map/fleet-list/
+// Tracking domain: app/tracking/**, fleet-map/fleet-list/
 // eld-links/refresh-fleet-button/small-refresh-button, lib/map.ts, lib/load-map.ts,
 // lib/geo-routing.ts, lib/eld.ts.
 
@@ -13,6 +13,14 @@ export const trackingDict = {
     kk: 'Тиеу · ',
   },
   'tracking.fromPrefix': { ru: 'Из ', en: 'From ', es: 'Desde ', uk: 'Із ', ro: 'Din ', kk: 'Қайдан: ' },
+  'tracking.toPickupSuffix': {
+    ru: ' до пикапа',
+    en: ' to pickup',
+    es: ' hasta la recogida',
+    uk: ' до завантаження',
+    ro: ' până la încărcare',
+    kk: ' тиеуге дейін',
+  },
   'tracking.toDelivery': {
     ru: ' до delivery',
     en: ' to delivery',
@@ -52,25 +60,6 @@ export const trackingDict = {
     uk: 'знімків ще не було',
     ro: 'încă nu sunt capturi',
     kk: 'әзірге түсірілім жоқ',
-  },
-
-  // Public /track/[id] share link (no login).
-  'tracking.truckHash': { ru: 'Трак ', en: 'Truck ', es: 'Camión ', uk: 'Трак ', ro: 'Camion ', kk: 'Тракт ' },
-  'tracking.noData': {
-    ru: 'Нет данных',
-    en: 'No data',
-    es: 'Sin datos',
-    uk: 'Немає даних',
-    ro: 'Fără date',
-    kk: 'Дерек жоқ',
-  },
-  'tracking.noCoordsYet': {
-    ru: 'Координаты пока не пришли.',
-    en: 'No coordinates yet.',
-    es: 'Aún no llegan coordenadas.',
-    uk: 'Координати поки не надійшли.',
-    ro: 'Încă nu au venit coordonate.',
-    kk: 'Координаттар әлі келген жоқ.',
   },
 
   // app/tracking/page.tsx
@@ -226,14 +215,14 @@ export const trackingDict = {
     ro: 'Restrânge harta (Esc)',
     kk: 'Картаны жабу (Esc)',
   },
-  'tracking.mapLabel': { ru: '🗺 Карта', en: '🗺 Map', es: '🗺 Mapa', uk: '🗺 Мапа', ro: '🗺 Hartă', kk: '🗺 Карта' },
+  'tracking.mapLabel': { ru: '🗺 Вид карты', en: '🗺 Map view', es: '🗺 Vista del mapa', uk: '🗺 Вид мапи', ro: '🗺 Vedere hartă', kk: '🗺 Карта түрі' },
   'tracking.satelliteLabel': {
-    ru: '🛰 Гибрид',
-    en: '🛰 Hybrid',
-    es: '🛰 Híbrido',
-    uk: '🛰 Гібрид',
-    ro: '🛰 Hibrid',
-    kk: '🛰 Гибрид',
+    ru: '🛰 Вид карты',
+    en: '🛰 Map view',
+    es: '🛰 Vista del mapa',
+    uk: '🛰 Вид мапи',
+    ro: '🛰 Vedere hartă',
+    kk: '🛰 Карта түрі',
   },
   'tracking.legendMoving': { ru: 'едет', en: 'moving', es: 'en marcha', uk: 'їде', ro: 'merge', kk: 'жүріп келеді' },
   'tracking.legendOnDuty': {
@@ -377,6 +366,34 @@ export const trackingDict = {
     ro: 'Urmă 12h',
     kk: 'Із 12с',
   },
+  'tracking.marketLabel': { ru: 'Рынок', en: 'Market', es: 'Mercado', uk: 'Ринок', ro: 'Piață', kk: 'Нарық' },
+  'tracking.marketTitle': {
+    ru: 'Рынок DAT: сколько грузов приходится на один трак в каждом штате',
+    en: 'DAT market: how many loads there are per truck in each state',
+    es: 'Mercado DAT: cuántas cargas hay por camión en cada estado',
+    uk: 'Ринок DAT: скільки вантажів припадає на один трак у кожному штаті',
+    ro: 'Piața DAT: câte curse revin unui camion în fiecare stat',
+    kk: 'DAT нарығы: әр штатта бір тартқышқа қанша жүк келеді',
+  },
+  'tracking.marketLegend': {
+    ru: 'Рынок DAT по штатам',
+    en: 'DAT market by state',
+    es: 'Mercado DAT por estado',
+    uk: 'Ринок DAT за штатами',
+    ro: 'Piața DAT pe state',
+    kk: 'Штаттар бойынша DAT нарығы',
+  },
+  'tracking.marketLegendInfo': {
+    ru: 'Насколько горячий рынок в штате: сколько грузов на бирже DAT против свободных траков, в сравнении с серединой по всем штатам этой серии. Горячий — груз найдётся быстрее и ставку легче удержать, холодный — дольше. Очень горячий или очень холодный — вдвое выше или ниже середины.',
+    en: 'How hot the market is in the state: DAT load posts against available trucks, compared with the middle across all states for this equipment. Hot means a load turns up faster and the rate is easier to hold, cold means slower. Very hot or very cold is twice above or below the middle.',
+    es: 'Qué tan caliente está el mercado en el estado: cargas publicadas en DAT frente a camiones libres, comparado con el punto medio de todos los estados de esta serie. Caliente: la carga aparece antes y la tarifa se sostiene mejor; frío: más lento. Muy caliente o muy frío es el doble por encima o por debajo del medio.',
+    uk: 'Наскільки гарячий ринок у штаті: скільки вантажів на біржі DAT проти вільних траків, порівняно із серединою по всіх штатах цієї серії. Гарячий — вантаж знайдеться швидше і ставку легше втримати, холодний — довше. Дуже гарячий або дуже холодний — удвічі вище або нижче середини.',
+    ro: 'Cât de fierbinte e piața în stat: cursele de pe DAT față de camioanele libere, comparat cu mijlocul tuturor statelor pentru această serie. Fierbinte — cursa se găsește mai repede și tariful se ține mai bine, rece — mai încet. Foarte fierbinte sau foarte rece înseamnă dublu peste sau sub mijloc.',
+    kk: 'Штаттағы нарық қаншалықты қызу: DAT биржасындағы жүктер бос тартқыштарға қарағанда, осы сериядағы барлық штаттардың ортасымен салыстырғанда. Қызу — жүк тезірек табылады, тарифті ұстау оңай; салқын — ұзағырақ. Өте қызу не өте салқын — ортадан екі есе жоғары не төмен.',
+  },
+  'tracking.marketScale': { ru: 'грузов на трак · середина по штатам {m}', en: 'loads per truck · state median {m}', es: 'cargas por camión · mediana de estados {m}', uk: 'вантажів на трак · середина по штатах {m}', ro: 'curse pe camion · mediana statelor {m}', kk: 'бір тартқышқа жүк · штаттар медианасы {m}' },
+  'tracking.marketClose': { ru: 'Закрыть слой рынка', en: 'Close market layer', es: 'Cerrar capa de mercado', uk: 'Закрити шар ринку', ro: 'Închide stratul pieței', kk: 'Нарық қабатын жабу' },
+  'tracking.marketNone': { ru: 'Данных рынка DAT пока нет — появятся после ночного обновления.', en: 'No DAT market data yet — it arrives with the nightly update.', es: 'Aún no hay datos de mercado DAT; llegarán con la actualización nocturna.', uk: 'Даних ринку DAT поки немає — з’являться після нічного оновлення.', ro: 'Încă nu există date de piață DAT — apar după actualizarea de noapte.', kk: 'DAT нарық деректері әзірге жоқ — түнгі жаңартудан кейін шығады.' },
   'tracking.trailTitle': {
     ru: 'Янтарные точки — GPS-отметки, где трак был последние 12 часов',
     en: 'Amber dots — GPS pings from the last 12 hours',
@@ -673,6 +690,15 @@ export const trackingDict = {
     uk: 'Оновлюю…',
     ro: 'Se actualizează…',
     kk: 'Жаңартылуда…',
+  },
+  'tracking.refreshTrucks': { ru: 'Траки', en: 'Trucks', es: 'Camiones', uk: 'Траки', ro: 'Camioane', kk: 'Тракттар' },
+  'tracking.refreshTrucksTitle': {
+    ru: 'Обновить положение траков на карте — запросить свежий GPS у ELD',
+    en: 'Refresh truck positions on the map — pull fresh GPS from the ELD',
+    es: 'Actualizar la posición de los camiones en el mapa — pedir GPS fresco al ELD',
+    uk: 'Оновити положення траків на карті — запросити свіжий GPS у ELD',
+    ro: 'Actualizează poziția camioanelor pe hartă — cere GPS proaspăt de la ELD',
+    kk: 'Картадағы трактар орнын жаңарту — ELD-ден жаңа GPS сұрау',
   },
   'tracking.refresh': {
     ru: 'Обновить',

@@ -1,5 +1,6 @@
 'use client'
 
+import { safeUploadFile } from '@/lib/upload-name'
 import { DocLink } from '@/components/doc-link'
 import { DELETE_WORD } from '@/lib/delete-word'
 
@@ -28,7 +29,9 @@ import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale } from '@/lib/i18n'
 import { ShowMore } from '@/components/collapse'
+import { DateMore } from '@/components/date-more'
 import { usDate } from '@/lib/fmt'
+import { todayEt } from '@/lib/payments'
 
 export function DocUpload({
   truckId,
@@ -60,7 +63,7 @@ export function DocUpload({
       let saved = 0
       for (const file of files) {
         const fd = new FormData()
-        fd.append('file', file)
+        fd.append('file', safeUploadFile(file))
         fd.append('kind', kind)
         if (truckId) fd.append('truckId', String(truckId))
         if (loadId) fd.append('loadId', String(loadId))
@@ -345,7 +348,7 @@ function DocRow({
         <Thumb doc={doc} size={7} />
         <DocLink
           docId={doc.id}
-          className="order-first basis-full truncate text-left text-[13px] text-white/85 hover:text-haul-400 hover:underline sm:order-none sm:min-w-0 sm:shrink sm:basis-auto"
+          className="order-first basis-full text-left text-[13px] leading-4 text-white/85 [overflow-wrap:anywhere] sm:truncate hover:text-haul-400 hover:underline sm:order-none sm:min-w-0 sm:shrink sm:basis-auto"
           title={doc.title}
         >
           {name}
@@ -353,7 +356,7 @@ function DocRow({
         {name !== doc.title && (
           <span className="hidden min-w-0 shrink truncate text-[11.5px] text-white/40 sm:block">{doc.title}</span>
         )}
-        <span className="nums ml-auto shrink-0 text-[11.5px] text-white/35">{usDate(doc.uploadedAt)}</span>
+        <span className="nums ml-auto shrink-0 text-[11.5px] text-white/35">{usDate(todayEt(new Date(doc.uploadedAt)))}</span>
         {showLinks && doc.truckId && (
           <a href={`/trucks/${doc.truckId}`} className="shrink-0 text-[11px] text-white/45 hover:text-white/85">
             {t(locale, 'docs.row.truck')}
@@ -395,7 +398,7 @@ function DocRow({
           <div className="text-xs text-white/45 [overflow-wrap:anywhere] sm:truncate">{doc.title}</div>
         )}
         <span className="nums block text-xs text-white/40">
-          {fmtSize(doc.sizeBytes)} · {usDate(doc.uploadedAt)}
+          {fmtSize(doc.sizeBytes)} · {usDate(todayEt(new Date(doc.uploadedAt)))}
         </span>
         {doc.loadId === null && doc.truckId && attachTargets && (
           <UnattachedActions
@@ -457,9 +460,15 @@ export function DocList({
   docs,
   showLinks,
   attachTargets,
+  limit = 3,
+  byDate = false,
 }: {
   docs: DocMeta[]
   showLinks?: boolean
+  /** Сколько бумаг видно до «ещё N» (страница трака подгоняет под высоту списка грузов). */
+  limit?: number
+  /** Остальные бумаги — по дню загрузки из мини-календаря, а не лентой «ещё N». */
+  byDate?: boolean
   /** The truck's loads — passed on the truck page so an unattached doc can be
    * recognised into a load or linked to an existing one right from the list. */
   attachTargets?: { id: number; label: string }[]
@@ -472,13 +481,23 @@ export function DocList({
       <ul className="mt-3 flex flex-col gap-1.5">
         {/* Первые три — остальное за «ещё N»: у трака бумаг десятки, и без этого
             панель документов уезжала на несколько экранов. */}
-        <ShowMore
-          limit={3}
-          label={t(locale, 'docs.library.more')}
-          items={docs.map((d) => (
-            <DocRow key={d.id} doc={d} showLinks={showLinks} onDelete={setDel} attachTargets={attachTargets} />
-          ))}
-        />
+        {byDate ? (
+          <DateMore
+            limit={limit}
+            items={docs.map((d) => ({
+              day: todayEt(new Date(d.uploadedAt)),
+              node: <DocRow key={d.id} doc={d} showLinks={showLinks} onDelete={setDel} attachTargets={attachTargets} />,
+            }))}
+          />
+        ) : (
+          <ShowMore
+            limit={limit}
+            label={t(locale, 'docs.library.more')}
+            items={docs.map((d) => (
+              <DocRow key={d.id} doc={d} showLinks={showLinks} onDelete={setDel} attachTargets={attachTargets} />
+            ))}
+          />
+        )}
       </ul>
       {del && <DeleteDialog doc={del} onClose={() => setDel(null)} />}
     </>
@@ -617,7 +636,7 @@ export function DocTrash({ rows }: { rows: DocLibRow[] }) {
           <div className="min-w-0 flex-1">
             <span className="block truncate text-[14px] text-white/70">{d.title}</span>
             <span className="text-[11px] text-white/45">
-              {t(locale, 'docs.trash.deletedOn').replace('{d}', usDate(d.deletedAt))} · {fmtSize(d.sizeBytes)}
+              {t(locale, 'docs.trash.deletedOn').replace('{d}', usDate(d.deletedAt && todayEt(new Date(d.deletedAt))))} · {fmtSize(d.sizeBytes)}
             </span>
           </div>
           <button

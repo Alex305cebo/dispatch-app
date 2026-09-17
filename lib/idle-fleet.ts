@@ -30,6 +30,8 @@ export interface IdleTruck {
   idleCost: number
   /** 'repair' | 'vacation' — трак есть, но диспетчерить его нельзя. */
   unavailable: 'repair' | 'vacation' | null
+  /** Водитель дома до этого дня (профиль в паспорте трака) — груз искать не надо. */
+  homeUntil: string | null
 }
 
 /** Постоянные расходы в сутки — то, что капает вне зависимости от рейса. */
@@ -73,8 +75,11 @@ export function idleFleet(
   loads: LoadRecord[],
   placeByTruck: Map<number, string | null>,
   now = Date.now(),
+  /** Кто дома до какого числа (lib/maintenance-core.ts homeUntil). */
+  homeByTruck?: Map<number, string | null>,
 ): IdleTruck[] {
   const today = dayStart(now)
+  const home = (id: number) => homeByTruck?.get(id) ?? null
 
   const rows = trucks.map((t): IdleTruck => {
     const mine = loads.filter((l) => l.truckId === t.id && l.status !== 'cancelled')
@@ -96,6 +101,7 @@ export function idleFleet(
         costPerDay,
         idleCost: 0,
         unavailable: t.unavailable,
+        homeUntil: home(t.id),
       }
     }
 
@@ -116,6 +122,7 @@ export function idleFleet(
       costPerDay,
       idleCost: days === null ? 0 : days * costPerDay,
       unavailable: t.unavailable,
+      homeUntil: home(t.id),
     }
   })
 
@@ -125,9 +132,10 @@ export function idleFleet(
   // последним. Список читают сверху вниз — верх должен принадлежать тем, кто ездит.
   const dormant = (r: IdleTruck) => r.free && r.days === null
 
+  const off = (r: IdleTruck) => !!r.unavailable || !!r.homeUntil
   return rows.sort((a, b) => {
-    // Ремонт и отпуск — всегда в конце: это не работа диспетчера.
-    if (!!a.unavailable !== !!b.unavailable) return a.unavailable ? 1 : -1
+    // Ремонт, отпуск и «дома» — всегда в конце: это не работа диспетчера.
+    if (off(a) !== off(b)) return off(a) ? 1 : -1
     if (dormant(a) !== dormant(b)) return dormant(a) ? 1 : -1
     if (a.free !== b.free) return a.free ? -1 : 1
     // Среди свободных: дольше стоит — выше.
@@ -139,7 +147,7 @@ export function idleFleet(
 
 /** Итог шапки: сколько траков без груза и во сколько обходится их простой в сутки. */
 export function idleSummary(rows: IdleTruck[]): { freeCount: number; burnPerDay: number } {
-  const free = rows.filter((r) => r.free && !r.unavailable)
+  const free = rows.filter((r) => r.free && !r.unavailable && !r.homeUntil)
   return {
     freeCount: free.length,
     burnPerDay: free.reduce((s, r) => s + r.costPerDay, 0),

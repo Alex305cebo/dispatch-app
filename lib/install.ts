@@ -16,8 +16,8 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 /**
- * Разбить schema.sql на отдельные операторы: HTTP-драйвер Neon принимает по
- * одному за вызов.
+ * Разбить schema.sql на отдельные операторы: соединение с MariaDB открыто без
+ * multipleStatements, один оператор за вызов.
  *
  * Раньше это был `schema.split(';')` с пометкой «в файле нет точек с запятой
  * внутри комментариев и строк». Пометка перестала быть правдой: в комментарии
@@ -55,7 +55,7 @@ export function splitStatements(sqlText: string): string[] {
     buf += c
   }
   out.push(buf)
-  // Кусок из одних комментариев и пробелов — не оператор: Postgres отвергает
+  // Кусок из одних комментариев и пробелов — не оператор: база отвергает
   // пустой запрос, а хвост после последней `;` обычно именно такой.
   return out
     .map((s) => s.trim())
@@ -63,13 +63,15 @@ export function splitStatements(sqlText: string): string[] {
 }
 
 /** Схема уже накатана? Один дешёвый вопрос вместо попытки прочитать таблицу:
- * to_regclass отвечает NULL, а не исключением, если таблицы нет. Исключение
+ * information_schema отвечает нулём, а не исключением, если таблицы нет. Исключение
  * отсюда означает, что база недоступна вообще, — и его наверх пускаем как
  * есть, чтобы «база лежит» не выглядело как «база пустая». */
 export async function schemaInstalled(): Promise<boolean> {
   const { sql } = await import('./db.ts')
-  const rows = (await sql`SELECT to_regclass('public.users') AS t`) as { t: string | null }[]
-  return rows[0]?.t != null
+  const rows = (await sql`
+    SELECT COUNT(*) AS t FROM information_schema.tables
+    WHERE table_schema = DATABASE() AND table_name = 'users'`) as { t: number }[]
+  return Number(rows[0]?.t ?? 0) > 0
 }
 
 /** Накатить lib/schema.sql. Идемпотентно (всё через CREATE/ALTER … IF NOT
@@ -112,7 +114,7 @@ export async function applyAdminReset(): Promise<void> {
   if (!want) return
   try {
     const { sql } = await import('./db.ts')
-    const rows = (await sql`SELECT value FROM settings WHERE key = 'admin_reset_done'`) as { value: string }[]
+    const rows = (await sql`SELECT value FROM settings WHERE "key" = 'admin_reset_done'`) as { value: string }[]
     if (rows[0]?.value === want) return
     await sql`DELETE FROM sessions`
     // Сначала отвязать всё, что смотрит на пользователей, иначе база правомерно
@@ -121,8 +123,8 @@ export async function applyAdminReset(): Promise<void> {
     await sql`UPDATE loads SET dispatcher_id = NULL WHERE dispatcher_id IS NOT NULL`
     await sql`DELETE FROM user_capabilities WHERE user_id IN (SELECT id FROM users WHERE is_demo = FALSE)`
     await sql`DELETE FROM users WHERE is_demo = FALSE`
-    await sql`INSERT INTO settings (key, value) VALUES ('admin_reset_done', ${want})
-              ON CONFLICT (key) DO UPDATE SET value = ${want}`
+    await sql`INSERT INTO settings ("key", value) VALUES ('admin_reset_done', ${want})
+              ON DUPLICATE KEY UPDATE value = ${want}`
     console.warn('ADMIN_RESET applied:', want)
   } catch (e) {
     console.error('applyAdminReset failed', e)
@@ -151,7 +153,7 @@ export async function ensureSchema(): Promise<void> {
   if (!want || ensured === want) return
   try {
     const { sql } = await import('./db.ts')
-    const rows = (await sql`SELECT value FROM settings WHERE key = 'schema_version'`) as { value: string }[]
+    const rows = (await sql`SELECT value FROM settings WHERE "key" = 'schema_version'`) as { value: string }[]
     if (rows[0]?.value !== want) await applySchema()
     ensured = want
   } catch (e) {

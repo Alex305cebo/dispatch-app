@@ -1,5 +1,6 @@
 'use client'
 
+import { safeUploadFile } from '@/lib/upload-name'
 import { DocLink } from '@/components/doc-link'
 
 import { Button } from '@/components/button'
@@ -26,8 +27,9 @@ import { Field, TextField } from '@/components/ui'
 import { DeleteButton } from '@/components/delete-button'
 import { Info } from '@/components/info'
 import { notify } from '@/lib/notify'
-import { usd } from '@/lib/fmt'
+import { usd, usd2, usDate } from '@/lib/fmt'
 import { t, type Locale } from '@/lib/i18n'
+import { US_STATES } from '@/lib/us-states'
 
 const input =
   'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none transition-all placeholder:text-white/45 hover:border-white/15 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
@@ -109,7 +111,27 @@ export function TruckCare({
     insuranceExpiry: meta?.insuranceExpiry ?? null,
     cdlExpiry: meta?.cdlExpiry ?? null,
     medcardExpiry: meta?.medcardExpiry ?? null,
+    homeState: meta?.homeState ?? '',
+    homeFrom: meta?.homeFrom ?? null,
+    homeTo: meta?.homeTo ?? null,
+    weekTargetMiles: meta?.weekTargetMiles ?? null,
+    weekTargetGross: meta?.weekTargetGross ?? null,
+    avoidStates: meta?.avoidStates.join(', ') ?? '',
+    targetRpm: meta?.targetRpm ?? null,
   })
+  // Профиль водителя одной строкой — когда хоть что-то заполнено.
+  const profileLine = meta
+    ? [
+        meta.homeState ? t(locale, 'trucks.care.profileHome').replace('{state}', meta.homeState) : null,
+        meta.homeFrom && meta.homeTo
+          ? t(locale, 'trucks.care.profileHomeDates').replace('{from}', usDate(meta.homeFrom)).replace('{to}', usDate(meta.homeTo))
+          : null,
+        meta.weekTargetMiles ? t(locale, 'trucks.care.profileTargetMiles').replace('{n}', meta.weekTargetMiles.toLocaleString('en-US')) : null,
+        meta.weekTargetGross ? t(locale, 'trucks.care.profileTargetGross').replace('{v}', usd.format(meta.weekTargetGross)) : null,
+        meta.targetRpm ? t(locale, 'trucks.care.profileTargetRpm').replace('{v}', usd2.format(meta.targetRpm)) : null,
+        meta.avoidStates.length ? t(locale, 'trucks.care.profileAvoid').replace('{states}', meta.avoidStates.join(', ')) : null,
+      ].filter(Boolean)
+    : []
   const exp = expiries(meta, locale)
   const KIND_LABEL = kindLabel(locale)
   const PRIO_LABEL = prioLabel(locale)
@@ -173,7 +195,7 @@ export function TruckCare({
   function attachReceipt(file: File | undefined, recordTitle: string, maintenanceId: number) {
     if (!file) return
     const fd = new FormData()
-    fd.append('file', file)
+    fd.append('file', safeUploadFile(file))
     fd.append('kind', 'repair')
     fd.append('truckId', String(truckId))
     fd.append('maintenanceId', String(maintenanceId))
@@ -341,6 +363,13 @@ export function TruckCare({
           </div>
         )}
 
+        {!editMeta && profileLine.length > 0 && (
+          <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-white/65">
+            <span className="font-medium text-white/80">🏠 {t(locale, 'trucks.care.profileTitle')}</span>
+            <span className="break-words">{profileLine.join(' · ')}</span>
+            <Info text={t(locale, 'trucks.care.profileInfo')} />
+          </p>
+        )}
         {editMeta && (
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <TextField label="VIN" value={m.vin} onChange={(v) => setM({ ...m, vin: v })} />
@@ -383,6 +412,55 @@ export function TruckCare({
             <DateInput label={t(locale, 'trucks.care.cdlLabel')} value={m.cdlExpiry} onChange={(v) => setM({ ...m, cdlExpiry: v })} />
             <DateInput label={t(locale, 'trucks.care.medcardLabel')} value={m.medcardExpiry} onChange={(v) => setM({ ...m, medcardExpiry: v })} />
             <div />
+
+            {/* Профиль водителя — для «Куда отправить трак» и «Кому искать груз». */}
+            <p className="flex items-center gap-1.5 text-[13px] font-semibold text-white/85 sm:col-span-3">
+              🏠 {t(locale, 'trucks.care.profileTitle')}
+              <Info text={t(locale, 'trucks.care.profileInfo')} />
+            </p>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-white/70">{t(locale, 'trucks.care.homeStateLabel')}</span>
+              <select
+                value={m.homeState}
+                onChange={(e) => setM({ ...m, homeState: e.target.value })}
+                className="w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none focus:border-haul-500"
+              >
+                <option value="">—</option>
+                {US_STATES.map(([code, name]) => (
+                  <option key={code} value={code}>
+                    {code} · {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <DateInput label={t(locale, 'trucks.care.homeFromLabel')} value={m.homeFrom} onChange={(v) => setM({ ...m, homeFrom: v })} />
+            <DateInput label={t(locale, 'trucks.care.homeToLabel')} value={m.homeTo} onChange={(v) => setM({ ...m, homeTo: v })} />
+            <Field
+              label={t(locale, 'trucks.care.weekTargetMilesLabel')}
+              value={m.weekTargetMiles ?? NaN}
+              onChange={(n) => setM({ ...m, weekTargetMiles: Number.isNaN(n) ? null : n })}
+              suffix="mi"
+            />
+            <Field
+              label={t(locale, 'trucks.care.weekTargetGrossLabel')}
+              value={m.weekTargetGross ?? NaN}
+              onChange={(n) => setM({ ...m, weekTargetGross: Number.isNaN(n) ? null : n })}
+              prefix="$"
+            />
+            <TextField
+              label={t(locale, 'trucks.care.avoidStatesLabel')}
+              value={m.avoidStates}
+              onChange={(v) => setM({ ...m, avoidStates: v })}
+              placeholder="NY, CA"
+            />
+            <Field
+              label={t(locale, 'trucks.care.targetRpmLabel')}
+              value={m.targetRpm ?? NaN}
+              onChange={(n) => setM({ ...m, targetRpm: Number.isNaN(n) ? null : n })}
+              step={0.05}
+              prefix="$"
+              suffix="/mi"
+            />
 
             <div className="sm:col-span-3">
               <Button variant="primary" disabled={pending}

@@ -46,8 +46,13 @@ const STEPS: Def[] = [
   // Раздел слился с «Траками» — шаг остаётся (карта и живой список никуда не
   // делись), но ведёт туда же, куда теперь ведёт меню.
   { key: 'tracking', href: '/trucks', target: 'nav-trucks', image: 'tracking' },
+  // Там же, на «Траках»: куда отправить трак дальше — ставки по штатам и регионам DAT.
+  { key: 'planner', href: '/trucks', target: '', image: 'planner' },
   { key: 'docs', href: '/docs', target: 'nav-docs', image: 'docs' },
   { key: 'brokers', href: '/brokers', target: '', image: 'brokers' },
+  // Без снимка: у демо-грузов почти нет адресов, экран складов там не показателен.
+  // Пункт меню — общий с брокерами («Брокеры и склады»).
+  { key: 'facilities', href: '/brokers?view=facilities', target: 'nav-brokers', image: '' },
   { key: 'tolls', href: '/tolls', target: '', image: 'tolls' },
   { key: 'invoices', href: '/invoices', target: '', image: 'invoices' },
 ]
@@ -82,9 +87,9 @@ export async function tourSteps(user: CurrentUser | null, locale: Locale): Promi
     // trucks.id <> 1 — посеянная заглушка «Трак не настроен» лежит в схеме под
     // первым номером и есть в любой установке; настоящий трак получает следующий.
     sql`SELECT
-          (SELECT count(*)::int FROM users  WHERE is_demo = FALSE)                     AS users,
-          (SELECT count(*)::int FROM trucks WHERE company_id = 'default' AND id <> 1)  AS trucks,
-          (SELECT count(*)::int FROM loads  WHERE company_id = 'default')              AS loads`,
+          (SELECT count(*) FROM users  WHERE is_demo = FALSE)                     AS users,
+          (SELECT count(*) FROM trucks WHERE company_id = 'default' AND id <> 1)  AS trucks,
+          (SELECT count(*) FROM loads  WHERE company_id = 'default')              AS loads`,
   ])
   const n = (counts as { users: number; trucks: number; loads: number }[])[0] ?? {
     users: 1,

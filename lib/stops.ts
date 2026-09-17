@@ -30,11 +30,17 @@ export type LoadStop = {
   time: string | null
   /** PU# / PO# / Delivery# этой точки. */
   refs: string[]
+  /** Как заехать: маршрут, въезд, ворота — дословно из рейт-кона, по-английски. */
+  directions?: string | null
 }
+
+/** Указания к остановке в колонке loads.directions — по её номеру и роли. */
+export type StopDirection = { seq: number; role: StopRole; text: string }
 
 /** Поля груза, из которых собираются остановки (подмножество LoadRecord). */
 export type StopSource = {
   stops?: LoadStop[] | null
+  directions?: StopDirection[] | string | null
   origin: string | null
   destination: string | null
   pickupAddress: string | null
@@ -54,6 +60,10 @@ export type StopEv = { kind: string; at: string; stopSeq?: number | null }
  * у JSON-остановок название своё.
  */
 export function stopsFrom(load: StopSource, names?: { pickup?: string | null; delivery?: string | null }): LoadStop[] {
+  return withDirections(baseStops(load, names), load.directions)
+}
+
+function baseStops(load: StopSource, names?: { pickup?: string | null; delivery?: string | null }): LoadStop[] {
   if (load.stops && load.stops.length > 0) return load.stops
   return [
     {
@@ -77,6 +87,29 @@ export function stopsFrom(load: StopSource, names?: { pickup?: string | null; de
       refs: [],
     },
   ]
+}
+
+/** Подложить к остановкам указания «как заехать» из loads.directions (по номеру и роли). */
+export function withDirections(stops: LoadStop[], raw: StopDirection[] | string | null | undefined): LoadStop[] {
+  let dirs: StopDirection[] | null = null
+  try {
+    dirs = typeof raw === 'string' ? (JSON.parse(raw) as StopDirection[]) : (raw ?? null)
+  } catch {
+    return stops
+  }
+  if (!Array.isArray(dirs) || !dirs.length) return stops
+  return stops.map((s) => {
+    const d = dirs.find((x) => x.seq === s.seq && x.role === s.role)
+    return d?.text?.trim() ? { ...s, directions: d.text.trim() } : s
+  })
+}
+
+/** Указания остановок для колонки loads.directions; null, если нет ни одного. */
+export function directionsOf(stops: LoadStop[] | null | undefined): StopDirection[] | null {
+  const out = (stops ?? []).flatMap((s) =>
+    s.directions?.trim() ? [{ seq: s.seq, role: s.role, text: s.directions.trim() }] : [],
+  )
+  return out.length ? out : null
 }
 
 /** Есть ли в грузе больше двух точек — тогда номера и «через …» имеют смысл. */
@@ -152,7 +185,54 @@ export function firstMinutes(time: string | null): number {
   return h * 60 + mm
 }
 
+/** Конец окна в минутах дня («8am-3pm» → 15:00, «Appt 06:00» → 6:00). Без времени —
+ * конец дня: «доставить такого-то числа» опоздание только назавтра. */
+export function lastMinutes(time: string | null): number {
+  if (!time) return 24 * 60 - 1
+  const all = [...time.matchAll(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/gi)]
+    // Дата в окне («09/12/26 06:30») тоже «числа» — берём только часы (0–23) с минутами или am/pm.
+    .filter((m) => Number(m[1]) <= 23 && (m[2] != null || m[3] != null))
+  const m = all[all.length - 1]
+  if (!m) return 24 * 60 - 1
+  let h = Number(m[1])
+  const mm = Number(m[2] ?? 0)
+  const ap = m[3]?.toLowerCase()
+  if (ap === 'pm' && h < 12) h += 12
+  if (ap === 'am' && h === 12) h = 0
+  return h * 60 + mm
+}
+
 export type MergedStop = LoadStop & { loadId: number; ref: string | null; broker: string | null }
+
+/** Ключ остановки в ручном порядке задания: «груз:номер». */
+export const stopKey = (s: { loadId: number; seq: number }) => `${s.loadId}:${s.seq}`
+
+/** Где лежит ручной порядок задания трака (settings). */
+export const taskOrderKey = (truckId: number) => `task_order:${truckId}`
+
+/** Сохранённый порядок из settings → массив ключей; мусор — null. */
+export function parseTaskOrder(raw: string | null | undefined): string[] | null {
+  if (!raw) return null
+  try {
+    const v = JSON.parse(raw)
+    return Array.isArray(v) && v.every((k) => typeof k === 'string') ? v : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Ручной порядок диспетчера поверх автоматического. Остановки из сохранённого списка
+ * встают в его порядке — на те места, что они и так занимали; новых там нет (груз
+ * добавили позже) — остаются на своём автоматическом месте, а не улетают в конец.
+ */
+export function applyTaskOrder<T extends { loadId: number; seq: number }>(auto: T[], order: string[] | null | undefined): T[] {
+  if (!order?.length) return auto
+  const at = new Map(order.map((k, i) => [k, i]))
+  const known = auto.filter((s) => at.has(stopKey(s))).sort((a, b) => at.get(stopKey(a))! - at.get(stopKey(b))!)
+  let i = 0
+  return auto.map((s) => (at.has(stopKey(s)) ? known[i++]! : s))
+}
 
 /**
  * Партиалы: остановки нескольких грузов одной лентой — по дате, потом по времени
@@ -161,11 +241,17 @@ export type MergedStop = LoadStop & { loadId: number; ref: string | null; broker
  */
 export function mergeStops(
   loads: (StopSource & { id: number; referenceId: string | null; brokerName: string | null })[],
+  /** Ручной порядок диспетчера (applyTaskOrder) — поверх автоматического. */
+  order?: string[] | null,
 ): MergedStop[] {
   const all: MergedStop[] = []
   for (const l of loads)
     for (const s of stopsFrom(l)) all.push({ ...s, loadId: l.id, ref: l.referenceId, broker: l.brokerName })
-  if (loads.length < 2) return all
+  if (loads.length < 2) return applyTaskOrder(all, order)
+  return applyTaskOrder(autoSorted(all), order)
+}
+
+function autoSorted(all: MergedStop[]): MergedStop[] {
   return all.sort((a, b) => {
     const da = a.date ?? '9999',
       db = b.date ?? '9999'

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseRateCon, toQrLoad, missingFields, formatDriverInfo } from './ratecon.ts'
+import { parseRateCon, toQrLoad, missingFields, formatDriverInfo, refKey } from './ratecon.ts'
 
 // Typical broker rate con. Note the traps: an insurance limit far larger than the
 // rate, a line-haul figure that is NOT the total, and "Total Miles" which must not
@@ -333,4 +333,12 @@ test('real: a document with no mileage says so instead of guessing', () => {
   const f = parseRateCon('Totals USD$ 4,000.00\nEquipment: 53\' Dry Van Trailer Weight: 42945 lbs')
   assert.equal(f.rate?.value, 4000)
   assert.equal(f.loadedMiles, null)
+})
+
+// Дедупликация рейт-кона (#2003/#2004: PO 568207385 завёлся дважды в одну минуту).
+test('refKey: один номер груза в любом написании — один ключ', () => {
+  assert.equal(refKey('568-207-385'), refKey('568207385'))
+  assert.equal(refKey(' po568207385 '), 'PO568207385')
+  // Мусор вместо номера ключом не становится — иначе сошлись бы чужие грузы.
+  for (const junk of [null, undefined, '', '1', 'N/A', '- -']) assert.equal(refKey(junk), null)
 })

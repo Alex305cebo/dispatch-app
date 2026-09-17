@@ -24,9 +24,8 @@ import { statusLabel } from '@/components/status'
 import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
-import { dayKey, type HeatDayLoad, type HeatRow } from '@/lib/heatmap'
-
-const DAY_MS = 24 * 60 * 60 * 1000
+import { daySpan, type HeatDayLoad, type HeatRow } from '@/lib/heatmap'
+import { shiftDay } from '@/lib/loads-dashboard'
 
 type Hover = { x: number; top: number; bottom: number; label: string; day: string; loads: HeatDayLoad[] }
 
@@ -56,7 +55,10 @@ function TripMark({ role }: { role: TripRole }) {
   return <span className="size-1 rounded-full bg-white/12" />
 }
 
-export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: number }) {
+/** today — день yyyy-mm-dd по ET с сервера (todayEt), а не new Date() здесь: сервер в
+ * UTC после 20:00 ET живёт уже завтра, и его сетка расходилась с браузерной на
+ * колонку — React #418 на обзоре и /trucks каждый вечер. */
+export function FleetHeatmap({ rows, today, days = 14 }: { rows: HeatRow[]; today: string; days?: number }) {
   const locale = useLocale()
   const [hover, setHover] = useState<Hover | null>(null)
   // Closing is DELAYED so the mouse can travel from the cube up into the card to click
@@ -88,11 +90,10 @@ export function FleetHeatmap({ rows, days = 14 }: { rows: HeatRow[]; days?: numb
     return () => mq.removeEventListener('change', sync)
   }, [])
   const winDays = mobile ? 7 : days
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const anchor = today.getTime() - offset * winDays * DAY_MS
-  const cols = Array.from({ length: winDays }, (_, i) => new Date(anchor - (winDays - 1 - i) * DAY_MS))
-  const colKeys = cols.map(dayKey)
+  const lastDay = shiftDay(today, -offset * winDays)
+  const colKeys = daySpan(shiftDay(lastDay, 1 - winDays), lastDay)
+  // Полдень того же дня: getDay/getDate/месяц от него — этот день в любом поясе.
+  const cols = colKeys.map((k) => new Date(`${k}T12:00:00`))
   // Sat/Sun get a faint different tint so the eye can find week boundaries in the grid.
   const weekend = cols.map((c) => c.getDay() === 0 || c.getDay() === 6)
 

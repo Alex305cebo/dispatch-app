@@ -57,6 +57,7 @@ function Icon({ d }: { d: string }) {
 function brandName(raw: string): string {
   const stripped = raw.replace(/\s+(inc\.?|llc\.?|corp\.?|co\.?)$/i, '').trim()
   if (!stripped) return 'Dispatch'
+  if (stripped !== stripped.toUpperCase() && stripped !== stripped.toLowerCase()) return stripped
   return stripped
     .toLowerCase()
     .split(' ')
@@ -93,7 +94,11 @@ function JournalLink({
   )
 }
 
-type Item = { href: string; labelKey: MsgKey; icon: string; soon?: boolean; primary?: boolean }
+/** also — другие адреса того же раздела: пункт подсвечен и на них. */
+type Item = { href: string; labelKey: MsgKey; icon: string; soon?: boolean; primary?: boolean; also?: string[] }
+
+const isOn = (it: Item, pathname: string) =>
+  it.href === '/' ? pathname === '/' : [it.href, ...(it.also ?? [])].some((h) => pathname.startsWith(h))
 
 const ITEMS: Item[] = [
   // primary — четыре вкладки нижнего меню телефона; остальное там лежит за «Ещё».
@@ -102,7 +107,8 @@ const ITEMS: Item[] = [
   { href: '/loads', labelKey: 'nav.loads', icon: 'loads', primary: true },
   { href: '/trucks', labelKey: 'nav.trucks', icon: 'settings', primary: true },
   { href: '/docs', labelKey: 'nav.docs', icon: 'docs', primary: true },
-  { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield' },
+  // «Брокеры и склады» — один раздел (пользователь, 16.09.2026): вкладки внутри, адреса прежние.
+  { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield', also: ['/facilities'] },
   { href: '/tolls', labelKey: 'nav.tolls', icon: 'toll' },
   { href: '/telegram', labelKey: 'nav.telegram', icon: 'chat' },
   { href: '/invoices', labelKey: 'nav.finances', icon: 'money' },
@@ -182,7 +188,7 @@ export function Nav({
   if (!showFinances) hidden.add('/invoices')
   const items = hidden.size ? ITEMS.filter((it) => !hidden.has(it.href)) : ITEMS
   const rest = items.filter((it) => !it.primary && !it.soon)
-  const restActive = rest.some((it) => pathname.startsWith(it.href))
+  const restActive = rest.some((it) => isOn(it, pathname))
   // Вкладка: на телефоне равные доли ширины, в сайдбаре — строка с иконкой слева.
   const shape =
     'nav-tab-btn relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl border px-1 py-2 md:w-auto md:flex-none md:flex-row md:gap-3 md:px-3 md:py-2.5'
@@ -275,7 +281,7 @@ export function Nav({
                 key={it.href}
                 href={it.href}
                 className={`flex min-h-11 items-center gap-2.5 rounded-xl px-3 text-[13px] font-medium ${
-                  pathname.startsWith(it.href) ? 'bg-haul-500/15 text-haul-300' : 'text-white/80 hover:bg-white/5'
+                  isOn(it, pathname) ? 'bg-haul-500/15 text-haul-300' : 'text-white/80 hover:bg-white/5'
                 }`}
               >
                 <Icon d={icons[it.icon]} />
@@ -291,7 +297,7 @@ export function Nav({
       <div className="nav-dock">
         <div className="flex items-stretch gap-0.5 md:flex-col md:gap-0.5">
         {items.map((it) => {
-        const active = !it.soon && (it.href === '/' ? pathname === '/' : pathname.startsWith(it.href))
+        const active = !it.soon && isOn(it, pathname)
 
         const body = (
           <>
@@ -306,7 +312,7 @@ export function Nav({
                 </span>
               )}
             </span>
-            <span className="nav-label max-w-full truncate text-[11px] font-medium md:text-[13px]">
+            <span className="nav-label max-w-full truncate text-[11px] font-medium md:whitespace-normal md:text-[13px] md:leading-tight">
               {t(locale, it.labelKey)}
             </span>
             {it.soon && (

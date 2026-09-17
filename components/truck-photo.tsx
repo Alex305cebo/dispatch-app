@@ -3,6 +3,7 @@
 // Картинка трака в шапке карточки. Сменить — маленькая иконка камеры в правом
 // нижнем углу: окно с готовыми моделями (public/trucks, lib/truck-models.ts),
 // «Загрузить своё фото» и «Стандартная». Показывается выбранное последним.
+import { safeUploadFile } from '@/lib/upload-name'
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { createPortal } from 'react-dom'
 import { Camera, Check, ImageUp, RotateCcw, X } from 'lucide-react'
@@ -57,7 +58,7 @@ export function TruckPhoto({
   function upload(file: File | undefined) {
     if (!file) return
     const fd = new FormData()
-    fd.append('file', file)
+    fd.append('file', safeUploadFile(file))
     start(async () => {
       const res = await saveTruckPhoto(truckId, fd)
       if (res?.error) notify('error', res.error)
@@ -101,7 +102,7 @@ export function TruckPhoto({
       <img
         src={src}
         alt={alt}
-        className={`${fill ? 'h-full w-full object-contain object-bottom p-2 sm:object-right sm:p-4' : 'w-full object-contain'} ${pending ? 'opacity-50' : ''}`}
+        className={`${fill ? 'h-full w-full object-contain object-center p-2 sm:p-3' : 'w-full object-contain'} ${pending ? 'opacity-50' : ''}`}
       />
       <button
         type="button"

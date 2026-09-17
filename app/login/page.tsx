@@ -1,4 +1,5 @@
 import { cookies, headers } from 'next/headers'
+import { isProductHost, PRODUCT_NAME } from '@/lib/brand'
 import { sql } from '@/lib/db'
 import { applyAdminReset, ensureSchema, schemaInstalled } from '@/lib/install'
 import { getSettings } from '@/lib/settings'
@@ -29,7 +30,7 @@ export default async function LoginPage() {
           <p className="mt-2 text-[13px] leading-relaxed text-white/72">{t(locale, 'login.nodb_text')}</p>
           <p className="mt-1.5 text-[12.5px] leading-relaxed text-white/45">{t(other, 'login.nodb_text')}</p>
           <code className="mt-3 block rounded-lg border border-white/8 bg-ink-900/80 px-3 py-2 text-[12.5px] text-white/85">
-            DATABASE_URL=postgresql://…
+            DATABASE_URL=mysql://…
           </code>
         </div>
       </main>
@@ -70,7 +71,9 @@ export default async function LoginPage() {
   const conf = installed
     ? await getSettings(['co_name', 'demo_public', 'demo_url'])
     : new Map<string, string>()
-  const companyName = conf.get('co_name') ?? ''
+  // На сайте продукта (dispatch4you.pro) — название продукта, а не перевозчика из базы.
+  const hdrs = await headers()
+  const companyName = isProductHost(hdrs.get('x-forwarded-host') ?? hdrs.get('host')) ? PRODUCT_NAME : (conf.get('co_name') ?? '')
   // Демо ДО входа — первое, что должен иметь возможность сделать человек, который
   // приложение ещё не купил. Два разных источника:
   //

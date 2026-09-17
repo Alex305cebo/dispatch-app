@@ -44,9 +44,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const [admins, trucks, co, gemini, fmcsa, here, hereMonth, schemaVersion] = await Promise.all([
-      sql`SELECT count(*)::int AS n FROM users WHERE is_demo = FALSE AND role = 'admin'`,
-      sql`SELECT count(*)::int AS n FROM trucks WHERE company_id = 'default'`,
-      sql`SELECT key, value FROM settings WHERE key IN ('co_name', 'co_mcdot')`,
+      sql`SELECT count(*) AS n FROM users WHERE is_demo = FALSE AND role = 'admin'`,
+      sql`SELECT count(*) AS n FROM trucks WHERE company_id = 'default'`,
+      sql`SELECT "key", value FROM settings WHERE "key" IN ('co_name', 'co_mcdot')`,
       geminiKey(),
       fmcsaKey(),
       hereKey(),

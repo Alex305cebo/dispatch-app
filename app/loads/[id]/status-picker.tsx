@@ -1,5 +1,6 @@
 'use client'
 
+import { safeUploadFile } from '@/lib/upload-name'
 import { DocLink } from '@/components/doc-link'
 
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react'
@@ -16,7 +17,8 @@ import { t } from '@/lib/i18n'
 // The pipeline a load actually walks, in order. `cancelled` is deliberately NOT in it:
 // it isn't a later stage of the same journey, it's the journey being abandoned, and
 // putting it sixth in a row of equal buttons implied a load progresses into it.
-const PIPELINE: LoadStatus[] = ['quoted', 'booked', 'in_transit', 'delivered', 'paid']
+// «Оплачен» здесь не шаг: деньги отмечает бухгалтер в «Финансах» (app/invoices).
+const PIPELINE: LoadStatus[] = ['quoted', 'booked', 'in_transit', 'delivered']
 
 // Each step's colour once reached. Matches components/status.tsx's badge hues so the
 // rail and the badge on the same page can never disagree about what "booked" looks like.
@@ -89,7 +91,7 @@ function StopPod({ loadId, seq, docId, due }: { loadId: number; seq: number; doc
       let firstError: string | null = null
       for (const file of list) {
         const fd = new FormData()
-        fd.append('file', file)
+        fd.append('file', safeUploadFile(file))
         fd.append('kind', 'pod')
         fd.append('loadId', String(loadId))
         fd.append('stopSeq', String(seq))
@@ -171,8 +173,9 @@ export function StatusPicker({
   const router = useRouter()
   const [shown, setShown] = useOptimistic(current)
   const cancelled = shown === 'cancelled'
-  // -1 while cancelled, which correctly leaves every step unreached below.
-  const currentIdx = PIPELINE.indexOf(shown)
+  // -1 while cancelled, which correctly leaves every step unreached below; оплаченный
+  // прошёл все шаги полосы.
+  const currentIdx = shown === 'paid' ? PIPELINE.length : PIPELINE.indexOf(shown)
   const TRANSIT_IDX = PIPELINE.indexOf('in_transit')
 
   // Состояние точек, переключённых с полосы прямо сейчас — до того, как сервер

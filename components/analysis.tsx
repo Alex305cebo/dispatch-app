@@ -1,6 +1,6 @@
 'use client'
 
-import type { Breakdown } from '@/lib/profit'
+import { targetVerdict, type Breakdown } from '@/lib/profit'
 import { usd, usd2 } from '@/lib/fmt'
 import { CostBar, Money } from './ui'
 import { Info } from './info'
@@ -86,14 +86,24 @@ export function Analysis({
   r,
   mpg,
   spotRpm,
+  dat,
+  targetRpm,
+  cut,
 }: {
   r: Breakdown
   mpg: number
   /** DAT's market rate. Answers "is this below market?" — the argument for haggling. */
   spotRpm?: number | null
+  /** Ставка DAT по региону погрузки — когда своей рыночной ставки у груза нет. */
+  dat?: { rpm: number; region: string; date: string } | null
+  /** Цель по ставке из паспорта трака, $/mi; нет — строки нет. */
+  targetRpm?: number | null
+  /** Цель торга по маршруту: цена грузоотправителя (Warp) минус доля брокера (lib/broker-cut.ts). */
+  cut?: { low: number; high: number; shipper: number; n: number } | null
 }) {
   const locale = useLocale()
   const good = r.net >= 0
+  const target = targetVerdict(r, targetRpm)
   // Свежая установка сеет трак-заглушку со всеми расходами по нулям
   // (lib/schema.sql): без единого трака defaultTruck() бросает исключение, а
   // чужие цифры в заглушке были бы хуже нулей. Но и нули врут — при нулевой
@@ -102,7 +112,11 @@ export function Analysis({
   // не красивой цифрой: расход топлива у трака есть всегда, и ноль тут значит
   // ровно одно — настройки не заполнены.
   const notConfigured = r.totalCost === 0
-  const vsSpot = spotRpm && spotRpm > 0 ? r.loadedRpm - spotRpm : null
+  // Рыночная ставка, вписанная в груз, всегда главнее. Нет её — ставка DAT по региону
+  // погрузки, с подписью, откуда цифра и какого она дня.
+  const fromDat = spotRpm && spotRpm > 0 ? null : (dat ?? null)
+  const spot = fromDat ? fromDat.rpm : spotRpm
+  const vsSpot = spot && spot > 0 ? r.loadedRpm - spot : null
 
   return (
     <>
@@ -117,14 +131,51 @@ export function Analysis({
         </p>
       )}
 
+      {target && (
+        <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">
+          {t(locale, 'analysis.target').replace('{target}', usd2.format(targetRpm!))}{' '}
+          <span
+            className={`font-semibold ${target.kind === 'ok' ? 'text-good-400' : target.kind === 'short' ? 'text-warn-400' : 'text-bad-400'}`}
+          >
+            {target.kind === 'ok'
+              ? t(locale, 'analysis.targetOk')
+              : t(locale, target.kind === 'short' ? 'analysis.targetShort' : 'analysis.targetLoss').replace(
+                  '{usd}',
+                  usd.format(target.dollars),
+                )}
+          </span>
+        </p>
+      )}
+
+      {/* Цель торга по маршруту: сколько из цены грузоотправителя обычно доходит до трака.
+          Цифра рынка чужая (Warp), доля — по нашим рейт-конам; и то, и другое подписано. */}
+      {cut && (
+        <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">
+          {t(locale, 'analysis.cutTarget').replace('{low}', usd2.format(cut.low)).replace('{high}', usd2.format(cut.high))}{' '}
+          <span className={`font-semibold ${r.loadedRpm >= cut.low ? 'text-good-400' : 'text-warn-400'}`}>
+            {r.loadedRpm >= cut.low
+              ? t(locale, 'analysis.cutOk')
+              : t(locale, 'analysis.cutBelow').replace('{usd}', usd.format(((cut.low - r.loadedRpm) * r.gross) / r.loadedRpm))}
+          </span>
+          <span className="block text-[12px] text-white/45">
+            {t(locale, 'analysis.cutFrom').replace('{shipper}', usd2.format(cut.shipper)).replace('{n}', String(cut.n))}
+          </span>
+        </p>
+      )}
+
       {vsSpot !== null && (
         <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">
-          {t(locale, 'analysis.datMarket')} <span className="nums text-white/85">{usd2.format(spotRpm!)}</span>/mi
+          {t(locale, 'analysis.datMarket')} <span className="nums text-white/85">{usd2.format(spot!)}</span>/mi
           {vsSpot >= 0 ? t(locale, 'analysis.aboveMarketBy') : t(locale, 'analysis.belowMarketBy')}
           <span className={`nums ${vsSpot >= 0 ? 'text-good-400/80' : 'text-amber-400/90'}`}>
             {usd2.format(Math.abs(vsSpot))}
           </span>
           /mi{vsSpot < 0 ? t(locale, 'analysis.roomToNegotiate') : '.'}
+          {fromDat && (
+            <span className="block text-[12px] text-white/45">
+              {t(locale, 'analysis.datRegion').replace('{region}', fromDat.region).replace('{date}', fromDat.date)}
+            </span>
+          )}
         </p>
       )}
 
@@ -162,8 +213,8 @@ export function Analysis({
             {
               label: 'Spot rate / mi',
               node:
-                spotRpm && spotRpm > 0 ? (
-                  <Money value={spotRpm} format={usd2} />
+                spot && spot > 0 ? (
+                  <Money value={spot} format={usd2} />
                 ) : (
                   <span className="text-white/35">—</span>
                 ),

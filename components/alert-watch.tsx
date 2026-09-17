@@ -60,7 +60,7 @@ export function AlertWatch({ enabled }: { enabled: boolean }) {
         const fresh = items.filter((i) => !was.has(i.id))
         if (!fresh.length || stop) return
         for (const i of fresh) {
-          notify(i.kind === 'error' ? 'error' : 'warn', i.text)
+          notify(i.kind === 'error' ? 'error' : 'warn', i.text, undefined, i.href)
           if (Notification.permission === 'granted') {
             const n = new Notification(t(locale, 'alerts.title'), { body: i.text, tag: i.id })
             n.onclick = () => {

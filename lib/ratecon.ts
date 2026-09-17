@@ -29,6 +29,8 @@ export type Stop = {
   time: string | null
   /** "Pickup#: 18999631" */
   ref: string | null
+  /** Как заехать — дословно из рейт-кона (lib/ratecon-ai-contract.ts). */
+  directions?: string | null
 }
 
 export type RateConFields = {
@@ -733,7 +735,7 @@ export function formatDriverInfo(f: RateConFields): string {
         const block = [s.name, s.address].filter(Boolean).join('\n') || null
         return [
           title,
-          { block, time: s.time, ref: s.refs.length ? s.refs.join('\n') : null },
+          { block, time: s.time, ref: s.refs.length ? s.refs.join('\n') : null, directions: s.directions ?? null },
           s.city ?? undefined,
         ] as const
       })
@@ -748,6 +750,9 @@ export function formatDriverInfo(f: RateConFields): string {
     // scatter the stop across a table) — a city beats an empty line.
     out.push(nameOffAddress(stop.block ?? fallback ?? '—'), '')
     out.push(RULE)
+    // Как заехать — сразу под адресом, раньше времени и номеров: водитель читает это
+    // до того, как построит маршрут, а навигатор к таким складам часто ведёт не туда.
+    if (stop.directions) out.push(`⚠ DIRECTIONS (follow these, not GPS): ${stop.directions}`, RULE)
     if (stop.time) out.push(`Time: ${stop.time}`, RULE)
     if (stop.ref) out.push(`Ref: ${stop.ref}`, RULE)
     out.push('')
@@ -801,4 +806,15 @@ export function missingFields(f: RateConFields): string[] {
   gaps.push('deadheadMiles')
   if (!(f.pickupDate && f.deliveryDate)) gaps.push('transitDays')
   return gaps
+}
+
+/**
+ * Ключ, по которому два файла узнаются как ОДИН груз: номер груза у брокера без
+ * разделителей и регистра — «568-207-385», «568 207 385» и «568207385» это один
+ * рейс. Короче пяти знаков — не номер («1», «TBD», «N/A»), такому ключу верить
+ * нельзя: по нему сшились бы чужие друг другу грузы.
+ */
+export function refKey(ref: string | null | undefined): string | null {
+  const key = (ref ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase()
+  return key.length < 5 ? null : key
 }

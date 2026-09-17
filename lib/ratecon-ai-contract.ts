@@ -41,6 +41,7 @@ Rules:
 - "stops" = every physical pickup (shipper) and delivery (consignee/receiver) stop, in trip order. The BROKER / logistics company in the letterhead and the CARRIER being paid are NEVER stops, even though their addresses are printed. A stop is where the truck loads or unloads freight.
 - Multi-stop rate cons put extra stops on their OWN pages ("ADDITIONAL STOP #1", "Stop Type: Delivery", "SEE ADDITIONAL PAGES FOR STOP INFORMATION") or in the load notes ("Drop 1: ...", "Drop 2: ..."). Read EVERY such page/line as its own stop, in trip order between the first pickup and the final destination, with its own company, street, city, state, zip, arrival date and reference numbers ("Drop 1: CO326166 / 95300" → refs ["CO326166","95300"]). Never collapse a 3-stop load into 2.
 - company = the facility/shipper name at that stop. street = street address line only. time = the date/appointment window EXACTLY as written (e.g. "07/15/26 12:00 Appt"). refs = pickup#/delivery#/PO/BOL/SID numbers belonging to that stop.
+- directions = HOW TO GET TO AND INTO that stop, when the document prints it for that stop — usually an "Information:", "Directions:" or "Driver instructions" box right under the stop: highway exits and turns, which street or gate the truck entrance is on, where to check in, warnings like "If shipper looks closed, you're in the wrong place" or "do not follow GPS". Copy it word for word in the original English, lines joined with a space. NOT appointment times, NOT reference numbers, NOT the plain street address, NOT general load rules. null if the stop has no such text. The driver reads this before driving, so never paraphrase and never drop a turn.
 - city and state are REQUIRED for every stop and must be filled whenever the address shows a place at all. Many rate cons print the whole address as one run of text — "909 MAGNOLIA AVENUE AUBURNDALE, FL 33823 US" — where the city and state sit at the END of the street line, not on a line of their own. Split them out: street="909 MAGNOLIA AVENUE", city="AUBURNDALE", state="FL". Leaving city empty makes the load unmappable and its mileage uncomputable, so it is never the safe choice.
 - state = the two-letter US state code only ("FL", not "Florida", not "FL 33823").
 - zip = the postal code DIGITS only ("33823" or "33823-1234"), copied digit by digit as printed. Never a country code, never "33823 US".
@@ -54,7 +55,7 @@ Rules:
 - mcNumber = the MC docket of the BROKER who issued this rate confirmation — the company in the letterhead that is PAYING for the load. A rate con normally prints TWO MC numbers, and the other one belongs to the CARRIER being hired (it sits in the "Carrier"/"Carrier Information"/"Bill To Carrier" block, next to the truck/driver details). NEVER return the carrier's MC. If the only MC printed belongs to the carrier, or you cannot tell the two apart with certainty, return null — a wrong MC sends the dispatcher to look up the wrong company.
 - pickupDate = first pickup date as MM/DD/YYYY. deliveryDate = final delivery date as MM/DD/YYYY.
 - weight like "42000 lbs" (keep the unit).
-- importantNotes = EVERYTHING the dispatcher and driver MUST know or do for THIS load, gathered from the WHOLE document (pickup & delivery instructions, notes, special-requirements boxes). Output ONE FACT PER LINE, each line starting with EXACTLY ONE tag from this fixed list, tag first in square brackets: [SAFETY] PPE/TWIC requirements. [LOAD] load/unload type and detention terms (live load/unload, free hours, $/hr after). [SCHEDULE] appointment requirements and times per stop, how strict, layover fees. [CONTACT] who to call and when, with the actual phone number, e.g. "[CONTACT] Call 1 hour out from PU: LJ 919-760-9924". [REF] reference/PO/BOL/trailer/seal numbers to give at the gate. [DOCS] required paperwork or signatures (trailer interchange agreement, seal, POD with signature+stamp) AND how to get paid: exactly which documents must be sent, where they go (portal name or email address, quoted as printed) and what number must appear on each, e.g. "[DOCS] Invoice + signed BOL + lumper receipts to ICS_scan@jbhunt.com or Carrier 360, load number 8HH3583 on every page". [INSURANCE] cargo insurance or declared-value minimums. [PENALTY] fines and no-pay conditions. [WARNING] anything else that needs flagging (NO FAIL, event shipment, team, hazmat, temp/reefer setpoint, trailer shuffle). Skip a tag entirely if the document says nothing for it — do not pad. Each line is one short, clear instruction with the real numbers/phone numbers/dollar amounts exactly as printed. Do NOT invent — only what the document says. null if nothing noteworthy at all.`
+- importantNotes = EVERYTHING the dispatcher and driver MUST know or do for THIS load, gathered from the WHOLE document (pickup & delivery instructions, notes, special-requirements boxes). Output ONE FACT PER LINE, each line starting with EXACTLY ONE tag from this fixed list, tag first in square brackets: [SAFETY] PPE/TWIC requirements. [LOAD] load/unload type and detention terms (live load/unload, free hours, $/hr after). [SCHEDULE] appointment requirements and times per stop, how strict, layover fees. [CONTACT] who to call and when, with the actual phone number, e.g. "[CONTACT] Call 1 hour out from PU: LJ 919-760-9924". [REF] reference/PO/BOL/trailer/seal numbers to give at the gate. [DOCS] required paperwork or signatures (trailer interchange agreement, seal, POD with signature+stamp) AND how to get paid: exactly which documents must be sent, where they go (portal name or email address, quoted as printed) and what number must appear on each, e.g. "[DOCS] Invoice + signed BOL + lumper receipts to ICS_scan@jbhunt.com or Carrier 360, load number 8HH3583 on every page". [INSURANCE] cargo insurance or declared-value minimums. [PENALTY] fines and no-pay conditions. [ROUTE] how to reach or enter a stop — directions, truck entrance, gate, "wrong place" warnings — one line per stop that has them, starting with the stop's city, e.g. "[ROUTE] Cleveland, TN: I-75 N exit 20 to US-64 E, 20th St exit, left on 20th St NE, 2nd left onto Old Tasso Rd". [WARNING] anything else that needs flagging (NO FAIL, event shipment, team, hazmat, temp/reefer setpoint, trailer shuffle). Skip a tag entirely if the document says nothing for it — do not pad. Each line is one short, clear instruction with the real numbers/phone numbers/dollar amounts exactly as printed. Do NOT invent — only what the document says. null if nothing noteworthy at all.`
 
 /** Gemini responseSchema (OpenAPI subset, uppercase type names). */
 export const AI_SCHEMA = {
@@ -73,6 +74,7 @@ export const AI_SCHEMA = {
           zip: { type: 'STRING', nullable: true },
           time: { type: 'STRING', nullable: true },
           refs: { type: 'ARRAY', items: { type: 'STRING' } },
+          directions: { type: 'STRING', nullable: true },
         },
         required: ['role'],
       },
@@ -103,6 +105,7 @@ export type AiStop = {
   zip?: string | null
   time?: string | null
   refs?: string[]
+  directions?: string | null
 }
 
 export type AiFields = {
@@ -136,6 +139,7 @@ function stopBlock(s: AiStop | undefined): Stop {
     block,
     time: s.time ?? null,
     ref: s.refs?.length ? s.refs.join('\n') : null,
+    directions: s.directions?.replace(/\s+/g, ' ').trim() || null,
   }
 }
 
@@ -239,6 +243,7 @@ export function aiToFields(ai: AiFields, model: string, locale: Locale = 'en'): 
     date: toIso(s.time) ?? (s === pu ? toIso(ai.pickupDate) : s === del ? toIso(ai.deliveryDate) : null),
     time: s.time?.trim() || null,
     refs: (s.refs ?? []).filter(Boolean),
+    directions: s.directions?.replace(/\s+/g, ' ').trim() || null,
   }))
 
   return {
@@ -271,6 +276,7 @@ export function mergeAi(base: RateConFields, ai: RateConFields): RateConFields {
     block: a.block ?? b.block,
     time: a.time ?? b.time,
     ref: a.ref ?? b.ref,
+    directions: a.directions ?? b.directions ?? null,
   })
   return {
     rate: ai.rate ?? base.rate,

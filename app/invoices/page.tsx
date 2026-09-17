@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Tab } from '@/components/tab-link'
 import {
   listLoads,
   listLoadsByDispatcher,
@@ -10,9 +11,13 @@ import {
   type LoadWithDispatcher,
   type Receivable,
 } from '@/lib/loads'
+import { sql } from '@/lib/db'
+import { daysBetween, defaultFee, factoringDoneDay, financesHref, payGroup, todayEt, type PayGroup } from '@/lib/payments'
+import { factoringSettings, paymentsByLoad } from '@/lib/payments-server'
+import { PaymentsBoard, type PayRow } from './payments-board'
 import type { LoadRecord } from '@/lib/map'
 import { calcLoad, type Breakdown } from '@/lib/profit'
-import { usd, usd2, weekAnchorOf, weekLabel, weekStart, usDate } from '@/lib/fmt'
+import { usd, usd2, loadWeekAnchorMs, weekAnchorOf, weekLabel, weekStart, usDate } from '@/lib/fmt'
 import { truckLabel, type TruckRecord } from '@/lib/map'
 import { redirect } from 'next/navigation'
 import { companyScope, getCurrentUser } from '@/lib/session'
@@ -20,9 +25,7 @@ import { getLocale } from '@/lib/i18n-server'
 import { t, type Locale } from '@/lib/i18n'
 import { getSetting } from '@/lib/settings'
 import { can } from '@/lib/capabilities-server'
-import { PaidToggle } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
-import { MoreMenu } from '@/components/more-menu'
 import { Info } from '@/components/info'
 import { CircleCheckBig, Wallet } from 'lucide-react'
 import { Collapse } from '@/components/collapse'
@@ -32,6 +35,7 @@ export const dynamic = 'force-dynamic'
 
 function tabDescription(locale: Locale): Record<string, string> {
   return {
+    payments: t(locale, 'payments.tabDesc'),
     weeks: t(locale, 'finances.tabDesc.weeks'),
     unpaid: t(locale, 'finances.tabDesc.unpaid'),
     paid: t(locale, 'finances.tabDesc.paid'),
@@ -40,27 +44,28 @@ function tabDescription(locale: Locale): Record<string, string> {
   }
 }
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string }> }) {
   const user = await getCurrentUser()
   // Whole section is capability-gated — a dispatcher without it can't even URL in.
   if (!(await can(user, 'finances'))) redirect('/')
   // "По диспетчерам" is its own capability (default on) — a cross-dispatcher earnings
   // view. A user without it who lands on ?tab=dispatchers falls back to "unpaid".
   const canReport = await can(user, 'dispatcher_report')
-  const tabParam = (await searchParams).tab
-  // «Недели» — по умолчанию: владельца в первую очередь интересует, сколько парк
-  // привёз за неделю (гросс) и из чего это сложилось. Оплачено/не оплачено — вопрос
-  // бухгалтера, он идёт за ним отдельной вкладкой.
+  const { tab: tabParam, q } = await searchParams
+  // «Оплата · факторинг» — по умолчанию: «Финансы» — место бухгалтера, и первое, что
+  // ему нужно, — какие грузы отправить в факторинг и где застряли деньги. Старая ссылка
   const tab =
     tabParam === 'paid'
       ? 'paid'
-      : tabParam === 'unpaid'
-        ? 'unpaid'
+      : tabParam === 'weeks'
+        ? 'weeks'
+        : tabParam === 'unpaid'
+          ? 'unpaid'
         : tabParam === 'drivers'
           ? 'drivers'
           : tabParam === 'dispatchers' && canReport
             ? 'dispatchers'
-            : 'weeks'
+            : 'payments'
   const companyId = await companyScope()
   const locale = await getLocale()
   const rateCons = await rateConByLoad(companyId)
@@ -83,7 +88,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       </header>
 
       <div className="mb-5 flex flex-wrap gap-1.5 border-b border-white/8">
-        <Tab href="/invoices" active={tab === 'weeks'}>
+        <Tab href="/invoices" active={tab === 'payments'}>
+          {t(locale, 'payments.tab')}
+        </Tab>
+        <Tab href="/invoices?tab=weeks" active={tab === 'weeks'}>
           {t(locale, 'finances.tab.weeks')}
         </Tab>
         {canReport && (
@@ -102,7 +110,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         </Tab>
       </div>
 
-      {tab === 'weeks' ? (
+      {tab === 'payments' ? (
+        <Payments companyId={companyId} rateCons={rateCons} locale={locale} query={q ?? ''} />
+      ) : tab === 'weeks' ? (
         <ByWeek companyId={companyId} rateCons={rateCons} locale={locale} />
       ) : tab === 'unpaid' ? (
         <Unpaid companyId={companyId} rateCons={rateCons} locale={locale} />
@@ -119,16 +129,96 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   )
 }
 
-function Tab({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+/** Закрытые грузы видны столько дней — дальше они в «Оплачено». */
+const DONE_DAYS = 45
+
+/** Учёт оплат: каждый не отменённый груз — в группе своего этапа денег. */
+async function Payments({
+  companyId,
+  rateCons,
+  locale,
+  query,
+}: {
+  companyId: 'default' | 'demo'
+  rateCons: Map<number, number>
+  locale: Locale
+  query: string
+}) {
+  const today = todayEt()
+  const [loads, trucks, payments, settings] = await Promise.all([
+    listLoads(companyId),
+    listTrucks(companyId),
+    paymentsByLoad(companyId),
+    factoringSettings(),
+  ])
+  const byTruckId = new Map<number, TruckRecord>(trucks.map((tr) => [tr.id, tr]))
+  const docs = (await sql`
+    SELECT load_id, kind, MAX(id) AS id FROM documents
+    WHERE company_id = ${companyId} AND deleted_at IS NULL AND load_id IS NOT NULL AND kind IN ('pod', 'bol', 'invoice')
+    GROUP BY load_id, kind`) as { load_id: number; kind: string; id: number }[]
+  const docIds = new Map(docs.map((d) => [`${d.load_id}:${d.kind}`, d.id]))
+  const docOf = (loadId: number, kind: string) => docIds.get(`${loadId}:${kind}`) ?? null
+
+  const rows: PayRow[] = []
+  for (const load of loads) {
+    const payment = payments.get(load.id) ?? null
+    const group = payGroup(load, payment, settings, today)
+    if (!group) continue
+    if (group === 'done') {
+      const day = factoringDoneDay(payment, load.paidAt)
+      if (!day || daysBetween(day, today) > DONE_DAYS) continue
+    }
+    const truck = load.truckId !== null ? byTruckId.get(load.truckId) : undefined
+    rows.push({
+      id: load.id,
+      ref: load.referenceId,
+      route: `${load.origin ?? '—'} → ${load.destination ?? '—'}`,
+      status: load.status,
+      rate: load.rate,
+      truck: truck ? truckLabel(truck) : t(locale, 'finances.noTruck'),
+      truckId: load.truckId,
+      broker: load.brokerName,
+      deliveryDate: load.deliveryDate,
+      paidAt: load.paidAt,
+      group,
+      payment,
+      rcId: rateCons.get(load.id) ?? null,
+      hasPod: docOf(load.id, 'pod') !== null,
+      hasBol: docOf(load.id, 'bol') !== null,
+      invoiceDocId: docOf(load.id, 'invoice'),
+      invoiceNumber: load.invoiceNumber,
+      feeDefault: defaultFee(load.rate, truck?.factoringPercent),
+    })
+  }
+
+  const sum = (groups: PayGroup[]) => rows.filter((r) => groups.includes(r.group)).reduce((s, r) => s + r.rate, 0)
+  // Деньги этого месяца: аванс факторинга или прямая оплата, по дате поступления.
+  const month = today.slice(0, 7)
+  let inMonth = 0
+  let feesMonth = 0
+  for (const p of payments.values()) {
+    if (p.fundedOn?.startsWith(month)) {
+      inMonth += p.advanceAmount ?? 0
+      feesMonth += p.feeAmount ?? 0
+    }
+    if (p.stage === 'paid' && p.paidOn?.startsWith(month)) inMonth += p.paidAmount ?? 0
+  }
+  const risk = sum(['problems', 'atRisk'])
+
   return (
-    <Link
-      href={href}
-      className={`-mb-px border-b-2 px-3 py-2 text-[13px] font-medium transition-colors ${
-        active ? 'border-haul-500 text-white' : 'border-transparent text-white/55 hover:text-white/85'
-      }`}
-    >
-      {children}
-    </Link>
+    <>
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat label={t(locale, 'payments.stat.toSubmit')} value={usd.format(sum(['toSubmit']))} tone={sum(['toSubmit']) ? 'warn' : undefined} />
+        <Stat label={t(locale, 'payments.stat.awaiting')} value={usd.format(sum(['awaitingFunding']))} />
+        <Stat
+          label={t(locale, 'payments.stat.fundedMonth')}
+          value={usd.format(inMonth)}
+          info={`${t(locale, 'payments.stat.feesMonth')}: ${usd2.format(feesMonth)}`}
+        />
+        <Stat label={t(locale, 'payments.stat.risk')} value={usd.format(risk)} tone={risk ? 'bad' : undefined} />
+      </div>
+      <PaymentsBoard rows={rows} settings={settings} today={today} initialQuery={query} />
+    </>
   )
 }
 
@@ -192,7 +282,7 @@ async function Unpaid({
               <div key={load.id} className="panel p-4 border-warn-400/20">
                 <div className="flex items-center gap-4">
                   <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
-                    <div className="truncate text-[14px] font-medium">
+                    <div className="text-[14px] font-medium leading-5">
                       {load.origin ?? '—'} → {load.destination ?? '—'}
                     </div>
                     <div className="mt-0.5 text-[12px] text-white/60">
@@ -206,7 +296,12 @@ async function Unpaid({
                 {/* Статус меняется прямо здесь: платёж пришёл по квик-пею или через
                     факторинг раньше инвойса — не ходить за этим на страницу груза. */}
                 <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
-                  <PaidToggle loadId={load.id} />
+                  <Link
+                    href={financesHref(load)}
+                    className="inline-flex min-h-9 items-center rounded-lg bg-haul-500 px-3 text-[12px] font-semibold text-white hover:bg-haul-400 max-md:min-h-11"
+                  >
+                    {t(locale, 'payments.tab')} →
+                  </Link>
                   <Link
                     href={`/loads/${load.id}`}
                     className="rounded-lg border border-white/15 px-3 py-1.5 text-[12px] font-semibold text-white/80 hover:border-white/35 hover:text-white"
@@ -274,7 +369,12 @@ async function Unpaid({
         {/* Кнопки статуса — своей строкой под карточкой: на телефоне рядом с суммой
             им не хватало места, и «Оплачено» приходилось искать. */}
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
-          <PaidToggle loadId={r.load.id} />
+          <Link
+                    href={financesHref(r.load)}
+                    className="inline-flex min-h-9 items-center rounded-lg bg-haul-500 px-3 text-[12px] font-semibold text-white hover:bg-haul-400 max-md:min-h-11"
+                  >
+                    {t(locale, 'payments.tab')} →
+                  </Link>
           <Link
             href={`/loads/${r.load.id}`}
             className="inline-flex min-h-9 items-center rounded-lg border border-white/15 px-3 text-[12px] font-semibold text-white/80 hover:border-white/35 hover:text-white max-md:min-h-11"
@@ -396,7 +496,7 @@ async function Paid({
                         {load.origin ?? '—'} → {load.destination ?? '—'}
                       </div>
                       <div className="mt-0.5 text-[12px] text-white/60">
-                        {load.invoiceNumber} · {load.paidAt ? usDate(load.paidAt) : '—'}
+                        {load.invoiceNumber} · {load.paidAt ? usDate(todayEt(new Date(load.paidAt))) : '—'}
                         {r ? (
                           <>
                             {' '}
@@ -408,9 +508,12 @@ async function Paid({
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <span className="nums mr-auto text-[15px] font-bold">{usd.format(load.rate)}</span>
                       {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
-                      <MoreMenu label={t(locale, 'common.more')}>
-                        <PaidToggle loadId={load.id} paid />
-                      </MoreMenu>
+                      <Link
+                        href={financesHref(load)}
+                        className="inline-flex min-h-9 items-center rounded-lg border border-white/10 px-3 text-[12px] font-semibold text-white/60 hover:border-white/25 hover:text-white max-md:min-h-11"
+                      >
+                        {t(locale, 'payments.tab')}
+                      </Link>
                     </div>
                   </div>
                 ))}
@@ -433,9 +536,11 @@ function groupByMonth<T extends { load: { paidAt: string | null } }>(rows: T[], 
   })
   const groups = new Map<string, { key: string; title: string; rows: T[]; gross: number }>()
   for (const row of rows) {
-    const d = row.load.paidAt ? new Date(row.load.paidAt) : null
-    const key = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : 'zzz-unknown'
-    const title = d ? fmt.format(d) : '—'
+    // Месяц дня оплаты по восточному времени, как дата в строке, а не в поясе сервера.
+    // Середина месяца — тот же месяц в любом поясе.
+    const month = row.load.paidAt ? todayEt(new Date(row.load.paidAt)).slice(0, 7) : null
+    const key = month ?? 'zzz-unknown'
+    const title = month ? fmt.format(new Date(`${month}-15T12:00:00Z`)) : '—'
     if (!groups.has(key)) groups.set(key, { key, title, rows: [], gross: 0 })
     const g = groups.get(key)!
     g.rows.push(row)
@@ -584,9 +689,9 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
                               <li key={load.id}>
                                 <Link
                                   href={`/loads/${load.id}`}
-                                  className="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-[11.5px] text-white/60 transition-colors hover:bg-white/5 hover:text-white/85"
+                                  className="flex items-start justify-between gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-[12px] leading-4 text-white/65 transition-colors hover:bg-white/5 hover:text-white/90"
                                 >
-                                  <span className="min-w-0 truncate">
+                                  <span className="min-w-0">
                                     {load.referenceId ? `#${load.referenceId} · ` : ''}
                                     {load.origin ?? '—'} → {load.destination ?? '—'}
                                   </span>
@@ -635,7 +740,8 @@ async function ByWeek({
 
   const weeks = new Map<number, GrossWeek>()
   for (const load of committed) {
-    const weekMs = weekAnchorOf(new Date(load.pickupDate ?? load.createdAt).getTime())
+    // Пикап — день, а не момент: new Date('yyyy-mm-dd') — полночь UTC, по восточному это ещё вчера.
+    const weekMs = weekAnchorOf(loadWeekAnchorMs(load.pickupDate, load.createdAt))
     let week = weeks.get(weekMs)
     if (!week) {
       week = { weekStartMs: weekMs, trucks: new Map(), gross: 0, miles: 0, count: 0 }
@@ -706,9 +812,9 @@ async function ByWeek({
                       <li key={load.id} className="flex items-center gap-2">
                         <Link
                           href={`/loads/${load.id}`}
-                          className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md px-2 py-1 text-[11.5px] text-white/60 transition-colors hover:bg-white/5 hover:text-white/85"
+                          className="flex min-w-0 flex-1 items-start justify-between gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-[12px] leading-4 text-white/65 transition-colors hover:bg-white/5 hover:text-white/90"
                         >
-                          <span className="min-w-0 truncate">
+                          <span className="min-w-0">
                             {load.referenceId ? `#${load.referenceId} · ` : ''}
                             {load.origin ?? '—'} → {load.destination ?? '—'}
                             {load.brokerName ? ` · ${load.brokerName}` : ''}
@@ -819,9 +925,9 @@ async function ByDriver({ companyId, locale }: { companyId: 'default' | 'demo'; 
                       <li key={load.id}>
                         <Link
                           href={`/loads/${load.id}`}
-                          className="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-[11.5px] text-white/60 transition-colors hover:bg-white/5 hover:text-white/85"
+                          className="flex items-start justify-between gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-[12px] leading-4 text-white/65 transition-colors hover:bg-white/5 hover:text-white/90"
                         >
-                          <span className="min-w-0 truncate">
+                          <span className="min-w-0">
                             {load.referenceId ? `#${load.referenceId} · ` : ''}
                             {load.origin ?? '—'} → {load.destination ?? '—'}
                           </span>

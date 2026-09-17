@@ -62,15 +62,30 @@ for (const locale of LOCALES) {
    * Вьюпорт высокий (1600), а не fullPage: в полностраничном режиме рамки блоков и
    * координаты кадра расходились, и у снимков оказывался срезан левый край.
    */
-  async function shot(name, url, locators, { wait = 1200, maxH = 620 } = {}) {
+  async function shot(name, url, locators, { wait = 1200, maxH = 620, scroll = false } = {}) {
     if (ONLY && !ONLY.includes(name)) return
     await page.goto(BASE + url, { waitUntil: 'networkidle', timeout: 90000 })
     await page.waitForTimeout(wait)
+    // Изредка кадр ловит страницу ещё без светлой темы (тёмные токены по умолчанию) —
+    // тёмный снимок среди светлых выглядит чужим: перезагрузить.
+    if ((await page.evaluate(() => document.documentElement.dataset.theme)) !== 'light') {
+      await page.reload({ waitUntil: 'networkidle', timeout: 90000 })
+      await page.waitForTimeout(wait)
+    }
     await page.evaluate(() => window.scrollTo(0, 0))
     // Ярлык свёрнутой экскурсии висит поверх страницы — в инструкции ему не место.
     await page.addStyleTag({ content: '.z-\\[190\\]{display:none!important}' })
     const boxes = []
     for (const l of locators) {
+      // Секции страницы трака приходят потоком — блок может появиться позже networkidle.
+      await l.waitFor({ state: 'visible', timeout: 8000 }).catch(() => {})
+      // Блок ниже высоты окна (планировщик под картой и парком): снимок с clip берёт только
+      // видимую часть окна — прокрутить блок наверх, оставив место под липкую шапку.
+      if (scroll && !boxes.length) {
+        await l.evaluate((el) => el.scrollIntoView({ block: 'start' })).catch(() => {})
+        await page.evaluate(() => window.scrollBy(0, -80))
+        await page.waitForTimeout(400)
+      }
       const b = await l.boundingBox().catch(() => null)
       if (b) boxes.push(b)
     }
@@ -119,13 +134,15 @@ for (const locale of LOCALES) {
     if (loads[0]) await shot('load-detail', loads[0], [page.locator('main section').first()], { wait: 2000, maxH: 640 })
     // Трекинг: карта и цифры под ней.
     await shot('tracking', '/tracking', [page.locator('.fleet-map').first(), block(h('tracking.pickOnMap'))], { wait: 4000 })
+    // Куда отправить трак: трак, плитки «лучше/хуже всего» и первые направления со ставками.
+    await shot('planner', '/trucks', [page.locator('#route-planner')], { wait: 3000, maxH: 860, scroll: true })
     // Файлы: вкладки видов документов и список.
     await shot('docs', '/docs', [page.locator('main .panel').first(), page.locator('main .panel').nth(1)], { maxH: 560 })
     // Финансы: плитки «ждём» и список счетов.
     // В демо просроченных может не быть — берём плитки и первый список под ними.
     await shot('invoices', '/invoices', [page.locator('main .grid').first(), page.locator('main details.panel').first()], { maxH: 600 })
-    // Брокеры: проверка по MC и свой список.
-    await shot('brokers', '/brokers', [block(h('brokers.checkHeading')), block(h('brokers.dbHeading'))], { maxH: 600 })
+    // Брокеры и склады: поиск, фильтры и оба списка — верх раздела.
+    await shot('brokers', '/brokers', [page.locator('main h1').first(), page.locator('main div.grid').first()], { maxH: 620 })
     // Толлы: форма маршрута и результат под ней.
     await shot('tolls', '/tolls', [page.locator('main section').first(), page.locator('main section').nth(1)], { wait: 3000, maxH: 620 })
   }

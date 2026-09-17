@@ -15,8 +15,8 @@ export const loginDict = {
   // Переменная окружения не вписана — приложение стоит на хостинге, но базы у него нет.
   'login.nodb_title': { ru: 'База не подключена', en: 'No database connected' },
   'login.nodb_text': {
-    ru: 'В панели хостинга (Environment variables) добавьте переменную DATABASE_URL — прямую (direct) строку подключения к Postgres — и перезапустите приложение. После этого здесь появится форма установки.',
-    en: 'In the hosting panel (Environment variables) add DATABASE_URL — the direct Postgres connection string — and restart the app. The setup form will appear here once it is set.',
+    ru: 'В панели хостинга (Environment variables) добавьте переменную DATABASE_URL — строку подключения к MariaDB/MySQL вида mysql://пользователь:пароль@сервер:3306/база — и перезапустите приложение. После этого здесь появится форма установки.',
+    en: 'In the hosting panel (Environment variables) add DATABASE_URL — the MariaDB/MySQL connection string, mysql://user:password@host:3306/database — and restart the app. The setup form will appear here once it is set.',
   },
 
   // Первый запуск на пустой базе — установка, а не просто создание аккаунта.

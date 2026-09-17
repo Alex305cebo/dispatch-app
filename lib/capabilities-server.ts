@@ -40,5 +40,5 @@ export async function setUserCapability(userId: number, key: CapabilityKey, allo
   await sql`
     INSERT INTO user_capabilities (user_id, capability, allowed)
     VALUES (${userId}, ${key}, ${allowed})
-    ON CONFLICT (user_id, capability) DO UPDATE SET allowed = ${allowed}`
+    ON DUPLICATE KEY UPDATE allowed = ${allowed}`
 }

@@ -80,6 +80,15 @@
      tint here, which is how the broker banner's heading came out near-invisible in
      light mode. On white the same job needs the dark end of the ramp. */
   --color-haul-300: #4e3ac4;
+  /* То же для цветов статусов (забукирован / в пути / доставлен): их 200–300 — только
+     цвет ТЕКСТА, светлый для тёмной страницы. На белом подписи на полосах календаря
+     грузов и в значках статусов сливались с фоном — берём тёмный конец шкалы. */
+  --color-cyan-200: #0e7490;
+  --color-cyan-300: #0e7490;
+  --color-amber-200: #a55a08;
+  --color-amber-300: #a55a08;
+  --color-fuchsia-200: #a21caf;
+  --color-fuchsia-300: #a21caf;
 }
 
 @layer base {
@@ -133,6 +142,16 @@
   a[href^="mailto:"],
   a[href^="tel:"] {
     overflow-wrap: anywhere;
+  }
+
+  /* Пункты выпадающих списков рисует браузер, а цвет текста наследуется от <select>
+     (text-white) — на полупрозрачном фоне select'а (bg-ink-950/70) Chrome на Windows
+     раскрывал список белым, и пункты были белым по белому («Ведёт диспетчер»).
+     Непрозрачный фон и текст из темы — в обеих темах читается. */
+  select option,
+  select optgroup {
+    background-color: var(--color-ink-900);
+    color: var(--color-white);
   }
 
   html {
@@ -283,6 +302,40 @@
     0 0 3px rgba(0, 0, 0, 0.9),
     0 0 6px rgba(0, 0, 0, 0.8);
 }
+/* Слой «Рынок DAT» (fleet-map.tsx). Цвет штата ставит сам слой (fillColor) по одной
+   плавной шкале в обоих режимах: «Рынок» — грузы на трак против середины по штатам,
+   «Из штата» (Куда отправить трак) — выручка в день; штат, откуда считаем, — акцент, и
+   в этом режиме штат нажимается: расчёт переходит на него. CSS главнее атрибутов
+   fill/stroke, которые ставит Leaflet. */
+.fleet-map path.mkt {
+  cursor: default;
+  stroke-opacity: 0.45;
+}
+.fleet-map path.mkt-plan,
+.fleet-map path.mkt-origin,
+.fleet-map path.mkt-none {
+  cursor: pointer;
+}
+.fleet-map path.mkt-scale,
+.fleet-map path.mkt-plan {
+  fill-opacity: 0.42;
+}
+.fleet-map path.mkt-origin {
+  fill: var(--color-haul-400);
+  stroke: var(--color-haul-400);
+  fill-opacity: 0.5;
+  stroke-width: 2;
+  stroke-opacity: 0.9;
+}
+.fleet-map path.mkt-none {
+  fill: #8b93a5;
+  stroke: #8b93a5;
+  fill-opacity: 0.06;
+}
+/* Плашка штата едет за курсором — ловить мышь ей нельзя, иначе она мигает. */
+.fleet-map .leaflet-tooltip.mkt-tip {
+  pointer-events: none;
+}
 
 /* На телефоне кнопки «+/−» не нужны — карту масштабируют щипком, а они занимали
    угол, в который на маленькой карте и так не помещалось ничего. */
@@ -323,13 +376,13 @@
   border: 1px solid rgba(128, 128, 128, 0.3);
   border-radius: 10px;
   box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.65);
-  padding: 7px 11px;
+  padding: 6px 9px;
   /* Each fact in popupHtml is its own <div>, so nowrap keeps a line like "12 mi N
      from Ashland, VA" whole and lets the box grow to the widest line — instead of
      the default squeezing every word onto its own line. */
   white-space: nowrap;
   /* На телефоне плашка не шире экрана: длинные строки переносятся. */
-  max-width: min(280px, calc(100vw - 48px));
+  max-width: min(250px, calc(100vw - 48px));
   /* Leaflet tooltips default to pointer-events:none; ours carry a clickable
      "Открыть →" arrow (fleet-map.tsx), so the box must receive clicks/hover. */
   pointer-events: auto;
@@ -341,6 +394,15 @@
 }
 .fleet-map .leaflet-tooltip-top:before {
   border-top-color: var(--color-ink-900);
+}
+.fleet-map .leaflet-tooltip-bottom:before {
+  border-bottom-color: var(--color-ink-900);
+}
+.fleet-map .leaflet-tooltip-left:before {
+  border-left-color: var(--color-ink-900);
+}
+.fleet-map .leaflet-tooltip-right:before {
+  border-right-color: var(--color-ink-900);
 }
 
 /* Nav's top icon row on phones (locale/notifications/journal/theme). The BAR has no

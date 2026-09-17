@@ -1,10 +1,12 @@
 import { getSettings } from '@/lib/settings'
 import { fleetStatusByUnit } from '@/lib/maintenance'
 import { routeVia } from '@/lib/geo-routing'
+import { liveTrail, trailLabels } from '@/lib/eld'
+import { trailSegments } from '@/lib/geo'
 import { STALE_GPS_MS, statusTone } from '@/lib/load-map'
-import { activeLoadsByTruck, truckLabel, type LoadRecord, type TruckRecord } from '@/lib/map'
+import { activeLoadsByTruck, truckLabel, truckShortLabel, type LoadRecord, type TruckRecord } from '@/lib/map'
 import { stopsFrom, type LoadStop } from '@/lib/stops'
-import { agoText, usDate } from '@/lib/fmt'
+import { agoText, usd, usd2, usDate } from '@/lib/fmt'
 import { t, type Locale } from '@/lib/i18n'
 import type { MapMarker, MapRoute } from '@/components/fleet-map'
 import type { LoadMetrics } from '@/components/loads-toolbar'
@@ -69,8 +71,20 @@ export async function LoadsMapServer({
       const seen = fs?.eldSeen ? new Date(fs.eldSeen) : null
       const seenText = seen ? agoText(seen, locale) : null
       const markers: MapMarker[] = []
+      const trailRoutes: MapRoute[] = []
       if (truck && fs?.lat != null && fs.lng != null && !pinned.has(truck.id)) {
         pinned.add(truck.id)
+        // След за 12 ч (янтарные точки) — всегда, как на карте парка и груза.
+        const trail = truck.number ? await liveTrail(truck.number, fs.lat, fs.lng).catch(() => null) : null
+        if (trail)
+          for (const seg of trailSegments(trail.coords, trail.ats))
+            trailRoutes.push({
+              from: seg.coords[0]!,
+              to: seg.coords[seg.coords.length - 1]!,
+              coords: seg.coords,
+              labels: trailLabels(seg.coords, seg.ats, locale),
+              tone: 'trail',
+            })
         // Старый сигнал не выдаём за «трак сейчас здесь»: серый пин, возраст — в подписи.
         const stale = !seen || Date.now() - seen.getTime() > STALE_GPS_MS
         markers.push({
@@ -84,13 +98,29 @@ export async function LoadsMapServer({
         })
       }
       const stops = (stopsOf.get(load.id) ?? []).map((s) => ({ s, pt: point(s.address) ?? point(s.city) }))
+      const lastDrop = [...stops].reverse().find(({ s }) => s.role === 'delivery')?.s
+      const rpm = load.loadedMiles > 0 ? `${usd.format(load.rate)} · ${usd2.format(load.rate / load.loadedMiles)}/mi` : null
       for (const { s, pt } of stops) {
         if (!pt) continue
+        // Окно как напечатано в рейт-коне уже содержит дату — не повторять её.
+        const day = usDate(s.date)
+        const slot = s.time?.trim() || t(locale, 'loads.dash.noTime')
+        const when = day && slot.includes(day) ? slot : [day, slot].filter(Boolean).join(' · ')
         markers.push({
           lat: pt[0],
           lng: pt[1],
           label: stopLabel(s),
-          sub: [usDate(s.date), s.time].filter(Boolean).join(' · ') || undefined,
+          // На конечной выгрузке — ещё ставка груза и за милю: пин читается без списка.
+          // Чей груз — последней строкой: пины разных траков на одной карте иначе не различить.
+          sub:
+            [
+              [when, s === lastDrop ? rpm : null, s.directions ? `⚠ ${t(locale, 'loads.dash.hasDirections')}` : null]
+                .filter(Boolean)
+                .join(' · '),
+              `🚚 ${truck ? truckShortLabel(truck) : t(locale, 'loads.dash.unassigned')}`,
+            ]
+              .filter(Boolean)
+              .join('\n') || undefined,
           kind: s.role === 'pickup' ? 'pickup' : 'dest',
           truckId: load.id,
         })
@@ -100,14 +130,16 @@ export async function LoadsMapServer({
       const pts = stops.flatMap(({ pt }) => (pt ? [{ lat: pt[0], lng: pt[1] }] : []))
       const first = pts[0]
       const road = pts.length > 1 ? await routeVia(pts) : null
-      const routes: MapRoute[] =
-        road?.coords?.length && first
-          ? [{ from: [first.lat, first.lng], to: [road.lat, road.lng], coords: road.coords }]
+      const routes: MapRoute[] = [
+        ...trailRoutes,
+        ...(road?.coords?.length && first
+          ? [{ from: [first.lat, first.lng] as [number, number], to: [road.lat, road.lng] as [number, number], coords: road.coords }]
           : // Маршрутизатор не ответил — прямые отрезки между соседними точками (пунктир).
             stops.slice(1).flatMap(({ pt }, i) => {
               const from = stops[i]!.pt
               return from && pt ? [{ from, to: pt }] : []
-            })
+            })),
+      ]
       return {
         load,
         name: truck ? truckLabel(truck) : t(locale, 'loads.dash.unassigned'),

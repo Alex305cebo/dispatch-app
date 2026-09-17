@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { sql } from '@/lib/db'
 import { companyScope } from '@/lib/session'
+import { shrinkPhoto } from '@/lib/photo'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,12 +14,24 @@ export async function GET(
 ) {
   const { truckId } = await params
   const rows = await sql`
-    SELECT m.driver_photo_mime AS mime, encode(m.driver_photo, 'base64') AS b64
+    SELECT m.driver_photo_mime AS mime, REPLACE(TO_BASE64(m.driver_photo), CHAR(10 USING ascii), '') AS b64
     FROM truck_meta m JOIN trucks t ON t.id = m.truck_id
     WHERE m.truck_id = ${Number(truckId)} AND t.company_id = ${await companyScope()}
       AND m.driver_photo IS NOT NULL`
   const row = rows[0] as { mime: string; b64: string } | undefined
   if (!row) return new NextResponse('Not found', { status: 404 })
+
+  // Фото, загруженные до сжатия, ужимаются при первой отдаче и перезаписываются:
+  // один раз мегабайты, дальше десятки килобайт (lib/photo.ts).
+  if (row.b64.length > 300_000) {
+    try {
+      const small = await shrinkPhoto(Buffer.from(row.b64, 'base64'), 512)
+      await sql`UPDATE truck_meta SET driver_photo = UNHEX(${small.toString('hex')}), driver_photo_mime = 'image/jpeg'
+        WHERE truck_id = ${Number(truckId)}`
+      row.b64 = small.toString('base64')
+      row.mime = 'image/jpeg'
+    } catch {}
+  }
 
   // Тип приходит из браузера при загрузке, поэтому здесь он не «как есть», а из
   // короткого списка картинок: с типом text/html этот же адрес выполнял бы чужой
@@ -28,7 +41,7 @@ export async function GET(
   return new NextResponse(Buffer.from(row.b64, 'base64'), {
     headers: {
       'content-type': ok ? mime : 'application/octet-stream',
-      'cache-control': 'private, max-age=3600',
+      'cache-control': 'private, max-age=86400',
       'x-content-type-options': 'nosniff',
       ...(ok ? {} : { 'content-disposition': 'attachment' }),
     },

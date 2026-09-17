@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from '@/components/button'
+import { Fuel } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { addTruck, fetchDiesel, saveTruck, type TruckInput } from '@/app/actions'
 import { notify } from '@/lib/notify'
@@ -66,9 +67,11 @@ export function TruckForm({ id, initial, locale = 'en' }: { id: number | null; i
             prefix="$"
             suffix="/gal"
           />
-          <button
+          <Button
             type="button"
-            disabled={dieselBusy}
+            size="sm"
+            loading={dieselBusy}
+            icon={<Fuel size={14} strokeWidth={2.25} />}
             onClick={() =>
               startDiesel(async () => {
                 const res = await fetchDiesel()
@@ -79,10 +82,10 @@ export function TruckForm({ id, initial, locale = 'en' }: { id: number | null; i
                   notify('warn', tr(locale, 'trucks.form.dieselFailed'))
               })
             }
-            className="mt-1 text-[11px] text-haul-400 hover:underline disabled:text-white/30"
+            className="mt-2"
           >
             {dieselBusy ? tr(locale, 'trucks.form.dieselFetching') : tr(locale, 'trucks.form.dieselCurrent')}
-          </button>
+          </Button>
           <span className="ml-1.5 inline-block align-middle">
             <Info text={tr(locale, 'trucks.form.dieselInfo')} />
           </span>

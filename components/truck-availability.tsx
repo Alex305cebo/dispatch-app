@@ -45,14 +45,14 @@ export function TruckAvailability({
   }
 
   return (
-    <div className="inline-flex overflow-hidden rounded-full border border-white/10 text-[11.5px] font-semibold">
+    <div className="inline-flex h-8 overflow-hidden rounded-lg border border-white/12 bg-white/[0.03] text-[12.5px] font-semibold max-md:h-10">
       {OPTIONS.map((o) => (
         <button
           key={o.value}
           type="button"
           disabled={pending}
           onClick={() => pick(o.value)}
-          className={`px-3 py-1.5 transition-colors disabled:opacity-50 ${
+          className={`px-3 transition-colors disabled:opacity-50 [&+&]:border-l [&+&]:border-white/10 ${
             active === o.value
               ? o.value === 'active'
                 ? 'bg-good-500/20 text-good-400'

@@ -6,8 +6,11 @@ import { QueuedLoadHint } from '@/components/queued-load-hint'
 import { activeLoadsByTruck, truckLabel, truckShortLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { getCompany } from '@/lib/invoice'
-import { fleetStatusByUnit, getTruckMeta } from '@/lib/maintenance'
-import { companyScope } from '@/lib/session'
+import { assignWarnings, fleetStatusByUnit, getTruckMeta } from '@/lib/maintenance'
+import { companyScope, getCurrentUser } from '@/lib/session'
+import { can } from '@/lib/capabilities-server'
+import { financesHref, payBadge, todayEt } from '@/lib/payments'
+import { paymentFor } from '@/lib/payments-server'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { driveTime, usd, usDate } from '@/lib/fmt'
@@ -30,6 +33,8 @@ import { DetentionTile } from '@/components/detention-tile'
 import { detentionTerms, getSetting } from '@/lib/settings'
 import { headers } from 'next/headers'
 import { DriverLinkButton } from '@/components/driver-link-button'
+import { Send } from 'lucide-react'
+import { tgConnected } from '@/lib/telegram'
 import { stopWindows } from '@/lib/detention'
 import { BackhaulList } from '@/components/backhaul-list'
 import { backhaulBrokers } from '@/lib/backhaul'
@@ -39,12 +44,23 @@ import { listLoadEvents } from '@/lib/load-events'
 import { DriverTimeline } from '@/components/driver-timeline'
 import { DriverInfoCard } from '@/components/driver-info-card'
 import { withAddresses, stopNames } from '@/lib/driver-info-zip'
-import { arrivedAt, isDone, stopsFrom, viaLabel, type StopEv } from '@/lib/stops'
+import { arrivedAt, isDone, parseTaskOrder, stopsFrom, taskOrderKey, viaLabel, type StopEv } from '@/lib/stops'
 import { TaskStops } from '@/components/task-stops'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
+import { MissingPodBanner } from '@/components/missing-pod-banner'
+import { DeadheadFlag } from '@/components/deadhead-flag'
+import { loadsMissingPod } from '@/lib/loads'
 import { CopyPlace } from '@/components/copy-place'
 import { placeCity } from '@/lib/place'
+import { datCached, datEquipment, originRate } from '@/lib/dat-market'
+import { laneTarget } from '@/lib/dat-lanes'
+import { stateOfCity } from '@/lib/toll-spend'
+import { lateStop } from '@/lib/loads-dashboard'
+import { listCharges } from '@/lib/charges'
+import { LoadCharges } from '@/components/load-charges'
+import { PriorityPicker } from '@/components/priority-picker'
+import { FacilityHints } from '@/components/facility-hints'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,9 +83,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   ])
   // Прицеп для кнопки трака + наш средний $/милю по этому направлению. Оба нужны
   // только для показа, поэтому идут вторым параллельным заходом, уже зная truck.id.
-  // Обратный груз ищут, пока трак едет: список «кому звонить» нужен только
-  // забукированному и едущему грузу, доставленному он ни к чему.
-  const wantBackhaul = load.status === 'booked' || load.status === 'in_transit'
+  // Следующий груз ищут, пока трак едет на выгрузку и когда он только что разгрузился:
+  // «прошлые грузы в штате — кому звонить». У доставленного — только если он у трака
+  // последний (решается ниже, когда известны грузы трака).
+  const wantBackhaul = load.status === 'booked' || load.status === 'in_transit' || load.status === 'delivered'
   // Страница водителя: адрес и когда он её открывал — как на карточке трака.
   // В демо ссылку не выдаём.
   const driverSeen = await getSetting(`driver_seen:${truck.id}`)
@@ -83,18 +100,49 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           const proto = h.get('x-forwarded-proto') ?? 'https'
           return host ? `${proto}://${host}/d/${await driverTokenFor(truck.id)}` : null
         })()
-  const [truckMeta, laneAvgRpm, backhaul, brokerGrade, driverEvents, truckCurrent, truckLoads] = await Promise.all([
+  const [truckMeta, laneAvgRpm, backhaul, brokerGrade, driverEvents, truckCurrent, truckLoads, charges] = await Promise.all([
     getTruckMeta(truck.id),
     laneAvgRpmFor(companyId, load.origin, load.destination, load.id),
-    wantBackhaul ? backhaulBrokers(companyId, load.destination) : Promise.resolve(null),
+    wantBackhaul ? backhaulBrokers(companyId, load.destination, load.id) : Promise.resolve(null),
     brokerGradeFor(companyId, load.brokerMc, load.brokerEmail, load.brokerName),
     listLoadEvents(companyId, load.id),
     // Этот груз забукирован, а трак ещё везёт другой — подсказка, что делать.
     load.status === 'booked' ? currentLoadForTruck(companyId, truck.id) : Promise.resolve(null),
     // Что ещё едет в этом же трейлере — чтобы показать одно задание на все грузы.
     listLoads(companyId, { truckId: truck.id }),
+    listCharges(companyId, load.id),
   ])
-  const mates = (activeLoadsByTruck(truckLoads).get(truck.id) ?? []).filter((l) => l.id !== load.id)
+  // Окно ближайшей остановки закрылось, а приезда нет — «опаздывает» в шапку.
+  const late = lateStop(load, driverEvents, Date.now())
+  // Соседи по трейлеру — только если этот груз сам в нём едет (текущий или открытый
+  // партиал). Иначе к доставленному или следующему грузу подмешивались остановки
+  // текущего: у Trinity показывалось общее задание, а у самого Tallgrass — нет.
+  const active = activeLoadsByTruck(truckLoads).get(truck.id) ?? []
+  const mates = active.some((l) => l.id === load.id) ? active.filter((l) => l.id !== load.id) : []
+  const showBackhaul =
+    backhaul &&
+    (load.status !== 'delivered' ||
+      !truckLoads.some(
+        (l) => l.id !== load.id && l.status !== 'quoted' && l.status !== 'cancelled' && Date.parse(l.createdAt) > Date.parse(load.createdAt),
+      ))
+  // Прошлые грузы этого трака без POD — в шапку: пока везут этот, про тот забывают.
+  // Рядом — рынок DAT, если своей рыночной ставки у груза нет (почти всегда): серия по
+  // трейлеру трака, иначе Van. Только из кэша — страница DAT не ждёт.
+  // Цель торга по этому направлению: цена грузоотправителя минус доля брокера (lib/broker-cut.ts).
+  const [missingPod, datSnap, cutTarget] = await Promise.all([
+    loadsMissingPod(companyId, truckLoads.filter((l) => l.id !== load.id)),
+    load.spotRpm ? null : datCached(datEquipment(truckMeta?.trailerNumber) ?? 'VAN'),
+    laneTarget(
+      companyId,
+      datEquipment(truckMeta?.trailerNumber) ?? 'VAN',
+      stateOfCity(load.origin),
+      stateOfCity(load.destination),
+    ).catch(() => null),
+  ])
+  const datRate = datSnap ? originRate(datSnap, load.origin) : null
+  // Кнопка «Чат Telegram» — только у того, чей Telegram подключён (демо — никогда).
+  const me = await getCurrentUser()
+  const tgUserId = me && !me.isDemo && (await tgConnected(me.id).catch(() => false)) ? me.id : null
   const taskLoads = mates.length ? [load, ...mates] : []
   const taskEvents: Record<number, StopEv[]> = { [load.id]: driverEvents }
   for (const m of mates) taskEvents[m.id] = await listLoadEvents(companyId, m.id)
@@ -108,6 +156,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const stopNamesLegacy = stopNames(load.driverInfo)
   const stops = stopsFrom(load, { pickup: stopNamesLegacy.pickup, delivery: stopNamesLegacy.delivery })
   const via = viaLabel(stops, locale)
+  // Документы трака и стоп-лист водителя против этого рейса — пока груз ещё не доставлен.
+  const assign =
+    load.status === 'quoted' || load.status === 'booked' || load.status === 'in_transit'
+      ? assignWarnings(truckMeta, { places: stops.map((s) => s.city ?? s.address), deliveryDate: load.deliveryDate }, todayEt(), locale)
+      : []
   // Стоянка у склада по отметкам водителя — над картой, потому что это деньги:
   // от «Приехал» до «Загрузился», дальше счёт замирает. Меньше получаса не показываем.
   // По окну на каждую остановку, где водитель простоял от получаса.
@@ -115,6 +168,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const stop = windows[windows.length - 1] ?? null
   const terms = windows.length ? await detentionTerms() : null
   const invoiceDoc = docs.find((d) => d.kind === 'invoice')
+  // Где деньги за груз — метка на полосе статусов и у счёта; ставит её бухгалтер в «Финансах».
+  const badge = payBadge(load.status, await paymentFor(companyId, load.id))
+  const pay = badge && {
+    href: (await can(await getCurrentUser(), 'finances')) ? financesHref(load) : null,
+    label: t(locale, badge.key),
+    tone: badge.tone,
+  }
   const rateConDoc = docs.find((d) => d.kind === 'ratecon')
   const bolDoc = docs.find((d) => d.kind === 'bol')
   // Конечный POD — без номера остановки; POD промежуточных точек живут на рейке.
@@ -159,6 +219,30 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               груз ищут, называют по телефону и пишут в счёте. */}
           {load.referenceId && ` · ${t(locale, 'import.label.referenceId')} ${load.referenceId}`}
         </p>
+        {late && (
+          <div className="mt-3 rounded-xl border border-bad-500/30 bg-bad-500/[0.08] px-4 py-3 text-[13px]">
+            <span className="font-semibold text-bad-400">{t(locale, 'loads.dash.late')}</span>{' '}
+            <span className="text-white/75">
+              {t(locale, late.stop.role === 'pickup' ? 'stops.pickup' : 'stops.delivery')} · {late.stop.city ?? late.stop.address ?? '—'} ·{' '}
+              {t(locale, 'loads.dash.lateBy').replace('{t}', driveTime(late.minutes, locale))}. {t(locale, 'loadDetail.lateHint')}
+            </span>
+          </div>
+        )}
+        {assign.length > 0 && (
+          <div className="mt-3 rounded-xl border border-warn-400/35 bg-warn-500/[0.08] px-4 py-3 text-[13px] text-warn-400">
+            {assign.map((w) => (
+              <p key={w}>⚠ {w}</p>
+            ))}
+          </div>
+        )}
+        <MissingPodBanner loads={missingPod} locale={locale} className="mt-3" />
+        <DeadheadFlag miles={load.deadheadMiles} okMiles={load.deadheadOkMiles} loadId={load.id} locale={locale} banner className="mt-3" />
+        {/* Флаг «следить» — сразу под источником: ставится за секунду, поднимает груз в очереди. */}
+        {load.status !== 'paid' && load.status !== 'cancelled' && (
+          <div className="mt-3">
+            <PriorityPicker loadId={load.id} value={load.priority} />
+          </div>
+        )}
         {/* Кнопка на трак живёт в полосе «Трак ⇄ Груз» наверху — второй раз здесь ни к чему. */}
 
         {/* The rail needs the full width to lay five labelled steps out; sharing a flex
@@ -186,7 +270,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           />
         </div>
         {/* Груз едет не один: задание водителя — точки обоих грузов подряд. */}
-        {taskLoads.length > 1 && <TaskStops loads={taskLoads} events={taskEvents} locale={locale} className="mt-4" />}
+        {taskLoads.length > 1 && (
+          <TaskStops
+            loads={taskLoads}
+            events={taskEvents}
+            locale={locale}
+            truckId={truck.id}
+            order={parseTaskOrder(await getSetting(taskOrderKey(truck.id)))}
+            focusLoadId={load.id}
+            className="mt-4"
+          />
+        )}
         {/* Бумаги груза одной сеткой: rate con, BOL, POD — три кнопки одного размера,
             на телефоне 2×2 (четвёртая клетка — «Повторить груз»), на широком экране
             в один ряд. Раньше rate con и «Повторить» стояли своим рядом с разными
@@ -199,6 +293,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           )}
           <DocButton label="BOL" kind="bol" docId={bolDoc?.id ?? null} loadId={load.id} />
           <DocButton label="POD" kind="pod" docId={podDoc?.id ?? null} loadId={load.id} />
+          {/* Чат водителя в Telegram одним нажатием: BOL/POD и фото водитель шлёт туда, а
+              «В груз» у сообщения кладёт файл сюда. Только если Telegram подключён. */}
+          {tgUserId != null && (
+            <Link
+              href={`/telegram?truck=${truck.id}`}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-sky-400/35 bg-sky-500/10 px-3 py-2 text-[12.5px] font-semibold text-sky-300 transition-colors hover:bg-sky-500/20"
+            >
+              <Send size={14} aria-hidden />
+              {t(locale, 'loadDetail.tgChat')}
+            </Link>
+          )}
           {/* Тот же брокер, то же направление, новые даты. Регулярный рейс заводился
               заново каждую неделю — вместе с перепечатыванием почты брокера и миль. */}
           <Link
@@ -214,7 +319,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             {t(locale, 'loadDetail.rateHeading')}
             <Info text={t(locale, 'loadDetail.rateInfo')} />
           </h2>
-          <Analysis r={r} mpg={truck.mpg} spotRpm={load.spotRpm} />
+          <Analysis
+            r={r}
+            mpg={truck.mpg}
+            spotRpm={load.spotRpm}
+            dat={datRate && datSnap && { ...datRate, date: usDate(todayEt(new Date(datSnap.at))) }}
+            targetRpm={truckMeta?.targetRpm}
+            cut={cutTarget}
+          />
         </div>
       </section>
 
@@ -263,7 +375,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <LoadMapSection load={load} truck={truck} fs={fs} locale={locale} driverMarked={!!stop} events={driverEvents} />
       </Suspense>
 
-      {queuedBehind && <QueuedLoadHint locale={locale} current={queuedBehind} next={load} />}
+      {queuedBehind && <QueuedLoadHint locale={locale} current={queuedBehind} next={load} nextId={load.id} />}
 
       {/* Мили оценены приблизительно: в рейт-коне город с опечаткой, точный адрес не
           нашёлся. Груз создан, но пробег надо вписать руками — иначе $/милю и зарплата
@@ -305,7 +417,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         />
       )}
 
-      {backhaul && <BackhaulList state={backhaul.state} brokers={backhaul.brokers} locale={locale} />}
+      {/* «Мы здесь уже были» — история по адресам груза: считается по всем грузам
+          компании, поэтому в своей границе и после основного. */}
+      {load.status !== 'cancelled' && (
+        <Suspense fallback={null}>
+          <FacilityHints companyId={companyId} load={load} locale={locale} />
+        </Suspense>
+      )}
 
       <section className="panel mt-4 p-5">
         <h2 className="mb-4 text-base leading-6 font-semibold text-white/90">
@@ -343,6 +461,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         />
       </section>
 
+      {showBackhaul && <BackhaulList state={backhaul.state} brokers={backhaul.brokers} locale={locale} />}
+
       <section className="panel mt-4 p-5">
         <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
           {t(locale, 'loadDetail.docsHeading')}
@@ -360,15 +480,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </h2>
           {load.paidAt && (
             <span className="rounded-full bg-good-500/15 px-2 py-0.5 text-[11px] font-medium text-good-400">
-              {t(locale, 'loadDetail.paidOn').replace('{date}', usDate(load.paidAt))}
+              {t(locale, 'loadDetail.paidOn').replace('{date}', usDate(todayEt(new Date(load.paidAt))))}
             </span>
           )}
         </div>
+        {/* Начисления сверх ставки — над счётом: они в него и попадают строками. */}
+        {load.status !== 'cancelled' && <LoadCharges loadId={load.id} rate={load.rate} charges={charges} stopsCount={stops.length} />}
         <InvoiceBox
           loadId={load.id}
           invoiceNumber={load.invoiceNumber}
           invoiceDocId={invoiceDoc?.id ?? null}
           paid={!!load.paidAt}
+          pay={pay}
           companyReady={!!(company.name && company.mcdot)}
         />
         <p className="mt-2 text-[12px] text-white/50">{t(locale, 'loadDetail.invoicePackageNote')}</p>

@@ -79,9 +79,9 @@ export async function listUsers(): Promise<AdminUser[]> {
   const [truckRows, loadRows] = await Promise.all([
     sql`SELECT id, number, name, driver_name, dispatcher_id FROM trucks
         WHERE company_id = ${companyId} AND dispatcher_id IS NOT NULL`,
-    sql`SELECT dispatcher_id, count(*)::int AS n FROM loads
+    sql`SELECT dispatcher_id, count(*) AS n FROM loads
         WHERE company_id = ${companyId} AND dispatcher_id IS NOT NULL
-          AND created_at > now() - interval '30 days'
+          AND created_at > NOW(6) - INTERVAL 30 DAY
         GROUP BY dispatcher_id`,
   ])
   const trucksBy = new Map<number, { id: number; label: string }[]>()
@@ -138,7 +138,7 @@ export async function listFleetForAssign(): Promise<
   const rows = (await sql`
     SELECT id, number, name, driver_name, dispatcher_id FROM trucks
     WHERE company_id = ${await companyScope()}
-    ORDER BY number NULLS LAST, id`) as {
+    ORDER BY number IS NULL, number, id`) as {
     id: number
     number: string | null
     name: string
@@ -241,7 +241,7 @@ export async function setUserRole(userId: number, role: 'admin' | 'dispatcher'):
  * just hiding them from a list is that access actually ends right away. */
 export async function setUserDisabled(userId: number, disabled: boolean): Promise<{ error: string } | void> {
   await assertAdmin()
-  await sql`UPDATE users SET disabled_at = ${disabled ? new Date().toISOString() : null} WHERE id = ${userId}`
+  await sql`UPDATE users SET disabled_at = ${disabled ? new Date() : null} WHERE id = ${userId}`
   if (disabled) await sql`DELETE FROM sessions WHERE user_id = ${userId}`
   revalidatePath('/admin')
 }

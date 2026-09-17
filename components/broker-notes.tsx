@@ -15,6 +15,7 @@ import {
   Package,
   Phone,
   Shield,
+  Signpost,
   TriangleAlert,
   type LucideIcon,
 } from 'lucide-react'
@@ -23,6 +24,7 @@ import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale } from '@/lib/i18n'
 import { usDate } from '@/lib/fmt'
+import { todayEt } from '@/lib/payments'
 
 // The AI prompt (lib/ratecon-ai-contract.ts) tags each fact line with one of these —
 // lets the wall of prose from the RC render as a scannable list instead of one blob.
@@ -38,13 +40,14 @@ function tagsFor(locale: Locale): Record<string, { label: string; icon: LucideIc
     INSURANCE: { label: t(locale, 'brokerNotes.tagInsurance'), icon: Shield },
     PENALTY: { label: t(locale, 'brokerNotes.tagPenalty'), icon: Banknote, warn: true },
     WARNING: { label: t(locale, 'brokerNotes.tagWarning'), icon: TriangleAlert, warn: true },
+    ROUTE: { label: t(locale, 'brokerNotes.tagRoute'), icon: Signpost, warn: true },
   }
 }
 
 type NoteLine = { tag: string | null; text: string }
 
 // Locale-independent — only used to check whether a tag is one we recognize.
-const KNOWN_TAGS = new Set(['SAFETY', 'LOAD', 'SCHEDULE', 'CONTACT', 'REF', 'DOCS', 'INSURANCE', 'PENALTY', 'WARNING'])
+const KNOWN_TAGS = new Set(['SAFETY', 'LOAD', 'SCHEDULE', 'CONTACT', 'REF', 'DOCS', 'INSURANCE', 'PENALTY', 'WARNING', 'ROUTE'])
 
 function parseNotes(text: string): NoteLine[] {
   // The AI sometimes returns every tagged fact on ONE run-on line ("...stop.[LOAD]
@@ -212,7 +215,9 @@ export function BrokerNotes({
   // the driver can't check in to load or unload at all, so it can't sit buried
   // under safety notes or paperwork reminders. Array.sort is stable, so everything
   // else keeps its original order.
-  const sortedLines = [...lines].sort((a, b) => (a.tag === 'REF' ? -1 : 0) - (b.tag === 'REF' ? -1 : 0))
+  // Как заехать — ещё выше: не найдя въезд, водитель до номеров просто не доедет.
+  const rank = (tag: string | null) => (tag === 'ROUTE' ? 0 : tag === 'REF' ? 1 : 2)
+  const sortedLines = [...lines].sort((a, b) => rank(a.tag) - rank(b.tag))
   const structured = lines.some((l) => l.tag !== null)
   // One-line taste of the note while collapsed — the full text is a wall, and tags
   // are noise at a glance, so strip them here even for structured notes.
@@ -247,7 +252,7 @@ export function BrokerNotes({
         </span>
         <span className="min-w-0 flex-1 truncate text-[12px] text-white/45 group-open:hidden">{preview}</span>
         <span className="shrink-0 text-[11px] text-white/45">
-          {unread ? t(locale, 'brokerNotes.new') : t(locale, 'brokerNotes.readOn').replace('{date}', usDate(readAt))}
+          {unread ? t(locale, 'brokerNotes.new') : t(locale, 'brokerNotes.readOn').replace('{date}', usDate(todayEt(new Date(readAt))))}
         </span>
         {/* Explicit fold/unfold hint — this being a <details> (click to toggle) isn't
             obvious on its own, especially now that unread notes open by default. */}

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { distToPathMiles, haversineMiles, simplifyPath, deadheadEstimate, bearing, type LatLng } from './geo.ts'
+import { distToPathMiles, haversineMiles, simplifyPath, deadheadEstimate, bearing, type LatLng, plausibleNaFix, trailSegments} from './geo.ts'
 
 const CHICAGO: LatLng = { lat: 41.8781, lng: -87.6298 }
 const DALLAS: LatLng = { lat: 32.7767, lng: -96.797 }
@@ -94,4 +94,29 @@ test('simplifyPath: точки ложатся на прежнюю дорогу �
     const d = segDist(p)
     assert.ok(d < 0.05, `точка ушла на ${d.toFixed(3)} миль`)
   }
+})
+
+test('0,0 от ELD — не место трака, а Гвинейский залив', () => {
+  assert.equal(plausibleNaFix(0, 0), false)
+  assert.equal(plausibleNaFix(null, null), false)
+  assert.equal(plausibleNaFix(43.8, 200), false)
+  // настоящие точки парка: Айдахо, Техас, Аляска
+  assert.equal(plausibleNaFix(43.78, -116.94), true)
+  assert.equal(plausibleNaFix(27.52, -99.5), true)
+  assert.equal(plausibleNaFix(61.2, -149.9), true)
+})
+
+test('след рвётся там, где пропадала связь: две дальние крошки — не проеханная дорога', () => {
+  const coords: [number, number][] = [
+    [30.19, -99.32],
+    [30.18, -99.3],
+    [29.28, -98.66], // 74 мили без единой точки — разрыв связи
+    [29.27, -98.65],
+  ]
+  const segs = trailSegments(coords, [null, '1', '2', '3'])
+  assert.equal(segs.length, 2)
+  assert.deepEqual(segs[0]!.coords, coords.slice(0, 2))
+  assert.deepEqual(segs[1]!.coords, coords.slice(2))
+  // одиночная точка после разрыва не рисуется вовсе
+  assert.equal(trailSegments([coords[0]!, coords[2]!], [null, '1']).length, 0)
 })

@@ -3,6 +3,8 @@
 // live in lib/maintenance.ts (server only).
 
 import { t, type Locale } from './i18n.ts'
+import { usDate } from './fmt.ts'
+import { stateFromPlace } from './dat-market-core.ts'
 
 export type TruckMeta = {
   truckId: number
@@ -26,6 +28,52 @@ export type TruckMeta = {
   insuranceExpiry: string | null
   cdlExpiry: string | null
   medcardExpiry: string | null
+  /** Профиль водителя для планировщика — см. DriverProfile. */
+  homeState: string | null
+  homeFrom: string | null
+  homeTo: string | null
+  weekTargetMiles: number | null
+  weekTargetGross: number | null
+  /** Штаты «не возить в…», коды. */
+  avoidStates: string[]
+  /** Цель по ставке, $/mi гружёных миль, — вписал диспетчер (lib/profit.ts targetVerdict). */
+  targetRpm: number | null
+}
+
+/** Что планировщик и «Кому искать груз» знают о водителе: домашний штат, когда он дома,
+ * цель недели и стоп-лист штатов. Всё необязательное — пустой профиль ничего не меняет. */
+export type DriverProfile = Pick<TruckMeta, 'homeState' | 'homeFrom' | 'homeTo' | 'weekTargetMiles' | 'weekTargetGross' | 'avoidStates'>
+
+export const EMPTY_PROFILE: DriverProfile = {
+  homeState: null,
+  homeFrom: null,
+  homeTo: null,
+  weekTargetMiles: null,
+  weekTargetGross: null,
+  avoidStates: [],
+}
+
+/** «ny, ca; tx» → ['NY', 'CA', 'TX']: только двухбуквенные коды, без повторов. */
+export function parseStates(raw: string | null | undefined): string[] {
+  const out: string[] = []
+  for (const m of (raw ?? '').toUpperCase().matchAll(/\b([A-Z]{2})\b/g)) if (!out.includes(m[1]!)) out.push(m[1]!)
+  return out
+}
+
+/** Водитель дома сегодня (today — yyyy-mm-dd)? Возвращает, до какого числа; null — в строю. */
+export function homeUntil(p: Pick<DriverProfile, 'homeFrom' | 'homeTo'> | null | undefined, today: string): string | null {
+  if (!p?.homeFrom || !p.homeTo) return null
+  return p.homeFrom <= today && today <= p.homeTo ? p.homeTo : null
+}
+
+/** Домой скоро: отпуск начинается в ближайшие `days` дней — планировщику пора вести к дому.
+ * Возвращает дату начала; null — не скоро или дат нет. */
+export function homeSoon(p: Pick<DriverProfile, 'homeFrom' | 'homeTo'> | null | undefined, today: string, days = 7): string | null {
+  if (!p?.homeFrom) return null
+  const from = Date.parse(`${p.homeFrom}T12:00:00`)
+  const now = Date.parse(`${today}T12:00:00`)
+  const diff = (from - now) / 86_400_000
+  return diff >= 0 && diff <= days ? p.homeFrom : null
 }
 
 export type MaintenanceRecord = {
@@ -89,6 +137,34 @@ export function expiries(meta: TruckMeta | null, locale: Locale = 'en'): ExpiryI
 }
 
 /**
+ * Проверка трака под груз: документы, которые уже истекли или истекут раньше выгрузки
+ * (нет её даты — на сегодня), и штаты рейса из стоп-листа водителя. Строки
+ * предупреждения, пусто — всё в порядке. Только предупреждение: сохранить груз можно.
+ */
+export function assignWarnings(
+  meta: TruckMeta | null | undefined,
+  trip: { places: (string | null | undefined)[]; deliveryDate?: string | null },
+  today: string,
+  locale: Locale = 'en',
+): string[] {
+  if (!meta) return []
+  const delivery = trip.deliveryDate?.slice(0, 10)
+  const until = delivery && delivery > today ? delivery : today
+  const docs = expiries(meta, locale)
+    .filter((e) => e.date < until)
+    .map((e) =>
+      t(locale, e.date < today ? 'trucks.assign.expired' : 'trucks.assign.expires')
+        .replace('{doc}', e.label)
+        .replace('{date}', usDate(e.date)),
+    )
+  const noGo = [...new Set(trip.places.map(stateFromPlace))].filter((s): s is string => !!s && meta.avoidStates.includes(s))
+  return [
+    ...(docs.length ? [t(locale, 'trucks.assign.docs').replace('{list}', docs.join(' · '))] : []),
+    ...(noGo.length ? [t(locale, 'trucks.assign.noGo').replace('{states}', noGo.join(', '))] : []),
+  ]
+}
+
+/**
  * Oil-change countdown. Needs both the last-change odometer (owner enters it) and
  * a current odometer (ELD when live, else null → unknown).
  */
@@ -98,6 +174,9 @@ export function oilStatus(
 ): { milesLeft: number; tone: 'good' | 'warn' | 'bad' } | null {
   if (!meta?.oilLastOdometer || currentOdometer === null) return null
   const milesLeft = Math.round(meta.oilLastOdometer + meta.oilIntervalMi - currentOdometer)
+  // Миль до замены больше самого интервала — значит, одометр сейчас ниже, чем в день
+  // прошлой замены. Одометр назад не крутится: показание неверное, считать не из чего.
+  if (milesLeft > meta.oilIntervalMi) return null
   const tone = milesLeft > 5000 ? 'good' : milesLeft > 1000 ? 'warn' : 'bad'
   return { milesLeft, tone }
 }

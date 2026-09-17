@@ -6,15 +6,18 @@ import { LaneStats } from '@/components/lane-stats'
 import { sql } from '@/lib/db'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { calcLoad } from '@/lib/profit'
-import { truckPhotoFlags } from '@/lib/maintenance'
+import { truckPhotoFlags, truckTrailerNumbers } from '@/lib/maintenance'
+import { datCached, datEquipment, loadMarketRpm, type DatEquipment } from '@/lib/dat-market'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
-import { usd, weekAnchorOf, weekStart } from '@/lib/fmt'
-import { isoDay, upcomingStop } from '@/lib/loads-dashboard'
+import { driveTime, usd, usDate } from '@/lib/fmt'
+import { upcomingStop, weekStartIso } from '@/lib/loads-dashboard'
+import { todayEt } from '@/lib/payments'
 import type { StopEv } from '@/lib/stops'
 import type { LoadMetrics } from '@/components/loads-toolbar'
 import type { AttentionEntry } from './loads-insights'
+import { lateStop, priorityRank, PRIORITY_KEY } from '@/lib/loads-dashboard'
 import { LoadsMapServer } from './loads-map-server'
 import { LoadsViews } from './loads-views'
 
@@ -38,7 +41,7 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
   const sp = await searchParams
   const companyId = await companyScope()
   const locale = await getLocale()
-  const [loads, trucks, photoIds, docs, events] = await Promise.all([
+  const [loads, trucks, photoIds, docs, events, trailers] = await Promise.all([
     listLoads(companyId),
     listTrucks(companyId),
     truckPhotoFlags(companyId),
@@ -52,7 +55,14 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
         JOIN loads l ON l.id = e.load_id AND l.company_id = e.company_id
         WHERE e.company_id = ${companyId} AND l.status IN ('booked', 'in_transit')
         ORDER BY e.at ASC`,
+    truckTrailerNumbers(companyId),
   ])
+  // Рынок у каждого груза — по правилу карточки груза: вписанная ставка, иначе DAT по
+  // региону погрузки; серия — по трейлеру трака, иначе Van. Суточный снимок только из кэша.
+  const seriesOf = (truckId: number | null): DatEquipment => datEquipment(truckId == null ? null : trailers.get(truckId)) ?? 'VAN'
+  const snaps = new Map(
+    await Promise.all([...new Set(loads.map((l) => seriesOf(l.truckId)))].map(async (eq) => [eq, await datCached(eq)] as const)),
+  )
   const rateCons = new Map<number, number>()
   const podIds = new Set<number>()
   for (const doc of docs) {
@@ -75,12 +85,17 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
   const metrics: Record<number, LoadMetrics> = {}
   for (const { load, r } of priced) {
     const miles = load.loadedMiles + load.deadheadMiles
+    const snap = snaps.get(seriesOf(load.truckId)) ?? null
+    const market = loadMarketRpm(snap, load)
     metrics[load.id] = {
       net: r?.net ?? 0,
       rpm: miles > 0 ? load.rate / miles : 0,
       hasPod: podIds.has(load.id),
       hasRc: rateCons.has(load.id),
       nextStop: upcomingStop(load, marks.get(load.id)),
+      lateMin: null,
+      market,
+      marketAt: market && snap && !(load.spotRpm && load.spotRpm > 0) ? usDate(todayEt(new Date(snap.at))) : null,
     }
   }
 
@@ -92,6 +107,17 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
     if (load.status === 'quoted' || load.status === 'cancelled' || load.status === 'paid') continue
     const route = [load.referenceId, `${load.origin ?? '—'} → ${load.destination ?? '—'}`].filter(Boolean).join(' · ')
     const push = (category: AttentionEntry['category'], detail: string) => attention.push({ id: load.id, route, category, detail })
+    // Флаг диспетчера — первым: он и ставится, чтобы груз не потерялся в списке.
+    if (load.priority) push('priority', t(locale, PRIORITY_KEY[load.priority]))
+    // Окно остановки прошло, а приезда никто не отметил и GPS не видел — опаздывает.
+    const late = lateStop(load, marks.get(load.id) ?? [], now)
+    if (late) {
+      metrics[load.id]!.lateMin = late.minutes
+      push(
+        'late',
+        `${t(locale, late.stop.role === 'pickup' ? 'stops.pickup' : 'stops.delivery')} · ${late.stop.city ?? '—'} · ${t(locale, 'loads.dash.lateBy').replace('{t}', driveTime(late.minutes, locale))}`,
+      )
+    }
     const missing = [rateCons.has(load.id) ? null : 'RC', load.status === 'delivered' && !podIds.has(load.id) ? 'POD' : null].filter(Boolean)
     if (missing.length) push('documents', `${t(locale, 'loads.dash.missingDocs')}: ${missing.join(' / ')}`)
     if (load.status === 'delivered' && !load.invoicedAt && podIds.has(load.id) && rateCons.has(load.id)) push('ready', usd.format(load.rate))
@@ -102,7 +128,16 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
     }
   }
 
-  const parsed = sp.week ? Date.parse(`${sp.week}T00:00:00`) : NaN
+  // Флаг и опоздание наверх: критичный выше важного, дальше опаздывающие, остальное как было
+  // (сортировка устойчивая).
+  const rank = new Map(loads.map((l) => [l.id, priorityRank(l.priority)]))
+  const weight = (e: AttentionEntry) => (rank.get(e.id) ?? 0) * 10 + (e.category === 'late' ? 5 : 0)
+  attention.sort((a, b) => weight(b) - weight(a))
+
+  // Неделя уходит в клиент днём yyyy-mm-dd по восточному времени, а не моментом в ms:
+  // из одной и той же ms сервер в UTC и браузер в New York получали разные дни (#418).
+  const weekFrom = weekStartIso(todayEt())
+  const initialWeek = sp.week && !Number.isNaN(Date.parse(`${sp.week}T12:00:00`)) ? weekStartIso(sp.week) : weekFrom
   return (
     <>
       <div className="mb-4 flex items-end justify-between gap-4">
@@ -125,9 +160,9 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
         rateConPairs={[...rateCons]}
         photoTruckIds={[...photoIds]}
         attention={attention}
-        weekFrom={isoDay(new Date(weekStart()))}
+        weekFrom={weekFrom}
         initialView={sp.view === 'board' ? 'board' : sp.view === 'calendar' ? 'calendar' : 'driver'}
-        initialWeek={Number.isNaN(parsed) ? weekStart() : weekAnchorOf(parsed)}
+        initialWeek={initialWeek}
         initialDay={sp.day ?? null}
         initialQuery={sp.q ?? ''}
         mapPanel={

@@ -1,5 +1,6 @@
 'use client'
 
+import { safeUploadFile } from '@/lib/upload-name'
 import { DocLink } from '@/components/doc-link'
 
 // A big BOL / POD button next to "Open rate con": opens the document when it exists,
@@ -65,7 +66,7 @@ export function DocButton({
       let firstError: string | null = null
       for (const file of list) {
         const fd = new FormData()
-        fd.append('file', file)
+        fd.append('file', safeUploadFile(file))
         fd.append('kind', kind)
         fd.append('loadId', String(loadId))
         const res = await uploadDocument(fd)

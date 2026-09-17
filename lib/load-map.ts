@@ -3,14 +3,15 @@
 // load's own page (this specific load, regardless of whether it's currently the
 // truck's "active" one).
 
-import type { LoadRecord, TruckRecord } from './map'
+import { truckShortLabel, type LoadRecord, type TruckRecord } from './map'
 import type { FleetStatus } from './maintenance-core'
 import { cityCoordsBest, routeToPoint, routeVia } from './geo-routing'
 import { isDone, stopTitle, stopsFrom, type StopEv } from './stops.ts'
 import { liveTrail, trailLabels } from './eld'
+import { trailSegments } from './geo'
 import { tripEta } from './trip-eta'
 import { distToPathMiles, haversineMiles } from './geo'
-import { driveTime, usDate } from './fmt'
+import { driveTime, etaAt, usDate } from './fmt'
 import { zoneFor } from './tz'
 import { t, type Locale } from './i18n.ts'
 import type { MapMarker, MapRoute } from '@/components/fleet-map'
@@ -133,11 +134,12 @@ export async function loadMapData(
         : load.origin
           ? `${t(locale, 'tracking.fromPrefix')}${load.origin}`
           : ''
+    const dir = st.directions ? `⚠ ${t(locale, 'loads.dash.hasDirections')}` : ''
     return {
       lat: p.lat,
       lng: p.lng,
       label,
-      sub: sub || undefined,
+      sub: [sub, dir].filter(Boolean).join('\n') || undefined,
       kind: isPickup ? 'pickup' : 'dest',
       href: `/loads/${load.id}`,
     }
@@ -166,6 +168,18 @@ export async function loadMapData(
       routes.push({ from: [first.lat, first.lng], to: [last.lat, last.lng], coords: leg?.coords })
       miles = leg?.miles ?? (load.loadedMiles > 0 ? load.loadedMiles : null)
     }
+    // Где трак сейчас — просто точкой, без дороги от него к этому грузу.
+    if (!noGps)
+      markers.push({
+        lat: lat!,
+        lng: lng!,
+        zone: zoneFor(lat!, lng!) ?? undefined,
+        label: truckShortLabel(truck),
+        sub: [fs?.location, fs?.driveStatus].filter(Boolean).join('\n') || undefined,
+        tone: statusTone(fs?.driveStatus ?? null),
+        kind: 'truck',
+        href: `/trucks/${truck.id}`,
+      })
     return { markers, routes, etaText, miles, etaMin, live }
   }
   if (noGps) return { markers, routes, etaText, miles, etaMin, live }
@@ -181,20 +195,20 @@ export async function loadMapData(
   // Хвост пути за 12 часов — серой линией ЗА траком: видно, ехал ли ночью, где
   // стоял и не крутится ли на месте. Первым в списке, чтобы дорога рисовалась
   // поверх него.
-  if (trail && trail.coords.length > 2) {
-    routes.push({
-      from: trail.coords[0]!,
-      to: trail.coords[trail.coords.length - 1]!,
-      coords: trail.coords,
-      labels: trailLabels(trail.coords, trail.ats, locale),
-      tone: 'trail',
-    })
-  }
+  if (trail)
+    for (const seg of trailSegments(trail.coords, trail.ats))
+      routes.push({
+        from: seg.coords[0]!,
+        to: seg.coords[seg.coords.length - 1]!,
+        coords: seg.coords,
+        labels: trailLabels(seg.coords, seg.ats, locale),
+        tone: 'trail',
+      })
   const truckM: MapMarker = {
     lat,
     lng,
     zone: zoneFor(lat, lng) ?? undefined,
-    label: truck.number ?? truck.name,
+    label: truckShortLabel(truck),
     sub: [
       fs?.location,
       fs?.driveStatus,
@@ -224,9 +238,26 @@ export async function loadMapData(
   const legToNext = next?.p ? await routeToPoint({ lat, lng }, next.p) : null
   const legRest = aheadPts.length > 1 ? await routeVia(aheadPts) : null
 
+  // Сколько траку ехать до КАЖДОЙ точки впереди — строкой в её плашке на карте:
+  // до ближайшей — отрезок от трака, до дальних — он же плюс путь через
+  // предыдущие точки по порядку. Спрашивают это про пикап и выгрузку чаще всего.
+  const withPts = ahead.filter((a) => a.p)
   for (const a of ahead) {
     const m = markerAt(a.i)
-    if (m) markers.push(m)
+    if (!m) continue
+    const k = withPts.findIndex((x) => x.i === a.i)
+    if (legToNext && k >= 0) {
+      const via = k > 0 ? await routeVia(withPts.slice(0, k + 1).map((x) => x.p!)).catch(() => null) : null
+      if (k === 0 || via) {
+        const mi = Math.round(legToNext.miles + (via?.miles ?? 0))
+        const min = legToNext.etaMin + (via?.etaMin ?? 0)
+        const to = a.st.role === 'pickup' ? 'tracking.toPickupSuffix' : 'tracking.toDelivery'
+        // Осталось миль от трака сейчас и ETA — с отдыхом водителя, в поясе точки.
+        const arrive = new Date(Date.now() + tripEta(min, Date.now(), null, null, null).realMin * 60_000)
+        m.eta = `${mi} mi${t(locale, to)} · ETA ${etaAt(zoneFor(a.p!.lat, a.p!.lng), arrive)}`
+      }
+    }
+    markers.push(m)
   }
 
   if (legToNext && next && load) {

@@ -13,18 +13,24 @@
 // «Обновить», опросы по таймеру, выход из аккаунта и смена языка (там меняется кука,
 // а не данные).
 
+import { retitleDocuments } from '@/lib/doc-title'
 import { DOC_KINDS } from '@/lib/docs'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
+import { shrinkPhoto } from '@/lib/photo'
 import { sql } from '@/lib/db'
 import { humanError } from '@/lib/msg'
-import type { LoadStatus } from '@/lib/map'
-import type { LoadStop } from '@/lib/stops'
+import { LOAD_PRIORITIES, type LoadPriority, type LoadStatus } from '@/lib/map'
+import { CHARGE_KINDS, type ChargeKind } from '@/lib/charges-core'
+import { directionsOf, stopsFrom, taskOrderKey, type LoadStop } from '@/lib/stops'
+import { todayEt } from '@/lib/payments'
+import { DEADHEAD_FLAG_MI } from '@/lib/load-status'
+import { parseStates } from '@/lib/maintenance-core'
 import type { QrLoad } from '@/lib/qr-load'
 import type { TruckSettings } from '@/lib/profit'
 import { checkBroker, checkBrokerByDot, type BrokerCheck, type RcContext } from '@/lib/fmcsa'
-import { formatDriverInfo, toQrLoad } from '@/lib/ratecon'
+import { formatDriverInfo, refKey, toQrLoad } from '@/lib/ratecon'
 import { cityCoordsBest } from '@/lib/geo-routing'
 import { haversineMiles } from '@/lib/geo'
 import { nextLoadStatus, GEOFENCE_MI } from '@/lib/load-status'
@@ -33,7 +39,8 @@ import { docBelongs, getLoad, loadBelongs, truckBelongs } from '@/lib/loads'
 import { knownBrokerMc } from '@/lib/brokers'
 import type { HistoryLeg } from '@/lib/trip-history'
 import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
-import { dispatcherPhoneKey, getSetting, setSetting } from '@/lib/settings'
+import { deleteSetting, dispatcherPhoneKey, getSetting, setSetting } from '@/lib/settings'
+import { facilityNoteKey } from '@/lib/facilities'
 import { companyScope, confirmDelete, demoReadOnly, getCurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
 import type { CapabilityKey } from '@/lib/capabilities'
@@ -139,144 +146,12 @@ export async function updateBrokerInfo(
       AND (
         (${findName} <> '' AND lower(coalesce(broker_name, '')) = ${findName})
         OR (${findName} = '' AND ${findMc} <> ''
-            AND regexp_replace(coalesce(broker_mc, ''), '[^0-9]', '', 'g') = ${findMc})
-      )
-    RETURNING id`) as { id: number }[]
+            AND regexp_replace(coalesce(broker_mc, ''), '[^0-9]', '') = ${findMc})
+      )`)
 
   revalidatePath('/brokers')
   revalidatePath('/loads')
-  return { updated: rows.length }
-}
-
-/**
- * Реквизиты компании из списка крупнейших брокеров: MC, DOT, статус authority, город.
- *
- * В самом списке их нет намеренно — вписанный руками MC устаревает и врёт. Поэтому
- * достаём из реестра по названию в момент, когда карточку открыли, и тем же правилом
- * («Molo Solutions, LLC» → «Molo Solutions»), что и автоподбор: у этих компаний имя
- * в реестре почти всегда длиннее того, под которым их знают.
- */
-/** Реквизиты компании из реестра — то, что показывает карточка крупного брокера. */
-type TopFacts = {
-  mc: string | null
-  dot: string | null
-  legalName: string
-  city: string | null
-  state: string | null
-  authority: string | null
-  phone: string | null
-}
-
-export async function topBrokerInfo(name: string): Promise<TopFacts | { error: string }> {
-  const locale = await getLocale()
-
-  // Реквизиты крупных брокеров не меняются годами, а достаются пятью запросами к
-  // реестру: один поиск и по одному на каждого однофамильца. Держим ответ месяц —
-  // карточка открывается мгновенно и переживает недоступность реестра.
-  const CACHE_KEY = 'top_broker_facts'
-  const MONTH = 30 * 86400000
-  type Cached = { at: string; facts: TopFacts }
-  const store: Record<string, Cached> = JSON.parse((await getSetting(CACHE_KEY)) || '{}')
-  const hit = store[name.toLowerCase()]
-  if (hit && Date.now() - Date.parse(hit.at) < MONTH) return hit.facts
-
-  const { saferSearch, saferSnapshot } = await import('@/lib/safer')
-  const { chooseCompany, compact, searchTerms } = await import('@/lib/broker-match')
-  const { TOP_BROKERS } = await import('@/lib/brokers-top')
-
-  // Некоторые бренды в реестре записаны иначе («MODE Global» = MODE TRANSPORTATION
-  // LLC) — ищем под реестровым именем из справочника, показываем под брендовым.
-  const known = TOP_BROKERS.find((b) => compact(b.name) === compact(name))
-  const lookup = known?.alias ?? name
-
-  // Выверенный вручную DOT — без поиска вовсе: у крупных брендов в реестре
-  // однофамильцы, и правило имени между ними бессильно.
-  if (known?.dot) {
-    const snap0 = await saferSnapshot(known.dot)
-    if (snap0) {
-      const p = /([A-Za-z .'-]+),\s*([A-Z]{2})\s+\d{5}/.exec(snap0.address ?? '')
-      const facts: TopFacts = {
-        mc: snap0.mc ?? known.mc ?? null,
-        dot: known.dot,
-        legalName: snap0.legalName ?? name,
-        city: p?.[1]?.trim() ?? null,
-        state: p?.[2] ?? null,
-        authority: snap0.operatingStatus,
-        phone: snap0.phone,
-      }
-      store[name.toLowerCase()] = { at: new Date().toISOString(), facts }
-      await setSetting(CACHE_KEY, JSON.stringify(store))
-      return facts
-    }
-  }
-
-  const hits: { dot: string; legalName: string }[] = []
-  for (const term of searchTerms(lookup)) {
-    for (const h of await saferSearch(term)) if (!hits.some((x) => x.dot === h.dot)) hits.push(h)
-    if (hits.some((h) => compact(h.legalName) === compact(lookup))) break
-  }
-  const want = compact(lookup)
-  // Префикс в ОБЕ стороны: у нас «J.B. Hunt Transport Services», в реестре
-  // «J.B. HUNT TRANSPORT INC» — короче нашего, и односторонний startsWith его терял.
-  const worth = hits
-    .filter((h) => {
-      const c = compact(h.legalName)
-      return c.startsWith(want) || want.startsWith(c)
-    })
-    .slice(0, 8)
-
-  const cards = []
-  const snaps = new Map<string, Awaited<ReturnType<typeof saferSnapshot>>>()
-  for (const h of worth) {
-    const snap = await saferSnapshot(h.dot)
-    if (!snap) continue
-    snaps.set(h.dot, snap)
-    cards.push({
-      dot: h.dot,
-      legalName: snap.legalName ?? h.legalName,
-      dbaName: snap.dbaName,
-      phone: snap.phone,
-      entityType: snap.entityType,
-      operatingStatus: snap.operatingStatus,
-    })
-  }
-
-  let best = chooseCompany(lookup, null, cards)
-  if (!best && cards.length > 0) {
-    // В реестре несколько компаний с этим именем (у Nolan Transportation Group две:
-    // настоящая из Атланты и однофамилец 2023 года из Коннектикута). Для автозаписи
-    // MC в грузы такая ничья отдаётся человеку, но здесь справочная карточка
-    // ИЗВЕСТНОГО брокера — выбираем сами, сужая шаг за шагом: штат штаб-квартиры из
-    // нашего справочника → брокерский авторитет → дословное имя → старейший DOT
-    // (однофамильцы-подражатели регистрируются недавно, номера у них большие).
-    let pool = cards
-    if (known?.hq) {
-      const st = pool.filter((c) => (snaps.get(c.dot)?.address ?? '').includes(`, ${known.hq} `))
-      if (st.length > 0) pool = st
-    }
-    const brokers = pool.filter((c) => (c.entityType ?? '').toUpperCase().includes('BROKER'))
-    if (brokers.length > 0) pool = brokers
-    const exact = pool.filter((c) => compact(c.legalName) === want)
-    if (exact.length > 0) pool = exact
-    best = pool.slice().sort((a, b) => Number(a.dot) - Number(b.dot))[0] ?? null
-  }
-  const snap = best ? snaps.get(best.dot) : null
-  if (!best || !snap) return { error: t(locale, 'fmcsa.nameNotFound').replace('{name}', name) }
-
-  // Город и штат в SAFER лежат второй строкой адреса: «CHICAGO, IL 60607».
-  const place = /([A-Za-z .'-]+),\s*([A-Z]{2})\b/.exec(snap.address ?? '')
-  const facts: TopFacts = {
-    mc: snap.mc,
-    dot: best.dot,
-    legalName: snap.legalName ?? best.legalName,
-    city: place?.[1]?.trim() ?? null,
-    state: place?.[2] ?? null,
-    authority: snap.operatingStatus,
-    phone: snap.phone,
-  }
-  store[name.toLowerCase()] = { at: new Date().toISOString(), facts }
-  await setSetting(CACHE_KEY, JSON.stringify(store))
-  return facts
+  return { updated: rows.affectedRows ?? 0 }
 }
 
 export async function findBrokerByName(name: string) {
@@ -308,7 +183,7 @@ export async function brokerContactsFromHistory(
     SELECT broker_email, broker_phone, broker_mc, pay_via FROM loads
     WHERE company_id = ${companyId}
       AND (
-        (${mcDigits} <> '' AND regexp_replace(coalesce(broker_mc, ''), '[^0-9]', '', 'g') = ${mcDigits})
+        (${mcDigits} <> '' AND regexp_replace(coalesce(broker_mc, ''), '[^0-9]', '') = ${mcDigits})
         OR (${key} <> '' AND lower(coalesce(broker_name, '')) = ${key})
       )
     ORDER BY created_at DESC`) as {
@@ -345,6 +220,71 @@ export async function fetchDiesel() {
 }
 
 /**
+ * Слой «Рынок DAT» для карт, которым страница его не дала (список грузов, груз, трак, толлы,
+ * карточка груза из бота): грузов на трак по штатам всех трёх серий из суточного снимка.
+ * Только кэш — карта DAT не ждёт. Дата — днём по восточному времени, строкой: в браузере
+ * из миллисекунд её посчитали бы в его поясе.
+ */
+export async function mapMarket(): Promise<import('@/components/fleet-map').MapMarket | null> {
+  const { datCached, ltStates } = await import('@/lib/dat-market')
+  const { usDate } = await import('@/lib/fmt')
+  const { todayEt } = await import('@/lib/payments')
+  const snaps = await Promise.all((['VAN', 'REEFER', 'FLATBED'] as const).map(async (eq) => [eq, await datCached(eq)] as const))
+  const have = snaps.flatMap(([eq, snap]) => (snap ? [[eq, snap] as const] : []))
+  if (!have.length) return null
+  // Дата в легенде — самого старого снимка из показанных: не обещать свежесть, которой нет.
+  const oldest = have.reduce((a, b) => (b[1].at < a[1].at ? b : a))
+  return { date: usDate(todayEt(new Date(oldest[1].at))), series: Object.fromEntries(have.map(([eq, snap]) => [eq, ltStates(snap)])) }
+}
+
+/**
+ * Рынок DAT для формы груза. Серия — тип трейлера груза (приходит в QR с биржи), иначе
+ * трейлер выбранного трака, иначе Van. Ставка брокера сюда не уходит: регион погрузки
+ * форма считает сама по этому снимку, пока диспетчер печатает направление.
+ */
+export async function fetchDatSnapshot(equipment: string | null, truckId: number) {
+  const { datEquipment, datSnapshot } = await import('@/lib/dat-market')
+  const { truckTrailerNumbers } = await import('@/lib/maintenance')
+  const trailer = (await truckTrailerNumbers(await companyScope())).get(truckId)
+  return datSnapshot(datEquipment(equipment) ?? datEquipment(trailer) ?? 'VAN').catch(() => null)
+}
+
+/**
+ * Записать актуальную цену дизеля EIA в траки — один (truckId) или весь парк (null).
+ * Кнопка в форме трака только подставляла цену в поле, и её ещё надо было сохранить;
+ * здесь — сразу в базу, чтобы расчёты по всему парку не жили на цене полугодовой
+ * давности. Возвращает цену, дату EIA и сколько траков обновлено.
+ */
+export async function applyDieselPrice(
+  truckId: number | null,
+): Promise<{ price: number; asOf: string; count: number } | { error: string }> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const denied = await assertCan('edit_trucks')
+  if (denied) return denied
+  const { dieselPrice } = await import('@/lib/geo-routing')
+  const res = await dieselPrice(await getLocale())
+  if ('error' in res) return res
+  const companyId = await companyScope()
+  try {
+    await sql`
+      UPDATE trucks SET fuel_price_per_gallon = ${res.price}
+      WHERE company_id = ${companyId} AND (${truckId} IS NULL OR id = ${truckId})`
+    const rows = (await sql`
+      SELECT id FROM trucks WHERE company_id = ${companyId} AND (${truckId} IS NULL OR id = ${truckId})`) as {
+      id: number
+    }[]
+    revalidatePath('/trucks')
+    revalidatePath('/loads')
+    revalidatePath('/', 'layout')
+    for (const r of rows) revalidatePath(`/trucks/${r.id}`)
+    return { price: res.price, asOf: res.asOf, count: rows.length }
+  } catch (e) {
+    return { error: humanError(e, await getLocale()) }
+  }
+}
+
+/**
  * Owner pastes their ZigZag "Live Share" links (one per truck) — we keep the tokens
  * and immediately pull GPS from them. No vendor key needed. GPS only, no HOS.
  */
@@ -368,6 +308,9 @@ export async function fetchDiesel() {
 export async function saveTracking(
   text: string,
 ): Promise<{ saved: number; updated: number; errors: string[] } | { error: string }> {
+  // Ключи GPS общие для настоящего парка: из общей витрины демо их не меняют и не стирают.
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const locale = await getLocale()
   const { parseShareTokens, liveShareSnapshot } = await import('@/lib/eld')
   const { setSetting } = await import('@/lib/settings')
@@ -404,7 +347,9 @@ export async function saveTracking(
 }
 
 /** Отключить отслеживание: убрать и ссылки, и токен. */
-export async function clearTracking(): Promise<void> {
+export async function clearTracking(): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
   const { deleteSetting } = await import('@/lib/settings')
   await deleteSetting('eld_share_tokens')
   await deleteSetting('samsara_token')
@@ -517,11 +462,11 @@ async function autoAdvanceLoadStatuses(): Promise<void> {
     // a short haul whose pickup sits inside the delivery geofence can't mark "arrived at
     // delivery" before it's even been loaded.
     if (dP != null && dP <= GEOFENCE_MI && !pickupArrived) {
-      await sql`UPDATE loads SET pickup_arrived_at = now() WHERE id = ${r.id} AND pickup_arrived_at IS NULL`
+      await sql`UPDATE loads SET pickup_arrived_at = NOW(6) WHERE id = ${r.id} AND pickup_arrived_at IS NULL`
       pickupArrived = true
     }
     if (r.status === 'in_transit' && dD != null && dD <= GEOFENCE_MI && !deliveryArrived) {
-      await sql`UPDATE loads SET delivery_arrived_at = now() WHERE id = ${r.id} AND delivery_arrived_at IS NULL`
+      await sql`UPDATE loads SET delivery_arrived_at = NOW(6) WHERE id = ${r.id} AND delivery_arrived_at IS NULL`
       deliveryArrived = true
     }
 
@@ -567,16 +512,6 @@ export async function generateInvoice(
   return res
 }
 
-export async function markPaid(loadId: number, paid: boolean): Promise<{ error: string } | void> {
-  const denied = await assertCan('finances')
-  if (denied) return denied
-  await sql`UPDATE loads SET paid_at = ${paid ? new Date().toISOString() : null},
-            status = ${paid ? 'paid' : 'delivered'} WHERE id = ${loadId} AND company_id = ${await companyScope()}`
-  revalidatePath(`/loads/${loadId}`)
-  revalidatePath('/invoices')
-  revalidatePath('/')
-}
-
 /** Убрать счёт, выставленный раньше времени.
  *
  * Случай 11.09.2026: у груза с тремя точками POD промежуточной выгрузки загрузили
@@ -597,7 +532,7 @@ export async function removeInvoice(loadId: number): Promise<{ error: string } |
   const load = rows[0]
   if (!load) return { error: t(locale, 'actions.loadNotFound') }
   if (load.paid_at) return { error: t(locale, 'actions.invoicePaid') }
-  await sql`UPDATE documents SET deleted_at = now()
+  await sql`UPDATE documents SET deleted_at = NOW(6)
             WHERE load_id = ${loadId} AND company_id = ${companyId} AND kind = 'invoice' AND deleted_at IS NULL`
   await sql`UPDATE loads SET invoice_number = NULL, invoiced_at = NULL
             WHERE id = ${loadId} AND company_id = ${companyId}`
@@ -644,24 +579,19 @@ async function fillDeadhead(
   truckId: number,
   deadheadMiles: number,
   origin: string | null,
+  opts: { excludeLoadId?: number | null; pickupAddress?: string | null; pickupDate?: string | null } = {},
 ): Promise<number> {
-  if (deadheadMiles > 0 || !origin) return deadheadMiles
-  const rows = (await sql`
-    SELECT fs.lat, fs.lng FROM trucks t
-    LEFT JOIN fleet_status fs ON fs.unit = t.number
-    WHERE t.id = ${truckId} AND t.company_id = ${companyId}`) as {
-    lat: number | null
-    lng: number | null
-  }[]
-  const t = rows[0]
-  if (t?.lat == null || t?.lng == null) return deadheadMiles
-  const { deliveryInfo } = await import('@/lib/geo-routing')
-  const d = await deliveryInfo({ lat: t.lat, lng: t.lng }, origin)
-  return d ? d.miles : deadheadMiles
+  if (deadheadMiles > 0 || (!origin && !opts.pickupAddress)) return deadheadMiles
+  // Один расчёт на все пути заведения груза (deadheadCheck): раньше здесь был только GPS,
+  // и груз, заведённый задним числом, получал «порожний» от места, где трак стоял уже
+  // ПОСЛЕ рейса, — 634 мили у NAMPA → UNION CITY, 1842 у Olathe → Caldwell.
+  const dh = await deadheadCheck(companyId, truckId, opts.excludeLoadId ?? null, opts.pickupAddress ?? null, origin, opts.pickupDate ?? null)
+  return dh ? dh.miles : deadheadMiles
 }
 
-/** С какого порожнего пробега диспетчер получает предупреждение после рейт-кона. */
-const DEADHEAD_WARN_MI = 150
+/** С какого порожнего пробега диспетчер получает предупреждение после рейт-кона — тот же
+ * порог, что у красного флага на грузе (components/deadhead-flag.tsx). */
+const DEADHEAD_WARN_MI = DEADHEAD_FLAG_MI
 
 export type DeadheadCheck = {
   miles: number
@@ -686,6 +616,8 @@ async function deadheadCheck(
   excludeLoadId: number | null,
   pickupAddress: string | null,
   origin: string | null,
+  /** yyyy-mm-dd; пикап уже прошёл — GPS не годится, считаем от прошлой выгрузки. */
+  pickupDate: string | null = null,
 ): Promise<DeadheadCheck | null> {
   if (!origin && !pickupAddress) return null
   const { cityCoordsBest, routeToPoint } = await import('@/lib/geo-routing')
@@ -696,7 +628,7 @@ async function deadheadCheck(
     WHERE company_id = ${companyId} AND truck_id = ${truckId}
       AND status IN ('booked', 'in_transit') AND partial = false
       AND id <> ${excludeLoadId ?? 0}
-    ORDER BY delivery_date DESC NULLS LAST, created_at DESC
+    ORDER BY delivery_date IS NULL, delivery_date DESC, created_at DESC
     LIMIT 1`) as {
     delivery_address: string | null
     destination: string | null
@@ -710,6 +642,28 @@ async function deadheadCheck(
     const end = st?.length ? st[st.length - 1] : null
     const city = end?.city ?? prev[0].destination
     from = await cityCoordsBest(end?.address ?? prev[0].delivery_address, city)
+    kind = 'load'
+    fromLabel = city ?? null
+  }
+  // Груз заводят задним числом (пикап уже прошёл): трак его отвёз, и GPS показывает
+  // место ПОСЛЕ рейса — «порожний обратно к пикапу» выходил размером со весь рейс.
+  // Откуда трак на самом деле ехал к этому пикапу — выгрузка его предыдущего груза.
+  // Предыдущего нет — порожний не выдумываем.
+  const pastPickup = !!pickupDate && pickupDate.slice(0, 10) < todayEt()
+  if (!from && pastPickup) {
+    const last = (await sql`
+      SELECT delivery_address, destination, stops FROM loads
+      WHERE company_id = ${companyId} AND truck_id = ${truckId}
+        AND status NOT IN ('quoted', 'cancelled') AND id <> ${excludeLoadId ?? 0}
+        AND delivery_date IS NOT NULL AND delivery_date <= ${pickupDate.slice(0, 10)}
+      ORDER BY delivery_date DESC, created_at DESC
+      LIMIT 1`) as typeof prev
+    if (!last[0]) return null
+    const st = typeof last[0].stops === 'string' ? JSON.parse(last[0].stops) : last[0].stops
+    const end = st?.length ? st[st.length - 1] : null
+    const city = end?.city ?? last[0].destination
+    from = await cityCoordsBest(end?.address ?? last[0].delivery_address, city)
+    if (!from) return null
     kind = 'load'
     fromLabel = city ?? null
   }
@@ -730,6 +684,10 @@ async function deadheadCheck(
   }
   const leg = await routeToPoint(from, to)
   if (!leg) return null
+  // Задним числом «от прошлой выгрузки» дальше порога — это почти никогда не порожний:
+  // больше 120–150 миль пустыми тут не ездят, значит между грузами не заведён ещё один.
+  // Такое число не пишем — 0 честнее, чем 811 выдуманных миль.
+  if (kind === 'load' && pastPickup && leg.miles > DEADHEAD_WARN_MI) return null
   return {
     miles: leg.miles,
     from: kind,
@@ -755,7 +713,10 @@ export async function createLoad(
   try {
     const companyId = await companyScope()
     if (!(await truckBelongs(companyId, load.truckId))) return { error: t(locale, 'actions.truckNotFound') }
-    const deadheadMiles = await fillDeadhead(companyId, load.truckId, load.deadheadMiles, load.origin)
+    const deadheadMiles = await fillDeadhead(companyId, load.truckId, load.deadheadMiles, load.origin, {
+      pickupAddress: load.pickupAddress ?? null,
+      pickupDate: load.pickupDate ?? null,
+    })
     // MC в документе есть не всегда, но если этот брокер уже возил у нас — он у нас
     // уже есть. Иначе тот же брокер снова заводится «без MC», и справочник пустеет
     // ровно там, где по нему и работают.
@@ -782,6 +743,7 @@ export async function createLoad(
     if (docId && (await docBelongs(companyId, docId))) {
       await sql`UPDATE documents SET load_id = ${id} WHERE id = ${docId} AND load_id IS NULL`
     }
+    await retitleDocuments({ loadId: id })
   } catch (e) {
     return { error: humanError(e, locale) }
   }
@@ -898,23 +860,23 @@ export type RcCreateResult = {
  * — только в свой трак, а чужой груз — отказ с объяснением, где он.
  */
 async function findLoadOnOtherTruck(companyId: string, truckId: number, ref: string | null | undefined) {
-  const key = (ref ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase()
-  if (key.length < 5) return null
+  const key = refKey(ref)
+  if (!key) return null
   const rows = (await sql`
     SELECT l.id, l.reference_id, t.number, t.driver_name FROM loads l
     JOIN trucks t ON t.id = l.truck_id
     WHERE l.company_id = ${companyId} AND l.truck_id <> ${truckId}
       AND l.status NOT IN ('cancelled', 'paid')
-      AND l.created_at > now() - interval '45 days'
-      AND upper(regexp_replace(COALESCE(l.reference_id, ''), '[^0-9A-Za-z]', '', 'g')) = ${key}
+      AND l.created_at > NOW(6) - INTERVAL 45 DAY
+      AND upper(regexp_replace(COALESCE(l.reference_id, ''), '[^0-9A-Za-z]', '')) = ${key}
     ORDER BY l.created_at DESC
     LIMIT 1`) as { id: number; reference_id: string | null; number: string | null; driver_name: string | null }[]
   return rows[0] ?? null
 }
 
 async function findLoadByReference(companyId: string, truckId: number, ref: string | null | undefined) {
-  const key = (ref ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase()
-  if (key.length < 5) return null
+  const key = refKey(ref)
+  if (!key) return null
   const rows = (await sql`
     SELECT id, truck_id, origin, destination, rate, loaded_miles, deadhead_miles, miles_estimated, pickup_address, delivery_address,
            pickup_time, delivery_time, pickup_date, delivery_date, broker_name, broker_mc,
@@ -922,8 +884,8 @@ async function findLoadByReference(companyId: string, truckId: number, ref: stri
     FROM loads
     WHERE company_id = ${companyId}
       AND status NOT IN ('cancelled', 'paid')
-      AND created_at > now() - interval '45 days'
-      AND upper(regexp_replace(COALESCE(reference_id, ''), '[^0-9A-Za-z]', '', 'g')) = ${key}
+      AND created_at > NOW(6) - INTERVAL 45 DAY
+      AND upper(regexp_replace(COALESCE(reference_id, ''), '[^0-9A-Za-z]', '')) = ${key}
       AND truck_id = ${truckId}
     ORDER BY created_at DESC
     LIMIT 1`) as {
@@ -953,6 +915,47 @@ async function findLoadByReference(companyId: string, truckId: number, ref: stri
   return rows[0] ?? null
 }
 
+const RC_LOCK_STALE_MS = 3 * 60_000
+const RC_LOCK_WAIT_MS = 30_000
+
+/**
+ * Один рейт-кон — один груз, даже если запросов пришло два.
+ *
+ * Близнеца ищет findLoadByReference, но между его SELECT и INSERT ниже есть зазор:
+ * два запроса с ОДНИМ документом (двойной сабмит, повтор после «зависшего» чтения
+ * скана, дубль вебхука Telegram) оба не находят ничего и оба вставляют. Так в
+ * реальном парке появились #2003 и #2004 — PO# 568207385, трак 5, одна минута.
+ *
+ * Блокировка здесь одна доступная: первичный ключ settings. Пул (lib/db.ts) раздаёт
+ * произвольное соединение на каждый запрос, поэтому ни транзакции, ни GET_LOCK не
+ * годятся — они привязаны к соединению. INSERT IGNORE атомарен, ключ достаётся
+ * ровно одному; второй ждёт и уже видит созданный груз — его файл ложится туда же
+ * (ветка twin), дубля нет.
+ *
+ * ponytail: очередь на ключе, а не UNIQUE-индекс по reference_id. Индекс был бы
+ * честнее, но колонка TEXT без нормализации, а в базе уже лежат старые дубли —
+ * ALTER не пройдёт, пока их не свели вручную.
+ */
+async function lockRc(companyId: string, ref: string | null | undefined): Promise<string | null> {
+  const key = refKey(ref)
+  if (!key) return null
+  const lock = `rc_lock:${companyId}:${key}`
+  const until = Date.now() + RC_LOCK_WAIT_MS
+  for (;;) {
+    const now = new Date().toISOString()
+    const got = await sql`INSERT IGNORE INTO settings ("key", value) VALUES (${lock}, ${now})`
+    if (got.affectedRows) return lock
+    // Процесс мог умереть, не отпустив ключ (деплой посреди чтения скана), — через
+    // RC_LOCK_STALE_MS ключ ничей. Тот же приём, что у claimDemoReset.
+    const stale = new Date(Date.now() - RC_LOCK_STALE_MS).toISOString()
+    const took = await sql`UPDATE settings SET value = ${now} WHERE "key" = ${lock} AND value < ${stale}`
+    if (took.affectedRows) return lock
+    // Не дождались — заводим как раньше: хуже сегодняшнего поведения не будет.
+    if (Date.now() >= until) return null
+    await new Promise((r) => setTimeout(r, 500))
+  }
+}
+
 export async function createLoadFromRc(
   truckId: number,
   load: QrLoad,
@@ -967,11 +970,17 @@ export async function createLoadFromRc(
   const ro = await demoReadOnly()
   if (ro) return ro
   const locale = await getLocale()
+  let lock: string | null = null
   try {
     const companyId = await companyScope()
     if (!(await truckBelongs(companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }
+    // Проверка близнеца и вставка — под одним ключом, иначе один документ заводит
+    // два груза (lockRc).
+    lock = await lockRc(companyId, load.referenceId)
     stops = await fillStopCitiesFromZip(stops)
     const stopsJson = stops && stops.length > 2 ? JSON.stringify(stops) : null
+    const dirs = directionsOf(stops)
+    const directionsJson = dirs ? JSON.stringify(dirs) : null
     // A rate con prints TWO MC numbers — the broker's and ours, as the carrier being
     // hired — and whichever the reader grabbed first used to land in broker_mc. That
     // pointed the FMCSA check at our own company and reported "broker authority NONE",
@@ -997,7 +1006,7 @@ export async function createLoadFromRc(
         // Файл — в корзину: иначе он повиснет у этого трака «рейт-коном без груза» и
         // позовёт создать дубль. Из корзины его можно вернуть.
         if (docId && (await docBelongs(companyId, docId)))
-          await sql`UPDATE documents SET deleted_at = now() WHERE id = ${docId} AND load_id IS NULL`
+          await sql`UPDATE documents SET deleted_at = NOW(6) WHERE id = ${docId} AND load_id IS NULL`
         const truckName = [other.number ? `TRK-${other.number}` : null, other.driver_name].filter(Boolean).join(' · ')
         revalidatePath(`/trucks/${truckId}`)
         return {
@@ -1071,7 +1080,7 @@ export async function createLoadFromRc(
       }
       // Порожний пробег считался до старого (неверного) пикапа — тоже заново.
       const deadhead = filled.includes('miles')
-        ? await fillDeadhead(companyId, truckId, 0, origin)
+        ? await fillDeadhead(companyId, truckId, 0, origin, { excludeLoadId: twin.id, pickupAddress, pickupDate: load.pickupDate ?? null })
         : twin.deadhead_miles
       await sql`
         UPDATE loads SET
@@ -1084,16 +1093,19 @@ export async function createLoadFromRc(
           delivery_date = COALESCE(delivery_date, ${load.deliveryDate ?? null}),
           broker_name = ${brokerName}, broker_mc = ${brokerMc}, broker_phone = ${brokerPhone}, broker_email = ${brokerEmail},
           broker_notes = ${notes}, driver_info = ${info}, pay_via = COALESCE(pay_via, ${load.payVia ?? null}),
-          stops = COALESCE(stops, ${stopsJson}::jsonb)
+          stops = COALESCE(stops, ${stopsJson}),
+          directions = COALESCE(${directionsJson}, directions)
         WHERE id = ${twin.id} AND company_id = ${companyId}`
       // Файл — к этому же грузу, со своим типом (лист водителя остаётся листом).
       if (docId && (await docBelongs(companyId, docId)))
         await sql`UPDATE documents SET load_id = ${twin.id} WHERE id = ${docId} AND load_id IS NULL`
+      // Имена файлов груза — по номеру груза и брокеру, которые только что прочитал ИИ.
+      await retitleDocuments({ loadId: twin.id, ids: docId ? [docId] : [] })
       revalidatePath(`/loads/${twin.id}`)
       revalidatePath(`/trucks/${truckId}`)
       revalidatePath('/loads')
       revalidatePath('/')
-      const dh = await deadheadCheck(companyId, truckId, twin.id, pickupAddress ?? load.pickupAddress ?? null, origin)
+      const dh = await deadheadCheck(companyId, truckId, twin.id, pickupAddress ?? load.pickupAddress ?? null, origin, load.pickupDate ?? null)
       return {
         loadId: twin.id,
         merged: true,
@@ -1136,7 +1148,7 @@ export async function createLoadFromRc(
     }
     // Порожний — по дороге и от правильной точки (deadheadCheck); напечатанный в
     // документе, если он там есть, важнее.
-    const dh = await deadheadCheck(companyId, truckId, null, load.pickupAddress ?? null, load.origin)
+    const dh = await deadheadCheck(companyId, truckId, null, load.pickupAddress ?? null, load.origin, load.pickupDate ?? null)
     const deadheadMiles = load.deadheadMiles > 0 ? load.deadheadMiles : (dh?.miles ?? load.deadheadMiles)
     // Тот же добор MC, что и при ручном заведении: рейт-кон о нём обычно молчит.
     const brokerMc = load.brokerMc || (await knownBrokerMc(companyId, load.brokerName, load.brokerEmail))
@@ -1153,14 +1165,14 @@ export async function createLoadFromRc(
                          destination, truck_location, spot_rpm, broker_name, broker_mc, broker_email,
                          broker_phone, reference_id, source, truck_id, pickup_date,
                          delivery_date, broker_notes, pickup_time, delivery_time,
-                         pickup_address, delivery_address, status, dispatcher_id, company_id, driver_info, pay_via, miles_estimated, stops)
+                         pickup_address, delivery_address, status, dispatcher_id, company_id, driver_info, pay_via, miles_estimated, stops, directions)
       VALUES (${load.rate}, ${loadedMiles}, ${deadheadMiles}, ${load.transitDays},
               ${load.origin}, ${load.destination}, ${load.truckLocation}, ${load.spotRpm},
               ${load.brokerName}, ${brokerMc}, ${load.brokerEmail}, ${load.brokerPhone}, ${load.referenceId},
               'qr', ${truckId}, ${load.pickupDate ?? null}, ${load.deliveryDate ?? null},
               ${load.brokerNotes ?? null}, ${load.pickupTime ?? null}, ${load.deliveryTime ?? null},
               ${load.pickupAddress ?? null}, ${load.deliveryAddress ?? null}, 'booked', ${dispatcherId}, ${companyId},
-              ${await driverInfoWithCities(driverInfo)}, ${load.payVia ?? null}, ${milesEstimated}, ${stopsJson}::jsonb)
+              ${await driverInfoWithCities(driverInfo)}, ${load.payVia ?? null}, ${milesEstimated}, ${stopsJson}, ${directionsJson})
       RETURNING id`
     const loadId = (rows[0] as { id: number }).id
     if (docId && (await docBelongs(companyId, docId)))
@@ -1169,6 +1181,7 @@ export async function createLoadFromRc(
       // «Другое» из Telegram становится рейт-коном; лист водителя своим типом и остаётся.
       await sql`UPDATE documents SET load_id = ${loadId}, kind = CASE WHEN kind = 'other' THEN 'ratecon' ELSE kind END
                 WHERE id = ${docId} AND load_id IS NULL`
+    await retitleDocuments({ loadId, ids: docId ? [docId] : [] })
     revalidatePath(`/trucks/${truckId}`)
     revalidatePath('/loads')
     revalidatePath('/')
@@ -1181,6 +1194,8 @@ export async function createLoadFromRc(
     }
   } catch (e) {
     return { error: humanError(e, locale) }
+  } finally {
+    if (lock) await deleteSetting(lock)
   }
 }
 
@@ -1206,7 +1221,7 @@ export async function createLoadFromExistingRc(
   // the truck's files" is to rescue exactly that case. Clicking recognise asserts it's a
   // rate con; if the AI can't read one out of it, geminiExtract errors cleanly below.
   const rows = await sql`
-    SELECT replace(encode(data, 'base64'), E'\n', '') AS b64, mime, load_id
+    SELECT REPLACE(TO_BASE64(data), CHAR(10 USING ascii), '') AS b64, mime, load_id
     FROM documents WHERE id = ${docId} AND company_id = ${companyId}`
   const doc = rows[0] as { b64: string; mime: string; load_id: number | null } | undefined
   if (!doc) return { error: t(locale, 'actions.rateconNotFound') }
@@ -1251,18 +1266,25 @@ export async function setStatus(id: number, status: LoadStatus): Promise<{ error
   //
   // «Оплачен» проверку сохраняет: это уже про деньги, и пакет для счёта (lib/invoice.ts)
   // без POD собрать нельзя — там запрет не раздражает, а спасает.
-  if (status === 'paid') {
-    const d = await deliveryDocs(id)
-    if (!d.bol || !d.pod) {
-      const missing = [!d.bol ? 'BOL' : null, !d.pod ? 'POD' : null].filter(Boolean).join(' + ')
-      return {
-        error: t(await getLocale(), 'actions.paidNeedsDocs').replace('{missing}', missing),
-      }
-    }
+  // «Оплачен» — только из «Финансов»: деньги отмечает бухгалтер, с датой, суммой и
+  // этапом факторинга (app/invoices/payment-actions.ts). Увести груз из «Оплачен»
+  // полосой тоже нельзя, если оплата записана, — иначе учёт и статус разойдутся.
+  if (status === 'paid') return { error: t(await getLocale(), 'payments.err.useFinances') }
+  {
+    const pay = (await sql`SELECT stage FROM load_payments WHERE load_id = ${id}`) as { stage: string }[]
+    if (pay[0] && ['funded', 'closed', 'paid'].includes(pay[0].stage))
+      return { error: t(await getLocale(), 'payments.err.paidInFinances') }
   }
+  // Ручная смена статуса главнее GPS. Автоматика (autoAdvanceLoadStatuses) двигает груз
+  // вперёд по отметкам «трак был у погрузки / у выгрузки» и уехал. Если диспетчер вернул
+  // груз назад, эти отметки больше не правда — без сброса через 3 минуты статус снова
+  // становился «Доставлен» (трак проехал в 12 милях от выгрузки, а сдал груз позже).
+  // Снова приедет и уедет — автоматика отметит заново.
   await sql`
     UPDATE loads SET status = ${status},
-      paid_at = CASE WHEN ${status} = 'paid' THEN COALESCE(paid_at, now())
+      pickup_arrived_at = CASE WHEN ${status} IN ('quoted', 'booked') THEN NULL ELSE pickup_arrived_at END,
+      delivery_arrived_at = CASE WHEN ${status} IN ('quoted', 'booked', 'in_transit') THEN NULL ELSE delivery_arrived_at END,
+      paid_at = CASE WHEN ${status} = 'paid' THEN COALESCE(paid_at, NOW(6))
                      WHEN paid_at IS NOT NULL THEN NULL
                      ELSE paid_at END
     WHERE id = ${id} AND company_id = ${await companyScope()}`
@@ -1323,6 +1345,7 @@ export async function saveTruck(id: number, t: TruckInput): Promise<{ error: str
         factoring_percent = ${t.factoringPercent},
         dispatch_percent = ${t.dispatchPercent}
       WHERE id = ${id} AND company_id = ${await companyScope()}`
+    await retitleDocuments({ truckId: id })
   } catch (e) {
     return { error: humanError(e, await getLocale()) }
   }
@@ -1400,8 +1423,9 @@ export async function uploadDocument(fd: FormData): Promise<{ id: number } | { e
     const rows = await sql`
       INSERT INTO documents (truck_id, load_id, maintenance_id, kind, title, mime, size_bytes, data, company_id, stop_seq)
       VALUES (${truckId}, ${loadId}, ${maintenanceId}, ${kind}, ${title},
-              ${file.type || 'application/octet-stream'}, ${file.size}, decode(${hex}, 'hex'), ${companyId}, ${stopSeq})
+              ${file.type || 'application/octet-stream'}, ${file.size}, UNHEX(${hex}), ${companyId}, ${stopSeq})
       RETURNING id`
+    await retitleDocuments({ ids: [(rows[0] as { id: number }).id] })
     revalidatePath('/docs')
     if (truckId) revalidatePath(`/trucks/${truckId}`)
     if (loadId) revalidatePath(`/loads/${loadId}`)
@@ -1459,8 +1483,94 @@ export async function addLoadEventManual(
     truck_id: number | null
   }[]
   await sql`INSERT INTO load_events (company_id, load_id, truck_id, kind, note, at, stop_seq)
-            VALUES (${companyId}, ${loadId}, ${rows[0]?.truck_id ?? null}, ${kind}, ${note?.trim() || null}, ${when.toISOString()}, ${stopSeq ?? null})`
+            VALUES (${companyId}, ${loadId}, ${rows[0]?.truck_id ?? null}, ${kind}, ${note?.trim() || null}, ${when}, ${stopSeq ?? null})`
   revalidatePath(`/loads/${loadId}`)
+}
+
+/**
+ * Deadhead груза, вписанный или подтверждённый диспетчером с красного флага («Исправить» /
+ * «Всё верно»). Это его право: система считает от прошлой выгрузки и ошибается, когда
+ * груз не заведён или выгрузок в день две. Подтверждённое число флаг больше не трогает.
+ */
+export async function setDeadhead(loadId: number, miles: number): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const locale = await getLocale()
+  const mi = Math.round(Number(miles))
+  if (!Number.isFinite(mi) || mi < 0 || mi > 5000) return { error: t(locale, 'actions.deadheadNegative') }
+  const companyId = await companyScope()
+  if (!(await loadBelongs(companyId, loadId))) return { error: t(locale, 'actions.loadNotFound') }
+  await sql`UPDATE loads SET deadhead_miles = ${mi}, deadhead_ok_miles = ${mi} WHERE id = ${loadId} AND company_id = ${companyId}`
+  revalidatePath(`/loads/${loadId}`)
+  revalidatePath('/loads')
+  revalidatePath('/trucks', 'layout')
+  revalidatePath('/')
+}
+
+/** Ручной порядок остановок задания трака (стрелки в «Задании по порядку»). Лента
+ * в приложении водителя строится по нему же. */
+export async function saveTaskOrder(truckId: number, keys: string[]): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: 'truck' }
+  const clean = keys.filter((k) => typeof k === 'string' && /^\d+:\d+$/.test(k)).slice(0, 100)
+  await setSetting(taskOrderKey(truckId), JSON.stringify(clean))
+  revalidatePath(`/trucks/${truckId}`)
+  revalidatePath('/loads', 'layout')
+}
+
+/**
+ * Статус остановки из «Задания по порядку»: ожидается / приехал / загрузился-выгрузился.
+ * Пишет те же отметки, что водитель и полоса статусов, и двигает статус груза так же:
+ * первая отметка — «В пути», последняя выгрузка отмечена — «Доставлен», снята — снова
+ * «В пути». Оплаченный и отменённый груз статус не меняют.
+ */
+export async function setStopState(
+  loadId: number,
+  seq: number,
+  state: 'none' | 'arrived' | 'done',
+): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  if (!['none', 'arrived', 'done'].includes(state)) return { error: 'bad state' }
+  const companyId = await companyScope()
+  const load = await getLoad(companyId, loadId)
+  if (!load) return { error: t(await getLocale(), 'actions.loadNotFound') }
+  const stops = stopsFrom(load)
+  const stop = stops.find((s) => s.seq === seq)
+  if (!stop) return { error: 'stop' }
+  const arrive = stop.role === 'pickup' ? 'arrived_pickup' : 'arrived_delivery'
+  const done = stop.role === 'pickup' ? 'loaded' : 'delivered'
+  const lastDelivery = [...stops].reverse().find((s) => s.role === 'delivery')
+  // Отметки без номера относятся к первой погрузке и последней выгрузке (lib/stops.ts
+  // eventSeq) — их тоже снимаем, иначе точка осталась бы пройденной.
+  const isEnd = stop.role === 'pickup' ? stops.find((s) => s.role === 'pickup')?.seq === seq : lastDelivery?.seq === seq
+  // «Загрузился» сохраняет время прибытия (по нему считается простой); «приехал» и
+  // «ожидается» начинают точку заново.
+  const kinds = state === 'done' ? [done] : [arrive, done]
+  await sql`DELETE FROM load_events
+            WHERE company_id = ${companyId} AND load_id = ${loadId} AND kind IN (${kinds})
+              AND (stop_seq = ${seq} OR (${isEnd} AND stop_seq IS NULL))`
+  if (state !== 'none')
+    await sql`INSERT INTO load_events (company_id, load_id, truck_id, kind, note, at, stop_seq)
+              VALUES (${companyId}, ${loadId}, ${load.truckId}, ${state === 'done' ? done : arrive}, NULL, ${new Date()}, ${seq})`
+
+  let next: LoadStatus | null = null
+  if (load.status !== 'paid' && load.status !== 'cancelled') {
+    if (state !== 'none' && (load.status === 'quoted' || load.status === 'booked')) next = 'in_transit'
+    if (lastDelivery?.seq === seq) {
+      if (state === 'done') next = 'delivered'
+      else if (load.status === 'delivered') next = 'in_transit'
+    }
+  }
+  if (next && next !== load.status)
+    await sql`UPDATE loads SET status = ${next},
+                delivery_arrived_at = CASE WHEN ${next} = 'in_transit' THEN NULL ELSE delivery_arrived_at END
+              WHERE id = ${loadId} AND company_id = ${companyId}`
+  revalidatePath(`/loads/${loadId}`)
+  revalidatePath('/loads')
+  revalidatePath('/trucks', 'layout')
+  revalidatePath('/')
 }
 
 /** Снять отметку «загрузился/выгрузился» с промежуточной остановки — откат клика
@@ -1476,7 +1586,7 @@ export async function unmarkStop(
   if (!(await loadBelongs(companyId, loadId))) return { error: 'load' }
   const kinds = role === 'pickup' ? ['arrived_pickup', 'loaded'] : ['arrived_delivery', 'delivered']
   await sql`DELETE FROM load_events
-            WHERE company_id = ${companyId} AND load_id = ${loadId} AND stop_seq = ${stopSeq} AND kind = ANY(${kinds})`
+            WHERE company_id = ${companyId} AND load_id = ${loadId} AND stop_seq = ${stopSeq} AND kind IN (${kinds})`
   revalidatePath(`/loads/${loadId}`)
 }
 
@@ -1486,7 +1596,9 @@ export async function setDocumentKind(docId: number, kind: string): Promise<{ er
   if (!(kind in DOC_KINDS)) return { error: 'bad kind' }
   const companyId = await companyScope()
   if (!(await docBelongs(companyId, docId))) return
-  const rows = await sql`UPDATE documents SET kind = ${kind} WHERE id = ${docId} RETURNING load_id`
+  await sql`UPDATE documents SET kind = ${kind} WHERE id = ${docId}`
+  await retitleDocuments({ ids: [docId] })
+  const rows = await sql`SELECT load_id FROM documents WHERE id = ${docId}`
   const loadId = (rows[0] as { load_id: number | null } | undefined)?.load_id
   revalidatePath('/docs')
   if (loadId) {
@@ -1513,8 +1625,10 @@ export async function attachDocumentToLoad(docId: number, loadId: number): Promi
   if (ro) return
   const companyId = await companyScope()
   if (!(await docBelongs(companyId, docId)) || !(await loadBelongs(companyId, loadId))) return
-  const rows = await sql`
-    UPDATE documents SET load_id = ${loadId} WHERE id = ${docId} AND load_id IS NULL RETURNING kind`
+  const upd = await sql`
+    UPDATE documents SET load_id = ${loadId} WHERE id = ${docId} AND load_id IS NULL`
+  if (upd.affectedRows) await retitleDocuments({ ids: [docId] })
+  const rows = upd.affectedRows ? await sql`SELECT kind FROM documents WHERE id = ${docId}` : []
   revalidatePath(`/loads/${loadId}`)
   revalidatePath('/docs')
   if ((rows[0] as { kind: string } | undefined)?.kind === 'pod') await autoInvoiceIfReady(companyId, loadId)
@@ -1571,7 +1685,7 @@ export async function deleteDocument(id: number, confirm: string): Promise<{ err
     const doc = rows[0]
     if (!doc) return { error: t(locale, 'actions.docNotFound') }
 
-    await sql`UPDATE documents SET deleted_at = now() WHERE id = ${id}`
+    await sql`UPDATE documents SET deleted_at = NOW(6) WHERE id = ${id}`
     await auditDelete(check.user.companyId, who, 'delete_document', doc.title, doc.kind, doc.origin, doc.destination)
   } catch (e) {
     return { error: humanError(e, locale) }
@@ -1669,11 +1783,12 @@ export async function updateLoadDetails(loadId: number, p: LoadDetailsPatch): Pr
       broker_email = ${p.brokerEmail || null}, pickup_date = ${p.pickupDate || null},
       delivery_date = ${p.deliveryDate || null},
       partial = COALESCE(${p.partial ?? null}, partial),
-      stops = COALESCE(${p.stops?.length ? JSON.stringify(p.stops) : null}::jsonb, stops)
+      stops = COALESCE(${p.stops?.length ? JSON.stringify(p.stops) : null}, stops)
       WHERE id = ${loadId} AND company_id = ${await companyScope()}`
   } catch (e) {
     return { error: humanError(e, locale) }
   }
+  await retitleDocuments({ loadId })
   revalidatePath(`/loads/${loadId}`)
   revalidatePath('/loads')
   revalidatePath('/', 'layout')
@@ -1689,14 +1804,87 @@ export async function setLoadPartial(loadId: number, partial: boolean): Promise<
   if (ro) return ro
   const companyId = await companyScope()
   if (!(await loadBelongs(companyId, loadId))) return { error: t(await getLocale(), 'actions.loadNotFound') }
-  const rows =
-    (await sql`UPDATE loads SET partial = ${partial} WHERE id = ${loadId} AND company_id = ${companyId} RETURNING truck_id`) as {
-      truck_id: number | null
-    }[]
+  await sql`UPDATE loads SET partial = ${partial} WHERE id = ${loadId} AND company_id = ${companyId}`
+  const rows = (await sql`SELECT truck_id FROM loads WHERE id = ${loadId} AND company_id = ${companyId}`) as {
+    truck_id: number | null
+  }[]
   revalidatePath(`/loads/${loadId}`)
   if (rows[0]?.truck_id) revalidatePath(`/trucks/${rows[0].truck_id}`)
   revalidatePath('/loads')
   revalidatePath('/', 'layout')
+}
+
+/** Флаг «следить» (caution / important / critical), как в Alvys: поднимает груз наверх
+ * очереди внимания на /loads. null — снять. */
+export async function setLoadPriority(loadId: number, priority: LoadPriority | null): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const companyId = await companyScope()
+  if (!(await loadBelongs(companyId, loadId))) return { error: t(await getLocale(), 'actions.loadNotFound') }
+  const value = priority !== null && LOAD_PRIORITIES.includes(priority) ? priority : null
+  await sql`UPDATE loads SET priority = ${value} WHERE id = ${loadId} AND company_id = ${companyId}`
+  revalidatePath(`/loads/${loadId}`)
+  revalidatePath('/loads')
+  revalidatePath('/', 'layout')
+}
+
+/** Доп. начисление брокеру (detention, lumper, TONU…) — строкой в счёт, ставка груза не
+ * меняется. Письмо брокеру — руками, как и всё остальное. */
+export async function addLoadCharge(
+  loadId: number,
+  kind: ChargeKind,
+  amount: number,
+  note: string,
+): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const locale = await getLocale()
+  const companyId = await companyScope()
+  if (!(await loadBelongs(companyId, loadId))) return { error: t(locale, 'actions.loadNotFound') }
+  if (!CHARGE_KINDS.includes(kind) || !Number.isFinite(amount) || amount <= 0) return { error: t(locale, 'loads.charges.badAmount') }
+  try {
+    await sql`INSERT INTO load_charges (company_id, load_id, kind, amount, note)
+              VALUES (${companyId}, ${loadId}, ${kind}, ${Math.round(amount * 100) / 100}, ${note.trim() || null})`
+  } catch (e) {
+    return { error: humanError(e, locale) }
+  }
+  revalidatePath(`/loads/${loadId}`)
+}
+
+export async function deleteLoadCharge(id: number, loadId: number): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const companyId = await companyScope()
+  if (!(await loadBelongs(companyId, loadId))) return { error: t(await getLocale(), 'actions.loadNotFound') }
+  await sql`DELETE FROM load_charges WHERE id = ${id} AND load_id = ${loadId} AND company_id = ${companyId}`
+  revalidatePath(`/loads/${loadId}`)
+}
+
+/** Заметка о складе (справочник складов, lib/facilities.ts): часы, ворота, кому звонить.
+ * Пустая строка стирает. Ключ — нормализованный адрес, поэтому без проверки владельца:
+ * settings и так общие на компанию. */
+export async function saveFacilityNote(key: string, text: string): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  if (!key || key.length > 120) return { error: 'bad key' }
+  const value = text.trim().slice(0, 500)
+  if (value) await setSetting(facilityNoteKey(key), value)
+  else await deleteSetting(facilityNoteKey(key))
+  revalidatePath('/facilities', 'layout')
+  revalidatePath('/brokers', 'layout')
+  revalidatePath('/loads', 'layout')
+}
+
+/** Заметка о брокере: как платит, с кем говорить. Видна в карточке брокера. */
+export async function saveBrokerNote(key: string, text: string): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  if (!key || key.length > 120) return { error: 'bad key' }
+  const { brokerNoteKey } = await import('@/lib/broker-key')
+  const value = text.trim().slice(0, 500)
+  if (value) await setSetting(brokerNoteKey(key), value)
+  else await deleteSetting(brokerNoteKey(key))
+  revalidatePath('/brokers', 'layout')
 }
 
 /** Save the broker's special-instructions text (the "must read" block). */
@@ -1735,7 +1923,7 @@ export async function translateBrokerNotes(
 export async function markNotesRead(loadId: number): Promise<void> {
   const ro = await demoReadOnly()
   if (ro) return
-  await sql`UPDATE loads SET notes_read_at = now()
+  await sql`UPDATE loads SET notes_read_at = NOW(6)
     WHERE id = ${loadId} AND company_id = ${await companyScope()} AND notes_read_at IS NULL`
   revalidatePath(`/loads/${loadId}`)
 }
@@ -1761,7 +1949,7 @@ export async function parseRcForNotes(loadId: number): Promise<{ error: string }
   // Postgres base64 comes newline-wrapped (PEM style); Gemini's decoder rejects the
   // newlines, so strip them.
   const docs = (await sql`
-    SELECT replace(encode(data, 'base64'), E'\n', '') AS b64, mime
+    SELECT REPLACE(TO_BASE64(data), CHAR(10 USING ascii), '') AS b64, mime
     FROM documents WHERE load_id = ${loadId} AND company_id = ${companyId} AND kind = 'ratecon'
     ORDER BY uploaded_at DESC LIMIT 1`) as { b64: string; mime: string }[]
   const doc = docs[0]
@@ -1800,11 +1988,13 @@ export async function parseRcForNotes(loadId: number): Promise<{ error: string }
       reference_id = COALESCE(reference_id, ${load.referenceId}),
       pay_via = COALESCE(pay_via, ${load.payVia}),
       driver_info = ${driverInfo},
-      stops = COALESCE(${fields.stops && fields.stops.length > 2 ? JSON.stringify(await fillStopCitiesFromZip(fields.stops)) : null}::jsonb, stops)
+      stops = COALESCE(${fields.stops && fields.stops.length > 2 ? JSON.stringify(await fillStopCitiesFromZip(fields.stops)) : null}, stops),
+      directions = COALESCE(${directionsOf(fields.stops) ? JSON.stringify(directionsOf(fields.stops)) : null}, directions)
       WHERE id = ${loadId} AND company_id = ${companyId}`
   } catch (e) {
     return { error: humanError(e, locale) }
   }
+  await retitleDocuments({ loadId })
   revalidatePath(`/loads/${loadId}`)
   revalidatePath('/trucks', 'layout')
   revalidatePath('/', 'layout')
@@ -1873,7 +2063,7 @@ export async function addMaintenance(truckId: number, m: MaintenanceInput): Prom
     if (m.kind === 'service' && m.odometer !== null && /масл|oil/i.test(m.title)) {
       await sql`
         INSERT INTO truck_meta (truck_id, oil_last_odometer) VALUES (${truckId}, ${m.odometer})
-        ON CONFLICT (truck_id) DO UPDATE SET oil_last_odometer = ${m.odometer}`
+        ON DUPLICATE KEY UPDATE oil_last_odometer = ${m.odometer}`
     }
   } catch (e) {
     return { error: humanError(e, locale) }
@@ -1930,7 +2120,7 @@ export async function toggleTodo(id: number, truckId: number): Promise<void> {
   if (ro) return
   if (!(await truckBelongs(await companyScope(), truckId))) return
   await sql`UPDATE truck_todos
-            SET done_at = CASE WHEN done_at IS NULL THEN now() ELSE NULL END
+            SET done_at = CASE WHEN done_at IS NULL THEN NOW(6) ELSE NULL END
             WHERE id = ${id} AND truck_id = ${truckId}`
   revalidatePath(`/trucks/${truckId}`)
 }
@@ -1971,6 +2161,16 @@ export type TruckMetaInput = {
   insuranceExpiry: string | null
   cdlExpiry: string | null
   medcardExpiry: string | null
+  /** Профиль водителя для планировщика (lib/maintenance-core.ts DriverProfile). */
+  homeState: string
+  homeFrom: string | null
+  homeTo: string | null
+  weekTargetMiles: number | null
+  weekTargetGross: number | null
+  /** «NY, CA» — как ввёл диспетчер; коды вычищает parseStates. */
+  avoidStates: string
+  /** Цель по ставке, $/mi; пусто или 0 — цели нет. */
+  targetRpm: number | null
 }
 
 const d = (s: string | null) => (s && s.trim() ? s : null)
@@ -2005,21 +2205,24 @@ export async function saveDriverInfo(
     // Номер трака стирать нельзя: по нему GPS находит машину (fleet_status.unit).
     // Пустое поле значит «не менял», а не «убрать».
     const num = d.truckNumber?.trim()
-    if (num) await sql`UPDATE trucks SET number = ${num} WHERE id = ${truckId}`
+    if (num) {
+      await sql`UPDATE trucks SET number = ${num} WHERE id = ${truckId}`
+      await retitleDocuments({ truckId })
+    }
     const trailer = d.trailerNumber?.trim() ?? null
     const vin = d.vin?.trim() ?? null
     await sql`
       INSERT INTO truck_meta (truck_id, driver_phone, cdl_expiry, medcard_expiry, trailer_number, vin)
       VALUES (${truckId}, ${d.phone.trim() || null}, ${d.cdlExpiry || null}, ${d.medcardExpiry || null},
               ${trailer}, ${vin})
-      ON CONFLICT (truck_id) DO UPDATE SET
-        driver_phone   = EXCLUDED.driver_phone,
-        cdl_expiry     = EXCLUDED.cdl_expiry,
-        medcard_expiry = EXCLUDED.medcard_expiry,
+      ON DUPLICATE KEY UPDATE
+        driver_phone   = VALUES(driver_phone),
+        cdl_expiry     = VALUES(cdl_expiry),
+        medcard_expiry = VALUES(medcard_expiry),
         -- COALESCE, а не присваивание: форма может не показывать эти поля (её зовут
         -- и с других экранов), и тогда пустое значение не должно стирать номер.
-        trailer_number = COALESCE(EXCLUDED.trailer_number, truck_meta.trailer_number),
-        vin            = COALESCE(EXCLUDED.vin, truck_meta.vin)`
+        trailer_number = COALESCE(VALUES(trailer_number), truck_meta.trailer_number),
+        vin            = COALESCE(VALUES(vin), truck_meta.vin)`
   } catch (e) {
     return { error: humanError(e, locale) }
   }
@@ -2041,14 +2244,14 @@ export async function saveDriverPhoto(truckId: number, fd: FormData): Promise<{ 
   if (!file.type.startsWith('image/')) return { error: t(locale, 'actions.needImage') }
   if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
 
-  const hex = Buffer.from(await file.arrayBuffer()).toString('hex')
+  const hex = (await shrinkPhoto(Buffer.from(await file.arrayBuffer()), 512)).toString('hex')
   try {
     await sql`
       INSERT INTO truck_meta (truck_id, driver_photo, driver_photo_mime)
-      VALUES (${truckId}, decode(${hex}, 'hex'), ${file.type})
-      ON CONFLICT (truck_id) DO UPDATE SET
-        driver_photo      = EXCLUDED.driver_photo,
-        driver_photo_mime = EXCLUDED.driver_photo_mime`
+      VALUES (${truckId}, UNHEX(${hex}), 'image/jpeg')
+      ON DUPLICATE KEY UPDATE
+        driver_photo      = VALUES(driver_photo),
+        driver_photo_mime = VALUES(driver_photo_mime)`
   } catch (e) {
     return { error: humanError(e, locale) }
   }
@@ -2068,14 +2271,14 @@ export async function saveTruckPhoto(truckId: number, fd: FormData): Promise<{ e
   if (!file.type.startsWith('image/')) return { error: t(locale, 'actions.needImage') }
   if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
 
-  const hex = Buffer.from(await file.arrayBuffer()).toString('hex')
+  const hex = (await shrinkPhoto(Buffer.from(await file.arrayBuffer()), 1200)).toString('hex')
   try {
     await sql`
       INSERT INTO truck_meta (truck_id, truck_photo, truck_photo_mime)
-      VALUES (${truckId}, decode(${hex}, 'hex'), ${file.type})
-      ON CONFLICT (truck_id) DO UPDATE SET
-        truck_photo      = EXCLUDED.truck_photo,
-        truck_photo_mime = EXCLUDED.truck_photo_mime,
+      VALUES (${truckId}, UNHEX(${hex}), 'image/jpeg')
+      ON DUPLICATE KEY UPDATE
+        truck_photo      = VALUES(truck_photo),
+        truck_photo_mime = VALUES(truck_photo_mime),
         truck_model      = NULL`
   } catch (e) {
     return { error: humanError(e, locale) }
@@ -2096,8 +2299,8 @@ export async function saveTruckModel(truckId: number, model: string | null): Pro
     await sql`
       INSERT INTO truck_meta (truck_id, truck_model)
       VALUES (${truckId}, ${model})
-      ON CONFLICT (truck_id) DO UPDATE SET
-        truck_model      = EXCLUDED.truck_model,
+      ON DUPLICATE KEY UPDATE
+        truck_model      = VALUES(truck_model),
         truck_photo      = NULL,
         truck_photo_mime = NULL`
   } catch (e) {
@@ -2116,23 +2319,33 @@ export async function saveTruckMeta(truckId: number, m: TruckMetaInput): Promise
       INSERT INTO truck_meta (truck_id, vin, plate, trailer_number, year, make, model,
                               oil_interval_mi, oil_last_odometer, driver_phone, notes,
                               registration_expiry, inspection_expiry, insurance_expiry,
-                              cdl_expiry, medcard_expiry)
+                              cdl_expiry, medcard_expiry,
+                              home_state, home_from, home_to, week_target_miles, week_target_gross, avoid_states,
+                              target_rpm)
       VALUES (${truckId}, ${m.vin.trim() || null}, ${m.plate.trim() || null},
               ${m.trailerNumber.trim() || null}, ${m.year},
               ${m.make.trim() || null}, ${m.model.trim() || null}, ${m.oilIntervalMi},
               ${m.oilLastOdometer}, ${m.driverPhone.trim() || null}, ${m.notes.trim() || null},
               ${d(m.registrationExpiry)}, ${d(m.inspectionExpiry)}, ${d(m.insuranceExpiry)},
-              ${d(m.cdlExpiry)}, ${d(m.medcardExpiry)})
-      ON CONFLICT (truck_id) DO UPDATE SET
-        vin = EXCLUDED.vin, plate = EXCLUDED.plate, trailer_number = EXCLUDED.trailer_number, year = EXCLUDED.year,
-        make = EXCLUDED.make, model = EXCLUDED.model,
-        oil_interval_mi = EXCLUDED.oil_interval_mi,
-        oil_last_odometer = EXCLUDED.oil_last_odometer,
-        driver_phone = EXCLUDED.driver_phone, notes = EXCLUDED.notes,
-        registration_expiry = EXCLUDED.registration_expiry,
-        inspection_expiry = EXCLUDED.inspection_expiry,
-        insurance_expiry = EXCLUDED.insurance_expiry,
-        cdl_expiry = EXCLUDED.cdl_expiry, medcard_expiry = EXCLUDED.medcard_expiry`
+              ${d(m.cdlExpiry)}, ${d(m.medcardExpiry)},
+              ${parseStates(m.homeState)[0] ?? null}, ${d(m.homeFrom)}, ${d(m.homeTo)},
+              ${m.weekTargetMiles && m.weekTargetMiles > 0 ? Math.round(m.weekTargetMiles) : null},
+              ${m.weekTargetGross && m.weekTargetGross > 0 ? Math.round(m.weekTargetGross) : null},
+              ${parseStates(m.avoidStates).join(',') || null},
+              ${m.targetRpm && m.targetRpm > 0 ? Math.round(m.targetRpm * 100) / 100 : null})
+      ON DUPLICATE KEY UPDATE
+        vin = VALUES(vin), plate = VALUES(plate), trailer_number = VALUES(trailer_number), year = VALUES(year),
+        make = VALUES(make), model = VALUES(model),
+        oil_interval_mi = VALUES(oil_interval_mi),
+        oil_last_odometer = VALUES(oil_last_odometer),
+        driver_phone = VALUES(driver_phone), notes = VALUES(notes),
+        registration_expiry = VALUES(registration_expiry),
+        inspection_expiry = VALUES(inspection_expiry),
+        insurance_expiry = VALUES(insurance_expiry),
+        cdl_expiry = VALUES(cdl_expiry), medcard_expiry = VALUES(medcard_expiry),
+        home_state = VALUES(home_state), home_from = VALUES(home_from), home_to = VALUES(home_to),
+        week_target_miles = VALUES(week_target_miles), week_target_gross = VALUES(week_target_gross),
+        avoid_states = VALUES(avoid_states), target_rpm = VALUES(target_rpm)`
   } catch (e) {
     return { error: humanError(e, locale) }
   }
@@ -2405,6 +2618,43 @@ export async function tollsFromDocument(
 }
 
 /**
+ * Скриншот доски грузов → строки поля «Сравнить грузы с доски» в «Куда отправить трак».
+ *
+ * Отдаёт строки, а не грузы: они ложатся в то же поле, что и ручной ввод, — диспетчер
+ * видит, что именно прочитал ИИ, и неверную цифру поправит руками. Ничего не сохраняет,
+ * но тратит дневной лимит Gemini, поэтому в общей витрине демо выключено — как толлы по
+ * документу выше.
+ */
+export async function readBoardScreenshot(
+  fd: FormData,
+): Promise<{ lines: string[]; skipped: number } | { error: string }> {
+  const locale = await getLocale()
+  if ((await getCurrentUser())?.isDemo) return { error: t(locale, 'plan.boardDemo') }
+  // Список DAT не влезает в один экран — до четырёх скриншотов за раз.
+  const files = fd
+    .getAll('file')
+    .filter((f): f is File => f instanceof File && f.size > 0)
+    .slice(0, 4)
+  if (!files.length) return { error: t(locale, 'actions.noFileSelected') }
+  if (files.some((f) => !f.type.startsWith('image/'))) return { error: t(locale, 'actions.needImage') }
+  if (files.reduce((sum, f) => sum + f.size, 0) > 8 * 1024 * 1024) return { error: t(locale, 'tolls.docTooBig') }
+
+  const { geminiJson } = await import('@/lib/ratecon-gemini')
+  const { BOARD_SHOT_PROMPT, BOARD_SHOT_SCHEMA, boardShotLines } = await import('@/lib/board-shot')
+  const parts: unknown[] = [{ text: BOARD_SHOT_PROMPT }]
+  for (const f of files) parts.push({ inlineData: { mimeType: f.type, data: Buffer.from(await f.arrayBuffer()).toString('base64') } })
+  // Скриншот читается за секунды; зависшую модель ждём не дольше 35 с и идём к следующей.
+  const res = await geminiJson<import('@/lib/board-shot').BoardShotAnswer>(
+    parts,
+    BOARD_SHOT_SCHEMA,
+    (a) => Array.isArray(a?.loads),
+    35_000,
+  )
+  if ('error' in res) return { error: res.error === 'no_key' ? t(locale, 'actions.aiUnavailable') : res.error }
+  return boardShotLines(res.data)
+}
+
+/**
  * Записывает посчитанные толлы на груз — с этого момента они входят в прибыль.
  *
  * Отдельным действием, а не автоматически при расчёте: маршрут в разделе считают
@@ -2506,10 +2756,10 @@ export async function undoRcUpload(loadId: number): Promise<{ error: string } | 
   if (!(await loadBelongs(companyId, loadId))) return { error: t(locale, 'actions.loadNotFound') }
   const rows = (await sql`
     SELECT l.origin, l.destination, l.truck_id,
-      (l.created_at > now() - interval '2 hours') AS fresh,
-      (SELECT count(*) FROM load_events e WHERE e.load_id = l.id)::int AS events,
+      (l.created_at > NOW(6) - INTERVAL 2 HOUR) AS fresh,
+      (SELECT count(*) FROM load_events e WHERE e.load_id = l.id) AS events,
       (SELECT count(*) FROM documents d
-        WHERE d.load_id = l.id AND d.deleted_at IS NULL AND d.kind NOT IN ('ratecon', 'driverinfo'))::int AS docs
+        WHERE d.load_id = l.id AND d.deleted_at IS NULL AND d.kind NOT IN ('ratecon', 'driverinfo')) AS docs
     FROM loads l WHERE l.id = ${loadId} AND l.company_id = ${companyId}`) as {
     origin: string | null
     destination: string | null
@@ -2523,7 +2773,7 @@ export async function undoRcUpload(loadId: number): Promise<{ error: string } | 
   if (!l.fresh || l.events > 0 || l.docs > 0) return { error: t(locale, 'actions.undoTooLate') }
   const who = (await getCurrentUser())?.name || t(locale, 'actions.dispatcherFallback')
   try {
-    await sql`UPDATE documents SET deleted_at = now(), load_id = NULL
+    await sql`UPDATE documents SET deleted_at = NOW(6), load_id = NULL
               WHERE load_id = ${loadId} AND kind IN ('ratecon', 'driverinfo')`
     await sql`UPDATE documents SET load_id = NULL WHERE load_id = ${loadId}`
     await sql`DELETE FROM loads WHERE id = ${loadId} AND company_id = ${companyId}`

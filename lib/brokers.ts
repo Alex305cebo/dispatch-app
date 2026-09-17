@@ -3,10 +3,15 @@
 // row can carry authority status when it's been checked. SERVER ONLY (queries DB).
 
 import { sql } from './db'
-import { emailDomain, foldReps, type BrokerRep } from './broker-key.ts'
+import { brokerKeyOf, emailDomain, foldReps, type BrokerRep } from './broker-key.ts'
 import { foldMoney, type MoneyRow } from './broker-money.ts'
+import { usDate } from './fmt.ts'
+import { todayEt } from './payments.ts'
+import { datCached, datEquipment, loadMarketRpm, versusMarket, type DatEquipment } from './dat-market'
 
 export type OurBroker = {
+  /** Ключ справочника (brokerKeyOf): MC, домен почты или название — адрес карточки. */
+  key: string
   /** Digits-only MC, or null if only a name was ever captured. */
   mc: string | null
   name: string | null
@@ -25,6 +30,10 @@ export type OurBroker = {
   payDays: number | null
   /** Сколько он должен прямо сейчас: выставлено, но не оплачено. */
   owed: number
+  /** Как он платит против рынка: средняя ставка за гружёную милю по его грузам против
+   * рынка тех же грузов (вписанная рыночная ставка, иначе DAT по региону погрузки) и
+   * дата снимка DAT. null — сравнивать не с чем. */
+  vsMarket: (NonNullable<ReturnType<typeof versusMarket>> & { date: string | null }) | null
   paidCount: number
   lateCount: number
   payGrade: 'good' | 'ok' | 'slow' | null
@@ -69,7 +78,8 @@ function nameFromEmail(email: string | null): string | null {
  * the load itself. That is a data problem, not a grouping one. */
 export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
   const rows = (await sql`
-    SELECT id, origin, destination, reference_id,
+    SELECT id, origin, destination, reference_id, spot_rpm,
+           (SELECT m.trailer_number FROM truck_meta m WHERE m.truck_id = loads.truck_id) AS trailer_number,
            broker_mc, broker_name, broker_phone, broker_email, pay_via, created_at,
            rate, loaded_miles, deadhead_miles, invoiced_at, paid_at, status
     FROM loads
@@ -77,6 +87,8 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
       AND (broker_name IS NOT NULL OR broker_mc IS NOT NULL)
     ORDER BY created_at DESC`) as {
     id: number
+    trailer_number: string | null
+    spot_rpm: number | string | null
     origin: string | null
     destination: string | null
     reference_id: string | null
@@ -94,6 +106,15 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
     status: string
   }[]
 
+  // Рынок грузов брокера — по правилу карточки груза; серия — по трейлеру трака, иначе Van.
+  // Суточный снимок DAT только из кэша: справочник чужой сервис не ждёт.
+  const seriesOf = (trailer: string | null): DatEquipment => datEquipment(trailer) ?? 'VAN'
+  const snaps = new Map(
+    await Promise.all([...new Set(rows.map((r) => seriesOf(r.trailer_number)))].map(async (eq) => [eq, await datCached(eq)] as const)),
+  )
+  const datAt = Math.min(...[...snaps.values()].flatMap((s) => (s ? [s.at] : [])))
+  const marketRows = new Map<string, { rate: number; loadedMiles: number; market: number | null }[]>()
+
   const money: MoneyRow[] = []
   // Люди копятся отдельно и сворачиваются в конце: один и тот же менеджер приходит
   // столько раз, сколько у него грузов.
@@ -101,7 +122,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
   const byKey = new Map<string, OurBroker>()
   for (const r of rows) {
     const mc = digits(r.broker_mc) || null
-    const key = mc ?? emailDomain(r.broker_email) ?? (r.broker_name ?? '').toLowerCase().trim()
+    const key = brokerKeyOf({ mc: r.broker_mc, email: r.broker_email, name: r.broker_name })
     if (!key) continue
     money.push({
       key,
@@ -111,6 +132,16 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
       invoicedAt: r.invoiced_at && String(r.invoiced_at),
       paidAt: r.paid_at && String(r.paid_at),
     })
+    // Отменённый груз — не ставка, по которой брокер заплатил.
+    if (r.status !== 'cancelled') {
+      const list = marketRows.get(key) ?? []
+      list.push({
+        rate: Number(r.rate) || 0,
+        loadedMiles: Number(r.loaded_miles) || 0,
+        market: loadMarketRpm(snaps.get(seriesOf(r.trailer_number)) ?? null, { spotRpm: Number(r.spot_rpm) || null, origin: r.origin }),
+      })
+      marketRows.set(key, list)
+    }
 
     // Неоплаченный = счёт выставлен, деньги не пришли. Не выставленный счёт сюда не
     // попадает: там нечего отмечать оплаченным, там надо выставлять.
@@ -130,7 +161,9 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
       name: r.broker_name,
       email: r.broker_email,
       phone: r.broker_phone,
-      at: r.created_at ? String(r.created_at).slice(0, 10) : null,
+      // created_at приходит из драйвера объектом Date, а не строкой: String(Date).slice(0, 10)
+      // давал «Sun Sep 13». День — по восточному времени, yyyy-mm-dd: по нему и сортируют.
+      at: r.created_at ? todayEt(new Date(r.created_at)) : null,
     })
     repRows.set(key, seen)
 
@@ -146,17 +179,19 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
       existing.payVia ??= r.pay_via
     } else {
       byKey.set(key, {
+        key,
         mc,
         name: r.broker_name,
         phone: r.broker_phone,
         email: r.broker_email,
         payVia: r.pay_via,
         loadCount: 1,
-        lastLoad: r.created_at ? String(r.created_at).slice(0, 10) : null,
+        lastLoad: r.created_at ? todayEt(new Date(r.created_at)) : null,
         gross: 0,
         rpm: 0,
         payDays: null,
         owed: 0,
+        vsMarket: null,
         paidCount: 0,
         lateCount: 0,
         payGrade: null,
@@ -174,7 +209,9 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
   // enriched; unseen ones are added with a zero load count.
   // ponytail: the FMCSA cache is shared across companies (public data); a truly
   // multi-tenant "who did WE check" needs a per-company checks table later.
-  const cached = (await sql`
+  // Демо этот кэш не видит: в нём брокеры, которых проверяла настоящая компания, и по
+  // нему видно, с кем она работает. В демо — только брокеры демо-грузов.
+  const cached = (companyId === 'demo' ? [] : await sql`
     SELECT mc, legal_name, dba_name, authority_status, phone, checked_at FROM brokers`) as {
     mc: string
     legal_name: string | null
@@ -191,7 +228,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
 
   for (const c of cached) {
     if (ownMc && c.mc === ownMc) continue
-    const checkedAt = c.checked_at ? String(c.checked_at).slice(0, 10) : null
+    const checkedAt = c.checked_at ? todayEt(new Date(c.checked_at)) : null
     const existing = byKey.get(c.mc)
     if (existing) {
       existing.authorityStatus = c.authority_status
@@ -201,6 +238,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
       existing.phone ??= c.phone
     } else {
       byKey.set(c.mc, {
+        key: c.mc,
         mc: c.mc,
         name: c.legal_name ?? c.dba_name,
         phone: c.phone,
@@ -212,6 +250,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
         rpm: 0,
         payDays: null,
         owed: 0,
+        vsMarket: null,
         paidCount: 0,
         lateCount: 0,
         payGrade: null,
@@ -230,6 +269,8 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
     b.reps = foldReps(repRows.get(key) ?? [])
     const m = byMoney.get(key)
     if (m) Object.assign(b, m)
+    const vs = versusMarket(marketRows.get(key) ?? [])
+    if (vs) b.vsMarket = { ...vs, date: Number.isFinite(datAt) ? usDate(todayEt(new Date(datAt))) : null }
   }
 
   // Brokers with loads first (by count), then checked-only brokers newest first.
@@ -263,7 +304,8 @@ export async function knownBrokerMc(
       AND coalesce(broker_mc, '') <> ''
       AND (
         (${key} <> '' AND lower(coalesce(broker_name, '')) = ${key})
-        OR (${domain ?? ''} <> '' AND lower(split_part(coalesce(broker_email, ''), '@', 2)) = ${domain ?? ''})
+        OR (${domain ?? ''} <> '' AND LOCATE('@', coalesce(broker_email, '')) > 0
+            AND lower(SUBSTRING_INDEX(SUBSTRING_INDEX(broker_email, '@', 2), '@', -1)) = ${domain ?? ''})
       )
     ORDER BY created_at DESC
     LIMIT 1`) as { broker_mc: string | null }[]
@@ -279,10 +321,10 @@ export async function brokerGradeFor(
   email: string | null,
   name: string | null,
 ): Promise<{ payGrade: 'good' | 'ok' | 'slow'; payDays: number | null; lateCount: number; paidCount: number } | null> {
-  const key = digits(mc) || emailDomain(email) || (name ?? '').toLowerCase().trim()
+  const key = brokerKeyOf({ mc, email, name })
   if (!key) return null
   const all = await listOurBrokers(companyId)
-  const b = all.find((x) => (x.mc ?? '') === key) ?? all.find((x) => (x.name ?? '').toLowerCase().trim() === key)
+  const b = all.find((x) => x.key === key)
   if (!b || !b.payGrade) return null
   return { payGrade: b.payGrade, payDays: b.payDays, lateCount: b.lateCount, paidCount: b.paidCount }
 }

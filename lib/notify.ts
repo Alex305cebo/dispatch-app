@@ -10,6 +10,8 @@ export type Note = {
   text: string
   /** Where it came from — a driver's name later, an action now. */
   from?: string
+  /** Куда ведёт нажатие в колокольчике — груз, трак, «Финансы». Нет — просто текст. */
+  href?: string
   at: number
   read: boolean
 }
@@ -24,9 +26,9 @@ function emit() {
   subs.forEach((f) => f())
 }
 
-export function notify(kind: NoteKind, text: string, from?: string): void {
+export function notify(kind: NoteKind, text: string, from?: string, href?: string): void {
   // Newest first, capped — this is a feed, not an archive.
-  notes = [{ id: ++seq, kind, text, from, at: Date.now(), read: false }, ...notes].slice(0, 50)
+  notes = [{ id: ++seq, kind, text, from, href, at: Date.now(), read: false }, ...notes].slice(0, 50)
   emit()
 }
 

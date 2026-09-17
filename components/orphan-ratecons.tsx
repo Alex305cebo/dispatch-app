@@ -14,6 +14,7 @@ import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 import { usDate } from '@/lib/fmt'
+import { todayEt } from '@/lib/payments'
 
 export type OrphanRc = { id: number; title: string; uploadedAt: string }
 
@@ -52,7 +53,7 @@ export function OrphanRateCons({ truckId, docs }: { truckId: number; docs: Orpha
             >
               {d.title}
             </DocLink>
-            <span className="nums shrink-0 text-[11px] text-white/40">{usDate(d.uploadedAt)}</span>
+            <span className="nums shrink-0 text-[11px] text-white/40">{usDate(todayEt(new Date(d.uploadedAt)))}</span>
             <Button variant="primary" size="sm" className="shrink-0" disabled={pending} onClick={() => make(d.id)}>
               {working === d.id ? t(locale, 'orphanRc.aiReading') : t(locale, 'orphanRc.createLoad')}
             </Button>
