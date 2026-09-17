@@ -8,7 +8,12 @@
 // но для конкретного груза региональная ставка даже честнее: груз из Огайо
 // сравнивается с рынком региона North, а не со средней по стране.
 
+import { US_STATES } from './us-states.ts'
+
 export type DatEquipment = 'VAN' | 'REEFER' | 'FLATBED'
+
+/** Коды, которые считаем рынком США: 50 штатов, округ Колумбия и канзасский KA от DAT. */
+const US_LT_CODES = new Set([...US_STATES.map(([code]) => code), 'DC', 'KA'])
 
 export type DatRegion = { code: string; states: string[]; rpm: number }
 
@@ -269,6 +274,10 @@ export function parseLt(raw: unknown): Record<string, DatLt> | null {
     const trucks = Number(r?.trucks)
     const ratio = Number(r?.ratio)
     if (!code || !Number.isFinite(ratio) || ratio < 0) continue
+    // В /lt у DAT идут и провинции Канады (MB, SK, BC…): там на трак приходится по сотне
+    // грузов, ни региона, ни ставки у них нет, а середину по штатам они утаскивали вверх.
+    // Наши траки туда не ездят — в рынок их не берём.
+    if (!US_LT_CODES.has(code)) continue
     out[code] = { loads: Number.isFinite(loads) ? loads : 0, trucks: Number.isFinite(trucks) ? trucks : 0, ratio }
   }
   return Object.keys(out).length ? out : null

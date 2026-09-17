@@ -194,6 +194,14 @@ test('поломанный ответ DAT не превращается в ци�
   assert.equal(parseRegions([{ regionCode: 'X', stateInRegion: ['OH'], tripRatePerMileInDollars: 40452.22 }]), null)
   assert.equal(parseRegions([{ regionCode: 'X', stateInRegion: [], tripRatePerMileInDollars: 3 }]), null)
   assert.equal(parseLt({ statusCode: 401 }), null)
+  // Провинции Канады DAT отдаёт в том же ответе — в рынок США они не идут
+  const onlyUs = parseLt([
+    { code: 'TN', loads: 100, trucks: 10, ratio: 10 },
+    { code: 'KA', loads: 50, trucks: 10, ratio: 5 },
+    { code: 'MB', loads: 1000, trucks: 8, ratio: 116.2 },
+    { code: 'BC', loads: 900, trucks: 15, ratio: 61.3 },
+  ])!
+  assert.deepEqual(Object.keys(onlyUs).sort(), ['KA', 'TN'])
   assert.equal(parseFuel({ statusCode: 401 }), null)
   assert.equal(parseFuel({ when: '2026-09-07', pricePerGallonUSD: 0 }), null)
 })
