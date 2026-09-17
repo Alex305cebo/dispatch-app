@@ -3,7 +3,7 @@
 import { safeUploadFile } from '@/lib/upload-name'
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { t, type Locale } from '@/lib/i18n'
+import { t, type Locale, type MsgKey } from '@/lib/i18n'
 import type { LoadStatus } from '@/lib/map'
 import { usDate } from '@/lib/fmt'
 import { arrivedAt, isDone, stopTitle, stopsLabel, type MergedStop } from '@/lib/stops'
@@ -233,6 +233,30 @@ export function DriverClient({
           </div>
 
           {/* ОДИН следующий шаг — большой кнопкой прямо под заголовком. */}
+          {/* Памятка на остановке: три вещи, из-за которых чаще всего теряют деньги —
+              печать/счёт, число мест и фото бумаги. Появляется только когда трак уже на месте. */}
+          {next && arrived && (
+            <ul className="mt-3 space-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-[13px] text-white/75">
+              {[1, 2, 3].map((i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="text-white/35">•</span>
+                  {t(locale, (`driver.check.${next.role}${i}`) as MsgKey)}
+                </li>
+              ))}
+            </ul>
+          )}
+          {/* Памятка на остановке: три вещи, из-за которых чаще всего теряют деньги —
+              печать и бумаги, счёт мест и фото документа. Видна, только когда трак на месте. */}
+          {next && arrived && (
+            <ul className="mt-3 space-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-[13px] text-white/75">
+              {[1, 2, 3].map((i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="text-white/35">•</span>
+                  {t(locale, `driver.check.${next.role}${i}` as MsgKey)}
+                </li>
+              ))}
+            </ul>
+          )}
           <div className="mt-3">
             {next && !arrived && (
               <button
