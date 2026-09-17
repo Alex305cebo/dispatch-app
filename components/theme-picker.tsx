@@ -12,7 +12,12 @@ export function ThemePicker({ locale, className = '' }: { locale: Locale; classN
   const [theme, setTheme] = useState<'dark' | 'light'>('light')
 
   useEffect(() => {
-    setTheme(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
+    // Сохранённый выбор важнее атрибута: к первому эффекту data-theme может быть ещё не выставлен.
+    let saved: string | null = null
+    try {
+      saved = localStorage.getItem('theme')
+    } catch {}
+    setTheme((saved ?? document.documentElement.dataset.theme) === 'dark' ? 'dark' : 'light')
   }, [])
 
   function pick(next: 'dark' | 'light') {
