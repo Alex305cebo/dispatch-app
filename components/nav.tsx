@@ -312,7 +312,7 @@ export function Nav({
                 </span>
               )}
             </span>
-            <span className="nav-label max-w-full truncate text-[11px] font-medium md:text-[13px]">
+            <span className="nav-label max-w-full truncate text-[11px] font-medium md:whitespace-normal md:text-[13px] md:leading-tight">
               {t(locale, it.labelKey)}
             </span>
             {it.soon && (
