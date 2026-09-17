@@ -8,6 +8,7 @@ import { allStopEvents } from '@/lib/load-events'
 import { detentionTerms } from '@/lib/settings'
 import { avgDwell, facilityIndex } from '@/lib/facilities'
 import { usDate } from '@/lib/fmt'
+import { todayEt } from '@/lib/payments'
 import { Directory, type DirBroker, type DirFacility, type DirView } from './directory'
 
 export const dynamic = 'force-dynamic'
@@ -42,6 +43,7 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
       payDays: b.payDays,
       owed: b.owed,
       oldest,
+      sinceDays: b.lastLoad ? Math.max(0, Math.round((Date.parse(todayEt()) - Date.parse(b.lastLoad)) / 86400000)) : null,
       inactive,
       checked: b.checkedAt ? usDate(b.checkedAt) : null,
       // Поля через «|»: цифры телефона и MC ищутся каждое отдельно, а не слитно.

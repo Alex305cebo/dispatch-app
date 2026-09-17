@@ -23,6 +23,8 @@ export type DirBroker = {
   owed: number
   /** Сколько дней ждём самый старый неоплаченный счёт. */
   oldest: number
+  /** Сколько дней назад был последний груз этого брокера; null — грузов не было. */
+  sinceDays: number | null
   inactive: boolean
   checked: string | null
   search: string
@@ -267,6 +269,14 @@ function BrokerRow({ b, locale }: { b: DirBroker; locale: Locale }) {
       <span className="min-w-0 truncate">
         <span className="text-[13.5px] font-medium text-white/90">{b.name}</span>
         {b.loads > 0 && <span className="nums text-[12px] text-white/45"> · {t(locale, 'brokers.loadsCount').replace('{n}', String(b.loads))}</span>}
+        {b.sinceDays != null && (
+          <span className={`nums text-[12px] ${b.sinceDays > 90 ? 'text-warn-400/80' : 'text-white/40'}`}>
+            {' · '}
+            {b.sinceDays === 0
+              ? t(locale, 'brokers.dir.lastToday')
+              : t(locale, 'brokers.dir.lastDays').replace('{n}', String(b.sinceDays))}
+          </span>
+        )}
       </span>
       {status && <span className={`nums shrink-0 text-right text-[12px] ${status.cls}`}>{status.text}</span>}
     </Link>

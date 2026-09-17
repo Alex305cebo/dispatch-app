@@ -199,6 +199,8 @@ export const brokersDict = {
   'brokers.dir.search': { ru: 'MC, название, телефон, город или адрес склада', en: 'MC, name, phone, city or facility address', es: 'MC, nombre, teléfono, ciudad o dirección del almacén', uk: 'MC, назва, телефон, місто або адреса складу', ro: 'MC, nume, telefon, oraș sau adresa depozitului', kk: 'MC, атауы, телефон, қала немесе қойма мекенжайы' },
   'brokers.dir.all': { ru: 'Все', en: 'All', es: 'Todo', uk: 'Усі', ro: 'Toate', kk: 'Барлығы' },
   'brokers.dir.attention': { ru: 'Требуют внимания', en: 'Need attention', es: 'Requieren atención', uk: 'Потребують уваги', ro: 'Necesită atenție', kk: 'Назар керек' },
+  'brokers.dir.lastDays': { ru: 'возили {n} дн. назад', en: '{n} d since last load', es: 'hace {n} d la última carga', uk: 'возили {n} дн. тому', ro: 'acum {n} z ultima cursă', kk: 'соңғы жүк {n} күн бұрын' },
+  'brokers.dir.lastToday': { ru: 'везём сегодня', en: 'load today', es: 'carga hoy', uk: 'веземо сьогодні', ro: 'cursă azi', kk: 'бүгін жүк бар' },
   'brokers.dir.inactive': { ru: 'authority не активна', en: 'authority inactive', es: 'autoridad inactiva', uk: 'authority не активна', ro: 'autoritate inactivă', kk: 'authority белсенді емес' },
   'brokers.dir.owedLate': { ru: 'долг {sum} · {n} дн', en: 'owes {sum} · {n} d', es: 'debe {sum} · {n} d', uk: 'борг {sum} · {n} дн', ro: 'datorează {sum} · {n} z', kk: 'қарыз {sum} · {n} күн' },
   'brokers.dir.owed': { ru: 'ждём {sum}', en: 'awaiting {sum}', es: 'pendiente {sum}', uk: 'чекаємо {sum}', ro: 'așteptăm {sum}', kk: '{sum} күтеміз' },
