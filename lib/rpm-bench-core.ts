@@ -23,6 +23,8 @@ export type RpmBench = {
   usdaWeek: string | null
   /** Котировки Warp — цена грузоотправителя, берётся последней. */
   warp?: RpmTable | null
+  /** Сколько от цены грузоотправителя доходит до трака (lib/broker-cut.ts) — для цели торга. */
+  cut?: import('./broker-cut.ts').BrokerCut | null
 }
 export type Benchmark = { rpm: number; n: number; source: RpmSource; from: string | null; to: string }
 

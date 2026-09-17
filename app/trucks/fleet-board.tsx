@@ -20,7 +20,7 @@ import { datCached, datEquipment, stateFromPlace } from '@/lib/dat-market'
 import { FleetPanel } from '@/components/fleet-panel'
 import type { PlanSnaps, PlanTruck } from '@/components/route-planner'
 import { homeSoon, parseStates } from '@/lib/maintenance-core'
-import { laneRpmTables } from '@/lib/dat-lanes'
+import { brokerCutFromLoads, laneRpmTables } from '@/lib/dat-lanes'
 import { emptyTable, type RpmTable } from '@/lib/rpm-bench-core'
 import { usdaReeferCached } from '@/lib/usda-truck'
 import { type TrackingRow } from '@/components/fleet-list'
@@ -81,9 +81,11 @@ export async function FleetBoard({
   // бы ещё и в браузере, в его поясе, а сервер Hostinger живёт в UTC.
   // Ставки по самому маршруту для направлений (lib/rpm-bench-core.ts): DAT RateView с доски,
   // для рефрижератора — недельный отчёт USDA (только из кэша). Наши рейт-коны — нет: это не рынок.
-  const [datTables, warpTables, usda] = await Promise.all([
+  const [datTables, warpTables, cut, usda] = await Promise.all([
     laneRpmTables(companyId, 'dat').catch((): Record<string, RpmTable> => ({})),
     laneRpmTables(companyId, 'warp').catch((): Record<string, RpmTable> => ({})),
+    // Доля трака в цене грузоотправителя — из наших же рейт-конов (lib/broker-cut.ts).
+    brokerCutFromLoads(companyId).catch(() => null),
     usdaReeferCached(),
   ])
   const snaps: PlanSnaps = Object.fromEntries(
@@ -100,6 +102,7 @@ export async function FleetBoard({
                   usda: eq === 'REEFER' ? (usda?.table ?? null) : null,
                   usdaWeek: eq === 'REEFER' && usda?.week ? usDate(usda.week) : null,
                   warp: warpTables[eq] ?? null,
+                  cut,
                 },
               },
             ],

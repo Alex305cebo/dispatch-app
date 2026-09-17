@@ -2109,6 +2109,10 @@ export const loadsDict = {
     ro: 'Piața DAT',
     kk: 'DAT нарығы',
   },
+  'analysis.cutTarget': { ru: 'Цель торга по маршруту: {low}–{high}/mi —', en: 'Lane negotiation target: {low}-{high}/mi —', es: 'Objetivo de negociación del trayecto: {low}-{high}/mi —', uk: 'Ціль торгу за маршрутом: {low}–{high}/mi —', ro: 'Ținta de negociere pe traseu: {low}-{high}/mi —', kk: 'Маршрут бойынша сауда мақсаты: {low}-{high}/mi —' },
+  'analysis.cutOk': { ru: 'взяли в цели.', en: 'we are in it.', es: 'estamos en el objetivo.', uk: 'взяли в цілі.', ro: 'suntem în țintă.', kk: 'мақсатқа іліктік.' },
+  'analysis.cutBelow': { ru: 'взяли ниже на {usd}.', en: '{usd} below it.', es: '{usd} por debajo.', uk: 'взяли нижче на {usd}.', ro: 'cu {usd} sub ea.', kk: '{usd} төмен алдық.' },
+  'analysis.cutFrom': { ru: 'Цена грузоотправителя {shipper}/mi (Warp), доля трака — по нашим {n} грузам', en: 'Shipper price {shipper}/mi (Warp); the truck share is measured on our {n} loads', es: 'Precio del expedidor {shipper}/mi (Warp); la parte del camión sale de nuestras {n} cargas', uk: 'Ціна вантажовідправника {shipper}/mi (Warp), частка трака — за нашими {n} вантажами', ro: 'Prețul expeditorului {shipper}/mi (Warp), cota camionului — din cele {n} curse ale noastre', kk: 'Жүк жөнелтуші бағасы {shipper}/mi (Warp), тартқыш үлесі — біздің {n} жүгіміз бойынша' },
   'analysis.aboveMarketBy': {
     ru: ' — предложение выше рынка на ',
     en: ' — offer is above market by ',

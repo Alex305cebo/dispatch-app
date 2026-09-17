@@ -54,6 +54,8 @@ import { loadsMissingPod } from '@/lib/loads'
 import { CopyPlace } from '@/components/copy-place'
 import { placeCity } from '@/lib/place'
 import { datCached, datEquipment, originRate } from '@/lib/dat-market'
+import { laneTarget } from '@/lib/dat-lanes'
+import { stateOfCity } from '@/lib/toll-spend'
 import { lateStop } from '@/lib/loads-dashboard'
 import { listCharges } from '@/lib/charges'
 import { LoadCharges } from '@/components/load-charges'
@@ -126,9 +128,16 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   // Прошлые грузы этого трака без POD — в шапку: пока везут этот, про тот забывают.
   // Рядом — рынок DAT, если своей рыночной ставки у груза нет (почти всегда): серия по
   // трейлеру трака, иначе Van. Только из кэша — страница DAT не ждёт.
-  const [missingPod, datSnap] = await Promise.all([
+  // Цель торга по этому направлению: цена грузоотправителя минус доля брокера (lib/broker-cut.ts).
+  const [missingPod, datSnap, cutTarget] = await Promise.all([
     loadsMissingPod(companyId, truckLoads.filter((l) => l.id !== load.id)),
     load.spotRpm ? null : datCached(datEquipment(truckMeta?.trailerNumber) ?? 'VAN'),
+    laneTarget(
+      companyId,
+      datEquipment(truckMeta?.trailerNumber) ?? 'VAN',
+      stateOfCity(load.origin),
+      stateOfCity(load.destination),
+    ).catch(() => null),
   ])
   const datRate = datSnap ? originRate(datSnap, load.origin) : null
   // Кнопка «Чат Telegram» — только у того, чей Telegram подключён (демо — никогда).
@@ -316,6 +325,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             spotRpm={load.spotRpm}
             dat={datRate && datSnap && { ...datRate, date: usDate(todayEt(new Date(datSnap.at))) }}
             targetRpm={truckMeta?.targetRpm}
+            cut={cutTarget}
           />
         </div>
       </section>

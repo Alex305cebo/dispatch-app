@@ -88,6 +88,7 @@ export function Analysis({
   spotRpm,
   dat,
   targetRpm,
+  cut,
 }: {
   r: Breakdown
   mpg: number
@@ -97,6 +98,8 @@ export function Analysis({
   dat?: { rpm: number; region: string; date: string } | null
   /** Цель по ставке из паспорта трака, $/mi; нет — строки нет. */
   targetRpm?: number | null
+  /** Цель торга по маршруту: цена грузоотправителя (Warp) минус доля брокера (lib/broker-cut.ts). */
+  cut?: { low: number; high: number; shipper: number; n: number } | null
 }) {
   const locale = useLocale()
   const good = r.net >= 0
@@ -140,6 +143,22 @@ export function Analysis({
                   '{usd}',
                   usd.format(target.dollars),
                 )}
+          </span>
+        </p>
+      )}
+
+      {/* Цель торга по маршруту: сколько из цены грузоотправителя обычно доходит до трака.
+          Цифра рынка чужая (Warp), доля — по нашим рейт-конам; и то, и другое подписано. */}
+      {cut && (
+        <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">
+          {t(locale, 'analysis.cutTarget').replace('{low}', usd2.format(cut.low)).replace('{high}', usd2.format(cut.high))}{' '}
+          <span className={`font-semibold ${r.loadedRpm >= cut.low ? 'text-good-400' : 'text-warn-400'}`}>
+            {r.loadedRpm >= cut.low
+              ? t(locale, 'analysis.cutOk')
+              : t(locale, 'analysis.cutBelow').replace('{usd}', usd.format(((cut.low - r.loadedRpm) * r.gross) / r.loadedRpm))}
+          </span>
+          <span className="block text-[12px] text-white/45">
+            {t(locale, 'analysis.cutFrom').replace('{shipper}', usd2.format(cut.shipper)).replace('{n}', String(cut.n))}
           </span>
         </p>
       )}

@@ -21,6 +21,7 @@ import { notify } from '@/lib/notify'
 import { safeUploadFile } from '@/lib/upload-name'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
 import { benchmarkRpm, type Benchmark, type RpmBench, type RpmSource } from '@/lib/rpm-bench-core'
+import { targetBand, vsTarget } from '@/lib/broker-cut'
 import { usd, usd2, usDate } from '@/lib/fmt'
 import { US_STATES } from '@/lib/us-states'
 import { heatLevel, HEAT_LEVEL_ICON, HEAT_LEVEL_KEY, ltHeat, ltMedian, ltOf, regionOf, regionStates, stateFromPlace, type DatEquipment, type DatHeat, type DatSnapshot, type DatWeek } from '@/lib/dat-market-core'
@@ -87,10 +88,13 @@ const input =
 const regionTitle = (code: string) => code.charAt(0) + code.slice(1).toLowerCase()
 const regionName = (snap: DatSnapshot, state: string) => regionTitle(regionOf(snap, state)?.code ?? '')
 
-/** Ставка по направлению для плитки: по маршруту, если есть, иначе DAT региона штата. */
+/** Ставка по направлению для плитки: цель торга по маршруту, иначе ставка DAT региона. */
 const rateLine = (lane: Lane, snap: DatSnapshot, origin: string, bench: RpmBench | undefined, locale: Locale) => {
   const b = benchmarkRpm(bench, origin, lane.state)
-  if (b) return benchShort(b, locale)
+  if (b) {
+    const band = b.source === 'warpLane' && bench?.cut ? targetBand(b.rpm, bench.cut) : null
+    return band ? `≈${usd2.format(band.low)}/mi · ${t(locale, SRC_SHORT[b.source])}` : benchShort(b, locale)
+  }
   const r = regionOf(snap, lane.state)?.rpm
   return r ? `${usd2.format(r)}/mi · DAT ${regionName(snap, lane.state)}` : t(locale, 'plan.bench.none').replace('{to}', lane.state)
 }
@@ -945,6 +949,8 @@ function LaneRow({
   const vs = board && rpm != null ? lane.rpm / rpm : null
   const cls = vs == null ? 'text-white/85' : vs >= 1.05 ? TONE_TEXT.hit : vs <= 0.95 ? TONE_TEXT.miss : 'text-white/85'
   const none = t(locale, 'plan.bench.none').replace('{to}', lane.state)
+  // Цель торга — только у цены грузоотправителя: ставки DAT и USDA и так со стороны трака.
+  const band = b?.source === 'warpLane' && bench?.cut ? targetBand(b.rpm, bench.cut) : null
   return (
     <details className="group rounded-lg border border-white/8 transition-colors open:border-white/15 hover:border-white/15">
       <summary className="flex cursor-pointer list-none items-center gap-2.5 px-3 py-2 max-md:min-h-11">
@@ -962,8 +968,19 @@ function LaneRow({
           {reasons && reasons.length > 0 && <span className="block text-[11.5px] text-white/60">{reasons.join(' · ')}</span>}
         </span>
         <span className="max-w-[46%] shrink-0 text-right sm:max-w-[40%]">
-          <span className={`nums block text-[15px] font-bold leading-tight ${cls}`}>{rpm != null ? `${usd2.format(rpm)}/mi` : '—'}</span>
-          <span className="block text-[10.5px] leading-snug text-white/50">
+          {/* Главная цифра — та, на которую диспетчеру торговаться. У цены грузоотправителя
+              это цена минус доля брокера; у DAT и USDA цифра и так со стороны трака. */}
+          <span className={`nums block text-[15px] font-bold leading-tight ${cls}`}>
+            {band ? `≈${usd2.format(band.low)}/mi` : rpm != null ? `${usd2.format(rpm)}/mi` : '—'}
+          </span>
+          {band && b && (
+            <span className="nums block text-[10.5px] leading-snug text-haul-300">
+              {t(locale, 'plan.cut.line')
+                .replace('{v}', usd2.format(b.rpm - band.low))
+                .replace('{shipper}', `${usd2.format(b.rpm)}/mi`)}
+            </span>
+          )}
+          <span className="block text-[10.5px] leading-snug text-white/45">
             {b
               ? benchSource(b, bench, locale)
               : regionRpm != null
@@ -1256,11 +1273,24 @@ function BoardCompare({
                 // без ставки на доске сравнивать нечего — его ставка и есть рынок региона.
                 const b = market ? null : benchmarkRpm(bench, pickup, lane.state)
                 const base = market ? null : (b?.rpm ?? regionOf(snap, pickup)?.rpm ?? null)
-                const vs = base ? Math.round((lane.rpm / base - 1) * 100) : null
+                // Цена грузоотправителя (Warp) — сравнивать с ней ставку брокера нельзя: в ней
+                // его маржа. Вместо процентов говорим, на сколько торговаться до цели.
+                const band = b?.source === 'warpLane' && bench?.cut ? targetBand(b.rpm, bench.cut) : null
+                const gap = band ? Math.round((band.low - lane.rpm) * lane.miles) : 0
+                const over = band ? Math.round((lane.rpm - band.high) * lane.miles) : 0
+                const cutWhy = band
+                  ? vsTarget(lane.rpm, band) === 'below'
+                    ? t(locale, 'plan.why.belowCut').replace('{v}', usd.format(gap))
+                    : vsTarget(lane.rpm, band) === 'above'
+                      ? t(locale, 'plan.why.aboveCut').replace('{v}', usd.format(over))
+                      : t(locale, 'plan.why.atCut')
+                  : null
+                const vs = band || !base ? null : Math.round((lane.rpm / base - 1) * 100)
                 const [at, above, below] = b
                   ? (['plan.why.atState', 'plan.why.aboveState', 'plan.why.belowState'] as const)
                   : (['plan.why.atRegion', 'plan.why.aboveRegion', 'plan.why.belowRegion'] as const)
                 const reasons = [
+                  cutWhy,
                   vs == null ? null : Math.abs(vs) < 5 ? t(locale, at) : t(locale, vs > 0 ? above : below).replace('{pct}', String(Math.abs(vs))),
                   i === 0 && rows.length > 1 ? t(locale, 'plan.why.best') : null,
                   market ? t(locale, 'plan.why.market') : null,
