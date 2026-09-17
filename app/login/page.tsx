@@ -1,9 +1,9 @@
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { sql } from '@/lib/db'
 import { applyAdminReset, ensureSchema, schemaInstalled } from '@/lib/install'
 import { getSettings } from '@/lib/settings'
 import { googleClientId } from '@/lib/google-auth'
-import { LOCALE_COOKIE, resolveLocale, t } from '@/lib/i18n'
+import { LOCALE_COOKIE, localeFromAcceptLanguage, resolveLocale, t } from '@/lib/i18n'
 import { LoginForm } from './login-form'
 
 export const dynamic = 'force-dynamic'
@@ -98,8 +98,11 @@ export default async function LoginPage() {
       googleClientId={googleClientId()}
       demoUrl={demoUrl}
       needsSchema={!installed}
-      askLocale={!cookie}
-      initialLocale={resolveLocale(cookie)}
+      // Отдельного экрана «выберите язык» нет — лишний шаг. Нет куки — язык браузера;
+      // форма сама запишет его в куку, а сменить можно флагами на этой же странице.
+      askLocale={false}
+      saveLocale={!cookie}
+      initialLocale={cookie ? resolveLocale(cookie) : (localeFromAcceptLanguage((await headers()).get('accept-language')) ?? 'en')}
     />
   )
 }

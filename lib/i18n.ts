@@ -39,6 +39,16 @@ export const LOCALE_COOKIE = 'locale'
 const CODES = new Set(LOCALES.map((l) => l.code))
 
 /** Cookie value → Locale, defaulting to English. */
+/** Первый поддерживаемый язык из заголовка Accept-Language («ru-RU,ru;q=0.9,en;q=0.8»).
+ * Так новый посетитель сразу видит свой язык — без отдельного шага «выберите язык». */
+export function localeFromAcceptLanguage(header: string | null | undefined): Locale | null {
+  for (const part of (header ?? '').split(',')) {
+    const code = part.trim().slice(0, 2).toLowerCase()
+    if (CODES.has(code as Locale)) return code as Locale
+  }
+  return null
+}
+
 export function resolveLocale(v: string | undefined | null): Locale {
   return v && CODES.has(v as Locale) ? (v as Locale) : 'en'
 }
