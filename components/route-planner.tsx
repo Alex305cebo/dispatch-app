@@ -87,6 +87,14 @@ const input =
 const regionTitle = (code: string) => code.charAt(0) + code.slice(1).toLowerCase()
 const regionName = (snap: DatSnapshot, state: string) => regionTitle(regionOf(snap, state)?.code ?? '')
 
+/** Ставка по направлению для плитки: по маршруту, если есть, иначе DAT региона штата. */
+const rateLine = (lane: Lane, snap: DatSnapshot, origin: string, bench: RpmBench | undefined, locale: Locale) => {
+  const b = benchmarkRpm(bench, origin, lane.state)
+  if (b) return benchShort(b, locale)
+  const r = regionOf(snap, lane.state)?.rpm
+  return r ? `${usd2.format(r)}/mi · DAT ${regionName(snap, lane.state)}` : t(locale, 'plan.bench.none').replace('{to}', lane.state)
+}
+
 /** Рынок штата доставки словами и цифрой: «🔥 горячий · 12.4 груза на трак». */
 const ltLine = (lane: Lane, locale: Locale) =>
   lane.ratio != null
@@ -440,7 +448,7 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
               icon={<TrendingUp size={15} strokeWidth={2.5} />}
               label={t(locale, 'plan.best')}
               value={best.name}
-              sub={ltLine(best, locale)}
+              sub={`${rateLine(best, snap, origin, snap.bench, locale)} · ${ltLine(best, locale)}`}
             />
             {worst && (
               <Stat
@@ -925,18 +933,17 @@ function LaneRow({
 }) {
   const tone = dayTone(lane.grossPerDay, opts.target)
   // Только настоящие цифры рынка, не расчёт и не наши прошлые грузы (правила 16–17.09.2026).
-  // Направление: справа — грузов на трак в штате доставки (DAT), цвет — горячесть от
-  // середины по штатам. Ставка DAT за милю одна на регион — она строкой над списком, ставка
-  // по самому маршруту, если есть, — под названием.
-  // Груз с доски: справа — ставка по маршруту, нет её — DAT региона погрузки; цвет — ставка
-  // груза против неё.
+  // Справа — ставка за милю и откуда она: по самому маршруту, если есть (DAT с доски,
+  // USDA, Warp), иначе ставка DAT региона — штата доставки у направления и погрузки у
+  // груза с доски. Грузы на трак — под названием: по ним список и отсортирован.
+  // Цвет — только у груза с доски: его ставка против цифры справа. У направления цифры
+  // из разных источников, красить их «хорошо/плохо» было бы враньём.
   const b = benchmarkRpm(bench, origin, lane.state)
-  const regionRpm = pickup && !b ? (regionOf(snap, origin)?.rpm ?? null) : null
+  const regionState = pickup ? origin : lane.state
+  const regionRpm = b ? null : (regionOf(snap, regionState)?.rpm ?? null)
   const rpm = b?.rpm ?? regionRpm
-  const vs = pickup && board && rpm != null ? lane.rpm / rpm : null
-  const cls = pickup
-    ? vs == null ? 'text-white/85' : vs >= 1.05 ? TONE_TEXT.hit : vs <= 0.95 ? TONE_TEXT.miss : 'text-white/85'
-    : lane.heat === 'hot' ? TONE_TEXT.hit : lane.heat === 'cold' ? TONE_TEXT.miss : 'text-white/85'
+  const vs = board && rpm != null ? lane.rpm / rpm : null
+  const cls = vs == null ? 'text-white/85' : vs >= 1.05 ? TONE_TEXT.hit : vs <= 0.95 ? TONE_TEXT.miss : 'text-white/85'
   const none = t(locale, 'plan.bench.none').replace('{to}', lane.state)
   return (
     <details className="group rounded-lg border border-white/8 transition-colors open:border-white/15 hover:border-white/15">
@@ -950,29 +957,19 @@ function LaneRow({
           <span className="nums block break-words text-[11.5px] text-white/50">
             {lane.miles.toLocaleString('en-US')} mi
             {board && ` · ${t(locale, 'plan.bench.boardRate').replace('{v}', usd2.format(lane.rpm))}`}
-            {!pickup && ` · ${t(locale, 'plan.region').replace('{region}', regionName(snap, lane.state))}`}
-            {!pickup && b && ` · ${benchShort(b, locale)}`}
+            {!pickup && lane.ratio != null && ` · ${lane.ratio.toFixed(1)} ${t(locale, 'plan.perTruck')}`}
           </span>
           {reasons && reasons.length > 0 && <span className="block text-[11.5px] text-white/60">{reasons.join(' · ')}</span>}
         </span>
         <span className="max-w-[46%] shrink-0 text-right sm:max-w-[40%]">
-          {pickup ? (
-            <>
-              <span className={`nums block text-[15px] font-bold leading-tight ${cls}`}>{rpm != null ? `${usd2.format(rpm)}/mi` : '—'}</span>
-              <span className="block text-[10.5px] leading-snug text-white/50">
-                {b
-                  ? benchSource(b, bench, locale)
-                  : regionRpm != null
-                    ? `DAT · ${t(locale, 'plan.region').replace('{region}', regionName(snap, origin))} · ${t(locale, 'plan.bench.pickup')}`
-                    : none}
-              </span>
-            </>
-          ) : (
-            <>
-              <span className={`nums block text-[15px] font-bold leading-tight ${cls}`}>{lane.ratio != null ? lane.ratio.toFixed(1) : '—'}</span>
-              <span className="block text-[10.5px] leading-snug text-white/50">{lane.ratio != null ? t(locale, 'plan.perTruck') : none}</span>
-            </>
-          )}
+          <span className={`nums block text-[15px] font-bold leading-tight ${cls}`}>{rpm != null ? `${usd2.format(rpm)}/mi` : '—'}</span>
+          <span className="block text-[10.5px] leading-snug text-white/50">
+            {b
+              ? benchSource(b, bench, locale)
+              : regionRpm != null
+                ? `DAT · ${t(locale, 'plan.region').replace('{region}', regionName(snap, regionState))}${pickup ? ` · ${t(locale, 'plan.bench.pickup')}` : ''}`
+                : none}
+          </span>
         </span>
       </summary>
       <LaneCalc lane={lane} snap={snap} origin={origin} opts={opts} settings={settings} locale={locale} board={board} tone={tone} />
