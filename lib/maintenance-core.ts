@@ -3,6 +3,8 @@
 // live in lib/maintenance.ts (server only).
 
 import { t, type Locale } from './i18n.ts'
+import { usDate } from './fmt.ts'
+import { stateFromPlace } from './dat-market-core.ts'
 
 export type TruckMeta = {
   truckId: number
@@ -132,6 +134,34 @@ export function expiries(meta: TruckMeta | null, locale: Locale = 'en'): ExpiryI
       return { label, date, daysLeft, tone }
     })
     .sort((a, b) => a.daysLeft - b.daysLeft)
+}
+
+/**
+ * Проверка трака под груз: документы, которые уже истекли или истекут раньше выгрузки
+ * (нет её даты — на сегодня), и штаты рейса из стоп-листа водителя. Строки
+ * предупреждения, пусто — всё в порядке. Только предупреждение: сохранить груз можно.
+ */
+export function assignWarnings(
+  meta: TruckMeta | null | undefined,
+  trip: { places: (string | null | undefined)[]; deliveryDate?: string | null },
+  today: string,
+  locale: Locale = 'en',
+): string[] {
+  if (!meta) return []
+  const delivery = trip.deliveryDate?.slice(0, 10)
+  const until = delivery && delivery > today ? delivery : today
+  const docs = expiries(meta, locale)
+    .filter((e) => e.date < until)
+    .map((e) =>
+      t(locale, e.date < today ? 'trucks.assign.expired' : 'trucks.assign.expires')
+        .replace('{doc}', e.label)
+        .replace('{date}', usDate(e.date)),
+    )
+  const noGo = [...new Set(trip.places.map(stateFromPlace))].filter((s): s is string => !!s && meta.avoidStates.includes(s))
+  return [
+    ...(docs.length ? [t(locale, 'trucks.assign.docs').replace('{list}', docs.join(' · '))] : []),
+    ...(noGo.length ? [t(locale, 'trucks.assign.noGo').replace('{states}', noGo.join(', '))] : []),
+  ]
 }
 
 /**

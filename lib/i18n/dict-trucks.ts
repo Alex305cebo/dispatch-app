@@ -460,6 +460,32 @@ export const trucksDict = {
   'trucks.care.profileTargetMiles': { ru: 'цель {n} mi/нед', en: 'goal {n} mi/wk', es: 'meta {n} mi/sem', uk: 'ціль {n} mi/тиж', ro: 'țintă {n} mi/săpt', kk: 'мақсат {n} mi/апта' },
   'trucks.care.profileTargetGross': { ru: 'цель {v}/нед', en: 'goal {v}/wk', es: 'meta {v}/sem', uk: 'ціль {v}/тиж', ro: 'țintă {v}/săpt', kk: 'мақсат {v}/апта' },
   'trucks.care.profileAvoid': { ru: 'не возить: {states}', en: 'no-go: {states}', es: 'excluidos: {states}', uk: 'не возити: {states}', ro: 'excluse: {states}', kk: 'бармайды: {states}' },
+  // Проверка трака под груз (lib/maintenance-core.ts assignWarnings).
+  'trucks.assign.docs': { ru: 'Документы: {list}', en: 'Documents: {list}', es: 'Documentos: {list}', uk: 'Документи: {list}', ro: 'Documente: {list}', kk: 'Құжаттар: {list}' },
+  'trucks.assign.expired': {
+    ru: '{doc} — срок истёк {date}',
+    en: '{doc} expired {date}',
+    es: '{doc} venció el {date}',
+    uk: '{doc} — термін минув {date}',
+    ro: '{doc} a expirat pe {date}',
+    kk: '{doc} — мерзімі {date} өтті',
+  },
+  'trucks.assign.expires': {
+    ru: '{doc} — истекает {date}, до выгрузки',
+    en: '{doc} expires {date}, before delivery',
+    es: '{doc} vence el {date}, antes de la entrega',
+    uk: '{doc} — спливає {date}, до вивантаження',
+    ro: '{doc} expiră pe {date}, înainte de livrare',
+    kk: '{doc} — {date} бітеді, түсіруге дейін',
+  },
+  'trucks.assign.noGo': {
+    ru: 'Стоп-лист водителя: {states} — рейс заходит туда',
+    en: 'Driver no-go states on this trip: {states}',
+    es: 'Estados excluidos del conductor en este viaje: {states}',
+    uk: 'Стоп-лист водія: {states} — рейс заходить туди',
+    ro: 'State excluse de șofer pe această cursă: {states}',
+    kk: 'Жүргізуші бармайтын штаттар осы рейсте: {states}',
+  },
   'trucks.chip.deadheadInfo': {
     ru: 'Пустые мили этой недели и их доля во всех милях. До 15% — норма, 15–25% — стоит присмотреться, больше 25% — маршруты строятся плохо.',
     en: 'Empty miles this week and their share of all miles. Under 15% is normal, 15–25% deserves a look, over 25% means routes are planned badly.',

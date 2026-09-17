@@ -6,7 +6,7 @@ import { MotionConfig } from 'motion/react'
 import { calcLoad } from '@/lib/profit'
 import { EMPTY, type QrLoad } from '@/lib/qr-load'
 import { truckLabel, type TruckRecord } from '@/lib/map'
-import type { TruckMeta } from '@/lib/maintenance-core'
+import { assignWarnings, type TruckMeta } from '@/lib/maintenance-core'
 import { createLoad, fetchDatSnapshot, fetchRouteMiles } from '@/app/actions'
 import { originRate, type DatSnapshot } from '@/lib/dat-market-core'
 import { usd, usd2, usDate } from '@/lib/fmt'
@@ -44,7 +44,7 @@ export function LoadForm({
   /** The "Driver Information" block already rendered from the AI read (/import) —
    * omitted for manual entry, which has nothing to render. */
   driverInfo?: string
-  /** Паспорт каждого трака (lib/maintenance.ts truckMetas): цель по ставке для расчёта. */
+  /** Паспорт каждого трака (lib/maintenance.ts truckMetas): цель по ставке, сроки документов, стоп-лист. */
   metaByTruck?: Record<number, TruckMeta>
 }) {
   const locale = useLocale()
@@ -126,6 +126,18 @@ export function LoadForm({
                 </option>
               ))}
             </select>
+            {/* Документы и стоп-лист выбранного трака — только предупреждение, сохранять не мешает. */}
+            {truck &&
+              assignWarnings(
+                metaByTruck[truck.id],
+                { places: [load.origin, load.destination], deliveryDate: load.deliveryDate },
+                todayEt(),
+                locale,
+              ).map((w) => (
+                <span key={w} className="mt-1.5 block text-[12px] leading-snug text-warn-400">
+                  ⚠ {w}
+                </span>
+              ))}
           </label>
 
           <div className="mb-4">

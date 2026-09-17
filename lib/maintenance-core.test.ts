@@ -26,3 +26,24 @@ test('профиль водителя: коды штатов, «дома до»,
   assert.equal(homeSoon(p, '2026-09-10'), null)
   assert.equal(homeSoon(p, '2026-09-21'), null)
 })
+
+import { assignWarnings } from './maintenance-core.ts'
+
+test('проверка трака под груз: документы до выгрузки и стоп-лист водителя', () => {
+  const meta = {
+    cdlExpiry: '2026-09-10',
+    medcardExpiry: '2026-09-18',
+    insuranceExpiry: '2026-09-20', // действует в день выгрузки — не предупреждение
+    registrationExpiry: null,
+    inspectionExpiry: '2027-01-01',
+    avoidStates: ['NY'],
+  } as TruckMeta
+  const trip = { places: ['Dallas, TX', 'Albany, NY 12203', null], deliveryDate: '2026-09-20' }
+  assert.deepEqual(assignWarnings(meta, trip, '2026-09-16'), [
+    'Documents: Driver CDL expired 09/10/26 · Medical card expires 09/18/26, before delivery',
+    'Driver no-go states on this trip: NY',
+  ])
+  // Без даты выгрузки — только то, что уже истекло.
+  assert.deepEqual(assignWarnings(meta, { places: ['Dallas, TX'] }, '2026-09-16'), ['Documents: Driver CDL expired 09/10/26'])
+  assert.deepEqual(assignWarnings(null, trip, '2026-09-16'), [])
+})

@@ -6,7 +6,7 @@ import { QueuedLoadHint } from '@/components/queued-load-hint'
 import { activeLoadsByTruck, truckLabel, truckShortLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { getCompany } from '@/lib/invoice'
-import { fleetStatusByUnit, getTruckMeta } from '@/lib/maintenance'
+import { assignWarnings, fleetStatusByUnit, getTruckMeta } from '@/lib/maintenance'
 import { companyScope, getCurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
 import { financesHref, payBadge, todayEt } from '@/lib/payments'
@@ -147,6 +147,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const stopNamesLegacy = stopNames(load.driverInfo)
   const stops = stopsFrom(load, { pickup: stopNamesLegacy.pickup, delivery: stopNamesLegacy.delivery })
   const via = viaLabel(stops, locale)
+  // Документы трака и стоп-лист водителя против этого рейса — пока груз ещё не доставлен.
+  const assign =
+    load.status === 'quoted' || load.status === 'booked' || load.status === 'in_transit'
+      ? assignWarnings(truckMeta, { places: stops.map((s) => s.city ?? s.address), deliveryDate: load.deliveryDate }, todayEt(), locale)
+      : []
   // Стоянка у склада по отметкам водителя — над картой, потому что это деньги:
   // от «Приехал» до «Загрузился», дальше счёт замирает. Меньше получаса не показываем.
   // По окну на каждую остановку, где водитель простоял от получаса.
@@ -212,6 +217,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               {t(locale, late.stop.role === 'pickup' ? 'stops.pickup' : 'stops.delivery')} · {late.stop.city ?? late.stop.address ?? '—'} ·{' '}
               {t(locale, 'loads.dash.lateBy').replace('{t}', driveTime(late.minutes, locale))}. {t(locale, 'loadDetail.lateHint')}
             </span>
+          </div>
+        )}
+        {assign.length > 0 && (
+          <div className="mt-3 rounded-xl border border-warn-400/35 bg-warn-500/[0.08] px-4 py-3 text-[13px] text-warn-400">
+            {assign.map((w) => (
+              <p key={w}>⚠ {w}</p>
+            ))}
           </div>
         )}
         <MissingPodBanner loads={missingPod} locale={locale} className="mt-3" />
