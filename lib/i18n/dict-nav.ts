@@ -72,6 +72,9 @@ export const navDict = {
 
   'info.ariaLabel': { ru: 'Что это и как работает', en: 'What this is and how it works', es: 'Explicación', uk: 'Пояснення', ro: 'Explicație', kk: 'Түсіндірме' },
 
+  'theme.lightShort': { ru: 'Светлая', en: 'Light', es: 'Clara', uk: 'Світла', ro: 'Luminoasă', kk: 'Ашық' },
+  'theme.darkShort': { ru: 'Тёмная', en: 'Dark', es: 'Oscura', uk: 'Темна', ro: 'Întunecată', kk: 'Қараңғы' },
+  'theme.pick': { ru: 'Тема оформления', en: 'Theme', es: 'Tema', uk: 'Тема оформлення', ro: 'Temă', kk: 'Тақырып' },
   'theme.light': { ru: 'Светлая тема', en: 'Light theme', es: 'Tema claro', uk: 'Світла тема', ro: 'Temă deschisă', kk: 'Ашық тақырып' },
   'theme.dark': { ru: 'Тёмная тема', en: 'Dark theme', es: 'Tema oscuro', uk: 'Темна тема', ro: 'Temă întunecată', kk: 'Қараңғы тақырып' },
 
