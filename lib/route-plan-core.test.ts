@@ -97,11 +97,15 @@ test('простой стоит денег: постоянные расходы 
   assert.equal(lane.next!.gross, 600 * 2.8)
 })
 
-/** Без ставок по штатам: по ставке DAT региона штата, внутри региона — по выручке в день. */
+/** Без ставок по маршруту: по ставке DAT региона штата, в регионе — грузы на трак, потом выручка в день. */
 const byRegionThenDay = (ls: Lane[]) =>
   ls.every((l, i) => {
     const p = ls[i - 1]
-    return !p || p.nextRpm! > l.nextRpm! || (p.nextRpm === l.nextRpm && p.grossPerDay >= l.grossPerDay)
+    if (!p || p.nextRpm! > l.nextRpm!) return true
+    if (p.nextRpm !== l.nextRpm) return false
+    const pr = p.ratio ?? 0
+    const lr = l.ratio ?? 0
+    return pr > lr || (pr === lr && p.grossPerDay >= l.grossPerDay)
   })
 
 test('направления из штата: без него самого, без Аляски и Гавайев, лучшие сверху', () => {

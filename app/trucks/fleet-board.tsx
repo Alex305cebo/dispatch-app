@@ -20,9 +20,8 @@ import { datCached, datEquipment, stateFromPlace } from '@/lib/dat-market'
 import { FleetPanel } from '@/components/fleet-panel'
 import type { PlanSnaps, PlanTruck } from '@/components/route-planner'
 import { homeSoon, parseStates } from '@/lib/maintenance-core'
-import { ownStateRpm, type OwnStateRpm } from '@/lib/own-state-rpm'
-import { datRpmTables, datStateRpm } from '@/lib/dat-lanes'
-import { emptyTable, ownRpmTable, type RpmTable } from '@/lib/rpm-bench-core'
+import { datRpmTables } from '@/lib/dat-lanes'
+import { emptyTable, type RpmTable } from '@/lib/rpm-bench-core'
 import { usdaReeferCached } from '@/lib/usda-truck'
 import { type TrackingRow } from '@/components/fleet-list'
 import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
@@ -79,17 +78,12 @@ export async function FleetBoard({
   ])
   // Дата снимка — строкой отсюда и днём по восточному времени: из миллисекунд её посчитали
   // бы ещё и в браузере, в его поясе, а сервер Hostinger живёт в UTC.
-  // Ставки наших грузов по штатам — одни на все серии (свои грузы, не DAT).
-  const own = ownStateRpm(loads)
-  // Спот DAT RateView по штатам — из направлений с доски DAT One (lib/dat-lanes.ts).
-  const dat = await datStateRpm(companyId).catch((): Record<string, OwnStateRpm> => ({}))
-  // Настоящие ставки по штатам для направлений (lib/rpm-bench-core.ts): DAT RateView по
-  // направлениям, наши рейт-коны, для рефрижератора — недельный отчёт USDA (только из кэша).
+  // Ставки по самому маршруту для направлений (lib/rpm-bench-core.ts): DAT RateView с доски,
+  // для рефрижератора — недельный отчёт USDA (только из кэша). Наши рейт-коны — нет: это не рынок.
   const [datTables, usda] = await Promise.all([
     datRpmTables(companyId).catch((): Record<string, RpmTable> => ({})),
     usdaReeferCached(),
   ])
-  const ownTable = ownRpmTable(loads)
   const snaps: PlanSnaps = Object.fromEntries(
     datSnaps.flatMap(([eq, snap]) =>
       snap
@@ -99,11 +93,8 @@ export async function FleetBoard({
               {
                 ...snap,
                 date: usDate(todayEt(new Date(snap.at))),
-                own,
-                dat: dat[eq] ?? {},
                 bench: {
                   dat: datTables[eq] ?? emptyTable(),
-                  own: ownTable,
                   usda: eq === 'REEFER' ? (usda?.table ?? null) : null,
                   usdaWeek: eq === 'REEFER' && usda?.week ? usDate(usda.week) : null,
                 },

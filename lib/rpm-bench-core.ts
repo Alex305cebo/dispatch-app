@@ -1,25 +1,19 @@
-// Настоящая ставка за милю по штату — из данных, а не из формулы. Правило пользователя
-// (16.09.2026): рядом с направлением показываем только то, что где-то реально заплатили
-// или опубликовали; расчётов и «примерно» здесь нет. Источники:
-//   • DAT RateView — спот-ставки с доски DAT One, которые диспетчер видел за 30 дней
-//     (таблица dat_lanes, пишет расширение DispatchPro);
-//   • наши рейт-коны за 12 месяцев — весь гросс на все гружёные мили;
-//   • USDA AMS — недельный отчёт Минсельхоза США по рефрижераторным рейсам с
-//     опубликованной ставкой (agtransport.usda.gov, открытые данные, только Reefer).
-// Сначала ищется ставка по самому направлению (штат→штат), потом по всем грузам в штат.
-// Ничего не нашлось — null, и на экране «данных нет»: бесплатный DAT ставок по штатам не
-// отдаёт (только пять регионов), а придумывать нельзя. Без сети и базы — проверяется тестом.
-
-import type { LoadRecord } from './map.ts'
-import { stateOfCity } from './toll-spend.ts'
+// Ставка за милю по самому маршруту «штат → штат» — только рыночные данные, без формул.
+// Правило пользователя (16–17.09.2026): рядом с направлением — то, что реально заплатили
+// или опубликовали, и НЕ по нашим прошлым грузам (один рейт-кон давал $7/mi на весь штат).
+// Источники:
+//   • DAT RateView — спот с доски DAT One за 30 дней (таблица dat_lanes, расширение DispatchPro);
+//   • USDA AMS — недельный отчёт по рефрижераторным продуктовым рейсам (только Reefer).
+// Средняя «в штат откуда угодно» не берётся: это смесь чужих маршрутов, а не ставка этого.
+// Нет ставки по маршруту — null, и планировщик показывает ставку DAT по региону штата.
+// Без сети и базы — проверяется тестом.
 
 export type RpmStat = { rpm: number; n: number }
 /** lane — «TX>GA», into — штат доставки. */
 export type RpmTable = { lane: Record<string, RpmStat>; into: Record<string, RpmStat> }
-export type RpmSource = 'datLane' | 'datInto' | 'ownLane' | 'ownInto' | 'usdaLane' | 'usdaInto'
+export type RpmSource = 'datLane' | 'usdaLane'
 export type RpmBench = {
   dat: RpmTable
-  own: RpmTable
   /** Только у рефрижератора: у USDA — продуктовые рейсы. */
   usda: RpmTable | null
   /** Неделя отчёта USDA, MM/DD/YY — для подписи. */
@@ -33,7 +27,7 @@ export type RpmRow = { from: string | null; to: string | null; rate: number; mil
 export const laneKey = (from: string, to: string) => `${from}>${to}`
 export const emptyTable = (): RpmTable => ({ lane: {}, into: {} })
 
-/** Весь гросс на все мили, а не среднее средних — как ставка штата в lib/own-state-rpm.ts. */
+/** Весь гросс на все мили, а не среднее средних. */
 export function rpmTableFrom(rows: Iterable<RpmRow>): RpmTable {
   type Acc = { rate: number; miles: number; n: number }
   const lane = new Map<string, Acc>()
@@ -55,37 +49,17 @@ export function rpmTableFrom(rows: Iterable<RpmRow>): RpmTable {
   return { lane: done(lane), into: done(into) }
 }
 
-/** Наши рейт-коны за год: те же отборы, что у ставки по штату погрузки (own-state-rpm). */
-export function ownRpmTable(loads: LoadRecord[], now = Date.now()): RpmTable {
-  const since = now - 365 * 86400_000
-  const rows: RpmRow[] = []
-  for (const l of loads) {
-    if (l.status === 'quoted' || l.status === 'cancelled') continue
-    if (!(l.rate > 0) || !(l.loadedMiles > 0)) continue
-    const day = Date.parse(l.pickupDate ?? '')
-    if (Number.isNaN(day) || day < since) continue
-    rows.push({ from: stateOfCity(l.origin), to: stateOfCity(l.destination), rate: l.rate, miles: l.loadedMiles })
-  }
-  return rpmTableFrom(rows)
-}
-
-const ORDER: [keyof Pick<RpmBench, 'dat' | 'own' | 'usda'>, 'lane' | 'into', RpmSource][] = [
-  ['dat', 'lane', 'datLane'],
-  ['own', 'lane', 'ownLane'],
-  ['usda', 'lane', 'usdaLane'],
-  ['dat', 'into', 'datInto'],
-  ['own', 'into', 'ownInto'],
-  ['usda', 'into', 'usdaInto'],
+const ORDER: [keyof Pick<RpmBench, 'dat' | 'usda'>, RpmSource][] = [
+  ['dat', 'datLane'],
+  ['usda', 'usdaLane'],
 ]
 
-/** Ставка для направления from→to: точнее — по самому направлению, дальше — по штату доставки. */
+/** Ставка по самому маршруту from→to: DAT с доски точнее, иначе USDA. Нет — null. */
 export function benchmarkRpm(bench: RpmBench | null | undefined, from: string | null, to: string): Benchmark | null {
-  if (!bench) return null
-  for (const [src, kind, source] of ORDER) {
-    const table = bench[src]
-    if (!table) continue
-    const stat = kind === 'lane' ? (from ? table.lane[laneKey(from, to)] : undefined) : table.into[to]
-    if (stat) return { rpm: stat.rpm, n: stat.n, source, from: kind === 'lane' ? from : null, to }
+  if (!bench || !from) return null
+  for (const [src, source] of ORDER) {
+    const stat = bench[src]?.lane[laneKey(from, to)]
+    if (stat) return { rpm: stat.rpm, n: stat.n, source, from, to }
   }
   return null
 }

@@ -1,10 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { benchmarkRpm, emptyTable, ownRpmTable, rpmTableFrom, usdaOriginStates, usdaTable, type RpmBench } from './rpm-bench-core.ts'
-import type { LoadRecord } from './map.ts'
-
-const load = (p: Partial<LoadRecord>): LoadRecord =>
-  ({ id: 1, status: 'delivered', rate: 2000, loadedMiles: 1000, origin: 'Dallas, TX', destination: 'Atlanta, GA', pickupDate: '2026-09-01', ...p }) as LoadRecord
+import { benchmarkRpm, emptyTable, rpmTableFrom, usdaOriginStates, usdaTable, type RpmBench } from './rpm-bench-core.ts'
 
 test('таблица: весь гросс на все мили, направление и штат доставки, суммы из SQL с n', () => {
   const t = rpmTableFrom([
@@ -19,41 +15,19 @@ test('таблица: весь гросс на все мили, направле
   assert.deepEqual(t.into, { GA: { rpm: 2.84, n: 6 } })
 })
 
-test('наши рейт-коны за год — по направлению и по штату доставки', () => {
-  const now = Date.parse('2026-09-16')
-  const t = ownRpmTable(
-    [
-      load({ rate: 2000, loadedMiles: 1000 }),
-      load({ id: 2, origin: 'Houston, TX', rate: 1000, loadedMiles: 250 }),
-      load({ id: 3, origin: 'Laredo', destination: 'Atlanta, GA', rate: 3000, loadedMiles: 1000 }),
-      load({ id: 4, status: 'cancelled', rate: 9000, loadedMiles: 100 }),
-      load({ id: 5, pickupDate: '2025-01-01', rate: 9000, loadedMiles: 100 }),
-      load({ id: 6, destination: 'Miami', rate: 9000, loadedMiles: 100 }),
-    ],
-    now,
-  )
-  assert.deepEqual(t.lane, { 'TX>GA': { rpm: 2.4, n: 2 } })
-  assert.deepEqual(t.into, { GA: { rpm: 2.67, n: 3 } })
-})
-
-test('приоритет: направление точнее штата, DAT точнее наших, наши точнее USDA', () => {
+test('ставка — только по самому маршруту: DAT с доски, иначе USDA; «в штат откуда угодно» не считается', () => {
   const bench: RpmBench = {
     dat: { lane: { 'TX>GA': { rpm: 2.9, n: 3 } }, into: { FL: { rpm: 2.5, n: 4 } } },
-    own: { lane: { 'TX>FL': { rpm: 3.1, n: 1 } }, into: { GA: { rpm: 2.2, n: 5 }, NC: { rpm: 3.6, n: 2 } } },
-    usda: { lane: { 'TX>NC': { rpm: 4.0, n: 2 } }, into: { NC: { rpm: 4.2, n: 6 }, MA: { rpm: 3.4, n: 9 } } },
+    usda: { lane: { 'TX>GA': { rpm: 3.3, n: 1 }, 'TX>NC': { rpm: 4.0, n: 2 } }, into: { NC: { rpm: 4.2, n: 6 } } },
     usdaWeek: '09/08/26',
   }
   assert.deepEqual(benchmarkRpm(bench, 'TX', 'GA'), { rpm: 2.9, n: 3, source: 'datLane', from: 'TX', to: 'GA' })
-  // Своё направление (пусть и один рейт-кон) важнее DAT «в штат» откуда угодно
-  assert.deepEqual(benchmarkRpm(bench, 'TX', 'FL'), { rpm: 3.1, n: 1, source: 'ownLane', from: 'TX', to: 'FL' })
-  assert.equal(benchmarkRpm(bench, 'CA', 'FL')?.source, 'datInto')
-  assert.equal(benchmarkRpm(bench, 'CA', 'GA')?.source, 'ownInto')
-  assert.equal(benchmarkRpm(bench, 'TX', 'NC')?.source, 'usdaLane')
-  assert.equal(benchmarkRpm(bench, 'CA', 'NC')?.source, 'ownInto')
-  assert.deepEqual(benchmarkRpm(bench, 'CA', 'MA'), { rpm: 3.4, n: 9, source: 'usdaInto', from: null, to: 'MA' })
-  // Ничего не нашлось — null, а не «примерно»
-  assert.equal(benchmarkRpm(bench, 'CA', 'ME'), null)
-  assert.equal(benchmarkRpm({ dat: emptyTable(), own: emptyTable(), usda: null, usdaWeek: null }, 'TX', 'GA'), null)
+  assert.deepEqual(benchmarkRpm(bench, 'TX', 'NC'), { rpm: 4, n: 2, source: 'usdaLane', from: 'TX', to: 'NC' })
+  // Средние «в штат» из других штатов — не ставка этого маршрута
+  assert.equal(benchmarkRpm(bench, 'CA', 'FL'), null)
+  assert.equal(benchmarkRpm(bench, 'CA', 'NC'), null)
+  assert.equal(benchmarkRpm(bench, null, 'GA'), null)
+  assert.equal(benchmarkRpm({ dat: emptyTable(), usda: null, usdaWeek: null }, 'TX', 'GA'), null)
   assert.equal(benchmarkRpm(null, 'TX', 'GA'), null)
 })
 

@@ -20,7 +20,6 @@ import { readBoardScreenshot } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { safeUploadFile } from '@/lib/upload-name'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
-import type { OwnStateRpm } from '@/lib/own-state-rpm'
 import { benchmarkRpm, type Benchmark, type RpmBench, type RpmSource } from '@/lib/rpm-bench-core'
 import { usd, usd2, usDate } from '@/lib/fmt'
 import { US_STATES } from '@/lib/us-states'
@@ -63,8 +62,8 @@ export type PlanTruck = {
 
 /** Суточные снимки DAT по сериям; `date` — MM/DD/YY, отформатирован на сервере: на
  * сервере и в браузере разные пояса, и дата из миллисекунд разошлась бы при гидратации. */
-/** Снимок DAT + дата + ставки наших грузов по штатам (lib/own-state-rpm.ts) — одни на все серии. */
-export type PlanSnaps = Partial<Record<DatEquipment, DatSnapshot & { date: string; own?: OwnStateRpm; dat?: OwnStateRpm; bench?: RpmBench }>>
+/** Снимок DAT + дата + ставки по самому маршруту (lib/rpm-bench-core.ts). */
+export type PlanSnaps = Partial<Record<DatEquipment, DatSnapshot & { date: string; bench?: RpmBench }>>
 
 type Opts = { target: number; mpd: number; deadhead: number }
 const DEFAULT_OPTS: Opts = { target: 1300, mpd: 500, deadhead: 50 }
@@ -279,8 +278,6 @@ function BoardShotSample({ locale }: { locale: Locale }) {
 export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks: PlanTruck[]; snaps: PlanSnaps }) {
   const locale = useLocale()
   const [range, setRange] = useState<'all' | 'day' | 'long'>('all')
-  // «Со ставкой по штату»: только направления, где настоящая ставка есть.
-  const [withRate, setWithRate] = useState(false)
   const { truck, origin, series, snap, opts, lanes, from, planOpts, rpmOf } = plan
   if (!truck) return null
   const seriesList = Object.keys(snaps) as DatEquipment[]
@@ -293,10 +290,8 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
   const s = truck.settings
   // «На 1 день»: груз вместе с порожним укладывается в «Миль в день» из настроек расчёта.
   const inRange = range === 'all' ? lanes : lanes.filter((l) => (l.miles + l.deadhead <= opts.mpd) === (range === 'day'))
-  const rated = inRange.filter((l) => rpmOf(l.state) !== null)
-  const shown = withRate ? rated : inRange
-  // Ловушки — самые дешёвые штаты со ставкой из тех, что не попали в первые десять.
-  const traps = rated.slice(10).slice(-3).reverse()
+  // Ловушки — хвост списка: самый дешёвый регион DAT и самые холодные штаты в нём.
+  const traps = inRange.length > 10 ? inRange.slice(-3).reverse() : []
 
   const place = truck.place
   const originLine = !place
@@ -463,6 +458,8 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
               icon={<Flame size={15} strokeWidth={2.5} />}
               label={t(locale, 'plan.marketIn').replace('{state}', origin)}
               value={lt && snap ? t(locale, HEAT_LEVEL_KEY[heatLevel(ltMedian(snap), lt.ratio)]) : '—'}
+              // Слово без цифры непонятно — рядом грузы на трак и середина по штатам (DAT).
+              sub={lt && snap ? t(locale, 'plan.ltVsMedian').replace('{n}', lt.ratio.toFixed(1)).replace('{m}', ltMedian(snap).toFixed(1)) : undefined}
             />
             <Stat
               accent="haul"
@@ -509,17 +506,13 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
           {range === 'day' && (
             <p className="mt-1.5 text-[12px] text-white/55">{t(locale, 'plan.range.dayHint').replace('{mi}', String(opts.mpd))}</p>
           )}
-          <label className="mt-1.5 flex w-fit cursor-pointer items-center gap-2 text-[12px] text-white/70 max-md:min-h-9">
-            <input type="checkbox" checked={withRate} onChange={(e) => setWithRate(e.target.checked)} className="size-4 accent-haul-500" />
-            {t(locale, 'plan.range.withRate').replace('{n}', String(rated.length)).replace('{m}', String(inRange.length))}
-          </label>
-          {shown.length ? (
+          {inRange.length ? (
             <div className="mt-2 flex flex-col gap-1.5">
               <ShowMore
                 key={range}
                 limit={5}
                 label={t(locale, 'plan.more')}
-                items={shown.slice(0, 10).map((lane, i) => (
+                items={inRange.slice(0, 10).map((lane, i) => (
                   <LaneRow
                     key={lane.state}
                     lane={lane}
@@ -542,7 +535,9 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
           {traps.length > 0 && (
             <p className="mt-2 text-[12px] text-white/55">
               <span className="font-semibold text-bad-400">{t(locale, 'plan.traps')}:</span>{' '}
-              {traps.map((l) => `${l.name} (${usd2.format(rpmOf(l.state) ?? 0)}/mi)`).join(', ')}
+              {traps
+                .map((l) => `${l.name} (${[l.ratio != null ? t(locale, HEAT_LEVEL_KEY[heatLevel(l.median, l.ratio)]) : null, l.nextRpm ? `${usd2.format(l.nextRpm)}/mi` : null].filter(Boolean).join(', ')})`)
+                .join(', ')}
             </p>
           )}
 
@@ -558,10 +553,8 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
 /** Рынок серии целиком — то, что на сайте было карточкой аналитики: дизель, грузы на трак
  * по стране за год, ставки регионов и под каждой — штаты региона. Раскрыт сразу; сдвиг за
  * неделю стоит рядом с тем, что сдвинулось. На телефоне регионы по три в ряд, штаты кодами. */
-function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: string; own?: OwnStateRpm; dat?: OwnStateRpm }; series: DatEquipment; locale: Locale }) {
+function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: string }; series: DatEquipment; locale: Locale }) {
   const trend = snap.trend
-  const own = snap.own ?? {}
-  const dat = snap.dat ?? {}
   const sub = 'text-2xs font-semibold uppercase tracking-wide text-white/55'
   return (
     <details open className="group mt-4 rounded-xl border border-white/8">
@@ -600,8 +593,8 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
           </div>
           {/* Столбец на регион: ставка за милю — главная цифра, под ней хорошие штаты региона
               по грузам на трак и один худший внизу (lib/dat-market-core.ts regionStates).
-              Напротив штата — значок горячести и ставка НАШИХ грузов оттуда за год: ставок
-              по штатам в открытом DAT нет, а придумывать нельзя. */}
+              Напротив штата — значок горячести; при наведении — грузов на трак. Ставок по
+              штатам в открытом DAT нет, а свои грузы — не рынок (пользователь, 17.09.2026). */}
           <div className="mt-1.5 grid grid-cols-3 gap-x-1.5 gap-y-3 sm:grid-cols-5 sm:gap-x-2">
             {snap.regions.map((r) => {
               const groups = regionStates(snap, r.states)
@@ -625,18 +618,10 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
                       groups[key].length ? (
                         <ul key={key} className="space-y-0.5">
                           {groups[key].map((st) => {
-                            const o = own[st.code]
-                            const dt = dat[st.code]
-                            const ownText = [
-                              dt ? t(locale, 'plan.market.datRpm').replace('{n}', String(dt.n)).replace('{rpm}', usd2.format(dt.rpm)) : null,
-                              o ? t(locale, 'plan.market.ownRpm').replace('{n}', String(o.n)).replace('{rpm}', usd2.format(o.rpm)) : t(locale, 'plan.market.ownNone'),
-                            ]
-                              .filter(Boolean)
-                              .join('\n')
                             return (
                             <li
                               key={st.code}
-                              title={`${stateName(st.code)} · ${t(locale, HEAT_LEVEL_KEY[heatLevel(median, st.ratio)])}\n${ownText}`}
+                              title={`${stateName(st.code)} · ${t(locale, HEAT_LEVEL_KEY[heatLevel(median, st.ratio)])}\n${t(locale, 'plan.ltVsMedian').replace('{n}', st.ratio.toFixed(1)).replace('{m}', median.toFixed(1))}`}
                               className="flex items-center gap-1.5 text-[12px]"
                             >
                               <span className={`size-1.5 shrink-0 rounded-full ${dot}`} aria-hidden />
@@ -645,13 +630,6 @@ function MarketDetails({ snap, series, locale }: { snap: DatSnapshot & { date: s
                                 <span className="hidden lg:inline">{stateName(st.code)}</span>
                               </span>
                               <span className="shrink-0 text-[10px]">{HEAT_LEVEL_ICON[heatLevel(median, st.ratio)]}</span>
-                              {dt && <span className="nums shrink-0 text-[11px] font-semibold text-haul-300">{usd2.format(dt.rpm)}</span>}
-                              {o && (
-                                <span className="nums shrink-0 text-[11px] text-white/60">
-                                  {usd2.format(o.rpm)}
-                                  <span className="text-white/35">·{o.n}</span>
-                                </span>
-                              )}
                             </li>
                             )
                           })}
@@ -889,19 +867,11 @@ function LtChart({
 
 const SRC_SHORT: Record<RpmSource, MsgKey> = {
   datLane: 'plan.bench.srcDat',
-  datInto: 'plan.bench.srcDat',
-  ownLane: 'plan.bench.srcOwn',
-  ownInto: 'plan.bench.srcOwn',
   usdaLane: 'plan.bench.srcUsda',
-  usdaInto: 'plan.bench.srcUsda',
 }
 const SRC_LONG: Record<RpmSource, MsgKey> = {
   datLane: 'plan.bench.datLane',
-  datInto: 'plan.bench.datInto',
-  ownLane: 'plan.bench.ownLane',
-  ownInto: 'plan.bench.ownInto',
   usdaLane: 'plan.bench.usdaLane',
-  usdaInto: 'plan.bench.usdaInto',
 }
 
 /** Откуда цифра и сколько за ней данных: «DAT RateView · TX→GA · 3 напр. за 30 дн». */

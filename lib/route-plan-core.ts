@@ -184,8 +184,8 @@ export function scoreLane(
 export type RpmOf = (state: string) => number | null
 
 /** Все направления из штата: без самого штата, ближе MIN_LANE_MILES и без региона DAT
- * (Аляска, Гавайи). Сверху — со ставкой по штату, дороже выше; без неё — по ставке DAT
- * региона штата, внутри региона — по выручке в день за цикл. */
+ * (Аляска, Гавайи). Сверху — со ставкой по самому маршруту, дороже выше; без неё — по ставке
+ * DAT региона штата, внутри региона — горячее рынок (грузов на трак), дальше — выручка в день. */
 export function rankLanes(snap: DatSnapshot, origin: PlanOrigin, opts: PlanOptions, rpmOf: RpmOf = () => null): Lane[] {
   const out: Lane[] = []
   for (const [code] of US_STATES) {
@@ -195,9 +195,8 @@ export function rankLanes(snap: DatSnapshot, origin: PlanOrigin, opts: PlanOptio
   }
   // Нет ставки — 0: ставки положительные, такие уходят под все направления со ставкой.
   // Ниже — по ставке DAT региона штата: она видна справа в списке, цифры идут по убыванию.
-  // ponytail: один груз в штат весит как сотня — порог по числу грузов, если выбросы полезут наверх.
   const rpm = (l: Lane) => rpmOf(l.state) ?? 0
-  out.sort((a, b) => rpm(b) - rpm(a) || (b.nextRpm ?? 0) - (a.nextRpm ?? 0) || b.grossPerDay - a.grossPerDay)
+  out.sort((a, b) => rpm(b) - rpm(a) || (b.nextRpm ?? 0) - (a.nextRpm ?? 0) || (b.ratio ?? 0) - (a.ratio ?? 0) || b.grossPerDay - a.grossPerDay)
   // Скоро домой — домашнее направление первым, даже если по деньгам оно не лучшее:
   // водитель всё равно туда поедет, вопрос только — с грузом или порожним.
   if (opts.preferHome) out.sort((a, b) => Number(b.home) - Number(a.home))
