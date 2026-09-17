@@ -430,6 +430,18 @@ export const trucksDict = {
   'trucks.chip.deadhead': { ru: 'Deadhead за неделю', en: 'Week deadhead', es: 'Vacío de la semana', uk: 'Deadhead за тиждень', ro: 'Gol pe săptămână', kk: 'Апталық бос жүріс' },
   'trucks.chip.weekTarget': { ru: 'Цель недели', en: 'Weekly goal', es: 'Meta semanal', uk: 'Ціль тижня', ro: 'Ținta săptămânii', kk: 'Апта мақсаты' },
   'trucks.chip.weekTargetGross': { ru: 'Цель недели, $', en: 'Weekly goal, $', es: 'Meta semanal, $', uk: 'Ціль тижня, $', ro: 'Ținta săptămânii, $', kk: 'Апта мақсаты, $' },
+  // % доставок вовремя за 90 дней (lib/loads-dashboard.ts onTimeStats).
+  'trucks.chip.onTime': { ru: 'Вовремя', en: 'On time', es: 'A tiempo', uk: 'Вчасно', ro: 'La timp', kk: 'Уақытында' },
+  'trucks.chip.onTimeValue': { ru: '{pct}% · остановок: {n}', en: '{pct}% · {n} stops', es: '{pct}% · {n} paradas', uk: '{pct}% · зупинок: {n}', ro: '{pct}% · {n} opriri', kk: '{pct}% · {n} аялдама' },
+  'trucks.chip.onTimeFew': { ru: 'мало данных', en: 'not enough data', es: 'pocos datos', uk: 'замало даних', ro: 'date insuficiente', kk: 'дерек аз' },
+  'trucks.chip.onTimeInfo': {
+    ru: 'Доля остановок за 90 дней, куда водитель приехал не позже конца окна из рейт-кона. Считаются только остановки с окном и временем приезда: отметка водителя «Приехал» или GPS у склада. Меньше трёх таких — мало данных.',
+    en: 'Share of stops in the last 90 days where the driver arrived no later than the end of the rate con window. Only stops with both a window and an arrival time count: the driver’s “Arrived” tap or GPS at the facility. Fewer than three — not enough data.',
+    es: 'Parte de las paradas de los últimos 90 días en las que el conductor llegó antes del fin de la ventana del rate con. Solo cuentan las paradas con ventana y hora de llegada: la marca «Llegué» del conductor o el GPS en el almacén. Menos de tres — pocos datos.',
+    uk: 'Частка зупинок за 90 днів, куди водій приїхав не пізніше кінця вікна з рейт-кону. Рахуються лише зупинки з вікном і часом приїзду: позначка водія «Приїхав» або GPS біля складу. Менше трьох таких — замало даних.',
+    ro: 'Ponderea opririlor din ultimele 90 de zile la care șoferul a ajuns cel târziu la sfârșitul ferestrei din rate con. Contează doar opririle cu fereastră și oră de sosire: marcajul „Am ajuns” al șoferului sau GPS-ul la depozit. Sub trei — date insuficiente.',
+    kk: 'Соңғы 90 күндегі жүргізуші рейт-кондағы терезе аяқталғанға дейін келген аялдамалардың үлесі. Тек терезесі мен келу уақыты бар аялдамалар саналады: жүргізушінің «Келдім» белгісі немесе қойма жанындағы GPS. Үштен аз болса — дерек аз.',
+  },
   'trucks.chip.weekTargetInfo': {
     ru: 'Сколько трак уже проехал или заработал на этой неделе против цели из профиля водителя (паспорт трака). Та же цифра — у водителя на его странице.',
     en: 'How far the truck has run or earned this week against the goal from the driver profile (truck passport). The driver sees the same number on their page.',

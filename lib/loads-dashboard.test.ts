@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { weekStats, weekStartIso, shiftDay, upcomingStop, stopOrder, scheduleConnection, whenText, lateStop, priorityRank } from './loads-dashboard.ts'
+import { weekStats, weekStartIso, shiftDay, upcomingStop, stopOrder, scheduleConnection, whenText, lateStop, priorityRank, onTimeStats } from './loads-dashboard.ts'
 import { zonedMs } from './trip-eta.ts'
 import { weekLabel } from './fmt.ts'
 import { todayEt } from './payments.ts'
@@ -129,6 +129,29 @@ test('lateStop: окно пикапа закрылось по поясу шта�
   const loaded = [{ kind: 'loaded', at: new Date(at(12)).toISOString() }]
   assert.equal(lateStop(load({ ...l, status: 'in_transit', deliveryTime: '18:00' }), loaded, at(16)), null)
   assert.equal(lateStop(load({ ...l, status: 'in_transit', deliveryTime: '10:00' }), loaded, at(16))?.stop.role, 'delivery')
+})
+
+test('onTimeStats: приехал не позже конца окна; считаются только точки с окном и приездом за 90 дней', () => {
+  const at = (day: string, h: number) => zonedMs(day, h * 60, 'America/Chicago')!
+  const iso = (ms: number) => new Date(ms).toISOString()
+  const l = load({
+    id: 7, status: 'delivered', origin: 'Olathe, KS', destination: 'Dallas, TX',
+    pickupDate: '2026-09-10', pickupTime: '8am-3pm', deliveryDate: '2026-09-12', deliveryTime: '10:00',
+    deliveryArrivedAt: iso(at('2026-09-12', 11)), // GPS у выгрузки на час позже окна
+  })
+  const now = at('2026-09-16', 12)
+  // Из двух отметок «приехал» на пикап берётся ранняя (14:00 при окне до 15:00).
+  const events = new Map([[7, [
+    { kind: 'arrived_pickup', at: iso(at('2026-09-10', 16)) },
+    { kind: 'arrived_pickup', at: iso(at('2026-09-10', 14)) },
+  ]]])
+  assert.deepEqual(onTimeStats([l], events, now), { onTime: 1, total: 2 })
+  // Без времени окна и без приезда точка не считается.
+  assert.deepEqual(onTimeStats([load({ ...l, deliveryTime: null })], events, now), { onTime: 1, total: 1 })
+  assert.deepEqual(onTimeStats([l], new Map(), now), { onTime: 0, total: 1 })
+  // Окна старше 90 дней и отменённые грузы не в счёт.
+  assert.deepEqual(onTimeStats([l], events, at('2026-12-20', 12)), { onTime: 0, total: 0 })
+  assert.deepEqual(onTimeStats([load({ ...l, status: 'cancelled' })], events, now), { onTime: 0, total: 0 })
 })
 
 test('priorityRank: critical > important > caution > без флага', () => {

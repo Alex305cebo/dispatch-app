@@ -4,7 +4,7 @@
 import type { LoadPriority, LoadRecord, TruckRecord } from './map.ts'
 import { usDate } from './fmt.ts'
 import type { MsgKey } from './i18n.ts'
-import { stopsFrom, nextOpenStop, firstMinutes, lastMinutes, arrivedAt, type LoadStop, type StopEv } from './stops.ts'
+import { stopsFrom, nextOpenStop, firstMinutes, lastMinutes, arrivedAt, eventSeq, type LoadStop, type StopEv } from './stops.ts'
 import { zonedMs } from './trip-eta.ts'
 import { zoneForPlace } from './us-zones.ts'
 
@@ -92,14 +92,58 @@ export function lateStop(load: LoadRecord, events: StopEv[], nowMs: number): Lat
   if (!stop?.date) return null
   const stops = stopsFrom(load)
   if (arrivedAt(stop, events, stops)) return null
-  // GPS-приезд пишется только на первый пикап и последнюю выгрузку.
-  if (stop.role === 'pickup' && stop.seq === stops[0]?.seq && load.pickupArrivedAt) return null
-  if (stop.role === 'delivery' && stop.seq === stops[stops.length - 1]?.seq && load.deliveryArrivedAt) return null
-  const zone = zoneForPlace(stop.city) ?? zoneForPlace(stop.address) ?? 'America/Chicago'
-  const end = zonedMs(stop.date, lastMinutes(stop.time), zone)
+  if (gpsArrival(load, stop, stops)) return null
+  const end = stopDeadlineMs(stop)
   if (end == null) return null
   const minutes = Math.round((nowMs - end) / 60_000)
   return minutes > 0 ? { stop, minutes } : null
+}
+
+/** GPS-приезд пишется только на первый пикап и последнюю выгрузку. */
+function gpsArrival(load: LoadRecord, stop: LoadStop, stops: LoadStop[]): string | null {
+  if (stop.role === 'pickup') return stop.seq === stops[0]?.seq ? load.pickupArrivedAt : null
+  return stop.seq === stops[stops.length - 1]?.seq ? load.deliveryArrivedAt : null
+}
+
+/** Конец окна остановки в мс: дата и последнее время окна по поясу её штата; без даты — null. */
+function stopDeadlineMs(stop: LoadStop): number | null {
+  if (!stop.date) return null
+  const zone = zoneForPlace(stop.city) ?? zoneForPlace(stop.address) ?? 'America/Chicago'
+  return zonedMs(stop.date, lastMinutes(stop.time), zone)
+}
+
+/**
+ * «Вовремя» по грузам трака за `days` дней: из остановок, у которых есть окно (дата и
+ * время) и время приезда, — сколько приехали не позже конца окна. Приезд — самая ранняя
+ * отметка водителя «приехал» на эту точку или GPS-приезд. Отменённые грузы не в счёт.
+ */
+export function onTimeStats(
+  loads: LoadRecord[],
+  events: Map<number, StopEv[]>,
+  nowMs: number,
+  days = 90,
+): { onTime: number; total: number } {
+  const since = nowMs - days * 86_400_000
+  let onTime = 0
+  let total = 0
+  for (const load of loads) {
+    if (load.status === 'cancelled') continue
+    const stops = stopsFrom(load)
+    const evs = events.get(load.id) ?? []
+    for (const stop of stops) {
+      const end = stop.time?.trim() ? stopDeadlineMs(stop) : null
+      if (end == null || end < since) continue
+      const kind = stop.role === 'pickup' ? 'arrived_pickup' : 'arrived_delivery'
+      const times = evs.filter((e) => e.kind === kind && eventSeq(e, stops) === stop.seq).map((e) => Date.parse(e.at))
+      const gps = gpsArrival(load, stop, stops)
+      if (gps) times.push(Date.parse(gps))
+      const arrived = Math.min(...times.filter(Number.isFinite))
+      if (!Number.isFinite(arrived)) continue
+      total++
+      if (arrived <= end) onTime++
+    }
+  }
+  return { onTime, total }
 }
 
 export const PRIORITY_KEY: Record<LoadPriority, MsgKey> = {

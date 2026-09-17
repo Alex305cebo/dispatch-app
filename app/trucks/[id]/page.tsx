@@ -38,7 +38,8 @@ import { getCompany } from '@/lib/invoice'
 import { dispatcherPhoneKey, getSetting, detentionTerms } from '@/lib/settings'
 import { stopWindows } from '@/lib/detention'
 import { parseTaskOrder, stopsFrom, taskOrderKey, viaLabel, type StopEv } from '@/lib/stops'
-import { listLoadEvents } from '@/lib/load-events'
+import { allStopEvents, listLoadEvents } from '@/lib/load-events'
+import { onTimeStats } from '@/lib/loads-dashboard'
 import { DriverTimeline } from '@/components/driver-timeline'
 import { QueuedLoadHint } from '@/components/queued-load-hint'
 import { getLocale } from '@/lib/i18n-server'
@@ -102,7 +103,7 @@ export default async function Page({
   // диспетчер копирует брокеру прямо из карточки водителя. Оба запроса кэшированы и
   // идут в общей пачке, отдельного захода в базу это не стоит.
   const user = await getCurrentUser()
-  const [loads, meta, records, todos, fleet, docs, rateCons, history, company, dispatcherPhone] = await Promise.all([
+  const [loads, meta, records, todos, fleet, docs, rateCons, history, company, dispatcherPhone, stopEvents] = await Promise.all([
     listLoads(companyId, { truckId: truck.id }),
     getTruckMeta(truck.id),
     listMaintenance(truck.id),
@@ -115,6 +116,9 @@ export default async function Page({
     // Номер того, кто закреплён за траком, а не того, кто открыл страницу:
     // траки распределены между диспетчерами, и брокеру нужен человек по машине.
     dispatcherId || user ? getSetting(dispatcherPhoneKey(dispatcherId ?? user!.id)) : Promise.resolve(null),
+    // Отметки «приехал» — для плитки «Вовремя».
+    // ponytail: отметки всей компании одним запросом (как справочник складов); фильтр по траку — если парк вырастет.
+    allStopEvents(companyId),
   ])
   const fs = truck.number ? fleet.get(truck.number) : undefined
   // Когда водитель последний раз открывал свою страницу — видно, что ссылка живая.
@@ -163,6 +167,9 @@ export default async function Page({
     .sort()
     .pop()
   const idleDays = lastDelivery ? Math.max(0, Math.floor((Date.now() - Date.parse(lastDelivery)) / 86_400_000)) : null
+  // Вовремя за 90 дней; меньше трёх остановок с окном и приездом — «мало данных».
+  const onTime = onTimeStats(live, stopEvents, Date.now())
+  const onTimePct = onTime.total >= 3 ? Math.round((onTime.onTime / onTime.total) * 100) : null
   const openTodos = todos.filter((t) => !t.doneAt).length
   const hasUrgentTodo = todos.some((t) => !t.doneAt && t.priority === 'urgent')
   const oil = oilStatus(meta, fs?.odometer ?? null)
@@ -554,6 +561,15 @@ export default async function Page({
                     },
                   ]
                 : []),
+              {
+                label: `${t(locale, 'trucks.chip.onTime')}${truck.driverName ? ` · ${truck.driverName}` : ''}`,
+                value:
+                  onTimePct == null
+                    ? t(locale, 'trucks.chip.onTimeFew')
+                    : t(locale, 'trucks.chip.onTimeValue').replace('{pct}', String(onTimePct)).replace('{n}', String(onTime.total)),
+                tone: onTimePct == null ? undefined : onTimePct >= 90 ? 'good' : onTimePct < 80 ? 'warn' : undefined,
+                info: t(locale, 'trucks.chip.onTimeInfo'),
+              },
               ...(fs?.odometer != null
                 ? [
                     {
