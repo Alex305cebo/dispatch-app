@@ -573,7 +573,17 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
           {range === 'all' ? (
             <div className="mt-2 flex flex-col gap-3">
               {BANDS.map(({ key }) => {
-                const list = bandOf(key).slice(0, 4)
+                // По одному лучшему направлению на регион: четыре соседних штата одного
+                // региона — это один и тот же вариант, а диспетчеру нужны разные.
+                const seen = new Set<string>()
+                const list = bandOf(key)
+                  .filter((l) => {
+                    const r = regionOf(snap, l.state)?.code ?? l.state
+                    if (seen.has(r)) return false
+                    seen.add(r)
+                    return true
+                  })
+                  .slice(0, 4)
                 if (!list.length) return null
                 return (
                   <div key={key}>
