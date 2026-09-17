@@ -34,6 +34,7 @@ import {
   rankLanes,
   bestWorst,
   scoreLane,
+  stateLabel,
   stateName,
   type Lane,
   type PlanOptions,
@@ -732,13 +733,13 @@ function MarketDetails({
                             return (
                             <li
                               key={st.code}
-                              title={`${stateName(st.code)} · ${t(locale, HEAT_LEVEL_KEY[heatLevel(median, st.ratio)])}\n${t(locale, 'plan.ltVsMedian').replace('{n}', st.ratio.toFixed(1)).replace('{m}', median.toFixed(1))}`}
+                              title={`${stateLabel(st.code)} · ${t(locale, HEAT_LEVEL_KEY[heatLevel(median, st.ratio)])}\n${t(locale, 'plan.ltVsMedian').replace('{n}', st.ratio.toFixed(1)).replace('{m}', median.toFixed(1))}`}
                               className="flex items-center gap-1.5 text-[12px]"
                             >
                               <span className={`size-1.5 shrink-0 rounded-full ${dot}`} aria-hidden />
                               <span className="min-w-0 flex-1 truncate text-white/80">
-                                <span className="lg:hidden">{st.code}</span>
-                                <span className="hidden lg:inline">{stateName(st.code)}</span>
+                                <span className="lg:hidden">{st.code === 'DC' ? stateLabel(st.code) : st.code}</span>
+                                <span className="hidden lg:inline">{stateLabel(st.code)}</span>
                               </span>
                               <span className="shrink-0 text-[10px]">{HEAT_LEVEL_ICON[heatLevel(median, st.ratio)]}</span>
                             </li>
@@ -804,7 +805,7 @@ function StatesTable({ snaps, series, locale }: { snaps: PlanSnaps; series: DatE
   const rows = Object.entries(snap.lt)
     .map(([code, lt]) => ({
       code,
-      name: stateName(code),
+      name: stateLabel(code),
       ratio: lt.ratio,
       rate: regionOf(snap, code)?.rpm ?? 0,
       region: regionName(snap, code),
@@ -876,7 +877,7 @@ function StatesTable({ snaps, series, locale }: { snaps: PlanSnaps; series: DatE
             {rows.map((r) => (
               <tr key={r.code} className="border-t border-white/[0.06]">
                 <td className="px-2 py-1 text-white/80">
-                  <span className="lg:hidden">{r.code}</span>
+                  <span className="lg:hidden">{r.code === 'DC' ? r.name : r.code}</span>
                   <span className="hidden lg:inline">{r.name}</span>
                 </td>
                 {compare ? (

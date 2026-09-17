@@ -80,6 +80,9 @@ const POINT = new Map(US_STATES.map(([code, name, lat, lng]) => [code, { name, l
 
 export const stateName = (code: string) => POINT.get(code)?.name ?? code
 
+/** В данных DAT округ Колумбия идёт кодом DC — в списках пишем понятно. */
+export const stateLabel = (code: string) => (code === 'DC' ? 'Washington DC' : stateName(code))
+
 /**
  * Мили по дорогам между двумя точками.
  * ponytail: по прямой × 1.17 — ошибка 3–8%, как на сайте. Маршрутизатор (lib/geo-routing)
