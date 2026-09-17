@@ -154,137 +154,6 @@ export async function updateBrokerInfo(
   return { updated: rows.affectedRows ?? 0 }
 }
 
-/**
- * Реквизиты компании из списка крупнейших брокеров: MC, DOT, статус authority, город.
- *
- * В самом списке их нет намеренно — вписанный руками MC устаревает и врёт. Поэтому
- * достаём из реестра по названию в момент, когда карточку открыли, и тем же правилом
- * («Molo Solutions, LLC» → «Molo Solutions»), что и автоподбор: у этих компаний имя
- * в реестре почти всегда длиннее того, под которым их знают.
- */
-/** Реквизиты компании из реестра — то, что показывает карточка крупного брокера. */
-type TopFacts = {
-  mc: string | null
-  dot: string | null
-  legalName: string
-  city: string | null
-  state: string | null
-  authority: string | null
-  phone: string | null
-}
-
-export async function topBrokerInfo(name: string): Promise<TopFacts | { error: string }> {
-  const locale = await getLocale()
-
-  // Реквизиты крупных брокеров не меняются годами, а достаются пятью запросами к
-  // реестру: один поиск и по одному на каждого однофамильца. Держим ответ месяц —
-  // карточка открывается мгновенно и переживает недоступность реестра.
-  const CACHE_KEY = 'top_broker_facts'
-  const MONTH = 30 * 86400000
-  type Cached = { at: string; facts: TopFacts }
-  const store: Record<string, Cached> = JSON.parse((await getSetting(CACHE_KEY)) || '{}')
-  const hit = store[name.toLowerCase()]
-  if (hit && Date.now() - Date.parse(hit.at) < MONTH) return hit.facts
-
-  const { saferSearch, saferSnapshot } = await import('@/lib/safer')
-  const { chooseCompany, compact, searchTerms } = await import('@/lib/broker-match')
-  const { TOP_BROKERS } = await import('@/lib/brokers-top')
-
-  // Некоторые бренды в реестре записаны иначе («MODE Global» = MODE TRANSPORTATION
-  // LLC) — ищем под реестровым именем из справочника, показываем под брендовым.
-  const known = TOP_BROKERS.find((b) => compact(b.name) === compact(name))
-  const lookup = known?.alias ?? name
-
-  // Выверенный вручную DOT — без поиска вовсе: у крупных брендов в реестре
-  // однофамильцы, и правило имени между ними бессильно.
-  if (known?.dot) {
-    const snap0 = await saferSnapshot(known.dot)
-    if (snap0) {
-      const p = /([A-Za-z .'-]+),\s*([A-Z]{2})\s+\d{5}/.exec(snap0.address ?? '')
-      const facts: TopFacts = {
-        mc: snap0.mc ?? known.mc ?? null,
-        dot: known.dot,
-        legalName: snap0.legalName ?? name,
-        city: p?.[1]?.trim() ?? null,
-        state: p?.[2] ?? null,
-        authority: snap0.operatingStatus,
-        phone: snap0.phone,
-      }
-      store[name.toLowerCase()] = { at: new Date().toISOString(), facts }
-      await setSetting(CACHE_KEY, JSON.stringify(store))
-      return facts
-    }
-  }
-
-  const hits: { dot: string; legalName: string }[] = []
-  for (const term of searchTerms(lookup)) {
-    for (const h of await saferSearch(term)) if (!hits.some((x) => x.dot === h.dot)) hits.push(h)
-    if (hits.some((h) => compact(h.legalName) === compact(lookup))) break
-  }
-  const want = compact(lookup)
-  // Префикс в ОБЕ стороны: у нас «J.B. Hunt Transport Services», в реестре
-  // «J.B. HUNT TRANSPORT INC» — короче нашего, и односторонний startsWith его терял.
-  const worth = hits
-    .filter((h) => {
-      const c = compact(h.legalName)
-      return c.startsWith(want) || want.startsWith(c)
-    })
-    .slice(0, 8)
-
-  const cards = []
-  const snaps = new Map<string, Awaited<ReturnType<typeof saferSnapshot>>>()
-  for (const h of worth) {
-    const snap = await saferSnapshot(h.dot)
-    if (!snap) continue
-    snaps.set(h.dot, snap)
-    cards.push({
-      dot: h.dot,
-      legalName: snap.legalName ?? h.legalName,
-      dbaName: snap.dbaName,
-      phone: snap.phone,
-      entityType: snap.entityType,
-      operatingStatus: snap.operatingStatus,
-    })
-  }
-
-  let best = chooseCompany(lookup, null, cards)
-  if (!best && cards.length > 0) {
-    // В реестре несколько компаний с этим именем (у Nolan Transportation Group две:
-    // настоящая из Атланты и однофамилец 2023 года из Коннектикута). Для автозаписи
-    // MC в грузы такая ничья отдаётся человеку, но здесь справочная карточка
-    // ИЗВЕСТНОГО брокера — выбираем сами, сужая шаг за шагом: штат штаб-квартиры из
-    // нашего справочника → брокерский авторитет → дословное имя → старейший DOT
-    // (однофамильцы-подражатели регистрируются недавно, номера у них большие).
-    let pool = cards
-    if (known?.hq) {
-      const st = pool.filter((c) => (snaps.get(c.dot)?.address ?? '').includes(`, ${known.hq} `))
-      if (st.length > 0) pool = st
-    }
-    const brokers = pool.filter((c) => (c.entityType ?? '').toUpperCase().includes('BROKER'))
-    if (brokers.length > 0) pool = brokers
-    const exact = pool.filter((c) => compact(c.legalName) === want)
-    if (exact.length > 0) pool = exact
-    best = pool.slice().sort((a, b) => Number(a.dot) - Number(b.dot))[0] ?? null
-  }
-  const snap = best ? snaps.get(best.dot) : null
-  if (!best || !snap) return { error: t(locale, 'fmcsa.nameNotFound').replace('{name}', name) }
-
-  // Город и штат в SAFER лежат второй строкой адреса: «CHICAGO, IL 60607».
-  const place = /([A-Za-z .'-]+),\s*([A-Z]{2})\b/.exec(snap.address ?? '')
-  const facts: TopFacts = {
-    mc: snap.mc,
-    dot: best.dot,
-    legalName: snap.legalName ?? best.legalName,
-    city: place?.[1]?.trim() ?? null,
-    state: place?.[2] ?? null,
-    authority: snap.operatingStatus,
-    phone: snap.phone,
-  }
-  store[name.toLowerCase()] = { at: new Date().toISOString(), facts }
-  await setSetting(CACHE_KEY, JSON.stringify(store))
-  return facts
-}
-
 export async function findBrokerByName(name: string) {
   const { searchByName } = await import('@/lib/fmcsa')
   return searchByName(name, await getLocale())
@@ -1954,8 +1823,21 @@ export async function saveFacilityNote(key: string, text: string): Promise<{ err
   const value = text.trim().slice(0, 500)
   if (value) await setSetting(facilityNoteKey(key), value)
   else await deleteSetting(facilityNoteKey(key))
-  revalidatePath('/facilities')
+  revalidatePath('/facilities', 'layout')
+  revalidatePath('/brokers', 'layout')
   revalidatePath('/loads', 'layout')
+}
+
+/** Заметка о брокере: как платит, с кем говорить. Видна в карточке брокера. */
+export async function saveBrokerNote(key: string, text: string): Promise<{ error: string } | void> {
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  if (!key || key.length > 120) return { error: 'bad key' }
+  const { brokerNoteKey } = await import('@/lib/broker-key')
+  const value = text.trim().slice(0, 500)
+  if (value) await setSetting(brokerNoteKey(key), value)
+  else await deleteSetting(brokerNoteKey(key))
+  revalidatePath('/brokers', 'layout')
 }
 
 /** Save the broker's special-instructions text (the "must read" block). */

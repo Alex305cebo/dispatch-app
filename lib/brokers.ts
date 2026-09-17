@@ -3,13 +3,15 @@
 // row can carry authority status when it's been checked. SERVER ONLY (queries DB).
 
 import { sql } from './db'
-import { emailDomain, foldReps, type BrokerRep } from './broker-key.ts'
+import { brokerKeyOf, emailDomain, foldReps, type BrokerRep } from './broker-key.ts'
 import { foldMoney, type MoneyRow } from './broker-money.ts'
 import { usDate } from './fmt.ts'
 import { todayEt } from './payments.ts'
 import { datCached, datEquipment, loadMarketRpm, versusMarket, type DatEquipment } from './dat-market'
 
 export type OurBroker = {
+  /** Ключ справочника (brokerKeyOf): MC, домен почты или название — адрес карточки. */
+  key: string
   /** Digits-only MC, or null if only a name was ever captured. */
   mc: string | null
   name: string | null
@@ -120,7 +122,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
   const byKey = new Map<string, OurBroker>()
   for (const r of rows) {
     const mc = digits(r.broker_mc) || null
-    const key = mc ?? emailDomain(r.broker_email) ?? (r.broker_name ?? '').toLowerCase().trim()
+    const key = brokerKeyOf({ mc: r.broker_mc, email: r.broker_email, name: r.broker_name })
     if (!key) continue
     money.push({
       key,
@@ -177,6 +179,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
       existing.payVia ??= r.pay_via
     } else {
       byKey.set(key, {
+        key,
         mc,
         name: r.broker_name,
         phone: r.broker_phone,
@@ -235,6 +238,7 @@ export async function listOurBrokers(companyId: string): Promise<OurBroker[]> {
       existing.phone ??= c.phone
     } else {
       byKey.set(c.mc, {
+        key: c.mc,
         mc: c.mc,
         name: c.legal_name ?? c.dba_name,
         phone: c.phone,
@@ -317,10 +321,10 @@ export async function brokerGradeFor(
   email: string | null,
   name: string | null,
 ): Promise<{ payGrade: 'good' | 'ok' | 'slow'; payDays: number | null; lateCount: number; paidCount: number } | null> {
-  const key = digits(mc) || emailDomain(email) || (name ?? '').toLowerCase().trim()
+  const key = brokerKeyOf({ mc, email, name })
   if (!key) return null
   const all = await listOurBrokers(companyId)
-  const b = all.find((x) => (x.mc ?? '') === key) ?? all.find((x) => (x.name ?? '').toLowerCase().trim() === key)
+  const b = all.find((x) => x.key === key)
   if (!b || !b.payGrade) return null
   return { payGrade: b.payGrade, payDays: b.payDays, lateCount: b.lateCount, paidCount: b.paidCount }
 }

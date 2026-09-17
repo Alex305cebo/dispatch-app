@@ -34,7 +34,9 @@ export async function FacilityHints({ companyId, load, locale }: { companyId: 'd
             <li key={`${stop.seq}-${f.key}`} className="py-2 text-[13px]">
               <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-white/50">{stopTitle(stop, stops, locale)}</span>
-                <span className="font-medium text-white/90">{f.name ?? f.address ?? f.city}</span>
+                <Link href={`/facilities/${encodeURIComponent(f.key)}`} className="font-medium text-white/90 hover:text-haul-300 hover:underline">
+                  {f.name ?? f.address ?? f.city}
+                </Link>
                 <span className="nums text-white/60">
                   {t(locale, 'facilities.visits').replace('{n}', String(f.visits))}
                   {f.lastDate && ` · ${usDate(f.lastDate)}`}
@@ -58,7 +60,7 @@ export async function FacilityHints({ companyId, load, locale }: { companyId: 'd
           )
         })}
       </ul>
-      <Link href="/facilities" className="mt-2 inline-block text-[12px] font-medium text-haul-400 hover:underline">
+      <Link href="/brokers?view=facilities" className="mt-2 inline-block text-[12px] font-medium text-haul-400 hover:underline">
         {t(locale, 'facilities.all')} →
       </Link>
     </section>

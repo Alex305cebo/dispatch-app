@@ -69,3 +69,24 @@ export function foldReps(
   // Кто возит больше и свежее — тот и выше: с ним и разговаривать.
   return [...by.values()].sort((a, b) => b.loads - a.loads || (b.lastAt ?? '').localeCompare(a.lastAt ?? ''))
 }
+
+/** Ключ брокера в справочнике — как его сводит listOurBrokers: MC, иначе домен почты,
+ * иначе название. По нему адрес карточки /brokers/<ключ> и связь «груз → брокер». */
+export function brokerKeyOf(b: { mc: string | null; email: string | null; name: string | null }): string | null {
+  return (b.mc ?? '').replace(/\D/g, '') || emailDomain(b.email) || (b.name ?? '').toLowerCase().trim() || null
+}
+
+/** Заметка диспетчера о брокере — в settings, как заметка склада. */
+export const brokerNoteKey = (key: string) => `broker_note:${key}`
+
+/** Название из реестра пишут капсом: «CH ROBINSON COMPANY LLC». Читать это в списке тяжело —
+ * приводим к обычному виду, короткие слова (LLC, CH) оставляем заглавными. */
+export function prettyCompany(name: string | null): string | null {
+  if (!name) return null
+  if (!/[A-Z]{4,}/.test(name)) return name
+  return name
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => (w.length <= 3 && w !== 'inc' ? w.toUpperCase() : w.replace(/^./, (c) => c.toUpperCase())))
+    .join(' ')
+}

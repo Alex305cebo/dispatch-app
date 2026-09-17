@@ -52,7 +52,7 @@ const STEPS: Def[] = [
   { key: 'brokers', href: '/brokers', target: '', image: 'brokers' },
   // Без снимка: у демо-грузов почти нет адресов, экран складов там не показателен.
   // Пункт меню — общий с брокерами («Брокеры и склады»).
-  { key: 'facilities', href: '/facilities', target: 'nav-brokers', image: '' },
+  { key: 'facilities', href: '/brokers?view=facilities', target: 'nav-brokers', image: '' },
   { key: 'tolls', href: '/tolls', target: '', image: 'tolls' },
   { key: 'invoices', href: '/invoices', target: '', image: 'invoices' },
 ]
