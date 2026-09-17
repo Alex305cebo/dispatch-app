@@ -207,7 +207,7 @@ export function useRoutePlan(trucks: PlanTruck[], snaps: PlanSnaps, selectedId: 
           return [
             l.state,
             {
-              t: mid && rate ? (Math.log2(rate / mid) + 0.5) / 1 : 0.5,
+              t: mid && rate ? Math.log2(rate / mid) + 0.5 : null,
               text: [
                 rate ? `${usd2.format(rate)}/mi` : t(locale, 'plan.map.noRate'),
                 `${l.miles.toLocaleString('en-US')} mi`,

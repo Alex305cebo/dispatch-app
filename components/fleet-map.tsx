@@ -76,9 +76,9 @@ export type MapMarket = {
  * ни языка расчёта, только красит и зовёт onPickState на нажатие по штату. */
 export type MapPlan = {
   origin: string
-  /** Код штата → место на шкале выручки в день (0 — 60% цели и ниже, 1 — 120% и выше)
-   * и строка для плашки. */
-  lanes: Record<string, { t: number; text: string }>
+  /** Код штата → место на шкале ставки (0 — заметно ниже середины, 1 — заметно выше) и
+   * строка для плашки. t = null — ставки по этому штату нет, и красить его нечем. */
+  lanes: Record<string, { t: number | null; text: string }>
   legend: { title: string; mode: string; from: string; low: string; high: string; hint: string }
   /** Растёт на каждое «На карте» — карта включает слой в этом режиме и показывает себя. */
   signal: number
@@ -690,9 +690,11 @@ export function FleetMap({
           // DAT) — едва тонирован. Нажатие по любому — считать уже из него.
           const lane = planShown.lanes[code]
           const isOrigin = code === planShown.origin
-          className = isOrigin ? 'mkt mkt-origin' : lane ? 'mkt mkt-plan' : 'mkt mkt-none'
+          // Без ставки штат не красим: жёлтая середина там, где цифры нет, — враньё.
+          const rated = lane?.t != null
+          className = isOrigin ? 'mkt mkt-origin' : rated ? 'mkt mkt-plan' : 'mkt mkt-none'
           text = isOrigin ? planShown.legend.from : (lane?.text ?? '')
-          color = lane && !isOrigin ? planColor(lane.t) : undefined
+          color = rated && !isOrigin ? planColor(lane!.t!) : undefined
         } else {
           const s = marketStates![code]
           if (!s) continue
