@@ -179,24 +179,19 @@ export function scoreLane(
   }
 }
 
-/** Настоящая средняя ставка по штату доставки, $/mi (lib/rpm-bench-core.ts benchmarkRpm),
- * null — данных нет. Считать или оценивать её нельзя (правило пользователя 16.09.2026). */
-export type RpmOf = (state: string) => number | null
-
 /** Все направления из штата: без самого штата, ближе MIN_LANE_MILES и без региона DAT
- * (Аляска, Гавайи). Сверху — со ставкой по самому маршруту, дороже выше; без неё — по ставке
- * DAT региона штата, внутри региона — горячее рынок (грузов на трак), дальше — выручка в день. */
-export function rankLanes(snap: DatSnapshot, origin: PlanOrigin, opts: PlanOptions, rpmOf: RpmOf = () => null): Lane[] {
+ * (Аляска, Гавайи). Сверху — самые горячие штаты: больше грузов на трак (DAT), там трак
+ * быстрее найдёт следующий груз; эта цифра справа в списке. Ставка за милю у DAT только по
+ * 5 регионам — по ней одни и те же цифры у десятка штатов подряд (решение 17.09.2026). */
+export function rankLanes(snap: DatSnapshot, origin: PlanOrigin, opts: PlanOptions): Lane[] {
   const out: Lane[] = []
   for (const [code] of US_STATES) {
     if (code === origin.state || !regionOf(snap, code) || opts.avoid?.includes(code)) continue
     const lane = scoreLane(snap, origin, code, opts)
     if (lane && lane.miles >= MIN_LANE_MILES) out.push(lane)
   }
-  // Нет ставки — 0: ставки положительные, такие уходят под все направления со ставкой.
-  // Ниже — по ставке DAT региона штата: она видна справа в списке, цифры идут по убыванию.
-  const rpm = (l: Lane) => rpmOf(l.state) ?? 0
-  out.sort((a, b) => rpm(b) - rpm(a) || (b.nextRpm ?? 0) - (a.nextRpm ?? 0) || (b.ratio ?? 0) - (a.ratio ?? 0) || b.grossPerDay - a.grossPerDay)
+  // Без данных о грузах на трак — вниз; при равенстве — дороже регион, потом выручка в день.
+  out.sort((a, b) => (b.ratio ?? -1) - (a.ratio ?? -1) || (b.nextRpm ?? 0) - (a.nextRpm ?? 0) || b.grossPerDay - a.grossPerDay)
   // Скоро домой — домашнее направление первым, даже если по деньгам оно не лучшее:
   // водитель всё равно туда поедет, вопрос только — с грузом или порожним.
   if (opts.preferHome) out.sort((a, b) => Number(b.home) - Number(a.home))
@@ -206,24 +201,18 @@ export function rankLanes(snap: DatSnapshot, origin: PlanOrigin, opts: PlanOptio
 /**
  * «Лучше всего» и «хуже всего».
  *
- * Есть настоящие ставки по штатам — по ним: лучший — самая высокая, худший — самая низкая
- * (когда штатов со ставкой хотя бы два).
+ * Лучший — первый дальний (длиннее дневного пробега) в порядке списка: самый горячий штат,
+ * куда трак не просто переставят к соседям.
  *
- * Без ставок по штатам лучший — первый дальний (длиннее дневного пробега) в порядке списка:
- * регион с самой высокой ставкой DAT, в нём — больше выручки в день за цикл.
- *
- * Худший без ставок — НЕ последний по выручке в день: эта цифра топит любой рейс короче (погрузка,
+ * Худший — НЕ последний по выручке в день: эта цифра топит любой рейс короче (погрузка,
  * выгрузка и простой — фиксированная добавка к каждому), и «худшим штатом» выходил сосед
  * (из SC — North Carolina, из TN — снова она). Худший для диспетчера — штат, где трак
  * застрянет: дольше всего ждать следующий груз (самый холодный рынок), при равенстве —
  * слабее ставка на выезд. От длины рейса это не зависит.
  */
-export function bestWorst(lanes: Lane[], milesPerDay: number, rpmOf: RpmOf = () => null): { best: Lane | null; worst: Lane | null } {
-  const rpm = (l: Lane) => rpmOf(l.state) ?? 0
-  const rated = lanes.filter((l) => rpm(l) > 0).sort((a, b) => rpm(b) - rpm(a))
+export function bestWorst(lanes: Lane[], milesPerDay: number): { best: Lane | null; worst: Lane | null } {
   const long = lanes.filter((l) => l.miles + l.deadhead > milesPerDay)
-  const best = rated[0] ?? (long.length ? long : lanes)[0] ?? null
-  if (rated.length > 1) return { best, worst: rated[rated.length - 1]! }
+  const best = (long.length ? long : lanes)[0] ?? null
   const rest = lanes.filter((l) => l !== best)
   const worst = rest.length
     ? rest.reduce((w, l) => (l.wait > w.wait || (l.wait === w.wait && (l.nextRpm ?? 0) < (w.nextRpm ?? 0)) ? l : w))

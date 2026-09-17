@@ -84,11 +84,10 @@ export type MapPlan = {
   signal: number
 }
 
-const HEAT_KEY = { hot: 'needsLoad.heatHot', warm: 'needsLoad.heatWarm', cold: 'needsLoad.heatCold' } as const
-const HEAT_SWATCH = { hot: 'bg-good-400/60', warm: 'bg-white/20', cold: 'bg-bad-400/60' } as const
 /** Шкала выручки в день — та же, что у Route Planner на сайте: красный → янтарь →
  * жёлто-зелёный → зелёный. Плавная, а не тремя корзинами: в слабый рынок все направления
- * ниже цели, и корзины красили бы страну одним цветом. */
+ * ниже цели, и корзины красили бы страну одним цветом. Ею же красится «Рынок» — грузы на
+ * трак (пользователю так нравится больше, 17.09.2026). */
 const PLAN_RAMP: [number, number, number][] = [
   [0, 70, 42],
   [35, 75, 45],
@@ -104,6 +103,11 @@ function planColor(t: number): string {
   return `hsl(${Math.round(a[0] + (b[0] - a[0]) * f)}, ${Math.round(a[1] + (b[1] - a[1]) * f)}%, ${Math.round(a[2] + (b[2] - a[2]) * f)}%)`
 }
 const PLAN_GRADIENT = `linear-gradient(90deg, ${[0, 1 / 3, 2 / 3, 1].map(planColor).join(', ')})`
+/** Середина грузов на трак по штатам серии: от неё шкала «Рынка» и «очень горячий» … «очень холодный». */
+function medianRatio(states: Record<string, { ratio: number }> | null): number {
+  const ratios = states ? Object.values(states).map((x) => x.ratio).filter((r) => r > 0).sort((a, b) => a - b) : []
+  return ratios.length ? ratios[Math.floor(ratios.length / 2)]! : 0
+}
 const SERIES_NAME: Record<DatEquipment, string> = { VAN: 'Van', REEFER: 'Reefer', FLATBED: 'Flatbed' }
 /** localStorage: включённый слой рынка остаётся включённым на следующих открытиях. */
 const MARKET_KEY = 'map:market'
@@ -619,6 +623,7 @@ export function FleetMap({
   const [layerMode, setLayerMode] = useState<'heat' | 'plan'>('heat')
   const planShown = marketOn && layerMode === 'plan' && plan ? plan : null
   const marketStates = marketOn && !planShown && mk && shownSeries ? (mk.series[shownSeries] ?? null) : null
+  const marketMedian = medianRatio(marketStates)
   const layerOn = !!planShown || !!marketStates
   const pickStateRef = useRef(onPickState)
   pickStateRef.current = onPickState
@@ -667,9 +672,6 @@ export function FleetMap({
   useEffect(() => {
     const map = mapRef.current
     if (!map || (!marketStates && !planShown)) return
-    // Середина по штатам серии — от неё «очень горячий» … «очень холодный» в подсказке.
-    const ratios = marketStates ? Object.values(marketStates).map((x) => x.ratio).filter((r) => r > 0).sort((a, b) => a - b) : []
-    const marketMedian = ratios.length ? ratios[Math.floor(ratios.length / 2)]! : 0
     let cancelled = false
     let group: import('leaflet').LayerGroup | null = null
     void (async () => {
@@ -694,8 +696,11 @@ export function FleetMap({
         } else {
           const s = marketStates![code]
           if (!s) continue
-          className = `mkt mkt-${s.heat}`
-          text = t(locale, 'needsLoad.market').replace('{heat}', t(locale, HEAT_LEVEL_KEY[heatLevel(marketMedian, s.ratio)]))
+          // Шкала от середины: вдвое меньше грузов на трак и ниже — красный, середина —
+          // жёлтый, вдвое больше и выше — зелёный.
+          className = 'mkt mkt-scale'
+          color = marketMedian > 0 ? planColor((Math.log2(s.ratio / marketMedian) + 1) / 2) : undefined
+          text = `${t(locale, 'needsLoad.market').replace('{heat}', t(locale, HEAT_LEVEL_KEY[heatLevel(marketMedian, s.ratio)]))} · ${s.ratio.toFixed(1)} ${t(locale, 'plan.perTruck')}`
         }
         // В режиме «Из штата» нажатие не всплывает до карты: там оно снимало бы выбор трака.
         const poly = L.polygon(shape, {
@@ -717,7 +722,7 @@ export function FleetMap({
       cancelled = true
       group?.remove()
     }
-  }, [marketStates, planShown, locale, mapReady])
+  }, [marketStates, marketMedian, planShown, locale, mapReady])
 
   useEffect(() => {
     const map = mapRef.current
@@ -1310,14 +1315,12 @@ export function FleetMap({
                   ))}
                 </span>
               )}
-              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-                {(['hot', 'warm', 'cold'] as const).map((h) => (
-                  <span key={h} className="flex items-center gap-1">
-                    <span className={`size-2.5 rounded-sm ${HEAT_SWATCH[h]}`} aria-hidden />
-                    {t(locale, HEAT_KEY[h])}
-                  </span>
-                ))}
+              <div className="nums flex items-center gap-1.5">
+                <span>{(marketMedian / 2).toFixed(1)}</span>
+                <span className="h-2 w-24 rounded-full opacity-80" style={{ background: PLAN_GRADIENT }} aria-hidden />
+                <span>{(marketMedian * 2).toFixed(1)}+</span>
               </div>
+              <div className="nums text-[10.5px] text-white/45">{t(locale, 'tracking.marketScale').replace('{m}', marketMedian.toFixed(1))}</div>
             </>
           )}
           <div className="nums text-[10.5px] text-white/45">

@@ -97,24 +97,24 @@ test('простой стоит денег: постоянные расходы 
   assert.equal(lane.next!.gross, 600 * 2.8)
 })
 
-/** Без ставок по маршруту: по ставке DAT региона штата, в регионе — грузы на трак, потом выручка в день. */
-const byRegionThenDay = (ls: Lane[]) =>
+/** Горячие сверху: грузов на трак больше — выше, без данных — внизу; при равенстве — дороже регион. */
+const hotFirst = (ls: Lane[]) =>
   ls.every((l, i) => {
     const p = ls[i - 1]
-    if (!p || p.nextRpm! > l.nextRpm!) return true
-    if (p.nextRpm !== l.nextRpm) return false
-    const pr = p.ratio ?? 0
-    const lr = l.ratio ?? 0
-    return pr > lr || (pr === lr && p.grossPerDay >= l.grossPerDay)
+    if (!p) return true
+    const pr = p.ratio ?? -1
+    const lr = l.ratio ?? -1
+    return pr > lr || (pr === lr && (p.nextRpm ?? 0) >= (l.nextRpm ?? 0))
   })
 
-test('направления из штата: без него самого, без Аляски и Гавайев, лучшие сверху', () => {
+test('направления из штата: без него самого, без Аляски и Гавайев, горячие сверху', () => {
   const lanes = rankLanes(snap, { state: 'IL' }, opts)
   assert.ok(lanes.length > 40)
   assert.ok(!lanes.some((l) => l.state === 'IL' || l.state === 'AK' || l.state === 'HI'))
   assert.ok(lanes.every((l) => l.miles >= 150))
-  assert.ok(byRegionThenDay(lanes))
-  assert.equal(lanes[0]!.nextRpm, 3.1) // North — самый дорогой регион фикстуры
+  assert.ok(hotFirst(lanes))
+  // PA — 19.7 грузов на трак, самый горячий штат фикстуры; OH (14.8) за ним
+  assert.deepEqual(lanes.slice(0, 2).map((l) => l.state), ['PA', 'OH'])
   // Ставка направления — DAT региона погрузки (North $3.10)
   assert.ok(lanes.every((l) => Math.abs(l.rpm - 3.1) < 0.01))
   // Канзас в /lt — KS, в регионах — KA: направление в Канзас есть и с соотношением
@@ -158,6 +158,8 @@ test('хуже всего — штат, где трак застрянет (са
   const { best, worst } = bestWorst(lanes, opts.milesPerDay)
   assert.ok(best && worst)
   assert.ok(best.miles + best.deadhead > opts.milesPerDay)
+  // лучший — самый горячий из дальних
+  assert.equal(best, lanes.find((l) => l.miles + l.deadhead > opts.milesPerDay))
   // самый холодный штат фикстуры — MT (2.0 груза на трак): там ждать дольше всех
   assert.equal(worst.state, 'MT')
   assert.ok(lanes.every((l) => l.wait <= worst.wait))
@@ -175,23 +177,4 @@ test('профиль водителя: стоп-лист вырезан, дом�
   const soon = rankLanes(snap, { state: 'IL' }, { ...opts, homeState: 'MT', preferHome: true })
   assert.equal(soon[0]!.state, 'MT')
   assert.equal(soon.length, home.length)
-})
-
-test('настоящая ставка по штату: со ставкой сверху, дороже выше; лучший и худший — по ней', () => {
-  const rates: Record<string, number> = { TX: 2.1, GA: 3.4, MT: 2.9 }
-  const rpmOf = (st: string) => rates[st] ?? null
-  const lanes = rankLanes(snap, { state: 'IL' }, opts, rpmOf)
-  assert.deepEqual(lanes.slice(0, 3).map((l) => l.state), ['GA', 'MT', 'TX'])
-  const rest = lanes.slice(3)
-  assert.ok(rest.length > 40 && byRegionThenDay(rest))
-  const { best, worst } = bestWorst(lanes, opts.milesPerDay, rpmOf)
-  assert.equal(best?.state, 'GA')
-  assert.equal(worst?.state, 'TX')
-  // Ставка только у одного штата — худший прежний: самый холодный рынок
-  const one = (st: string) => (st === 'GA' ? 3.4 : null)
-  const single = bestWorst(rankLanes(snap, { state: 'IL' }, opts, one), opts.milesPerDay, one)
-  assert.equal(single.best?.state, 'GA')
-  assert.equal(single.worst?.state, 'MT')
-  // Домой скоро — домашний штат первым и при ставках
-  assert.equal(rankLanes(snap, { state: 'IL' }, { ...opts, homeState: 'CA', preferHome: true }, rpmOf)[0]!.state, 'CA')
 })

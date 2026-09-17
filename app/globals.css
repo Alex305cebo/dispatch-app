@@ -302,36 +302,21 @@
     0 0 3px rgba(0, 0, 0, 0.9),
     0 0 6px rgba(0, 0, 0, 0.8);
 }
-/* Слой «Рынок DAT» (fleet-map.tsx): заливка штата по горячести рынка. Цвета — те же, что
-   у слов «горячий/холодный» в «Кому искать груз» (good/bad); обычный штат едва тонирован,
-   чтобы карта не пестрела. CSS главнее атрибутов fill/stroke, которые ставит Leaflet. */
+/* Слой «Рынок DAT» (fleet-map.tsx). Цвет штата ставит сам слой (fillColor) по одной
+   плавной шкале в обоих режимах: «Рынок» — грузы на трак против середины по штатам,
+   «Из штата» (Куда отправить трак) — выручка в день; штат, откуда считаем, — акцент, и
+   в этом режиме штат нажимается: расчёт переходит на него. CSS главнее атрибутов
+   fill/stroke, которые ставит Leaflet. */
 .fleet-map path.mkt {
   cursor: default;
   stroke-opacity: 0.45;
 }
-.fleet-map path.mkt-hot {
-  fill: var(--color-good-400);
-  stroke: var(--color-good-400);
-  fill-opacity: 0.3;
-}
-.fleet-map path.mkt-cold {
-  fill: var(--color-bad-400);
-  stroke: var(--color-bad-400);
-  fill-opacity: 0.26;
-}
-.fleet-map path.mkt-warm {
-  fill: #8b93a5;
-  stroke: #8b93a5;
-  fill-opacity: 0.1;
-}
-/* Режим «Из штата» (Куда отправить трак): цвет направления — шкала выручки в день, его
-   ставит сам слой (fillColor в fleet-map.tsx); штат, откуда считаем, — акцент. Штат
-   нажимается: расчёт переходит на него. */
 .fleet-map path.mkt-plan,
 .fleet-map path.mkt-origin,
 .fleet-map path.mkt-none {
   cursor: pointer;
 }
+.fleet-map path.mkt-scale,
 .fleet-map path.mkt-plan {
   fill-opacity: 0.42;
 }
