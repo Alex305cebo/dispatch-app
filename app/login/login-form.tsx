@@ -6,6 +6,7 @@ import { bootstrapAdmin, registerRequest, resetWithRecovery, signIn } from './ac
 import { LOCALE_COOKIE, LOCALES, t, type Locale } from '@/lib/i18n'
 import { GoogleButton } from './google-button'
 import { ThemePicker } from '@/components/theme-picker'
+import { LocaleFlag } from '@/components/locale-flags'
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -155,13 +156,18 @@ export function LoginForm({
             </div>
           </div>
 
-          <div className="grid gap-2.5">
-            <Button variant="primary" size="lg" block onClick={() => chooseFirstLocale('en')}>
-              English
-            </Button>
-            <Button variant="secondary" size="lg" block onClick={() => chooseFirstLocale('ru')}>
-              Русский
-            </Button>
+          <div className="grid grid-cols-2 gap-2">
+            {LOCALES.map((l) => (
+              <button
+                key={l.code}
+                type="button"
+                onClick={() => chooseFirstLocale(l.code)}
+                className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-left text-[14px] font-semibold text-white/85 transition-colors hover:border-haul-500/60 hover:bg-haul-500/10"
+              >
+                <LocaleFlag code={l.code} />
+                {l.native}
+              </button>
+            ))}
           </div>
 
           <p className="mt-3 text-center text-[11px] text-white/45">
@@ -246,23 +252,30 @@ export function LoginForm({
             <h1 className="text-[15px] font-semibold leading-tight">{companyName || 'Dispatch'}</h1>
             <p className="text-[12px] text-white/65">{title}</p>
           </div>
-          {/* Выбор языка — первое, что видно на первом же экране. Языков пять, в ряд
-              кнопками они уже не влезают, поэтому список: он же показывает текущий. */}
-          <select
-            value={locale}
-            onChange={(e) => chooseLocale(e.target.value as Locale)}
-            aria-label="Language"
-            className="ml-auto rounded-lg border border-white/10 bg-ink-950/70 px-2 py-1 text-[12px] font-semibold text-white/80 outline-none focus:border-haul-500"
-          >
-            {LOCALES.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.native}
-              </option>
-            ))}
-          </select>
         </div>
 
-        {/* Тема — сразу под шапкой, рядом с языком по смыслу: оформление выбирают до входа. */}
+        {/* Языки флагами — сразу видно, на каких языках приложение; текущий подсвечен. */}
+        <div role="group" aria-label="Language" className="mb-2 grid grid-cols-6 gap-1">
+          {LOCALES.map((l) => (
+            <button
+              key={l.code}
+              type="button"
+              onClick={() => chooseLocale(l.code)}
+              title={l.native}
+              aria-label={l.native}
+              aria-pressed={locale === l.code}
+              className={`flex flex-col items-center gap-1 rounded-lg border px-1 py-1.5 text-[10px] font-bold transition-colors ${
+                locale === l.code
+                  ? 'border-haul-500 bg-haul-500/15 text-haul-300'
+                  : 'border-white/8 text-white/55 hover:border-white/25 hover:text-white/85'
+              }`}
+            >
+              <LocaleFlag code={l.code} className="h-4 w-6" />
+              {l.short}
+            </button>
+          ))}
+        </div>
+        {/* Тема — сразу под языком: оформление выбирают до входа. */}
         <ThemePicker locale={locale} className="mb-4" />
 
         {bootstrap && (
