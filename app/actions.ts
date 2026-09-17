@@ -30,7 +30,7 @@ import { parseStates } from '@/lib/maintenance-core'
 import type { QrLoad } from '@/lib/qr-load'
 import type { TruckSettings } from '@/lib/profit'
 import { checkBroker, checkBrokerByDot, type BrokerCheck, type RcContext } from '@/lib/fmcsa'
-import { formatDriverInfo, toQrLoad } from '@/lib/ratecon'
+import { formatDriverInfo, refKey, toQrLoad } from '@/lib/ratecon'
 import { cityCoordsBest } from '@/lib/geo-routing'
 import { haversineMiles } from '@/lib/geo'
 import { nextLoadStatus, GEOFENCE_MI } from '@/lib/load-status'
@@ -860,8 +860,8 @@ export type RcCreateResult = {
  * — только в свой трак, а чужой груз — отказ с объяснением, где он.
  */
 async function findLoadOnOtherTruck(companyId: string, truckId: number, ref: string | null | undefined) {
-  const key = (ref ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase()
-  if (key.length < 5) return null
+  const key = refKey(ref)
+  if (!key) return null
   const rows = (await sql`
     SELECT l.id, l.reference_id, t.number, t.driver_name FROM loads l
     JOIN trucks t ON t.id = l.truck_id
@@ -875,8 +875,8 @@ async function findLoadOnOtherTruck(companyId: string, truckId: number, ref: str
 }
 
 async function findLoadByReference(companyId: string, truckId: number, ref: string | null | undefined) {
-  const key = (ref ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase()
-  if (key.length < 5) return null
+  const key = refKey(ref)
+  if (!key) return null
   const rows = (await sql`
     SELECT id, truck_id, origin, destination, rate, loaded_miles, deadhead_miles, miles_estimated, pickup_address, delivery_address,
            pickup_time, delivery_time, pickup_date, delivery_date, broker_name, broker_mc,
@@ -915,6 +915,47 @@ async function findLoadByReference(companyId: string, truckId: number, ref: stri
   return rows[0] ?? null
 }
 
+const RC_LOCK_STALE_MS = 3 * 60_000
+const RC_LOCK_WAIT_MS = 30_000
+
+/**
+ * Один рейт-кон — один груз, даже если запросов пришло два.
+ *
+ * Близнеца ищет findLoadByReference, но между его SELECT и INSERT ниже есть зазор:
+ * два запроса с ОДНИМ документом (двойной сабмит, повтор после «зависшего» чтения
+ * скана, дубль вебхука Telegram) оба не находят ничего и оба вставляют. Так в
+ * реальном парке появились #2003 и #2004 — PO# 568207385, трак 5, одна минута.
+ *
+ * Блокировка здесь одна доступная: первичный ключ settings. Пул (lib/db.ts) раздаёт
+ * произвольное соединение на каждый запрос, поэтому ни транзакции, ни GET_LOCK не
+ * годятся — они привязаны к соединению. INSERT IGNORE атомарен, ключ достаётся
+ * ровно одному; второй ждёт и уже видит созданный груз — его файл ложится туда же
+ * (ветка twin), дубля нет.
+ *
+ * ponytail: очередь на ключе, а не UNIQUE-индекс по reference_id. Индекс был бы
+ * честнее, но колонка TEXT без нормализации, а в базе уже лежат старые дубли —
+ * ALTER не пройдёт, пока их не свели вручную.
+ */
+async function lockRc(companyId: string, ref: string | null | undefined): Promise<string | null> {
+  const key = refKey(ref)
+  if (!key) return null
+  const lock = `rc_lock:${companyId}:${key}`
+  const until = Date.now() + RC_LOCK_WAIT_MS
+  for (;;) {
+    const now = new Date().toISOString()
+    const got = await sql`INSERT IGNORE INTO settings ("key", value) VALUES (${lock}, ${now})`
+    if (got.affectedRows) return lock
+    // Процесс мог умереть, не отпустив ключ (деплой посреди чтения скана), — через
+    // RC_LOCK_STALE_MS ключ ничей. Тот же приём, что у claimDemoReset.
+    const stale = new Date(Date.now() - RC_LOCK_STALE_MS).toISOString()
+    const took = await sql`UPDATE settings SET value = ${now} WHERE "key" = ${lock} AND value < ${stale}`
+    if (took.affectedRows) return lock
+    // Не дождались — заводим как раньше: хуже сегодняшнего поведения не будет.
+    if (Date.now() >= until) return null
+    await new Promise((r) => setTimeout(r, 500))
+  }
+}
+
 export async function createLoadFromRc(
   truckId: number,
   load: QrLoad,
@@ -929,9 +970,13 @@ export async function createLoadFromRc(
   const ro = await demoReadOnly()
   if (ro) return ro
   const locale = await getLocale()
+  let lock: string | null = null
   try {
     const companyId = await companyScope()
     if (!(await truckBelongs(companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }
+    // Проверка близнеца и вставка — под одним ключом, иначе один документ заводит
+    // два груза (lockRc).
+    lock = await lockRc(companyId, load.referenceId)
     stops = await fillStopCitiesFromZip(stops)
     const stopsJson = stops && stops.length > 2 ? JSON.stringify(stops) : null
     const dirs = directionsOf(stops)
@@ -1149,6 +1194,8 @@ export async function createLoadFromRc(
     }
   } catch (e) {
     return { error: humanError(e, locale) }
+  } finally {
+    if (lock) await deleteSetting(lock)
   }
 }
 

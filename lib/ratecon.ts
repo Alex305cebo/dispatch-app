@@ -807,3 +807,14 @@ export function missingFields(f: RateConFields): string[] {
   if (!(f.pickupDate && f.deliveryDate)) gaps.push('transitDays')
   return gaps
 }
+
+/**
+ * Ключ, по которому два файла узнаются как ОДИН груз: номер груза у брокера без
+ * разделителей и регистра — «568-207-385», «568 207 385» и «568207385» это один
+ * рейс. Короче пяти знаков — не номер («1», «TBD», «N/A»), такому ключу верить
+ * нельзя: по нему сшились бы чужие друг другу грузы.
+ */
+export function refKey(ref: string | null | undefined): string | null {
+  const key = (ref ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase()
+  return key.length < 5 ? null : key
+}
