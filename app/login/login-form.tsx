@@ -224,10 +224,21 @@ export function LoginForm({
   return (
     // Covers the nav: middleware rewrites this page over whatever route was asked
     // for, so usePathname() still reports that route and the nav can't know to hide.
-    <main className="fixed inset-0 z-[100] flex items-center justify-center bg-ink-950 px-4">
-      <form onSubmit={submit} className="panel w-full max-w-sm p-6">
+    // Лицо TMS: мягкая подсветка фона (фиолет сверху, зелень снизу) и карточка с тенью —
+    // первое, что видит каждый новый человек, и чаще всего по дороге в демо.
+    <main
+      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-ink-950 px-4 py-8"
+      style={{
+        backgroundImage:
+          'radial-gradient(60rem 30rem at 50% -10%, rgb(124 106 255 / 0.22), transparent 70%), radial-gradient(40rem 24rem at 90% 110%, rgb(34 197 94 / 0.12), transparent 70%)',
+      }}
+    >
+      <form
+        onSubmit={submit}
+        className="panel my-auto w-full max-w-sm p-6 shadow-[0_24px_70px_-20px_rgb(0_0_0/0.45)] ring-1 ring-haul-500/10 sm:p-7"
+      >
         <div className="mb-5 flex items-center gap-2.5">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-haul-500 to-good-500 text-[17px] font-bold">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-haul-500 to-good-500 text-[18px] font-bold text-[#fff] shadow-lg shadow-haul-500/30">
             D
           </div>
           <div>
@@ -430,9 +441,30 @@ export function LoginForm({
         )}
 
         {!bootstrap && mode === 'signin' && (demoUrl || showDemo) && (
-          <Button href={demoUrl || '/demo'} external variant="secondary" size="lg" block className="mt-3">
-            {t(locale, 'login.demo')}
-          </Button>
+          // Демо — самая частая дорога с этой страницы, поэтому не серая кнопка, а
+          // заметный блок: что внутри и что регистрации нет. Ведёт туда же, что и раньше.
+          <a
+            href={demoUrl || '/demo'}
+            className="group mt-4 flex items-center gap-3 rounded-2xl border border-haul-500/40 bg-gradient-to-br from-haul-500/20 via-haul-500/10 to-good-500/15 p-3.5 text-left shadow-[0_10px_30px_-12px_rgb(124_106_255/0.55)] transition-all hover:-translate-y-0.5 hover:border-haul-400/70 hover:shadow-[0_16px_36px_-12px_rgb(124_106_255/0.7)]"
+          >
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-haul-500 to-good-500 text-[#fff] shadow-md shadow-haul-500/40">
+              <svg viewBox="0 0 24 24" className="ml-0.5 size-5" fill="currentColor" aria-hidden>
+                <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
+              </svg>
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-1.5 text-[15px] font-bold text-white">
+                {t(locale, 'login.demoTitle')}
+                <span className="rounded-full bg-good-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-good-300">
+                  {t(locale, 'login.demoBadge')}
+                </span>
+              </span>
+              <span className="mt-0.5 block text-[12px] leading-snug text-white/65">{t(locale, 'login.demoSub')}</span>
+            </span>
+            <span className="text-[20px] text-haul-300 transition-transform group-hover:translate-x-1" aria-hidden>
+              →
+            </span>
+          </a>
         )}
       </form>
     </main>
