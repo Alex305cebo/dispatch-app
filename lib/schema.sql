@@ -429,11 +429,16 @@ CREATE TABLE IF NOT EXISTS load_payments (
   CONSTRAINT load_payments_load_id_fkey FOREIGN KEY (load_id) REFERENCES loads (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
 
--- Спот-ставки DAT RateView по направлениям с доски DAT One — присылает расширение
--- DispatchPro (app/api/dat-lanes). Одно направление в день — одна строка.
+-- Настоящие ставки по направлениям из внешних источников. Одно направление в день от
+-- одного источника — одна строка. `source`: 'dat' — спот DAT RateView с доски DAT One
+-- (присылает расширение DispatchPro, app/api/dat-lanes), 'warp' — бесплатный API
+-- котировок wearewarp.com (цена для ГРУЗООТПРАВИТЕЛЯ, с маржой брокера — выше того, что
+-- получает трак), 'farelanes' — ставка из кабинета Farelanes. Ставку показываем только с
+-- подписью источника и никогда не пересчитываем (правило пользователя 16.09.2026).
 CREATE TABLE IF NOT EXISTS dat_lanes (
   id           BIGINT AUTO_INCREMENT PRIMARY KEY,
   company_id   VARCHAR(64) NOT NULL DEFAULT 'default',
+  source       VARCHAR(16) NOT NULL DEFAULT 'dat',
   origin       VARCHAR(120) NOT NULL,
   dest         VARCHAR(120) NOT NULL,
   origin_state CHAR(2),
@@ -446,9 +451,15 @@ CREATE TABLE IF NOT EXISTS dat_lanes (
   spot_high    INT,
   seen_on      DATE NOT NULL,
   seen_at      DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  UNIQUE KEY dat_lanes_day (company_id, origin, dest, equipment, seen_on),
+  UNIQUE KEY dat_lanes_src_day (company_id, source, origin, dest, equipment, seen_on),
   KEY dat_lanes_state (company_id, origin_state, seen_on)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
 
-INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-21')
+-- Источник ставки в dat_lanes: старые базы завели таблицу только под DAT, теперь в ней
+-- живут и другие источники, и ключ «одно направление в день» стал ключом с источником.
+ALTER TABLE dat_lanes ADD COLUMN IF NOT EXISTS source VARCHAR(16) NOT NULL DEFAULT 'dat';
+ALTER TABLE dat_lanes DROP INDEX IF EXISTS dat_lanes_day;
+ALTER TABLE dat_lanes ADD UNIQUE KEY IF NOT EXISTS dat_lanes_src_day (company_id, source, origin, dest, equipment, seen_on);
+
+INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-22')
 ON DUPLICATE KEY UPDATE value = VALUES(value);

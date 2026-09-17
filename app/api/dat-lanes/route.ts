@@ -52,8 +52,8 @@ export async function POST(req: NextRequest) {
     const high = Number(l.spotHigh) > 0 ? Math.round(Number(l.spotHigh)) : null
     await sql`
       INSERT INTO dat_lanes
-        (company_id, origin, dest, origin_state, dest_state, equipment, miles, spot_rate, spot_rpm, spot_low, spot_high, seen_on, seen_at)
-      VALUES (${companyId}, ${origin}, ${dest}, ${stateOfCity(origin)}, ${stateOfCity(dest)}, ${equipment}, ${miles}, ${rate}, ${rpm},
+        (company_id, source, origin, dest, origin_state, dest_state, equipment, miles, spot_rate, spot_rpm, spot_low, spot_high, seen_on, seen_at)
+      VALUES (${companyId}, 'dat', ${origin}, ${dest}, ${stateOfCity(origin)}, ${stateOfCity(dest)}, ${equipment}, ${miles}, ${rate}, ${rpm},
               ${low}, ${high}, CURDATE(), NOW(6))
       ON DUPLICATE KEY UPDATE
         miles = VALUES(miles), spot_rate = VALUES(spot_rate), spot_rpm = VALUES(spot_rpm),
