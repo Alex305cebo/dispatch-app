@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react'
 import { bootstrapAdmin, registerRequest, resetWithRecovery, signIn } from './actions'
 import { LOCALE_COOKIE, LOCALES, t, type Locale } from '@/lib/i18n'
 import { GoogleButton } from './google-button'
+import { ThemePicker } from '@/components/theme-picker'
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -260,6 +261,9 @@ export function LoginForm({
             ))}
           </select>
         </div>
+
+        {/* Тема — сразу под шапкой, рядом с языком по смыслу: оформление выбирают до входа. */}
+        <ThemePicker locale={locale} className="mb-4" />
 
         {bootstrap && (
           <p className="mb-3 rounded-lg border border-haul-500/25 bg-haul-500/[0.07] px-3 py-2 text-[12.5px] leading-relaxed text-haul-300">
