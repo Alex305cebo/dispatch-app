@@ -233,26 +233,41 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       />
 
       {/* ===== HERO: route, truck, status and the rate — one card, not four loose pieces ===== */}
-      <section className="panel mt-3 p-4 sm:p-5">
-        <h1 className="text-[22px] font-semibold sm:text-[26px]">
-          {load.origin ?? '—'} → {load.destination ?? '—'}
-          {via && <span className="ml-2 text-[15px] font-medium text-white/50 sm:text-[17px]">· {via}</span>}
-        </h1>
-        <p className="mt-1.5 text-[13px] text-white/65">
-          {/* Откуда взялся груз. Раньше здесь стояло «Пришёл с DAT по QR» у ЛЮБОГО
-              груза, заведённого не руками, — в том числе у приехавших рейт-коном в
-              Telegram, которые доски DAT в глаза не видели. Смотрим не на пометку в
-              базе, а на то, что есть на самом деле: если к рейсу приложен рейт-кон,
-              из него он и заведён. */}
-          {rateConDoc
-            ? t(locale, 'loadDetail.sourceRc')
-            : load.source === 'qr'
-              ? t(locale, 'loadDetail.sourceQr')
-              : t(locale, 'loadDetail.sourceManual')}
-          {/* Это номер груза, который дал брокер, а не «reference» из бумаги: под ним
-              груз ищут, называют по телефону и пишут в счёте. */}
-          {load.referenceId && ` · ${t(locale, 'import.label.referenceId')} ${load.referenceId}`}
-        </p>
+      <section className="panel mt-3 p-4">
+        {/* Заголовок и флаг «следить» — в одной строке: на широком экране ряд из
+            четырёх кнопок приоритета стоял отдельной полосой и отодвигал вниз всё,
+            ради чего страницу открывают. На телефоне он переносится под заголовок. */}
+        <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+          <div className="min-w-0">
+            <h1 className="text-[21px] font-semibold sm:text-[23px]">
+              {load.origin ?? '—'} → {load.destination ?? '—'}
+              {via && <span className="ml-2 text-[15px] font-medium text-white/50 sm:text-[16px]">· {via}</span>}
+            </h1>
+            <p className="mt-1 text-[13px] text-white/65">
+              {/* Откуда взялся груз. Раньше здесь стояло «Пришёл с DAT по QR» у ЛЮБОГО
+                  груза, заведённого не руками, — в том числе у приехавших рейт-коном в
+                  Telegram, которые доски DAT в глаза не видели. Смотрим не на пометку в
+                  базе, а на то, что есть на самом деле: если к рейсу приложен рейт-кон,
+                  из него он и заведён. */}
+              {rateConDoc
+                ? t(locale, 'loadDetail.sourceRc')
+                : load.source === 'qr'
+                  ? t(locale, 'loadDetail.sourceQr')
+                  : t(locale, 'loadDetail.sourceManual')}
+              {/* Это номер груза, который дал брокер, а не «reference» из бумаги: под ним
+                  груз ищут, называют по телефону и пишут в счёте. */}
+              {load.referenceId && ` · ${t(locale, 'import.label.referenceId')} ${load.referenceId}`}
+            </p>
+          </div>
+          {/* Флаг «следить»: на широком экране — справа от заголовка, на телефоне
+              переносится под него. Своей полосой он отодвигал вниз всё, ради чего
+              страницу открывают. */}
+          {load.status !== 'paid' && load.status !== 'cancelled' && (
+            <div className="sm:ml-auto">
+              <PriorityPicker loadId={load.id} value={load.priority} />
+            </div>
+          )}
+        </div>
         {late && (
           <div className="mt-3 rounded-xl border border-bad-500/30 bg-bad-500/[0.08] px-4 py-3 text-[13px]">
             <span className="font-semibold text-bad-400">{t(locale, 'loads.dash.late')}</span>{' '}
@@ -271,19 +286,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         )}
         <MissingPodBanner loads={missingPod} locale={locale} className="mt-3" />
         <DeadheadFlag miles={load.deadheadMiles} okMiles={load.deadheadOkMiles} loadId={load.id} locale={locale} banner className="mt-3" />
-        {/* Флаг «следить» — сразу под источником: ставится за секунду, поднимает груз в очереди. */}
-        {load.status !== 'paid' && load.status !== 'cancelled' && (
-          <div className="mt-3">
-            <PriorityPicker loadId={load.id} value={load.priority} />
-          </div>
-        )}
         {/* Кнопка на трак живёт в полосе «Трак ⇄ Груз» наверху — второй раз здесь ни к чему. */}
 
         {/* Где, когда и под какими номерами — сразу в шапке. Рейт-кон приносит склад,
             улицу, окно и номера PU/PO, но в шапке стояли только два города: адрес
             лежал внизу в «Подробностях», номер пикапа — в тексте водителю. Диспетчер,
             которому звонит склад, искал их по всей странице. */}
-        <LoadStops stops={stops} locale={locale} className="mt-4" />
+        <LoadStops stops={stops} locale={locale} className="mt-3" />
 
         {/* Брокер груза — тоже в шапке. Кому звонить и на какую почту слать бумаги,
             лежало только в форме «Подробности» внизу страницы, а звонят по нему с
@@ -291,7 +300,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             занимали три ряда и уводили ставку и кнопки за край экрана. Имя ведёт в
             справочник — там его история и оценка. */}
         {brokerFacts.length > 0 && (
-          <p className="mt-2.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] text-white/60">
+          <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] text-white/60">
             {brokerFacts.map((part, k) => (
               <Fragment key={k}>
                 {k > 0 && <span className="text-white/25">·</span>}
@@ -304,7 +313,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         {/* The rail needs the full width to lay five labelled steps out; sharing a flex
             row with the rate-con control squeezed it to ~160px and clipped every label
             to "Оплач…". Rate con moves onto its own line underneath. */}
-        <div className="mt-5">
+        <div className="mt-4">
           <StatusPicker
             id={load.id}
             truckId={truck.id}
@@ -341,7 +350,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             на телефоне 2×2 (четвёртая клетка — «Повторить груз»), на широком экране
             в один ряд. Раньше rate con и «Повторить» стояли своим рядом с разными
             размерами, BOL/POD — другим, и на телефоне это читалось как россыпь. */}
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
           {rateConDoc ? (
             <RateConButton docId={rateConDoc.id} />
           ) : (
@@ -370,7 +379,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </Link>
         </div>
 
-        <div className="mt-5 border-t border-white/8 pt-5">
+        <div className="mt-4 border-t border-white/8 pt-4">
           <h2 className="mb-4 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
             {t(locale, 'loadDetail.rateHeading')}
             <Info text={t(locale, 'loadDetail.rateInfo')} />

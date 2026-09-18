@@ -88,9 +88,14 @@ function Stop({ stop, stops, locale }: { stop: LoadStop; stops: LoadStop[]; loca
           </a>
         )}
       </div>
-      {stop.name && <div className="mt-1 text-[13px] leading-snug font-semibold break-words text-white/90">{stop.name}</div>}
-      {(stop.address || city) && (
-        <div className="text-[12.5px] leading-snug break-words text-white/65">{[stop.address, city].filter(Boolean).join(', ')}</div>
+      {/* Склад и адрес — одной строкой: две отдельные строки в карточке множились на
+          число точек, а на широком экране места в строке вдоволь. */}
+      {(stop.name || stop.address || city) && (
+        <p className="mt-1 text-[12.5px] leading-snug break-words text-white/65">
+          {stop.name && <span className="text-[13px] font-semibold text-white/90">{stop.name}</span>}
+          {stop.name && (stop.address || city) && <span className="text-white/25"> · </span>}
+          {[stop.address, city].filter(Boolean).join(', ')}
+        </p>
       )}
       {stop.refs.length > 0 && (
         <div className="mt-1.5 flex flex-wrap gap-1">
