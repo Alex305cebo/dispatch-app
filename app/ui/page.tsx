@@ -64,11 +64,8 @@ export default function Page() {
       <div className="panel p-2.5">
         <WidgetGrid
           storageKey="ui-preview"
-          hint={(touch) =>
-            touch
-              ? 'Нажмите и потяните плитку, чтобы переставить'
-              : 'Потяните плитку мышью, чтобы переставить'
-          }
+          hintTouch="Нажмите, подержите и потяните плитку"
+          hintPointer="Потяните плитку мышью, чтобы переставить"
           widgets={[
             {
               id: 'gross',

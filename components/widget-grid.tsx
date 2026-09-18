@@ -43,14 +43,18 @@ function restore(key: string, ids: string[]): string[] {
 export function WidgetGrid({
   storageKey,
   widgets,
-  hint,
+  hintTouch,
+  hintPointer,
   resetLabel = 'Вернуть как было',
   className = '',
 }: {
   storageKey: string
   widgets: Widget[]
-  /** Подсказка над сеткой: на тачскрине и мышью жесты разные, текст даёт вызывающий. */
-  hint?: (touch: boolean) => React.ReactNode
+  /** Подсказка над сеткой: на тачскрине и мышью жесты разные. Две готовые строки, а не
+   * функция от вида указателя: сетка — клиентский компонент, а функцию в него со
+   * страницы-сервера передать нельзя, Next отвечает ошибкой прямо в браузер. */
+  hintTouch?: string
+  hintPointer?: string
   resetLabel?: string
   className?: string
 }) {
@@ -111,7 +115,7 @@ export function WidgetGrid({
   return (
     <div className={className}>
       <div className="mb-2 flex items-center justify-between gap-3 text-xs text-white/55">
-        <span id={hintId}>{hint?.(touch)}</span>
+        <span id={hintId}>{touch ? hintTouch : hintPointer}</span>
         {moved && (
           <button
             type="button"
