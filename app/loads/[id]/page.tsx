@@ -415,11 +415,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <BrokerNotes loadId={load.id} notes={load.brokerNotes} readAt={load.notesReadAt} hasRc={!!rateConDoc} />
       </div>
 
-      {/* Карта грузится отдельно от страницы. Её сборка ждёт чужой маршрутизатор и
+      {/* Карта — сразу под шапкой и заметками брокера: «где трак и куда он идёт»
+          спрашивают первым делом, а блок «Водитель» с отметками рейса стоял выше и
+          отодвигал её на экран вниз.
+          Грузится карта отдельно от страницы. Её сборка ждёт чужой маршрутизатор и
           геокодер: раньше эти секунды держали ВЕСЬ документ, и груз не показывался,
           пока не ответит бесплатный OSRM. Теперь цифры, документы и расчёт приходят
           сразу, а карта втекает следом в свою границу. */}
-      {/* Блок «Водитель» — над картой: отметки рейса и стоянка у склада с суммой
+      <Suspense fallback={<MapSkeleton />}>
+        <LoadMapSection load={load} truck={truck} fs={fs} locale={locale} driverMarked={!!stop} events={driverEvents} />
+      </Suspense>
+
+      {/* Блок «Водитель» — под картой: отметки рейса и стоянка у склада с суммой
           детеншена по ним, одним блоком. Это ответ на «где он и что делает» без
           звонка. Пусто — подсказка, откуда взять ссылку. */}
       {load.status !== 'cancelled' && (
@@ -449,10 +456,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           }))}
         />
       )}
-
-      <Suspense fallback={<MapSkeleton />}>
-        <LoadMapSection load={load} truck={truck} fs={fs} locale={locale} driverMarked={!!stop} events={driverEvents} />
-      </Suspense>
 
       {queuedBehind && <QueuedLoadHint locale={locale} current={queuedBehind} next={load} nextId={load.id} />}
 

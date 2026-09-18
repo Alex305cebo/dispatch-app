@@ -25,17 +25,25 @@ export type LoadsMapRow = {
 /** Карта плюс список рейсов рядом: выбор с любой стороны — строкой, пином или линией. */
 export function LoadsMap({ rows, locale }: { rows: LoadsMapRow[]; locale: Locale }) {
   const [id, setId] = useState<number | null>(rows[0]?.load.id ?? null)
-  // Линиям нужны coords, иначе FleetMap не даёт по ним щёлкнуть. Выбранный рейс —
-  // сплошной акцентом, остальные — серым пунктиром.
+  // Линиям нужны coords, иначе FleetMap не даёт по ним щёлкнуть. Цвет линии теперь —
+  // цвет трака (colorIndex приходит с сервера), поэтому выбранный рейс отличается не
+  // цветом, а видом: сплошной и ярче, остальные тоньше и пунктиром.
   const routes = useMemo(
     () =>
       rows.flatMap((row) =>
-        row.routes.map((r) => ({
-          ...r,
-          coords: r.coords ?? [r.from, r.to],
-          id: String(row.load.id),
-          tone: row.load.id === id ? ('toll' as const) : ('free' as const),
-        })),
+        row.routes.map((r) =>
+          // След за 12 ч остаётся следом: раньше его тон перезатирался на 'toll'/'free'
+          // вместе с маршрутами, и янтарные точки рисовались ещё одной линией пути —
+          // на карте парка и груза они всегда точки.
+          r.tone === 'trail'
+            ? { ...r, coords: r.coords ?? [r.from, r.to] }
+            : {
+                ...r,
+                coords: r.coords ?? [r.from, r.to],
+                id: String(row.load.id),
+                tone: row.load.id === id ? ('toll' as const) : ('free' as const),
+              },
+        ),
       ),
     [rows, id],
   )

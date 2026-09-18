@@ -345,6 +345,27 @@ export function TollsClient({
             </section>
           )}
 
+          {/* Карта — сразу под влиянием на прибыль, выше списка вариантов: три
+              варианта и рисуются на ней, по линии можно щёлкнуть и выбрать. Выше
+              поднимать нечего — над результатом стоит сама форма расчёта, без неё
+              маршрута ещё нет. */}
+          <section className="panel overflow-hidden p-0">
+            <FleetMap
+              markers={markers}
+              routes={routes}
+              height="clamp(360px, 52vh, 660px)"
+              distanceMi={option.miles}
+              focus={focus}
+              onRoute={(id) => {
+                const i = res.options.findIndex((o) => o.id === id)
+                if (i >= 0) {
+                  setChosen(i)
+                  setFocus(null)
+                }
+              }}
+            />
+          </section>
+
           <section className="panel p-4">
             <h2 className="mb-2.5 text-base leading-6 font-semibold text-white/90">
               {t(locale, 'tolls.options')}
@@ -364,23 +385,6 @@ export function TollsClient({
                 />
               ))}
             </div>
-          </section>
-
-          <section className="panel overflow-hidden p-0">
-            <FleetMap
-              markers={markers}
-              routes={routes}
-              height="clamp(360px, 52vh, 660px)"
-              distanceMi={option.miles}
-              focus={focus}
-              onRoute={(id) => {
-                const i = res.options.findIndex((o) => o.id === id)
-                if (i >= 0) {
-                  setChosen(i)
-                  setFocus(null)
-                }
-              }}
-            />
           </section>
 
           <section className="panel p-4">

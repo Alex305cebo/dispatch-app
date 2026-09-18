@@ -171,7 +171,12 @@ export async function FleetBoard({
       new Date(Date.now() + tripEta(leg.etaMin, Date.now(), null, null, null).realMin * 60_000),
     )}`
 
-  for (const { t, fs, load, pickup, legToPickup, legToDelivery, directToDelivery, weather, idleAt, heading, trail } of perTruck) {
+  for (const [colorIndex, { t, fs, load, pickup, legToPickup, legToDelivery, directToDelivery, weather, idleAt, heading, trail }] of perTruck.entries()) {
+    // Свой цвет пути у каждого трака (components/fleet-map.tsx) и подпись «чей это
+    // путь» при наведении. Номер — место трака в парке, тот же, что на карте грузов:
+    // обе страницы берут список одним и тем же listTrucks, поэтому трак не меняет
+    // цвет при переходе между ними.
+    const routeStyle = { colorIndex, title: truckLabel(t, trailerByTruck.get(t.id)) }
     // Хвост пути за 12 ч — янтарные точки за каждым траком, всегда (первым, чтобы дорога легла поверх).
     if (trail)
       for (const seg of trailSegments(trail.coords, trail.ats))
@@ -221,17 +226,19 @@ export async function FleetBoard({
       delivery = { to: load.destination ?? '—', miles: totalMiles, etaMin: totalEtaMin }
       totalDeliveryMiles += totalMiles
       if (legToPickup && pickup) {
-        routes.push({ from: [fs.lat!, fs.lng!], to: [pickup.lat, pickup.lng], coords: legToPickup.coords })
+        routes.push({ from: [fs.lat!, fs.lng!], to: [pickup.lat, pickup.lng], coords: legToPickup.coords, ...routeStyle })
         routes.push({
           from: [pickup.lat, pickup.lng],
           to: [legToDelivery.lat, legToDelivery.lng],
           coords: legToDelivery.coords,
+          ...routeStyle,
         })
       } else {
         routes.push({
           from: [fs.lat!, fs.lng!],
           to: [legToDelivery.lat, legToDelivery.lng],
           coords: legToDelivery.coords,
+          ...routeStyle,
         })
       }
       markers.push({

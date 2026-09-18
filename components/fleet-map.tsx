@@ -59,6 +59,12 @@ export type MapRoute = {
   tone?: 'toll' | 'free' | 'trail'
   /** Ключ варианта. Есть — по линии можно щёлкнуть и выбрать её (см. onRoute). */
   id?: string
+  /** Номер трака в парке — из него берётся свой цвет пути (ROUTE_COLORS). Несколько
+   * траков одним цветом читались на карте парка как один путь с петлями. */
+  colorIndex?: number
+  /** Чей это путь — подпись при наведении на линию: цвет говорит «разные», а кто
+   * именно, без подписи пришлось бы искать по пину на её конце. */
+  title?: string
 }
 
 /** Слой «Рынок DAT»: по каждой серии — сколько грузов на трак в штате и горячесть от
@@ -133,6 +139,25 @@ const STATE_COLOR = { move: '#5AC41D', on: '#f59e0b', rest: '#8b93a5' }
 const DEST = '#9b8eff'
 const PICKUP = '#22d3ee'
 const INK = '#0d0f15'
+
+// Свой цвет пути каждому траку. Сдержанные, а не «маркерные»: насыщенность ~45%,
+// светлота ~53% — линия читается на светлой подложке улиц (она одна в обеих темах
+// приложения) и не спорит с цветами пинов, у которых свой смысл: зелёный «едет»,
+// янтарь «на смене» и след пути, серый «стоит», циан — пикап. Восемь оттенков по
+// кругу через равные промежутки: в парке из восьми траков ни одна пара не похожа.
+// Порядок не по кругу, а вперемешку: в парке из трёх-четырёх траков цвета берутся
+// с начала списка, и первые четыре разведены по тону дальше всего (больше 100°
+// между любыми соседями по списку) — рядом на карте не окажутся два зелёных.
+const ROUTE_COLORS = [
+  '#6f7bd6', // индиго
+  '#b5903c', // охра
+  '#3e9b8a', // морская волна
+  '#bc6487', // пыльная роза
+  '#6e9a52', // шалфей
+  '#4e9ac4', // стальной синий
+  '#c07050', // терракота
+  '#9a6fc0', // лиловый
+]
 
 // MapTiler "Streets v2" renders proper US highway shields (I-90, US-41…) and cleaner,
 // larger labels than raw OSM tiles — used when a key is configured. Without a key we fall
@@ -882,12 +907,20 @@ export function FleetMap({
           continue
         }
         const free = r.tone === 'free'
+        // Свой цвет трака перебивает и акцент, и серый «невыбранного»: невыбранный
+        // путь остаётся своего цвета, но тоньше, пунктиром и бледнее — так на карте
+        // видно ВСЕ пути сразу и всё равно понятно, какой выбран.
+        const own = r.colorIndex == null ? null : ROUTE_COLORS[r.colorIndex % ROUTE_COLORS.length]!
+        const base = own ?? (free ? '#8b93a5' : DEST)
         const line = L.polyline(road ? r.coords! : [r.from, r.to], {
-          color: free ? '#8b93a5' : DEST,
+          color: base,
           weight: free ? 3 : road ? 4 : 2,
           opacity: free ? 0.75 : road ? 0.85 : 0.7,
           dashArray: free ? '7 6' : road ? undefined : '6 7',
         }).addTo(group)
+        // Кто едет этой линией. sticky — подпись идёт за курсором по всей длине пути,
+        // иначе её приходилось бы ловить в одной точке.
+        if (r.title) line.bindTooltip(r.title, { sticky: true, direction: 'top', opacity: 1 })
 
         if (r.id && road) {
           // Невыбранный маршрут можно выбрать щелчком прямо по нему. Тонкая линия
@@ -896,6 +929,10 @@ export function FleetMap({
           // по-прежнему тонкую.
           const id = r.id
           const hit = L.polyline(r.coords!, { color: '#000', weight: 18, opacity: 0 }).addTo(group)
+          // Широкая мишень лежит ПОВЕРХ линии и перехватывает наведение, так что
+          // подпись «чей путь» надо повесить и на неё — иначе на выбираемых картах
+          // (грузы, платные дороги) она бы не показывалась вовсе.
+          if (r.title) hit.bindTooltip(r.title, { sticky: true, direction: 'top', opacity: 1 })
           for (const target of [line, hit]) {
             target.on('click', (e: { originalEvent?: Event }) => {
               // Иначе щелчок дойдёт до карты и та поймёт его как «снять выбор».
@@ -903,10 +940,10 @@ export function FleetMap({
               routeRef.current?.(id)
             })
             target.on('mouseover', () => {
-              if (free) line.setStyle({ color: DEST, opacity: 1 })
+              if (free) line.setStyle({ color: own ?? DEST, opacity: 1 })
             })
             target.on('mouseout', () => {
-              if (free) line.setStyle({ color: '#8b93a5', opacity: 0.75 })
+              if (free) line.setStyle({ color: base, opacity: 0.75 })
             })
           }
           ;(hit.getElement() as SVGElement | null)?.style.setProperty('cursor', 'pointer')

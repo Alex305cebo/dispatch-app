@@ -64,6 +64,11 @@ export async function LoadsMapServer({
   const stopLabel = (s: LoadStop) => `${t(locale, s.role === 'pickup' ? 'stops.pickup' : 'stops.delivery')} · ${s.city ?? s.address ?? ''}`
 
   const pinned = new Set<number>() // один трак — один пин, даже когда везёт партиалы
+  // Свой цвет пути у каждого трака (components/fleet-map.tsx). Номер — место трака в
+  // списке парка, тот же, что на карте «Траков»: обе страницы берут его одним и тем же
+  // listTrucks. Цвет даётся траку, а не грузу: два партиала одного трака едут одной
+  // дорогой, и разными цветами они читались бы как два разных трака.
+  const colorOf = new Map(trucks.map((tr, i) => [tr.id, i]))
   const rows: LoadsMapRow[] = await Promise.all(
     shown.map(async (load) => {
       const truck = trucks.find((tr) => tr.id === load.truckId)
@@ -130,14 +135,24 @@ export async function LoadsMapServer({
       const pts = stops.flatMap(({ pt }) => (pt ? [{ lat: pt[0], lng: pt[1] }] : []))
       const first = pts[0]
       const road = pts.length > 1 ? await routeVia(pts) : null
+      // Груз без трака цвета не получает: красить его нечем, он остаётся акцентным.
+      const style =
+        truck && colorOf.has(truck.id) ? { colorIndex: colorOf.get(truck.id)!, title: truckLabel(truck) } : {}
       const routes: MapRoute[] = [
         ...trailRoutes,
         ...(road?.coords?.length && first
-          ? [{ from: [first.lat, first.lng] as [number, number], to: [road.lat, road.lng] as [number, number], coords: road.coords }]
+          ? [
+              {
+                from: [first.lat, first.lng] as [number, number],
+                to: [road.lat, road.lng] as [number, number],
+                coords: road.coords,
+                ...style,
+              },
+            ]
           : // Маршрутизатор не ответил — прямые отрезки между соседними точками (пунктир).
             stops.slice(1).flatMap(({ pt }, i) => {
               const from = stops[i]!.pt
-              return from && pt ? [{ from, to: pt }] : []
+              return from && pt ? [{ from, to: pt, ...style }] : []
             })),
       ]
       return {

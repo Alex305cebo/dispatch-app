@@ -680,7 +680,33 @@ export default async function Page({
         </a>
       )}
 
-      {/* ===== RC drop — первым делом под шапкой: рейт-кон прилетает каждый час,
+      {/* Порядок — по частоте: карта отвечает на «где он сейчас» одним взглядом и
+          стоит первой; рейт-кон и документы прилетают каждый час; водитель и история
+          пути — раз в неделю; ремонт и экономика — раз в месяц. Так и написано было
+          в этом комментарии, но карта при этом стояла пятой — ниже рейт-кона и блока
+          «Водитель»; теперь порядок совпадает с правилом. ===== */}
+      {/* ===== Map: where the truck sits + where delivery is ===== */}
+      {mapMarkers.length > 0 && (
+        <section className="panel mt-4 p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+              {t(locale, 'trucks.detail.onMap')}
+              <Info text={t(locale, 'trucks.detail.onMapInfo')} />
+            </h2>
+            <RefreshFleetButton
+              staleMinutes={fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null}
+            />
+          </div>
+          <FleetMap
+            markers={mapMarkers}
+            routes={mapRoutes}
+            height="clamp(320px, 46vh, 600px)"
+            distanceMi={routeMiles}
+          />
+        </section>
+      )}
+
+      {/* ===== RC drop — сразу под картой: рейт-кон прилетает каждый час,
           и с него начинается любая работа с траком. ===== */}
       <section className="panel mt-4 p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
@@ -712,11 +738,8 @@ export default async function Page({
         />
       </section>
 
-      {/* Порядок — по частоте: карта отвечает на «где он сейчас» одним взглядом и
-          стоит первой; рейт-кон и документы прилетают каждый час; водитель и история
-          пути — раз в неделю; ремонт и экономика — раз в месяц. ===== */}
       {/* Блок «Водитель» по текущему грузу — тот же, что на карточке груза:
-          отметки рейса и стоянка у склада с детеншеном, над картой. */}
+          отметки рейса и стоянка у склада с детеншеном. */}
       {activeLoad && (
         <DriverTimeline
           events={driverEvents}
@@ -741,27 +764,6 @@ export default async function Page({
             truck: truckLabel(truck),
           }))}
         />
-      )}
-
-      {/* ===== Map: where the truck sits + where delivery is ===== */}
-      {mapMarkers.length > 0 && (
-        <section className="panel mt-4 p-4">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
-              {t(locale, 'trucks.detail.onMap')}
-              <Info text={t(locale, 'trucks.detail.onMapInfo')} />
-            </h2>
-            <RefreshFleetButton
-              staleMinutes={fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null}
-            />
-          </div>
-          <FleetMap
-            markers={mapMarkers}
-            routes={mapRoutes}
-            height="clamp(320px, 46vh, 600px)"
-            distanceMi={routeMiles}
-          />
-        </section>
       )}
 
       {/* ===== Trip history: drive legs + stops, long rests called out ===== */}

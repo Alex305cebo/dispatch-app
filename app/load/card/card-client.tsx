@@ -541,78 +541,6 @@ export function CardClient() {
         </div>
       )}
 
-      {/* ── Рынок DAT из интернета ────────────────────────────────────────── */}
-      <section className="panel p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className={`${H2} mb-0`}>
-            {t(locale, 'loadCard.market')}
-            <Info text={t(locale, 'loadCard.marketInfo')} />
-          </h2>
-          {market && (
-            <span className="nums text-[12px] text-white/50">
-              {t(locale, 'loadCard.marketAsOf').replace(
-                '{when}',
-                new Date(market.at).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }),
-              )}
-            </span>
-          )}
-        </div>
-
-        {!insights ? (
-          <div className="mt-3 h-24 animate-pulse rounded-xl bg-white/5" />
-        ) : !market ? (
-          <p className="mt-3 rounded-xl bg-white/5 p-4 text-sm text-white/62">
-            {t(locale, load.equipment ? 'loadCard.marketFailed' : 'loadCard.marketNoEquip')}
-          </p>
-        ) : (
-          <>
-            {verdict && loadedRpm !== null && marketRpm !== null && (
-              <div className="mt-3">
-                <div className={`flex flex-wrap items-center gap-2 text-[14px] font-semibold ${toneText(verdict.tone)}`}>
-                  <ToneIcon tone={verdict.tone} size={16} />
-                  {/* «Ниже рынка на 12%» — без знака: направление уже в словах; было «на -12%». */}
-                  {t(locale, verdict.tone === 'good' ? 'loadCard.marketAbove' : verdict.tone === 'bad' ? 'loadCard.marketBelow' : 'loadCard.marketIn').replace(
-                    '{pct}',
-                    verdict.tone === 'warn' ? pct : pct.replace(/^[+-]/, ''),
-                  )}
-                  <span className="nums font-medium text-white/55">
-                    · {usd2.format(loadedRpm)} vs {usd2.format(marketRpm)}/mi
-                  </span>
-                </div>
-                {/* Шкала: рынок посередине, ставка груза — метка. */}
-                <div className="relative mt-2 h-2 rounded-full bg-white/8">
-                  <div className="absolute inset-y-0 left-1/2 w-px bg-white/30" />
-                  <div
-                    className={`absolute -top-1 h-4 w-1 rounded-full ${toneBar(verdict.tone)}`}
-                    style={{ left: `${Math.min(98, Math.max(2, 50 + verdict.diff))}%` }}
-                  />
-                </div>
-              </div>
-            )}
-            {market.stale && <p className="mt-2 text-[12px] text-warn-400">{t(locale, 'loadCard.marketStale')}</p>}
-            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              {market.origin && <MarketSide label={t(locale, 'loadCard.regionPickup')} side={market.origin} locale={locale} />}
-              {market.dest && <MarketSide label={t(locale, 'loadCard.regionDelivery')} side={market.dest} locale={locale} />}
-              {insights.laneRpm !== null && (
-                <div className={TILE}>
-                  <div className={TILE_LABEL}>
-                    {t(locale, 'loadCard.yourLane').replace('{lane}', `${market.origin?.state ?? '?'} → ${market.dest?.state ?? '?'}`)}
-                  </div>
-                  <div className={TILE_VALUE}>{usd2.format(insights.laneRpm)}/mi</div>
-                </div>
-              )}
-              {market.fuel && (
-                <div className={TILE}>
-                  <div className={TILE_LABEL}>{t(locale, 'loadCard.dieselDat')}</div>
-                  <div className={TILE_VALUE}>{usd2.format(market.fuel.price)}/gal</div>
-                  <div className="nums mt-1 text-[12px] text-white/50">{market.fuel.when}</div>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </section>
-
       {/* ── Карта и «успевает ли рейс» ────────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <section className="panel p-4 sm:p-5">
@@ -732,6 +660,78 @@ export function CardClient() {
           )}
         </section>
       </div>
+
+      {/* ── Рынок DAT из интернета ────────────────────────────────────────── */}
+      <section className="panel p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className={`${H2} mb-0`}>
+            {t(locale, 'loadCard.market')}
+            <Info text={t(locale, 'loadCard.marketInfo')} />
+          </h2>
+          {market && (
+            <span className="nums text-[12px] text-white/50">
+              {t(locale, 'loadCard.marketAsOf').replace(
+                '{when}',
+                new Date(market.at).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }),
+              )}
+            </span>
+          )}
+        </div>
+
+        {!insights ? (
+          <div className="mt-3 h-24 animate-pulse rounded-xl bg-white/5" />
+        ) : !market ? (
+          <p className="mt-3 rounded-xl bg-white/5 p-4 text-sm text-white/62">
+            {t(locale, load.equipment ? 'loadCard.marketFailed' : 'loadCard.marketNoEquip')}
+          </p>
+        ) : (
+          <>
+            {verdict && loadedRpm !== null && marketRpm !== null && (
+              <div className="mt-3">
+                <div className={`flex flex-wrap items-center gap-2 text-[14px] font-semibold ${toneText(verdict.tone)}`}>
+                  <ToneIcon tone={verdict.tone} size={16} />
+                  {/* «Ниже рынка на 12%» — без знака: направление уже в словах; было «на -12%». */}
+                  {t(locale, verdict.tone === 'good' ? 'loadCard.marketAbove' : verdict.tone === 'bad' ? 'loadCard.marketBelow' : 'loadCard.marketIn').replace(
+                    '{pct}',
+                    verdict.tone === 'warn' ? pct : pct.replace(/^[+-]/, ''),
+                  )}
+                  <span className="nums font-medium text-white/55">
+                    · {usd2.format(loadedRpm)} vs {usd2.format(marketRpm)}/mi
+                  </span>
+                </div>
+                {/* Шкала: рынок посередине, ставка груза — метка. */}
+                <div className="relative mt-2 h-2 rounded-full bg-white/8">
+                  <div className="absolute inset-y-0 left-1/2 w-px bg-white/30" />
+                  <div
+                    className={`absolute -top-1 h-4 w-1 rounded-full ${toneBar(verdict.tone)}`}
+                    style={{ left: `${Math.min(98, Math.max(2, 50 + verdict.diff))}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            {market.stale && <p className="mt-2 text-[12px] text-warn-400">{t(locale, 'loadCard.marketStale')}</p>}
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {market.origin && <MarketSide label={t(locale, 'loadCard.regionPickup')} side={market.origin} locale={locale} />}
+              {market.dest && <MarketSide label={t(locale, 'loadCard.regionDelivery')} side={market.dest} locale={locale} />}
+              {insights.laneRpm !== null && (
+                <div className={TILE}>
+                  <div className={TILE_LABEL}>
+                    {t(locale, 'loadCard.yourLane').replace('{lane}', `${market.origin?.state ?? '?'} → ${market.dest?.state ?? '?'}`)}
+                  </div>
+                  <div className={TILE_VALUE}>{usd2.format(insights.laneRpm)}/mi</div>
+                </div>
+              )}
+              {market.fuel && (
+                <div className={TILE}>
+                  <div className={TILE_LABEL}>{t(locale, 'loadCard.dieselDat')}</div>
+                  <div className={TILE_VALUE}>{usd2.format(market.fuel.price)}/gal</div>
+                  <div className="nums mt-1 text-[12px] text-white/50">{market.fuel.when}</div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </section>
 
       {/* ── Точки рейса ───────────────────────────────────────────────────── */}
       <section className="panel p-4 sm:p-5">
