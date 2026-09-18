@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { distToPathMiles, haversineMiles, simplifyPath, deadheadEstimate, bearing, type LatLng, plausibleNaFix, trailSegments} from './geo.ts'
+import { distToPathMiles, haversineMiles, simplifyPath, deadheadEstimate, bearing, type LatLng, plausibleNaFix, trailSegments, overlapSlots, splitShared} from './geo.ts'
 
 const CHICAGO: LatLng = { lat: 41.8781, lng: -87.6298 }
 const DALLAS: LatLng = { lat: 32.7767, lng: -96.797 }
@@ -119,4 +119,136 @@ test('след рвётся там, где пропадала связь: две
   assert.deepEqual(segs[1]!.coords, coords.slice(2))
   // одиночная точка после разрыва не рисуется вовсе
   assert.equal(trailSegments([coords[0]!, coords[2]!], [null, '1']).length, 0)
+})
+
+// Пунктир со сдвигом фазы на карте ставится только тем тракам, которые правда
+// едут по одной дороге. Координаты взяты по I-40 и I-75 — настоящие шоссе, а не
+// выдуманные числа: сетка совпадений грубая, и на случайных точках тест бы врал.
+const KNOXVILLE: [number, number] = [35.96, -83.92]
+const NASHVILLE: [number, number] = [36.16, -86.78]
+const MEMPHIS: [number, number] = [35.15, -90.05]
+const ATLANTA: [number, number] = [33.75, -84.39]
+
+test('один трак на карте — пунктир не нужен', () => {
+  assert.equal(overlapSlots(new Map([[0, [[KNOXVILLE, NASHVILLE]]]])).size, 0)
+})
+
+test('два трака по одной дороге получают разные слоты фазы', () => {
+  const slots = overlapSlots(
+    new Map([
+      [0, [[KNOXVILLE, NASHVILLE]]],
+      [1, [[KNOXVILLE, NASHVILLE]]],
+    ]),
+  )
+  assert.equal(slots.size, 2)
+  assert.equal(slots.get(0)!.of, 2)
+  assert.equal(slots.get(1)!.of, 2)
+  assert.notEqual(slots.get(0)!.slot, slots.get(1)!.slot)
+})
+
+test('разные дороги — оба остаются сплошными', () => {
+  const slots = overlapSlots(
+    new Map([
+      [0, [[KNOXVILLE, NASHVILLE]]], // I-40 на запад
+      [1, [[KNOXVILLE, ATLANTA]]], // I-75 на юг
+    ]),
+  )
+  assert.equal(slots.size, 0)
+})
+
+test('частично общий участок тоже считается: разъехались — но вместе ехали', () => {
+  const slots = overlapSlots(
+    new Map([
+      [0, [[MEMPHIS, NASHVILLE, KNOXVILLE]]],
+      [1, [[NASHVILLE, KNOXVILLE]]], // тот же кусок Нэшвилл → Ноксвилл
+    ]),
+  )
+  assert.equal(slots.size, 2)
+})
+
+test('цепочка A–B, B–C держит фазу на всех троих', () => {
+  // B едет и с A, и с C, а сами A и C общей дороги не имеют. Если считать парами,
+  // A и C получили бы один слот — и на куске, где все трое рядом, закрыли бы друг
+  // друга. Поэтому слот даётся по всей связной компании.
+  const slots = overlapSlots(
+    new Map([
+      [0, [[MEMPHIS, NASHVILLE]]],
+      [1, [[MEMPHIS, NASHVILLE, KNOXVILLE]]],
+      [2, [[NASHVILLE, KNOXVILLE]]],
+    ]),
+  )
+  assert.equal(slots.size, 3)
+  assert.deepEqual(
+    [...slots.values()].map((v) => v.slot).sort(),
+    [0, 1, 2],
+  )
+  for (const v of slots.values()) assert.equal(v.of, 3)
+})
+
+test('два отрезка ОДНОГО трака сами с собой не пересекаются', () => {
+  // У трака путь разбит на «до пикапа» и «от пикапа» — это один ключ, и пунктир
+  // ему не полагается.
+  assert.equal(
+    overlapSlots(
+      new Map([
+        [
+          0,
+          [
+            [MEMPHIS, NASHVILLE],
+            [NASHVILLE, MEMPHIS],
+          ],
+        ],
+      ]),
+    ).size,
+    0,
+  )
+})
+
+test('мимолётное пересечение на перекрёстке пунктира не даёт', () => {
+  // Пути скрещиваются под прямым углом: общих ячеек одна-две, вместе они не едут.
+  const slots = overlapSlots(
+    new Map([
+      [0, [[[35.0, -86.0], [37.0, -86.0]] as [number, number][]]],
+      [1, [[[36.0, -87.0], [36.0, -85.0]] as [number, number][]]],
+    ]),
+  )
+  assert.equal(slots.size, 0)
+})
+
+test('пунктир только на общем куске: где трак поехал один — сплошная', () => {
+  // 0 идёт Мемфис → Нэшвилл → Ноксвилл, 1 — только Мемфис → Нэшвилл. Общая у них
+  // западная половина; хвост до Ноксвилла трак 0 едет один.
+  const dense = (a: [number, number], b: [number, number]): [number, number][] =>
+    Array.from({ length: 41 }, (_, i) => [a[0] + ((b[0] - a[0]) * i) / 40, a[1] + ((b[1] - a[1]) * i) / 40] as [number, number])
+  const west = dense(MEMPHIS, NASHVILLE)
+  const east = dense(NASHVILLE, KNOXVILLE)
+  const slots = overlapSlots(
+    new Map([
+      [0, [[...west, ...east]]],
+      [1, [west]],
+    ]),
+  )
+  const phase = slots.get(0)
+  assert.ok(phase, 'трак 0 попал в компанию')
+  const parts = splitShared([...west, ...east], phase.shared)
+  assert.ok(
+    parts.some((p) => p.shared),
+    'общий кусок есть',
+  )
+  assert.ok(
+    parts.some((p) => !p.shared),
+    'одиночный хвост есть',
+  )
+  // Куски идут подряд и покрывают весь путь: между сплошной и пунктиром нет дыры.
+  for (let i = 1; i < parts.length; i++) {
+    assert.deepEqual(parts[i]!.coords[0], parts[i - 1]!.coords.at(-1), 'куски стыкуются')
+  }
+  assert.deepEqual(parts[0]!.coords[0], west[0])
+  assert.deepEqual(parts.at(-1)!.coords.at(-1), east.at(-1))
+})
+
+test('без общих ячеек путь остаётся одним сплошным куском', () => {
+  const parts = splitShared([MEMPHIS, NASHVILLE], new Set())
+  assert.equal(parts.length, 1)
+  assert.equal(parts[0]!.shared, false)
 })

@@ -181,3 +181,139 @@ export function simplifyPath(path: [number, number][], toleranceMi = 0.02): [num
   for (let i = 0; i < path.length; i++) if (keep[i]) out.push(path[i]!)
   return out
 }
+
+/**
+ * Кто с кем едет по одной дороге — и с каким сдвигом рисовать их пунктир.
+ *
+ * Два трака на одном шоссе рисуются одной линией поверх другой, и цвет нижнего
+ * не увидеть вовсе. Поэтому пути, которые где-то накладываются, идут пунктиром со
+ * сдвинутой фазой: штрих одного попадает в промежуток другого, и на общем участке
+ * видно оба цвета сразу. Пути, которые ни с кем не совпадают, остаются сплошными —
+ * пунктир у них означал бы совсем другое (прямая линия вместо дороги).
+ *
+ * Совпадение ищется не по геометрии, а по сетке ячеек примерно в милю: линия
+ * проходит по ячейкам, и общие ячейки у двух траков значат общий участок. Сетка
+ * грубая нарочно — встречные полосы одного шоссе должны попадать в одну ячейку.
+ *
+ * Ключ — трак (его colorIndex), а не отдельный отрезок: у одного трака путь часто
+ * разбит на «до пикапа» и «от пикапа», и сам с собой он не пересекается.
+ */
+export const OVERLAP_CELL_DEG = 0.015
+
+const cellOf = (lat: number, lng: number) =>
+  `${Math.round(lat / OVERLAP_CELL_DEG)}:${Math.round(lng / OVERLAP_CELL_DEG)}`
+
+/** Ячейки, через которые проходит ломаная. Длинные отрезки разбиваются по шагу
+ * сетки: у прямой линии всего две точки, и без разбивки от неё осталось бы две
+ * ячейки на всю страну. */
+function pathCells(path: [number, number][]): Set<string> {
+  const out = new Set<string>()
+  for (let i = 0; i < path.length; i++) {
+    const p = path[i]!
+    out.add(cellOf(p[0], p[1]))
+    const n = path[i + 1]
+    if (!n) continue
+    const steps = Math.ceil(Math.max(Math.abs(n[0] - p[0]), Math.abs(n[1] - p[1])) / OVERLAP_CELL_DEG)
+    // Отрезок длиной в полстраны при шаге в милю — это тысячи ячеек; больше 2000
+    // не считаем, точности это уже не добавляет, а время съедает.
+    for (let s = 1; s < Math.min(steps, 2000); s++) {
+      out.add(cellOf(p[0] + ((n[0] - p[0]) * s) / steps, p[1] + ((n[1] - p[1]) * s) / steps))
+    }
+  }
+  return out
+}
+
+export type OverlapPhase = {
+  /** Слот фазы пунктира внутри компании: 0, 1, 2… */
+  slot: number
+  /** Сколько траков в компании — столько промежутков между штрихами. */
+  of: number
+  /** Ячейки, которые этот трак делит с кем-то ещё: пунктиром рисуется только та
+   * часть пути, что проходит по ним. */
+  shared: Set<string>
+}
+
+/**
+ * На входе — путь каждого трака (ключ → его ломаные). На выходе: для траков,
+ * попавших в одну «компанию» по общей дороге, слот фазы, размер компании и общие
+ * ячейки. Трак, ни с кем не совпавший, в ответе не появляется — он рисуется
+ * сплошным целиком.
+ *
+ * `minShared` — сколько общих ячеек считать совпадением. Одна-две ячейки бывают
+ * на обычном перекрёстке: пути пересеклись, но не идут вместе, и пунктир там был
+ * бы шумом.
+ */
+export function overlapSlots(paths: Map<number, [number, number][][]>, minShared = 4): Map<number, OverlapPhase> {
+  const keys = [...paths.keys()].sort((a, b) => a - b)
+  const cells = new Map(keys.map((k) => [k, pathCells((paths.get(k) ?? []).flat())]))
+  // Кто с кем делит дорогу. Список соседей, а не матрица: траков единицы.
+  const near = new Map(keys.map((k) => [k, [] as number[]]))
+  for (let i = 0; i < keys.length; i++) {
+    for (let j = i + 1; j < keys.length; j++) {
+      const a = keys[i]!
+      const b = keys[j]!
+      const [small, big] = [cells.get(a)!, cells.get(b)!].sort((x, y) => x.size - y.size) as [Set<string>, Set<string>]
+      let shared = 0
+      for (const c of small) if (big.has(c) && ++shared >= minShared) break
+      if (shared >= minShared) {
+        near.get(a)!.push(b)
+        near.get(b)!.push(a)
+      }
+    }
+  }
+  // Компании связности: трак A едет с B, B с C — все трое делят фазу, иначе A и C
+  // получили бы один слот и снова закрыли бы друг друга на своём общем куске.
+  const out = new Map<number, OverlapPhase>()
+  const seen = new Set<number>()
+  for (const start of keys) {
+    if (seen.has(start)) continue
+    const group: number[] = []
+    const queue = [start]
+    seen.add(start)
+    while (queue.length) {
+      const k = queue.shift()!
+      group.push(k)
+      for (const n of near.get(k) ?? []) if (!seen.has(n)) (seen.add(n), queue.push(n))
+    }
+    if (group.length < 2) continue
+    group.sort((a, b) => a - b)
+    group.forEach((k, slot) => {
+      // Общие ячейки именно этого трака: там, где он один, путь останется сплошным.
+      const mine = cells.get(k)!
+      const shared = new Set<string>()
+      for (const other of group) {
+        if (other === k) continue
+        const theirs = cells.get(other)!
+        for (const c of mine) if (theirs.has(c)) shared.add(c)
+      }
+      out.set(k, { slot, of: group.length, shared })
+    })
+  }
+  return out
+}
+
+/**
+ * Режет путь на куски «идём вместе с кем-то» и «идём одни». Пунктир нужен только
+ * на общем участке: если пунктиром сделать весь путь, то там, где трак свернул и
+ * едет один, линия с дырами читается как «дороги не знаем» — а это в приложении
+ * означает совсем другое (прямая вместо настоящего маршрута).
+ *
+ * Границу отдаём обоим кускам, иначе между сплошной и пунктиром остался бы разрыв.
+ */
+export function splitShared(
+  path: [number, number][],
+  shared: Set<string>,
+): { coords: [number, number][]; shared: boolean }[] {
+  if (path.length < 2 || shared.size === 0) return [{ coords: path, shared: false }]
+  const flags = path.map((p) => shared.has(cellOf(p[0], p[1])))
+  const out: { coords: [number, number][]; shared: boolean }[] = []
+  let from = 0
+  for (let i = 1; i <= flags.length; i++) {
+    if (i < flags.length && flags[i] === flags[from]) continue
+    // Точка перелома входит и в этот кусок, и в следующий — линия без разрыва.
+    const coords = path.slice(from, Math.min(i + 1, path.length))
+    if (coords.length > 1) out.push({ coords, shared: flags[from]! })
+    from = i
+  }
+  return out.length ? out : [{ coords: path, shared: false }]
+}

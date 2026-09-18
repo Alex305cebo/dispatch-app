@@ -23,6 +23,7 @@ import { Info } from '@/components/info'
 import { t } from '@/lib/i18n'
 import { zoneTime } from '@/lib/fmt'
 import { US_STATES } from '@/lib/us-states'
+import { overlapSlots, splitShared, type OverlapPhase } from '@/lib/geo'
 import type { DatEquipment, DatHeat } from '@/lib/dat-market-core'
 import { heatLevel, HEAT_LEVEL_KEY } from '@/lib/dat-market-core'
 
@@ -148,6 +149,11 @@ const INK = '#0d0f15'
 // Порядок не по кругу, а вперемешку: в парке из трёх-четырёх траков цвета берутся
 // с начала списка, и первые четыре разведены по тону дальше всего (больше 100°
 // между любыми соседями по списку) — рядом на карте не окажутся два зелёных.
+// Длина штриха у путей, идущих по одной дороге. 10 пикселей: короче — на мелком
+// зуме линия читается как сплошная и смысл сдвига пропадает, длиннее — на городском
+// зуме между штрихами зияют дыры.
+const PHASE_DASH = 10
+
 const ROUTE_COLORS = [
   '#6f7bd6', // индиго
   '#b5903c', // охра
@@ -872,6 +878,21 @@ export function FleetMap({
       }
 
       const bounds = L.latLngBounds([])
+      // Кто с кем едет по одной дороге. Сплошные линии разных траков на общем шоссе
+      // ложатся одна на другую, и цвет нижнего пропадает совсем; таким тракам путь
+      // рисуется пунктиром со сдвинутой фазой — штрих одного попадает в промежуток
+      // другого, и на общем участке видно оба цвета. Ключ — трак, а не отрезок: у
+      // одного трака путь часто разбит на «до пикапа» и «от пикапа».
+      const byTruck = new Map<number, [number, number][][]>()
+      for (const r of routes) {
+        if (r.tone === 'trail' || r.colorIndex == null) continue
+        const path = r.coords && r.coords.length > 1 ? r.coords : [r.from, r.to]
+        const list = byTruck.get(r.colorIndex) ?? []
+        list.push(path)
+        byTruck.set(r.colorIndex, list)
+      }
+      const phases = byTruck.size > 1 ? overlapSlots(byTruck) : new Map<number, OverlapPhase>()
+
       // Draw route lines first so markers sit on top. A real road route (coords)
       // is a solid line following roads; the straight-line fallback is dashed.
       for (const r of routes) {
@@ -912,15 +933,29 @@ export function FleetMap({
         // видно ВСЕ пути сразу и всё равно понятно, какой выбран.
         const own = r.colorIndex == null ? null : ROUTE_COLORS[r.colorIndex % ROUTE_COLORS.length]!
         const base = own ?? (free ? '#8b93a5' : DEST)
-        const line = L.polyline(road ? r.coords! : [r.from, r.to], {
-          color: base,
-          weight: free ? 3 : road ? 4 : 2,
-          opacity: free ? 0.75 : road ? 0.85 : 0.7,
-          dashArray: free ? '7 6' : road ? undefined : '6 7',
-        }).addTo(group)
+        const weight = free ? 3 : road ? 4 : 2
+        const opacity = free ? 0.75 : road ? 0.85 : 0.7
+        const plain = free ? '7 6' : road ? undefined : '6 7'
+        // Штрих и промежуток на всю компанию: у двоих «10 10», у троих «10 20», и
+        // каждый сдвинут на свой слот — вместе они замащивают общий участок без
+        // пропусков, и ни один трак не закрыт. Пунктир только на общем куске: там,
+        // где трак свернул и едет один, линия остаётся сплошной.
+        const phase = r.colorIndex == null ? undefined : phases.get(r.colorIndex)
+        const full = road ? r.coords! : [r.from, r.to]
+        const parts = phase ? splitShared(full, phase.shared) : [{ coords: full, shared: false }]
+        const lines = parts.map((part) =>
+          L.polyline(part.coords, {
+            color: base,
+            weight,
+            opacity,
+            dashArray: part.shared && phase ? `${PHASE_DASH} ${PHASE_DASH * (phase.of - 1)}` : plain,
+            ...(part.shared && phase ? { dashOffset: String(PHASE_DASH * phase.slot) } : {}),
+          }).addTo(group),
+        )
         // Кто едет этой линией. sticky — подпись идёт за курсором по всей длине пути,
-        // иначе её приходилось бы ловить в одной точке.
-        if (r.title) line.bindTooltip(r.title, { sticky: true, direction: 'top', opacity: 1 })
+        // иначе её приходилось бы ловить в одной точке. На каждом куске своя: путь
+        // из общего и одиночного отрезков — это по-прежнему один трак.
+        if (r.title) for (const l of lines) l.bindTooltip(r.title, { sticky: true, direction: 'top', opacity: 1 })
 
         if (r.id && road) {
           // Невыбранный маршрут можно выбрать щелчком прямо по нему. Тонкая линия
@@ -933,17 +968,17 @@ export function FleetMap({
           // подпись «чей путь» надо повесить и на неё — иначе на выбираемых картах
           // (грузы, платные дороги) она бы не показывалась вовсе.
           if (r.title) hit.bindTooltip(r.title, { sticky: true, direction: 'top', opacity: 1 })
-          for (const target of [line, hit]) {
+          for (const target of [...lines, hit]) {
             target.on('click', (e: { originalEvent?: Event }) => {
               // Иначе щелчок дойдёт до карты и та поймёт его как «снять выбор».
               e.originalEvent?.stopPropagation()
               routeRef.current?.(id)
             })
             target.on('mouseover', () => {
-              if (free) line.setStyle({ color: own ?? DEST, opacity: 1 })
+              if (free) for (const l of lines) l.setStyle({ color: own ?? DEST, opacity: 1 })
             })
             target.on('mouseout', () => {
-              if (free) line.setStyle({ color: base, opacity: 0.75 })
+              if (free) for (const l of lines) l.setStyle({ color: base, opacity: 0.75 })
             })
           }
           ;(hit.getElement() as SVGElement | null)?.style.setProperty('cursor', 'pointer')
