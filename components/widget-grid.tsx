@@ -283,9 +283,11 @@ function Cell({
         onEnd()
       }}
       whileDrag={{ scale: 1.03, boxShadow: 'var(--shadow-e3)' }}
-      className={`group relative ${widget.span === 2 ? 'col-span-2' : ''} ${
-        dragging ? 'cursor-grabbing' : 'cursor-grab'
-      }`}
+      // [&>div]/[&>a] — содержимое тянется до высоты ячейки: в ряду плитка с подписью
+      // под цифрой выше соседней, и без этого рядом с ней оставалась серая проплешина.
+      className={`group relative [&>a]:h-full [&>div]:h-full ${
+        widget.span === 2 ? 'col-span-2' : ''
+      } ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
     >
       {widget.node}
 
