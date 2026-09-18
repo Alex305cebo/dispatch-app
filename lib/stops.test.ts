@@ -14,6 +14,7 @@ import {
   nextOpenStop,
   stopTitle,
   stopsFrom,
+  stopsFromQr,
   viaLabel,
   type LoadStop,
   type StopSource,
@@ -206,4 +207,28 @@ test('lastMinutes: конец окна, без времени — конец д�
   assert.equal(lastMinutes('12pm'), 12 * 60)
   assert.equal(lastMinutes(null), 24 * 60 - 1)
   assert.equal(lastMinutes('FCFS'), 24 * 60 - 1)
+})
+
+test('stopsFromQr: груз из ссылки — две точки, номера PU/PO из строки через «|»', () => {
+  const stops = stopsFromQr({
+    origin: 'Olathe, KS',
+    destination: 'Caldwell, ID',
+    pickupName: 'Kellogg Warehouse',
+    pickupAddress: '510 W Frontier Ln',
+    pickupDate: '2026-09-10',
+    pickupTime: '8am-3pm',
+    pickupRefs: 'PU S67A187| PO POS2068426 ',
+    deliveryName: 'Amalgamated Sugar',
+    deliveryRefs: '',
+  })
+  assert.equal(stops.length, 2)
+  assert.deepEqual(stops[0]?.refs, ['PU S67A187', 'PO POS2068426'])
+  assert.equal(stops[0]?.city, 'Olathe, KS')
+  assert.equal(stops[0]?.name, 'Kellogg Warehouse')
+  assert.equal(stops[1]?.role, 'delivery')
+  assert.equal(stops[1]?.city, 'Caldwell, ID')
+  // Пустых полей в ссылке нет — значит и остановка про них молчит, а не рисует пустые строки.
+  assert.deepEqual(stops[1]?.refs, [])
+  assert.equal(stops[1]?.address, null)
+  assert.equal(stops[1]?.date, null)
 })

@@ -16,6 +16,7 @@ import { notify } from '@/lib/notify'
 import { Analysis } from './analysis'
 import { Field, TextField } from './ui'
 import { Info } from './info'
+import { Chip } from './chip'
 import { useLocale } from './locale-provider'
 import { t as tr } from '@/lib/i18n'
 
@@ -267,23 +268,5 @@ export function LoadForm({
         </section>
       </div>
     </MotionConfig>
-  )
-}
-
-function Chip({ label, value, href }: { label: string; value: string; href?: string }) {
-  const inner = (
-    <>
-      <span className="text-white/62">{label}</span>
-      <span className="text-white/85">{value}</span>
-    </>
-  )
-  const cls =
-    'flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-1.5 text-[12px]'
-  return href ? (
-    <a href={href} className={`${cls} transition-colors hover:border-haul-500/40`}>
-      {inner}
-    </a>
-  ) : (
-    <div className={cls}>{inner}</div>
   )
 }

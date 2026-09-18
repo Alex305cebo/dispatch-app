@@ -89,6 +89,55 @@ function baseStops(load: StopSource, names?: { pickup?: string | null; delivery?
   ]
 }
 
+/** Груз, пришедший ссылкой (lib/qr-load.ts): точек всегда две, а номера PU/PO лежат
+ * одной строкой через «|» — так их печатает бот рейт-конов. */
+export type QrStopSource = {
+  origin: string | null
+  destination: string | null
+  pickupName?: string | null
+  pickupAddress?: string | null
+  pickupDate?: string | null
+  pickupTime?: string | null
+  pickupRefs?: string | null
+  deliveryName?: string | null
+  deliveryAddress?: string | null
+  deliveryDate?: string | null
+  deliveryTime?: string | null
+  deliveryRefs?: string | null
+}
+
+const refList = (raw: string | null | undefined): string[] =>
+  (raw ?? '')
+    .split('|')
+    .map((r) => r.trim())
+    .filter(Boolean)
+
+/** Остановки груза из ссылки — в том же виде, в каком их показывает сохранённый груз. */
+export function stopsFromQr(l: QrStopSource): LoadStop[] {
+  return [
+    {
+      seq: 1,
+      role: 'pickup',
+      name: l.pickupName ?? null,
+      address: l.pickupAddress ?? null,
+      city: l.origin,
+      date: l.pickupDate ?? null,
+      time: l.pickupTime ?? null,
+      refs: refList(l.pickupRefs),
+    },
+    {
+      seq: 2,
+      role: 'delivery',
+      name: l.deliveryName ?? null,
+      address: l.deliveryAddress ?? null,
+      city: l.destination,
+      date: l.deliveryDate ?? null,
+      time: l.deliveryTime ?? null,
+      refs: refList(l.deliveryRefs),
+    },
+  ]
+}
+
 /** Подложить к остановкам указания «как заехать» из loads.directions (по номеру и роли). */
 export function withDirections(stops: LoadStop[], raw: StopDirection[] | string | null | undefined): LoadStop[] {
   let dirs: StopDirection[] | null = null

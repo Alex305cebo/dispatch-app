@@ -46,6 +46,8 @@ import { DriverInfoCard } from '@/components/driver-info-card'
 import { withAddresses, stopNames } from '@/lib/driver-info-zip'
 import { arrivedAt, isDone, parseTaskOrder, stopsFrom, taskOrderKey, viaLabel, type StopEv } from '@/lib/stops'
 import { TaskStops } from '@/components/task-stops'
+import { LoadStops } from '@/components/load-stops'
+import { Chip } from '@/components/chip'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
 import { MissingPodBanner } from '@/components/missing-pod-banner'
@@ -245,6 +247,33 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </div>
         )}
         {/* Кнопка на трак живёт в полосе «Трак ⇄ Груз» наверху — второй раз здесь ни к чему. */}
+
+        {/* Где, когда и под какими номерами — сразу в шапке. Рейт-кон приносит склад,
+            улицу, окно и номера PU/PO, но в шапке стояли только два города: адрес
+            лежал внизу в «Подробностях», номер пикапа — в тексте водителю. Диспетчер,
+            которому звонит склад, искал их по всей странице. */}
+        <LoadStops stops={stops} locale={locale} className="mt-4" />
+
+        {/* Брокер груза — тоже в шапке. Кому звонить и на какую почту слать бумаги,
+            лежало только в форме «Подробности» внизу страницы, а звонят по нему с
+            первой секунды. Ссылка ведёт в справочник — там его история и оценка. */}
+        {(load.brokerName || load.brokerMc || load.brokerPhone || load.brokerEmail || load.payVia) && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {load.brokerName && (
+              <Chip
+                label={t(locale, 'import.label.brokerName')}
+                value={load.brokerName}
+                href={`/brokers?q=${encodeURIComponent(load.brokerMc ?? load.brokerName)}`}
+              />
+            )}
+            {load.brokerMc && <Chip label="MC" value={load.brokerMc} />}
+            {load.brokerPhone && (
+              <Chip label={t(locale, 'import.label.brokerPhone')} value={load.brokerPhone} href={`tel:${load.brokerPhone}`} />
+            )}
+            {load.brokerEmail && <Chip label="Email" value={load.brokerEmail} href={`mailto:${load.brokerEmail}`} />}
+            {load.payVia && <Chip label={t(locale, 'import.label.payVia')} value={load.payVia} />}
+          </div>
+        )}
 
         {/* The rail needs the full width to lay five labelled steps out; sharing a flex
             row with the rate-con control squeezed it to ~160px and clipped every label
