@@ -7,8 +7,13 @@
 // а адреса и номера лежали внизу, в форме «Подробности», и в тексте водителю.
 // Диспетчер, которому звонит склад и спрашивает номер пикапа, искал его по всей
 // странице. Теперь он в шапке, и номер копируется одним нажатием.
+//
+// Плотно: на телефоне шапка — это первый экран, и каждая лишняя строка уводит
+// ставку и кнопки вниз. Поэтому метка точки и окно стоят в одной строке, а город
+// не повторяется, если он уже есть в адресе («…, LAREDO, TX 78045» + «LAREDO, TX»
+// — одна и та же строчка дважды).
 
-import { Clock, Copy, MapPin, Navigation } from 'lucide-react'
+import { Copy, Navigation } from 'lucide-react'
 import { stopTitle, type LoadStop } from '@/lib/stops'
 import { whenText } from '@/lib/loads-dashboard'
 import { notify } from '@/lib/notify'
@@ -23,6 +28,14 @@ async function copy(text: string, locale: Locale) {
   }
 }
 
+/** Город отдельной строкой — только если адрес его ещё не назвал. */
+function extraCity(stop: LoadStop): string | null {
+  if (!stop.city) return null
+  if (!stop.address) return stop.city
+  const town = stop.city.split(',')[0]?.trim().toLowerCase()
+  return town && stop.address.toLowerCase().includes(town) ? null : stop.city
+}
+
 export function LoadStops({ stops, locale, className = '' }: { stops: LoadStop[]; locale: Locale; className?: string }) {
   // Груз, заведённый руками двумя городами, здесь молчит: города уже стоят
   // заголовком, и блок повторил бы их пустыми рамками. Появилось хоть у одной точки
@@ -31,14 +44,11 @@ export function LoadStops({ stops, locale, className = '' }: { stops: LoadStop[]
   if (!worth) return null
 
   return (
-    <section className={className}>
-      <h3 className="mb-1.5 text-[13px] font-semibold text-white/80">{t(locale, 'loadStops.title')}</h3>
-      <div className={`grid gap-2 ${stops.length > 1 ? 'sm:grid-cols-2' : ''}`}>
-        {stops.map((s) => (
-          <Stop key={s.seq} stop={s} stops={stops} locale={locale} />
-        ))}
-      </div>
-    </section>
+    <div className={`grid gap-2 ${stops.length > 1 ? 'sm:grid-cols-2' : ''} ${className}`}>
+      {stops.map((s) => (
+        <Stop key={s.seq} stop={s} stops={stops} locale={locale} />
+      ))}
+    </div>
   )
 }
 
@@ -52,57 +62,54 @@ function Stop({ stop, stops, locale }: { stop: LoadStop; stops: LoadStop[]; loca
   // Без даты и окна строку не рисуем совсем: «Дата не указана · Время не указано»
   // жирным вверху карточки — самая заметная строка ни о чём.
   const when = stop.date || stop.time ? whenText(stop.date, stop.time, '', t(locale, 'loads.dash.noTime')) : null
+  const city = extraCity(stop)
 
   return (
-    <div className="panel-inset min-w-0 p-3">
-      <div className="flex items-center justify-between gap-2">
+    <div className="panel-inset min-w-0 px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span
-          className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide ${
+          className={`shrink-0 rounded-md px-1.5 py-0.5 text-2xs font-semibold tracking-wide uppercase ${
             stop.role === 'pickup' ? 'bg-haul-500/15 text-haul-300' : 'bg-good-500/15 text-good-400'
           }`}
         >
-          <MapPin size={12} strokeWidth={2.4} />
           {stopTitle(stop, stops, locale)}
         </span>
+        {when && <span className="nums min-w-0 text-[13px] font-semibold text-white/85">{when}</span>}
         {nav && (
           <a
             href={nav}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex shrink-0 items-center gap-1 text-[12px] text-haul-400 hover:underline"
+            title={t(locale, 'loadCard.navigate')}
+            aria-label={t(locale, 'loadCard.navigate')}
+            className="ml-auto flex size-7 shrink-0 items-center justify-center rounded-md text-haul-400 transition-colors hover:bg-white/8"
           >
-            <Navigation size={12} strokeWidth={2.4} />
-            {t(locale, 'loadCard.navigate')}
+            <Navigation size={14} strokeWidth={2.4} />
           </a>
         )}
       </div>
-      {when && (
-        <div className="nums mt-2 flex items-center gap-1.5 text-[13px] font-semibold text-white/85">
-          <Clock size={13} strokeWidth={2.2} className="shrink-0 text-white/45" />
-          {when}
-        </div>
+      {stop.name && <div className="mt-1 text-[13px] leading-snug font-semibold break-words text-white/90">{stop.name}</div>}
+      {(stop.address || city) && (
+        <div className="text-[12.5px] leading-snug break-words text-white/65">{[stop.address, city].filter(Boolean).join(', ')}</div>
       )}
-      {stop.name && <div className="mt-2 text-[14px] leading-snug font-semibold break-words text-white/90">{stop.name}</div>}
-      {stop.address && <div className="text-[13px] break-words text-white/70">{stop.address}</div>}
-      {stop.city && <div className="text-[13px] break-words text-white/70">{stop.city}</div>}
       {stop.refs.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="mt-1.5 flex flex-wrap gap-1">
           {stop.refs.map((r) => (
             <button
               key={r}
               type="button"
               onClick={() => copy(r, locale)}
-              className="nums inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.05] px-2 py-1 text-[12px] font-semibold text-white/85 hover:border-haul-500/40"
+              className="nums inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[11.5px] font-semibold text-white/85 hover:border-haul-500/40"
             >
               {r}
-              <Copy size={11} strokeWidth={2.2} className="text-white/45" />
+              <Copy size={10} strokeWidth={2.2} className="text-white/45" />
             </button>
           ))}
         </div>
       )}
       {stop.directions && (
-        <p className="mt-2 text-[12px] leading-relaxed break-words text-white/60">
-          <span className="text-white/45">{t(locale, 'loadEdit.directions')}: </span>
+        <p className="mt-1.5 text-[11.5px] leading-snug break-words text-white/55">
+          <span className="text-white/40">{t(locale, 'loadEdit.directions')}: </span>
           {stop.directions}
         </p>
       )}

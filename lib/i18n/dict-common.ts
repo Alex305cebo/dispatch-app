@@ -479,15 +479,7 @@ export const commonDict = {
   'stops.deliveryStep': { ru: 'Доставка', en: 'Delivery', es: 'Entrega', uk: 'Доставка', ro: 'Livrare', kk: 'Жеткізу' },
   'stops.pickup': { ru: 'Пикап', en: 'Pickup', es: 'Recogida', uk: 'Пікап', ro: 'Încărcare', kk: 'Тиеу' },
   'stops.delivery': { ru: 'Выгрузка', en: 'Delivery', es: 'Entrega', uk: 'Вивантаження', ro: 'Livrare', kk: 'Түсіру' },
-  // components/load-stops.tsx — точки рейса в шапке груза.
-  'loadStops.title': {
-    ru: 'Точки рейса',
-    en: 'Stops',
-    es: 'Paradas',
-    uk: 'Точки рейсу',
-    ro: 'Opriri',
-    kk: 'Рейс нүктелері',
-  },
+  // Тип трейлера из рейт-кона — в шапке груза из ссылки.
   'loadStops.equipment': {
     ru: 'Трейлер',
     en: 'Equipment',

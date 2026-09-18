@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Suspense } from 'react'
+import { Fragment, Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { currentLoadForTruck, getLoad, laneAvgRpmFor, listDocs, listLoads, truckForLoad } from '@/lib/loads'
 import { QueuedLoadHint } from '@/components/queued-load-hint'
@@ -47,7 +47,6 @@ import { withAddresses, stopNames } from '@/lib/driver-info-zip'
 import { arrivedAt, isDone, parseTaskOrder, stopsFrom, taskOrderKey, viaLabel, type StopEv } from '@/lib/stops'
 import { TaskStops } from '@/components/task-stops'
 import { LoadStops } from '@/components/load-stops'
-import { Chip } from '@/components/chip'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
 import { MissingPodBanner } from '@/components/missing-pod-banner'
@@ -184,6 +183,38 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const podDoc = docs.find((d) => d.kind === 'pod' && d.stopSeq == null) ?? docs.find((d) => d.kind === 'pod')
   const fs = truck.number ? fleet.get(truck.number) : undefined
 
+  // Брокер одной строкой: имя ведёт в справочник, телефон звонит, почта открывает
+  // письмо. Разделители ставятся между тем, что есть, — у груза без почты или без MC
+  // строка не должна начинаться с точки.
+  const brokerFacts = [
+    ...(load.brokerName
+      ? [
+          <Link
+            href={`/brokers?q=${encodeURIComponent(load.brokerMc ?? load.brokerName)}`}
+            className="font-medium text-white/85 hover:underline"
+          >
+            {load.brokerName}
+          </Link>,
+        ]
+      : []),
+    ...(load.brokerMc ? [<span className="nums">MC {load.brokerMc}</span>] : []),
+    ...(load.brokerPhone
+      ? [
+          <a href={`tel:${load.brokerPhone}`} className="nums text-haul-400 hover:underline">
+            {load.brokerPhone}
+          </a>,
+        ]
+      : []),
+    ...(load.brokerEmail
+      ? [
+          <a href={`mailto:${load.brokerEmail}`} className="break-all text-haul-400 hover:underline">
+            {load.brokerEmail}
+          </a>,
+        ]
+      : []),
+    ...(load.payVia ? [<span>{load.payVia}</span>] : []),
+  ]
+
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <BackButton href="/loads" label={t(locale, 'loads.page.title')} />
@@ -256,23 +287,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
         {/* Брокер груза — тоже в шапке. Кому звонить и на какую почту слать бумаги,
             лежало только в форме «Подробности» внизу страницы, а звонят по нему с
-            первой секунды. Ссылка ведёт в справочник — там его история и оценка. */}
-        {(load.brokerName || load.brokerMc || load.brokerPhone || load.brokerEmail || load.payVia) && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {load.brokerName && (
-              <Chip
-                label={t(locale, 'import.label.brokerName')}
-                value={load.brokerName}
-                href={`/brokers?q=${encodeURIComponent(load.brokerMc ?? load.brokerName)}`}
-              />
-            )}
-            {load.brokerMc && <Chip label="MC" value={load.brokerMc} />}
-            {load.brokerPhone && (
-              <Chip label={t(locale, 'import.label.brokerPhone')} value={load.brokerPhone} href={`tel:${load.brokerPhone}`} />
-            )}
-            {load.brokerEmail && <Chip label="Email" value={load.brokerEmail} href={`mailto:${load.brokerEmail}`} />}
-            {load.payVia && <Chip label={t(locale, 'import.label.payVia')} value={load.payVia} />}
-          </div>
+            первой секунды. Одной строкой, а не плашками: пять плашек на телефоне
+            занимали три ряда и уводили ставку и кнопки за край экрана. Имя ведёт в
+            справочник — там его история и оценка. */}
+        {brokerFacts.length > 0 && (
+          <p className="mt-2.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] text-white/60">
+            {brokerFacts.map((part, k) => (
+              <Fragment key={k}>
+                {k > 0 && <span className="text-white/25">·</span>}
+                {part}
+              </Fragment>
+            ))}
+          </p>
         )}
 
         {/* The rail needs the full width to lay five labelled steps out; sharing a flex
