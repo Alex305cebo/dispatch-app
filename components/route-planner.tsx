@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { DollarSign, Flame, Fuel, ImagePlus, MapPin, Snowflake, TrendingDown, TrendingUp } from 'lucide-react'
+import { Flame, Fuel, ImagePlus, MapPin, Snowflake, TrendingDown, TrendingUp } from 'lucide-react'
 import { Info } from '@/components/info'
 import { Stat } from '@/components/stat'
 import { Button } from '@/components/button'
@@ -319,12 +319,12 @@ export function RoutePlanner({
   const { truck, origin, series, snap, opts, lanes, from, planOpts } = plan
   if (!truck) return null
   const seriesList = Object.keys(snaps) as DatEquipment[]
-  // Лучший — самый горячий из дальних, худший — где трак застрянет; короткий рейс в
-  // соседний штат не «худший штат» (lib/route-plan-core.ts bestWorst).
-  const { best, worst } = bestWorst(lanes, opts.mpd)
+  // Лучший — самый горячий из дальних; короткий рейс в соседний штат в лучшие не идёт
+  // (lib/route-plan-core.ts bestWorst). Худший отдельной плиткой больше не показываем —
+  // худшие штаты и так в строке «Ловушки» под списком.
+  const { best } = bestWorst(lanes, opts.mpd)
   const lt = snap && origin ? ltOf(snap, origin) : null
   const heat = snap && lt ? ltHeat(snap, lt.ratio) : null
-  const originRpm = snap && origin ? (regionOf(snap, origin)?.rpm ?? null) : null
   const s = truck.settings
   // Плечи, которыми думает диспетчер: «на 1 день» — груз с порожним укладывается в «Миль
   // в день»; средние — до 1200 миль; дальние — дальше. В каждом плече свой топ: ставки на
@@ -498,7 +498,11 @@ export function RoutePlanner({
         <p className="mt-3 text-[13px] text-white/55">{t(locale, 'plan.noLanes').replace('{state}', stateName(origin))}</p>
       ) : (
         <>
-          <div className="mt-3 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+          {/* Две плитки, а не четыре: «Худший штат» повторял строку «Ловушки» под списком,
+              а «Ставка из штата» — ставку своего региона в строке пяти регионов. Раздел
+              читали как бесконечную ленту цифр, и первым делом убраны те, что уже есть
+              ниже на том же экране (пользователь, 18.09.2026). */}
+          <div className="mt-3 grid grid-cols-2 gap-2.5">
             <Stat
               accent="good"
               icon={<TrendingUp size={15} strokeWidth={2.5} />}
@@ -506,15 +510,6 @@ export function RoutePlanner({
               value={best.name}
               sub={`${rateLine(best, snap, origin, snap.bench, locale)} · ${ltLine(best, locale)}`}
             />
-            {worst && (
-              <Stat
-                accent="bad"
-                icon={<TrendingDown size={15} strokeWidth={2.5} />}
-                label={t(locale, 'plan.worst')}
-                value={worst.name}
-                sub={ltLine(worst, locale)}
-              />
-            )}
             <Stat
               accent={heat === 'hot' ? 'good' : heat === 'cold' ? 'bad' : 'haul'}
               icon={<Flame size={15} strokeWidth={2.5} />}
@@ -522,13 +517,6 @@ export function RoutePlanner({
               value={lt && snap ? t(locale, HEAT_LEVEL_KEY[heatLevel(ltMedian(snap), lt.ratio)]) : '—'}
               // Слово без цифры непонятно — рядом грузы на трак и середина по штатам (DAT).
               sub={lt && snap ? t(locale, 'plan.ltVsMedian').replace('{n}', lt.ratio.toFixed(1)).replace('{m}', ltMedian(snap).toFixed(1)) : undefined}
-            />
-            <Stat
-              accent="haul"
-              icon={<DollarSign size={15} strokeWidth={2.5} />}
-              label={t(locale, 'plan.rateFrom').replace('{state}', origin)}
-              value={originRpm ? `${usd2.format(originRpm)}/mi` : '—'}
-              sub={t(locale, 'plan.region').replace('{region}', regionName(snap, origin))}
             />
           </div>
 
@@ -597,7 +585,9 @@ export function RoutePlanner({
                   seen.add(r)
                   best.push(l)
                 }
-                const list = [...best, ...ranked.filter((l) => !best.includes(l))].slice(0, 4)
+                // По три на плечо, а не по четыре: девять строк вместо двенадцати. Весь
+                // список плеча — по его кнопке над списком.
+                const list = [...best, ...ranked.filter((l) => !best.includes(l))].slice(0, 3)
                 if (!list.length) return null
                 return (
                   <div key={key}>
