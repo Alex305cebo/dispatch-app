@@ -54,3 +54,15 @@ test('USDA: штаты из региона и текста района, гор�
   assert.deepEqual(table.lane, { 'AZ>GA': { rpm: 3.38, n: 1 }, 'CA>GA': { rpm: 3.38, n: 1 }, 'GA>NY': { rpm: 4, n: 1 } })
   assert.deepEqual(table.into, { GA: { rpm: 3.38, n: 1 }, NY: { rpm: 4, n: 1 } })
 })
+
+test('сдвиг за неделю: последние 7 дней против 7 дней до них; нет одного из окон — поля нет', () => {
+  const t = rpmTableFrom([
+    { from: 'TX', to: 'GA', rate: 2000, miles: 1000, rate7: 1050, miles7: 500, rate14: 950, miles14: 500 },
+    { from: 'TX', to: 'FL', rate: 2000, miles: 1000, rate7: 2000, miles7: 1000, rate14: 0, miles14: 0 },
+  ])
+  assert.deepEqual(t.lane['TX>GA'], { rpm: 2, n: 1, wk: 0.105 })
+  assert.deepEqual(t.lane['TX>FL'], { rpm: 2, n: 1 })
+  const bench: RpmBench = { dat: emptyTable(), usda: null, usdaWeek: null, warp: t }
+  assert.equal(benchmarkRpm(bench, 'TX', 'GA')?.wk, 0.105)
+  assert.equal(benchmarkRpm(bench, 'TX', 'FL')?.wk, undefined)
+})

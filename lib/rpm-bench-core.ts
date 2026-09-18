@@ -11,7 +11,13 @@
 // Нет ставки по маршруту — null, и планировщик показывает ставку DAT по региону штата.
 // Без сети и базы — проверяется тестом.
 
-export type RpmStat = { rpm: number; n: number }
+export type RpmStat = {
+  rpm: number
+  n: number
+  /** Сдвиг за неделю: ставка последних 7 дней против 7 дней до них, доля (0.03 = +3%).
+   * Нет одного из окон — поля нет. */
+  wk?: number
+}
 /** lane — «TX>GA», into — штат доставки. */
 export type RpmTable = { lane: Record<string, RpmStat>; into: Record<string, RpmStat> }
 export type RpmSource = 'datLane' | 'usdaLane' | 'warpLane'
@@ -26,24 +32,39 @@ export type RpmBench = {
   /** Сколько от цены грузоотправителя доходит до трака (lib/broker-cut.ts) — для цели торга. */
   cut?: import('./broker-cut.ts').BrokerCut | null
 }
-export type Benchmark = { rpm: number; n: number; source: RpmSource; from: string | null; to: string }
+export type Benchmark = { rpm: number; n: number; source: RpmSource; from: string | null; to: string; wk?: number }
 
 /** Строка может быть уже суммой (SQL GROUP BY) — тогда n больше единицы. */
-export type RpmRow = { from: string | null; to: string | null; rate: number; miles: number; n?: number }
+export type RpmRow = {
+  from: string | null
+  to: string | null
+  rate: number
+  miles: number
+  n?: number
+  /** Те же суммы по окнам «последние 7 дней» и «7 дней до них» — для сдвига за неделю. */
+  rate7?: number
+  miles7?: number
+  rate14?: number
+  miles14?: number
+}
 
 export const laneKey = (from: string, to: string) => `${from}>${to}`
 export const emptyTable = (): RpmTable => ({ lane: {}, into: {} })
 
 /** Весь гросс на все мили, а не среднее средних. */
 export function rpmTableFrom(rows: Iterable<RpmRow>): RpmTable {
-  type Acc = { rate: number; miles: number; n: number }
+  type Acc = { rate: number; miles: number; n: number; r7: number; m7: number; r14: number; m14: number }
   const lane = new Map<string, Acc>()
   const into = new Map<string, Acc>()
   const add = (m: Map<string, Acc>, key: string, r: RpmRow) => {
-    const a = m.get(key) ?? { rate: 0, miles: 0, n: 0 }
+    const a = m.get(key) ?? { rate: 0, miles: 0, n: 0, r7: 0, m7: 0, r14: 0, m14: 0 }
     a.rate += r.rate
     a.miles += r.miles
     a.n += r.n ?? 1
+    a.r7 += r.rate7 ?? 0
+    a.m7 += r.miles7 ?? 0
+    a.r14 += r.rate14 ?? 0
+    a.m14 += r.miles14 ?? 0
     m.set(key, a)
   }
   for (const r of rows) {
@@ -52,7 +73,13 @@ export function rpmTableFrom(rows: Iterable<RpmRow>): RpmTable {
     if (r.from) add(lane, laneKey(r.from, r.to), r)
   }
   const done = (m: Map<string, Acc>): Record<string, RpmStat> =>
-    Object.fromEntries([...m].map(([k, a]) => [k, { rpm: Math.round((a.rate / a.miles) * 100) / 100, n: a.n }]))
+    Object.fromEntries(
+      [...m].map(([k, a]) => {
+        const stat: RpmStat = { rpm: Math.round((a.rate / a.miles) * 100) / 100, n: a.n }
+        if (a.m7 > 0 && a.m14 > 0) stat.wk = Math.round((a.r7 / a.m7 / (a.r14 / a.m14) - 1) * 1000) / 1000
+        return [k, stat]
+      }),
+    )
   return { lane: done(lane), into: done(into) }
 }
 
@@ -67,7 +94,7 @@ export function benchmarkRpm(bench: RpmBench | null | undefined, from: string | 
   if (!bench || !from) return null
   for (const [src, source] of ORDER) {
     const stat = bench[src]?.lane[laneKey(from, to)]
-    if (stat) return { rpm: stat.rpm, n: stat.n, source, from, to }
+    if (stat) return { rpm: stat.rpm, n: stat.n, source, from, to, ...(stat.wk != null ? { wk: stat.wk } : {}) }
   }
   return null
 }
