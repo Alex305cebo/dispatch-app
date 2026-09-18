@@ -14,12 +14,13 @@ async function fetchSoon(url: string, init?: RequestInit): Promise<Response> {
   return fetch(url, { ...init, signal: AbortSignal.timeout(45000) })
 }
 
-const KINDS = ['pod', 'bol', 'ratecon', 'driverinfo', 'invoice', 'other'] as const
+const KINDS = ['pod', 'bol', 'seal', 'ratecon', 'driverinfo', 'invoice', 'other'] as const
 export type DocClass = (typeof KINDS)[number]
 
 const PROMPT = `Classify this trucking document image. Answer with ONE word only, exactly one of:
 pod  — proof of delivery / delivery receipt (signed, "received", delivery signature)
 bol  — bill of lading (shipping document at pickup)
+seal — a PHOTO of the physical seal on the trailer door: a plastic or metal lock with a number on it, photographed on the trailer. NOT a paper document, and never a bill of lading that merely prints a seal number
 ratecon — rate confirmation from a broker: it states the RATE the carrier is paid
 driverinfo — driver/carrier information sheet: stops, appointment times, reference numbers, equipment and requirements, but NO rate paid to the carrier (often titled "Driver Information", "Carrier Information Sheet", "Load Information", and it may say it is for informational purposes only)
 invoice — an invoice

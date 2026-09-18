@@ -17,6 +17,7 @@ export type DriverLoad = {
   brokerPhone: string | null
   referenceId: string | null
   hasBol: boolean
+  hasSeal: boolean
   hasPod: boolean
   photos: number
 }
@@ -77,6 +78,8 @@ export function DriverClient({
   const [msg, setMsg] = useState<string | null>(null)
   const [note, setNote] = useState('')
   const bolRef = useRef<HTMLInputElement>(null)
+  // Пломба: её водитель снимает на дверях прицепа там же, где расписывается BOL.
+  const sealRef = useRef<HTMLInputElement>(null)
   const podRef = useRef<HTMLInputElement>(null)
   const photoRef = useRef<HTMLInputElement>(null)
 
@@ -102,7 +105,7 @@ export function DriverClient({
     for (const [k, v] of Object.entries(fields)) fd.append(k, v)
     void post(fd, key)
   }
-  function upload(kind: 'bol' | 'pod' | 'photo', files: FileList | null) {
+  function upload(kind: 'bol' | 'seal' | 'pod' | 'photo', files: FileList | null) {
     if (!files || !files.length) return
     const fd = new FormData()
     fd.append('action', 'photo')
@@ -345,6 +348,18 @@ export function DriverClient({
             }}
           />
           <input
+            ref={sealRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              upload('seal', e.target.files)
+              e.target.value = ''
+            }}
+          />
+          <input
             ref={podRef}
             type="file"
             accept="image/*,application/pdf"
@@ -396,15 +411,33 @@ export function DriverClient({
                   : t(locale, 'driver.podPhoto')}
             </button>
           </div>
-          <button
-            type="button"
-            disabled={!!busy}
-            onClick={() => photoRef.current?.click()}
-            className={`${big} mt-3 border-2 border-white/15 text-white/85`}
-          >
-            📷 {busy === 'photo' ? t(locale, 'driver.sending') : t(locale, 'driver.cargoPhoto')}
-            {load.photos > 0 && <span className="nums text-[13px] font-medium text-white/50">· {load.photos}</span>}
-          </button>
+          {/* Пломба стоит следом за BOL: снимают их на одном пикапе, одну за другой.
+              Рамка у неё спокойная, не янтарная, — бумага нужная, но груз без неё не
+              стоит, в отличие от накладной. */}
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              disabled={!!busy}
+              onClick={() => sealRef.current?.click()}
+              className={`${big} border-2 ${load.hasSeal ? 'border-good-500/40 text-good-400' : 'border-white/15 text-white/85'}`}
+            >
+              🔒{' '}
+              {busy === 'seal'
+                ? t(locale, 'driver.sending')
+                : load.hasSeal
+                  ? t(locale, 'driver.sealDone')
+                  : t(locale, 'driver.sealPhoto')}
+            </button>
+            <button
+              type="button"
+              disabled={!!busy}
+              onClick={() => photoRef.current?.click()}
+              className={`${big} border-2 border-white/15 text-white/85`}
+            >
+              📷 {busy === 'photo' ? t(locale, 'driver.sending') : t(locale, 'driver.cargoPhoto')}
+              {load.photos > 0 && <span className="nums text-[13px] font-medium text-white/50">· {load.photos}</span>}
+            </button>
+          </div>
           <p className="mt-2 text-center text-[12px] text-white/45">{t(locale, 'driver.docsHint')}</p>
         </section>
       )}

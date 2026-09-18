@@ -13,6 +13,10 @@ export const DOC_KINDS = {
   // требования, но НЕТ ставки — это не рейт-кон, и грузом он не становится.
   driverinfo: 'Driver Info',
   bol: 'BOL',
+  // Пломба: номер на замке прицепа, снятый на камеру при погрузке. Ездит парой с
+  // BOL (номер пломбы стоит в самой накладной), поэтому и в списке стоит сразу за
+  // ней, и грузится с ней одной кнопкой (components/docs.tsx, DocUpload).
+  seal: 'Пломба',
   pod: 'POD',
   invoice: 'Инвойс',
   insurance: 'Страховка',
@@ -29,6 +33,7 @@ export function docKindLabel(kind: DocKind, locale: Locale): string {
     case 'ratecon': return t(locale, 'docs.kind.ratecon')
     case 'driverinfo': return t(locale, 'docs.kind.driverinfo')
     case 'bol': return t(locale, 'docs.kind.bol')
+    case 'seal': return t(locale, 'docs.kind.seal')
     case 'pod': return t(locale, 'docs.kind.pod')
     case 'invoice': return t(locale, 'docs.kind.invoice')
     case 'insurance': return t(locale, 'docs.kind.insurance')

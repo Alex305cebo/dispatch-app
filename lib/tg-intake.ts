@@ -107,7 +107,10 @@ export async function intakeDriverMedia(): Promise<{ attached: number; skipped: 
         const target = rcNoLoad ? null : load
         // Лист водителя (TQL и другие шлют его вместе с рейт-коном) — такой же
         // нужный документ груза, как BOL: подшивается к текущему грузу.
-        const filed = kind === 'pod' || kind === 'bol' || kind === 'ratecon' || kind === 'driverinfo'
+        // Пломба ложится к грузу наравне с BOL: её снимают на том же пикапе, и без
+        // неё пара «накладная + пломба» у груза неполная.
+        const filed =
+          kind === 'pod' || kind === 'bol' || kind === 'seal' || kind === 'ratecon' || kind === 'driverinfo'
         if (!truck || (!target && !rcNoLoad) || !filed) {
           skipped++
         } else {

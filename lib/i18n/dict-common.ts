@@ -580,6 +580,22 @@ export const commonDict = {
     ro: 'POD primit · adaugă',
     kk: 'POD бар · қосу',
   },
+  'driver.sealPhoto': {
+    ru: 'Фото пломбы',
+    en: 'Seal photo',
+    es: 'Foto precinto',
+    uk: 'Фото пломби',
+    ro: 'Poză sigiliu',
+    kk: 'Пломба фото',
+  },
+  'driver.sealDone': {
+    ru: 'Пломба есть · добавить',
+    en: 'Seal received · add more',
+    es: 'Precinto recibido · añadir',
+    uk: 'Пломба є · додати',
+    ro: 'Sigiliu primit · adaugă',
+    kk: 'Пломба бар · қосу',
+  },
   'driver.cargoPhoto': {
     ru: 'Фото груза',
     en: 'Cargo photo',

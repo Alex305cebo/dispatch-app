@@ -272,7 +272,7 @@ CREATE TABLE IF NOT EXISTS documents (
   KEY docs_truck (truck_id),
   KEY docs_load (load_id),
   KEY docs_company (company_id, uploaded_at),
-  CONSTRAINT documents_kind_check CHECK (kind IN ('ratecon', 'bol', 'pod', 'driverinfo', 'invoice', 'insurance', 'registration', 'repair', 'photo', 'other')),
+  CONSTRAINT documents_kind_check CHECK (kind IN ('ratecon', 'bol', 'seal', 'pod', 'driverinfo', 'invoice', 'insurance', 'registration', 'repair', 'photo', 'other')),
   CONSTRAINT documents_truck_id_fkey FOREIGN KEY (truck_id) REFERENCES trucks (id),
   CONSTRAINT documents_load_id_fkey FOREIGN KEY (load_id) REFERENCES loads (id),
   CONSTRAINT documents_maintenance_id_fkey FOREIGN KEY (maintenance_id) REFERENCES truck_maintenance (id)
@@ -499,5 +499,12 @@ ALTER TABLE dat_lanes ADD COLUMN IF NOT EXISTS source VARCHAR(16) NOT NULL DEFAU
 ALTER TABLE dat_lanes DROP INDEX IF EXISTS dat_lanes_day;
 ALTER TABLE dat_lanes ADD UNIQUE KEY IF NOT EXISTS dat_lanes_src_day (company_id, source, origin, dest, equipment, seen_on);
 
-INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-22')
+-- Пломба (seal) — свой тип документа рядом с BOL. Список типов зашит в CHECK, а
+-- CREATE TABLE IF NOT EXISTS на живой базе его не обновляет: старую проверку надо
+-- снять и поставить новую. Порядок именно такой — DROP … IF EXISTS делает это
+-- повторяемым, а ADD после него не встретит одноимённой.
+ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_kind_check;
+ALTER TABLE documents ADD CONSTRAINT documents_kind_check CHECK (kind IN ('ratecon', 'bol', 'seal', 'pod', 'driverinfo', 'invoice', 'insurance', 'registration', 'repair', 'photo', 'other'));
+
+INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-23')
 ON DUPLICATE KEY UPDATE value = VALUES(value);

@@ -113,3 +113,20 @@ test('рейт-кон TQL с разделом Carrier Information Sheet — вс
     'Pickup: Nashville TN Delivery: Chicago IL Rate: $2,050.00 Total Rate $2,050.00 Trailer: 53 ft van'
   assert.equal(docKindFromText(tqlRc), 'ratecon')
 })
+
+test('пломба узнаётся по подписи и по имени файла', () => {
+  for (const s of ['пломба', 'Пломба 4471398', 'seal 4471398', 'SEAL_1590.jpg', 'seals on the doors']) {
+    assert.equal(captionKind(s), 'seal', s)
+  }
+})
+
+test('накладная с номером пломбы в подписи пломбой не становится', () => {
+  for (const s of ['BOL + seal 4471', 'bill of lading, seal 4471', 'bol-88213.pdf']) {
+    assert.equal(captionKind(s), null, s)
+  }
+})
+
+test('пломба не выигрывает у рейт-кона и слов, где seal внутри', () => {
+  assert.equal(captionKind('Rate con, seal 4471.pdf'), 'ratecon')
+  for (const s of ['sealed bid', 'Sealand 4471']) assert.equal(captionKind(s), null, s)
+})

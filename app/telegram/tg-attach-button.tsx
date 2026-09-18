@@ -25,6 +25,7 @@ const KINDS: { key: DocClass | 'auto'; label: MsgKey }[] = [
   { key: 'ratecon', label: 'docs.kind.ratecon' },
   { key: 'driverinfo', label: 'docs.kind.driverinfo' },
   { key: 'bol', label: 'docs.kind.bol' },
+  { key: 'seal', label: 'docs.kind.seal' },
   { key: 'pod', label: 'docs.kind.pod' },
   { key: 'other', label: 'docs.kind.other' },
 ]

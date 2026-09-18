@@ -45,12 +45,21 @@ export const docsDict = {
   'docs.upload.file': { ru: '+ Файл', en: '+ File', es: '+ Archivo', uk: '+ Файл', ro: '+ Fișier', kk: '+ Файл' },
   'docs.upload.hint': { ru: 'PDF или фото, до 8 МБ', en: 'PDF or photo, up to 8MB', es: 'PDF o foto, hasta 8 MB', uk: 'PDF або фото, до 8 МБ', ro: 'PDF sau poză, până la 8 MB', kk: 'PDF немесе сурет, 8 МБ дейін' },
   'docs.upload.info': {
-    ru: 'Выбери тип документа (Rate con / BOL / POD / инвойс / страховка / регистрация), при загрузке в общий раздел — трак, и добавь файл. Хранится в базе, привязан к грузу или траку, скачивается по клику.',
-    en: 'Choose the document type (Rate con / BOL / POD / invoice / insurance / registration), pick a truck when uploading from the shared section, and add the file. Stored in the database, linked to the load or truck, downloads on click.',
-    es: 'Elige el tipo de documento (rate con / BOL / POD / factura / seguro / registro), y al subirlo en la sección común, el camión; después añade el archivo. Se guarda en la base, queda ligado a la carga o al camión y se descarga con un clic.',
-    uk: 'Обери тип документа (Rate con / BOL / POD / інвойс / страховка / реєстрація), при завантаженні в загальний розділ — трак, і додай файл. Зберігається в базі, прив\'язаний до вантажу або трака, завантажується по кліку.',
-    ro: 'Alege tipul documentului (rate con / BOL / POD / factură / asigurare / înmatriculare), iar la încărcarea în secțiunea comună — camionul, apoi adaugă fișierul. Se păstrează în bază, e legat de cursă sau de camion și se descarcă cu un clic.',
-    kk: 'Құжат түрін таңдаңыз (Rate con / BOL / POD / инвойс / сақтандыру / тіркеу), жалпы бөлімге жүктегенде — трактты, содан соң файлды қосыңыз. Базада сақталады, жүкке немесе трактқа байланады, бір басумен жүктеледі.',
+    ru: 'Выбери тип документа (Rate con / BOL / пломба / POD / инвойс / страховка / регистрация), при загрузке в общий раздел — трак, и добавь файл. У BOL рядом появляется кнопка «+ Пломба»: обе бумаги уходят за один заход, тип переключать не надо. Хранится в базе, привязан к грузу или траку, скачивается по клику.',
+    en: 'Choose the document type (Rate con / BOL / seal / POD / invoice / insurance / registration), pick a truck when uploading from the shared section, and add the file. With BOL selected a "+ Seal" button appears next to it, so both papers go up in one pass without switching the type. Stored in the database, linked to the load or truck, downloads on click.',
+    es: 'Elige el tipo de documento (rate con / BOL / precinto / POD / factura / seguro / registro), y al subirlo en la sección común, el camión; después añade el archivo. Con BOL elegido aparece al lado el botón «+ Precinto»: los dos papeles suben de una vez, sin cambiar el tipo. Se guarda en la base, queda ligado a la carga o al camión y se descarga con un clic.',
+    uk: 'Обери тип документа (Rate con / BOL / пломба / POD / інвойс / страховка / реєстрація), при завантаженні в загальний розділ — трак, і додай файл. У BOL поруч з\'являється кнопка «+ Пломба»: обидва папери йдуть за один захід, тип перемикати не треба. Зберігається в базі, прив\'язаний до вантажу або трака, завантажується по кліку.',
+    ro: 'Alege tipul documentului (rate con / BOL / sigiliu / POD / factură / asigurare / înmatriculare), iar la încărcarea în secțiunea comună — camionul, apoi adaugă fișierul. Cu BOL ales apare alături butonul „+ Sigiliu”: ambele hârtii urcă dintr-o dată, fără să schimbi tipul. Se păstrează în bază, e legat de cursă sau de camion și se descarcă cu un clic.',
+    kk: 'Құжат түрін таңдаңыз (Rate con / BOL / пломба / POD / инвойс / сақтандыру / тіркеу), жалпы бөлімге жүктегенде — трактты, содан соң файлды қосыңыз. BOL таңдалғанда қасында «+ Пломба» түймесі шығады: екі қағаз бір реттен жүктеледі, түрін ауыстырудың қажеті жоқ. Базада сақталады, жүкке немесе трактқа байланады, бір басумен жүктеледі.',
+  },
+
+  'docs.upload.pairHint': {
+    ru: 'Отправить сразу и {label} — эти две бумаги всегда идут вместе',
+    en: 'Send the {label} at the same time — these two always travel together',
+    es: 'Envía también el {label} — estos dos papeles siempre van juntos',
+    uk: 'Надіслати одразу і {label} — ці два папери завжди йдуть разом',
+    ro: 'Trimite imediat și {label} — aceste două hârtii merg mereu împreună',
+    kk: '{label} бірден жіберу — бұл екі қағаз әрқашан бірге жүреді',
   },
 
   // DeleteDialog
@@ -97,6 +106,7 @@ export const docsDict = {
   'docs.kind.ratecon': { ru: 'Rate con', en: 'Rate con', es: 'Rate con', uk: 'Rate con', ro: 'Rate con', kk: 'Rate con' },
   'docs.kind.driverinfo': { ru: 'Driver Info', en: 'Driver Info', es: 'Driver Info', uk: 'Driver Info', ro: 'Driver Info', kk: 'Driver Info' },
   'docs.kind.bol': { ru: 'BOL', en: 'BOL', es: 'BOL', uk: 'BOL', ro: 'BOL', kk: 'BOL' },
+  'docs.kind.seal': { ru: 'Пломба', en: 'Seal', es: 'Precinto', uk: 'Пломба', ro: 'Sigiliu', kk: 'Пломба' },
   'docs.kind.pod': { ru: 'POD', en: 'POD', es: 'POD', uk: 'POD', ro: 'POD', kk: 'POD' },
   'docs.kind.invoice': { ru: 'Инвойс', en: 'Invoice', es: 'Factura', uk: 'Інвойс', ro: 'Factură', kk: 'Инвойс' },
   'docs.kind.insurance': { ru: 'Страховка', en: 'Insurance', es: 'Seguro', uk: 'Страховка', ro: 'Asigurare', kk: 'Сақтандыру' },

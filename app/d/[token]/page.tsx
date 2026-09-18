@@ -82,6 +82,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
     brokerPhone: l.brokerPhone,
     referenceId: l.referenceId,
     hasBol: l.id === load?.id && has('bol'),
+    hasSeal: l.id === load?.id && has('seal'),
     hasPod: l.id === load?.id && has('pod'),
     photos: l.id === load?.id ? docs.filter((d) => d.kind === 'photo').length : 0,
   })

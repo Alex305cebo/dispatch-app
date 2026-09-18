@@ -52,11 +52,14 @@ export function DocUpload({
   const [kind, setKind] = useState<DocKind>(defaultKind)
   const [pickTruck, setPickTruck] = useState<string>('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const pairRef = useRef<HTMLInputElement>(null)
+  // Вторая кнопка появляется только у пары BOL ↔ пломба (PAIRED ниже).
+  const pair = PAIRED[kind]
 
   // Несколько файлов за раз: многостраничный BOL/POD снимают по странице, фото
   // груза — серией. Тип один на всю пачку — тот, что выбран рядом; никакого
   // угадывания: что это за файл, называет человек.
-  function send(list: FileList | null) {
+  function send(list: FileList | null, as: DocKind = kind) {
     const files = Array.from(list ?? [])
     if (files.length === 0) return
     start(async () => {
@@ -64,7 +67,7 @@ export function DocUpload({
       for (const file of files) {
         const fd = new FormData()
         fd.append('file', safeUploadFile(file))
-        fd.append('kind', kind)
+        fd.append('kind', as)
         if (truckId) fd.append('truckId', String(truckId))
         if (loadId) fd.append('loadId', String(loadId))
         if (!truckId && pickTruck) fd.append('truckId', pickTruck)
@@ -82,9 +85,10 @@ export function DocUpload({
         notify(
           'ok',
           t(locale, 'docs.upload.saved'),
-          saved === 1 ? files[0]!.name : `${saved} × ${docKindLabel(kind, locale)}`,
+          saved === 1 ? files[0]!.name : `${saved} × ${docKindLabel(as, locale)}`,
         )
         if (fileRef.current) fileRef.current.value = ''
+        if (pairRef.current) pairRef.current.value = ''
       }
     })
   }
@@ -126,16 +130,46 @@ export function DocUpload({
           onChange={(e) => send(e.target.files)}
         />
       </label>
+      {pair && (
+        <label
+          title={t(locale, 'docs.upload.pairHint').replace('{label}', docKindLabel(pair, locale))}
+          /* Цвета берём из палитры приложения (haul), а не из готовых оттенков
+             Tailwind: под светлой темой подменяются только свои переменные, и
+             sky-300 остался бы бледным по белому. */
+          className={`cursor-pointer rounded-xl border border-haul-500/40 px-3 py-2 text-[13px] font-semibold text-haul-300 transition-colors hover:bg-haul-500/10 ${
+            pending ? 'opacity-50' : ''
+          }`}
+        >
+          + {docKindLabel(pair, locale)}
+          <input
+            type="file"
+            ref={pairRef}
+            accept="application/pdf,image/*"
+            multiple
+            className="hidden"
+            disabled={pending}
+            onChange={(e) => send(e.target.files, pair)}
+          />
+        </label>
+      )}
       <span className="text-[11px] text-white/45">{t(locale, 'docs.upload.hint')}</span>
       <Info text={t(locale, 'docs.upload.info')} />
     </div>
   )
 }
 
+// Бумаги, которые всегда приходят парой: BOL и пломба (её номер стоит в самой
+// накладной). Выбранному типу из этой пары приложение рисует вторую кнопку, и
+// второй файл уходит своим типом, не трогая список, — раньше ради него надо было
+// переключить тип и грузить заново.
+const PAIRED: Partial<Record<DocKind, DocKind>> = { bol: 'seal', seal: 'bol' }
+
 const KIND_TONE: Record<DocKind, string> = {
   ratecon: 'bg-haul-500/15 text-haul-400',
   driverinfo: 'bg-haul-500/10 text-haul-300',
   bol: 'bg-good-500/15 text-good-400',
+  // Светлее BOL и того же цвета: пломба — его пара, а не отдельная ветка бумаг.
+  seal: 'bg-good-500/10 text-good-400',
   pod: 'bg-good-500/15 text-good-400',
   invoice: 'bg-haul-500/15 text-haul-400',
   insurance: 'bg-warn-400/15 text-warn-400',

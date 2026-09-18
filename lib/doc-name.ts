@@ -34,6 +34,7 @@ const KIND: Record<string, string> = {
   ratecon: 'RATECON',
   driverinfo: 'DRIVERINFO',
   bol: 'BOL',
+  seal: 'SEAL',
   pod: 'POD',
   invoice: 'INVOICE',
   insurance: 'INSURANCE',

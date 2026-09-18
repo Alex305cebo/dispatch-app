@@ -103,7 +103,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
 
   if (action === 'photo') {
     const kind = String(fd.get('kind') || 'photo')
-    if (!['bol', 'pod', 'photo'].includes(kind)) return NextResponse.json({ error: 'bad kind' }, { status: 400 })
+    // Пломбу водитель снимает на том же пикапе, что и BOL, — она из того же списка.
+    if (!['bol', 'seal', 'pod', 'photo'].includes(kind))
+      return NextResponse.json({ error: 'bad kind' }, { status: 400 })
     const files = fd.getAll('file').filter((f): f is File => f instanceof File && f.size > 0)
     if (!files.length) return NextResponse.json({ error: 'no file' }, { status: 400 })
     let saved = 0
