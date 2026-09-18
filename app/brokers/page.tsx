@@ -18,10 +18,11 @@ export const dynamic = 'force-dynamic'
 const VIEWS: DirView[] = ['all', 'brokers', 'facilities', 'attention']
 
 /**
- * «Брокеры и склады» — один раздел (переделан по макету, согласованному 16.09.2026):
- * общий поиск, короткие списки, по нажатию — карточка брокера (/brokers/<ключ>) или
- * склада (/facilities/<ключ>). В строке одно главное: как платит брокер или сколько
- * стоим на складе. Всё остальное — в карточке.
+ * «Рынок и брокеры» (до 18.09.2026 — «Брокеры и склады»): сверху «Куда отправить
+ * трак», под ним справочник, переделанный по макету от 16.09.2026 — общий поиск,
+ * короткие списки, по нажатию карточка брокера (/brokers/<ключ>) или склада
+ * (/facilities/<ключ>). В строке одно главное: как платит брокер или сколько стоим
+ * на складе. Всё остальное — в карточке.
  */
 export default async function BrokersPage({ searchParams }: { searchParams: Promise<{ q?: string; view?: string }> }) {
   const { q = '', view } = await searchParams
@@ -77,9 +78,9 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
       <h1 className="text-xl font-bold tracking-tight">{t(locale, 'nav.brokers')}</h1>
       <p className="mb-4 text-[13px] text-white/65">{t(locale, 'brokers.dir.subtitle')}</p>
 
-      {/* «Куда отправить трак» переехало сюда с «Траков» (18.09.2026): вопрос «куда
-          и кому везти дальше» задают рядом с брокерами. Своя Suspense-граница —
-          раздел ждёт снимок DAT и ставки по маршрутам, а списки ниже готовы сразу. */}
+      {/* «Куда отправить трак» переехало сюда с «Траков» (18.09.2026) — отсюда и новое
+          имя раздела. Своя Suspense-граница: раздел ждёт снимок DAT и ставки по
+          маршрутам, а списки брокеров и складов готовы сразу. */}
       <Suspense fallback={<PlanSkeleton />}>
         <RoutePlanSection />
       </Suspense>

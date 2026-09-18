@@ -9,7 +9,8 @@ export const navDict = {
   'nav.trucks': { ru: 'Траки', en: 'Trucks', es: 'Camiones', uk: 'Траки', ro: 'Camioane', kk: 'Тракттар' },
   'nav.tracking': { ru: 'Трекинг', en: 'Track', es: 'Rastreo', uk: 'Трекінг', ro: 'Urmărire', kk: 'Бақылау' },
   'nav.docs': { ru: 'Файлы', en: 'Docs', es: 'Archivos', uk: 'Файли', ro: 'Fișiere', kk: 'Файлдар' },
-  'nav.brokers': { ru: 'Брокеры и склады', en: 'Brokers & facilities', es: 'Brókers y almacenes', uk: 'Брокери і склади', ro: 'Brokeri și depozite', kk: 'Брокерлер мен қоймалар' },
+  // Раздел перестал быть только справочником: с 18.09.2026 сверху «Куда отправить трак».
+  'nav.brokers': { ru: 'Рынок и брокеры', en: 'Market & brokers', es: 'Mercado y brókers', uk: 'Ринок і брокери', ro: 'Piață și brokeri', kk: 'Нарық және брокерлер' },
   // В боковом меню «Платные дороги» переносилось на две строки и толкало соседей.
   // «Толлы» — то самое слово, которым это и называют вслух в диспетчерской, и оно
   // втрое короче. Полное название осталось заголовком самого раздела.

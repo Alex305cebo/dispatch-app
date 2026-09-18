@@ -144,7 +144,9 @@ export function FleetPanel({
 
   return (
     <>
-      <div className="mb-2">
+      {/* Якорь для «Показать на карте» с «Рынка и брокеров»: планировщик живёт там,
+          а карта осталась здесь. scroll-mt — чтобы верхнее меню её не накрывало. */}
+      <div id="fleet-map" className="mb-2 scroll-mt-16">
         <FleetMap
           markers={markers}
           routes={routes}

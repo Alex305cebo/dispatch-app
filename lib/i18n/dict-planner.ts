@@ -31,6 +31,8 @@ export const plannerDict = {
   'plan.region': { ru: 'регион {region}', en: '{region} region', es: 'región {region}', uk: 'регіон {region}', ro: 'regiunea {region}', kk: '{region} аймағы' },
   'plan.lanesFrom': { ru: 'Куда ехать из {state}', en: 'Where to go from {state}', es: 'A dónde ir desde {state}', uk: 'Куди їхати з {state}', ro: 'Unde mergem din {state}', kk: '{state} қайда бару' },
   'plan.showOnMap': { ru: 'На карте', en: 'On the map', es: 'En el mapa', uk: 'На карті', ro: 'Pe hartă', kk: 'Картада' },
+  // Уводит на карту парка («Траки»), а не красит штаты здесь — потому «Показать».
+  'plan.showOnFleetMap': { ru: 'Показать на карте', en: 'Show on the map', es: 'Ver en el mapa', uk: 'Показати на карті', ro: 'Arată pe hartă', kk: 'Картада көрсету' },
   'plan.range.all': { ru: 'Все', en: 'All', es: 'Todas', uk: 'Усі', ro: 'Toate', kk: 'Барлығы' },
   'plan.range.day': { ru: 'На 1 день', en: '1 day', es: '1 día', uk: 'На 1 день', ro: '1 zi', kk: '1 күн' },
   'plan.range.mid': { ru: 'Средние', en: 'Medium', es: 'Medias', uk: 'Середні', ro: 'Medii', kk: 'Орташа' },

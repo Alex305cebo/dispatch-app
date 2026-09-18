@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-/** Вкладка-ссылка под заголовком раздела: «Финансы», «Брокеры и склады». */
+/** Вкладка-ссылка под заголовком раздела: «Финансы», «Рынок и брокеры». */
 export function Tab({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
   return (
     <Link

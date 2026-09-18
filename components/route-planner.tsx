@@ -306,13 +306,16 @@ export function RoutePlanner({
   plan,
   trucks,
   snaps,
-  /** «На карте» есть только там, где карта рядом (на «Траках» её больше нет). */
+  /** «На карте» красит штаты прямо здесь — только там, где карта рядом. */
   mapButton = true,
+  /** Карты рядом нет: та же кнопка ведёт на карту парка («Траки»). */
+  mapHref,
 }: {
   plan: RoutePlan
   trucks: PlanTruck[]
   snaps: PlanSnaps
   mapButton?: boolean
+  mapHref?: string
 }) {
   const locale = useLocale()
   const [range, setRange] = useState<'all' | 'day' | 'mid' | 'long'>('all')
@@ -525,10 +528,16 @@ export function RoutePlanner({
               {t(locale, 'plan.lanesFrom').replace('{state}', stateName(origin))}
               <Info text={t(locale, 'plan.bench.info')} />
             </h3>
-            {mapButton && (
-              <Button size="sm" variant="ghost" icon={<MapPin size={13} />} onClick={plan.showOnMap}>
-                {t(locale, 'plan.showOnMap')}
+            {mapHref ? (
+              <Button size="sm" variant="ghost" icon={<MapPin size={13} />} href={mapHref}>
+                {t(locale, 'plan.showOnFleetMap')}
               </Button>
+            ) : (
+              mapButton && (
+                <Button size="sm" variant="ghost" icon={<MapPin size={13} />} onClick={plan.showOnMap}>
+                  {t(locale, 'plan.showOnMap')}
+                </Button>
+              )
             )}
           </div>
           {/* Ставка DAT за милю одна на весь регион — одной строкой над списком, а не одной и
