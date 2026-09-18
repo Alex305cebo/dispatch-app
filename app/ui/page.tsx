@@ -3,6 +3,7 @@
 // в меню её нет, открывается только по прямому адресу /ui.
 
 import { DollarSign, Package, Route, TrendingUp } from 'lucide-react'
+import Link from 'next/link'
 import { Stat } from '@/components/stat'
 import { WidgetGrid } from '@/components/widget-grid'
 
@@ -58,7 +59,11 @@ export default function Page() {
     <div className="mx-auto max-w-5xl px-3 py-4">
       <h1 className="text-xl font-bold">Обзор в новом виде</h1>
       <p className="mt-1 mb-4 max-w-prose text-base text-white/60">
-        Плитки можно переставить, порядок запомнится. Цифры выдуманные.
+        Плитки можно переставить, порядок запомнится. Цифры здесь выдуманные — тот же вид{' '}
+        <Link href="/ui/overview" className="font-semibold text-haul-400 hover:underline">
+          на настоящих данных
+        </Link>
+        .
       </p>
 
       <div className="panel p-2.5">

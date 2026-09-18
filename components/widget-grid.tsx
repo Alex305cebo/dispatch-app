@@ -188,6 +188,7 @@ function Cell({
   onStep: (d: -1 | 1) => void
 }) {
   const controls = useDragControls()
+  const dragged = useRef(false)
   const hold = useRef<ReturnType<typeof setTimeout> | null>(null)
   const from = useRef<{ x: number; y: number } | null>(null)
   const el = useRef<HTMLDivElement | null>(null)
@@ -215,8 +216,16 @@ function Cell({
     const stop = (e: TouchEvent) => {
       if (armedRef.current && e.cancelable) e.preventDefault()
     }
+    // Плитка часто целиком ссылка (цифра ведёт на список грузов). Ссылку браузер
+    // умеет перетаскивать сам, и его собственный жест перехватывал мышь: палец
+    // работал, а мышью плитка не двигалась вовсе. Запрещаем родной перенос.
+    const noNativeDrag = (e: DragEvent) => e.preventDefault()
     node.addEventListener('touchmove', stop, { passive: false })
-    return () => node.removeEventListener('touchmove', stop)
+    node.addEventListener('dragstart', noNativeDrag)
+    return () => {
+      node.removeEventListener('touchmove', stop)
+      node.removeEventListener('dragstart', noNativeDrag)
+    }
   }, [])
 
   // Жест начинается не сразу. Мышью — сразу, пальцем — после удержания: иначе обычная
@@ -278,11 +287,23 @@ function Cell({
         cancel()
         setArmed(false)
       }}
-      onDragStart={onStart}
+      onDragStart={() => {
+        dragged.current = true
+        onStart()
+      }}
       onDrag={(_, info) => onOver(info.point.x, info.point.y)}
       onDragEnd={() => {
         setArmed(false)
         onEnd()
+      }}
+      // Плитка-ссылка после перетаскивания досылает click, и вместо переставленной
+      // раскладки открывался список грузов. Гасим ровно один щелчок — тот, что
+      // пришёл следом за перетаскиванием.
+      onClickCapture={(e) => {
+        if (!dragged.current) return
+        dragged.current = false
+        e.preventDefault()
+        e.stopPropagation()
       }}
       whileDrag={{ scale: 1.03, boxShadow: 'var(--shadow-e3)' }}
       // [&>div]/[&>a] — содержимое тянется до высоты ячейки: в ряду плитка с подписью
