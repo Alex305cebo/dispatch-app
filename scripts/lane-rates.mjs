@@ -12,6 +12,7 @@
 //
 //   node --env-file=.env.local scripts/lane-rates.mjs --loads 20      ← маршруты последних грузов
 //   node --env-file=.env.local scripts/lane-rates.mjs --grid TN,CA    ← из этих штатов во все наши города
+//   node --env-file=.env.local scripts/lane-rates.mjs --grid auto     ← где стоят и куда едут траки, если за неделю не собрано
 //   node --env-file=.env.local scripts/lane-rates.mjs "37421>60616:571:Chattanooga, TN>Chicago, IL"
 //
 // В режиме сетки города берутся из наших же адресов (по одному на штат, самый частый), а
@@ -19,9 +20,14 @@
 //
 // Запускать можно хоть каждый день: одно направление в день от источника — одна строка.
 import mysql from 'mysql2/promise'
+import { nextMonday, warpQuote, zipOfCity } from '../lib/warp-quote.ts'
 
-const QUOTE = 'https://www.wearewarp.com/api/v1/ftl/quote'
+/** Сетка из штата считается свежей, если за столько дней по ней есть столько направлений. */
+const FRESH_DAYS = 7
+const FRESH_DESTS = 20
 const args = process.argv.slice(2)
+/** --max N — не больше стольких направлений за запуск (и миль считаем только для них). */
+const max = Number(args[args.indexOf('--max') + 1]) || 50
 /** --company demo — те же ставки для демо-компании: в демо тоже видно живой рынок. */
 const company = args[args.indexOf('--company') + 1] === 'demo' ? 'demo' : 'default'
 const url = process.env.DATABASE_URL
@@ -34,50 +40,8 @@ if (!url) {
 const zipOf = (s) => String(s ?? '').match(/\b(\d{5})\b(?!.*\b\d{5}\b)/)?.[1] ?? null
 /** Штат — две буквы после последней запятой: «San Jose, CA» → CA. */
 const stateOf = (s) => String(s ?? '').match(/,\s*([A-Za-z]{2})\s*$/)?.[1]?.toUpperCase() ?? null
-/** Понедельник следующей недели: котировка на рабочий день, а не на «сегодня поздно». */
-const pickupDate = () => {
-  const d = new Date()
-  d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7))
-  return d.toISOString().slice(0, 10)
-}
-
-async function quote(originZip, destZip, date) {
-  const res = await fetch(QUOTE, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      origin_zip: originZip,
-      destination_zip: destZip,
-      pickup_date: date,
-      pallets: 24,
-      weight_lbs_per_pallet: 1600,
-    }),
-    signal: AbortSignal.timeout(30_000),
-  })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  const j = await res.json()
-  const price = Number(j?.price_usd)
-  if (!(price > 0)) throw new Error(String(j?.error ?? 'нет цены'))
-  return price
-}
-
 const db = await mysql.createConnection(url)
 await db.query('SET SESSION wait_timeout = 900')
-
-/** Индекс города, когда в адресе груза его не было: открытый справочник zippopotam. */
-async function zipOfCity(city) {
-  const m = String(city ?? '').match(/^(.*),\s*([A-Za-z]{2})$/)
-  if (!m) return null
-  try {
-    const res = await fetch(`https://api.zippopotam.us/us/${m[2].toLowerCase()}/${encodeURIComponent(m[1].trim())}`, {
-      signal: AbortSignal.timeout(20_000),
-    })
-    if (!res.ok) return null
-    return (await res.json())?.places?.[0]?.['post code'] ?? null
-  } catch {
-    return null
-  }
-}
 
 /** Город с индексом, куда и откуда наш флот реально ездит: по одному на штат, чаще всего. */
 async function hubs() {
@@ -136,21 +100,40 @@ async function lanes() {
       return { oz, dz, miles: Number(miles), origin, dest }
     })
   }
-  // --grid ST,ST (или auto — где стоят траки): из этих штатов во все остальные наши
-  // города. Мили — настоящие, по дорогам (OSRM), и один раз: дальше берутся из базы.
+  // --grid ST,ST (или auto — где стоят траки и куда едут, без свежих): из этих штатов
+  // во все остальные наши города. Мили — настоящие, по дорогам (OSRM), и один раз: дальше берутся из базы.
   const gridAt = args.indexOf('--grid')
   if (gridAt >= 0) {
     const arg = (args[gridAt + 1] ?? '').toUpperCase()
     let from = arg.split(',').filter(Boolean)
     if (arg === 'AUTO') {
+      // Где траки стоят и куда едут: следующий груз ищут из штата выгрузки ещё в пути.
       const [live] = await db.query('SELECT DISTINCT location FROM fleet_status WHERE location <> ?', [''])
-      from = [...new Set(live.map((r) => stateOf(r.location)).filter(Boolean))]
-      console.error(`штаты траков: ${from.join(', ') || '—'}`)
+      const [going] = await db.query(
+        `SELECT DISTINCT destination AS location FROM loads
+          WHERE company_id = ? AND status IN ('booked', 'in_transit') AND destination <> ''`,
+        [company],
+      )
+      from = [...new Set([...live, ...going].map((r) => stateOf(r.location)).filter(Boolean))]
+      console.error(`штаты траков и выгрузок: ${from.join(', ') || '—'}`)
+      // Штат, из которого сетка собрана на этой неделе, второй раз не гоняем: ставка за
+      // неделю так не меняется, а чужой сервис бесплатный.
+      const [fresh] = await db.query(
+        `SELECT origin_state AS st FROM dat_lanes
+          WHERE company_id = ? AND source = 'warp' AND seen_on >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+          GROUP BY origin_state HAVING COUNT(DISTINCT dest_state) >= ?`,
+        [company, FRESH_DAYS, FRESH_DESTS],
+      )
+      const skip = new Set(fresh.map((r) => r.st))
+      from = from.filter((st) => !skip.has(st))
+      console.error(`собираем из: ${from.join(', ') || '— (везде свежо)'}`)
     }
     const all = await hubs()
     const out = []
     for (const o of all.filter((h) => from.includes(h.state))) {
       for (const d of all) {
+        // Дальше --max всё равно не пойдёт — мили лишних пар у чужого роутера не просим.
+        if (out.length >= max) return out
         if (d.state === o.state) continue
         // Мили этой пары уже считали в прошлый раз — чужой роутер второй раз не трогаем.
         const [[hit]] = await db.query('SELECT miles FROM dat_lanes WHERE origin = ? AND dest = ? AND miles > 0 LIMIT 1', [o.city, d.city])
@@ -190,8 +173,7 @@ async function lanes() {
   return out
 }
 
-const date = pickupDate()
-const max = Number(args[args.indexOf('--max') + 1]) || 50
+const date = nextMonday()
 let saved = 0
 for (const l of (await lanes()).slice(0, max)) {
   if (!(l.miles > 0)) {
@@ -200,7 +182,7 @@ for (const l of (await lanes()).slice(0, max)) {
   }
   let price
   try {
-    price = await quote(l.oz, l.dz, date)
+    price = await warpQuote(l.oz, l.dz, date)
   } catch (e) {
     console.error(`пропуск ${l.origin} → ${l.dest}: ${e.message}`)
     continue
