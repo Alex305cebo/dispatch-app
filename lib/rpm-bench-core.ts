@@ -48,6 +48,14 @@ export type RpmRow = {
   miles14?: number
 }
 
+/**
+ * Короче этого котировка Warp — не ставка за милю, а минимальная цена за подачу: на паре
+ * Louisville → Indianapolis (около 115 миль) она давала $8–9/mi, которых на рынке нет,
+ * и эта цифра ещё и переносилась на другой, более длинный рейс (ключ ставки — только
+ * «штат → штат», без миль). Такие строки в ставку по маршруту не берём.
+ */
+export const WARP_MIN_MILES = 250
+
 export const laneKey = (from: string, to: string) => `${from}>${to}`
 export const emptyTable = (): RpmTable => ({ lane: {}, into: {} })
 
@@ -89,10 +97,24 @@ const ORDER: [keyof Pick<RpmBench, 'dat' | 'usda' | 'warp'>, RpmSource][] = [
   ['warp', 'warpLane'],
 ]
 
-/** Ставка по самому маршруту from→to: DAT с доски точнее, потом USDA, потом Warp. Нет — null. */
-export function benchmarkRpm(bench: RpmBench | null | undefined, from: string | null, to: string): Benchmark | null {
+/**
+ * Ставка по самому маршруту from→to: DAT с доски точнее, потом USDA, потом Warp. Нет — null.
+ *
+ * `warp: false` — только источники, где ставка измерена на настоящем рейсе с его милями.
+ * Так спрашивает НАПРАВЛЕНИЕ «штат → штат» у планировщика: котировка Warp считана на паре
+ * городов со своей длиной, и её цена за милю к другому рейсу отношения не имеет
+ * (пользователь, 18.09.2026: «таких цен не бывает на рынке»). У конкретного груза мили
+ * настоящие — там Warp остаётся.
+ */
+export function benchmarkRpm(
+  bench: RpmBench | null | undefined,
+  from: string | null,
+  to: string,
+  opts?: { warp?: boolean },
+): Benchmark | null {
   if (!bench || !from) return null
   for (const [src, source] of ORDER) {
+    if (src === 'warp' && opts?.warp === false) continue
     const stat = bench[src]?.lane[laneKey(from, to)]
     if (stat) return { rpm: stat.rpm, n: stat.n, source, from, to, ...(stat.wk != null ? { wk: stat.wk } : {}) }
   }

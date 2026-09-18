@@ -16,8 +16,7 @@ import { Button } from '@/components/button'
 import { ShowMore } from '@/components/collapse'
 import { useLocale } from '@/components/locale-provider'
 import type { MapPlan } from '@/components/fleet-map'
-import { quoteBoardLane, quoteDirection, readBoardScreenshot } from '@/app/actions'
-import { BIG_CITY } from '@/lib/warp-quote'
+import { quoteBoardLane, readBoardScreenshot } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { safeUploadFile } from '@/lib/upload-name'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
@@ -83,27 +82,23 @@ const regionTitle = (code: string) => code.charAt(0) + code.slice(1).toLowerCase
 const regionName = (snap: DatSnapshot, state: string) => regionTitle(regionOf(snap, state)?.code ?? '')
 
 /**
- * Ставка, на которую диспетчеру торговаться, $/mi: цель по самому маршруту (цена
- * грузоотправителя минус доля брокера), иначе ставка DAT региона штата доставки.
- * Ноль — цифры нет. По ней и порядок в списке, и цвет штата на карте.
+ * Ставка направления, $/mi: по самому маршруту, если она измерена на настоящем рейсе
+ * (DAT с доски, USDA), иначе ставка DAT региона штата доставки. Ноль — цифры нет.
+ * По ней и порядок в списке, и цвет штата на карте.
+ *
+ * Котировки Warp тут нет: она считана на своей паре городов со своей длиной, а у
+ * направления длина другая — так и выходили $4–7.5/mi, которых на рынке не бывает
+ * (пользователь, 18.09.2026). У конкретного груза мили настоящие — там Warp остаётся.
  */
 function targetRate(snap: (DatSnapshot & { bench?: RpmBench }) | null, origin: string | null, state: string): number {
   if (!snap || !origin) return 0
-  const b = benchmarkRpm(snap.bench, origin, state)
-  if (b) {
-    const band = b.source === 'warpLane' && snap.bench?.cut ? targetBand(b.rpm, snap.bench.cut) : null
-    return band ? band.low : b.rpm
-  }
-  return regionOf(snap, state)?.rpm ?? 0
+  return benchmarkRpm(snap.bench, origin, state, { warp: false })?.rpm ?? regionOf(snap, state)?.rpm ?? 0
 }
 
-/** Ставка по направлению для плитки: цель торга по маршруту, иначе ставка DAT региона. */
+/** Ставка по направлению для плитки: по маршруту, если измерена на рейсе, иначе DAT региона. */
 const rateLine = (lane: Lane, snap: DatSnapshot, origin: string, bench: RpmBench | undefined, locale: Locale) => {
-  const b = benchmarkRpm(bench, origin, lane.state)
-  if (b) {
-    const band = b.source === 'warpLane' && bench?.cut ? targetBand(b.rpm, bench.cut) : null
-    return band ? `≈${usd2.format(band.low)}/mi · ${t(locale, SRC_SHORT[b.source])}` : benchShort(b, locale)
-  }
+  const b = benchmarkRpm(bench, origin, lane.state, { warp: false })
+  if (b) return benchShort(b, locale)
   const r = regionOf(snap, lane.state)?.rpm
   return r ? `${usd2.format(r)}/mi · DAT ${regionName(snap, lane.state)}` : t(locale, 'plan.bench.none').replace('{to}', lane.state)
 }
@@ -310,8 +305,6 @@ function BoardShotSample({ locale }: { locale: Locale }) {
 export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks: PlanTruck[]; snaps: PlanSnaps }) {
   const locale = useLocale()
   const [range, setRange] = useState<'all' | 'day' | 'mid' | 'long'>('all')
-  // Штат, по которому сейчас идёт котировка Warp у направления (одна за раз).
-  const [quoting, setQuoting] = useState<string | null>(null)
   const { truck, origin, series, snap, opts, lanes, from, planOpts } = plan
   if (!truck) return null
   const seriesList = Object.keys(snaps) as DatEquipment[]
@@ -332,27 +325,8 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
     { key: 'long' as const, has: (l: Lane) => !dayTrip(l) && l.miles > 1200 },
   ]
   const rateOf = (l: Lane) => targetRate(snap, origin, l.state)
-  // Направление без ставки по маршруту — спросить Warp: из города трака (считаем из другого
-  // штата — из его главного города) в главный город штата назначения. Только Van; строка
-  // сама скроет кнопку, когда ставка появится (LaneRow показывает её лишь без bench).
-  const fromCity = origin ? (origin === truck.state && truck.place ? truck.place : (BIG_CITY[origin] ?? null)) : null
-  const dirQuote = (l: Lane) =>
-    series === 'VAN' && fromCity
-      ? {
-          busy: quoting === l.state,
-          run: () => {
-            if (quoting) return
-            setQuoting(l.state)
-            quoteDirection(fromCity, l.state)
-              .then((res) => {
-                if ('error' in res) return notify('error', res.error)
-                notify('ok', t(locale, 'plan.quote.ok').replace('{v}', usd2.format(res.rpm)))
-              })
-              .catch(() => notify('error', t(locale, 'plan.quote.fail').replace('{e}', '—')))
-              .finally(() => setQuoting(null))
-          },
-        }
-      : undefined
+  // «Узнать цену Warp» у направления убрана: её цена за милю считана на своей паре
+  // городов, а у направления длина другая. У груза с доски мили настоящие — там кнопка есть.
   // Внутри плеча — сперва где больше платят, при равной ставке горячее рынок.
   const byRate = (a: Lane, b: Lane) => rateOf(b) - rateOf(a) || (b.ratio ?? 0) - (a.ratio ?? 0)
   const bandOf = (key: 'day' | 'mid' | 'long') => lanes.filter(BANDS.find((b) => b.key === key)!.has).sort(byRate)
@@ -628,7 +602,6 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
                           locale={locale}
                           reasons={lane.home ? [t(locale, 'plan.why.home')] : undefined}
                           bench={snap.bench}
-                          quote={dirQuote(lane)}
                         />
                       ))}
                     </div>
@@ -654,7 +627,6 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
                     locale={locale}
                     reasons={lane.home ? [t(locale, 'plan.why.home')] : undefined}
                     bench={snap.bench}
-                    quote={dirQuote(lane)}
                   />
                 ))}
               />
@@ -693,14 +665,22 @@ function MarketDetails({
   locale: Locale
 }) {
   const trend = snap.trend
+  const nowRatio = snap.history?.length ? snap.history[snap.history.length - 1]!.ratio : null
   const sub = 'text-2xs font-semibold uppercase tracking-wide text-white/55'
   return (
-    <details open className="group mt-4 rounded-xl border border-white/8">
+    <details className="group mt-4 rounded-xl border border-white/8">
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2.5 gap-y-1 px-3 py-2 text-[12px] max-md:min-h-11">
         <span className="text-white/40 transition-transform group-open:rotate-90" aria-hidden>
           ▸
         </span>
         <span className="font-semibold text-white/80">{t(locale, 'plan.market.title').replace('{series}', SERIES_NAME[series])}</span>
+        {/* Свёрнутый блок всё равно называет главную цифру рынка — грузов на трак по стране
+            за последнюю неделю DAT: ради неё его и раскрывают. */}
+        {nowRatio != null && (
+          <span className="nums text-white/70">
+            {nowRatio.toFixed(1)} {t(locale, 'plan.perTruck')}
+          </span>
+        )}
         {snap.fuel && (
           <span className="nums inline-flex items-center gap-1 text-white/70">
             <Fuel size={12} aria-hidden />
@@ -1186,7 +1166,9 @@ function LaneRow({
   // груза с доски. Грузы на трак — под названием: по ним список и отсортирован.
   // Цвет — только у груза с доски: его ставка против цифры справа. У направления цифры
   // из разных источников, красить их «хорошо/плохо» было бы враньём.
-  const b = benchmarkRpm(bench, origin, lane.state)
+  // Котировку Warp берём только у груза с доски (`pickup`): там мили — его собственные.
+  // У направления мили другие, и цена за милю с чужой пары городов к нему не относится.
+  const b = benchmarkRpm(bench, origin, lane.state, { warp: pickup })
   const regionState = pickup ? origin : lane.state
   const regionRpm = b ? null : (regionOf(snap, regionState)?.rpm ?? null)
   const rpm = b?.rpm ?? regionRpm
@@ -1374,6 +1356,7 @@ function BoardCompare({
   bench?: RpmBench
 }) {
   const [text, setText] = useState('')
+  const [open, setOpen] = useState(false)
   const [reading, setReading] = useState(false)
   const [drag, setDrag] = useState(false)
   // Подпись груза, по которому сейчас идёт котировка Warp (одна за раз).
@@ -1427,6 +1410,7 @@ function BoardCompare({
         if ('error' in res) return notify('error', res.error)
         if (!res.lines.length) return notify('warn', t(locale, 'plan.boardNone'))
         setText((cur) => [cur.trim(), ...res.lines].filter(Boolean).join('\n'))
+        setOpen(true)
         notify(
           'ok',
           t(locale, 'plan.boardRead').replace('{n}', String(res.lines.length)) +
@@ -1461,11 +1445,18 @@ function BoardCompare({
   const pick = () => fileRef.current?.click()
 
   return (
-    <div className="mt-4 border-t border-white/[0.06] pt-3">
-      <h3 className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-white/55">
-        {t(locale, 'plan.board')}
+    // Свёрнуто: зона под скриншот с примером занимала пол-экрана у всех, а нужна она под
+    // звонок брокеру. Прочитанные грузы раскрывают блок сами — Ctrl+V со страницы не пропадает.
+    <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)} className="group mt-4 rounded-xl border border-white/8">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 text-[12px] max-md:min-h-11">
+        <span className="text-white/40 transition-transform group-open:rotate-90" aria-hidden>
+          ▸
+        </span>
+        <span className="font-semibold text-white/80">{t(locale, 'plan.board')}</span>
+        <span className="min-w-0 text-white/50">{t(locale, 'plan.boardDropSub')}</span>
         <Info text={t(locale, 'plan.boardInfo')} />
-      </h3>
+      </summary>
+      <div className="border-t border-white/[0.06] px-3 pb-3 pt-2.5">
       <input
         ref={fileRef}
         type="file"
@@ -1653,6 +1644,7 @@ function BoardCompare({
           </details>
         </>
       )}
-    </div>
+      </div>
+    </details>
   )
 }

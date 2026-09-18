@@ -2674,27 +2674,6 @@ export async function quoteBoardLane(label: string, miles: number, loadId?: numb
   return res
 }
 
-/**
- * «Узнать цену» у направления «Куда отправить трак»: из города трака (или главного города
- * штата, если считают из другого) в главный город штата назначения. Мили — настоящие по
- * дорогам (lib/geo-routing routeMiles); прямую «по оценке» не берём — ставка за милю была бы
- * выдумкой. Дальше как у груза с доски: строка dat_lanes и перечитанная страница.
- */
-export async function quoteDirection(fromCity: string, toState: string): Promise<{ rpm: number } | { error: string }> {
-  const locale = await getLocale()
-  if ((await getCurrentUser())?.isDemo) return { error: t(locale, 'plan.boardDemo') }
-  const { BIG_CITY } = await import('@/lib/warp-quote')
-  const toCity = BIG_CITY[toState]
-  if (!toCity) return { error: t(locale, 'plan.quote.noRoute') }
-  const { routeMiles } = await import('@/lib/geo-routing')
-  const r = await routeMiles(fromCity, toCity, locale)
-  if ('error' in r || r.estimated) return { error: t(locale, 'plan.quote.noMiles').replace('{city}', toCity) }
-  const res = await saveWarpLane(await companyScope(), fromCity, toCity, r.miles, locale)
-  if ('error' in res) return res
-  revalidatePath('/trucks')
-  return res
-}
-
 /** Котировка Warp по паре «City, ST» → строка dat_lanes (source='warp', как ночной скрипт). */
 async function saveWarpLane(
   companyId: 'default' | 'demo',
@@ -2704,9 +2683,13 @@ async function saveWarpLane(
   locale: Awaited<ReturnType<typeof getLocale>>,
 ): Promise<{ rpm: number } | { error: string }> {
   const { stateFromPlace } = await import('@/lib/dat-market-core')
+  const { WARP_MIN_MILES } = await import('@/lib/rpm-bench-core')
   const from = stateFromPlace(fromCity)
   const to = stateFromPlace(toCity)
   if (!from || !to || !(miles > 0)) return { error: t(locale, 'plan.quote.noRoute') }
+  // Короче этого цена Warp — минимальная подача: делить её на мили нельзя, и такие строки
+  // в ставку по маршруту всё равно не идут (lib/dat-lanes.ts).
+  if (miles < WARP_MIN_MILES) return { error: t(locale, 'plan.quote.tooShort').replace('{n}', String(WARP_MIN_MILES)) }
   const { warpQuote, zipOfCity } = await import('@/lib/warp-quote')
   const [oz, dz] = await Promise.all([zipOfCity(fromCity), zipOfCity(toCity)])
   if (!oz) return { error: t(locale, 'plan.quote.noZip').replace('{city}', fromCity) }

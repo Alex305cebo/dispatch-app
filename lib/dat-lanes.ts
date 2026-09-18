@@ -1,5 +1,5 @@
 import { sql } from '@/lib/db'
-import { rpmTableFrom, type RpmRow, type RpmTable } from '@/lib/rpm-bench-core'
+import { rpmTableFrom, WARP_MIN_MILES, type RpmRow, type RpmTable } from '@/lib/rpm-bench-core'
 import { brokerCuts, targetBand, type BrokerCut } from '@/lib/broker-cut'
 
 /**
@@ -16,6 +16,7 @@ export async function laneRpmTables(companyId: 'default' | 'demo', source: 'dat'
       SUM(CASE WHEN seen_on < DATE_SUB(CURDATE(), INTERVAL 7 DAY) AND seen_on >= DATE_SUB(CURDATE(), INTERVAL 14 DAY) THEN miles ELSE 0 END) AS miles14
     FROM dat_lanes
     WHERE company_id = ${companyId} AND source = ${source} AND dest_state IS NOT NULL AND seen_on >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+      AND miles >= ${source === 'warp' ? WARP_MIN_MILES : 0}
     GROUP BY equipment, origin_state, dest_state`) as {
     equipment: string
     f: string | null
@@ -62,6 +63,7 @@ export async function brokerCutFromLoads(companyId: 'default' | 'demo'): Promise
     JOIN dat_lanes d
       ON d.company_id = l.company_id AND d.source = 'warp'
      AND d.origin_state = UPPER(RIGHT(l.origin, 2)) AND d.dest_state = UPPER(RIGHT(l.destination, 2))
+     AND d.miles >= ${WARP_MIN_MILES}
     WHERE l.company_id = ${companyId} AND l.loaded_miles > 100 AND l.rate > 0
       AND l.pickup_date >= DATE_SUB(CURDATE(), INTERVAL 180 DAY)
     GROUP BY l.id, l.rate, l.loaded_miles, l.broker_name`) as { ours: number | string; shipper: number | string; broker: string | null }[]
@@ -85,7 +87,8 @@ export async function laneTarget(
     SELECT SUM(spot_rate) AS rate, SUM(miles) AS miles
     FROM dat_lanes
     WHERE company_id = ${companyId} AND source = 'warp' AND equipment = ${equipment}
-      AND origin_state = ${from} AND dest_state = ${to} AND seen_on >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)`) as {
+      AND origin_state = ${from} AND dest_state = ${to} AND seen_on >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+      AND miles >= ${WARP_MIN_MILES}`) as {
     rate: number | string | null
     miles: number | string | null
   }[]

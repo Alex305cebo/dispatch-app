@@ -21,6 +21,7 @@
 // Запускать можно хоть каждый день: одно направление в день от источника — одна строка.
 import mysql from 'mysql2/promise'
 import { nextMonday, warpQuote, zipOfCity } from '../lib/warp-quote.ts'
+import { WARP_MIN_MILES } from '../lib/rpm-bench-core.ts'
 
 /** Сетка из штата считается свежей, если за столько дней по ней есть столько направлений. */
 const FRESH_DAYS = 7
@@ -147,6 +148,12 @@ async function lanes() {
           }
           await new Promise((r) => setTimeout(r, 1100)) // OSRM и zippopotam — не чаще раза в секунду
         }
+        // Короткий прогон у Warp стоит почти как средний: цена ÷ мили давала $8–9/mi,
+        // и эта цифра переносилась на весь коридор «штат → штат». Такие пары не берём.
+        if (miles < WARP_MIN_MILES) {
+          console.error(`пропуск ${o.city} → ${d.city}: ${miles} mi — короче ${WARP_MIN_MILES}`)
+          continue
+        }
         out.push({ oz: o.zip, dz: d.zip, miles, origin: `${o.city}`, dest: `${d.city}` })
       }
     }
@@ -178,6 +185,10 @@ let saved = 0
 for (const l of (await lanes()).slice(0, max)) {
   if (!(l.miles > 0)) {
     console.error(`пропуск ${l.origin} → ${l.dest}: нет настоящих миль`)
+    continue
+  }
+  if (l.miles < WARP_MIN_MILES) {
+    console.error(`пропуск ${l.origin} → ${l.dest}: ${l.miles} mi — короче ${WARP_MIN_MILES}, это минимальная цена за подачу, а не ставка`)
     continue
   }
   let price

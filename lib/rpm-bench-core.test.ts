@@ -32,6 +32,11 @@ test('ставка — только по самому маршруту: DAT с �
   assert.equal(benchmarkRpm(bench, null, 'GA'), null)
   assert.equal(benchmarkRpm({ dat: emptyTable(), usda: null, usdaWeek: null }, 'TX', 'GA'), null)
   assert.equal(benchmarkRpm(null, 'TX', 'GA'), null)
+  // Направлению «штат → штат» котировка Warp не годится: она считана на своей паре городов
+  // со своей длиной. DAT и USDA измерены на настоящем рейсе — они остаются.
+  assert.equal(benchmarkRpm(bench, 'TX', 'OH', { warp: false }), null)
+  assert.equal(benchmarkRpm(bench, 'TX', 'GA', { warp: false })?.source, 'datLane')
+  assert.equal(benchmarkRpm(bench, 'TX', 'NC', { warp: false })?.source, 'usdaLane')
 })
 
 test('USDA: штаты из региона и текста района, город → штат, двойные строки CA/AZ — один раз в «в штат»', () => {
