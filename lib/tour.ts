@@ -46,8 +46,9 @@ const STEPS: Def[] = [
   // Раздел слился с «Траками» — шаг остаётся (карта и живой список никуда не
   // делись), но ведёт туда же, куда теперь ведёт меню.
   { key: 'tracking', href: '/trucks', target: 'nav-trucks', image: 'tracking' },
-  // Там же, на «Траках»: куда отправить трак дальше — ставки по штатам и регионам DAT.
-  { key: 'planner', href: '/trucks', target: '', image: 'planner' },
+  // Переехало на «Брокеров и склады» (18.09.2026): куда отправить трак дальше —
+  // ставки по штатам и регионам DAT.
+  { key: 'planner', href: '/brokers', target: '', image: 'planner' },
   { key: 'docs', href: '/docs', target: 'nav-docs', image: 'docs' },
   { key: 'brokers', href: '/brokers', target: '', image: 'brokers' },
   // Без снимка: у демо-грузов почти нет адресов, экран складов там не показателен.

@@ -9,6 +9,8 @@ import { detentionTerms } from '@/lib/settings'
 import { avgDwell, facilityIndex } from '@/lib/facilities'
 import { usDate } from '@/lib/fmt'
 import { todayEt } from '@/lib/payments'
+import { Suspense } from 'react'
+import { RoutePlanSection } from '@/components/route-plan-section'
 import { Directory, type DirBroker, type DirFacility, type DirView } from './directory'
 
 export const dynamic = 'force-dynamic'
@@ -74,6 +76,14 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <h1 className="text-xl font-bold tracking-tight">{t(locale, 'nav.brokers')}</h1>
       <p className="mb-4 text-[13px] text-white/65">{t(locale, 'brokers.dir.subtitle')}</p>
+
+      {/* «Куда отправить трак» переехало сюда с «Траков» (18.09.2026): вопрос «куда
+          и кому везти дальше» задают рядом с брокерами. Своя Suspense-граница —
+          раздел ждёт снимок DAT и ставки по маршрутам, а списки ниже готовы сразу. */}
+      <Suspense fallback={<PlanSkeleton />}>
+        <RoutePlanSection />
+      </Suspense>
+
       <Directory
         brokers={dirBrokers}
         facilities={dirFacilities}
@@ -82,4 +92,10 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
       />
     </main>
   )
+}
+
+/** Место «Куда отправить трак», пока считаются ставки: той же высоты, чтобы списки
+ * под ним не прыгали, когда раздел приедет. */
+function PlanSkeleton() {
+  return <div className="panel mb-4 h-64 animate-pulse" aria-hidden />
 }

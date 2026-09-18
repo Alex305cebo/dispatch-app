@@ -14,15 +14,10 @@ import { sql } from '@/lib/db'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { currentLoadsByTruck, truckLabel, eldStatus } from '@/lib/map'
 import { zoneFor } from '@/lib/tz'
-import { fixPlace, placeCity } from '@/lib/place'
+import { fixPlace } from '@/lib/place'
 import { type MapMarker, type MapRoute } from '@/components/fleet-map'
-import { datCached, datEquipment, stateFromPlace } from '@/lib/dat-market'
-import { FleetPanel } from '@/components/fleet-panel'
-import type { PlanSnaps, PlanTruck } from '@/components/route-planner'
-import { homeSoon, parseStates } from '@/lib/maintenance-core'
-import { brokerCutFromLoads, laneRpmTables } from '@/lib/dat-lanes'
-import { emptyTable, type RpmTable } from '@/lib/rpm-bench-core'
-import { usdaReeferCached } from '@/lib/usda-truck'
+import { datCached } from '@/lib/dat-market'
+import { FleetPanel, type FleetSnaps } from '@/components/fleet-panel'
 import { type TrackingRow } from '@/components/fleet-list'
 import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
 import { liveTrail, trailLabels } from '@/lib/eld'
@@ -72,63 +67,23 @@ export async function FleetBoard({
     sql`SELECT * FROM fleet_status`,
     // Прицеп берём здесь же: запрос к truck_meta всё равно уже идёт, а номер
     // прицепа нужен подписи трака (truckLabel) — отдельного захода он не стоит.
-    sql`SELECT truck_id, driver_phone, trailer_number, home_state, home_from, home_to, avoid_states FROM truck_meta`,
-    // Слой «Рынок DAT» на карте и «Куда отправить трак»: суточный снимок из settings по
-    // всем трём сериям. Только кэш: страница DAT не ждёт.
+    sql`SELECT truck_id, driver_phone, trailer_number FROM truck_meta`,
+    // Слой «Рынок DAT» на карте: суточный снимок из settings по всем трём сериям.
+    // Только кэш: страница DAT не ждёт.
     Promise.all((['VAN', 'REEFER', 'FLATBED'] as const).map(async (eq) => [eq, await datCached(eq)] as const)),
   ])
   // Дата снимка — строкой отсюда и днём по восточному времени: из миллисекунд её посчитали
   // бы ещё и в браузере, в его поясе, а сервер Hostinger живёт в UTC.
-  // Ставки по самому маршруту для направлений (lib/rpm-bench-core.ts): DAT RateView с доски,
-  // для рефрижератора — недельный отчёт USDA (только из кэша). Наши рейт-коны — нет: это не рынок.
-  const [datTables, warpTables, cut, usda] = await Promise.all([
-    laneRpmTables(companyId, 'dat').catch((): Record<string, RpmTable> => ({})),
-    laneRpmTables(companyId, 'warp').catch((): Record<string, RpmTable> => ({})),
-    // Доля трака в цене грузоотправителя — из наших же рейт-конов (lib/broker-cut.ts).
-    brokerCutFromLoads(companyId).catch(() => null),
-    usdaReeferCached(),
-  ])
-  const snaps: PlanSnaps = Object.fromEntries(
-    datSnaps.flatMap(([eq, snap]) =>
-      snap
-        ? [
-            [
-              eq,
-              {
-                ...snap,
-                date: usDate(todayEt(new Date(snap.at))),
-                bench: {
-                  dat: datTables[eq] ?? emptyTable(),
-                  usda: eq === 'REEFER' ? (usda?.table ?? null) : null,
-                  usdaWeek: eq === 'REEFER' && usda?.week ? usDate(usda.week) : null,
-                  warp: warpTables[eq] ?? null,
-                  cut,
-                },
-              },
-            ],
-          ]
-        : [],
-    ),
+  const snaps: FleetSnaps = Object.fromEntries(
+    datSnaps.flatMap(([eq, snap]) => (snap ? [[eq, { ...snap, date: usDate(todayEt(new Date(snap.at))) }]] : [])),
   )
   // One query for the whole fleet, instead of currentLoadForTruck() per truck.
   const currentByTruck = currentLoadsByTruck(loads)
   // Строка места приходит из ELD с чужим штатом (см. lib/place.ts) — правим сразу
   // на входе, чтобы ни одна карточка ниже не показала «CA» для трака в Неваде.
   const rows = (rowsRaw as FS[]).map((r) => ({ ...r, location: fixPlace(r.location, r.lat, r.lng) }))
-  const phoneRows = phoneRowsRaw as {
-    truck_id: number
-    driver_phone: string | null
-    trailer_number: string | null
-    home_state: string | null
-    home_from: Date | string | null
-    home_to: Date | string | null
-    avoid_states: string | null
-  }[]
+  const phoneRows = phoneRowsRaw as { truck_id: number; driver_phone: string | null; trailer_number: string | null }[]
   const trailerByTruck = new Map(phoneRows.filter((r) => r.trailer_number).map((r) => [r.truck_id, r.trailer_number!]))
-  // Профиль водителя для планировщика: домашний штат, «домой скоро», стоп-лист штатов.
-  const iso = (v: Date | string | null) => (!v ? null : v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10))
-  const profileByTruck = new Map(phoneRows.map((r) => [r.truck_id, r]))
-  const today = todayEt()
   const byUnit = new Map(rows.map((r) => [r.unit, r]))
   const phoneById = new Map(phoneRows.map((r) => [r.truck_id, r.driver_phone]))
   // Freshest row, not an arbitrary one — SELECT * has no ORDER BY, so rows[0] was
@@ -341,40 +296,6 @@ export async function FleetBoard({
     })
   }
 
-  // «Куда отправить трак»: откуда трак поедет дальше — штат выгрузки текущего груза или
-  // штат стоянки у свободного (с GPS, чтобы мили первого плеча считались от него, а не
-  // от середины штата), серия DAT по прицепу и расходы трака для расчёта.
-  const planTrucks: PlanTruck[] = perTruck.map(({ t, fs, load }) => {
-    const trailer = trailerByTruck.get(t.id)
-    // Город, а не строка ELD «1.4mi WNW from Dallas, TX»: в предложении «Стоит в …» она читалась криво.
-    const place = load ? load.destination : placeCity(fs?.location ?? null)
-    return {
-      id: t.id,
-      label: truckLabel(t, trailer),
-      series: datEquipment(trailer) ?? 'VAN',
-      settings: {
-        mpg: t.mpg,
-        fuelPricePerGallon: t.fuelPricePerGallon,
-        driverPay: t.driverPay,
-        truckPaymentPerDay: t.truckPaymentPerDay,
-        insurancePerDay: t.insurancePerDay,
-        eldPermitsPerDay: t.eldPermitsPerDay,
-        maintenanceCostPerMile: t.maintenanceCostPerMile,
-        factoringPercent: t.factoringPercent,
-        dispatchPercent: t.dispatchPercent,
-      },
-      state: stateFromPlace(place),
-      place,
-      busy: !!load,
-      until: load?.deliveryDate ?? null,
-      ll: !load && fs?.lat != null && fs?.lng != null ? [fs.lat, fs.lng] : null,
-      unavailable: t.unavailable,
-      homeState: profileByTruck.get(t.id)?.home_state ?? null,
-      homeBy: homeSoon({ homeFrom: iso(profileByTruck.get(t.id)?.home_from ?? null), homeTo: iso(profileByTruck.get(t.id)?.home_to ?? null) }, today),
-      avoid: parseStates(profileByTruck.get(t.id)?.avoid_states),
-    }
-  })
-
   // Trucks that need a dispatcher first. Insertion order is just the truck table's
   // order, which means the one stuck in detention for six hours can sit below five
   // that are driving along fine — the whole list has to be read to find it. Costs
@@ -394,7 +315,6 @@ export async function FleetBoard({
       markers={markers}
       routes={routes}
       snaps={snaps}
-      planTrucks={planTrucks}
       rows={trackingRows}
       totals={{
         deliveryMiles: totalDeliveryMiles,

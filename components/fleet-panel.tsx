@@ -8,7 +8,6 @@
 import { useMemo, useState } from 'react'
 import { Truck, X } from 'lucide-react'
 import { FleetMap, type MapMarker, type MapMarket, type MapRoute } from '@/components/fleet-map'
-import { RoutePlanner, useRoutePlan, type PlanSnaps, type PlanTruck } from '@/components/route-planner'
 import { ltStates, type DatEquipment, type DatSnapshot } from '@/lib/dat-market-core'
 import { FleetList, type TrackingRow, type TruckMoney } from '@/components/fleet-list'
 import { RefreshFleetButton } from '@/components/refresh-fleet-button'
@@ -16,6 +15,9 @@ import { Button } from '@/components/button'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 import { LocalTime } from '@/components/local-time'
+
+/** Суточные снимки DAT по сериям — всё, что нужно слою «Рынок» на карте. */
+export type FleetSnaps = Partial<Record<DatEquipment, DatSnapshot & { date: string }>>
 
 export type FleetTotals = {
   deliveryMiles: number
@@ -45,7 +47,6 @@ export function FleetPanel({
   markers,
   routes,
   snaps = {},
-  planTrucks = [],
   rows,
   totals,
   updatedText,
@@ -57,10 +58,8 @@ export function FleetPanel({
 }: {
   markers: MapMarker[]
   routes: MapRoute[]
-  /** Суточные снимки DAT по сериям: слой «Рынок» на карте и «Куда отправить трак». */
-  snaps?: PlanSnaps
-  /** Траки для планировщика: откуда поедет, прицеп и расходы. */
-  planTrucks?: PlanTruck[]
+  /** Суточные снимки DAT по сериям: слой «Рынок» на карте. */
+  snaps?: FleetSnaps
   rows: TrackingRow[]
   totals: FleetTotals
   /** Pre-formatted on the server — "обновлено 3 мин назад" or the no-snapshot line. */
@@ -89,7 +88,6 @@ export function FleetPanel({
     const oldest = list.reduce((a, b) => (b[1].at < a[1].at ? b : a))
     return { date: oldest[1].date, series: Object.fromEntries(list.map(([eq, s]) => [eq, ltStates(s)])) }
   }, [snaps])
-  const plan = useRoutePlan(planTrucks, snaps, selected)
   const row = selected == null ? null : (rows.find((r) => r.id === selected) ?? null)
   // Выбор чипом ведёт карту к траку; выбор пином на карте — нет (он уже там).
   const [focus, setFocus] = useState<{ lat: number; lng: number } | null>(null)
@@ -153,8 +151,6 @@ export function FleetPanel({
           onSelect={setSelected}
           focus={focus}
           market={market}
-          plan={plan.mapPlan}
-          onPickState={plan.setOrigin}
         />
       </div>
 
@@ -235,10 +231,6 @@ export function FleetPanel({
       </div>
 
       {underMap}
-
-      {/* «Куда отправить трак» — под картой и загрузкой парка: выбранный на карте трак
-          становится траком планировщика, а «На карте» красит штаты его выручкой в день. */}
-      {planTrucks.length > 0 && market && <RoutePlanner plan={plan} trucks={planTrucks} snaps={snaps} />}
 
       {between}
 

@@ -302,7 +302,18 @@ function BoardShotSample({ locale }: { locale: Locale }) {
   )
 }
 
-export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks: PlanTruck[]; snaps: PlanSnaps }) {
+export function RoutePlanner({
+  plan,
+  trucks,
+  snaps,
+  /** «На карте» есть только там, где карта рядом (на «Траках» её больше нет). */
+  mapButton = true,
+}: {
+  plan: RoutePlan
+  trucks: PlanTruck[]
+  snaps: PlanSnaps
+  mapButton?: boolean
+}) {
   const locale = useLocale()
   const [range, setRange] = useState<'all' | 'day' | 'mid' | 'long'>('all')
   const { truck, origin, series, snap, opts, lanes, from, planOpts } = plan
@@ -526,9 +537,11 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
               {t(locale, 'plan.lanesFrom').replace('{state}', stateName(origin))}
               <Info text={t(locale, 'plan.bench.info')} />
             </h3>
-            <Button size="sm" variant="ghost" icon={<MapPin size={13} />} onClick={plan.showOnMap}>
-              {t(locale, 'plan.showOnMap')}
-            </Button>
+            {mapButton && (
+              <Button size="sm" variant="ghost" icon={<MapPin size={13} />} onClick={plan.showOnMap}>
+                {t(locale, 'plan.showOnMap')}
+              </Button>
+            )}
           </div>
           {/* Ставка DAT за милю одна на весь регион — одной строкой над списком, а не одной и
               той же цифрой у десятка штатов подряд. Сам список — горячие штаты сверху. */}
