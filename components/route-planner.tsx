@@ -16,7 +16,8 @@ import { Button } from '@/components/button'
 import { ShowMore } from '@/components/collapse'
 import { useLocale } from '@/components/locale-provider'
 import type { MapPlan } from '@/components/fleet-map'
-import { quoteBoardLane, readBoardScreenshot } from '@/app/actions'
+import { quoteBoardLane, quoteDirection, readBoardScreenshot } from '@/app/actions'
+import { BIG_CITY } from '@/lib/warp-quote'
 import { notify } from '@/lib/notify'
 import { safeUploadFile } from '@/lib/upload-name'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
@@ -309,6 +310,8 @@ function BoardShotSample({ locale }: { locale: Locale }) {
 export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks: PlanTruck[]; snaps: PlanSnaps }) {
   const locale = useLocale()
   const [range, setRange] = useState<'all' | 'day' | 'mid' | 'long'>('all')
+  // Штат, по которому сейчас идёт котировка Warp у направления (одна за раз).
+  const [quoting, setQuoting] = useState<string | null>(null)
   const { truck, origin, series, snap, opts, lanes, from, planOpts } = plan
   if (!truck) return null
   const seriesList = Object.keys(snaps) as DatEquipment[]
@@ -329,6 +332,27 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
     { key: 'long' as const, has: (l: Lane) => !dayTrip(l) && l.miles > 1200 },
   ]
   const rateOf = (l: Lane) => targetRate(snap, origin, l.state)
+  // Направление без ставки по маршруту — спросить Warp: из города трака (считаем из другого
+  // штата — из его главного города) в главный город штата назначения. Только Van; строка
+  // сама скроет кнопку, когда ставка появится (LaneRow показывает её лишь без bench).
+  const fromCity = origin ? (origin === truck.state && truck.place ? truck.place : (BIG_CITY[origin] ?? null)) : null
+  const dirQuote = (l: Lane) =>
+    series === 'VAN' && fromCity
+      ? {
+          busy: quoting === l.state,
+          run: () => {
+            if (quoting) return
+            setQuoting(l.state)
+            quoteDirection(fromCity, l.state)
+              .then((res) => {
+                if ('error' in res) return notify('error', res.error)
+                notify('ok', t(locale, 'plan.quote.ok').replace('{v}', usd2.format(res.rpm)))
+              })
+              .catch(() => notify('error', t(locale, 'plan.quote.fail').replace('{e}', '—')))
+              .finally(() => setQuoting(null))
+          },
+        }
+      : undefined
   // Внутри плеча — сперва где больше платят, при равной ставке горячее рынок.
   const byRate = (a: Lane, b: Lane) => rateOf(b) - rateOf(a) || (b.ratio ?? 0) - (a.ratio ?? 0)
   const bandOf = (key: 'day' | 'mid' | 'long') => lanes.filter(BANDS.find((b) => b.key === key)!.has).sort(byRate)
@@ -604,6 +628,7 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
                           locale={locale}
                           reasons={lane.home ? [t(locale, 'plan.why.home')] : undefined}
                           bench={snap.bench}
+                          quote={dirQuote(lane)}
                         />
                       ))}
                     </div>
@@ -629,6 +654,7 @@ export function RoutePlanner({ plan, trucks, snaps }: { plan: RoutePlan; trucks:
                     locale={locale}
                     reasons={lane.home ? [t(locale, 'plan.why.home')] : undefined}
                     bench={snap.bench}
+                    quote={dirQuote(lane)}
                   />
                 ))}
               />

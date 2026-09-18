@@ -46,3 +46,19 @@ export async function zipOfCity(city: string | null | undefined): Promise<string
     return null
   }
 }
+
+/** Самый большой город штата, «City, ST»: куда котировать направление, если конкретного
+ * города нет (планировщик считает по штатам). Индекс находит zippopotam, мили — OSRM. */
+export const BIG_CITY: Record<string, string> = {
+  AL: 'Birmingham, AL', AK: 'Anchorage, AK', AZ: 'Phoenix, AZ', AR: 'Little Rock, AR', CA: 'Los Angeles, CA',
+  CO: 'Denver, CO', CT: 'Bridgeport, CT', DE: 'Wilmington, DE', DC: 'Washington, DC', FL: 'Jacksonville, FL',
+  GA: 'Atlanta, GA', HI: 'Honolulu, HI', ID: 'Boise, ID', IL: 'Chicago, IL', IN: 'Indianapolis, IN',
+  IA: 'Des Moines, IA', KS: 'Wichita, KS', KY: 'Louisville, KY', LA: 'New Orleans, LA', ME: 'Portland, ME',
+  MD: 'Baltimore, MD', MA: 'Boston, MA', MI: 'Detroit, MI', MN: 'Minneapolis, MN', MS: 'Jackson, MS',
+  MO: 'Kansas City, MO', MT: 'Billings, MT', NE: 'Omaha, NE', NV: 'Las Vegas, NV', NH: 'Manchester, NH',
+  NJ: 'Newark, NJ', NM: 'Albuquerque, NM', NY: 'New York, NY', NC: 'Charlotte, NC', ND: 'Fargo, ND',
+  OH: 'Columbus, OH', OK: 'Oklahoma City, OK', OR: 'Portland, OR', PA: 'Philadelphia, PA', RI: 'Providence, RI',
+  SC: 'Columbia, SC', SD: 'Sioux Falls, SD', TN: 'Nashville, TN', TX: 'Houston, TX', UT: 'Salt Lake City, UT',
+  VT: 'Burlington, VT', VA: 'Virginia Beach, VA', WA: 'Seattle, WA', WV: 'Charleston, WV', WI: 'Milwaukee, WI',
+  WY: 'Cheyenne, WY',
+}

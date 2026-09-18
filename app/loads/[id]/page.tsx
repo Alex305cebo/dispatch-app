@@ -327,6 +327,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             dat={datRate && datSnap && { ...datRate, date: usDate(todayEt(new Date(datSnap.at))) }}
             targetRpm={truckMeta?.targetRpm}
             cut={cutTarget}
+            // Warp котирует только Van; в демо — нет.
+            quote={
+              !cutTarget && !me?.isDemo && (datEquipment(truckMeta?.trailerNumber) ?? 'VAN') === 'VAN' && load.loadedMiles > 0
+                ? { label: `${load.origin} → ${load.destination}`, miles: load.loadedMiles, loadId: load.id }
+                : null
+            }
           />
         </div>
       </section>

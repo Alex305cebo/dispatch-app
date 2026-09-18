@@ -6,6 +6,9 @@ import { CostBar, Money } from './ui'
 import { Info } from './info'
 import { useLocale } from './locale-provider'
 import { t } from '@/lib/i18n'
+import { useState } from 'react'
+import { quoteBoardLane } from '@/app/actions'
+import { notify } from '@/lib/notify'
 
 /** The rate, divided up. Segment colours are deliberately NOT the accent violet —
  * that means "action" everywhere else — and are ordered biggest-cost-first so the
@@ -89,6 +92,7 @@ export function Analysis({
   dat,
   targetRpm,
   cut,
+  quote,
 }: {
   r: Breakdown
   mpg: number
@@ -100,8 +104,22 @@ export function Analysis({
   targetRpm?: number | null
   /** Цель торга по маршруту: цена грузоотправителя (Warp) минус доля брокера (lib/broker-cut.ts). */
   cut?: { low: number; high: number; shipper: number; n: number; broker?: string | null } | null
+  /** Котировок по маршруту нет — кнопка «Узнать цену Warp» (app/actions.ts quoteBoardLane). */
+  quote?: { label: string; miles: number; loadId: number } | null
 }) {
   const locale = useLocale()
+  const [quoting, setQuoting] = useState(false)
+  const askWarp = () => {
+    if (!quote || quoting) return
+    setQuoting(true)
+    quoteBoardLane(quote.label, quote.miles, quote.loadId)
+      .then((res) => {
+        if ('error' in res) return notify('error', res.error)
+        notify('ok', t(locale, 'plan.quote.ok').replace('{v}', usd2.format(res.rpm)))
+      })
+      .catch(() => notify('error', t(locale, 'plan.quote.fail').replace('{e}', '—')))
+      .finally(() => setQuoting(false))
+  }
   const good = r.net >= 0
   const target = targetVerdict(r, targetRpm)
   // Свежая установка сеет трак-заглушку со всеми расходами по нулям
@@ -163,6 +181,21 @@ export function Analysis({
               .replace('{n}', String(cut.n))
               .replace('{broker}', cut.broker ?? '')}
           </span>
+        </p>
+      )}
+
+      {/* Цели торга нет — котировки по маршруту ещё не собраны: спросить Warp сейчас. */}
+      {!cut && quote && (
+        <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">
+          <button
+            type="button"
+            disabled={quoting}
+            onClick={askWarp}
+            className="font-semibold text-haul-400 underline-offset-2 hover:underline disabled:opacity-50"
+          >
+            {quoting ? '…' : t(locale, 'plan.quote.btn')}
+          </button>
+          <span className="ml-1.5 text-[12px] text-white/45">{t(locale, 'plan.quote.hint')}</span>
         </p>
       )}
 
