@@ -2655,6 +2655,42 @@ export async function readBoardScreenshot(
 }
 
 /**
+ * «Узнать цену» у груза с доски: котировка Warp по маршруту груза — прямо сейчас, а не
+ * когда её соберёт ночной скрипт. Подпись груза «Fresno, CA → Houston, TX · TQL» даёт города,
+ * мили — с доски (настоящие). Цена ложится в dat_lanes (source='warp', как из
+ * scripts/lane-rates.mjs) — строка сравнения подхватывает её со страницы и показывает цель
+ * торга. Только Van: Warp другой техники не котирует.
+ */
+export async function quoteBoardLane(label: string, miles: number): Promise<{ rpm: number } | { error: string }> {
+  const locale = await getLocale()
+  if ((await getCurrentUser())?.isDemo) return { error: t(locale, 'plan.boardDemo') }
+  const [fromCity = '', toCity = ''] = (label.split('·')[0] ?? '').split('→').map((s) => s.trim())
+  const { stateFromPlace } = await import('@/lib/dat-market-core')
+  const from = stateFromPlace(fromCity)
+  const to = stateFromPlace(toCity)
+  if (!from || !to || !(miles > 0)) return { error: t(locale, 'plan.quote.noRoute') }
+  const { warpQuote, zipOfCity } = await import('@/lib/warp-quote')
+  const [oz, dz] = await Promise.all([zipOfCity(fromCity), zipOfCity(toCity)])
+  if (!oz) return { error: t(locale, 'plan.quote.noZip').replace('{city}', fromCity) }
+  if (!dz) return { error: t(locale, 'plan.quote.noZip').replace('{city}', toCity) }
+  let price: number
+  try {
+    price = await warpQuote(oz, dz)
+  } catch (e) {
+    return { error: t(locale, 'plan.quote.fail').replace('{e}', e instanceof Error ? e.message : String(e)) }
+  }
+  const companyId = await companyScope()
+  const rate = Math.round(price)
+  const m = Math.round(miles)
+  await sql`
+    INSERT INTO dat_lanes (company_id, source, origin, dest, origin_state, dest_state, equipment, miles, spot_rate, spot_rpm, seen_on, seen_at)
+    VALUES (${companyId}, 'warp', ${fromCity.slice(0, 120)}, ${toCity.slice(0, 120)}, ${from}, ${to}, 'VAN', ${m}, ${rate}, ${rate / m}, CURDATE(), NOW(6))
+    ON DUPLICATE KEY UPDATE miles = VALUES(miles), spot_rate = VALUES(spot_rate), spot_rpm = VALUES(spot_rpm), seen_at = NOW(6)`
+  revalidatePath('/trucks')
+  return { rpm: rate / m }
+}
+
+/**
  * Записывает посчитанные толлы на груз — с этого момента они входят в прибыль.
  *
  * Отдельным действием, а не автоматически при расчёте: маршрут в разделе считают

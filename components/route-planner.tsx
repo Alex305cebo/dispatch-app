@@ -16,7 +16,7 @@ import { Button } from '@/components/button'
 import { ShowMore } from '@/components/collapse'
 import { useLocale } from '@/components/locale-provider'
 import type { MapPlan } from '@/components/fleet-map'
-import { readBoardScreenshot } from '@/app/actions'
+import { quoteBoardLane, readBoardScreenshot } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { safeUploadFile } from '@/lib/upload-name'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
@@ -1129,6 +1129,7 @@ function LaneRow({
   board = false,
   pickup = false,
   bench,
+  quote,
 }: {
   lane: Lane
   /** Подпись вместо названия штата — у груза с доски: откуда, куда, брокер. */
@@ -1146,6 +1147,8 @@ function LaneRow({
   pickup?: boolean
   /** Ставки по самому маршруту (lib/rpm-bench-core.ts). */
   bench?: RpmBench
+  /** «Узнать цену Warp» — у груза с доски без ставки по маршруту (app/actions.ts quoteBoardLane). */
+  quote?: { busy: boolean; run: () => void }
 }) {
   const tone = dayTone(lane.grossPerDay, opts.target)
   // Только настоящие цифры рынка, не расчёт и не наши прошлые грузы (правила 16–17.09.2026).
@@ -1199,6 +1202,23 @@ function LaneRow({
                 ? `DAT · ${t(locale, 'plan.region').replace('{region}', regionName(snap, regionState))}${pickup ? ` · ${t(locale, 'plan.bench.pickup')}` : ''}`
                 : none}
           </span>
+          {/* Ставки по маршруту нет — спросить Warp сейчас. Кнопка внутри summary: щелчок
+              не должен раскрывать расчёт. */}
+          {quote && !b && (
+            <button
+              type="button"
+              disabled={quote.busy}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                quote.run()
+              }}
+              title={t(locale, 'plan.quote.hint')}
+              className="mt-0.5 text-[11px] font-semibold text-haul-400 underline-offset-2 hover:underline disabled:opacity-50 max-md:min-h-8"
+            >
+              {quote.busy ? '…' : t(locale, 'plan.quote.btn')}
+            </button>
+          )}
         </span>
       </summary>
       <LaneCalc lane={lane} snap={snap} origin={origin} opts={opts} settings={settings} locale={locale} board={board} tone={tone} />
@@ -1322,7 +1342,22 @@ function BoardCompare({
   const [text, setText] = useState('')
   const [reading, setReading] = useState(false)
   const [drag, setDrag] = useState(false)
+  // Подпись груза, по которому сейчас идёт котировка Warp (одна за раз).
+  const [quoting, setQuoting] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  // Ответ пишется в dat_lanes и страница перечитывает ставки сама (revalidatePath в действии):
+  // строка груза получает цель торга без перезагрузки и без своего состояния.
+  const quoteLane = (label: string, miles: number) => {
+    if (quoting) return
+    setQuoting(label)
+    quoteBoardLane(label, miles)
+      .then((res) => {
+        if ('error' in res) return notify('error', res.error)
+        notify('ok', t(locale, 'plan.quote.ok').replace('{v}', usd2.format(res.rpm)))
+      })
+      .catch(() => notify('error', t(locale, 'plan.quote.fail').replace('{e}', '—')))
+      .finally(() => setQuoting(null))
+  }
   const { rows, bad } = useMemo(() => {
     const rows = parseBoardLoads(text)
       .map((b) => {
@@ -1527,6 +1562,13 @@ function BoardCompare({
                     board={!market}
                     pickup
                     bench={bench}
+                    // Ставки по маршруту нет, а города в подписи есть — можно спросить Warp
+                    // (только Van: другой техники он не котирует).
+                    quote={
+                      !market && !b && snap.equipment === 'VAN' && label?.includes('→')
+                        ? { busy: quoting === label, run: () => quoteLane(label, lane.miles) }
+                        : undefined
+                    }
                   />
                 )
               })}
