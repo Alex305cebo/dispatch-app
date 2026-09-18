@@ -9,7 +9,7 @@ import { PairBar } from '@/components/pair-bar'
 import { DriverLinkButton } from '@/components/driver-link-button'
 import { sql } from '@/lib/db'
 import { getTruck, listDocs, listLoads, rateConByLoad } from '@/lib/loads'
-import { activeLoadsByTruck, currentLoadsByTruck, nextLoadsByTruck, truckLabel, truckShortLabel } from '@/lib/map'
+import { activeLoadsByTruck, currentLoadsByTruck, nextLoadsByTruck, prevLoadFor, truckLabel, truckShortLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { fleetStatusByUnit, getTruckMeta, listMaintenance, listTodos, oilStatus } from '@/lib/maintenance'
 import { tripHistory } from '@/lib/eld'
@@ -49,6 +49,7 @@ import { CopyPlace } from '@/components/copy-place'
 import { TruckPhoto } from '@/components/truck-photo'
 import { DateMore } from '@/components/date-more'
 import { MissingPodBanner } from '@/components/missing-pod-banner'
+import { PrevLoad } from '@/components/prev-load'
 import { StalePartialBanner } from '@/components/stale-partial-banner'
 import { DeadheadFlag } from '@/components/deadhead-flag'
 import { todayEt } from '@/lib/payments'
@@ -185,6 +186,10 @@ export default async function Page({
   const activeLoad = currentLoadsByTruck(live).get(truck.id) ?? null
   // Следующий рейс, если рейт-кон на него уже брошен, пока этот везётся.
   const nextLoad = nextLoadsByTruck(live).get(truck.id) ?? null
+  // Откуда трак пришёл — рейс перед текущим (у свободного — последний вообще).
+  // Строкой под заданием: по ней видно, сходится ли Deadhead и не потерян ли груз
+  // между двумя рейсами (components/prev-load.tsx).
+  const prevLoad = prevLoadFor(live, truck.id, activeLoad)
   // Партиалы: едут вместе с текущим в одном трейлере.
   const partials = (activeLoadsByTruck(live).get(truck.id) ?? []).filter((l) => l.id !== activeLoad?.id)
   // Забытый партиал: выгрузка прошла, а он всё ещё «в пути» — его точки попадают в
@@ -448,6 +453,7 @@ export default async function Page({
               </Button>
             </div>
           )}
+          <PrevLoad load={prevLoad} locale={locale} className="mt-3" />
           {/* Страница водителя — заметным блоком, а не значком в углу: пока водитель
               ссылку не открывал, блок подсвечен и зовёт её отправить. */}
           {driverLink && !activeLoad && (

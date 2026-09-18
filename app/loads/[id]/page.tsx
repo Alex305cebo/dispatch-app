@@ -3,7 +3,7 @@ import { Fragment, Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { currentLoadForTruck, getLoad, laneAvgRpmFor, listDocs, listLoads, truckForLoad } from '@/lib/loads'
 import { QueuedLoadHint } from '@/components/queued-load-hint'
-import { activeLoadsByTruck, truckLabel, truckShortLabel } from '@/lib/map'
+import { activeLoadsByTruck, prevLoadFor, truckLabel, truckShortLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { getCompany } from '@/lib/invoice'
 import { assignWarnings, fleetStatusByUnit, getTruckMeta } from '@/lib/maintenance'
@@ -50,6 +50,7 @@ import { LoadStops } from '@/components/load-stops'
 import { Info } from '@/components/info'
 import { StatusPicker } from './status-picker'
 import { MissingPodBanner } from '@/components/missing-pod-banner'
+import { PrevLoad } from '@/components/prev-load'
 import { DeadheadFlag } from '@/components/deadhead-flag'
 import { loadsMissingPod } from '@/lib/loads'
 import { CopyPlace } from '@/components/copy-place'
@@ -149,6 +150,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const taskEvents: Record<number, StopEv[]> = { [load.id]: driverEvents }
   for (const m of mates) taskEvents[m.id] = await listLoadEvents(companyId, m.id)
   const queuedBehind = truckCurrent && truckCurrent.id !== load.id && !load.partial ? truckCurrent : null
+  // Что этот трак вёз ДО этого груза — строкой в шапке, для проверки Deadhead
+  // (components/prev-load.tsx). Только у назначенного груза: у груза без трака
+  // truckForLoad подставляет первый трак парка, и «прошлым» стал бы чужой рейс.
+  const prevLoad = load.truckId === null ? null : prevLoadFor(truckLoads, truck.id, load)
 
   // Never throws: the DB CHECKs mirror calcLoad's throw conditions, so every stored
   // row is a valid input by construction.
@@ -293,6 +298,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             лежал внизу в «Подробностях», номер пикапа — в тексте водителю. Диспетчер,
             которому звонит склад, искал их по всей странице. */}
         <LoadStops stops={stops} locale={locale} className="mt-3" />
+
+        {/* Откуда трак пришёл на этот пикап — рядом с адресами и флагом Deadhead. */}
+        <PrevLoad load={prevLoad} locale={locale} className="mt-3" />
 
         {/* Брокер груза — тоже в шапке. Кому звонить и на какую почту слать бумаги,
             лежало только в форме «Подробности» внизу страницы, а звонят по нему с

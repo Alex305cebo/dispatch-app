@@ -140,6 +140,45 @@ export function activeLoadsByTruck(loads: LoadRecord[]): Map<number, LoadRecord[
   return out
 }
 
+/**
+ * Прошлый груз трака — тот, что этот трак вёз ДО `ref` (а без `ref` — последний
+ * вообще, для свободного трака).
+ *
+ * Нужен для проверки, а не для красоты. Deadhead считается от прошлой выгрузки, и
+ * когда между двумя рейсами груз не заведён или заведён не на тот трак, увидеть это
+ * можно только рядом: «прошлый закончился в Мемфисе, этот грузится в Далласе» — вот
+ * откуда 400 порожних миль (см. components/deadhead-flag.tsx).
+ *
+ * Черновики и отменённые не в счёт: трак их не вёз. Едущий сейчас партиал — тоже:
+ * он не «до», а ВМЕСТЕ с текущим грузом в одном трейлере (см. activeLoadsByTruck), а
+ * по датам он часто оказывается раньше. Доставленный партиал прошлым рейсом быть может.
+ *
+ * Порядок — тот же, каким рейсы идут у трака: по дате пикапа, без даты — по дате
+ * заведения; id разводит совсем одинаковые, чтобы ответ не зависел от порядка строк
+ * из базы.
+ */
+export function prevLoadFor(loads: LoadRecord[], truckId: number, ref: LoadRecord | null = null): LoadRecord | null {
+  const ran = loads.filter(
+    (l) =>
+      l.truckId === truckId &&
+      l.status !== 'cancelled' &&
+      l.status !== 'quoted' &&
+      l.id !== ref?.id &&
+      !(l.partial && isOpen(l)),
+  )
+  const before = ref ? ran.filter((l) => startOrder(l, ref) < 0) : ran
+  return before.sort(startOrder).pop() ?? null
+}
+
+/** Когда трак взялся за груз: дата пикапа, без неё — когда груз завели. */
+function startOrder(a: LoadRecord, b: LoadRecord): number {
+  const pa = a.pickupDate ? Date.parse(a.pickupDate) : Date.parse(a.createdAt)
+  const pb = b.pickupDate ? Date.parse(b.pickupDate) : Date.parse(b.createdAt)
+  if (pa !== pb) return pa - pb
+  const ca = Date.parse(a.createdAt) - Date.parse(b.createdAt)
+  return ca !== 0 ? ca : a.id - b.id
+}
+
 const isOpen = (l: LoadRecord) => l.status === 'booked' || l.status === 'in_transit'
 
 /** Кто едет раньше: везущийся прежде забукированного, дальше по дате пикапа

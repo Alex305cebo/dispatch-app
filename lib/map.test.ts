@@ -232,3 +232,61 @@ test('партиал не вытесняет текущий груз и не в�
     [11],
   )
 })
+
+import { prevLoadFor } from './map.ts'
+
+// Прошлый груз — то, чем проверяют deadhead: «прошлый закончился в Мемфисе, этот
+// грузится в Далласе». Поэтому важно, чтобы им не оказался черновик, отменённый рейс
+// или груз чужого трака — иначе проверка врёт ровно там, где её читают.
+test('прошлый груз: предыдущий рейс трака, без черновиков и отменённых', () => {
+  const base = { rate: 1, loadedMiles: 1, deadheadMiles: 0, partial: false } as unknown as LoadRecord
+  const mk = (over: Partial<LoadRecord>) =>
+    ({ ...base, truckId: 1, status: 'delivered', createdAt: '2026-09-01T00:00:00Z', ...over }) as LoadRecord
+
+  const first = mk({ id: 1, pickupDate: '2026-09-01' })
+  const second = mk({ id: 2, pickupDate: '2026-09-05' })
+  const current = mk({ id: 3, status: 'in_transit', pickupDate: '2026-09-10' })
+  const draft = mk({ id: 4, status: 'quoted', pickupDate: '2026-09-07' })
+  const dropped = mk({ id: 5, status: 'cancelled', pickupDate: '2026-09-08' })
+  const alien = mk({ id: 6, truckId: 2, pickupDate: '2026-09-09' })
+  const all = [current, alien, dropped, draft, second, first]
+
+  // До текущего рейса трак вёз второй, а не брошенный черновик между ними.
+  assert.equal(prevLoadFor(all, 1, current)?.id, 2)
+  assert.equal(prevLoadFor(all, 1, second)?.id, 1)
+  // У самого первого рейса прошлого нет.
+  assert.equal(prevLoadFor(all, 1, first), null)
+  // Свободный трак: прошлый — последний вообще.
+  assert.equal(prevLoadFor(all, 1)?.id, 3)
+  // Чужие грузы не подставляются даже когда своих нет.
+  assert.equal(prevLoadFor(all, 3), null)
+})
+
+// Даты пикапа у рейт-кона может не быть вовсе — тогда порядок держит дата заведения,
+// иначе «прошлым» становился случайный груз (порядок строк из базы).
+test('прошлый груз: без даты пикапа порядок по дате заведения', () => {
+  const base = { rate: 1, loadedMiles: 1, deadheadMiles: 0, partial: false } as unknown as LoadRecord
+  const mk = (id: number, createdAt: string) =>
+    ({ ...base, id, truckId: 1, status: 'delivered', pickupDate: null, createdAt }) as LoadRecord
+  const older = mk(1, '2026-09-02T00:00:00Z')
+  const newer = mk(2, '2026-09-06T00:00:00Z')
+  const now = mk(3, '2026-09-09T00:00:00Z')
+  assert.equal(prevLoadFor([now, older, newer], 1, now)?.id, 2)
+  assert.equal(prevLoadFor([now, older, newer], 1)?.id, 3)
+})
+
+// Партиал едет В ОДНОМ трейлере с текущим грузом, а рейт-кон на него часто заведён
+// раньше — по датам он вставал «прошлым» и карточка показывала как пройденный рейс то,
+// что трак везёт прямо сейчас.
+test('прошлый груз: едущий партиал — не прошлый рейс', () => {
+  const base = { rate: 1, loadedMiles: 1, deadheadMiles: 0, partial: false } as unknown as LoadRecord
+  const mk = (over: Partial<LoadRecord>) =>
+    ({ ...base, truckId: 1, status: 'delivered', createdAt: '2026-09-01T00:00:00Z', ...over }) as LoadRecord
+  const past = mk({ id: 1, pickupDate: '2026-09-04' })
+  const riding = mk({ id: 2, status: 'in_transit', pickupDate: '2026-09-08' })
+  const partial = mk({ id: 3, status: 'booked', partial: true, pickupDate: '2026-09-08', createdAt: '2026-08-30T00:00:00Z' })
+  assert.equal(prevLoadFor([partial, riding, past], 1, riding)?.id, 1)
+  // А доставленный партиал прошлым рейсом быть может: трак его вёз и довёз.
+  const donePartial = mk({ id: 4, partial: true, pickupDate: '2026-09-06' })
+  assert.equal(prevLoadFor([donePartial, riding, past], 1, riding)?.id, 4)
+})
