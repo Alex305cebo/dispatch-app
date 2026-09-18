@@ -137,6 +137,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       datEquipment(truckMeta?.trailerNumber) ?? 'VAN',
       stateOfCity(load.origin),
       stateOfCity(load.destination),
+      load.brokerName,
     ).catch(() => null),
   ])
   const datRate = datSnap ? originRate(datSnap, load.origin) : null

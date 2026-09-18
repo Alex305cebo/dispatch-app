@@ -99,7 +99,7 @@ export function Analysis({
   /** Цель по ставке из паспорта трака, $/mi; нет — строки нет. */
   targetRpm?: number | null
   /** Цель торга по маршруту: цена грузоотправителя (Warp) минус доля брокера (lib/broker-cut.ts). */
-  cut?: { low: number; high: number; shipper: number; n: number } | null
+  cut?: { low: number; high: number; shipper: number; n: number; broker?: string | null } | null
 }) {
   const locale = useLocale()
   const good = r.net >= 0
@@ -158,7 +158,10 @@ export function Analysis({
               : t(locale, 'analysis.cutBelow').replace('{usd}', usd.format(((cut.low - r.loadedRpm) * r.gross) / r.loadedRpm))}
           </span>
           <span className="block text-[12px] text-white/45">
-            {t(locale, 'analysis.cutFrom').replace('{shipper}', usd2.format(cut.shipper)).replace('{n}', String(cut.n))}
+            {t(locale, cut.broker ? 'analysis.cutFromBroker' : 'analysis.cutFrom')
+              .replace('{shipper}', usd2.format(cut.shipper))
+              .replace('{n}', String(cut.n))
+              .replace('{broker}', cut.broker ?? '')}
           </span>
         </p>
       )}

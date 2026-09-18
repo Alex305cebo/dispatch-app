@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { brokerCut, targetBand, vsTarget, DEFAULT_SHARE, MAX_SHARE } from './broker-cut.ts'
+import { brokerCut, brokerCuts, brokerCutKey, cutFor, targetBand, vsTarget, DEFAULT_SHARE, MAX_SHARE } from './broker-cut.ts'
 
 test('доля трака — медиана по своим грузам, выбросы отброшены', () => {
   const cut = brokerCut([
@@ -32,4 +32,29 @@ test('ставка брокера против цели', () => {
   assert.equal(vsTarget(1200, band), 'below')
   assert.equal(vsTarget(1400, band), 'inside')
   assert.equal(vsTarget(1500, band), 'above')
+})
+
+test('доля по брокерам: своя — у кого сравнений от трёх, «TQL» и «Total Quality Logistics, LLC» — один брокер', () => {
+  assert.equal(brokerCutKey('TQL'), 'total quality logistics')
+  assert.equal(brokerCutKey('Total Quality Logistics, LLC'), 'total quality logistics')
+  assert.equal(brokerCutKey('C.H. Robinson'), 'ch robinson')
+  assert.equal(brokerCutKey(null), null)
+  const cut = brokerCuts([
+    { ours: 780, shipper: 1000, broker: 'TQL' },
+    { ours: 800, shipper: 1000, broker: 'Total Quality Logistics' },
+    { ours: 760, shipper: 1000, broker: 'Total Quality Logistics, LLC' },
+    { ours: 900, shipper: 1000, broker: 'C.H. Robinson' },
+    { ours: 880, shipper: 1000, broker: 'Spot Freight' },
+    { ours: 850, shipper: 1000, broker: null },
+  ])
+  assert.equal(cut.n, 6)
+  assert.deepEqual(cut.byBroker, { 'total quality logistics': { share: 0.78, n: 3 } })
+  // Своя доля у TQL, общая — у всех остальных и без брокера
+  assert.deepEqual(cutFor(cut, 'tql'), { share: 0.78, n: 3, broker: 'total quality logistics' })
+  assert.deepEqual(cutFor(cut, 'C.H. Robinson'), { share: cut.share, n: 6, broker: null })
+  assert.deepEqual(cutFor(cut, null), { share: cut.share, n: 6, broker: null })
+  const band = targetBand(2000, cut, 'TQL')!
+  assert.ok(Math.abs(band.low - 1560) < 0.01 && band.broker === 'total quality logistics' && band.n === 3)
+  // Ни у кого нет трёх — byBroker не появляется вовсе
+  assert.equal(brokerCuts([{ ours: 800, shipper: 1000, broker: 'TQL' }]).byBroker, undefined)
 })

@@ -1130,6 +1130,7 @@ function LaneRow({
   pickup = false,
   bench,
   quote,
+  broker,
 }: {
   lane: Lane
   /** Подпись вместо названия штата — у груза с доски: откуда, куда, брокер. */
@@ -1149,6 +1150,8 @@ function LaneRow({
   bench?: RpmBench
   /** «Узнать цену Warp» — у груза с доски без ставки по маршруту (app/actions.ts quoteBoardLane). */
   quote?: { busy: boolean; run: () => void }
+  /** Брокер груза с доски (из подписи) — цель торга по его доле, если она измерена. */
+  broker?: string | null
 }) {
   const tone = dayTone(lane.grossPerDay, opts.target)
   // Только настоящие цифры рынка, не расчёт и не наши прошлые грузы (правила 16–17.09.2026).
@@ -1165,7 +1168,8 @@ function LaneRow({
   const cls = vs == null ? 'text-white/85' : vs >= 1.05 ? TONE_TEXT.hit : vs <= 0.95 ? TONE_TEXT.miss : 'text-white/85'
   const none = t(locale, 'plan.bench.none').replace('{to}', lane.state)
   // Цель торга — только у цены грузоотправителя: ставки DAT и USDA и так со стороны трака.
-  const band = b?.source === 'warpLane' && bench?.cut ? targetBand(b.rpm, bench.cut) : null
+  // Доля — этого брокера, если по нему сравнений хватает (band.broker), иначе общая.
+  const band = b?.source === 'warpLane' && bench?.cut ? targetBand(b.rpm, bench.cut, broker) : null
   return (
     <details className="group rounded-lg border border-white/8 transition-colors open:border-white/15 hover:border-white/15">
       <summary className="flex cursor-pointer list-none items-center gap-2.5 px-3 py-2 max-md:min-h-11">
@@ -1190,9 +1194,11 @@ function LaneRow({
           </span>
           {band && b && (
             <span className="nums block text-[10.5px] leading-snug text-haul-300">
-              {t(locale, 'plan.cut.line')
+              {t(locale, band.broker ? 'plan.cut.lineBroker' : 'plan.cut.line')
                 .replace('{v}', usd2.format(b.rpm - band.low))
-                .replace('{shipper}', `${usd2.format(b.rpm)}/mi`)}
+                .replace('{shipper}', `${usd2.format(b.rpm)}/mi`)
+                .replace('{broker}', broker ?? '')
+                .replace('{n}', String(band.n))}
             </span>
           )}
           <span className="block text-[10.5px] leading-snug text-white/45">
@@ -1202,6 +1208,8 @@ function LaneRow({
                 ? `DAT · ${t(locale, 'plan.region').replace('{region}', regionName(snap, regionState))}${pickup ? ` · ${t(locale, 'plan.bench.pickup')}` : ''}`
                 : none}
           </span>
+          {/* Сдвиг ставки маршрута за неделю — когда есть котировки и за эту, и за прошлую. */}
+          {b?.wk != null && <WeekChange v={b.wk * 100} locale={locale} />}
           {/* Ставки по маршруту нет — спросить Warp сейчас. Кнопка внутри summary: щелчок
               не должен раскрывать расчёт. */}
           {quote && !b && (
@@ -1520,9 +1528,12 @@ function BoardCompare({
                 // без ставки на доске сравнивать нечего — его ставка и есть рынок региона.
                 const b = market ? null : benchmarkRpm(bench, pickup, lane.state)
                 const base = market ? null : (b?.rpm ?? regionOf(snap, pickup)?.rpm ?? null)
+                // Брокер — второй кусок подписи «откуда → куда · брокер · дата», если это не дата.
+                const seg = (label ?? '').split('·').map((s) => s.trim())
+                const broker = seg[1] && !/\d/.test(seg[1]) ? seg[1] : null
                 // Цена грузоотправителя (Warp) — сравнивать с ней ставку брокера нельзя: в ней
                 // его маржа. Вместо процентов говорим, на сколько торговаться до цели.
-                const band = b?.source === 'warpLane' && bench?.cut ? targetBand(b.rpm, bench.cut) : null
+                const band = b?.source === 'warpLane' && bench?.cut ? targetBand(b.rpm, bench.cut, broker) : null
                 const gap = band ? Math.round((band.low - lane.rpm) * lane.miles) : 0
                 const over = band ? Math.round((lane.rpm - band.high) * lane.miles) : 0
                 const cutWhy = band
@@ -1561,6 +1572,7 @@ function BoardCompare({
                     reasons={reasons}
                     board={!market}
                     pickup
+                    broker={broker}
                     bench={bench}
                     // Ставки по маршруту нет, а города в подписи есть — можно спросить Warp
                     // (только Van: другой техники он не котирует).

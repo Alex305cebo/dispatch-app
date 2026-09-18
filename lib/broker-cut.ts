@@ -12,8 +12,20 @@
 // Наши рейт-коны тут не рынок, а только измерение маржи: рыночная цифра — чужая (Warp),
 // и подпись «цена грузоотправителя · цель торга» это показывает.
 
-/** Доля трака: медиана «наша ставка / цена грузоотправителя» и сколько грузов её дали. */
-export type BrokerCut = { share: number; n: number }
+import { normName } from './broker-match.ts'
+
+/** Доля трака: медиана «наша ставка / цена грузоотправителя» и сколько грузов её дали;
+ * byBroker — то же по брокерам, у которых сравнений хватает (ключ — brokerCutKey). */
+export type BrokerCut = { share: number; n: number; byBroker?: Record<string, { share: number; n: number }> }
+
+/** Сокращения с доски и из рейт-конов — одна компания. Ключ и значение — уже normName. */
+const ALIAS: Record<string, string> = { tql: 'total quality logistics', chr: 'ch robinson', 'c h robinson': 'ch robinson' }
+
+/** Один брокер под разными записями — один ключ: «TQL» и «Total Quality Logistics, LLC». */
+export function brokerCutKey(name: string | null | undefined): string | null {
+  const k = normName(name)
+  return k ? (ALIAS[k] ?? k) : null
+}
 
 /** Выше этой доли брокер не отдаёт: 10% валовой маржи — нижний край рынка. */
 export const MAX_SHARE = 0.9
@@ -36,12 +48,41 @@ export function brokerCut(pairs: { ours: number; shipper: number }[]): BrokerCut
   return { share: Math.round(median * 100) / 100, n: shares.length }
 }
 
-/** Во сколько торговаться: от «сколько обычно достаётся» до «сколько брокер отдаст с трудом». */
-export function targetBand(shipperRate: number, cut: BrokerCut): { low: number; high: number } | null {
+/** Общая доля и доли по брокерам — у тех, где сравнений не меньше трёх. */
+export function brokerCuts(pairs: { ours: number; shipper: number; broker?: string | null }[]): BrokerCut {
+  const all = brokerCut(pairs)
+  const groups = new Map<string, typeof pairs>()
+  for (const p of pairs) {
+    const k = brokerCutKey(p.broker)
+    if (k) groups.set(k, [...(groups.get(k) ?? []), p])
+  }
+  const byBroker: Record<string, { share: number; n: number }> = {}
+  for (const [k, list] of groups) {
+    const c = brokerCut(list)
+    if (c.n >= MIN_ROWS) byBroker[k] = c
+  }
+  return Object.keys(byBroker).length ? { ...all, byBroker } : all
+}
+
+/** Доля для этого брокера, если по нему сравнений хватает, иначе общая; broker — ключ или null. */
+export function cutFor(cut: BrokerCut, broker?: string | null): { share: number; n: number; broker: string | null } {
+  const k = brokerCutKey(broker)
+  const own = k ? cut.byBroker?.[k] : undefined
+  return own ? { ...own, broker: k } : { share: cut.share, n: cut.n, broker: null }
+}
+
+/** Во сколько торговаться: от «сколько обычно достаётся» до «сколько брокер отдаст с трудом».
+ * С брокером — по его доле, если она есть; broker в ответе — чья доля взята (null — общая). */
+export function targetBand(
+  shipperRate: number,
+  cut: BrokerCut,
+  broker?: string | null,
+): { low: number; high: number; n: number; broker: string | null } | null {
   if (!(shipperRate > 0)) return null
-  const low = shipperRate * Math.min(cut.share, MAX_SHARE)
-  const high = shipperRate * Math.max(cut.share, MAX_SHARE)
-  return { low, high }
+  const c = cutFor(cut, broker)
+  const low = shipperRate * Math.min(c.share, MAX_SHARE)
+  const high = shipperRate * Math.max(c.share, MAX_SHARE)
+  return { low, high, n: c.n, broker: c.broker }
 }
 
 /** Ставка брокера против цели: ниже вилки, в вилке или выше неё. */
