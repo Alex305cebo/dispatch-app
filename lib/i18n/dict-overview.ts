@@ -201,4 +201,25 @@ export const overviewDict = {
   'overview.driveDot.moving': { ru: 'В движении', en: 'Moving', es: 'En movimiento', uk: 'У русі', ro: 'În mișcare', kk: 'Қозғалыста' },
   'overview.driveDot.onDuty': { ru: 'На месте (on duty)', en: 'Stopped (on duty)', es: 'Parado (on duty)', uk: 'На місці (on duty)', ro: 'Oprit (on duty)', kk: 'Орнында (on duty)' },
   'overview.driveDot.stopped': { ru: 'Стоит', en: 'Stopped', es: 'Parado', uk: 'Стоїть', ro: 'Oprit', kk: 'Тұр' },
+  // Сетка переставляемых плиток (components/widget-grid.tsx): режим включает и
+  // выключает сам пользователь, на каждой странице свой.
+  'grid.rearrange': { ru: 'Переставить', en: 'Rearrange', es: 'Reordenar', uk: 'Переставити', ro: 'Rearanjează', kk: 'Қайта реттеу' },
+  'grid.done': { ru: 'Готово', en: 'Done', es: 'Listo', uk: 'Готово', ro: 'Gata', kk: 'Дайын' },
+  'grid.reset': { ru: 'Вернуть как было', en: 'Reset order', es: 'Restaurar orden', uk: 'Повернути як було', ro: 'Revino la ordinea inițială', kk: 'Бастапқы ретке қайтару' },
+  'grid.hintTouch': {
+    ru: 'Нажмите, подержите и потяните плитку',
+    en: 'Press and hold a tile, then drag it',
+    es: 'Mantén pulsada una tarjeta y arrástrala',
+    uk: 'Натисніть, потримайте й потягніть плитку',
+    ro: 'Ține apăsat pe un card, apoi trage-l',
+    kk: 'Тақтаны басып ұстап, сүйреңіз',
+  },
+  'grid.hintPointer': {
+    ru: 'Потяните плитку мышью',
+    en: 'Drag a tile with the mouse',
+    es: 'Arrastra una tarjeta con el ratón',
+    uk: 'Потягніть плитку мишею',
+    ro: 'Trage un card cu mouse-ul',
+    kk: 'Тақтаны тінтуірмен сүйреңіз',
+  },
 } as const

@@ -1,7 +1,13 @@
 'use client'
 
-// Сетка плиток, которую можно переставить мышью или пальцем. Порядок живёт в
-// localStorage браузера — своя раскладка у каждого, в базу ничего не пишется, откат =
+// Сетка плиток, которую можно переставить мышью или пальцем.
+//
+// Перестановка живёт в отдельном режиме, который включает и выключает сам пользователь,
+// на каждой странице свой: пока режим выключен, плитки — обычные ссылки, страница
+// листается и нажимается как всегда, и случайно ничего не сдвинется. Включённый режим
+// тоже запоминается, так что оставить сетку «открытой» можно надолго.
+//
+// Порядок и сам режим лежат в localStorage браузера — в базу ничего не пишется, откат =
 // кнопка «Вернуть как было».
 //
 // Почему своими руками, а не пакетом: единственная зависимость образца с 21st.dev —
@@ -10,7 +16,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { motion, useDragControls, useReducedMotion } from 'motion/react'
-import { GripVertical } from 'lucide-react'
+import { Check, GripVertical, LayoutGrid } from 'lucide-react'
 
 export type Widget = {
   /** Устойчивый ключ: по нему запоминается место плитки. Менять нельзя — сбросит раскладку. */
@@ -22,7 +28,8 @@ export type Widget = {
 }
 
 /** Сколько держать палец, прежде чем плитка «оторвётся». Меньше — и обычная прокрутка
- * списка начинает таскать плитки; больше — жест не находят. */
+ * начинает таскать плитки; больше — жест не находят. Держится и во включённом режиме:
+ * иначе длинную страницу в нём стало бы не пролистать. */
 const HOLD_MS = 300
 
 /** Порядок из localStorage, отфильтрованный по тому, что реально пришло: виджет могли
@@ -44,42 +51,53 @@ function restore(key: string, ids: string[]): string[] {
 export function WidgetGrid({
   storageKey,
   widgets,
-  hintTouch,
-  hintPointer,
+  hintTouch = 'Нажмите, подержите и потяните плитку',
+  hintPointer = 'Потяните плитку мышью',
+  rearrangeLabel = 'Переставить',
+  doneLabel = 'Готово',
   resetLabel = 'Вернуть как было',
   className = '',
 }: {
   storageKey: string
   widgets: Widget[]
-  /** Подсказка над сеткой: на тачскрине и мышью жесты разные. Две готовые строки, а не
-   * функция от вида указателя: сетка — клиентский компонент, а функцию в него со
+  /** Подсказка внутри режима: на тачскрине и мышью жесты разные. Две готовые строки, а
+   * не функция от вида указателя: сетка — клиентский компонент, а функцию в него со
    * страницы-сервера передать нельзя, Next отвечает ошибкой прямо в браузер. */
   hintTouch?: string
   hintPointer?: string
+  rearrangeLabel?: string
+  doneLabel?: string
   resetLabel?: string
   className?: string
 }) {
   const ids = widgets.map((w) => w.id)
   const key = ids.join(',')
   const [order, setOrder] = useState<string[]>(ids)
+  const [edit, setEdit] = useState(false)
   const [touch, setTouch] = useState(false)
   const [dragging, setDragging] = useState<string | null>(null)
   const reduce = useReducedMotion()
   const cells = useRef(new Map<string, HTMLElement>())
   const hintId = useId()
+  const editKey = `${storageKey}:edit`
 
-  // Порядок и тип указателя читаются только в браузере: на сервере localStorage нет, а
-  // разное дерево на сервере и на клиенте — это гидрация #418.
+  // Порядок, режим и тип указателя читаются только в браузере: на сервере localStorage
+  // нет, а разное дерево на сервере и на клиенте — это гидрация #418.
   useEffect(() => {
     setOrder(restore(storageKey, key.split(',')))
+    try {
+      setEdit(localStorage.getItem(`${storageKey}:edit`) === '1')
+    } catch {
+      /* приватный режим */
+    }
     setTouch(window.matchMedia('(pointer: coarse)').matches)
   }, [storageKey, key])
 
-  const save = useCallback((k: string, next: string[]) => {
+  const save = useCallback((k: string, value: string) => {
     try {
-      localStorage.setItem(k, JSON.stringify(next))
+      localStorage.setItem(k, value)
     } catch {
-      // приватный режим — раскладка просто не переживёт перезагрузку
+      // приватный режим — выбор просто не переживёт перезагрузку
     }
   }, [])
 
@@ -90,7 +108,7 @@ export function WidgetGrid({
         if (from < 0 || to < 0 || to >= prev.length || to === from) return prev
         const next = prev.slice()
         next.splice(to, 0, next.splice(from, 1)[0])
-        save(storageKey, next)
+        save(storageKey, JSON.stringify(next))
         return next
       })
     },
@@ -116,19 +134,37 @@ export function WidgetGrid({
   return (
     <div className={className}>
       <div className="mb-2 flex items-center justify-between gap-3 text-xs text-white/55">
-        <span id={hintId}>{touch ? hintTouch : hintPointer}</span>
-        {moved && (
+        <span id={hintId}>{edit ? (touch ? hintTouch : hintPointer) : null}</span>
+        <span className="flex shrink-0 items-center gap-1.5">
+          {edit && moved && (
+            <button
+              type="button"
+              onClick={() => {
+                setOrder(key.split(','))
+                save(storageKey, JSON.stringify(key.split(',')))
+              }}
+              className="rounded-md px-2 py-1 font-medium text-white/70 ring-1 ring-white/12 hover:bg-white/[0.06]"
+            >
+              {resetLabel}
+            </button>
+          )}
           <button
             type="button"
+            aria-pressed={edit}
             onClick={() => {
-              setOrder(key.split(','))
-              save(storageKey, key.split(','))
+              setEdit(!edit)
+              save(editKey, edit ? '0' : '1')
             }}
-            className="shrink-0 rounded-md px-2 py-1 font-medium text-white/70 ring-1 ring-white/12 hover:bg-white/[0.06]"
+            className={`flex items-center gap-1.5 rounded-md px-2 py-1 font-medium ring-1 transition-colors ${
+              edit
+                ? 'bg-haul-500/15 text-haul-300 ring-haul-400/30 hover:bg-haul-500/25'
+                : 'text-white/60 ring-white/12 hover:bg-white/[0.06]'
+            }`}
           >
-            {resetLabel}
+            {edit ? <Check size={13} strokeWidth={2.5} /> : <LayoutGrid size={13} strokeWidth={2.5} />}
+            {edit ? doneLabel : rearrangeLabel}
           </button>
-        )}
+        </span>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
@@ -138,6 +174,7 @@ export function WidgetGrid({
             widget={w}
             index={i}
             total={list.length}
+            edit={edit}
             reduce={!!reduce}
             hintId={hintId}
             dragging={dragging === w.id}
@@ -152,7 +189,7 @@ export function WidgetGrid({
             }}
             onEnd={() => {
               setDragging(null)
-              save(storageKey, order)
+              save(storageKey, JSON.stringify(order))
             }}
             onStep={(d) => move(w.id, i + d)}
           />
@@ -166,6 +203,7 @@ function Cell({
   widget,
   index,
   total,
+  edit,
   reduce,
   hintId,
   dragging,
@@ -178,6 +216,7 @@ function Cell({
   widget: Widget
   index: number
   total: number
+  edit: boolean
   reduce: boolean
   hintId: string
   dragging: boolean
@@ -203,6 +242,14 @@ function Cell({
   }, [])
 
   useEffect(() => cancel, [cancel])
+  // Выключили режим на полпути — снимаем взведённость, иначе плитка осталась бы с
+  // отобранной прокруткой.
+  useEffect(() => {
+    if (!edit) {
+      cancel()
+      setArmed(false)
+    }
+  }, [edit, cancel])
 
   // Как только плитку взяли пальцем, прокрутку страницы надо отобрать у браузера прямо
   // посреди жеста. Одного touch-action мало: браузер решает, чей это жест, на первом
@@ -229,9 +276,9 @@ function Cell({
   }, [])
 
   // Жест начинается не сразу. Мышью — сразу, пальцем — после удержания: иначе обычная
-  // прокрутка страницы и боковая прокрутка таблицы внутри плитки превращались бы в
-  // перетаскивание, и список стало бы не пролистать.
+  // прокрутка страницы превращалась бы в перетаскивание, и список стало бы не пролистать.
   const down = (e: React.PointerEvent) => {
+    if (!edit) return
     if (e.button !== 0 && e.pointerType === 'mouse') return
     if (e.pointerType === 'mouse') {
       setArmed(true)
@@ -260,14 +307,14 @@ function Cell({
       }}
       layout={reduce ? false : 'position'}
       transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 38 }}
-      drag
+      drag={edit}
       dragListener={false}
       dragControls={controls}
       dragSnapToOrigin
       dragElastic={0.12}
       dragMomentum={false}
-      // Пока плитку не взяли, страница и таблица внутри должны прокручиваться как
-      // обычно, поэтому жесты остаются у браузера.
+      // Пока плитку не взяли, страница и содержимое внутри прокручиваются как обычно,
+      // поэтому жесты остаются у браузера.
       style={{
         touchAction: armed ? 'none' : 'auto',
         userSelect: armed ? 'none' : undefined,
@@ -305,34 +352,39 @@ function Cell({
         e.preventDefault()
         e.stopPropagation()
       }}
-      whileDrag={{ scale: 1.03, boxShadow: 'var(--shadow-e3)' }}
-      // [&>div]/[&>a] — содержимое тянется до высоты ячейки: в ряду плитка с подписью
-      // под цифрой выше соседней, и без этого рядом с ней оставалась серая проплешина.
+      whileDrag={edit ? { scale: 1.03, boxShadow: 'var(--shadow-e3)' } : undefined}
+      // В режиме перестановки содержимое плитки не нажимается: иначе попытка её
+      // подвинуть открывала бы ссылку под пальцем. Пунктирная рамка говорит, что
+      // сетка сейчас «открыта».
       className={`group relative [&>a]:h-full [&>div]:h-full ${
-        widget.span === 'full' ? 'col-span-2 lg:col-span-4' : widget.span === 2 ? 'col-span-2' : ''
-      } ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        edit
+          ? 'cursor-grab rounded-2xl ring-1 ring-dashed ring-haul-400/40 [&>a]:pointer-events-none [&>div]:pointer-events-none'
+          : ''
+      } ${widget.span === 'full' ? 'col-span-2 lg:col-span-4' : widget.span === 2 ? 'col-span-2' : ''} ${
+        dragging ? 'cursor-grabbing' : ''
+      }`}
     >
       {widget.node}
 
-      {/* Ручка — в НИЖНЕМ правом углу и только под курсором или фокусом. В верхнем углу
-          она ложилась ровно на иконку плитки, а на телефоне, где наведения нет, висела
-          постоянно и читалась как соринки на экране. Пальцем плитку и так берут
-          удержанием в любом месте, а что так можно — написано подсказкой над сеткой.
-          Кнопка остаётся в разметке: с неё плитку двигают с клавиатуры. */}
-      <button
-        type="button"
-        aria-label={`Переставить плитку (${index + 1} из ${total})`}
-        aria-describedby={hintId}
-        onKeyDown={(e) => {
-          const d = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0
-          if (!d) return
-          e.preventDefault()
-          onStep(d)
-        }}
-        className="absolute bottom-0.5 right-0.5 flex size-7 items-center justify-center rounded-md text-white/40 opacity-0 transition-opacity hover:bg-white/10 hover:text-white/80 focus-visible:opacity-100 group-hover:opacity-100"
-      >
-        <GripVertical size={14} strokeWidth={2.5} />
-      </button>
+      {/* Ручка — только во включённом режиме и в нижнем правом углу. В верхнем она
+          ложилась ровно на иконку плитки, и четыре точки поверх значка читались как
+          соринки на экране. Она же — точка, с которой плитку двигают с клавиатуры. */}
+      {edit && (
+        <button
+          type="button"
+          aria-label={`Переставить плитку (${index + 1} из ${total})`}
+          aria-describedby={hintId}
+          onKeyDown={(e) => {
+            const d = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0
+            if (!d) return
+            e.preventDefault()
+            onStep(d)
+          }}
+          className="absolute bottom-0.5 right-0.5 flex size-7 items-center justify-center rounded-md text-haul-300/70 hover:bg-white/10 hover:text-haul-300"
+        >
+          <GripVertical size={14} strokeWidth={2.5} />
+        </button>
+      )}
     </motion.div>
   )
 }

@@ -495,8 +495,11 @@ export default async function Page() {
       <div className="panel p-2.5">
         <WidgetGrid
           storageKey="ui-overview"
-          hintTouch="Нажмите, подержите и потяните плитку"
-          hintPointer="Потяните плитку мышью"
+          hintTouch={tr(locale, 'grid.hintTouch')}
+          hintPointer={tr(locale, 'grid.hintPointer')}
+          rearrangeLabel={tr(locale, 'grid.rearrange')}
+          doneLabel={tr(locale, 'grid.done')}
+          resetLabel={tr(locale, 'grid.reset')}
           widgets={widgets}
         />
       </div>
