@@ -12,7 +12,7 @@
 
 import { sql } from '@/lib/db'
 import { listLoads, listTrucks } from '@/lib/loads'
-import { currentLoadsByTruck, truckLabel, eldStatus } from '@/lib/map'
+import { currentLoadsByTruck, prevLoadFor, truckLabel, eldStatus } from '@/lib/map'
 import { zoneFor } from '@/lib/tz'
 import { fixPlace } from '@/lib/place'
 import { type MapMarker, type MapRoute } from '@/components/fleet-map'
@@ -293,6 +293,15 @@ export async function FleetBoard({
       idleHours: idleHoursRaw !== null && idleHoursRaw >= 3 ? idleHoursRaw : null,
       fuel: fs?.fuel ?? null,
       unavailable: t.unavailable,
+      // Откуда трак пришёл — на месте пустой строки «Нет активного груза»: у свободного
+      // трака она занимала строку и не говорила ничего, а прошлый рейс отвечает сразу,
+      // где трак освободился и когда (components/prev-load.tsx — тот же смысл в карточке).
+      prevLoad: (() => {
+        const prev = prevLoadFor(loads, t.id, load)
+        return prev
+          ? { id: prev.id, route: `${prev.origin ?? '—'} → ${prev.destination ?? '—'}`, date: prev.deliveryDate }
+          : null
+      })(),
     })
   }
 

@@ -12,7 +12,7 @@ import { useLocale } from '@/components/locale-provider'
 import { weatherKind, weatherTone } from '@/lib/weather-label'
 import { WeatherIcon } from '@/components/weather-icon'
 import { t } from '@/lib/i18n'
-import { usd } from '@/lib/fmt'
+import { usd, usDate } from '@/lib/fmt'
 import { CopyPlace } from '@/components/copy-place'
 
 export type TrackingRow = {
@@ -44,6 +44,10 @@ export type TrackingRow = {
   /** Manual flag from the truck: 'repair' | 'vacation' | null. Badged, and never
    * counted as free — a truck in the shop isn't available just because it's empty. */
   unavailable: 'repair' | 'vacation' | null
+  /** Рейс, который трак вёз до нынешнего (у свободного — последний вообще). Стоит на
+   * месте пустого «Нет активного груза»: у свободного трака та строка занимала место и
+   * не отвечала ни на один вопрос, а прошлый рейс говорит, где трак освободился. */
+  prevLoad: { id: number; route: string; date: string | null } | null
 }
 
 const toneClass = {
@@ -126,7 +130,7 @@ export function FleetList({
           // height in every card. Now they line up along the bottom edge.
           <div
             key={r.id}
-            className={`panel panel-interactive relative flex h-full flex-col p-3 ${
+            className={`panel panel-interactive relative flex h-full flex-col px-3 py-2 ${
               selectedId === r.id ? 'ring-2 ring-haul-400/70' : ''
             }`}
           >
@@ -160,11 +164,12 @@ export function FleetList({
               </span>
             </div>
 
-            {/* Line 2 — where, plus fuel pinned right. Fuel used to sit alone on a
-                whole line of its own for one tiny pill; here it costs nothing and
-                lines up down the column. */}
-            <div className="mt-1 flex items-center justify-between gap-2 text-[12px] text-white/55">
-              <span className="flex min-w-0 items-center gap-1.5">
+            {/* Line 2 — где стоит: место с кнопками, время у водителя, погода и простой —
+                одной переносящейся строкой, топливо прижато вправо. Раньше «Карта»
+                уезжала на свою строку, а погода стояла отдельной третьей полосой: у
+                свободного трака карточка выходила в пять рядов, два из них почти пустые. */}
+            <div className="mt-0.5 flex items-start justify-between gap-2 text-[12px] text-white/55">
+              <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
                 {/* Место — кнопка с рамкой, а не текст с блёклым значком рядом.
                     Прежний значок в 11 пикселей и на треть прозрачный просто не
                     находили, а адрес отсюда уходит брокеру по нескольку раз в день. */}
@@ -183,21 +188,6 @@ export function FleetList({
                     {t(locale, 'trucks.head.driverTimeShort')} <LocalTime zone={r.zone} className="nums font-semibold text-white/80" />
                   </span>
                 )}
-              </span>
-              {r.fuel !== null && (
-                <span
-                  title={t(locale, 'tracking.fuelTitle')}
-                  className={`nums flex shrink-0 items-center gap-1 font-semibold ${fuelClass(r.fuel)}`}
-                >
-                  <Fuel size={11} strokeWidth={2.5} />
-                  {Math.round(r.fuel)}%
-                </span>
-              )}
-            </div>
-
-            {/* Exceptions only — a card with nothing wrong shows no strip at all. */}
-            {(r.weather || r.idleHours !== null) && (
-              <div className="mt-1.5 flex flex-wrap gap-1">
                 {r.weather &&
                   (() => {
                     // Сырое «Extreme Heat Warning» красным пугало и ничего не объясняло.
@@ -210,7 +200,7 @@ export function FleetList({
                         title={`${t(locale, `wx.${kind}.hint` as Parameters<typeof t>[1])}
 
 ${r.weather.event} · ${t(locale, 'wx.source')}`}
-                        className={`rounded px-1.5 py-0.5 text-[10.5px] font-medium ${
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-[10.5px] font-medium ${
                           bad ? 'bg-bad-500/15 text-bad-400' : 'bg-warn-400/15 text-warn-400'
                         }`}
                       >
@@ -219,17 +209,26 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
                     )
                   })()}
                 {r.idleHours !== null && (
-                  <span className="rounded bg-warn-400/15 px-1.5 py-0.5 text-[10.5px] font-medium text-warn-400">
+                  <span className="shrink-0 rounded bg-warn-400/15 px-1.5 py-0.5 text-[10.5px] font-medium text-warn-400">
                     {t(locale, 'tracking.idlePrefix')}
                     {r.idleHours}
                     {t(locale, 'tracking.idleSuffix')}
                   </span>
                 )}
-              </div>
-            )}
+              </span>
+              {r.fuel !== null && (
+                <span
+                  title={t(locale, 'tracking.fuelTitle')}
+                  className={`nums flex shrink-0 items-center gap-1 font-semibold ${fuelClass(r.fuel)}`}
+                >
+                  <Fuel size={11} strokeWidth={2.5} />
+                  {Math.round(r.fuel)}%
+                </span>
+              )}
+            </div>
 
             {r.delivery ? (
-              <div className="panel-inset mt-2 flex items-baseline justify-between gap-2 px-2.5 py-1.5">
+              <div className="panel-inset mt-1.5 flex items-baseline justify-between gap-2 px-2.5 py-1">
                 <span className="min-w-0 truncate text-[12px] text-white/55">
                   {t(locale, 'tracking.toDeliveryLabel')}
                   <span className="font-medium text-white/85">{r.delivery.to}</span>
@@ -238,15 +237,30 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
                   {r.delivery.miles.toLocaleString('en-US')} mi · ~{r.driveTimeText}
                 </span>
               </div>
+            ) : !r.hasLoad && r.prevLoad ? (
+              /* Строка «Нет активного груза» занимала место и не отвечала ни на один
+                 вопрос. Тот же ряд теперь говорит, откуда трак пришёл и когда выгрузился,
+                 — этим и проверяют, не потерян ли груз между рейсами. */
+              <Link
+                href={`/loads/${r.prevLoad.id}`}
+                className="relative z-10 mt-1.5 flex items-baseline justify-between gap-2 text-[12px] text-white/45 transition-colors hover:text-white/75"
+              >
+                <span className="min-w-0 truncate">
+                  {t(locale, 'prevLoad.label')}
+                  {': '}
+                  <span className="font-medium text-white/70">{r.prevLoad.route}</span>
+                </span>
+                {r.prevLoad.date && <span className="nums shrink-0 text-[11.5px]">{usDate(r.prevLoad.date)}</span>}
+              </Link>
             ) : (
-              <div className="mt-2 text-[12px] text-white/30">{t(locale, 'tracking.noActiveLoad')}</div>
+              <div className="mt-1.5 text-[12px] text-white/30">{t(locale, 'tracking.noActiveLoad')}</div>
             )}
 
             {/* Bottom rail. Every label is short and every control is the shared
                 Button, which is whitespace-nowrap — the old hand-rolled links wrapped
                 "Открыть груз · Chicago, IL → Dallas, TX" onto three lines and tore
                 the card's height apart. The route lives in the title instead. */}
-            <div className="relative z-10 mt-auto flex items-center gap-1.5 pt-2.5">
+            <div className="relative z-10 mt-auto flex items-center gap-1.5 pt-1.5">
               {r.phone && (
                 <Button size="sm" href={`tel:${r.phone}`} external icon={<Phone size={12} />}>
                   {t(locale, 'tracking.callShort')}
@@ -275,18 +289,18 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
                     {t(locale, 'tracking.docsShort')}
                   </span>
                 )}
+                {/* Деньги в ОДНУ строку: «за неделю» стояло вторым рядом под суммой и
+                    добавляло карточке высоты ради двух слов. */}
                 {money?.[r.id] && (
-                  <span className="text-right leading-tight">
+                  <span className="flex items-baseline gap-1">
                     <span
-                      className={`nums block text-[13px] font-bold ${
+                      className={`nums text-[13px] font-bold ${
                         money[r.id]!.week > 0 ? 'text-good-400' : 'text-white/35'
                       }`}
                     >
                       {money[r.id]!.week > 0 ? usd.format(money[r.id]!.week) : '—'}
                     </span>
-                    <span className="block text-xs text-white/55 font-medium">
-                      {t(locale, 'tracking.weekShort')}
-                    </span>
+                    <span className="text-[11px] font-medium text-white/50">{t(locale, 'tracking.weekShort')}</span>
                   </span>
                 )}
               </span>
