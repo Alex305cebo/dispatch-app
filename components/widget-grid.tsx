@@ -15,8 +15,9 @@ import { GripVertical } from 'lucide-react'
 export type Widget = {
   /** Устойчивый ключ: по нему запоминается место плитки. Менять нельзя — сбросит раскладку. */
   id: string
-  /** Ширина в колонках сетки на широком экране. На телефоне колонки всего две. */
-  span?: 1 | 2
+  /** Ширина в колонках сетки: 1, 2 или во всю строку. На телефоне колонок всего две,
+   * поэтому 2 и 'full' там выглядят одинаково. */
+  span?: 1 | 2 | 'full'
   node: React.ReactNode
 }
 
@@ -137,7 +138,6 @@ export function WidgetGrid({
             widget={w}
             index={i}
             total={list.length}
-            touch={touch}
             reduce={!!reduce}
             hintId={hintId}
             dragging={dragging === w.id}
@@ -166,7 +166,6 @@ function Cell({
   widget,
   index,
   total,
-  touch,
   reduce,
   hintId,
   dragging,
@@ -179,7 +178,6 @@ function Cell({
   widget: Widget
   index: number
   total: number
-  touch: boolean
   reduce: boolean
   hintId: string
   dragging: boolean
@@ -290,14 +288,16 @@ function Cell({
       // [&>div]/[&>a] — содержимое тянется до высоты ячейки: в ряду плитка с подписью
       // под цифрой выше соседней, и без этого рядом с ней оставалась серая проплешина.
       className={`group relative [&>a]:h-full [&>div]:h-full ${
-        widget.span === 2 ? 'col-span-2' : ''
+        widget.span === 'full' ? 'col-span-2 lg:col-span-4' : widget.span === 2 ? 'col-span-2' : ''
       } ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
     >
       {widget.node}
 
-      {/* Ручка. Мышью — видна при наведении, на тачскрине — всегда: наведения там нет, и
-          невидимая ручка означает, что жест просто не найдут. Она же — точка, с которой
-          плитку переставляют с клавиатуры. */}
+      {/* Ручка — в НИЖНЕМ правом углу и только под курсором или фокусом. В верхнем углу
+          она ложилась ровно на иконку плитки, а на телефоне, где наведения нет, висела
+          постоянно и читалась как соринки на экране. Пальцем плитку и так берут
+          удержанием в любом месте, а что так можно — написано подсказкой над сеткой.
+          Кнопка остаётся в разметке: с неё плитку двигают с клавиатуры. */}
       <button
         type="button"
         aria-label={`Переставить плитку (${index + 1} из ${total})`}
@@ -308,9 +308,7 @@ function Cell({
           e.preventDefault()
           onStep(d)
         }}
-        className={`absolute right-1 top-1 flex size-6 items-center justify-center rounded-md text-white/45 transition-opacity hover:bg-white/10 hover:text-white/80 focus-visible:opacity-100 ${
-          touch ? 'opacity-60' : 'opacity-0 group-hover:opacity-100'
-        }`}
+        className="absolute bottom-0.5 right-0.5 flex size-7 items-center justify-center rounded-md text-white/40 opacity-0 transition-opacity hover:bg-white/10 hover:text-white/80 focus-visible:opacity-100 group-hover:opacity-100"
       >
         <GripVertical size={14} strokeWidth={2.5} />
       </button>

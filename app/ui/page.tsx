@@ -21,33 +21,34 @@ const TONE: Record<string, string> = {
   Доставлен: 'bg-white/[0.06] text-white/60 ring-white/10',
 }
 
-/** Плотная таблица-журнал по образцу trade-journal-table: строка = одна сделка,
- * цифры моноширинные, статус капсулой. Внутри плитки, чтобы её тоже можно было двигать. */
+/** Плотная строка-журнал по образцу trade-journal-table. Не таблица: таблица требовала
+ * min-width 420px, на телефоне уезжала вбок, и колонка статуса оказывалась за краем —
+ * выглядело так, будто её обрезало. Две строки в одной, номер и маршрут сверху, деньги
+ * и статус снизу: помещается на любой ширине без боковой прокрутки. */
 function Journal() {
   return (
     <div className="panel-inset px-3.5 py-3">
-      <div className="mb-2 text-2xs font-semibold uppercase tracking-wide text-white/55">
+      <div className="mb-1.5 text-2xs font-semibold uppercase tracking-wide text-white/55">
         Грузы недели
       </div>
-      <div className="-mx-1 overflow-x-auto">
-        <table className="w-full min-w-[420px] text-sm">
-          <tbody>
-            {ROWS.map((r) => (
-              <tr key={r.unit} className="border-t border-white/[0.06] first:border-0">
-                <td className="py-1.5 pl-1 pr-2 nums font-semibold text-white/80">{r.unit}</td>
-                <td className="py-1.5 pr-2 text-white/70">{r.lane}</td>
-                <td className="py-1.5 pr-2 nums text-right font-semibold">{r.rate}</td>
-                <td className="py-1.5 pr-2 nums text-right text-white/55">{r.rpm}/mi</td>
-                <td className="py-1.5 pr-1 text-right">
-                  <span className={`rounded-md px-1.5 py-0.5 text-2xs font-semibold ring-1 ${TONE[r.state]}`}>
-                    {r.state}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {ROWS.map((r) => (
+        <div
+          key={r.unit}
+          className="grid grid-cols-[2rem_1fr_auto] items-center gap-x-2 gap-y-1 border-t border-white/[0.06] py-2 first:border-0 lg:grid-cols-[2.5rem_1fr_auto_auto] lg:gap-x-5"
+        >
+          <span className="nums text-md font-semibold text-white/80">{r.unit}</span>
+          <span className="min-w-0 truncate text-base text-white/70">{r.lane}</span>
+          {/* На узком экране ставка стоит в первой строке, на широком уезжает в конец
+              строки — это единственная колонка, которую читают справа налево. */}
+          <span className="nums text-right text-base font-semibold lg:order-last">{r.rate}</span>
+          <span className="col-span-2 col-start-2 flex items-center gap-2 lg:col-span-1 lg:col-start-auto">
+            <span className={`rounded-md px-1.5 py-0.5 text-2xs font-semibold ring-1 ${TONE[r.state]}`}>
+              {r.state}
+            </span>
+            <span className="nums text-xs text-white/50">{r.rpm}/mi</span>
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
@@ -55,17 +56,16 @@ function Journal() {
 export default function Page() {
   return (
     <div className="mx-auto max-w-5xl px-3 py-4">
-      <h1 className="text-xl font-bold">Как это выглядит</h1>
+      <h1 className="text-xl font-bold">Обзор в новом виде</h1>
       <p className="mt-1 mb-4 max-w-prose text-base text-white/60">
-        Тот же обзор, но плитки переставляются и запоминают порядок в этом браузере. Цифры
-        здесь выдуманные, в базу страница не ходит.
+        Плитки можно переставить, порядок запомнится. Цифры выдуманные.
       </p>
 
       <div className="panel p-2.5">
         <WidgetGrid
           storageKey="ui-preview"
           hintTouch="Нажмите, подержите и потяните плитку"
-          hintPointer="Потяните плитку мышью, чтобы переставить"
+          hintPointer="Потяните плитку мышью"
           widgets={[
             {
               id: 'gross',
@@ -114,7 +114,7 @@ export default function Page() {
                 />
               ),
             },
-            { id: 'journal', span: 2, node: <Journal /> },
+            { id: 'journal', span: 'full', node: <Journal /> },
           ]}
         />
       </div>
