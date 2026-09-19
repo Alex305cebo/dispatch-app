@@ -106,20 +106,20 @@ const ITEMS: Item[] = [
   { href: '/', labelKey: 'nav.overview', icon: 'dash', primary: true },
   { href: '/loads', labelKey: 'nav.loads', icon: 'loads', primary: true },
   { href: '/trucks', labelKey: 'nav.trucks', icon: 'settings', primary: true },
-  { href: '/docs', labelKey: 'nav.docs', icon: 'docs', primary: true },
+  // «Документы» — бумаги и деньги одним разделом (слиты 19.09.2026): строка груза
+  // несёт и его файлы, и его оплату, поэтому отдельного пункта «Финансы» больше нет.
+  { href: '/docs', labelKey: 'nav.docs', icon: 'docs', primary: true, also: ['/invoices'] },
   // «Рынок» — один раздел (пользователь, 16.09.2026; переименован 18–19.09.2026, когда
   // сюда переехало «Куда отправить трак»): вкладки внутри, адреса прежние.
   { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield', also: ['/facilities'] },
   { href: '/tolls', labelKey: 'nav.tolls', icon: 'toll' },
   { href: '/telegram', labelKey: 'nav.telegram', icon: 'chat' },
-  { href: '/invoices', labelKey: 'nav.finances', icon: 'money' },
 ]
 
 export function Nav({
   companyName,
   user,
   showTelegram,
-  showFinances,
   urgentDocs,
 }: {
   companyName: string
@@ -127,7 +127,6 @@ export function Nav({
   /** Capability-gated (admin panel → per-dispatcher). Hidden when the user lacks it;
    * the page itself also refuses, so this just avoids showing a dead tab. */
   showTelegram: boolean
-  showFinances: boolean
   /** Count of truck/driver documents overdue or ≤30 days out — badged on Траки so
    * it's visible from any page, not just the one banner on the dashboard. */
   urgentDocs: number
@@ -160,7 +159,7 @@ export function Nav({
     localStorage.setItem('nav-folded', railFolded ? '1' : '0')
   }, [railFolded])
 
-  // «Ещё» на телефоне: редкие разделы (Файлы, Брокеры, Толлы, Telegram) за одной
+  // «Ещё» на телефоне: редкие разделы (Брокеры, Толлы, Telegram) за одной
   // кнопкой. Нижнее меню — фиксированные пять пунктов, а не лента, которую надо
   // было прокручивать и в которой разделы терялись.
   const [moreOpen, setMoreOpen] = useState(false)
@@ -183,12 +182,10 @@ export function Nav({
     setDockExpanded(true)
     bumpDockTimer()
   }
-  const hidden = new Set<string>()
   // Telegram — всегда в меню: без доступа или без подключения его страница сама
-  // пишет, что сделать. Спрятанный пункт не находили вовсе.
-  if (!showFinances) hidden.add('/invoices')
-  const items = hidden.size ? ITEMS.filter((it) => !hidden.has(it.href)) : ITEMS
-  const rest = items.filter((it) => !it.primary && !it.soon)
+  // пишет, что сделать. Спрятанный пункт не находили вовсе. «Документы» тоже всегда:
+  // право «Финансы» закрывает внутри раздела только деньги, а не бумаги.
+  const rest = ITEMS.filter((it) => !it.primary && !it.soon)
   const restActive = rest.some((it) => isOn(it, pathname))
   // Вкладка: на телефоне равные доли ширины, в сайдбаре — строка с иконкой слева.
   const shape =
@@ -297,7 +294,7 @@ export function Nav({
           sidebar. */}
       <div className="nav-dock">
         <div className="flex items-stretch gap-0.5 md:flex-col md:gap-0.5">
-        {items.map((it) => {
+        {ITEMS.map((it) => {
         const active = !it.soon && isOn(it, pathname)
 
         const body = (
@@ -403,7 +400,6 @@ export function Nav({
             dockCollapsed={!dockExpanded}
             onExpandDock={expandDock}
             showTelegram={showTelegram}
-            showFinances={showFinances}
             themeControl={<ThemeToggle />}
             journalControl={
               user.role === 'admin' ? <JournalLink pathname={pathname} locale={locale} /> : undefined

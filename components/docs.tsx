@@ -540,7 +540,7 @@ export function DocList({
 
 type Group = { id: number | null; label: string; sub: string; rows: DocLibRow[] }
 
-/** Library view: filter by kind, grouped by driver/truck, each group collapsible. */
+/** Library view: search, filter by kind, grouped by driver/truck, each group collapsible. */
 export function DocLibrary({
   rows,
   trucks,
@@ -551,9 +551,22 @@ export function DocLibrary({
   const locale = useLocale()
   const [del, setDel] = useState<DocMeta | null>(null)
   const [kind, setKind] = useState<DocKind | 'all'>('all')
+  const [query, setQuery] = useState('')
   const [closed, setClosed] = useState<Set<string>>(new Set())
 
-  const shown = kind === 'all' ? rows : rows.filter((r) => r.kind === kind)
+  // Поиск по имени файла, траку и водителю: у парка из десяти траков список групп
+  // длиннее экрана, и «раскрыть и поискать глазами» — это и есть то, из-за чего за
+  // бумагой шли на страницу трака.
+  const q = query.trim().toLowerCase()
+  const byTruck = new Map(trucks.map((tr) => [tr.id, tr]))
+  const shown = rows.filter((r) => {
+    if (kind !== 'all' && r.kind !== kind) return false
+    if (!q) return true
+    const tr = r.groupTruckId != null ? byTruck.get(r.groupTruckId) : undefined
+    return [r.title, docKindLabel(r.kind, locale), tr?.label, tr?.driver, r.origin, r.destination]
+      .filter(Boolean)
+      .some((v) => String(v).toLowerCase().includes(q))
+  })
 
   // Build groups in fleet order, then a "no truck" bucket. Empty groups drop out.
   const groups: Group[] = []
@@ -571,6 +584,13 @@ export function DocLibrary({
 
   return (
     <>
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder={t(locale, 'docs.library.search')}
+        className="mb-3 w-full rounded-xl border border-white/10 bg-ink-900/60 px-3 py-2 text-[13px] text-t1 outline-none focus:border-haul-500 max-md:min-h-11"
+      />
+
       {/* Kind filter */}
       <div className="mb-3 flex flex-wrap gap-1.5">
         {kinds.map((k) => (

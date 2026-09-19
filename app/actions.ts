@@ -507,7 +507,7 @@ export async function generateInvoice(
   const res = await buildInvoicePacket(load)
   if ('error' in res) return res
   revalidatePath(`/loads/${loadId}`)
-  revalidatePath('/invoices')
+  revalidatePath('/docs')
   revalidatePath('/')
   return res
 }
@@ -537,7 +537,7 @@ export async function removeInvoice(loadId: number): Promise<{ error: string } |
   await sql`UPDATE loads SET invoice_number = NULL, invoiced_at = NULL
             WHERE id = ${loadId} AND company_id = ${companyId}`
   revalidatePath(`/loads/${loadId}`)
-  revalidatePath('/invoices')
+  revalidatePath('/docs')
   revalidatePath('/')
 }
 
@@ -560,7 +560,7 @@ export async function saveCompany(c: Company): Promise<{ error: string } | void>
     setSetting('co_phone', c.phone.trim()),
     setSetting('co_remit_to', c.remitTo.trim()),
   ])
-  revalidatePath('/invoices')
+  revalidatePath('/docs')
   revalidatePath('/trucks')
 }
 
@@ -1267,7 +1267,7 @@ export async function setStatus(id: number, status: LoadStatus): Promise<{ error
   // «Оплачен» проверку сохраняет: это уже про деньги, и пакет для счёта (lib/invoice.ts)
   // без POD собрать нельзя — там запрет не раздражает, а спасает.
   // «Оплачен» — только из «Финансов»: деньги отмечает бухгалтер, с датой, суммой и
-  // этапом факторинга (app/invoices/payment-actions.ts). Увести груз из «Оплачен»
+  // этапом факторинга (app/docs/payment-actions.ts). Увести груз из «Оплачен»
   // полосой тоже нельзя, если оплата записана, — иначе учёт и статус разойдутся.
   if (status === 'paid') return { error: t(await getLocale(), 'payments.err.useFinances') }
   {
@@ -1290,7 +1290,7 @@ export async function setStatus(id: number, status: LoadStatus): Promise<{ error
     WHERE id = ${id} AND company_id = ${await companyScope()}`
   revalidatePath(`/loads/${id}`)
   revalidatePath('/loads')
-  revalidatePath('/invoices')
+  revalidatePath('/docs')
   revalidatePath('/')
   revalidatePath('/trucks', 'layout')
 }
@@ -2727,7 +2727,7 @@ export async function saveLoadTolls(loadId: number, tolls: number): Promise<{ er
   revalidatePath(`/loads/${loadId}`)
   revalidatePath('/loads')
   revalidatePath('/')
-  revalidatePath('/invoices')
+  revalidatePath('/docs')
 }
 
 /**

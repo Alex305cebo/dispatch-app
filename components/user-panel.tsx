@@ -28,7 +28,6 @@ import { useRouter } from 'next/navigation'
 import {
   Check,
   ChevronRight,
-  DollarSign,
   Globe,
   History,
   KeyRound,
@@ -131,7 +130,6 @@ export function UserPanel({
   dockCollapsed = false,
   onExpandDock,
   showTelegram = false,
-  showFinances = false,
   localeControl,
   themeControl,
   journalControl,
@@ -140,7 +138,6 @@ export function UserPanel({
   /** Same capability flags the nav uses to hide dead tabs. A row pointing at a screen
    * this user is not allowed to open would be a promise the app then breaks. */
   showTelegram?: boolean
-  showFinances?: boolean
   /** Whether the sibling icons (locale/notifications/journal/theme) are currently
    * tucked away (components/nav.tsx). When they are, the FIRST tap on the avatar
    * just brings them back instead of opening the profile popover. */
@@ -280,8 +277,9 @@ export function UserPanel({
             </Group>
 
             {/* 3. Разделы — ТОЛЬКО на телефоне: в нижнюю панель влезает шесть вкладок,
-                «Брокеры» и «Финансы» в неё не попадают, и это их единственный вход.
-                На десктопе они есть в рельсе слева, и повторять их здесь незачем. */}
+                «Брокеры» в неё не попадают, и это их единственный вход. На десктопе
+                они есть в рельсе слева, и повторять их здесь незачем. «Финансы» тут
+                были до слияния с «Файлами»: теперь это «Документы» в нижней панели. */}
             <div className="md:hidden">
               <Group title={t(locale, 'userPanel.sectionsGroup')}>
                 <Row
@@ -290,14 +288,6 @@ export function UserPanel({
                   href="/brokers"
                   onNavigate={close}
                 />
-                {showFinances && (
-                  <Row
-                    icon={<DollarSign size={15} />}
-                    label={t(locale, 'userPanel.tileFinances')}
-                    href="/invoices"
-                    onNavigate={close}
-                  />
-                )}
                 {showTelegram && (
                   <Row
                     icon={<Send size={15} />}

@@ -96,9 +96,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // Локаль передаётся ОБОИМИ вызывающими (здесь и на главной) одинаково —
     // иначе cache() перестал бы их склеивать и запрос ушёл бы дважды за рендер.
     fleetExpiryAlerts(companyId, locale),
-    // Capability-gated nav items — admins always see them; dispatchers per their access.
+    // Capability-gated nav item — admins always see it; dispatchers per their access.
+    // «Документы» права не спрашивают: право «Финансы» закрывает деньги внутри
+    // раздела, а бумаги в нём нужны всем.
     can(user, 'telegram'),
-    can(user, 'finances'),
   ]).catch(() => null)
   // Overdue/≤30-day document expiries — a badge on the Траки nav item, visible from
   // anywhere in the app, not just the one banner on the dashboard.
@@ -124,7 +125,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             companyName={(await onProductSite()) ? PRODUCT_NAME : (chrome?.[0].name ?? '')}
             user={user}
             showTelegram={chrome?.[2] ?? false}
-            showFinances={chrome?.[3] ?? false}
             urgentDocs={urgentDocs}
           />
           {user?.isDemo && <DemoModeBanner />}

@@ -49,13 +49,15 @@ const STEPS: Def[] = [
   // Переехало на «Брокеров и склады» (18.09.2026): куда отправить трак дальше —
   // ставки по штатам и регионам DAT.
   { key: 'planner', href: '/brokers', target: '', image: 'planner' },
-  { key: 'docs', href: '/docs', target: 'nav-docs', image: 'docs' },
+  { key: 'docs', href: '/docs?tab=fleet', target: 'nav-docs', image: 'docs' },
   { key: 'brokers', href: '/brokers', target: '', image: 'brokers' },
   // Без снимка: у демо-грузов почти нет адресов, экран складов там не показателен.
   // Пункт меню — общий с брокерами («Рынок»).
   { key: 'facilities', href: '/brokers?view=facilities', target: 'nav-brokers', image: '' },
   { key: 'tolls', href: '/tolls', target: '', image: 'tolls' },
-  { key: 'invoices', href: '/invoices', target: '', image: 'invoices' },
+  // «Финансы» слились с «Файлами» в «Документы»: кадр снят до слияния и показывает
+  // прежний экран — переснять scripts/guide-shots.mjs, когда дойдут руки.
+  { key: 'invoices', href: '/docs?tab=unpaid', target: '', image: 'invoices' },
 ]
 
 export async function tourSteps(user: CurrentUser | null, locale: Locale): Promise<TourStep[] | null> {

@@ -8,7 +8,7 @@
 //   исключения: OTR отказал; регресс (брокер не заплатил, OTR вернул счёт)
 //
 // Модуль чистый: этапы, группы для страницы «Финансы», значения по умолчанию, CSV.
-// Запись — app/invoices/payment-actions.ts, чтение — lib/payments-server.ts.
+// Запись — app/docs/payment-actions.ts, чтение — lib/payments-server.ts.
 //
 // Как это ложится на прежние поля груза: деньги пришли (профинансирован или оплачен
 // напрямую) — груз «Оплачен» с датой получения, как и раньше; отчёты «Оплачено» и «По
@@ -107,9 +107,9 @@ export function factoringDoneDay(p: LoadPayment | null, paidAt: string | null): 
   return paidAt ? todayEt(new Date(paidAt)) : null
 }
 
-/** Груз на вкладке «Оплата · факторинг» — через поиск по номеру груза. */
+/** Груз на вкладке «Грузы» раздела «Документы» — через поиск по номеру груза. */
 export const financesHref = (load: { id: number; referenceId?: string | null }) =>
-  `/invoices?q=${encodeURIComponent(load.referenceId || String(load.id))}`
+  `/docs?q=${encodeURIComponent(load.referenceId || String(load.id))}`
 
 /** Метка «где деньги» для карточки груза: ключ словаря и цвет. */
 export function payBadge(
