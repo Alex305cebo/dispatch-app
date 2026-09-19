@@ -107,8 +107,8 @@ const ITEMS: Item[] = [
   { href: '/loads', labelKey: 'nav.loads', icon: 'loads', primary: true },
   { href: '/trucks', labelKey: 'nav.trucks', icon: 'settings', primary: true },
   { href: '/docs', labelKey: 'nav.docs', icon: 'docs', primary: true },
-  // «Рынок и брокеры» — один раздел (пользователь, 16.09.2026; переименован 18.09.2026,
-  // когда сюда переехало «Куда отправить трак»): вкладки внутри, адреса прежние.
+  // «Рынок» — один раздел (пользователь, 16.09.2026; переименован 18–19.09.2026, когда
+  // сюда переехало «Куда отправить трак»): вкладки внутри, адреса прежние.
   { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield', also: ['/facilities'] },
   { href: '/tolls', labelKey: 'nav.tolls', icon: 'toll' },
   { href: '/telegram', labelKey: 'nav.telegram', icon: 'chat' },

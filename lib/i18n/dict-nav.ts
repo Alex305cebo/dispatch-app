@@ -9,12 +9,14 @@ export const navDict = {
   'nav.trucks': { ru: 'Траки', en: 'Trucks', es: 'Camiones', uk: 'Траки', ro: 'Camioane', kk: 'Тракттар' },
   'nav.tracking': { ru: 'Трекинг', en: 'Track', es: 'Rastreo', uk: 'Трекінг', ro: 'Urmărire', kk: 'Бақылау' },
   'nav.docs': { ru: 'Файлы', en: 'Docs', es: 'Archivos', uk: 'Файли', ro: 'Fișiere', kk: 'Файлдар' },
-  // Раздел перестал быть только справочником: с 18.09.2026 сверху «Куда отправить трак».
-  'nav.brokers': { ru: 'Рынок и брокеры', en: 'Market & brokers', es: 'Mercado y brókers', uk: 'Ринок і брокери', ro: 'Piață și brokeri', kk: 'Нарық және брокерлер' },
+  // Раздел перестал быть только справочником: с 18.09.2026 сверху «Куда отправить
+  // трак». Одно слово — правило владельца (19.09.2026): у пункта меню одно нужное
+  // понятное слово, остальное объясняет подпись под заголовком раздела.
+  'nav.brokers': { ru: 'Рынок', en: 'Market', es: 'Mercado', uk: 'Ринок', ro: 'Piață', kk: 'Нарық' },
   // В боковом меню «Платные дороги» переносилось на две строки и толкало соседей.
   // «Толлы» — то самое слово, которым это и называют вслух в диспетчерской, и оно
   // втрое короче. Полное название осталось заголовком самого раздела.
-  'nav.tolls': { ru: 'Толлы', en: 'Tolls', es: 'Peajes', uk: 'Толи', ro: 'Taxe drum', kk: 'Ақылы жолдар' },
+  'nav.tolls': { ru: 'Толлы', en: 'Tolls', es: 'Peajes', uk: 'Толи', ro: 'Taxe', kk: 'Жолақы' },
   'nav.telegram': { ru: 'Telegram', en: 'Telegram', es: 'Telegram', uk: 'Telegram', ro: 'Telegram', kk: 'Telegram' },
   'nav.finances': { ru: 'Финансы', en: 'Finances', es: 'Finanzas', uk: 'Фінанси', ro: 'Finanțe', kk: 'Қаржы' },
   'nav.journal': { ru: 'Журнал', en: 'Log', es: 'Registro', uk: 'Журнал', ro: 'Jurnal', kk: 'Журнал' },
