@@ -8,7 +8,9 @@ export const navDict = {
   'nav.loads': { ru: 'Грузы', en: 'Loads', es: 'Cargas', uk: 'Вантажі', ro: 'Curse', kk: 'Жүктер' },
   'nav.trucks': { ru: 'Траки', en: 'Trucks', es: 'Camiones', uk: 'Траки', ro: 'Camioane', kk: 'Тракттар' },
   'nav.tracking': { ru: 'Трекинг', en: 'Track', es: 'Rastreo', uk: 'Трекінг', ro: 'Urmărire', kk: 'Бақылау' },
-  'nav.docs': { ru: 'Файлы', en: 'Docs', es: 'Archivos', uk: 'Файли', ro: 'Fișiere', kk: 'Файлдар' },
+  // Бумаги и деньги слиты в один раздел 19.09.2026 — одно слово и на меню, и на
+  // заголовок страницы.
+  'nav.docs': { ru: 'Документы', en: 'Documents', es: 'Documentos', uk: 'Документи', ro: 'Documente', kk: 'Құжаттар' },
   // Раздел перестал быть только справочником: с 18.09.2026 сверху «Куда отправить
   // трак». Одно слово — правило владельца (19.09.2026): у пункта меню одно нужное
   // понятное слово, остальное объясняет подпись под заголовком раздела.
@@ -18,7 +20,6 @@ export const navDict = {
   // втрое короче. Полное название осталось заголовком самого раздела.
   'nav.tolls': { ru: 'Толлы', en: 'Tolls', es: 'Peajes', uk: 'Толи', ro: 'Taxe', kk: 'Жолақы' },
   'nav.telegram': { ru: 'Telegram', en: 'Telegram', es: 'Telegram', uk: 'Telegram', ro: 'Telegram', kk: 'Telegram' },
-  'nav.finances': { ru: 'Финансы', en: 'Finances', es: 'Finanzas', uk: 'Фінанси', ro: 'Finanțe', kk: 'Қаржы' },
   'nav.journal': { ru: 'Журнал', en: 'Log', es: 'Registro', uk: 'Журнал', ro: 'Jurnal', kk: 'Журнал' },
   'nav.soon': { ru: 'скоро', en: 'soon', es: 'pronto', uk: 'скоро', ro: 'în curând', kk: 'жақында' },
   'nav.collapse': { ru: 'Свернуть меню', en: 'Collapse menu', es: 'Contraer menú', uk: 'Згорнути меню', ro: 'Restrânge meniul', kk: 'Мәзірді жию' },
@@ -61,7 +62,6 @@ export const navDict = {
   'userPanel.tileNewLoad': { ru: '+ Груз', en: '+ Load', es: '+ Carga', uk: '+ Вантаж', ro: '+ Cursă', kk: '+ Жүк' },
   'userPanel.tileNewTruck': { ru: '+ Трак', en: '+ Truck', es: '+ Camión', uk: '+ Трак', ro: '+ Camion', kk: '+ Тракт' },
   'userPanel.tileBrokers': { ru: 'Брокеры', en: 'Brokers', es: 'Brókers', uk: 'Брокери', ro: 'Brokeri', kk: 'Брокерлер' },
-  'userPanel.tileFinances': { ru: 'Финансы', en: 'Finance', es: 'Finanzas', uk: 'Фінанси', ro: 'Finanțe', kk: 'Қаржы' },
   'userPanel.tileTelegram': { ru: 'Телеграм', en: 'Telegram', es: 'Telegram', uk: 'Telegram', ro: 'Telegram', kk: 'Telegram' },
   'userPanel.tileRefresh': { ru: 'Обновить', en: 'Refresh', es: 'Actualizar', uk: 'Оновити', ro: 'Reîmprospătează', kk: 'Жаңарту' },
   'userPanel.admin': { ru: '🛡 Админ', en: '🛡 Admin', es: 'Administración', uk: 'Адміністрування', ro: 'Administrare', kk: 'Әкімшілік' },

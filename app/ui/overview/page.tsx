@@ -276,14 +276,14 @@ export default async function Page() {
           }
         >
           <p className="text-base text-t1">
-            <Link href="/invoices?tab=unpaid" className="nums text-2xl font-bold hover:underline">
+            <Link href="/docs?tab=unpaid" className="nums text-2xl font-bold hover:underline">
               {usd.format(unpaidTotal)}
             </Link>
             {overdueTotal > 0 && (
               <span className="text-bad-400">
                 {' '}
                 — {tr(locale, 'overview.ofWhichOverdue')}{' '}
-                <Link href="/invoices?tab=unpaid" className="nums font-semibold hover:underline">
+                <Link href="/docs?tab=unpaid" className="nums font-semibold hover:underline">
                   {usd.format(overdueTotal)}
                 </Link>{' '}
                 ({overdue.length})

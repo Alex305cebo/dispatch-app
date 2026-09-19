@@ -1,15 +1,23 @@
 'use client'
 
-// «Оплата · факторинг» — рабочее место бухгалтера: путь денег за каждый груз.
-// Данные собирает сервер (app/invoices/page.tsx), правила этапов — lib/payments.ts,
-// запись — app/invoices/payment-actions.ts.
+// Грузы раздела «Документы»: одна строка на груз, в ней и бумаги, и деньги.
+//
+// Раньше это была страница «Оплата · факторинг» раздела «Финансы», а бумаги того же
+// груза лежали в «Файлах» — человек читал «не хватает POD» в одном разделе и шёл
+// искать файл в другой. Теперь плитки бумаг стоят в той же строке (components/
+// load-papers.tsx) и грузятся на месте, а путь денег идёт под ними.
+//
+// Без права «Финансы» строка та же, только без сумм и денежных действий: грузы
+// сгруппированы по тому, все ли бумаги собраны.
+// Данные собирает сервер (app/docs/page.tsx), правила этапов — lib/payments.ts,
+// запись — app/docs/payment-actions.ts.
 
 import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { Download } from 'lucide-react'
 import { Collapse } from '@/components/collapse'
 import { DocLink } from '@/components/doc-link'
-import { RateConButton } from '@/components/ratecon-button'
+import { LoadPapers, missingPapers, papersComplete, type LoadPaper } from '@/components/load-papers'
 import { useLocale } from '@/components/locale-provider'
 import { notify } from '@/lib/notify'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
@@ -52,10 +60,8 @@ export type PayRow = {
   paidAt: string | null
   group: PayGroup
   payment: LoadPayment | null
-  rcId: number | null
-  hasPod: boolean
-  hasBol: boolean
-  invoiceDocId: number | null
+  /** Все бумаги этого груза: и обязательные четыре, и лишние (пломба, фото). */
+  papers: LoadPaper[]
   invoiceNumber: string | null
   feeDefault: number
 }
@@ -87,6 +93,9 @@ const GROUP_TONE: Record<PayGroup, 'plain' | 'good' | 'warn' | 'bad'> = {
   inWork: 'plain',
   done: 'plain',
 }
+/** Короткие имена бумаг для строки «не хватает» — они одинаковы на всех языках. */
+const SHORT_KIND: Partial<Record<string, string>> = { ratecon: 'RC', bol: 'BOL', pod: 'POD' }
+
 const OPEN: PayGroup[] = ['problems', 'toSubmit', 'awaitingFunding', 'atRisk']
 const BATCH: PayGroup[] = ['toSubmit', 'awaitingFunding', 'funded', 'atRisk']
 
@@ -100,17 +109,21 @@ const primary =
 const fill = (s: string, vars: Record<string, string | number>) =>
   Object.entries(vars).reduce((acc, [k, v]) => acc.replace(`{${k}}`, String(v)), s)
 
-export function PaymentsBoard({
+export function LoadsBoard({
   rows,
   settings,
   today,
   initialQuery = '',
+  money = true,
 }: {
   rows: PayRow[]
   settings: FactoringSettings
   today: string
   /** Пришли по ссылке с груза (lib/payments.ts financesHref) — сразу найден и раскрыт. */
   initialQuery?: string
+  /** Есть право «Финансы»: суммы, этапы факторинга и действия с деньгами. Без него
+   * остаются те же грузы и их бумаги, разложенные по тому, всё ли собрано. */
+  money?: boolean
 }) {
   const locale = useLocale()
   const [pending, start] = useTransition()
@@ -135,6 +148,45 @@ export function PaymentsBoard({
   })
   const byGroup = new Map<PayGroup, PayRow[]>()
   for (const r of shown) byGroup.set(r.group, [...(byGroup.get(r.group) ?? []), r])
+
+  // Группы списка. С правом «Финансы» — этапы денег, как и было. Без него делить по
+  // этапам факторинга нечего, и груз важен другим: собраны бумаги или нет.
+  type Section = { key: string; title: string; tone: 'plain' | 'good' | 'warn' | 'bad'; group: PayGroup; rows: PayRow[]; defaultOpen: boolean }
+  const sections: Section[] = money
+    ? PAY_GROUPS.map((g) => ({
+        key: g,
+        title: fill(t(locale, GROUP_KEY[g]), { factor }),
+        tone: GROUP_TONE[g],
+        group: g,
+        rows: byGroup.get(g) ?? [],
+        defaultOpen: OPEN.includes(g) || !!initialQuery,
+      }))
+    : [
+        {
+          key: 'missing',
+          title: t(locale, 'papers.group.missing'),
+          tone: 'warn' as const,
+          group: 'toSubmit' as PayGroup,
+          rows: shown.filter((r) => r.group !== 'inWork' && !papersComplete(r.papers)),
+          defaultOpen: true,
+        },
+        {
+          key: 'inWork',
+          title: t(locale, 'papers.group.inWork'),
+          tone: 'plain' as const,
+          group: 'inWork' as PayGroup,
+          rows: shown.filter((r) => r.group === 'inWork'),
+          defaultOpen: true,
+        },
+        {
+          key: 'ready',
+          title: t(locale, 'papers.group.ready'),
+          tone: 'good' as const,
+          group: 'done' as PayGroup,
+          rows: shown.filter((r) => r.group !== 'inWork' && papersComplete(r.papers)),
+          defaultOpen: !!initialQuery,
+        },
+      ]
 
   const selRows = rows.filter((r) => selected.has(r.id))
   const selGroups = new Set(selRows.map((r) => (r.group === 'atRisk' ? 'funded' : r.group)))
@@ -183,6 +235,7 @@ export function PaymentsBoard({
   return (
     <div className="flex flex-col gap-3">
       {/* Факторинг и его условия — одна строка, правится на месте. */}
+      {money && (
       <div className="panel flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5 text-[12.5px] text-t2">
         {!editSettings ? (
           <>
@@ -207,13 +260,14 @@ export function PaymentsBoard({
           />
         )}
       </div>
+      )}
 
       {/* Поиск и фильтры — для всех групп сразу; CSV выгружает то, что видно. */}
       <div className="flex flex-wrap items-center gap-2">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={t(locale, 'payments.filter.search')}
+          placeholder={t(locale, money ? 'payments.filter.search' : 'papers.filter.search')}
           className={`${input} min-w-0 flex-1 sm:max-w-xs`}
         />
         <select value={broker} onChange={(e) => setBroker(e.target.value)} className={`${input} w-auto`}>
@@ -232,14 +286,16 @@ export function PaymentsBoard({
             </option>
           ))}
         </select>
-        <button type="button" onClick={exportCsv} className={`${btn} ml-auto gap-1.5`}>
-          <Download size={13} strokeWidth={2.5} />
-          CSV
-        </button>
+        {money && (
+          <button type="button" onClick={exportCsv} className={`${btn} ml-auto gap-1.5`}>
+            <Download size={13} strokeWidth={2.5} />
+            CSV
+          </button>
+        )}
       </div>
 
       {/* Выбранные грузы — одним действием: брокер или факторинг проводит их пакетом. */}
-      {selRows.length > 0 && (
+      {money && selRows.length > 0 && (
         <div className="sticky top-2 z-10 rounded-xl border border-haul-500/40 bg-ink-900/95 px-3.5 py-2.5 shadow-lg backdrop-blur">
           <div className="flex flex-wrap items-center gap-2 text-[13px]">
             <span className="font-semibold">
@@ -290,23 +346,24 @@ export function PaymentsBoard({
         </p>
       )}
 
-      {PAY_GROUPS.map((g) => {
-        const list = byGroup.get(g) ?? []
+      {sections.map((sec) => {
+        const list = sec.rows
         if (!list.length) return null
+        const g = sec.group
         return (
           <Collapse
-            key={g}
-            title={fill(t(locale, GROUP_KEY[g]), { factor })}
+            key={sec.key}
+            title={sec.title}
             count={list.length}
-            amount={usd.format(list.reduce((s, r) => s + r.rate, 0))}
-            tone={GROUP_TONE[g]}
-            defaultOpen={OPEN.includes(g) || !!initialQuery}
+            amount={money ? usd.format(list.reduce((s, r) => s + r.rate, 0)) : undefined}
+            tone={sec.tone}
+            defaultOpen={sec.defaultOpen}
           >
             <div className="flex flex-col gap-2">
               {list.map((r) => (
                 <div key={r.id} id={`pay-${r.id}`} className="panel scroll-mt-20 p-3.5">
                   <div className="flex items-start gap-3">
-                    {BATCH.includes(g) && (
+                    {money && BATCH.includes(g) && (
                       <input
                         type="checkbox"
                         aria-label={r.route}
@@ -322,15 +379,20 @@ export function PaymentsBoard({
                         <span>{r.truck}</span>
                         {r.broker && <span>· {r.broker}</span>}
                       </div>
-                      <StageLine row={r} group={g} settings={settings} today={today} locale={locale} />
+                      {money && <StageLine row={r} group={g} settings={settings} today={today} locale={locale} />}
                     </Link>
-                    <span className="nums shrink-0 text-[15px] font-bold">{usd.format(r.rate)}</span>
-                    {r.rcId && <RateConButton docId={r.rcId} compact />}
+                    {money && <span className="nums shrink-0 text-[15px] font-bold">{usd.format(r.rate)}</span>}
                   </div>
-                  <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-2.5">
-                    <RowActions row={r} group={g} factor={factor} locale={locale} pending={pending} setForm={setForm} run={run} />
+                  {/* Бумаги груза — в той же строке: открыть или догрузить на месте. */}
+                  <div className="mt-2">
+                    <LoadPapers loadId={r.id} papers={r.papers} urgent={g !== 'inWork'} />
                   </div>
-                  {form && (('id' in form && form.id === r.id) || ('ids' in form && form.ids.length === 1 && form.ids[0] === r.id)) && (
+                  {money && (
+                    <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-2.5">
+                      <RowActions row={r} group={g} factor={factor} locale={locale} pending={pending} setForm={setForm} run={run} />
+                    </div>
+                  )}
+                  {money && form && (('id' in form && form.id === r.id) || ('ids' in form && form.ids.length === 1 && form.ids[0] === r.id)) && (
                     <ActionForm
                       key={JSON.stringify(form)}
                       form={form}
@@ -377,7 +439,7 @@ function StageLine({
       const d = daysBetween(r.deliveryDate, today)
       if (d > 0) parts.push({ text: fill(t(locale, 'payments.daysAgo'), { n: d }), tone: d > 3 ? 'warn' : undefined })
     }
-    const missing = [!r.rcId ? 'RC' : null, !r.hasBol ? 'BOL' : null, !r.hasPod ? 'POD' : null].filter(Boolean)
+    const missing = missingPapers(r.papers).map((k) => SHORT_KIND[k] ?? k)
     if (missing.length) parts.push({ text: fill(t(locale, 'payments.docsMissing'), { docs: missing.join(' / ') }), tone: 'bad' })
   } else if (p?.stage === 'submitted' && p.submittedOn) {
     const d = daysBetween(p.submittedOn, today)
@@ -466,8 +528,9 @@ function RowActions({
       {t(locale, 'payments.act.note')}
     </button>
   )
-  const packet = r.invoiceDocId ? (
-    <DocLink docId={r.invoiceDocId} className={btn}>
+  const invoiceDoc = r.papers.find((p) => p.kind === 'invoice') ?? null
+  const packet = invoiceDoc ? (
+    <DocLink docId={invoiceDoc.id} className={btn}>
       {t(locale, 'payments.act.packet')}
     </DocLink>
   ) : (

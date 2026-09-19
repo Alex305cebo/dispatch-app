@@ -53,7 +53,7 @@ async function loadsOf(companyId: string, list: number[]): Promise<LoadLite[]> {
 }
 
 function refresh(loadIds: number[]) {
-  revalidatePath('/invoices')
+  revalidatePath('/docs')
   revalidatePath('/loads')
   revalidatePath('/brokers')
   revalidatePath('/', 'layout')
@@ -257,6 +257,6 @@ export async function saveFactoringSettings(input: FactoringSettings): Promise<F
   const days = Math.round(Number(input.recourseDays))
   if (!name || !Number.isFinite(days) || days < 15 || days > 365) return err('payments.err.badSettings')
   await setSetting(FACTORING_KEY, JSON.stringify({ name, recourse: !!input.recourse, recourseDays: days }))
-  revalidatePath('/invoices')
+  revalidatePath('/docs')
   return { ok: true, count: 1 }
 }
