@@ -51,10 +51,10 @@ export function TollGuide() {
         {TOLL_HOTSPOTS.map((h) => (
           <div key={h.name} className="rounded-xl border border-white/8 bg-ink-950/50 p-3">
             <div className="flex items-baseline justify-between gap-2">
-              <span className="min-w-0 text-[13px] font-semibold leading-4 text-t1">{h.name}</span>
-              <span className="nums shrink-0 text-[13px] font-bold text-warn-400">{h.amount}</span>
+              <span className="min-w-0 text-base font-semibold leading-4 text-t1">{h.name}</span>
+              <span className="nums shrink-0 text-base font-bold text-warn-400">{h.amount}</span>
             </div>
-            <p className="mt-1 text-[11.5px] leading-relaxed text-t3">{locale === 'en' ? h.en : h.ru}</p>
+            <p className="mt-1 text-xs leading-relaxed text-t3">{locale === 'en' ? h.en : h.ru}</p>
           </div>
         ))}
       </div>
@@ -64,7 +64,7 @@ export function TollGuide() {
 
       {/* ── Таблица по штатам ───────────────────────────────────────────────── */}
       <details className="mt-3 rounded-xl border border-white/8 bg-ink-950/40 p-3">
-        <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium text-t2">
+        <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-t2">
           <span className="text-t3">▸</span>
           {t(locale, 'tolls.guide.states').replace('{n}', String(TOLL_STATES.length))}
         </summary>
@@ -73,32 +73,32 @@ export function TollGuide() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={t(locale, 'tolls.guide.search')}
-          className="mt-2 w-full rounded-lg border border-white/10 bg-ink-950/70 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500"
+          className="mt-2 w-full rounded-lg border border-white/10 bg-ink-950/70 px-2.5 py-1.5 text-base text-white outline-none focus:border-haul-500"
         />
 
         <ul className="mt-2 flex flex-col gap-1.5">
           {states.map((s) => (
             <li key={s.code} className="rounded-lg border border-white/6 px-2.5 py-2">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="nums rounded bg-white/10 px-1.5 py-0.5 text-[11px] font-bold text-t2">
+                <span className="nums rounded bg-white/10 px-1.5 py-0.5 text-xs font-bold text-t2">
                   {s.code}
                 </span>
-                <span className="text-[13px] font-medium text-t1">{locale === 'en' ? s.en : s.ru}</span>
-                <span className="text-[11.5px] text-t3">{s.agency}</span>
+                <span className="text-base font-medium text-t1">{locale === 'en' ? s.en : s.ru}</span>
+                <span className="text-xs text-t3">{s.agency}</span>
                 {s.tag && (
-                  <span className="ml-auto shrink-0 rounded-full bg-haul-500/15 px-2 py-0.5 text-[10.5px] font-medium text-haul-300">
+                  <span className="ml-auto shrink-0 rounded-full bg-haul-500/15 px-2 py-0.5 text-2xs font-medium text-haul-300">
                     {s.tag}
                   </span>
                 )}
                 {/* Сеть важнее самого тега: с одним E-ZPass закрывается всё
                     восточное побережье, а в Техасе он не работает вовсе. */}
                 {s.networks.map((n) => (
-                  <span key={n} className="shrink-0 rounded-full bg-white/6 px-1.5 py-0.5 text-[10px] text-t3">
+                  <span key={n} className="shrink-0 rounded-full bg-white/6 px-1.5 py-0.5 text-2xs text-t3">
                     {NET_LABEL[n]}
                   </span>
                 ))}
               </div>
-              <p className="mt-1 text-[11.5px] leading-relaxed text-t3">
+              <p className="mt-1 text-xs leading-relaxed text-t3">
                 {locale === 'en' ? s.noteEn : s.note}
               </p>
             </li>
@@ -108,19 +108,19 @@ export function TollGuide() {
 
       {/* ── Транспондеры и штрафы ───────────────────────────────────────────── */}
       <details className="mt-2 rounded-xl border border-white/8 bg-ink-950/40 p-3">
-        <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium text-t2">
+        <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-t2">
           <span className="text-t3">▸</span>
           {t(locale, 'tolls.guide.programs')}
         </summary>
         <ul className="mt-2 flex flex-col gap-2">
           {TOLL_PROGRAMS.map((p) => (
             <li key={p.name} className="rounded-lg border border-white/6 px-2.5 py-2">
-              <div className="text-[13px] font-medium text-t1">{p.name}</div>
-              <p className="mt-0.5 text-[11.5px] leading-relaxed text-t3">{locale === 'en' ? p.en : p.ru}</p>
+              <div className="text-base font-medium text-t1">{p.name}</div>
+              <p className="mt-0.5 text-xs leading-relaxed text-t3">{locale === 'en' ? p.en : p.ru}</p>
             </li>
           ))}
         </ul>
-        <p className="mt-2 rounded-lg bg-bad-500/10 px-2.5 py-2 text-[11.5px] leading-relaxed text-bad-400">
+        <p className="mt-2 rounded-lg bg-bad-500/10 px-2.5 py-2 text-xs leading-relaxed text-bad-400">
           {t(locale, 'tolls.guide.violation').replace('{cap}', String(VIOLATION_FEE_CAP))}
         </p>
       </details>
@@ -141,11 +141,11 @@ function NycZone() {
 
   const cost = nycZoneCost(entries, kind, night)
   const box =
-    'rounded-lg border border-white/10 bg-ink-950/70 px-2 py-1.5 text-[12.5px] text-white outline-none focus:border-haul-500'
+    'rounded-lg border border-white/10 bg-ink-950/70 px-2 py-1.5 text-sm text-white outline-none focus:border-haul-500'
 
   return (
     <div className="mt-3 rounded-xl border border-white/8 bg-ink-950/50 p-3">
-      <div className="flex items-center gap-1.5 text-[12px] font-medium text-t2">
+      <div className="flex items-center gap-1.5 text-sm font-medium text-t2">
         {t(locale, 'tolls.nyc.title')}
         <Info text={t(locale, 'tolls.nyc.info')} />
       </div>
@@ -173,7 +173,7 @@ function NycZone() {
             <option value="small">{t(locale, 'tolls.nyc.small')}</option>
           </select>
         </label>
-        <label className="flex cursor-pointer items-center gap-1.5 pb-1.5 text-[12px] text-t2">
+        <label className="flex cursor-pointer items-center gap-1.5 pb-1.5 text-sm text-t2">
           <input type="checkbox" checked={night} onChange={(e) => setNight(e.target.checked)} className="accent-haul-500" />
           {t(locale, 'tolls.nyc.night')
             .replace('{from}', String(NYC_ZONE.nightFrom))

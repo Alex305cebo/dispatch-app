@@ -51,7 +51,7 @@ export function DeleteButton({
   }
 
   const field =
-    'w-full rounded-xl border border-white/10 bg-ink-950/70 px-3 py-2 text-[14px] text-white outline-none focus:border-haul-500'
+    'w-full rounded-xl border border-white/10 bg-ink-950/70 px-3 py-2 text-md text-white outline-none focus:border-haul-500'
 
   return (
     <>
@@ -62,7 +62,7 @@ export function DeleteButton({
         className={
           label
             ? 'inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-2xs font-medium text-t3 transition-colors hover:bg-bad-500/10 hover:text-bad-400'
-            : 'shrink-0 text-[13px] text-t3 transition-colors hover:text-bad-400'
+            : 'shrink-0 text-base text-t3 transition-colors hover:text-bad-400'
         }
       >
         {label ?? '✕'}
@@ -76,8 +76,8 @@ export function DeleteButton({
             className="w-full max-w-sm rounded-2xl border border-white/10 bg-ink-900 p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-[15px] font-semibold">{t(locale, 'deleteButton.heading')}</h3>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-t2">
+            <h3 className="text-lg font-semibold">{t(locale, 'deleteButton.heading')}</h3>
+            <p className="mt-1 text-sm leading-relaxed text-t2">
               «{title}» {note ?? t(locale, 'deleteButton.defaultNote')} {t(locale, 'deleteButton.body')}
             </p>
             <div className="mt-4 flex flex-col gap-2">
@@ -95,7 +95,7 @@ export function DeleteButton({
                 className={`${field} nums tracking-[0.2em]`}
               />
             </div>
-            {err && <p className="mt-2 text-[12.5px] text-bad-400">{err}</p>}
+            {err && <p className="mt-2 text-sm text-bad-400">{err}</p>}
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setOpen(false)}>
                 {t(locale, 'common.cancel')}

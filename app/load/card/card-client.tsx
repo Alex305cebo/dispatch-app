@@ -56,7 +56,7 @@ type Geo = { from: LatLngish | null; to: LatLngish | null; miles: number | null;
 const H2 = 'mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1'
 const TILE = 'rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2'
 const TILE_LABEL = 'text-xs font-medium text-t2'
-const TILE_VALUE = 'nums text-[15px] font-semibold text-t1'
+const TILE_VALUE = 'nums text-lg font-semibold text-t1'
 
 /** Текст водителю — тот же формат, что шлёт бот: реф-номера внутри блока точки. */
 function driverText(l: QrLoad): string {
@@ -120,7 +120,7 @@ function CopyBlock({ text, label, locale }: { text: string; label: string; local
           {t(locale, 'loadCard.copy')}
         </Button>
       </div>
-      <pre className="overflow-x-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-black/25 p-3 font-mono text-[12px] leading-relaxed text-t1">
+      <pre className="overflow-x-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-black/25 p-3 font-mono text-sm leading-relaxed text-t1">
         {text}
       </pre>
     </div>
@@ -143,11 +143,11 @@ function MarketSide({ label, side, locale }: { label: string; side: CardMarketSi
       </div>
       <div className={TILE_VALUE}>{side.region ? `${usd2.format(side.region.rpm)}/mi` : '—'}</div>
       {side.ratio !== null && (
-        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-t2">
+        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-t2">
           <span className="nums">
             {t(locale, 'loadCard.loadsPerTruck').replace('{state}', side.state)}
           </span>
-          {heat && <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${heatTone(side.heat)}`}>{heat}</span>}
+          {heat && <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${heatTone(side.heat)}`}>{heat}</span>}
         </div>
       )}
     </div>
@@ -186,21 +186,21 @@ function StopCard({
           {t(locale, kind === 'pickup' ? 'loadCard.pickup' : 'loadCard.delivery')}
         </span>
         {nav && (
-          <a href={nav} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12px] text-haul-400 hover:underline">
+          <a href={nav} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-haul-400 hover:underline">
             <Navigation size={12} strokeWidth={2.4} />
             {t(locale, 'loadCard.navigate')}
           </a>
         )}
       </div>
       {time && (
-        <div className="nums mt-2 flex items-center gap-1.5 text-[13px] font-semibold text-t1">
+        <div className="nums mt-2 flex items-center gap-1.5 text-base font-semibold text-t1">
           <Clock size={13} strokeWidth={2.2} className="text-t3" />
           {time}
         </div>
       )}
-      {name && <div className="mt-2 text-[14px] font-semibold leading-snug text-t1">{name}</div>}
-      {address && <div className="text-[13px] text-t2">{address}</div>}
-      {city && <div className="text-[13px] text-t2">{city}</div>}
+      {name && <div className="mt-2 text-md font-semibold leading-snug text-t1">{name}</div>}
+      {address && <div className="text-base text-t2">{address}</div>}
+      {city && <div className="text-base text-t2">{city}</div>}
       {refList.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {refList.map((r) => (
@@ -208,7 +208,7 @@ function StopCard({
               key={r}
               type="button"
               onClick={() => copy(r, locale)}
-              className="nums inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.05] px-2 py-1 text-[12px] font-semibold text-t1 hover:border-haul-500/40"
+              className="nums inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.05] px-2 py-1 text-sm font-semibold text-t1 hover:border-haul-500/40"
             >
               {r}
               <Copy size={11} strokeWidth={2.2} className="text-t3" />
@@ -362,8 +362,8 @@ export function CardClient() {
   if (!load.origin && !load.rate && !load.referenceId) {
     return (
       <div className="panel p-5">
-        <h2 className="text-[15px] font-semibold">{t(locale, 'loadQr.emptyTitle')}</h2>
-        <p className="mt-2 text-[13px] leading-relaxed text-t2">{t(locale, 'loadQr.emptyText')}</p>
+        <h2 className="text-lg font-semibold">{t(locale, 'loadQr.emptyTitle')}</h2>
+        <p className="mt-2 text-base leading-relaxed text-t2">{t(locale, 'loadQr.emptyText')}</p>
       </div>
     )
   }
@@ -436,7 +436,7 @@ export function CardClient() {
         <h2 className="mt-3 text-[22px] font-bold leading-tight tracking-tight sm:text-[26px]">
           {load.origin ?? '—'} <span className="text-t3">→</span> {load.destination ?? '—'}
         </h2>
-        <div className="nums mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-t2">
+        <div className="nums mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-base text-t2">
           {load.referenceId && <span>#{load.referenceId}</span>}
           {load.brokerName && <span>{load.brokerName}</span>}
           {load.brokerMc && <span>MC {load.brokerMc}</span>}
@@ -478,7 +478,7 @@ export function CardClient() {
         </div>
 
         {insights?.demo && (
-          <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[12px] leading-relaxed text-t2">
+          <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm leading-relaxed text-t2">
             {t(locale, 'loadCard.demoNote')}
           </p>
         )}
@@ -494,7 +494,7 @@ export function CardClient() {
           ) : load.rate ? (
             <div className="nums text-5xl font-bold tracking-tight text-white">{usd.format(load.rate)}</div>
           ) : (
-            <p className="text-[13px] text-t2">{t(locale, 'loadCard.noNumbers')}</p>
+            <p className="text-base text-t2">{t(locale, 'loadCard.noNumbers')}</p>
           )}
         </div>
       </section>
@@ -558,7 +558,7 @@ export function CardClient() {
                 {t(locale, 'fuel.heading')}
                 <span className="normal-case tracking-normal">· EIA {fuel.asOf}</span>
               </div>
-              <div className="nums mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px]">
+              <div className="nums mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-base">
                 {fuel.stops.map((st, i) => (
                   <span key={`${st.state}-${i}`} className="flex items-center gap-1.5">
                     {i > 0 && <span className="text-t3">→</span>}
@@ -578,7 +578,7 @@ export function CardClient() {
                 ))}
               </div>
               {fuel.tankSavings >= 20 && (
-                <div className="mt-1 text-[12px] text-t2">
+                <div className="mt-1 text-sm text-t2">
                   {t(locale, 'fuel.advice').replace('{state}', fuel.cheapest.state).replace('{save}', usd.format(Math.round(fuel.tankSavings)))}
                 </div>
               )}
@@ -595,7 +595,7 @@ export function CardClient() {
             <div className="grid gap-2">
               {fitLine && fit.tone ? (
                 <div
-                  className={`flex items-start gap-2 rounded-xl px-3 py-2.5 text-[13px] font-semibold leading-snug ${
+                  className={`flex items-start gap-2 rounded-xl px-3 py-2.5 text-base font-semibold leading-snug ${
                     fit.tone === 'good' ? 'bg-good-500/[0.12] text-good-400' : fit.tone === 'warn' ? 'bg-warn-400/[0.12] text-warn-400' : 'bg-bad-500/[0.12] text-bad-400'
                   }`}
                 >
@@ -609,7 +609,7 @@ export function CardClient() {
                   {fitLine}
                 </div>
               ) : (
-                <p className="text-[12px] leading-relaxed text-t3">{t(locale, 'loadCard.fitNoDates')}</p>
+                <p className="text-sm leading-relaxed text-t3">{t(locale, 'loadCard.fitNoDates')}</p>
               )}
               <div className={TILE}>
                 <div className={TILE_LABEL}>{t(locale, 'loadCard.driving')}</div>
@@ -638,7 +638,7 @@ export function CardClient() {
                 {!insights ? (
                   <div className="mt-1 h-4 w-32 animate-pulse rounded bg-white/8" />
                 ) : insights.weather.origin || insights.weather.dest ? (
-                  <div className="mt-0.5 grid gap-0.5 text-[13px] font-semibold text-warn-400">
+                  <div className="mt-0.5 grid gap-0.5 text-base font-semibold text-warn-400">
                     {insights.weather.origin && (
                       <span>
                         {load.origin}: {insights.weather.origin.event}
@@ -651,12 +651,12 @@ export function CardClient() {
                     )}
                   </div>
                 ) : (
-                  <div className="text-[13px] text-t2">{t(locale, 'loadCard.weatherClear')}</div>
+                  <div className="text-base text-t2">{t(locale, 'loadCard.weatherClear')}</div>
                 )}
               </div>
             </div>
           ) : (
-            <p className="text-[13px] text-t2">{t(locale, 'loadCard.noNumbers')}</p>
+            <p className="text-base text-t2">{t(locale, 'loadCard.noNumbers')}</p>
           )}
         </section>
       </div>
@@ -669,7 +669,7 @@ export function CardClient() {
             <Info text={t(locale, 'loadCard.marketInfo')} />
           </h2>
           {market && (
-            <span className="nums text-[12px] text-t3">
+            <span className="nums text-sm text-t3">
               {t(locale, 'loadCard.marketAsOf').replace(
                 '{when}',
                 new Date(market.at).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }),
@@ -688,7 +688,7 @@ export function CardClient() {
           <>
             {verdict && loadedRpm !== null && marketRpm !== null && (
               <div className="mt-3">
-                <div className={`flex flex-wrap items-center gap-2 text-[14px] font-semibold ${toneText(verdict.tone)}`}>
+                <div className={`flex flex-wrap items-center gap-2 text-md font-semibold ${toneText(verdict.tone)}`}>
                   <ToneIcon tone={verdict.tone} size={16} />
                   {/* «Ниже рынка на 12%» — без знака: направление уже в словах; было «на -12%». */}
                   {t(locale, verdict.tone === 'good' ? 'loadCard.marketAbove' : verdict.tone === 'bad' ? 'loadCard.marketBelow' : 'loadCard.marketIn').replace(
@@ -709,7 +709,7 @@ export function CardClient() {
                 </div>
               </div>
             )}
-            {market.stale && <p className="mt-2 text-[12px] text-warn-400">{t(locale, 'loadCard.marketStale')}</p>}
+            {market.stale && <p className="mt-2 text-sm text-warn-400">{t(locale, 'loadCard.marketStale')}</p>}
             <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {market.origin && <MarketSide label={t(locale, 'loadCard.regionPickup')} side={market.origin} locale={locale} />}
               {market.dest && <MarketSide label={t(locale, 'loadCard.regionDelivery')} side={market.dest} locale={locale} />}
@@ -725,7 +725,7 @@ export function CardClient() {
                 <div className={TILE}>
                   <div className={TILE_LABEL}>{t(locale, 'loadCard.dieselDat')}</div>
                   <div className={TILE_VALUE}>{usd2.format(market.fuel.price)}/gal</div>
-                  <div className="nums mt-1 text-[12px] text-t3">{market.fuel.when}</div>
+                  <div className="nums mt-1 text-sm text-t3">{market.fuel.when}</div>
                 </div>
               )}
             </div>
@@ -738,7 +738,7 @@ export function CardClient() {
         <h2 className={H2}>{t(locale, 'loadCard.stops')}</h2>
         <div className="grid items-stretch gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           <StopCard kind="pickup" name={load.pickupName} address={load.pickupAddress} city={load.origin} time={pickupWhen} refs={load.pickupRefs} locale={locale} />
-          <div className="nums flex items-center justify-center gap-2 text-[12px] text-t3 md:flex-col md:gap-1">
+          <div className="nums flex items-center justify-center gap-2 text-sm text-t3 md:flex-col md:gap-1">
             <ArrowRight size={16} className="rotate-90 md:rotate-0" />
             {miles > 0 && <span>{Math.round(miles).toLocaleString('en-US')} mi</span>}
             {fit && <span>{driveTime(fit.driveMin, locale)}</span>}
@@ -764,7 +764,7 @@ export function CardClient() {
         {!insights ? (
           <div className="h-24 animate-pulse rounded-xl bg-white/5" />
         ) : !insights.trucks.length ? (
-          <p className="text-[13px] text-t2">{t(locale, 'loadCard.noTrucks')}</p>
+          <p className="text-base text-t2">{t(locale, 'loadCard.noTrucks')}</p>
         ) : (
           <div className="grid gap-2">
             {insights.trucks.map((tr) => (
@@ -780,11 +780,11 @@ export function CardClient() {
                     <Truck size={15} strokeWidth={2.2} />
                   </span>
                   <div className="min-w-0">
-                    <div className="truncate text-[14px] font-semibold text-t1">{tr.label}</div>
-                    {tr.driverName && <div className="truncate text-[12px] text-t3">{tr.driverName}</div>}
+                    <div className="truncate text-md font-semibold text-t1">{tr.label}</div>
+                    {tr.driverName && <div className="truncate text-sm text-t3">{tr.driverName}</div>}
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 text-[12px]">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
                   <span
                     className={`rounded-md px-1.5 py-0.5 font-semibold ${
                       tr.unavailable ? 'bg-white/6 text-t2' : tr.free ? 'bg-good-500/15 text-good-400' : 'bg-warn-400/15 text-warn-400'
@@ -809,8 +809,8 @@ export function CardClient() {
         <h2 className={H2}>{t(locale, 'loadCard.brokerCheck')}</h2>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="min-w-0">
-            <div className="text-[15px] font-semibold text-t1">{load.brokerName ?? '—'}</div>
-            <div className="nums break-words text-[12px] text-t3">
+            <div className="text-lg font-semibold text-t1">{load.brokerName ?? '—'}</div>
+            <div className="nums break-words text-sm text-t3">
               {[load.brokerMc ? `MC ${load.brokerMc}` : null, load.brokerPhone, load.brokerEmail].filter(Boolean).join(' · ')}
             </div>
           </div>
@@ -824,7 +824,7 @@ export function CardClient() {
         </div>
         {insights?.brokerGrade && (
           <p
-            className={`mt-3 rounded-xl px-3 py-2 text-[13px] ${
+            className={`mt-3 rounded-xl px-3 py-2 text-base ${
               insights.brokerGrade.payGrade === 'slow' ? 'bg-warn-400/[0.1] text-warn-400' : 'bg-white/[0.04] text-t2'
             }`}
           >
@@ -838,11 +838,11 @@ export function CardClient() {
             )}
           </p>
         )}
-        <p className="mb-3 mt-3 text-[12px] leading-relaxed text-t3">{t(locale, 'loadCard.brokerCheckDisclaimer')}</p>
-        {!load.brokerMc && <p className="text-[13px] text-t2">{t(locale, 'loadCard.noMc')}</p>}
-        {brokerCheck?.state === 'loading' && <p className="animate-pulse text-[13px] text-haul-400">{t(locale, 'brokers.checking')}</p>}
-        {brokerCheck?.state === 'nokey' && <p className="text-[12px] leading-relaxed text-t3">{t(locale, 'brokerCheck.noKey')}</p>}
-        {brokerCheck?.state === 'error' && <p className="text-[13px] text-bad-400">{brokerCheck.message}</p>}
+        <p className="mb-3 mt-3 text-sm leading-relaxed text-t3">{t(locale, 'loadCard.brokerCheckDisclaimer')}</p>
+        {!load.brokerMc && <p className="text-base text-t2">{t(locale, 'loadCard.noMc')}</p>}
+        {brokerCheck?.state === 'loading' && <p className="animate-pulse text-base text-haul-400">{t(locale, 'brokers.checking')}</p>}
+        {brokerCheck?.state === 'nokey' && <p className="text-sm leading-relaxed text-t3">{t(locale, 'brokerCheck.noKey')}</p>}
+        {brokerCheck?.state === 'error' && <p className="text-base text-bad-400">{brokerCheck.message}</p>}
         {brokerCheck?.state === 'done' && <BrokerChecklist check={brokerCheck.data} collapsible />}
       </section>
 
@@ -853,7 +853,7 @@ export function CardClient() {
       {load.brokerNotes && (
         <section className="panel p-4 sm:p-5">
           <h2 className={H2}>{t(locale, 'brokerNotes.heading')}</h2>
-          <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-t1">{load.brokerNotes}</p>
+          <p className="whitespace-pre-wrap text-base leading-relaxed text-t1">{load.brokerNotes}</p>
         </section>
       )}
 
@@ -864,7 +864,7 @@ export function CardClient() {
       {!rc && (
         <section className="panel p-4 sm:p-5">
           <CopyBlock text={`${mail.subject}\n\n${mail.body}`} label={t(locale, 'loadCard.brokerEmail')} locale={locale} />
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-[13px]">
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-base">
             <a href={mailto} className="text-haul-400 hover:underline">
               {t(locale, 'loadCard.openInMail')} →
             </a>

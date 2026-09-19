@@ -24,12 +24,12 @@ export default async function LoginPage() {
     return (
       <main className="fixed inset-0 z-[100] flex items-center justify-center bg-ink-950 px-4">
         <div className="panel w-full max-w-md p-6">
-          <h1 className="text-[15px] font-semibold">
+          <h1 className="text-lg font-semibold">
             {t(locale, 'login.nodb_title')} · {t(other, 'login.nodb_title')}
           </h1>
-          <p className="mt-2 text-[13px] leading-relaxed text-t2">{t(locale, 'login.nodb_text')}</p>
-          <p className="mt-1.5 text-[12.5px] leading-relaxed text-t3">{t(other, 'login.nodb_text')}</p>
-          <code className="mt-3 block rounded-lg border border-white/8 bg-ink-900/80 px-3 py-2 text-[12.5px] text-t1">
+          <p className="mt-2 text-base leading-relaxed text-t2">{t(locale, 'login.nodb_text')}</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-t3">{t(other, 'login.nodb_text')}</p>
+          <code className="mt-3 block rounded-lg border border-white/8 bg-ink-900/80 px-3 py-2 text-sm text-t1">
             DATABASE_URL=mysql://…
           </code>
         </div>

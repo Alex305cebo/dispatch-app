@@ -36,9 +36,9 @@ export default async function AdminPage() {
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold tracking-tight">{t(locale, 'admin.title')}</h1>
-          <p className="text-[13px] text-t2">{t(locale, 'admin.subtitle')}</p>
+          <p className="text-base text-t2">{t(locale, 'admin.subtitle')}</p>
         </div>
-        <Link href="/logins" className="rounded-lg border border-white/10 px-3 py-1.5 text-[12.5px] font-medium text-t1 hover:border-white/25">
+        <Link href="/logins" className="rounded-lg border border-white/10 px-3 py-1.5 text-sm font-medium text-t1 hover:border-white/25">
           {t(locale, 'admin.journalHeading')} {t(locale, 'admin.journalOpen')}
         </Link>
       </div>
@@ -87,11 +87,11 @@ export default async function AdminPage() {
           <Info text={t(locale, 'admin.errorsInfo')} />
         </h2>
         {errors.length === 0 ? (
-          <p className="text-[13px] text-t3">{t(locale, 'admin.errorsNone')}</p>
+          <p className="text-base text-t3">{t(locale, 'admin.errorsNone')}</p>
         ) : (
           <ul className="flex flex-col gap-1.5">
             {errors.map((e) => (
-              <li key={e.id} className="rounded-lg border border-white/6 px-3 py-2 text-[12px]">
+              <li key={e.id} className="rounded-lg border border-white/6 px-3 py-2 text-sm">
                 <div className="flex flex-wrap items-baseline gap-x-2 text-t3">
                   <span className="nums">{e.at.slice(0, 16).replace('T', ' ')}</span>
                   <span className="font-medium text-t2">{e.path}</span>

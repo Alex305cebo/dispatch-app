@@ -122,7 +122,7 @@ export function DriverTimeline({
           <Info text={t(locale, 'driver.timeline.info')} />
         </h2>
         {last && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-ink-950/50 px-2.5 py-0.5 text-[12px] text-t1">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-ink-950/50 px-2.5 py-0.5 text-sm text-t1">
             <span className={`h-1.5 w-1.5 rounded-full ${DOT[last.kind].split(' ')[0]}`} />
             {t(locale, KEY[last.kind])}
             <span className="nums text-t3">· {clock(last.at)}</span>
@@ -136,7 +136,7 @@ export function DriverTimeline({
               setTimeOf(null)
               setAdding(false)
             }}
-            className={`ml-auto inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[12px] font-semibold transition-colors ${
+            className={`ml-auto inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-sm font-semibold transition-colors ${
               editing
                 ? 'border-haul-500/50 bg-haul-500/20 text-haul-200 hover:bg-haul-500/30'
                 : 'border-white/15 bg-white/[0.06] text-t1 hover:border-white/30 hover:bg-white/10 hover:text-white'
@@ -171,7 +171,7 @@ export function DriverTimeline({
               const at = stopOf(e)
               const isLast = i === events.length - 1
               return (
-                <li key={e.id} className="relative flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5 pl-5 text-[13px]">
+                <li key={e.id} className="relative flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5 pl-5 text-base">
                   <span className={`absolute -left-[5px] top-[0.95rem] h-[9px] w-[9px] rounded-full ${DOT[e.kind]}`} />
                   {timeOf === e.id ? (
                     <input
@@ -183,14 +183,14 @@ export function DriverTimeline({
                         setTimeOf(null)
                         if (v) run(() => setLoadEventTime(e.id, new Date(v).toISOString()))
                       }}
-                      className="nums rounded-md border border-haul-400/60 bg-ink-950/80 px-1.5 py-0.5 text-[12.5px] outline-none"
+                      className="nums rounded-md border border-haul-400/60 bg-ink-950/80 px-1.5 py-0.5 text-sm outline-none"
                     />
                   ) : (
                     <button
                       type="button"
                       disabled={!editing}
                       onClick={() => setTimeOf(e.id)}
-                      className={`nums w-[7.5rem] shrink-0 text-left text-[12px] text-t3 ${editing ? 'rounded-md underline decoration-dotted underline-offset-2 hover:text-haul-300' : 'cursor-default'}`}
+                      className={`nums w-[7.5rem] shrink-0 text-left text-sm text-t3 ${editing ? 'rounded-md underline decoration-dotted underline-offset-2 hover:text-haul-300' : 'cursor-default'}`}
                     >
                       {clock(e.at)}
                     </button>
@@ -206,14 +206,14 @@ export function DriverTimeline({
                     {e.note ? `: ${e.note}` : ''}
                   </span>
                   {at && (
-                    <span className="text-[12px] text-t3">
+                    <span className="text-sm text-t3">
                       · {stopTitle(at, stops, locale)}
                       {at.city ? ` (${at.city})` : ''}
                     </span>
                   )}
                   {dwell != null && dwell > 0 && (
                     <span
-                      className={`nums rounded-md px-1.5 py-0.5 text-[11.5px] ${dwell >= 120 ? 'bg-bad-500/15 text-bad-300' : 'bg-white/[0.06] text-t3'}`}
+                      className={`nums rounded-md px-1.5 py-0.5 text-xs ${dwell >= 120 ? 'bg-bad-500/15 text-bad-300' : 'bg-white/[0.06] text-t3'}`}
                     >
                       {Math.floor(dwell / 60)}h {dwell % 60}m
                     </span>
@@ -238,7 +238,7 @@ export function DriverTimeline({
 
         {editing && (
           <div className="mt-3 border-t border-white/8 pt-3">
-            <p className="text-[12px] leading-relaxed text-t3">{t(locale, 'driver.timeline.editHint')}</p>
+            <p className="text-sm leading-relaxed text-t3">{t(locale, 'driver.timeline.editHint')}</p>
             {adding ? (
               <AddForm
                 locale={locale}
@@ -253,7 +253,7 @@ export function DriverTimeline({
               <button
                 type="button"
                 onClick={() => setAdding(true)}
-                className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-[12.5px] font-medium text-t1 hover:border-white/35"
+                className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-sm font-medium text-t1 hover:border-white/35"
               >
                 <Plus size={13} strokeWidth={2.5} />
                 {t(locale, 'driver.timeline.add')}
@@ -304,7 +304,7 @@ function AddForm({
         <select
           value={seq}
           onChange={(e) => setSeq(Number(e.target.value))}
-          className="rounded-lg border border-white/15 bg-ink-950/70 px-2 py-1.5 text-[12.5px] outline-none"
+          className="rounded-lg border border-white/15 bg-ink-950/70 px-2 py-1.5 text-sm outline-none"
         >
           {stops.map((s) => (
             <option key={s.seq} value={s.seq}>
@@ -317,7 +317,7 @@ function AddForm({
       <select
         value={kind}
         onChange={(e) => setKind(e.target.value)}
-        className="rounded-lg border border-white/15 bg-ink-950/70 px-2 py-1.5 text-[12.5px] outline-none"
+        className="rounded-lg border border-white/15 bg-ink-950/70 px-2 py-1.5 text-sm outline-none"
       >
         {KINDS.filter(
           (k) =>
@@ -336,14 +336,14 @@ function AddForm({
         type="datetime-local"
         value={at}
         onChange={(e) => setAt(e.target.value)}
-        className="nums rounded-lg border border-white/15 bg-ink-950/70 px-2 py-1.5 text-[12.5px] outline-none"
+        className="nums rounded-lg border border-white/15 bg-ink-950/70 px-2 py-1.5 text-sm outline-none"
       />
       {kind === 'note' && (
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder={t(locale, 'driver.notePlaceholder')}
-          className="min-w-0 flex-1 basis-[10rem] rounded-lg border border-white/15 bg-ink-950/70 px-2 py-1.5 text-[12.5px] outline-none"
+          className="min-w-0 flex-1 basis-[10rem] rounded-lg border border-white/15 bg-ink-950/70 px-2 py-1.5 text-sm outline-none"
         />
       )}
       <button
@@ -357,14 +357,14 @@ function AddForm({
             chosen && kind !== 'note' ? chosen.seq : null,
           )
         }
-        className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12.5px] font-semibold text-white disabled:opacity-50"
+        className="rounded-lg bg-haul-500 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
       >
         {t(locale, 'driver.timeline.save')}
       </button>
       <button
         type="button"
         onClick={onCancel}
-        className="rounded-lg px-2 py-1.5 text-[12.5px] text-t3 hover:text-t1"
+        className="rounded-lg px-2 py-1.5 text-sm text-t3 hover:text-t1"
       >
         {t(locale, 'driver.timeline.cancel')}
       </button>

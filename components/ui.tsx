@@ -61,7 +61,7 @@ export function Field({
             missing ? 'border-amber-400/50 ring-2 ring-amber-400/20' : 'border-white/8',
             prefix ? 'pl-7' : 'pl-3',
             suffix ? 'pr-12' : 'pr-3',
-            big ? 'text-2xl font-semibold' : 'text-[15px]',
+            big ? 'text-2xl font-semibold' : 'text-lg',
           ].join(' ')}
         />
         {suffix && (
@@ -98,7 +98,7 @@ export function TextField({
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none transition-all duration-200 placeholder:text-t3 hover:border-white/15 focus:border-haul-500 focus:bg-ink-900 focus:ring-4 focus:ring-haul-500/15"
+        className="w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-lg text-white outline-none transition-all duration-200 placeholder:text-t3 hover:border-white/15 focus:border-haul-500 focus:bg-ink-900 focus:ring-4 focus:ring-haul-500/15"
       />
     </label>
   )
@@ -122,11 +122,11 @@ export function CostBar({
   return (
     <div className="py-1.5">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="flex items-center gap-1 text-[13px] text-t1">
+        <span className="flex items-center gap-1 text-base text-t1">
           {label}
           {hint && <Info text={hint} />}
         </span>
-        <span className="nums text-[13px] text-t1">−{usd.format(amount)}</span>
+        <span className="nums text-base text-t1">−{usd.format(amount)}</span>
       </div>
       <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/6">
         <motion.div

@@ -28,8 +28,8 @@ export function QrClient({ trucks, metaByTruck }: { trucks: TruckRecord[]; metaB
   if (empty) {
     return (
       <div className="panel p-5">
-        <h2 className="text-[15px] font-semibold">{t(locale, 'loadQr.emptyTitle')}</h2>
-        <p className="mt-2 text-[13px] leading-relaxed text-t2">{t(locale, 'loadQr.emptyText')}</p>
+        <h2 className="text-lg font-semibold">{t(locale, 'loadQr.emptyTitle')}</h2>
+        <p className="mt-2 text-base leading-relaxed text-t2">{t(locale, 'loadQr.emptyText')}</p>
       </div>
     )
   }
@@ -60,11 +60,11 @@ export function QrClient({ trucks, metaByTruck }: { trucks: TruckRecord[]; metaB
 
   return (
     <>
-      <p className="mb-4 rounded-xl border border-haul-500/25 bg-haul-500/8 px-4 py-2.5 text-[13px] text-haul-400">
+      <p className="mb-4 rounded-xl border border-haul-500/25 bg-haul-500/8 px-4 py-2.5 text-base text-haul-400">
         {t(locale, 'loadQr.bannerText')}
       </p>
       {facts.length > 0 && (
-        <p className="mb-2.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] text-t2">
+        <p className="mb-2.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-t2">
           {facts.map((f, k) => (
             <Fragment key={f}>
               {k > 0 && <span className="text-t3">·</span>}
@@ -78,8 +78,8 @@ export function QrClient({ trucks, metaByTruck }: { trucks: TruckRecord[]; metaB
           и штраф за опоздание. На сохранённом грузе для этого есть свой блок. */}
       {load.brokerNotes && (
         <div className="panel mb-4 px-4 py-3">
-          <h2 className="mb-1.5 text-[13px] font-semibold text-t1">{t(locale, 'brokerNotes.heading')}</h2>
-          <p className="text-[12.5px] leading-relaxed whitespace-pre-wrap text-t2">{load.brokerNotes}</p>
+          <h2 className="mb-1.5 text-base font-semibold text-t1">{t(locale, 'brokerNotes.heading')}</h2>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap text-t2">{load.brokerNotes}</p>
         </div>
       )}
       <LoadForm trucks={trucks} metaByTruck={metaByTruck} initial={load} source="qr" needsAttention={needsAttention} />

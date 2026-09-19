@@ -57,19 +57,19 @@ function DocChip({ label, docId, due }: { label: string; docId: number | null; d
     return (
       <DocLink
         docId={docId}
-        className="mt-1 rounded bg-good-400/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-good-400 ring-1 ring-good-400/30 transition-colors hover:bg-good-400/25"
+        className="mt-1 rounded bg-good-400/15 px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wide text-good-400 ring-1 ring-good-400/30 transition-colors hover:bg-good-400/25"
       >
         {label}
       </DocLink>
     )
   if (due)
     return (
-      <span className="mt-1 animate-pulse rounded bg-warn-400/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-warn-400 ring-1 ring-warn-400/60">
+      <span className="mt-1 animate-pulse rounded bg-warn-400/20 px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wide text-warn-400 ring-1 ring-warn-400/60">
         {label}
       </span>
     )
   return (
-    <span className="mt-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-t3">
+    <span className="mt-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide text-t3">
       {label}
     </span>
   )
@@ -111,7 +111,7 @@ function StopPod({ loadId, seq, docId, due }: { loadId: number; seq: number; doc
         disabled={pending}
         onClick={() => inputRef.current?.click()}
         title={t(locale, 'loadDetail.uploadDoc').replace('{label}', 'POD')}
-        className={`mt-1 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide transition-colors ${
+        className={`mt-1 rounded px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wide transition-colors ${
           due
             ? 'animate-pulse bg-warn-400/20 text-warn-400 ring-1 ring-warn-400/60 hover:bg-warn-400/30'
             : 'bg-white/[0.05] text-t3 hover:bg-white/10 hover:text-t2'
@@ -354,7 +354,7 @@ export function StatusPicker({
                         >
                           {st.label}
                         </span>
-                        {st.sub && <span className="w-full truncate text-center text-[9px] text-t3">{st.sub}</span>}
+                        {st.sub && <span className="w-full truncate text-center text-2xs text-t3">{st.sub}</span>}
                         {st.role === 'delivery' && (
                           <StopPod loadId={id} seq={st.seq} docId={st.podId ?? null} due={sd || atStop} />
                         )}
@@ -431,12 +431,12 @@ export function StatusPicker({
           была заблокирована, а подсказка обещала, что кружки нажимаются. */}
       {cancelled && (
         <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-warn-400/30 bg-warn-500/[0.06] px-3 py-2">
-          <p className="min-w-0 flex-1 text-[12.5px] text-t2">{t(locale, 'loadStatus.cancelledHint')}</p>
+          <p className="min-w-0 flex-1 text-sm text-t2">{t(locale, 'loadStatus.cancelledHint')}</p>
           <button
             type="button"
             disabled={pending}
             onClick={() => applyStatus('in_transit')}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-haul-500 px-3 py-1.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-haul-400 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-haul-500 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-haul-400 disabled:opacity-50"
           >
             <RotateCcw size={13} strokeWidth={2.5} />
             {t(locale, 'loadStatus.restore')}

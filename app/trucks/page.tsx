@@ -22,10 +22,9 @@ import { getLocale } from '@/lib/i18n-server'
 import { placeCity } from '@/lib/place'
 import { t, type Locale } from '@/lib/i18n'
 import { Info } from '@/components/info'
-import { TRUCKS_TILES } from '@/components/fleet-panel'
 import { gridLabels } from '@/lib/grid-labels'
 import { readLayout } from '@/lib/tiles'
-import { applyLayout } from '@/lib/tiles-core'
+import { applyLayout, TRUCKS_TILES } from '@/lib/tiles-core'
 
 export const dynamic = 'force-dynamic'
 
@@ -148,7 +147,7 @@ export default async function Page() {
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div className="min-w-0">
           <h1 className="text-xl font-bold tracking-tight">{t(locale, 'trucks.page.title')}</h1>
-          <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-t2">
+          <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-base text-t2">
             {/* Строка стояла отдельной панелью ПОД списком и повторяла плитки над
                 картой: «с грузом» и «свободно» там уже есть. Здесь осталось только
                 то, чего в плитках нет, — деньги парка за неделю и машины, которые

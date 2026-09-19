@@ -20,7 +20,7 @@ export const PRIORITY_TONE: Record<LoadPriority, string> = {
 export function PriorityChip({ priority, locale }: { priority: LoadPriority | null; locale: Parameters<typeof t>[0] }) {
   if (!priority) return null
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${PRIORITY_TONE[priority]}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ${PRIORITY_TONE[priority]}`}>
       <Flag size={11} strokeWidth={2.5} />
       {t(locale, PRIORITY_KEY[priority])}
     </span>
@@ -39,10 +39,10 @@ export function PriorityPicker({ loadId, value }: { loadId: number; value: LoadP
       const res = await setLoadPriority(loadId, p)
       if (res?.error) notify('error', res.error)
     })
-  const btn = 'min-h-8 rounded-full px-2.5 text-[12px] font-medium ring-1 transition-colors disabled:opacity-60 max-md:min-h-9'
+  const btn = 'min-h-8 rounded-full px-2.5 text-sm font-medium ring-1 transition-colors disabled:opacity-60 max-md:min-h-9'
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-[12px] text-t3">{t(locale, 'loads.priority.label')}</span>
+      <span className="text-sm text-t3">{t(locale, 'loads.priority.label')}</span>
       <button
         type="button"
         disabled={busy}

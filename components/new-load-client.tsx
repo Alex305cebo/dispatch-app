@@ -129,11 +129,11 @@ export function NewLoadClient({
 
   const badge =
     ai === 'loading' ? (
-      <span className="animate-pulse rounded-full bg-haul-500/15 px-2 py-0.5 text-[10px] font-medium text-haul-400">
+      <span className="animate-pulse rounded-full bg-haul-500/15 px-2 py-0.5 text-2xs font-medium text-haul-400">
         {t(locale, 'newLoad.aiReading')}
       </span>
     ) : ai === 'done' ? (
-      <span className="rounded-full bg-good-500/15 px-2 py-0.5 text-[10px] font-medium text-good-400">
+      <span className="rounded-full bg-good-500/15 px-2 py-0.5 text-2xs font-medium text-good-400">
         {t(locale, 'newLoad.aiRecognized')}
       </span>
     ) : null
@@ -165,18 +165,18 @@ export function NewLoadClient({
           {busy ? '⏳' : '📷'}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-[14px] font-semibold text-haul-200">
+          <div className="flex items-center gap-2 text-md font-semibold text-haul-200">
             {busy ? t(locale, 'newLoad.readingRateCon') : t(locale, 'newLoad.scanCta')}
             {badge}
           </div>
-          <div className="text-[12px] text-t2">{t(locale, 'newLoad.scanHint')}</div>
+          <div className="text-sm text-t2">{t(locale, 'newLoad.scanHint')}</div>
         </div>
         <Info text={t(locale, 'newLoad.scanInfo')} />
       </label>
 
       {error && (
         <div className="mb-3 flex items-center gap-3">
-          <p className="text-[13px] text-bad-400">{error}</p>
+          <p className="text-base text-bad-400">{error}</p>
           <Button variant="primary" size="sm" className="shrink-0" type="button"
             onClick={() => handle(lastFile)}>
             {t(locale, 'newLoad.retry')}
@@ -184,7 +184,7 @@ export function NewLoadClient({
         </div>
       )}
       {fields && (
-        <div className="mb-3 flex items-center gap-3 text-[12px] text-t2">
+        <div className="mb-3 flex items-center gap-3 text-sm text-t2">
           <span>{t(locale, 'newLoad.formFilled')}</span>
           <button onClick={reset} className="text-t3 hover:text-t1">
             {t(locale, 'newLoad.clearOtherFile')}

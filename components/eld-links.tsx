@@ -64,12 +64,12 @@ export function EldLinks({ count, eldOn = false }: { count: number; eldOn?: bool
           {t(locale, 'tracking.trackingHeader')}
         </span>
         {(eldOn || count > 0) && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-good-500/30 bg-good-500/10 px-2.5 py-0.5 text-[11.5px] font-medium text-good-400">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-good-500/30 bg-good-500/10 px-2.5 py-0.5 text-xs font-medium text-good-400">
             <span className="h-1.5 w-1.5 rounded-full bg-good-400" />
             {eldOn ? t(locale, 'tracking.eldConnected') : `${t(locale, 'tracking.connectedShort')} ${count}`}
           </span>
         )}
-        <span className="ml-auto flex items-center gap-1.5 text-[12px] text-t3">
+        <span className="ml-auto flex items-center gap-1.5 text-sm text-t3">
           {t(locale, open ? 'tracking.setupHide' : 'tracking.setupShow')}
           <ChevronDown size={15} strokeWidth={2.2} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
         </span>
@@ -77,13 +77,13 @@ export function EldLinks({ count, eldOn = false }: { count: number; eldOn?: bool
 
       {open && (
         <div className="mt-3 border-t border-white/[0.06] pt-3">
-          <p className="mb-2 text-[11px] leading-relaxed text-t3">{t(locale, 'tracking.setupInfo')}</p>
+          <p className="mb-2 text-xs leading-relaxed text-t3">{t(locale, 'tracking.setupInfo')}</p>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={3}
             placeholder={t(locale, 'tracking.setupPlaceholder')}
-            className="w-full rounded-lg border border-white/8 bg-ink-900/80 px-3 py-2 text-[12px] text-white outline-none focus:border-haul-500"
+            className="w-full rounded-lg border border-white/8 bg-ink-900/80 px-3 py-2 text-sm text-white outline-none focus:border-haul-500"
           />
           <div className="mt-2 flex items-center gap-2">
             <Button variant="primary" size="sm" disabled={pending || !text.trim()} onClick={save}>
@@ -93,7 +93,7 @@ export function EldLinks({ count, eldOn = false }: { count: number; eldOn?: bool
               <button
                 disabled={pending}
                 onClick={clear}
-                className="text-[11.5px] text-t3 transition-colors hover:text-bad-400 disabled:opacity-40"
+                className="text-xs text-t3 transition-colors hover:text-bad-400 disabled:opacity-40"
               >
                 {t(locale, 'tracking.disconnect')}
               </button>

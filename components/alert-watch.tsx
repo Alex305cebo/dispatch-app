@@ -107,10 +107,10 @@ export function AlertToggle() {
           new Notification(t(locale, 'alerts.title'), { body: t(locale, 'alerts.enabled') })
         }
       }}
-      className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-[13px] hover:bg-white/5"
+      className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-base hover:bg-white/5"
     >
       <span>🔔 {t(locale, 'alerts.toggle')}</span>
-      <span className={`text-[11px] ${perm === 'granted' ? 'text-good-400' : perm === 'denied' ? 'text-bad-400' : 'text-t3'}`}>
+      <span className={`text-xs ${perm === 'granted' ? 'text-good-400' : perm === 'denied' ? 'text-bad-400' : 'text-t3'}`}>
         {t(locale, perm === 'granted' ? 'alerts.on' : perm === 'denied' ? 'alerts.blocked' : 'alerts.off')}
       </span>
     </button>

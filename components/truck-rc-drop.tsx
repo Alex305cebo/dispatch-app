@@ -211,11 +211,11 @@ export function TruckRcDrop({
     return (
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-[13px] font-semibold text-good-400">{t(locale, 'rcDrop.createdBadge')}</span>
+          <span className="text-base font-semibold text-good-400">{t(locale, 'rcDrop.createdBadge')}</span>
           <div className="flex gap-2">
             <Link
               href={`/loads/${res.loadId}`}
-              className="rounded-lg bg-haul-500 px-3 py-1.5 text-[12px] font-semibold hover:bg-haul-400"
+              className="rounded-lg bg-haul-500 px-3 py-1.5 text-sm font-semibold hover:bg-haul-400"
             >
               {t(locale, 'rcDrop.openLoad')}
             </Link>
@@ -253,7 +253,7 @@ export function TruckRcDrop({
         {/* Пара файлов TQL: второй дополнил первый — говорим, что именно; одного не
             хватает — зовём загрузить второй прямо отсюда, груз при этом уже создан. */}
         {res.merged && (
-          <p className="rounded-lg bg-good-500/10 px-3 py-2 text-[12.5px] text-good-300">
+          <p className="rounded-lg bg-good-500/10 px-3 py-2 text-sm text-good-300">
             {t(locale, 'rcDrop.mergedBadge')}
             {res.filled && res.filled.length > 0 && (
               <>
@@ -268,7 +268,7 @@ export function TruckRcDrop({
             или груз передать. Считано по дороге от выгрузки текущего груза или от
             GPS трака (deadheadCheck в app/actions.ts). */}
         {res.deadhead?.warn && (
-          <div className="rounded-lg border border-warn-400/35 bg-warn-500/[0.08] px-3 py-2 text-[12.5px]">
+          <div className="rounded-lg border border-warn-400/35 bg-warn-500/[0.08] px-3 py-2 text-sm">
             <p className="font-semibold text-warn-300">
               {t(locale, 'rcDrop.deadheadWarn')
                 .replace('{mi}', res.deadhead.miles.toLocaleString('en-US'))
@@ -285,7 +285,7 @@ export function TruckRcDrop({
         {/* Трак уже везёт груз, а этот — новый (не второй файл того же): спросить,
             партиал ли это. Иначе он встанет «следующим», а не поедет вместе. */}
         {currentLoad && !res.merged && res.loadId !== currentLoad.id && (
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-haul-500/35 bg-haul-500/[0.08] px-3 py-2 text-[12.5px]">
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-haul-500/35 bg-haul-500/[0.08] px-3 py-2 text-sm">
             {partialMarked ? (
               <span className="text-good-300">{t(locale, 'rcDrop.partialMarked')}</span>
             ) : (
@@ -312,7 +312,7 @@ export function TruckRcDrop({
           </div>
         )}
         {res.missing && (
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-warn-400/30 bg-warn-500/[0.08] px-3 py-2 text-[12.5px]">
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-warn-400/30 bg-warn-500/[0.08] px-3 py-2 text-sm">
             <span className="text-warn-300">
               {t(locale, res.missing === 'rate' ? 'rcDrop.needRate' : 'rcDrop.needSheet')}
             </span>
@@ -336,17 +336,17 @@ export function TruckRcDrop({
             stored on the server with the load; this is a local copy. */}
         {res.docId && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[12px] text-t3">{t(locale, 'import.rateConLabel')}</span>
+            <span className="text-sm text-t3">{t(locale, 'import.rateConLabel')}</span>
             <DocLink
               docId={res.docId}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-t1 hover:bg-white/5"
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-sm font-semibold text-t1 hover:bg-white/5"
             >
               {t(locale, 'import.open')}
             </DocLink>
             <a
               href={`/api/docs/${res.docId}?download=1`}
               download={res.fileName || 'rate-con.pdf'}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-t1 hover:bg-white/5"
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-sm font-semibold text-t1 hover:bg-white/5"
             >
               {t(locale, 'docView.saveToComputer')}
             </a>
@@ -360,7 +360,7 @@ export function TruckRcDrop({
             </p>
             <ul className="flex flex-col gap-1.5">
               {res.warnings.map((w, i) => (
-                <li key={i} className={`rounded-lg px-3 py-2 text-[13px] ${WTONE[w.level]}`}>
+                <li key={i} className={`rounded-lg px-3 py-2 text-base ${WTONE[w.level]}`}>
                   {w.level === 'danger' ? '⛔ ' : w.level === 'warn' ? '⚠ ' : 'ℹ '}
                   {w.text}
                 </li>
@@ -391,7 +391,7 @@ export function TruckRcDrop({
               {t(locale, 'import.copy')}
             </Button>
           </div>
-          <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-ink-900/60 p-3 font-mono text-[12px] leading-relaxed text-t1">
+          <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-ink-900/60 p-3 font-mono text-sm leading-relaxed text-t1">
             {driverInfo}
           </pre>
         </div>
@@ -428,7 +428,7 @@ export function TruckRcDrop({
       />
       {busy ? (
         <>
-          <span className="flex items-center gap-2 text-[14px] font-medium">
+          <span className="flex items-center gap-2 text-md font-medium">
             <span className="inline-block size-3.5 animate-spin rounded-full border-2 border-white/25 border-t-haul-400" />
             {stage}
             <span className="nums text-t3">
@@ -436,7 +436,7 @@ export function TruckRcDrop({
               {t(locale, 'rcDrop.secondsSuffix')}
             </span>
           </span>
-          <span className="mt-1 text-[12px] font-medium text-warn-400">{t(locale, 'rcDrop.doNotClose')}</span>
+          <span className="mt-1 text-sm font-medium text-warn-400">{t(locale, 'rcDrop.doNotClose')}</span>
         </>
       ) : (
         <>
@@ -462,11 +462,11 @@ export function TruckRcDrop({
             </svg>
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[14px] font-semibold">{t(locale, 'rcDrop.title')}</span>
-            <span className="mt-0.5 block text-[12px] leading-snug text-t2">{t(locale, 'rcDrop.explain')}</span>
-            <span className="mt-0.5 hidden text-[11.5px] text-t3 sm:block">{t(locale, 'rcDrop.orDrop')}</span>
+            <span className="block text-md font-semibold">{t(locale, 'rcDrop.title')}</span>
+            <span className="mt-0.5 block text-sm leading-snug text-t2">{t(locale, 'rcDrop.explain')}</span>
+            <span className="mt-0.5 hidden text-xs text-t3 sm:block">{t(locale, 'rcDrop.orDrop')}</span>
           </span>
-          <span className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-haul-500 px-4 py-2.5 text-[14px] font-semibold text-white transition-transform hover:bg-haul-400 active:scale-[0.98] sm:w-auto">
+          <span className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-haul-500 px-4 py-2.5 text-md font-semibold text-white transition-transform hover:bg-haul-400 active:scale-[0.98] sm:w-auto">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -484,12 +484,12 @@ export function TruckRcDrop({
       )}
       {error && (
         <span className="mt-2 flex flex-col items-center gap-1.5">
-          <span className="text-[12px] text-bad-400">{error}</span>
+          <span className="text-sm text-bad-400">{error}</span>
           {elsewhere ? (
             <Link
               href={`/loads/${elsewhere}`}
               onClick={(e) => e.stopPropagation()}
-              className="text-[12px] font-semibold text-haul-300 hover:underline"
+              className="text-sm font-semibold text-haul-300 hover:underline"
             >
               {t(locale, 'rcDrop.openElsewhere')}
             </Link>

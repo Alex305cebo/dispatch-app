@@ -187,9 +187,9 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
             соседствовала с милями, телефон с пикапом, и глаз собирал ответ по всей
             карточке. Теперь деньги — к деньгам, брокер — к брокеру. Пустые поля
             рисуются прочерком: «в рейт-коне нет MC» видно, а не спрятано. */}
-        <div className="grid gap-3 text-[13px] sm:grid-cols-2">
+        <div className="grid gap-3 text-base sm:grid-cols-2">
           <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
-            <div className="mb-2 text-[13px] font-semibold text-t2">
+            <div className="mb-2 text-base font-semibold text-t2">
               {t(locale, 'loadEdit.groupMoney')}
             </div>
             <dl className="grid gap-y-2">
@@ -218,7 +218,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
           </div>
 
           <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
-            <div className="mb-2 text-[13px] font-semibold text-t2">
+            <div className="mb-2 text-base font-semibold text-t2">
               {t(locale, 'loadEdit.groupTrip')}
             </div>
             <dl className="grid gap-y-2">
@@ -230,7 +230,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
           </div>
 
           <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
-            <div className="mb-2 text-[13px] font-semibold text-t2">
+            <div className="mb-2 text-base font-semibold text-t2">
               {t(locale, 'loadEdit.groupBroker')}
             </div>
             <dl className="grid gap-y-2">
@@ -250,7 +250,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
           </div>
 
           <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
-            <div className="mb-2 text-[13px] font-semibold text-t2">
+            <div className="mb-2 text-base font-semibold text-t2">
               {t(locale, 'loadEdit.groupDates')}
               {stops.length > 2 && (
                 <span className="ml-1.5 normal-case text-t3">· {stopsLabel(stops, locale)}</span>
@@ -267,7 +267,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
                   <Row label={stopTitle(s, stops, locale)} value={s.time || usDate(s.date) || '—'} />
                   {s.address && <Addr text={s.address} name={s.name} city={s.city} />}
                   {s.directions && (
-                    <div className="rounded-lg border border-warn-400/35 bg-warn-500/10 px-2.5 py-1.5 text-[12.5px] leading-snug text-t1">
+                    <div className="rounded-lg border border-warn-400/35 bg-warn-500/10 px-2.5 py-1.5 text-sm leading-snug text-t1">
                       <span className="font-semibold text-warn-400">⚠ {t(locale, 'loadEdit.directions')}: </span>
                       {s.directions}
                     </div>
@@ -279,7 +279,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
         </div>
         <button
           onClick={() => setEditing(true)}
-          className="mt-3 rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-medium text-t2 transition-colors hover:border-white/25 hover:text-white"
+          className="mt-3 rounded-lg border border-white/10 px-3 py-1.5 text-sm font-medium text-t2 transition-colors hover:border-white/25 hover:text-white"
         >
           {t(locale, 'loadEdit.edit')}
         </button>
@@ -310,7 +310,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
 
       {hits.length > 0 && (
         <div className="rounded-xl border border-white/10 bg-ink-950/60 p-2">
-          <p className="px-1 pb-1 text-[11px] text-t3">{t(locale, 'loadEdit.pickCompany')}</p>
+          <p className="px-1 pb-1 text-xs text-t3">{t(locale, 'loadEdit.pickCompany')}</p>
           <div className="flex flex-col gap-1">
             {/* Выбирает человек: у крупного брокера в реестре десятки строк —
                 перевозчик, брокерская контора, дочерние фирмы, — и подставить
@@ -323,11 +323,11 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
                 onClick={() => pick(h.dot, h.legalName)}
                 className="rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/8 disabled:opacity-50"
               >
-                <span className="block truncate text-[12.5px] font-medium text-t1">
+                <span className="block truncate text-sm font-medium text-t1">
                   {h.legalName}
                   {h.dbaName ? ` (dba ${h.dbaName})` : ''}
                 </span>
-                <span className="block truncate text-[11px] text-t3">
+                <span className="block truncate text-xs text-t3">
                   DOT {h.dot}
                   {h.city ? ` · ${h.city}, ${h.state ?? ''}` : ''}
                   {h.active ? '' : ` · ${t(locale, 'loadEdit.notAllowed')}`}
@@ -353,13 +353,13 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
       </div>
       {st.length > 2 && (
         <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
-          <div className="mb-2 text-[13px] font-semibold text-t2">
+          <div className="mb-2 text-base font-semibold text-t2">
             {t(locale, 'loadEdit.groupDates')} · {stopsLabel(st, locale)}
           </div>
           <div className="flex flex-col gap-3">
             {st.map((s, i) => (
               <div key={s.seq} className="rounded-lg border border-white/8 p-2.5">
-                <div className="mb-1.5 text-[11px] font-semibold text-t2">{stopTitle(s, st, locale)}</div>
+                <div className="mb-1.5 text-xs font-semibold text-t2">{stopTitle(s, st, locale)}</div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Field
                     label={t(locale, 'loadEdit.stopName')}
@@ -401,7 +401,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
           </div>
         </div>
       )}
-      <label className="flex items-center gap-2 text-[13px] text-t1">
+      <label className="flex items-center gap-2 text-base text-t1">
         <input
           type="checkbox"
           checked={f.partial}
@@ -409,7 +409,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
           className="size-4 accent-[#7c6cff]"
         />
         {t(locale, 'loadEdit.partial')}
-        <span className="text-[12px] text-t3">· {t(locale, 'loadEdit.partialHint')}</span>
+        <span className="text-sm text-t3">· {t(locale, 'loadEdit.partialHint')}</span>
       </label>
       <div className="flex gap-2">
         <Button variant="primary" disabled={pending} onClick={save}>
@@ -417,7 +417,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
         </Button>
         <button
           onClick={() => setEditing(false)}
-          className="rounded-lg px-4 py-2 text-[13px] text-t2 transition-colors hover:text-white"
+          className="rounded-lg px-4 py-2 text-base text-t2 transition-colors hover:text-white"
         >
           {t(locale, 'loadEdit.cancel')}
         </button>
@@ -445,7 +445,7 @@ function Field({
   placeholder?: string
 }) {
   const input =
-    'w-full rounded-lg border border-white/10 bg-ink-950/70 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500'
+    'w-full rounded-lg border border-white/10 bg-ink-950/70 px-2.5 py-1.5 text-base text-white outline-none focus:border-haul-500'
   return (
     <label className="flex flex-col gap-1">
       <span className="text-xs text-t2 font-medium">{label}</span>
@@ -468,7 +468,7 @@ function Field({
 function Addr({ text, name, city }: { text: string; name?: string | null; city?: string | null }) {
   const q = [name, text, /[A-Za-z]{2,},\s*[A-Z]{2}\b/.test(text) ? null : city].filter(Boolean).join(', ')
   return (
-    <div className="-mt-1 border-b border-white/[0.06] pb-1.5 pl-3 text-[12px] leading-snug text-t3">
+    <div className="-mt-1 border-b border-white/[0.06] pb-1.5 pl-3 text-sm leading-snug text-t3">
       <a
         href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`}
         target="_blank"
@@ -506,7 +506,7 @@ function Row({
         ) : (
           value
         )}
-        {hint && <span className="ml-1.5 text-[11px] font-normal text-t3">{hint}</span>}
+        {hint && <span className="ml-1.5 text-xs font-normal text-t3">{hint}</span>}
       </dd>
     </div>
   )

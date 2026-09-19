@@ -20,7 +20,7 @@ const KIND_KEY: Record<ChargeKind, MsgKey> = {
 }
 
 const field =
-  'min-h-9 rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-[13px] text-white outline-none focus:border-haul-500/60 max-md:min-h-11'
+  'min-h-9 rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-base text-white outline-none focus:border-haul-500/60 max-md:min-h-11'
 
 /**
  * Доп. начисления груза: detention, lumper, TONU… — строки сверх ставки, которые уходят
@@ -54,14 +54,14 @@ export function LoadCharges({ loadId, rate, charges, stopsCount = 2 }: { loadId:
 
   return (
     <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-      <p className="flex items-center gap-1.5 text-[13px] font-semibold text-t1">
+      <p className="flex items-center gap-1.5 text-base font-semibold text-t1">
         {t(locale, 'loads.charges.heading')}
         <Info text={t(locale, 'loads.charges.info')} />
       </p>
       {charges.length ? (
         <ul className="mt-2 divide-y divide-white/[0.06]">
           {charges.map((c) => (
-            <li key={c.id} className="flex items-center gap-2 py-1.5 text-[13px]">
+            <li key={c.id} className="flex items-center gap-2 py-1.5 text-base">
               <span className="font-medium text-t1">{t(locale, KIND_KEY[c.kind])}</span>
               {c.note && <span className="min-w-0 flex-1 truncate text-t3">{c.note}</span>}
               <span className="nums ml-auto shrink-0 font-semibold">{(c.amount % 1 ? usd2 : usd).format(c.amount)}</span>
@@ -78,19 +78,19 @@ export function LoadCharges({ loadId, rate, charges, stopsCount = 2 }: { loadId:
           ))}
         </ul>
       ) : (
-        <p className="mt-1 text-[12px] text-t3">{t(locale, 'loads.charges.empty')}</p>
+        <p className="mt-1 text-sm text-t3">{t(locale, 'loads.charges.empty')}</p>
       )}
       {/* Больше двух остановок, а stop-off не начислен — подсказка, как в AscendTMS
           («у тебя лишняя остановка»). */}
       {stopsCount > 2 && !charges.some((c) => c.kind === 'stop_off') && (
-        <p className="mt-1.5 text-[12px] text-warn-400">{t(locale, 'loads.charges.stopOffHint').replace('{n}', String(stopsCount))}</p>
+        <p className="mt-1.5 text-sm text-warn-400">{t(locale, 'loads.charges.stopOffHint').replace('{n}', String(stopsCount))}</p>
       )}
       {/* Итог: ставка + начисления. Ставка груза не меняется — она из рейт-кона. */}
       {charges.length > 0 && (
-        <p className="mt-2 flex items-baseline justify-between border-t border-white/10 pt-2 text-[13px]">
+        <p className="mt-2 flex items-baseline justify-between border-t border-white/10 pt-2 text-base">
           <span className="text-t2">{t(locale, 'loads.charges.total')}</span>
           <span className="nums font-bold">
-            {usd.format(rate + total)} <span className="text-[11px] font-medium text-t3">= {usd.format(rate)} + {usd.format(total)}</span>
+            {usd.format(rate + total)} <span className="text-xs font-medium text-t3">= {usd.format(rate)} + {usd.format(total)}</span>
           </span>
         </p>
       )}
@@ -121,7 +121,7 @@ export function LoadCharges({ loadId, rate, charges, stopsCount = 2 }: { loadId:
           type="button"
           disabled={busy}
           onClick={add}
-          className="col-span-2 inline-flex min-h-9 items-center justify-center gap-1 rounded-lg border border-haul-500/40 px-3 text-[12.5px] font-semibold text-haul-300 transition-colors hover:bg-haul-500/10 disabled:opacity-50 sm:col-span-1 max-md:min-h-11"
+          className="col-span-2 inline-flex min-h-9 items-center justify-center gap-1 rounded-lg border border-haul-500/40 px-3 text-sm font-semibold text-haul-300 transition-colors hover:bg-haul-500/10 disabled:opacity-50 sm:col-span-1 max-md:min-h-11"
         >
           <Plus size={14} strokeWidth={2.5} />
           {t(locale, 'loads.charges.add')}

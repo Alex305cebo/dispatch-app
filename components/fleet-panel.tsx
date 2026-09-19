@@ -38,26 +38,13 @@ type TileData = { value: string; label: string; tone?: 'warn' }
 function Tile({ value, label, tone }: TileData) {
   return (
     <div className="panel-inset flex flex-col justify-center px-3 py-2.5">
-      <div className={`nums truncate text-[18px] leading-tight ${tone === 'warn' ? 'text-warn-400' : 'text-t1'}`}>
+      <div className={`nums truncate text-xl leading-tight ${tone === 'warn' ? 'text-warn-400' : 'text-t1'}`}>
         {value}
       </div>
-      <div className="mt-0.5 truncate text-[11px] text-t3">{label}</div>
+      <div className="mt-0.5 truncate text-xs text-t3">{label}</div>
     </div>
   )
 }
-
-/** Порядок плиток раздела «Траки» по умолчанию — тот же, в котором они стояли, пока
- *  их нельзя было двигать: карта, выбор трака, счётчики, загрузка парка, справочник
- *  водителей, список траков, подключение ELD. */
-export const TRUCKS_TILES: TilePlacement[] = [
-  { id: 'map', size: 'l' },
-  { id: 'picker', size: 'l' },
-  { id: 'counters', size: 'l' },
-  { id: 'heatmap', size: 'l' },
-  { id: 'drivers', size: 'l' },
-  { id: 'list', size: 'l' },
-  { id: 'eld', size: 'l' },
-]
 
 export function FleetPanel({
   markers,
@@ -202,7 +189,7 @@ export function FleetPanel({
               onClick={() => pick(r)}
               title={r.label}
               aria-pressed={active}
-              className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-colors md:min-h-8 md:px-2.5 md:text-[12px] ${
+              className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-base font-semibold transition-colors md:min-h-8 md:px-2.5 md:text-sm ${
                 active
                   ? 'border-haul-400/70 bg-haul-500/25 text-white'
                   : 'border-white/12 bg-white/[0.04] text-t2 hover:border-white/30 hover:bg-white/[0.08]'
@@ -233,20 +220,20 @@ export function FleetPanel({
       <div className="mb-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 px-1.5">
         {row ? (
           <span className="flex min-w-0 items-baseline gap-2">
-            <span className="truncate text-[13px] font-semibold text-white">{row.label}</span>
+            <span className="truncate text-base font-semibold text-white">{row.label}</span>
             {/* Время водителя, а не пятая плитка: счётчиков ровно четыре в обоих
                 состояниях, и пятый ломал бы ряд именно при выборе трака. */}
             {row.zone && (
-              <span className="shrink-0 text-[11.5px] text-t3">
+              <span className="shrink-0 text-xs text-t3">
                 {t(locale, 'trucks.head.driverTimeShort')}{' '}
                 <LocalTime zone={row.zone} className="nums font-semibold text-t1" />
               </span>
             )}
           </span>
         ) : (
-          <span className="truncate text-[11.5px] text-t3">{t(locale, 'tracking.pickOnMap')}</span>
+          <span className="truncate text-xs text-t3">{t(locale, 'tracking.pickOnMap')}</span>
         )}
-        <span className="ml-auto flex min-w-0 items-center gap-2 text-[11px] text-t3">
+        <span className="ml-auto flex min-w-0 items-center gap-2 text-xs text-t3">
           <span className="truncate">{updatedText}</span>
           <RefreshFleetButton staleMinutes={staleMinutes} />
           {row && (

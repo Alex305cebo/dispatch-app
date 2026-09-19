@@ -58,10 +58,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
         <h1 className="mb-5 text-xl font-bold tracking-tight">Telegram</h1>
         <div className="panel p-4">
-          <p className="text-[13px] text-t2">{t(locale, 'telegram.page.needLogin')}</p>
+          <p className="text-base text-t2">{t(locale, 'telegram.page.needLogin')}</p>
           <a
             href="/login"
-            className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-haul-500 px-4 text-[13px] font-semibold text-white hover:bg-haul-400"
+            className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-haul-500 px-4 text-base font-semibold text-white hover:bg-haul-400"
           >
             {t(locale, 'telegram.help.login')}
           </a>
@@ -81,19 +81,19 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
           <h2 className="text-base font-semibold leading-6 text-t1">
             {t(locale, user.isDemo ? 'telegram.help.demoTitle' : 'telegram.help.noAccessTitle')}
           </h2>
-          <p className="mt-1 text-[13px] leading-relaxed text-t2">{t(locale, 'telegram.help.what')}</p>
+          <p className="mt-1 text-base leading-relaxed text-t2">{t(locale, 'telegram.help.what')}</p>
           {user.isDemo ? (
             <>
-              <p className="mt-3 text-[13px] leading-relaxed text-t2">{t(locale, 'telegram.help.demoText')}</p>
+              <p className="mt-3 text-base leading-relaxed text-t2">{t(locale, 'telegram.help.demoText')}</p>
               <a
                 href="/login"
-                className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-haul-500 px-4 text-[13px] font-semibold text-white hover:bg-haul-400"
+                className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-haul-500 px-4 text-base font-semibold text-white hover:bg-haul-400"
               >
                 {t(locale, 'telegram.help.login')}
               </a>
             </>
           ) : (
-            <ol className="mt-3 flex list-decimal flex-col gap-1.5 pl-5 text-[13px] leading-relaxed text-t1">
+            <ol className="mt-3 flex list-decimal flex-col gap-1.5 pl-5 text-base leading-relaxed text-t1">
               <li>{t(locale, 'telegram.help.step1')}</li>
               <li>{t(locale, 'telegram.help.step2')}</li>
               <li>{t(locale, 'telegram.help.step3')}</li>
@@ -176,7 +176,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
             Telegram
             <Info side="bottom" text={t(locale, 'telegram.page.tooltip')} />
           </h1>
-          <p className="text-[13px] text-t2">
+          <p className="text-base text-t2">
             {t(locale, 'telegram.page.yourAccount')}
             {account?.phone ? ` · +${account.phone}` : ''}
             {account?.name ? ` · ${account.name}` : ''}
@@ -189,13 +189,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       </header>
 
       {/* Ошибка — первой: сломанное подключение важнее любых настроек. */}
-      {error && <p className="panel mb-4 p-4 text-[13px] text-bad-400">{error}</p>}
+      {error && <p className="panel mb-4 p-4 text-base text-bad-400">{error}</p>}
 
       <div className="grid gap-3 md:grid-cols-[minmax(240px,1fr)_2fr]">
         {/* Dialog list — on phones it hides once a chat is open (back link shows it). */}
         <div className={`panel overflow-hidden ${open ? 'max-md:hidden' : ''}`}>
           {dialogs.length === 0 && !error ? (
-            <p className="p-4 text-[13px] text-t3">{t(locale, 'telegram.page.noneShownYet')}</p>
+            <p className="p-4 text-base text-t3">{t(locale, 'telegram.page.noneShownYet')}</p>
           ) : (
             <ul className="max-h-[70vh] overflow-y-auto">
               {dialogs.map((d) => {
@@ -209,20 +209,20 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
                       }`}
                     >
                       <span className="flex items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{d.name}</span>
+                        <span className="min-w-0 flex-1 truncate text-md font-medium">{d.name}</span>
                         {truck && (
-                          <span className="shrink-0 rounded-full bg-haul-500/15 px-1.5 py-0.5 text-[10px] font-medium text-haul-400">
+                          <span className="shrink-0 rounded-full bg-haul-500/15 px-1.5 py-0.5 text-2xs font-medium text-haul-400">
                             #{truck}
                           </span>
                         )}
                         {d.unread > 0 && (
-                          <span className="nums shrink-0 rounded-full bg-haul-500 px-1.5 py-0.5 text-[10px] font-bold">
+                          <span className="nums shrink-0 rounded-full bg-haul-500 px-1.5 py-0.5 text-2xs font-bold">
                             {d.unread}
                           </span>
                         )}
-                        <span className="shrink-0 text-[11px] text-t3">{when(d.lastAt, locale)}</span>
+                        <span className="shrink-0 text-xs text-t3">{when(d.lastAt, locale)}</span>
                       </span>
-                      <span className="truncate text-[12px] text-t3">{d.last}</span>
+                      <span className="truncate text-sm text-t3">{d.last}</span>
                     </Link>
                   </li>
                 )
@@ -234,17 +234,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
         {/* Conversation */}
         <div className="panel flex min-h-[50vh] flex-col overflow-hidden">
           {!open ? (
-            <p className="m-auto max-w-sm p-8 text-center text-[13px] text-t3">
+            <p className="m-auto max-w-sm p-8 text-center text-base text-t3">
               {truckChatMissing ? t(locale, 'telegram.page.noTruckChat') : t(locale, 'telegram.page.pickDialog')}
             </p>
           ) : (
             <>
               <div className="flex items-center gap-3 border-b border-white/8 px-4 py-3">
-                <Link href="/telegram" className="text-[13px] text-t3 hover:text-t1 md:hidden">
+                <Link href="/telegram" className="text-base text-t3 hover:text-t1 md:hidden">
                   ←
                 </Link>
-                <span className="text-[14px] font-semibold">{open.name}</span>
-                {open.phone && <span className="text-[12px] text-t3">+{open.phone}</span>}
+                <span className="text-md font-semibold">{open.name}</span>
+                {open.phone && <span className="text-sm text-t3">+{open.phone}</span>}
               </div>
               <TgMessages chatId={open.id} phone={open.phone} initial={msgs ?? []} />
               <TgSendBox chatId={open.id} />

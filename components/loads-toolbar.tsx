@@ -215,7 +215,7 @@ export function LoadsToolbar({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t(locale, 'loads.search.placeholder')}
-            className="w-full rounded-lg border border-white/10 bg-ink-950/70 py-1.5 pl-8 pr-7 text-[13px] text-white outline-none focus:border-haul-500"
+            className="w-full rounded-lg border border-white/10 bg-ink-950/70 py-1.5 pl-8 pr-7 text-base text-white outline-none focus:border-haul-500"
           />
           {query && (
             <button
@@ -232,7 +232,7 @@ export function LoadsToolbar({
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as LoadSort)}
-          className="rounded-lg border border-white/10 bg-ink-950/70 px-2 py-1.5 text-[12.5px] text-t1 outline-none focus:border-haul-500"
+          className="rounded-lg border border-white/10 bg-ink-950/70 px-2 py-1.5 text-sm text-t1 outline-none focus:border-haul-500"
         >
           {SORTS.map((s) => (
             <option key={s.key} value={s.key}>
@@ -245,7 +245,7 @@ export function LoadsToolbar({
           type="button"
           onClick={() => download(toCsv(rows, trucks, metrics), `loads-${new Date().toISOString().slice(0, 10)}.csv`)}
           title={t(locale, 'loads.export.title')}
-          className="flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-[12.5px] font-medium text-t2 transition-colors hover:border-white/25 hover:text-white"
+          className="flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-sm font-medium text-t2 transition-colors hover:border-white/25 hover:text-white"
         >
           <Download size={13} />
           CSV
@@ -258,7 +258,7 @@ export function LoadsToolbar({
             key={f.key}
             type="button"
             onClick={() => setFilter(f.key)}
-            className={`rounded-full px-2.5 py-1 text-[11.5px] font-medium transition-colors max-md:min-h-9 ${
+            className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors max-md:min-h-9 ${
               filter === f.key ? 'bg-haul-500/25 text-haul-300' : 'bg-white/6 text-t2 hover:text-t1'
             }`}
           >
@@ -267,7 +267,7 @@ export function LoadsToolbar({
         ))}
         {/* Сколько показано из скольких — иначе после фильтра непонятно, пусто
             потому что ничего нет, или потому что фильтр отсёк всё. */}
-        <span className="nums ml-auto text-[11.5px] text-t3">
+        <span className="nums ml-auto text-xs text-t3">
           {shown === total
             ? `${total}`
             : t(locale, 'loads.filter.shownOf').replace('{n}', String(shown)).replace('{total}', String(total))}

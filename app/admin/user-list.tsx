@@ -21,7 +21,7 @@ import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 
 const input =
-  'w-full rounded-lg border border-white/10 bg-ink-950/70 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500'
+  'w-full rounded-lg border border-white/10 bg-ink-950/70 px-2.5 py-1.5 text-base text-white outline-none focus:border-haul-500'
 
 export function UserList({
   users,
@@ -139,22 +139,22 @@ export function UserList({
           <div className="flex flex-wrap items-center gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="truncate text-[14px] font-medium">{u.name}</span>
+                <span className="truncate text-md font-medium">{u.name}</span>
                 {u.id === currentUserId && (
-                  <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] text-t3">{t(locale, 'admin.users.you')}</span>
+                  <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-2xs text-t3">{t(locale, 'admin.users.you')}</span>
                 )}
                 {u.disabledAt && (
-                  <span className="rounded-full bg-bad-500/15 px-1.5 py-0.5 text-[10px] font-medium text-bad-400">
+                  <span className="rounded-full bg-bad-500/15 px-1.5 py-0.5 text-2xs font-medium text-bad-400">
                     {t(locale, 'admin.users.disabledBadge')}
                   </span>
                 )}
                 {u.pendingSince && (
-                  <span className="rounded-full bg-warn-400/15 px-1.5 py-0.5 text-[10px] font-medium text-warn-400">
+                  <span className="rounded-full bg-warn-400/15 px-1.5 py-0.5 text-2xs font-medium text-warn-400">
                     {t(locale, 'admin.users.pendingBadge')}
                   </span>
                 )}
               </div>
-              <div className="text-[12px] text-t3">{u.email}</div>
+              <div className="text-sm text-t3">{u.email}</div>
             </div>
 
             {u.pendingSince ? (
@@ -165,7 +165,7 @@ export function UserList({
                 <button
                   disabled={pending}
                   onClick={() => decide(u, false)}
-                  className="rounded-lg border border-bad-500/25 px-2.5 py-1.5 text-[12px] text-bad-400 transition-colors hover:border-bad-500/50 disabled:opacity-40"
+                  className="rounded-lg border border-bad-500/25 px-2.5 py-1.5 text-sm text-bad-400 transition-colors hover:border-bad-500/50 disabled:opacity-40"
                 >
                   {t(locale, 'admin.users.reject')}
                 </button>
@@ -176,7 +176,7 @@ export function UserList({
               value={u.role}
               disabled={pending || u.id === currentUserId}
               onChange={(e) => changeRole(u, e.target.value as 'admin' | 'dispatcher')}
-              className="rounded-lg border border-white/10 bg-ink-950/70 px-2 py-1.5 text-[12px] text-white outline-none disabled:opacity-40"
+              className="rounded-lg border border-white/10 bg-ink-950/70 px-2 py-1.5 text-sm text-white outline-none disabled:opacity-40"
             >
               <option value="dispatcher">{ROLE_LABEL.dispatcher}</option>
               <option value="admin">{ROLE_LABEL.admin}</option>
@@ -185,7 +185,7 @@ export function UserList({
             <button
               disabled={pending}
               onClick={() => setResetFor(resetFor === u.id ? null : u.id)}
-              className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[12px] text-t2 transition-colors hover:border-white/25 hover:text-white disabled:opacity-40"
+              className="rounded-lg border border-white/10 px-2.5 py-1.5 text-sm text-t2 transition-colors hover:border-white/25 hover:text-white disabled:opacity-40"
             >
               {t(locale, 'admin.users.password')}
             </button>
@@ -193,7 +193,7 @@ export function UserList({
             <button
               disabled={pending || u.id === currentUserId}
               onClick={() => toggleDisabled(u)}
-              className={`rounded-lg border px-2.5 py-1.5 text-[12px] transition-colors disabled:opacity-40 ${
+              className={`rounded-lg border px-2.5 py-1.5 text-sm transition-colors disabled:opacity-40 ${
                 u.disabledAt
                   ? 'border-good-500/25 text-good-400 hover:border-good-500/50'
                   : 'border-bad-500/25 text-bad-400 hover:border-bad-500/50'
@@ -224,7 +224,7 @@ export function UserList({
           {/* Кто за что отвечает — прямо в строке, без разворачивания: это первое, за
               чем сюда заходят, и прятать его под «подробнее» значит не показать вовсе. */}
           {!u.pendingSince && (
-            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11.5px]">
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
               {u.trucks.length > 0 ? (
                 u.trucks.map((tr) => (
                   <span key={tr.id} className="rounded-full bg-haul-500/15 px-2 py-0.5 font-medium text-haul-300">
@@ -273,8 +273,8 @@ export function UserList({
               иначе непонятно, свободна она или её надо забирать. */}
           {!u.pendingSince && fleet.length > 0 && (
             <details className="group mt-2.5 border-t border-white/6 pt-2.5">
-              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium text-t2 transition-colors hover:text-t1">
-                <span className="text-[12px] leading-none text-t3 transition-transform duration-200 group-open:rotate-90">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-t2 transition-colors hover:text-t1">
+                <span className="text-sm leading-none text-t3 transition-transform duration-200 group-open:rotate-90">
                   ▸
                 </span>
                 {t(locale, 'admin.assign.heading')}
@@ -296,8 +296,8 @@ export function UserList({
                         onChange={() => assign(tr.id, mine ? null : u.id)}
                         className="size-4 shrink-0 accent-good-500"
                       />
-                      <span className="min-w-0 flex-1 truncate text-[13px]">{tr.label}</span>
-                      <span className="shrink-0 text-[11px] text-t3">
+                      <span className="min-w-0 flex-1 truncate text-base">{tr.label}</span>
+                      <span className="shrink-0 text-xs text-t3">
                         {tr.dispatcherId === null
                           ? t(locale, 'admin.assign.free')
                           : mine
@@ -315,8 +315,8 @@ export function UserList({
               them. New capabilities added to the registry show up here automatically. */}
           {u.capabilities && (
             <details className="group mt-2.5 border-t border-white/6 pt-2.5">
-              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium text-t2 transition-colors hover:text-t1">
-                <span className="text-[12px] leading-none text-t3 transition-transform duration-200 group-open:rotate-90">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-t2 transition-colors hover:text-t1">
+                <span className="text-sm leading-none text-t3 transition-transform duration-200 group-open:rotate-90">
                   ▸
                 </span>
                 {t(locale, 'admin.users.dispatcherPerms')}
@@ -338,8 +338,8 @@ export function UserList({
                         className="mt-0.5 size-4 shrink-0 accent-good-500"
                       />
                       <span className="min-w-0">
-                        <span className="block text-[13px] font-medium">{meta.label}</span>
-                        <span className="block text-[11.5px] leading-snug text-t3">{meta.description}</span>
+                        <span className="block text-base font-medium">{meta.label}</span>
+                        <span className="block text-xs leading-snug text-t3">{meta.description}</span>
                       </span>
                     </label>
                   )
@@ -389,7 +389,7 @@ export function UserList({
             </Button>
             <button
               onClick={() => setAdding(false)}
-              className="rounded-lg px-4 py-1.5 text-[12px] text-t2 transition-colors hover:text-white"
+              className="rounded-lg px-4 py-1.5 text-sm text-t2 transition-colors hover:text-white"
             >
               {t(locale, 'admin.users.cancel')}
             </button>
@@ -398,7 +398,7 @@ export function UserList({
       ) : (
         <button
           onClick={() => setAdding(true)}
-          className="mt-1 rounded-xl border border-dashed border-white/15 px-4 py-2.5 text-[13px] text-t2 transition-colors hover:border-white/30 hover:text-t1"
+          className="mt-1 rounded-xl border border-dashed border-white/15 px-4 py-2.5 text-base text-t2 transition-colors hover:border-white/30 hover:text-t1"
         >
           {t(locale, 'admin.users.addUser')}
         </button>

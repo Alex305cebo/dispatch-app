@@ -40,13 +40,13 @@ export function MissingDocsBanner({
   return (
     <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-warn-400/35 bg-warn-500/[0.09] p-4 sm:flex-row sm:items-center">
       <span className="mt-px flex size-7 shrink-0 items-center justify-center rounded-lg bg-warn-500/20 text-warn-400 ring-1 ring-warn-400/25">
-        <span className="text-[14px] leading-none">📄</span>
+        <span className="text-md leading-none">📄</span>
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-base leading-6 font-semibold text-warn-400">
           {t(locale, 'loadDetail.docsMissingTitle').replace('{missing}', missing)}
         </p>
-        <p className="mt-0.5 text-[13px] text-t2">
+        <p className="mt-0.5 text-base text-t2">
           {t(locale, blocksPaid ? 'loadDetail.docsMissingBlocksPaid' : 'loadDetail.docsMissingHint')}
         </p>
       </div>

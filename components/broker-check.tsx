@@ -55,20 +55,20 @@ export function BrokerCheckPanel({ fields }: { fields: RateConFields }) {
           <Info text={t(locale, 'brokerCheck.info')} />
         </h2>
         {state === 'loading' && (
-          <span className="animate-pulse text-[11px] text-haul-400">{t(locale, 'brokerCheck.checking')}</span>
+          <span className="animate-pulse text-xs text-haul-400">{t(locale, 'brokerCheck.checking')}</span>
         )}
       </div>
 
       {state === 'nokey' && (
-        <p className="mt-2 text-[12px] leading-relaxed text-t3">
+        <p className="mt-2 text-sm leading-relaxed text-t3">
           {t(locale, 'brokerCheck.noKey')}
         </p>
       )}
-      {state === 'error' && <p className="mt-2 text-[13px] text-bad-400">{err}</p>}
+      {state === 'error' && <p className="mt-2 text-base text-bad-400">{err}</p>}
 
       {state === 'done' && data && (
         <div className="mt-2">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-base">
             <span className="font-medium">{data.legalName ?? '—'}</span>
             <Badge
               ok={data.authorityStatus === 'active'}
@@ -88,14 +88,14 @@ export function BrokerCheckPanel({ fields }: { fields: RateConFields }) {
               <span className="text-t3">{t(locale, 'brokerCheck.grantedOn').replace('{date}', usDate(data.authorityGranted))}</span>
             )}
           </div>
-          {data.address && <p className="mt-1 text-[12px] text-t3">{data.address}</p>}
+          {data.address && <p className="mt-1 text-sm text-t3">{data.address}</p>}
 
           {data.flags.length > 0 && (
             <ul className="mt-3 flex flex-col gap-1.5">
               {data.flags.map((f, i) => (
                 <li
                   key={i}
-                  className={`rounded-lg px-3 py-2 text-[13px] ${
+                  className={`rounded-lg px-3 py-2 text-base ${
                     f.level === 'block'
                       ? 'bg-bad-500/12 text-bad-400'
                       : 'bg-warn-400/12 text-warn-400'
@@ -108,7 +108,7 @@ export function BrokerCheckPanel({ fields }: { fields: RateConFields }) {
             </ul>
           )}
           {data.flags.length === 0 && (
-            <p className="mt-2 text-[12px] text-good-400">{t(locale, 'brokerCheck.noRedFlags')}</p>
+            <p className="mt-2 text-sm text-good-400">{t(locale, 'brokerCheck.noRedFlags')}</p>
           )}
         </div>
       )}
@@ -119,7 +119,7 @@ export function BrokerCheckPanel({ fields }: { fields: RateConFields }) {
 function Badge({ ok, text }: { ok: boolean; text: string }) {
   return (
     <span
-      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
         ok ? 'bg-good-500/15 text-good-400' : 'bg-bad-500/15 text-bad-400'
       }`}
     >

@@ -48,7 +48,7 @@ export function DateMore({ items, limit }: { items: { day: string; node: ReactNo
         type="button"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/12 py-1.5 text-[13px] font-semibold text-t2 transition-colors hover:border-white/25 hover:text-t1 max-md:min-h-11"
+        className="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/12 py-1.5 text-base font-semibold text-t2 transition-colors hover:border-white/25 hover:text-t1 max-md:min-h-11"
       >
         <CalendarDays size={13} strokeWidth={2.5} />
         {t(locale, 'more.byDate').replace('{n}', String(hidden.length))}
@@ -59,7 +59,7 @@ export function DateMore({ items, limit }: { items: { day: string; node: ReactNo
             <button type="button" className={arrow} disabled={month <= months[0]!} onClick={() => shift(-1)} aria-label={t(locale, 'more.prevMonth')}>
               <ChevronLeft size={15} />
             </button>
-            <span className="text-[13px] font-semibold capitalize">
+            <span className="text-base font-semibold capitalize">
               {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(first)}
             </span>
             <button type="button" className={arrow} disabled={month >= months.at(-1)!} onClick={() => shift(1)} aria-label={t(locale, 'more.nextMonth')}>
@@ -68,7 +68,7 @@ export function DateMore({ items, limit }: { items: { day: string; node: ReactNo
           </div>
           <div className="grid grid-cols-7 gap-0.5 text-center">
             {Array.from({ length: 7 }, (_, i) => (
-              <span key={`w${i}`} className="pb-0.5 text-[10.5px] text-t3">
+              <span key={`w${i}`} className="pb-0.5 text-2xs text-t3">
                 {weekday.format(new Date(2026, 0, 4 + i))}
               </span>
             ))}
@@ -85,7 +85,7 @@ export function DateMore({ items, limit }: { items: { day: string; node: ReactNo
                     setDay(k)
                     setOpen(false)
                   }}
-                  className={`nums relative h-8 rounded-md text-[12px] transition-colors ${
+                  className={`nums relative h-8 rounded-md text-sm transition-colors ${
                     day === k
                       ? 'bg-haul-500 font-semibold text-white'
                       : n
@@ -103,7 +103,7 @@ export function DateMore({ items, limit }: { items: { day: string; node: ReactNo
       )}
       {day && (
         <>
-          <div className="flex items-center justify-between px-1 text-[12px] font-semibold text-t2">
+          <div className="flex items-center justify-between px-1 text-sm font-semibold text-t2">
             <span className="nums">
               {usDate(day)} · {counts.get(day)}
             </span>

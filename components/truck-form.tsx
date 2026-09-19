@@ -37,7 +37,7 @@ export function TruckForm({ id, initial, locale = 'en' }: { id: number | null; i
 
   return (
     <section className="panel max-w-2xl p-5">
-      <h3 className="mb-3 text-[13px] font-semibold text-t2">{tr(locale, 'trucks.form.truckHeading')}</h3>
+      <h3 className="mb-3 text-base font-semibold text-t2">{tr(locale, 'trucks.form.truckHeading')}</h3>
       <div className="grid grid-cols-2 gap-3">
         <TextField
           label={tr(locale, 'trucks.form.numberLabel')}
@@ -53,7 +53,7 @@ export function TruckForm({ id, initial, locale = 'en' }: { id: number | null; i
         />
       </div>
 
-      <h3 className="mb-3 mt-6 text-[13px] font-semibold text-t2">
+      <h3 className="mb-3 mt-6 text-base font-semibold text-t2">
         {tr(locale, 'trucks.form.economicsHeading')}
       </h3>
       <div className="grid grid-cols-2 gap-3">
@@ -105,7 +105,7 @@ export function TruckForm({ id, initial, locale = 'en' }: { id: number | null; i
                     : { mode: 'percent', percentOfGross: 25 },
               })
             }
-            className="w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none transition-all duration-200 hover:border-white/15 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15"
+            className="w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-lg text-white outline-none transition-all duration-200 hover:border-white/15 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15"
           >
             <option value="cpm">{tr(locale, 'trucks.form.cpmOption')}</option>
             <option value="percent">{tr(locale, 'trucks.form.percentOption')}</option>
@@ -179,7 +179,7 @@ export function TruckForm({ id, initial, locale = 'en' }: { id: number | null; i
         disabled={pending}>
         {pending ? tr(locale, 'trucks.common.saving') : id === null ? tr(locale, 'trucks.form.addTruck') : tr(locale, 'trucks.common.save')}
       </Button>
-      {error && <p className="mt-2 text-[13px] text-bad-400">{error}</p>}
+      {error && <p className="mt-2 text-base text-bad-400">{error}</p>}
     </section>
   )
 }

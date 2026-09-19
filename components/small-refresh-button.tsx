@@ -21,7 +21,7 @@ import { t } from '@/lib/i18n'
  * Одна строка на оба места намеренно: две кнопки с одним смыслом и разным видом —
  * это ровно то, из-за чего одну из них перестают замечать. */
 export const REFRESH_BTN =
-  'flex shrink-0 items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.07] px-2.5 py-1 text-[11px] font-semibold normal-case text-t1 transition-colors hover:border-white/30 hover:bg-white/[0.12] hover:text-white disabled:opacity-50'
+  'flex shrink-0 items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.07] px-2.5 py-1 text-xs font-semibold normal-case text-t1 transition-colors hover:border-white/30 hover:bg-white/[0.12] hover:text-white disabled:opacity-50'
 
 export function SmallRefreshButton() {
   const locale = useLocale()

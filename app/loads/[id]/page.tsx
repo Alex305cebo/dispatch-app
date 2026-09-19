@@ -246,9 +246,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <div className="min-w-0">
             <h1 className="text-[21px] font-semibold sm:text-[23px]">
               {load.origin ?? '—'} → {load.destination ?? '—'}
-              {via && <span className="ml-2 text-[15px] font-medium text-t3 sm:text-[16px]">· {via}</span>}
+              {via && <span className="ml-2 text-lg font-medium text-t3 sm:text-xl">· {via}</span>}
             </h1>
-            <p className="mt-1 text-[13px] text-t2">
+            <p className="mt-1 text-base text-t2">
               {/* Откуда взялся груз. Раньше здесь стояло «Пришёл с DAT по QR» у ЛЮБОГО
                   груза, заведённого не руками, — в том числе у приехавших рейт-коном в
                   Telegram, которые доски DAT в глаза не видели. Смотрим не на пометку в
@@ -274,7 +274,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           )}
         </div>
         {late && (
-          <div className="mt-3 rounded-xl border border-bad-500/30 bg-bad-500/[0.08] px-4 py-3 text-[13px]">
+          <div className="mt-3 rounded-xl border border-bad-500/30 bg-bad-500/[0.08] px-4 py-3 text-base">
             <span className="font-semibold text-bad-400">{t(locale, 'loads.dash.late')}</span>{' '}
             <span className="text-t2">
               {t(locale, late.stop.role === 'pickup' ? 'stops.pickup' : 'stops.delivery')} · {late.stop.city ?? late.stop.address ?? '—'} ·{' '}
@@ -283,7 +283,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </div>
         )}
         {assign.length > 0 && (
-          <div className="mt-3 rounded-xl border border-warn-400/35 bg-warn-500/[0.08] px-4 py-3 text-[13px] text-warn-400">
+          <div className="mt-3 rounded-xl border border-warn-400/35 bg-warn-500/[0.08] px-4 py-3 text-base text-warn-400">
             {assign.map((w) => (
               <p key={w}>⚠ {w}</p>
             ))}
@@ -308,7 +308,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             занимали три ряда и уводили ставку и кнопки за край экрана. Имя ведёт в
             справочник — там его история и оценка. */}
         {brokerFacts.length > 0 && (
-          <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] text-t2">
+          <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-t2">
             {brokerFacts.map((part, k) => (
               <Fragment key={k}>
                 {k > 0 && <span className="text-t3">·</span>}
@@ -371,7 +371,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           {tgUserId != null && (
             <Link
               href={`/telegram?truck=${truck.id}`}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-sky-400/35 bg-sky-500/10 px-3 py-2 text-[12.5px] font-semibold text-sky-300 transition-colors hover:bg-sky-500/20"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-sky-400/35 bg-sky-500/10 px-3 py-2 text-sm font-semibold text-sky-300 transition-colors hover:bg-sky-500/20"
             >
               <Send size={14} aria-hidden />
               {t(locale, 'loadDetail.tgChat')}
@@ -381,7 +381,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               заново каждую неделю — вместе с перепечатыванием почты брокера и миль. */}
           <Link
             href={`/loads/new?repeat=${load.id}`}
-            className="inline-flex items-center justify-center rounded-xl border border-white/12 px-3 py-2 text-[12.5px] font-medium text-t2 transition-colors hover:border-haul-500/50 hover:text-haul-300 sm:ml-auto"
+            className="inline-flex items-center justify-center rounded-xl border border-white/12 px-3 py-2 text-sm font-medium text-t2 transition-colors hover:border-haul-500/50 hover:text-haul-300 sm:ml-auto"
           >
             ⟳ {t(locale, 'loads.repeat')}
           </Link>
@@ -463,7 +463,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           нашёлся. Груз создан, но пробег надо вписать руками — иначе $/милю и зарплата
           по нему врут. */}
       {load.milesEstimated && (
-        <div className="mt-4 rounded-xl border border-warn-400/35 bg-warn-500/[0.08] px-4 py-3 text-[13px]">
+        <div className="mt-4 rounded-xl border border-warn-400/35 bg-warn-500/[0.08] px-4 py-3 text-base">
           <span className="font-semibold text-warn-400">{t(locale, 'loadDetail.milesEstimated')}</span>{' '}
           <span className="text-t2">{t(locale, 'loadDetail.milesEstimatedHint')}</span>
         </div>
@@ -472,7 +472,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       {/* Медленный плательщик — сказать до того, как груз взят и повезён: по своей
           истории он платит дольше 45 дней или уже просрочивал. */}
       {brokerGrade?.payGrade === 'slow' && load.status !== 'paid' && load.status !== 'cancelled' && (
-        <div className="mt-4 rounded-xl border border-bad-500/30 bg-bad-500/[0.08] px-4 py-3 text-[13px]">
+        <div className="mt-4 rounded-xl border border-bad-500/30 bg-bad-500/[0.08] px-4 py-3 text-base">
           <span className="font-semibold text-bad-400">{t(locale, 'brokers.grade.slowWarn')}</span>{' '}
           <span className="text-t2">
             {t(locale, 'brokers.grade.info')
@@ -561,7 +561,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             <Info text={t(locale, 'loadDetail.invoiceInfo')} />
           </h2>
           {load.paidAt && (
-            <span className="rounded-full bg-good-500/15 px-2 py-0.5 text-[11px] font-medium text-good-400">
+            <span className="rounded-full bg-good-500/15 px-2 py-0.5 text-xs font-medium text-good-400">
               {t(locale, 'loadDetail.paidOn').replace('{date}', usDate(todayEt(new Date(load.paidAt))))}
             </span>
           )}
@@ -576,12 +576,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           pay={pay}
           companyReady={!!(company.name && company.mcdot)}
         />
-        <p className="mt-2 text-[12px] text-t3">{t(locale, 'loadDetail.invoicePackageNote')}</p>
+        <p className="mt-2 text-sm text-t3">{t(locale, 'loadDetail.invoicePackageNote')}</p>
       </section>
 
       {/* The truck economics that drive every cost line above — editable inline. */}
       <details className="group mt-4">
-        <summary className="panel flex cursor-pointer list-none items-center gap-1.5 p-4 text-[13px] font-semibold text-t2 transition-colors hover:text-white">
+        <summary className="panel flex cursor-pointer list-none items-center gap-1.5 p-4 text-base font-semibold text-t2 transition-colors hover:text-white">
           <span className="text-t3 transition-transform group-open:rotate-90">▸</span>
           {t(locale, 'loadDetail.truckCostsHeading')}
           <Info text={t(locale, 'loadDetail.truckCostsInfo')} />
@@ -690,7 +690,7 @@ async function LoadMapSection({
                 copy={placeCity(fs.location) ?? fs.location}
                 coords={{ lat: fs.lat, lng: fs.lng }}
                 size="sm"
-                className="min-h-[1.375rem] text-[15px] font-semibold text-t1"
+                className="min-h-[1.375rem] text-lg font-semibold text-t1"
               />
             </div>
           )}
@@ -702,7 +702,7 @@ async function LoadMapSection({
               {/* Высота зафиксирована: первый кадр LocalTime пустой (гидратация),
                       и без неё плитка подпрыгивала бы при загрузке страницы. */}
               <div className="flex min-h-[1.375rem] items-baseline">
-                <LocalTime zone={driverZone} className="nums text-[15px] font-semibold text-t1" />
+                <LocalTime zone={driverZone} className="nums text-lg font-semibold text-t1" />
               </div>
             </div>
           )}
@@ -711,8 +711,8 @@ async function LoadMapSection({
               <div className="text-xs text-t2 font-medium">
                 {t(locale, 'loadDetail.distanceLeft')}
               </div>
-              <div className="nums min-h-[1.375rem] text-[15px] font-semibold text-t1">
-                {routeMiles} <span className="text-[11px] font-medium text-t3">mi</span>
+              <div className="nums min-h-[1.375rem] text-lg font-semibold text-t1">
+                {routeMiles} <span className="text-xs font-medium text-t3">mi</span>
               </div>
             </div>
           )}
@@ -721,13 +721,13 @@ async function LoadMapSection({
               <div className="text-xs text-t2 font-medium">
                 {t(locale, 'loadDetail.etaLeft')}
               </div>
-              <div className="nums min-h-[1.375rem] text-[15px] font-semibold text-t1">
+              <div className="nums min-h-[1.375rem] text-lg font-semibold text-t1">
                 ~{driveTime(etaMin, locale)}
               </div>
               {/* Чистый драйв — крупно, а реальный путь с ночёвками 11/10 —
                       подписью: раньше диспетчер пересчитывал это в голове. */}
               {live.realEtaMin != null && live.realEtaMin > etaMin && (
-                <div className="nums mt-0.5 text-[11px] text-t3">
+                <div className="nums mt-0.5 text-xs text-t3">
                   {t(locale, 'loadDetail.withRest').replace('{t}', driveTime(live.realEtaMin, locale))}
                 </div>
               )}
@@ -745,7 +745,7 @@ async function LoadMapSection({
                 {t(locale, 'loadDetail.deadline')}
               </div>
               <div
-                className={`nums min-h-[1.375rem] text-[14px] font-semibold ${
+                className={`nums min-h-[1.375rem] text-md font-semibold ${
                   live.slackMin >= 0 ? 'text-good-400' : 'text-bad-400'
                 }`}
               >
@@ -777,7 +777,7 @@ async function LoadMapSection({
               <div className="text-xs text-t2 font-medium">
                 {t(locale, 'loadDetail.idleWarn')}
               </div>
-              <div className="nums min-h-[1.375rem] text-[14px] font-semibold text-warn-400">
+              <div className="nums min-h-[1.375rem] text-md font-semibold text-warn-400">
                 {driveTime(live.idleMin, locale)}
               </div>
             </div>
@@ -787,7 +787,7 @@ async function LoadMapSection({
               <div className="text-xs text-t2 font-medium">
                 {t(locale, 'loadDetail.offRoute')}
               </div>
-              <div className="nums min-h-[1.375rem] text-[14px] font-semibold text-warn-400">~{live.offRouteMi} mi</div>
+              <div className="nums min-h-[1.375rem] text-md font-semibold text-warn-400">~{live.offRouteMi} mi</div>
             </div>
           )}
           {/* Хватит ли топлива до выгрузки. Объём бака не телеметрия — 250
@@ -808,12 +808,12 @@ async function LoadMapSection({
                     {t(locale, 'loadDetail.fuelFor')}
                   </div>
                   <div
-                    className={`nums min-h-[1.375rem] text-[15px] font-semibold ${short ? 'text-warn-400' : 'text-t1'}`}
+                    className={`nums min-h-[1.375rem] text-lg font-semibold ${short ? 'text-warn-400' : 'text-t1'}`}
                   >
-                    ~{rangeMi.toLocaleString('en-US')} <span className="text-[11px] font-medium text-t3">mi</span>
+                    ~{rangeMi.toLocaleString('en-US')} <span className="text-xs font-medium text-t3">mi</span>
                   </div>
                   {short && (
-                    <div className="mt-0.5 text-[11px] text-warn-400/85">{t(locale, 'loadDetail.fuelShort')}</div>
+                    <div className="mt-0.5 text-xs text-warn-400/85">{t(locale, 'loadDetail.fuelShort')}</div>
                   )}
                 </div>
               )
@@ -827,7 +827,7 @@ async function LoadMapSection({
             {t(locale, 'fuel.heading')}
             <span className="normal-case tracking-normal">· EIA {fuel.asOf}</span>
           </div>
-          <div className="nums mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px]">
+          <div className="nums mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-base">
             {fuel.stops.map((st, i) => (
               <span key={`${st.state}-${i}`} className="flex items-center gap-1.5">
                 {i > 0 && <span className="text-t3">→</span>}
@@ -847,7 +847,7 @@ async function LoadMapSection({
             ))}
           </div>
           {fuel.tankSavings >= 20 && (
-            <div className="mt-1 text-[12px] text-t2">
+            <div className="mt-1 text-sm text-t2">
               {t(locale, 'fuel.advice')
                 .replace('{state}', fuel.cheapest.state)
                 .replace('{save}', usd.format(Math.round(fuel.tankSavings)))}
@@ -869,7 +869,7 @@ async function LoadMapSection({
               <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
                 <div className="h-full rounded-full bg-haul-500" style={{ width: `${pct}%` }} />
               </div>
-              <div className="nums mt-1 text-[11px] text-t3">
+              <div className="nums mt-1 text-xs text-t3">
                 {t(locale, 'loadDetail.progressLine')
                   .replace('{p}', String(pct))
                   .replace('{left}', String(Math.round(routeMiles)))

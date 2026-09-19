@@ -33,8 +33,8 @@ export function Empty({
           <Icon size={16} strokeWidth={1.75} />
         </span>
         <div className="min-w-0 flex-1 basis-[14rem]">
-          <p className="text-[13px] font-semibold text-t1">{title}</p>
-          {text && <p className="text-[12.5px] leading-snug text-t3">{text}</p>}
+          <p className="text-base font-semibold text-t1">{title}</p>
+          {text && <p className="text-sm leading-snug text-t3">{text}</p>}
         </div>
         {action && (
           <Button href={action.href} variant="secondary" size="sm" icon={action.icon} className="shrink-0">

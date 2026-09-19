@@ -35,7 +35,7 @@ export function ThemePicker({ locale, className = '' }: { locale: Locale; classN
       type="button"
       onClick={() => pick(value)}
       aria-pressed={theme === value}
-      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold transition-colors ${
+      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold transition-colors ${
         theme === value ? 'bg-haul-500 text-[#fff] shadow-sm' : 'text-t2 hover:text-t1'
       }`}
     >

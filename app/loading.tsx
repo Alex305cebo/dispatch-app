@@ -40,7 +40,7 @@ export default function Loading() {
     <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-10">
       {/* One unmistakable status line at the top. role=status so a screen reader
           announces it too — a pulsing rectangle says nothing out loud. */}
-      <div role="status" className="flex items-center gap-2 text-[13px] font-medium text-t2">
+      <div role="status" className="flex items-center gap-2 text-base font-medium text-t2">
         <Spinner />
         {label}
       </div>
@@ -51,7 +51,7 @@ export default function Loading() {
           {[0, 1, 2, 3, 4, 5].map((i) => (
             // The label repeats on every card because the ask was explicit: it must be
             // readable ON the card that a real card will replace, not only at the top.
-            <div key={i} className="panel flex h-20 items-center gap-2 px-4 text-[12px] text-t3">
+            <div key={i} className="panel flex h-20 items-center gap-2 px-4 text-sm text-t3">
               <Spinner className="size-3" />
               {label}
             </div>

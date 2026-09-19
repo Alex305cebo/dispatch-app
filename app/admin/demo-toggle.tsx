@@ -37,13 +37,13 @@ export function DemoToggle({ enabled, url }: { enabled: boolean; url: string }) 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[12.5px] leading-relaxed text-t2">
+        <p className="text-sm leading-relaxed text-t2">
           {on ? t(locale, 'admin.demoPublic.currentlyOn') : t(locale, 'admin.demoPublic.currentlyOff')}
         </p>
         <button
           disabled={pending}
           onClick={() => save(!on, addr)}
-          className={`shrink-0 rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-colors disabled:opacity-40 ${
+          className={`shrink-0 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-40 ${
             on
               ? 'border-bad-500/25 text-bad-400 hover:border-bad-500/50'
               : 'border-good-500/25 text-good-400 hover:border-good-500/50'
@@ -62,13 +62,13 @@ export function DemoToggle({ enabled, url }: { enabled: boolean; url: string }) 
             value={addr}
             onChange={(e) => setAddr(e.target.value)}
             placeholder="https://demo.example.com"
-            className="w-full rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-[13px] outline-none focus:border-haul-500"
+            className="w-full rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-base outline-none focus:border-haul-500"
           />
           <Button variant="secondary" size="sm" disabled={pending} onClick={() => save(on, addr)}>
             {t(locale, 'common.save')}
           </Button>
         </div>
-        <p className="mt-1 text-[11.5px] leading-relaxed text-t3">{t(locale, 'admin.demoPublic.urlHint')}</p>
+        <p className="mt-1 text-xs leading-relaxed text-t3">{t(locale, 'admin.demoPublic.urlHint')}</p>
       </div>
     </div>
   )

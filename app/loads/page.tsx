@@ -1,3 +1,7 @@
+import { WidgetGrid, type Widget } from '@/components/widget-grid'
+import { gridLabels } from '@/lib/grid-labels'
+import { readLayout } from '@/lib/tiles'
+import { applyLayout, LOADS_TILES } from '@/lib/tiles-core'
 import { Suspense } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/button'
@@ -138,6 +142,48 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
   // из одной и той же ms сервер в UTC и браузер в New York получали разные дни (#418).
   const weekFrom = weekStartIso(todayEt())
   const initialWeek = sp.week && !Number.isNaN(Date.parse(`${sp.week}T12:00:00`)) ? weekStartIso(sp.week) : weekFrom
+  const widgets: Widget[] = [
+    {
+      id: 'views',
+      node: (
+        <div>
+          <LoadsViews
+            loads={loads}
+            trucks={trucks}
+            metrics={metrics}
+            rateConPairs={[...rateCons]}
+            photoTruckIds={[...photoIds]}
+            attention={attention}
+            weekFrom={weekFrom}
+            initialView={sp.view === 'board' ? 'board' : sp.view === 'calendar' ? 'calendar' : 'driver'}
+            initialWeek={initialWeek}
+            initialDay={sp.day ?? null}
+            initialQuery={sp.q ?? ''}
+            mapPanel={
+              <Suspense key="map" fallback={<div className="panel mb-4 h-64 animate-pulse" />}>
+                <LoadsMapServer loads={loads} trucks={trucks} metrics={metrics} locale={locale} />
+              </Suspense>
+            }
+          />
+        </div>
+      ),
+    },
+    {
+      id: 'lanes',
+      // Направления — «куда возить выгодно» смотрят раз в неделю, поэтому исходно
+      // в самом низу.
+      node: (
+        <div>
+          <LaneStats
+            rows={priced.map(({ load, r }) => ({ load, net: r?.net ?? 0, miles: load.loadedMiles + load.deadheadMiles }))}
+            locale={locale}
+          />
+        </div>
+      ),
+    },
+  ]
+  const layout = applyLayout(await readLayout('loads'), LOADS_TILES)
+
   return (
     <>
       <div className="mb-4 flex items-end justify-between gap-4">
@@ -146,34 +192,20 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
             {t(locale, 'loads.page.title')}
             <Info side="bottom" text={t(locale, 'loads.page.tooltip')} />
           </h1>
-          <p className="text-[13px] text-t2">{t(locale, 'loads.page.countSuffix').replace('{n}', String(loads.length))}</p>
+          <p className="text-base text-t2">{t(locale, 'loads.page.countSuffix').replace('{n}', String(loads.length))}</p>
         </div>
         <Button href="/loads/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
           {t(locale, 'loads.page.new')}
         </Button>
       </div>
 
-      <LoadsViews
-        loads={loads}
-        trucks={trucks}
-        metrics={metrics}
-        rateConPairs={[...rateCons]}
-        photoTruckIds={[...photoIds]}
-        attention={attention}
-        weekFrom={weekFrom}
-        initialView={sp.view === 'board' ? 'board' : sp.view === 'calendar' ? 'calendar' : 'driver'}
-        initialWeek={initialWeek}
-        initialDay={sp.day ?? null}
-        initialQuery={sp.q ?? ''}
-        mapPanel={
-          <Suspense key="map" fallback={<div className="panel mb-4 h-64 animate-pulse" />}>
-            <LoadsMapServer loads={loads} trucks={trucks} metrics={metrics} locale={locale} />
-          </Suspense>
-        }
+      <WidgetGrid
+        page="loads"
+        layout={layout}
+        defaults={LOADS_TILES}
+        widgets={widgets}
+        labels={gridLabels(locale)}
       />
-
-      {/* Направления — в самом низу: «куда возить выгодно» смотрят раз в неделю. */}
-      <LaneStats rows={priced.map(({ load, r }) => ({ load, net: r?.net ?? 0, miles: load.loadedMiles + load.deadheadMiles }))} locale={locale} />
     </>
   )
 }

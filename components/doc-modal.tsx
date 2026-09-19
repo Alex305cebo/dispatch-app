@@ -65,14 +65,14 @@ export function DocModal({ docId, onClose }: { docId: number; onClose: () => voi
         className="panel flex max-h-full w-full max-w-4xl flex-col overflow-hidden p-0"
       >
         <div className="flex items-center gap-3 border-b border-white/8 px-4 py-2.5">
-          <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
+          <span className="min-w-0 flex-1 truncate text-base font-medium">
             {meta?.title ?? t(locale, 'common.loading')}
           </span>
           <a
             href={`/view/${docId}`}
             target="_blank"
             rel="noreferrer"
-            className="shrink-0 text-[11.5px] text-haul-300 hover:underline"
+            className="shrink-0 text-xs text-haul-300 hover:underline"
           >
             {t(locale, 'docModal.openPage')}
           </a>
@@ -80,18 +80,18 @@ export function DocModal({ docId, onClose }: { docId: number; onClose: () => voi
             type="button"
             onClick={onClose}
             aria-label={t(locale, 'userPanel.close')}
-            className="flex size-7 shrink-0 items-center justify-center rounded-full text-[15px] text-t3 transition-colors hover:bg-white/10 hover:text-white"
+            className="flex size-7 shrink-0 items-center justify-center rounded-full text-lg text-t3 transition-colors hover:bg-white/10 hover:text-white"
           >
             ✕
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-auto">
           {err ? (
-            <p className="p-6 text-center text-[13px] text-bad-400">{err}</p>
+            <p className="p-6 text-center text-base text-bad-400">{err}</p>
           ) : meta ? (
             <DocViewer id={docId} mime={meta.mime} />
           ) : (
-            <p className="p-6 text-center text-[13px] text-t3">{t(locale, 'common.loading')}</p>
+            <p className="p-6 text-center text-base text-t3">{t(locale, 'common.loading')}</p>
           )}
         </div>
       </div>

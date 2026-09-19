@@ -138,27 +138,27 @@ export default async function Page() {
     <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <div className="mb-4">
         <h1 className="text-xl font-bold tracking-tight">{t(locale, 'admin.logins.title')}</h1>
-        <p className="text-[13px] text-t2">
+        <p className="text-base text-t2">
           {t(locale, 'admin.logins.subtitle').replace('{n}', String(events.length))}
         </p>
       </div>
 
       {/* Gemini token spend — our running counter (Google AI Studio has the full total). */}
       <div className="panel mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 p-4">
-        <div className="flex items-center gap-1.5 text-[13px] font-semibold text-t2">
+        <div className="flex items-center gap-1.5 text-base font-semibold text-t2">
           {t(locale, 'admin.logins.geminiSpend')}
           <Info text={t(locale, 'admin.logins.geminiInfo')} />
         </div>
         <div>
-          <span className="nums text-[18px] font-bold">{gemini.tokens.toLocaleString(numLocale)}</span>
-          <span className="ml-1 text-[12px] text-t3">{t(locale, 'admin.logins.tokens')}</span>
+          <span className="nums text-xl font-bold">{gemini.tokens.toLocaleString(numLocale)}</span>
+          <span className="ml-1 text-sm text-t3">{t(locale, 'admin.logins.tokens')}</span>
         </div>
         <div>
-          <span className="nums text-[18px] font-bold">{gemini.calls.toLocaleString(numLocale)}</span>
-          <span className="ml-1 text-[12px] text-t3">{t(locale, 'admin.logins.calls')}</span>
+          <span className="nums text-xl font-bold">{gemini.calls.toLocaleString(numLocale)}</span>
+          <span className="ml-1 text-sm text-t3">{t(locale, 'admin.logins.calls')}</span>
         </div>
         {gemini.since && (
-          <div className="text-[11px] text-t3">
+          <div className="text-xs text-t3">
             {t(locale, 'admin.logins.since')}
             {gemini.since.slice(0, 10)}
           </div>
@@ -167,15 +167,15 @@ export default async function Page() {
 
       {events.length === 0 ? (
         <div className="panel p-8 text-center">
-          <p className="text-[15px] font-medium">{t(locale, 'admin.logins.emptyTitle')}</p>
-          <p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-t2">
+          <p className="text-lg font-medium">{t(locale, 'admin.logins.emptyTitle')}</p>
+          <p className="mx-auto mt-2 max-w-sm text-base leading-relaxed text-t2">
             {t(locale, 'admin.logins.emptyBody')}
           </p>
         </div>
       ) : (
         <ul className="panel divide-y divide-white/5 p-0">
           {events.map((e, i) => (
-            <li key={i} className="flex flex-wrap items-start gap-x-4 gap-y-1 px-4 py-3 text-[13px]">
+            <li key={i} className="flex flex-wrap items-start gap-x-4 gap-y-1 px-4 py-3 text-base">
               <div className="flex min-w-0 flex-1 basis-[220px] flex-col gap-0.5">
                 <span className="flex items-center gap-2">
                   <span
@@ -186,11 +186,11 @@ export default async function Page() {
                   </span>
                 </span>
                 <span className="pl-3.5 text-t1">{e.what}</span>
-                {e.detail && <span className="pl-3.5 text-[11px] text-t3">{e.detail}</span>}
+                {e.detail && <span className="pl-3.5 text-xs text-t3">{e.detail}</span>}
               </div>
               <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
-                <span className="nums text-[12px] text-t3">{when(e.at, locale)}</span>
-                <span className="text-[11px] text-t3">{e.where}</span>
+                <span className="nums text-sm text-t3">{when(e.at, locale)}</span>
+                <span className="text-xs text-t3">{e.where}</span>
               </div>
             </li>
           ))}

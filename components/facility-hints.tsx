@@ -32,9 +32,9 @@ export async function FacilityHints({ companyId, load, locale }: { companyId: 'd
         {hints.map(({ stop, facility: f }) => {
           const dwell = avgDwell(f)
           return (
-            <li key={`${stop.seq}-${f.key}`} className="py-2 text-[13px]">
+            <li key={`${stop.seq}-${f.key}`} className="py-2 text-base">
               <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-t3">{stopTitle(stop, stops, locale)}</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-t3">{stopTitle(stop, stops, locale)}</span>
                 <Link href={`/facilities/${encodeURIComponent(f.key)}`} className="font-medium text-t1 hover:text-haul-300 hover:underline">
                   {f.name ?? f.address ?? f.city}
                 </Link>
@@ -44,13 +44,13 @@ export async function FacilityHints({ companyId, load, locale }: { companyId: 'd
                   {dwell != null && ` · ${t(locale, 'facilities.dwell').replace('{t}', driveTime(dwell, locale))}`}
                 </span>
                 {f.detentions > 0 && (
-                  <span className="rounded-full bg-bad-500/15 px-2 py-0.5 text-[11px] font-semibold text-bad-400">
+                  <span className="rounded-full bg-bad-500/15 px-2 py-0.5 text-xs font-semibold text-bad-400">
                     {t(locale, 'facilities.detentions').replace('{n}', String(f.detentions))}
                   </span>
                 )}
               </p>
               {f.directions && !stop.directions && (
-                <p className="mt-1 text-[12.5px] text-t2">
+                <p className="mt-1 text-sm text-t2">
                   <span className="font-semibold text-warn-400">⚠ {t(locale, 'facilities.lastDirections')}:</span> {f.directions}
                 </p>
               )}
@@ -61,7 +61,7 @@ export async function FacilityHints({ companyId, load, locale }: { companyId: 'd
           )
         })}
       </ul>
-      <Link href="/brokers?view=facilities" className="mt-2 inline-block text-[12px] font-medium text-haul-400 hover:underline">
+      <Link href="/brokers?view=facilities" className="mt-2 inline-block text-sm font-medium text-haul-400 hover:underline">
         {t(locale, 'facilities.all')} →
       </Link>
     </section>

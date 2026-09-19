@@ -383,7 +383,7 @@ export default async function Page() {
           {tr(locale, 'overview.fleetHeading')}
           <Info text={tr(locale, 'overview.fleetInfo')} />
         </h2>
-        <Link href="/trucks" className="text-[12px] text-haul-400 hover:underline">
+        <Link href="/trucks" className="text-sm text-haul-400 hover:underline">
           {tr(locale, 'overview.trackingLink')}
         </Link>
       </div>
@@ -417,7 +417,7 @@ export default async function Page() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="min-w-0 break-words text-[14px] font-medium leading-snug sm:text-md">
+                    <span className="min-w-0 break-words text-md font-medium leading-snug sm:text-md">
                       {truckLabel(t, trailers.get(t.id))}
                     </span>
                     {/* Icon-only, with the words on hover. Spelled out ("🔧 в ремонте")
@@ -441,7 +441,7 @@ export default async function Page() {
                       </span>
                     )}
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-t2">
+                  <div className="flex flex-wrap items-center gap-1.5 text-sm text-t2">
                     {/* Прицеп уехал в подпись выше (truckLabel), здесь осталось
                         только место — иначе номер печатался бы дважды подряд. Место
                         копируется: с обзора его и диктуют брокеру чаще всего. */}
@@ -450,7 +450,7 @@ export default async function Page() {
                         text={placeCity(fs?.location ?? null)!}
                         coords={{ lat: fs?.lat, lng: fs?.lng }}
                         size="sm"
-                        className="min-w-0 text-[12px] text-t2"
+                        className="min-w-0 text-sm text-t2"
                       />
                     ) : (
                       <span className="min-w-0 truncate">{tr(locale, 'overview.noEldData')}</span>
@@ -525,20 +525,20 @@ export default async function Page() {
                     <div className="min-w-0 flex-1">
                       {/* Route gets the whole line and wraps in full instead of truncating —
                           the badge moved down to the details row so nothing steals its width. */}
-                      <div className="text-[14px] font-medium leading-snug">
+                      <div className="text-md font-medium leading-snug">
                         {load.origin ?? '—'} → {load.destination ?? '—'}
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                         <StatusBadge status={load.status} locale={locale} />
-                        <span className="nums min-w-0 text-[12px] text-t2">
+                        <span className="nums min-w-0 text-sm text-t2">
                           <span className="text-t3">{truckLabel(truck)}</span> · {usd2.format(r.allInRpm)}/mi
                         </span>
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <div className="nums text-[15px] font-bold">{usd.format(load.rate)}</div>
+                      <div className="nums text-lg font-bold">{usd.format(load.rate)}</div>
                       {load.loadedMiles > 0 && (
-                        <div className="nums text-[11px] font-medium text-haul-300">
+                        <div className="nums text-xs font-medium text-haul-300">
                           {Math.round(load.loadedMiles).toLocaleString('en-US')} mi
                         </div>
                       )}
@@ -552,8 +552,8 @@ export default async function Page() {
         </>
       ) : (
         <div className="panel mt-6 p-6 text-center">
-          <p className="text-[14px] font-medium">{tr(locale, 'overview.noLoadsYet')}</p>
-          <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-t2">
+          <p className="text-md font-medium">{tr(locale, 'overview.noLoadsYet')}</p>
+          <p className="mx-auto mt-1.5 max-w-sm text-base leading-relaxed text-t2">
             {tr(locale, 'overview.noLoadsBody')}
           </p>
           <div className="mt-4 flex justify-center gap-2">
@@ -606,11 +606,11 @@ export default async function Page() {
 function DeliveryRow({ to, locale, figure }: { to: string; locale: Locale; figure?: string }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-1.5">
-      <span className="min-w-0 truncate text-[11px] text-t3">
+      <span className="min-w-0 truncate text-xs text-t3">
         {tr(locale, 'overview.toDelivery')}
         <span className="text-t2">{to}</span>
       </span>
-      <span className="nums shrink-0 text-[11px] font-semibold text-t1">
+      <span className="nums shrink-0 text-xs font-semibold text-t1">
         {figure ?? (
           <span className="inline-block h-3 w-20 animate-pulse rounded bg-white/10 align-middle" />
         )}

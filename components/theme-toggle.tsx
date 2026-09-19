@@ -34,7 +34,7 @@ export function ThemeToggle({ collapsed = false }: { collapsed?: boolean }) {
       aria-label={t(locale, theme === 'dark' ? 'theme.light' : 'theme.dark')}
       title={t(locale, theme === 'dark' ? 'theme.light' : 'theme.dark')}
       // Inline: lives in the nav next to the bell, not floating over the page.
-      className={`nav-icon-btn flex size-9 items-center justify-center rounded-full border border-white/10 text-[15px] hover:border-white/25 ${collapsed ? 'is-collapsed' : ''}`}
+      className={`nav-icon-btn flex size-9 items-center justify-center rounded-full border border-white/10 text-lg hover:border-white/25 ${collapsed ? 'is-collapsed' : ''}`}
     >
       {theme === 'dark' ? '☀️' : '🌙'}
     </button>

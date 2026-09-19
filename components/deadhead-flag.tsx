@@ -40,7 +40,7 @@ export function DeadheadFlag({
     return (
       <span
         title={text}
-        className={`nums inline-flex items-center gap-1 rounded bg-bad-500/15 px-1.5 py-0.5 text-[10.5px] font-bold text-bad-400 ring-1 ring-bad-500/30 ${className}`}
+        className={`nums inline-flex items-center gap-1 rounded bg-bad-500/15 px-1.5 py-0.5 text-2xs font-bold text-bad-400 ring-1 ring-bad-500/30 ${className}`}
       >
         <Flag size={10} strokeWidth={2.8} />
         DH {n} mi
@@ -57,9 +57,9 @@ export function DeadheadFlag({
       }
     })
   const btn =
-    'inline-flex min-h-8 items-center rounded-lg px-3 text-[12px] font-semibold transition-colors disabled:opacity-50 max-md:min-h-10'
+    'inline-flex min-h-8 items-center rounded-lg px-3 text-sm font-semibold transition-colors disabled:opacity-50 max-md:min-h-10'
   return (
-    <div className={`rounded-xl border border-bad-500/35 bg-bad-500/[0.07] px-3 py-2 text-[12.5px] leading-snug text-t1 ${className}`}>
+    <div className={`rounded-xl border border-bad-500/35 bg-bad-500/[0.07] px-3 py-2 text-sm leading-snug text-t1 ${className}`}>
       <p className="flex items-start gap-1.5">
         <Flag size={14} strokeWidth={2.4} className="mt-0.5 shrink-0 text-bad-400" />
         <span>{text}</span>
@@ -68,7 +68,7 @@ export function DeadheadFlag({
         <div className="mt-2 flex flex-wrap items-center gap-2 pl-5">
           {editing ? (
             <>
-              <label className="flex items-center gap-1.5 text-[12px] text-t2">
+              <label className="flex items-center gap-1.5 text-sm text-t2">
                 {t(locale, 'dhFlag.label')}
                 <input
                   inputMode="numeric"
@@ -76,7 +76,7 @@ export function DeadheadFlag({
                   value={value}
                   onChange={(e) => setValue(e.target.value.replace(/[^\d]/g, ''))}
                   onKeyDown={(e) => e.key === 'Enter' && value !== '' && save(Number(value))}
-                  className="nums h-8 w-20 rounded-lg border border-white/15 bg-ink-900 px-2 text-[13px] text-white outline-none focus:border-haul-500 max-md:h-10"
+                  className="nums h-8 w-20 rounded-lg border border-white/15 bg-ink-900 px-2 text-base text-white outline-none focus:border-haul-500 max-md:h-10"
                 />
               </label>
               <button type="button" disabled={busy || value === ''} onClick={() => save(Number(value))} className={`${btn} bg-haul-500 text-white hover:bg-haul-400`}>

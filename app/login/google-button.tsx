@@ -90,7 +90,7 @@ export function GoogleButton({
   return (
     <div className="mt-3">
       <div ref={box} className={pending ? 'pointer-events-none opacity-50' : ''} />
-      {!ready && <p className="text-[12px] text-t3">{t(locale, 'login.google.loading')}</p>}
+      {!ready && <p className="text-sm text-t3">{t(locale, 'login.google.loading')}</p>}
     </div>
   )
 }

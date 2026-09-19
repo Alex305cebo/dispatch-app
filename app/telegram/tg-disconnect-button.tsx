@@ -15,7 +15,7 @@ export function TgDisconnectButton() {
     return (
       <button
         onClick={() => setConfirming(true)}
-        className="shrink-0 text-[12px] text-t3 underline decoration-dotted transition-colors hover:text-t2"
+        className="shrink-0 text-sm text-t3 underline decoration-dotted transition-colors hover:text-t2"
       >
         {t(locale, 'telegram.disconnect.wrongAccount')}
       </button>
@@ -23,7 +23,7 @@ export function TgDisconnectButton() {
   }
 
   return (
-    <div className="flex shrink-0 items-center gap-2 text-[12px]">
+    <div className="flex shrink-0 items-center gap-2 text-sm">
       <span className="text-t3">{t(locale, 'telegram.disconnect.confirmText')}</span>
       <button
         disabled={pending}

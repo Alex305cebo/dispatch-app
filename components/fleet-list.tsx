@@ -148,9 +148,9 @@ export function FleetList({
                 Раньше «truncate» оставлял от «Evgeny Glagolev» одну букву. */}
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                <span className="text-[15px] font-semibold">{r.label}</span>
+                <span className="text-lg font-semibold">{r.label}</span>
                 {r.unavailable && (
-                  <span className="shrink-0 rounded-full bg-warn-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-warn-400">
+                  <span className="shrink-0 rounded-full bg-warn-400/15 px-1.5 py-0.5 text-2xs font-semibold text-warn-400">
                     {r.unavailable === 'repair'
                       ? t(locale, 'tracking.repairLabel')
                       : t(locale, 'tracking.vacationLabel')}
@@ -158,7 +158,7 @@ export function FleetList({
                 )}
               </div>
               <span
-                className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium ${toneClass[r.statusTone]}`}
+                className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-2xs font-medium ${toneClass[r.statusTone]}`}
               >
                 {r.statusText}
               </span>
@@ -168,7 +168,7 @@ export function FleetList({
                 одной переносящейся строкой, топливо прижато вправо. Раньше «Карта»
                 уезжала на свою строку, а погода стояла отдельной третьей полосой: у
                 свободного трака карточка выходила в пять рядов, два из них почти пустые. */}
-            <div className="mt-0.5 flex items-start justify-between gap-2 text-[12px] text-t3">
+            <div className="mt-0.5 flex items-start justify-between gap-2 text-sm text-t3">
               <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
                 {/* Место — кнопка с рамкой, а не текст с блёклым значком рядом.
                     Прежний значок в 11 пикселей и на треть прозрачный просто не
@@ -178,13 +178,13 @@ export function FleetList({
                     text={r.city}
                     coords={{ lat: r.lat, lng: r.lng }}
                     size="sm"
-                    className="min-w-0 text-[12px] text-t2"
+                    className="min-w-0 text-sm text-t2"
                   />
                 ) : (
                   <span className="truncate">{t(locale, 'tracking.noEldData')}</span>
                 )}
                 {r.zone && (
-                  <span className="shrink-0 text-[11.5px] text-t3">
+                  <span className="shrink-0 text-xs text-t3">
                     {t(locale, 'trucks.head.driverTimeShort')} <LocalTime zone={r.zone} className="nums font-semibold text-t1" />
                   </span>
                 )}
@@ -200,7 +200,7 @@ export function FleetList({
                         title={`${t(locale, `wx.${kind}.hint` as Parameters<typeof t>[1])}
 
 ${r.weather.event} · ${t(locale, 'wx.source')}`}
-                        className={`shrink-0 rounded px-1.5 py-0.5 text-[10.5px] font-medium ${
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-2xs font-medium ${
                           bad ? 'bg-bad-500/15 text-bad-400' : 'bg-warn-400/15 text-warn-400'
                         }`}
                       >
@@ -209,7 +209,7 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
                     )
                   })()}
                 {r.idleHours !== null && (
-                  <span className="shrink-0 rounded bg-warn-400/15 px-1.5 py-0.5 text-[10.5px] font-medium text-warn-400">
+                  <span className="shrink-0 rounded bg-warn-400/15 px-1.5 py-0.5 text-2xs font-medium text-warn-400">
                     {t(locale, 'tracking.idlePrefix')}
                     {r.idleHours}
                     {t(locale, 'tracking.idleSuffix')}
@@ -229,11 +229,11 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
 
             {r.delivery ? (
               <div className="panel-inset mt-1.5 flex items-baseline justify-between gap-2 px-2.5 py-1">
-                <span className="min-w-0 truncate text-[12px] text-t3">
+                <span className="min-w-0 truncate text-sm text-t3">
                   {t(locale, 'tracking.toDeliveryLabel')}
                   <span className="font-medium text-t1">{r.delivery.to}</span>
                 </span>
-                <span className="nums shrink-0 text-[11.5px] font-semibold text-t1">
+                <span className="nums shrink-0 text-xs font-semibold text-t1">
                   {r.delivery.miles.toLocaleString('en-US')} mi · ~{r.driveTimeText}
                 </span>
               </div>
@@ -243,17 +243,17 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
                  — этим и проверяют, не потерян ли груз между рейсами. */
               <Link
                 href={`/loads/${r.prevLoad.id}`}
-                className="relative z-10 mt-1.5 flex items-baseline justify-between gap-2 text-[12px] text-t3 transition-colors hover:text-t2"
+                className="relative z-10 mt-1.5 flex items-baseline justify-between gap-2 text-sm text-t3 transition-colors hover:text-t2"
               >
                 <span className="min-w-0 truncate">
                   {t(locale, 'prevLoad.label')}
                   {': '}
                   <span className="font-medium text-t2">{r.prevLoad.route}</span>
                 </span>
-                {r.prevLoad.date && <span className="nums shrink-0 text-[11.5px]">{usDate(r.prevLoad.date)}</span>}
+                {r.prevLoad.date && <span className="nums shrink-0 text-xs">{usDate(r.prevLoad.date)}</span>}
               </Link>
             ) : (
-              <div className="mt-1.5 text-[12px] text-t3">{t(locale, 'tracking.noActiveLoad')}</div>
+              <div className="mt-1.5 text-sm text-t3">{t(locale, 'tracking.noActiveLoad')}</div>
             )}
 
             {/* Bottom rail. Every label is short and every control is the shared
@@ -284,7 +284,7 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
                 {money?.[r.id]?.docWarn && (
                   <span
                     title={money[r.id]!.docWarn!}
-                    className="rounded bg-warn-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-warn-400"
+                    className="rounded bg-warn-400/15 px-1.5 py-0.5 text-2xs font-semibold text-warn-400"
                   >
                     {t(locale, 'tracking.docsShort')}
                   </span>
@@ -294,13 +294,13 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
                 {money?.[r.id] && (
                   <span className="flex items-baseline gap-1">
                     <span
-                      className={`nums text-[13px] font-bold ${
+                      className={`nums text-base font-bold ${
                         money[r.id]!.week > 0 ? 'text-good-400' : 'text-t3'
                       }`}
                     >
                       {money[r.id]!.week > 0 ? usd.format(money[r.id]!.week) : '—'}
                     </span>
-                    <span className="text-[11px] font-medium text-t3">{t(locale, 'tracking.weekShort')}</span>
+                    <span className="text-xs font-medium text-t3">{t(locale, 'tracking.weekShort')}</span>
                   </span>
                 )}
               </span>
@@ -308,7 +308,7 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
           </div>
         ))}
         {shown.length === 0 && (
-          <p className="panel p-4 text-center text-[13px] text-t3 sm:col-span-2 2xl:col-span-3">
+          <p className="panel p-4 text-center text-base text-t3 sm:col-span-2 2xl:col-span-3">
             {t(locale, 'tracking.allTrucksBusy')}
           </p>
         )}

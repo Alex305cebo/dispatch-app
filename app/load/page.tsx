@@ -17,7 +17,7 @@ export default async function Page() {
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <BackButton href="/loads" label={t(locale, 'loads.page.title')} />
       <h1 className="mb-1 mt-3 text-xl font-bold tracking-tight">{t(locale, 'loadQr.title')}</h1>
-      <p className="mb-6 text-[13px] text-t2">{t(locale, 'loadQr.subtitle')}</p>
+      <p className="mb-6 text-base text-t2">{t(locale, 'loadQr.subtitle')}</p>
       <QrClient trucks={trucks} metaByTruck={Object.fromEntries(metas)} />
     </main>
   )

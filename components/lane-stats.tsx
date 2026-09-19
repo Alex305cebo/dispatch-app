@@ -37,12 +37,12 @@ export function LaneStats({ rows, locale }: { rows: PricedLoad[]; locale: Locale
           главная цифра везде ставка. */}
       <ul className="mt-3 flex flex-col">
         {shown.map((l) => (
-          <li key={l.key} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-t border-white/6 py-2 text-[12.5px]">
+          <li key={l.key} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-t border-white/6 py-2 text-sm">
             {/* Клик уводит в поиск по этому направлению — оттуда видно сами рейсы,
                 из которых сложилась строка. */}
             <Link
               href={`/loads?q=${encodeURIComponent(l.origin)}`}
-              className="min-w-0 basis-full text-[13px] font-medium text-t1 hover:text-white hover:underline sm:flex-1 sm:basis-auto sm:truncate"
+              className="min-w-0 basis-full text-base font-medium text-t1 hover:text-white hover:underline sm:flex-1 sm:basis-auto sm:truncate"
             >
               {l.origin} → {l.destination}
             </Link>

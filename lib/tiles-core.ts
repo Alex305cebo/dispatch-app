@@ -102,3 +102,49 @@ export function applyLayout(
   for (const d of defaults) if (known.has(d.id)) out.push(d)
   return out
 }
+
+/** Раскладка раздела «Траки» по умолчанию — тот порядок, в котором блоки стояли,
+ *  пока их нельзя было двигать: карта, выбор трака, счётчики, загрузка парка,
+ *  справочник водителей, список траков, подключение ELD.
+ *
+ *  Живёт ЗДЕСЬ, а не рядом с самим компонентом: fleet-panel.tsx помечен 'use client',
+ *  и обычное значение, вывезенное из клиентского модуля, на сервере превращается в
+ *  ссылку на клиентский компонент, а не в массив. Страница падала ровно на этом —
+ *  «defaults.map is not a function».
+ */
+export const TRUCKS_TILES: TilePlacement[] = [
+  { id: 'map', size: 'l' },
+  { id: 'picker', size: 'l' },
+  { id: 'counters', size: 'l' },
+  { id: 'heatmap', size: 'l' },
+  { id: 'drivers', size: 'l' },
+  { id: 'list', size: 'l' },
+  { id: 'eld', size: 'l' },
+]
+
+/** Раскладки остальных разделов по умолчанию — тот порядок, в котором блоки стояли до
+ *  плиток. Все здесь по той же причине, что и TRUCKS_TILES: страницы-серверы не могут
+ *  забрать обычное значение из модуля с 'use client'. */
+export const BROKERS_TILES: TilePlacement[] = [
+  { id: 'plan', size: 'l' },
+  { id: 'directory', size: 'l' },
+]
+
+export const TOLLS_TILES: TilePlacement[] = [
+  { id: 'missing', size: 'l' },
+  { id: 'calc', size: 'l' },
+  { id: 'money', size: 'l' },
+  { id: 'guide', size: 'l' },
+]
+
+export const DOCS_TILES: TilePlacement[] = [
+  { id: 'recognize', size: 'w' },
+  { id: 'upload', size: 'w' },
+  { id: 'tabs', size: 'l' },
+]
+
+export const LOADS_TILES: TilePlacement[] = [
+  { id: 'views', size: 'l' },
+  { id: 'lanes', size: 'l' },
+]
+

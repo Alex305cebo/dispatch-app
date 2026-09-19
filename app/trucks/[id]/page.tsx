@@ -280,7 +280,7 @@ export default async function Page({
               <h1 className="nums text-[26px] font-semibold leading-8">{truck.number ?? truck.name}</h1>
               {fs?.driveStatus && (
                 <span
-                  className={`inline-flex h-6 items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 text-[12px] font-semibold ${toneClass[statusTone(fs.driveStatus)]}`}
+                  className={`inline-flex h-6 items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 text-sm font-semibold ${toneClass[statusTone(fs.driveStatus)]}`}
                   title="ELD"
                 >
                   <span aria-hidden className="size-1.5 rounded-full bg-current" />
@@ -304,7 +304,7 @@ export default async function Page({
               {meta?.driverPhone ? (
                 <a
                   href={`tel:${meta.driverPhone}`}
-                  className="nums mt-0.5 inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-[13px] font-medium text-t1 transition-colors hover:border-white/30 hover:bg-white/[0.08] max-md:h-10"
+                  className="nums mt-0.5 inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-base font-medium text-t1 transition-colors hover:border-white/30 hover:bg-white/[0.08] max-md:h-10"
                 >
                   <Phone size={14} strokeWidth={2.2} className="text-haul-300" />
                   {meta.driverPhone}
@@ -334,7 +334,7 @@ export default async function Page({
             )}
             {meta?.vin && (
               <HeadField label="VIN">
-                <span className="nums text-[13px] text-t2">{meta.vin}</span>
+                <span className="nums text-base text-t2">{meta.vin}</span>
               </HeadField>
             )}
             {fs?.location && (
@@ -343,7 +343,7 @@ export default async function Page({
               <HeadField label={t(locale, 'trucks.head.location')} className="col-span-2 sm:hidden">
                 <span className="block">{fs.location}</span>
                 {zoneFor(fs.lat, fs.lng) && (
-                  <span className="mt-0.5 block text-[12px] text-t2">
+                  <span className="mt-0.5 block text-sm text-t2">
                     {t(locale, 'trucks.head.driverTime')}: <LocalTime zone={zoneFor(fs.lat, fs.lng)!} className="nums font-semibold text-t1" />
                   </span>
                 )}
@@ -378,15 +378,15 @@ export default async function Page({
                 className="group block rounded-xl border border-haul-500/30 bg-haul-500/[0.07] px-3.5 py-2.5 transition-colors hover:border-haul-400/60 hover:bg-haul-500/[0.14]"
               >
                 <span className="flex items-start justify-between gap-3">
-                  <span className="min-w-0 text-[17px] font-semibold leading-6">
+                  <span className="min-w-0 text-xl font-semibold leading-6">
                     {activeLoad.origin ?? '—'} → {activeLoad.destination ?? '—'}
-                    {activeVia && <span className="ml-1.5 text-[13px] font-medium text-t3">· {activeVia}</span>}
+                    {activeVia && <span className="ml-1.5 text-base font-medium text-t3">· {activeVia}</span>}
                   </span>
-                  <span className="mt-0.5 shrink-0 text-[15px] text-haul-300 transition-transform group-hover:translate-x-0.5">
+                  <span className="mt-0.5 shrink-0 text-lg text-haul-300 transition-transform group-hover:translate-x-0.5">
                     ↗
                   </span>
                 </span>
-                <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-t3">
+                <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-t3">
                   <StatusBadge status={activeLoad.status} locale={locale} />
                   {activeLoad.referenceId && <span className="nums">#{activeLoad.referenceId}</span>}
                   {activeLoad.brokerName && <span className="min-w-0 truncate">{activeLoad.brokerName}</span>}
@@ -400,14 +400,14 @@ export default async function Page({
                   <span className="nums">{activeLoad.deliveryTime || usDate(activeLoad.deliveryDate) || '—'}</span>
                 </HeadField>
                 <HeadField label={t(locale, 'trucks.detail.rate')}>
-                  <span className="nums text-[16px] font-semibold">{usd.format(activeLoad.rate)}</span>
+                  <span className="nums text-xl font-semibold">{usd.format(activeLoad.rate)}</span>
                 </HeadField>
               </dl>
               {partials.map((p) => (
                 <Link
                   key={p.id}
                   href={`/loads/${p.id}`}
-                  className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-haul-500/30 bg-haul-500/[0.06] px-3 py-2 text-[13px] hover:border-haul-400/60"
+                  className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-haul-500/30 bg-haul-500/[0.06] px-3 py-2 text-base hover:border-haul-400/60"
                 >
                   <span className="text-base leading-6 font-semibold text-haul-300">
                     {t(locale, 'trucks.detail.partialLoad')}
@@ -416,20 +416,20 @@ export default async function Page({
                     {p.origin ?? '—'} → {p.destination ?? '—'}
                   </span>
                   <span className="nums text-t3">{p.pickupTime || usDate(p.pickupDate)}</span>
-                  {p.referenceId && <span className="nums text-[12px] text-t3">#{p.referenceId}</span>}
-                  {p.brokerName && <span className="truncate text-[12px] text-t3">· {p.brokerName}</span>}
+                  {p.referenceId && <span className="nums text-sm text-t3">#{p.referenceId}</span>}
+                  {p.brokerName && <span className="truncate text-sm text-t3">· {p.brokerName}</span>}
                   <span className="nums ml-auto font-medium text-t2">{usd.format(p.rate)}</span>
                 </Link>
               ))}
             </>
           ) : (
-            <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-t3">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-base text-t3">
               {/* Не просто «свободен», а ГДЕ стоит: это и есть ответ, в каком городе
                   искать ему груз. Без GPS остаётся прежняя фраза. */}
               <span className="flex flex-wrap items-center gap-2">
                 {idleDays != null && (
                   <span
-                    className={`nums rounded-md px-1.5 py-0.5 text-[12px] font-semibold ${
+                    className={`nums rounded-md px-1.5 py-0.5 text-sm font-semibold ${
                       idleDays >= 4 ? 'bg-bad-500/15 text-bad-400' : idleDays >= 2 ? 'bg-warn-500/15 text-warn-400' : 'bg-white/[0.06] text-t2'
                     }`}
                   >
@@ -480,7 +480,7 @@ export default async function Page({
                 <HeadField label={t(locale, 'trucks.head.location')}>
                   <span className="block">{fs.location}</span>
                   {zoneFor(fs.lat, fs.lng) && (
-                    <span className="mt-0.5 block text-[12px] text-t2">
+                    <span className="mt-0.5 block text-sm text-t2">
                       {t(locale, 'trucks.head.driverTime')}: <LocalTime zone={zoneFor(fs.lat, fs.lng)!} className="nums font-semibold text-t1" />
                     </span>
                   )}
@@ -517,9 +517,9 @@ export default async function Page({
             {nextLoad && (
               <Link
                 href={`/loads/${nextLoad.id}`}
-                className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[13px] hover:border-white/25"
+                className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-base hover:border-white/25"
               >
-                <span className="text-[13px] font-semibold text-t2">
+                <span className="text-base font-semibold text-t2">
                   {t(locale, 'trucks.detail.nextLoad')}
                 </span>
                 <span className="font-medium text-t1">
@@ -527,7 +527,7 @@ export default async function Page({
                 </span>
                 <span className="nums text-t3">{nextLoad.pickupTime || usDate(nextLoad.pickupDate)}</span>
                 {nextLoad.referenceId && (
-                  <span className="nums text-[12px] text-t3">#{nextLoad.referenceId}</span>
+                  <span className="nums text-sm text-t3">#{nextLoad.referenceId}</span>
                 )}
                 <span className="nums ml-auto font-medium text-t2">{usd.format(nextLoad.rate)}</span>
               </Link>
@@ -658,7 +658,7 @@ export default async function Page({
                 : 'bg-warn-500/20 text-warn-400 ring-warn-400/25'
             }`}
           >
-            <span className="text-[12px] leading-none">🔧</span>
+            <span className="text-sm leading-none">🔧</span>
           </span>
           <div className="min-w-0 flex-1">
             <p
@@ -668,7 +668,7 @@ export default async function Page({
             >
               {t(locale, 'trucks.care.todoHeading')} · {openTodos}
             </p>
-            <p className="mt-0.5 text-[13px] text-t1">
+            <p className="mt-0.5 text-base text-t1">
               {todos
                 .filter((x) => !x.doneAt)
                 .slice(0, 4)
@@ -714,7 +714,7 @@ export default async function Page({
             {t(locale, 'trucks.detail.newLoadFromRc')}
             <Info text={t(locale, 'trucks.detail.newLoadFromRcInfo')} />
           </h2>
-          <Link href={`/loads/new?truck=${truck.id}`} className="text-[12px] text-t3 hover:text-t1">
+          <Link href={`/loads/new?truck=${truck.id}`} className="text-sm text-t3 hover:text-t1">
             {t(locale, 'trucks.detail.orManually')}
           </Link>
         </div>
@@ -808,7 +808,7 @@ export default async function Page({
             </Button>
           </div>
           {rows.length === 0 ? (
-            <p className="text-[13px] text-t3">{t(locale, 'trucks.detail.noLoadsYet')}</p>
+            <p className="text-base text-t3">{t(locale, 'trucks.detail.noLoadsYet')}</p>
           ) : (
             <div className="flex flex-col gap-2">
               {/* Остальные грузы — не лентой, а по дню из мини-календаря (день пикапа). */}
@@ -889,7 +889,7 @@ export default async function Page({
            трак/трейлер, VIN, сроки CDL и медкарты видны сразу. ===== */}
       <details open className="group panel mt-4 p-4">
         <summary className="-m-1 flex cursor-pointer list-none items-center gap-1.5 rounded-lg p-1 text-base leading-6 font-semibold text-t1 transition-colors hover:bg-white/[0.03] hover:text-t1">
-          <span className="text-[13px] leading-none text-t3 transition-transform duration-200 group-open:rotate-90">
+          <span className="text-base leading-none text-t3 transition-transform duration-200 group-open:rotate-90">
             ▸
           </span>
           {t(locale, 'trucks.detail.driverHeading')}
@@ -943,12 +943,12 @@ export default async function Page({
            факторинг, диспетч. Раскрытая — форма, где всё это правится. ===== */}
       <details className="group panel mt-4 p-4">
         <summary className="-m-1 flex cursor-pointer list-none flex-wrap items-center gap-1.5 rounded-lg p-1 text-base leading-6 font-semibold text-t1 transition-colors hover:bg-white/[0.03] hover:text-t1">
-          <span className="text-[13px] leading-none text-t3 transition-transform duration-200 group-open:rotate-90">
+          <span className="text-base leading-none text-t3 transition-transform duration-200 group-open:rotate-90">
             ▸
           </span>
           {t(locale, 'trucks.detail.economics')}
           <Info text={t(locale, 'trucks.detail.economicsInfo')} />
-          <span className="nums flex min-w-0 basis-full flex-wrap items-center gap-x-2 gap-y-0.5 text-[12.5px] font-normal text-t2 group-open:hidden sm:ml-2 sm:basis-auto">
+          <span className="nums flex min-w-0 basis-full flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-normal text-t2 group-open:hidden sm:ml-2 sm:basis-auto">
             <span>{truck.mpg} mpg</span>
             <span aria-hidden>·</span>
             <span>{usd2.format(truck.fuelPricePerGallon)}/gal</span>
@@ -1020,11 +1020,11 @@ function Chip({ label, value, tone, info, className = '' }: ChipProps) {
   // Плитка: подпись сверху, число под ней — одинаковая высота во всей таблице.
   return (
     <div className={`flex min-w-0 flex-col justify-center gap-0.5 bg-ink-900 px-3 py-2.5 ${className}`}>
-      <span className="flex min-w-0 items-center gap-1 text-[12px] font-medium leading-4 text-t3">
+      <span className="flex min-w-0 items-center gap-1 text-sm font-medium leading-4 text-t3">
         <span className="truncate">{label}</span>
         {info && <Info text={info} />}
       </span>
-      <span className={`nums text-[17px] font-semibold leading-6 ${color}`}>{value}</span>
+      <span className={`nums text-xl font-semibold leading-6 ${color}`}>{value}</span>
     </div>
   )
 }
@@ -1041,8 +1041,8 @@ function HeadField({
 }) {
   return (
     <div className={`min-w-0 ${className}`}>
-      <dt className="text-[12px] font-medium leading-4 text-t3">{label}</dt>
-      <dd className="mt-1 text-[14px] font-medium leading-5 text-t1">{children}</dd>
+      <dt className="text-sm font-medium leading-4 text-t3">{label}</dt>
+      <dd className="mt-1 text-md font-medium leading-5 text-t1">{children}</dd>
     </div>
   )
 }

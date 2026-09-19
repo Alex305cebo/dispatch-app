@@ -75,10 +75,10 @@ export function CopyPlace({
 
   const btn =
     variant === 'action'
-      ? 'h-8 gap-1.5 px-2.5 text-[13px] max-md:h-10'
+      ? 'h-8 gap-1.5 px-2.5 text-base max-md:h-10'
       : size === 'sm'
-        ? 'gap-1 px-1.5 py-0.5 text-[11px]'
-        : 'gap-1.5 px-2 py-1 text-[12px]'
+        ? 'gap-1 px-1.5 py-0.5 text-xs'
+        : 'gap-1.5 px-2 py-1 text-sm'
   const icon = variant === 'action' ? 14 : size === 'sm' ? 11 : 13
   const skin =
     variant === 'action'
