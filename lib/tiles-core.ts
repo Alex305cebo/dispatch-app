@@ -26,6 +26,7 @@ export type TilePage =
   | 'loads'
   | 'trucks'
   | 'docs'
+  | 'docs-fleet'
   | 'brokers'
   | 'tolls'
   | 'telegram'
@@ -38,6 +39,7 @@ export const TILE_PATHS: Record<TilePage, string> = {
   loads: '/loads',
   trucks: '/trucks',
   docs: '/docs',
+  'docs-fleet': '/docs',
   brokers: '/brokers',
   tolls: '/tolls',
   telegram: '/telegram',
@@ -137,10 +139,18 @@ export const TOLLS_TILES: TilePlacement[] = [
   { id: 'guide', size: 'l' },
 ]
 
+/** У «Документов» раскладка СВОЯ НА КАЖДУЮ ВКЛАДКУ: на «Грузах» и на «Траках и
+ *  водителях» лежат разные блоки, и общий порядок для них означал бы, что плитка
+ *  одной вкладки толкает плитку другой. Денежные отчёты и корзина — по одному блоку,
+ *  двигать там нечего, поэтому сетки у них нет. */
 export const DOCS_TILES: TilePlacement[] = [
   { id: 'recognize', size: 'w' },
+  { id: 'loads', size: 'l' },
+]
+
+export const DOCS_FLEET_TILES: TilePlacement[] = [
   { id: 'upload', size: 'w' },
-  { id: 'tabs', size: 'l' },
+  { id: 'library', size: 'l' },
 ]
 
 export const LOADS_TILES: TilePlacement[] = [

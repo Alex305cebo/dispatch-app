@@ -588,7 +588,7 @@ export function DocLibrary({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={t(locale, 'docs.library.search')}
-        className="mb-3 w-full rounded-xl border border-white/10 bg-ink-900/60 px-3 py-2 text-[13px] text-t1 outline-none focus:border-haul-500 max-md:min-h-11"
+        className="mb-3 w-full rounded-xl border border-white/10 bg-ink-900/60 px-3 py-2 text-base text-t1 outline-none focus:border-haul-500 max-md:min-h-11"
       />
 
       {/* Kind filter */}

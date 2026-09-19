@@ -11,6 +11,10 @@
 // раздел не исчезает — файлы нужны всем, кто работает с грузом.
 // Старый адрес /invoices ведёт сюда со своей вкладкой (app/invoices/page.tsx).
 
+import { WidgetGrid, type Widget } from '@/components/widget-grid'
+import { gridLabels } from '@/lib/grid-labels'
+import { readLayout } from '@/lib/tiles'
+import { applyLayout, DOCS_FLEET_TILES, DOCS_TILES } from '@/lib/tiles-core'
 import Link from 'next/link'
 import { listDocsForLibrary, listTrashedDocs, listTrucks, rateConByLoad } from '@/lib/loads'
 import { DocLibrary, DocTrash, DocUpload } from '@/components/docs'
@@ -60,7 +64,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           {t(locale, 'docs.title')}
           <Info side="bottom" text={t(locale, 'docs.info')} />
         </h1>
-        <p className="text-[13px] text-t2">{t(locale, SUBTITLE[tab])}</p>
+        <p className="text-base text-t2">{t(locale, SUBTITLE[tab])}</p>
       </header>
 
       {/* Четыре входа: груз, трак, деньги, корзина. Денежные отчёты разворачиваются
@@ -97,7 +101,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       {tab === 'loads' ? (
         <Loads companyId={companyId} locale={locale} query={q ?? ''} money={canFinances} />
       ) : tab === 'fleet' ? (
-        <Fleet companyId={companyId} />
+        <Fleet companyId={companyId} locale={locale} />
       ) : tab === 'trash' ? (
         <Trash companyId={companyId} />
       ) : (
@@ -123,7 +127,7 @@ function Chip({ href, active, label }: { href: string; active: boolean; label: s
   return (
     <Link
       href={href}
-      className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
+      className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
         active ? 'bg-haul-500 text-white' : 'bg-white/6 text-t2 hover:bg-white/10 hover:text-t1'
       }`}
     >
@@ -143,44 +147,84 @@ async function Loads({
   query: string
   money: boolean
 }) {
+  const widgets: Widget[] = [
+    {
+      id: 'recognize',
+      // Распознавание рейт-кона — быстрый путь: с бумаги начинается груз.
+      node: (
+        <Link
+          href="/loads/new"
+          className="flex h-full items-center gap-3 rounded-2xl border border-haul-500/30 bg-haul-500/10 px-4 py-3 transition-colors hover:bg-haul-500/15"
+        >
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-haul-500/20 text-xl">
+            ⚡
+          </span>
+          <span className="min-w-0">
+            <span className="block text-md font-semibold text-haul-300">{t(locale, 'docs.recognize.title')}</span>
+            <span className="block text-sm text-t2">{t(locale, 'docs.recognize.sub')}</span>
+          </span>
+          <span className="ml-auto shrink-0 text-t3">→</span>
+        </Link>
+      ),
+    },
+    {
+      id: 'loads',
+      node: (
+        <div>
+          <LoadsTab companyId={companyId} locale={locale} query={query} money={money} />
+        </div>
+      ),
+    },
+  ]
+  const layout = applyLayout(await readLayout('docs'), DOCS_TILES)
+
   return (
-    <>
-      {/* Распознавание рейт-кона — быстрый путь: с бумаги начинается груз. */}
-      <Link
-        href="/loads/new"
-        className="mb-3 flex items-center gap-3 rounded-2xl border border-haul-500/30 bg-haul-500/10 px-4 py-3 transition-colors hover:bg-haul-500/15"
-      >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-haul-500/20 text-[18px]">
-          ⚡
-        </span>
-        <span className="min-w-0">
-          <span className="block text-[14px] font-semibold text-haul-300">{t(locale, 'docs.recognize.title')}</span>
-          <span className="block text-[12px] text-t2">{t(locale, 'docs.recognize.sub')}</span>
-        </span>
-        <span className="ml-auto shrink-0 text-t3">→</span>
-      </Link>
-      <LoadsTab companyId={companyId} locale={locale} query={query} money={money} />
-    </>
+    <WidgetGrid
+      page="docs"
+      layout={layout}
+      defaults={DOCS_TILES}
+      widgets={widgets}
+      labels={gridLabels(locale)}
+    />
   )
 }
 
 /** Бумаги без груза: страховка, регистрация, чеки за ремонт, фото — по тракам. */
-async function Fleet({ companyId }: { companyId: 'default' | 'demo' }) {
+async function Fleet({ companyId, locale }: { companyId: 'default' | 'demo'; locale: Locale }) {
   const [rows, trucks] = await Promise.all([listDocsForLibrary(companyId), listTrucks(companyId)])
   const groups = trucks.map((tr) => ({ id: tr.id, label: tr.number ?? tr.name, driver: tr.driverName ?? '' }))
   // Бумаги груза живут в строке своего груза на вкладке «Грузы» — здесь их нет,
   // иначе это снова один общий список, в котором и искали через раз.
   const fleetRows = rows.filter((r) => r.loadId == null)
 
+  const widgets: Widget[] = [
+    {
+      id: 'upload',
+      node: (
+        <div className="panel h-full p-4">
+          <DocUpload trucks={groups.map((g) => ({ id: g.id, label: g.driver ? `${g.label} · ${g.driver}` : g.label }))} />
+        </div>
+      ),
+    },
+    {
+      id: 'library',
+      node: (
+        <div className="panel h-full p-4">
+          <DocLibrary rows={fleetRows} trucks={groups} />
+        </div>
+      ),
+    },
+  ]
+  const layout = applyLayout(await readLayout('docs-fleet'), DOCS_FLEET_TILES)
+
   return (
-    <>
-      <div className="panel mb-4 p-4">
-        <DocUpload trucks={groups.map((g) => ({ id: g.id, label: g.driver ? `${g.label} · ${g.driver}` : g.label }))} />
-      </div>
-      <div className="panel p-4">
-        <DocLibrary rows={fleetRows} trucks={groups} />
-      </div>
-    </>
+    <WidgetGrid
+      page="docs-fleet"
+      layout={layout}
+      defaults={DOCS_FLEET_TILES}
+      widgets={widgets}
+      labels={gridLabels(locale)}
+    />
   )
 }
 
