@@ -12,7 +12,11 @@ import {
   Wrench,
 } from 'lucide-react'
 import { Button } from '@/components/button'
-import { Suspense } from 'react'
+import { WidgetGrid, type Widget } from '@/components/widget-grid'
+import { gridLabels } from '@/lib/grid-labels'
+import { readLayout } from '@/lib/tiles'
+import { applyLayout, type TilePlacement, type TileSize } from '@/lib/tiles-core'
+import { Suspense, type ReactNode } from 'react'
 import Link from 'next/link'
 import {
   listLoads,
@@ -150,219 +154,231 @@ export default async function Page() {
   // opening that particular load.
   const unreadNotes = live.filter((l) => l.brokerNotes && !l.notesReadAt)
 
-  return (
-    <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <header className="mb-4 flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">{tr(locale, 'overview.title')}</h1>
-          <p className="mt-0.5 text-base text-t2">
-            {tr(locale, 'overview.truckCount').replace('{n}', String(trucks.length))}
-          </p>
-        </div>
-        <span className="flex shrink-0 items-center gap-1.5">
-          <Button href="/loads/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
-            {tr(locale, 'overview.addLoad')}
-          </Button>
-          <Info side="bottom" text={tr(locale, 'overview.addLoadInfo')} />
-        </span>
-      </header>
+  // Плитки раздела. Порядок и размеры ОБЩИЕ для всей компании и лежат в настройках
+  // (lib/tiles.ts), поэтому здесь задаётся только исходная раскладка — та, с которой
+  // раздел живёт, пока никто ничего не переставил.
+  const widgets: Widget[] = []
+  const defaults: TilePlacement[] = []
+  const add = (id: string, size: TileSize, node: ReactNode) => {
+    widgets.push({ id, node })
+    defaults.push({ id, size })
+  }
 
-      {alerts.length > 0 && (
-        <div className="mb-3 flex gap-2.5 rounded-xl border border-warn-400/25 bg-warn-400/[0.07] px-3.5 py-2.5">
-          {/* A coloured rule down the left edge plus an icon chip: at a glance this is
-              now recognisably a WARNING block rather than one more card of text. */}
-          <span className="mt-px flex size-6 shrink-0 items-center justify-center rounded-md bg-warn-400/15 text-warn-400 ring-1 ring-warn-400/25">
-            <CalendarClock size={15} strokeWidth={2.5} />
-          </span>
-          <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 text-base leading-6 font-semibold text-warn-400">
-            {tr(locale, 'overview.docDeadlines')}
-            <Info text={tr(locale, 'overview.docDeadlinesInfo')} />
+  if (alerts.length > 0)
+    add(
+      'docs-due',
+      'l',
+      <div className="flex h-full gap-2.5 rounded-xl border border-warn-400/25 bg-warn-400/[0.07] px-3.5 py-2.5">
+        {/* A coloured rule down the left edge plus an icon chip: at a glance this is
+            now recognisably a WARNING block rather than one more card of text. */}
+        <span className="mt-px flex size-6 shrink-0 items-center justify-center rounded-md bg-warn-400/15 text-warn-400 ring-1 ring-warn-400/25">
+          <CalendarClock size={15} strokeWidth={2.5} />
+        </span>
+        <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-1.5 text-base leading-6 font-semibold text-warn-400">
+          {tr(locale, 'overview.docDeadlines')}
+          <Info text={tr(locale, 'overview.docDeadlinesInfo')} />
+        </p>
+        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-base">
+          {alerts.slice(0, 6).map((a) => (
+            <Link
+              key={`${a.truckId}-${a.item.label}`}
+              href={`/trucks/${a.truckId}#care`}
+              className="text-t1 hover:underline"
+            >
+              <span className="text-t3">#{a.number}</span> {a.item.label} —{' '}
+              <span className={a.item.tone === 'bad' ? 'text-bad-400' : 'text-warn-400'}>
+                {a.item.daysLeft < 0 ? tr(locale, 'overview.overdue') : tr(locale, 'overview.daysLeft').replace('{n}', String(a.item.daysLeft))}
+              </span>
+            </Link>
+          ))}
+        </div>
+        </div>
+      </div>,
+    )
+
+  if (unreadNotes.length > 0)
+    add(
+      'broker-unread',
+      'w',
+      <div className="flex h-full gap-2.5 rounded-xl border border-haul-400/25 bg-haul-500/[0.09] px-3.5 py-2.5">
+        <span className="mt-px flex size-6 shrink-0 items-center justify-center rounded-md bg-haul-500/20 text-haul-300 ring-1 ring-haul-400/25">
+          <MessageSquareWarning size={15} strokeWidth={2.5} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 text-base leading-6 font-semibold text-haul-300">
+            {tr(locale, 'overview.brokerUnread')}
+            <Info text={tr(locale, 'overview.brokerUnreadInfo')} />
           </p>
           <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-base">
-            {alerts.slice(0, 6).map((a) => (
-              <Link
-                key={`${a.truckId}-${a.item.label}`}
-                href={`/trucks/${a.truckId}#care`}
-                className="text-t1 hover:underline"
-              >
-                <span className="text-t3">#{a.number}</span> {a.item.label} —{' '}
-                <span className={a.item.tone === 'bad' ? 'text-bad-400' : 'text-warn-400'}>
-                  {a.item.daysLeft < 0 ? tr(locale, 'overview.overdue') : tr(locale, 'overview.daysLeft').replace('{n}', String(a.item.daysLeft))}
-                </span>
+            {unreadNotes.slice(0, 6).map((l) => (
+              <Link key={l.id} href={`/loads/${l.id}`} className="text-t1 hover:underline">
+                {l.origin ?? '—'} → {l.destination ?? '—'}
               </Link>
             ))}
           </div>
-          </div>
         </div>
-      )}
+      </div>,
+    )
 
-      {/* The two SHORT alerts share a row on a wide screen. The deadline strip above
-          keeps the full width on purpose — it carries up to six items, and a third of
-          a row shreds them into unreadable stubs. These two split into columns only
-          when BOTH are present: a single banner sitting at half width reads like the
-          other half failed to load. */}
-      {(unreadNotes.length > 0 || (showFinances && unpaidTotal > 0)) && (
-        <div
-          className={`mb-3 grid gap-2.5 ${
-            unreadNotes.length > 0 && showFinances && unpaidTotal > 0 ? 'lg:grid-cols-2' : ''
+  if (showFinances && unpaidTotal > 0)
+    add(
+      'unpaid',
+      'w',
+      <div
+        className={`flex h-full gap-2.5 rounded-xl border px-3.5 py-2.5 ${
+          overdueTotal > 0 ? 'border-bad-500/25 bg-bad-500/[0.07]' : 'border-white/10 bg-white/[0.03]'
+        }`}
+      >
+        {/* Same icon-chip anatomy as the two banners above, so the three of them read
+            as one family of "things needing attention" instead of three loose boxes.
+            The chip is the only part that changes colour when money is overdue. */}
+        <span
+          className={`mt-px flex size-6 shrink-0 items-center justify-center rounded-md ring-1 ${
+            overdueTotal > 0
+              ? 'bg-bad-500/15 text-bad-400 ring-bad-400/25'
+              : 'bg-white/[0.06] text-t2 ring-white/10'
           }`}
         >
-      {unreadNotes.length > 0 && (
-        <div className="flex gap-2.5 rounded-xl border border-haul-400/25 bg-haul-500/[0.09] px-3.5 py-2.5">
-          <span className="mt-px flex size-6 shrink-0 items-center justify-center rounded-md bg-haul-500/20 text-haul-300 ring-1 ring-haul-400/25">
-            <MessageSquareWarning size={15} strokeWidth={2.5} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 text-base leading-6 font-semibold text-haul-300">
-              {tr(locale, 'overview.brokerUnread')}
-              <Info text={tr(locale, 'overview.brokerUnreadInfo')} />
-            </p>
-            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-base">
-              {unreadNotes.slice(0, 6).map((l) => (
-                <Link key={l.id} href={`/loads/${l.id}`} className="text-t1 hover:underline">
-                  {l.origin ?? '—'} → {l.destination ?? '—'}
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showFinances && unpaidTotal > 0 && (
-        <div
-          className={`flex gap-2.5 rounded-xl border px-3.5 py-2.5 ${
-            overdueTotal > 0 ? 'border-bad-500/25 bg-bad-500/[0.07]' : 'border-white/10 bg-white/[0.03]'
+          <Wallet size={15} strokeWidth={2.5} />
+        </span>
+        <div className="min-w-0 flex-1">
+        <p
+          className={`flex items-center gap-1.5 text-base font-semibold leading-6 ${
+            overdueTotal > 0 ? 'text-bad-400' : 'text-t3'
           }`}
         >
-          {/* Same icon-chip anatomy as the two banners above, so the three of them read
-              as one family of "things needing attention" instead of three loose boxes.
-              The chip is the only part that changes colour when money is overdue. */}
-          <span
-            className={`mt-px flex size-6 shrink-0 items-center justify-center rounded-md ring-1 ${
-              overdueTotal > 0
-                ? 'bg-bad-500/15 text-bad-400 ring-bad-400/25'
-                : 'bg-white/[0.06] text-t2 ring-white/10'
-            }`}
-          >
-            <Wallet size={15} strokeWidth={2.5} />
-          </span>
-          <div className="min-w-0 flex-1">
-          <p
-            className={`flex items-center gap-1.5 text-base font-semibold leading-6 ${
-              overdueTotal > 0 ? 'text-bad-400' : 'text-t3'
-            }`}
-          >
-            {tr(locale, 'overview.awaitingPayment')}
-            <Info text={tr(locale, 'overview.awaitingPaymentInfo')} />
-          </p>
-          <p className="mt-1 text-base text-t1">
-            <Link href="/docs?tab=unpaid" className="nums font-semibold hover:underline">
-              {usd.format(unpaidTotal)}
-            </Link>
-            {overdueTotal > 0 && (
-              <span className="text-bad-400">
-                {' '}
-                — {tr(locale, 'overview.ofWhichOverdue')}{' '}
-                <Link href="/docs?tab=unpaid" className="nums font-semibold hover:underline">
-                  {usd.format(overdueTotal)}
-                </Link>{' '}
-                ({overdue.length})
-              </span>
-            )}
-          </p>
-          </div>
+          {tr(locale, 'overview.awaitingPayment')}
+          <Info text={tr(locale, 'overview.awaitingPaymentInfo')} />
+        </p>
+        <p className="mt-1 text-base text-t1">
+          <Link href="/docs?tab=unpaid" className="nums font-semibold hover:underline">
+            {usd.format(unpaidTotal)}
+          </Link>
+          {overdueTotal > 0 && (
+            <span className="text-bad-400">
+              {' '}
+              — {tr(locale, 'overview.ofWhichOverdue')}{' '}
+              <Link href="/docs?tab=unpaid" className="nums font-semibold hover:underline">
+                {usd.format(overdueTotal)}
+              </Link>{' '}
+              ({overdue.length})
+            </span>
+          )}
+        </p>
         </div>
-      )}
-        </div>
-      )}
+      </div>,
+    )
 
-      {/* Итоги периода. Четыре в ряд только с lg. На 640px четвёрка давала по ~155px на плитку, и
-          «$81,799» вылезал за край, а подпись схлопывалась в «TOT…». На планшете две
-          широкие читаются, четыре узкие — нет. */}
-      {loads.length > 0 && (
-        <div className="panel mb-4 grid grid-cols-2 gap-2.5 p-2.5 lg:grid-cols-4">
-          <Stat
-            href="/loads"
-            hero
-            icon={<DollarSign size={15} strokeWidth={2.5} />}
-            accent="haul"
-            label={tr(locale, 'overview.rateTotal')}
-            value={usd.format(totalGross)}
-            info={tr(locale, 'overview.rateTotalInfo')}
-          />
-          <Stat
-            href="/trucks"
-            icon={<TrendingUp size={15} strokeWidth={2.5} />}
-            accent="good"
-            label={tr(locale, 'overview.rpm')}
-            value={`${usd2.format(avgRpm)}/mi`}
-            info={tr(locale, 'overview.rpmInfo')}
-          />
-          <Stat
-            href="/loads"
-            icon={<Package size={15} strokeWidth={2.5} />}
-            accent="warn"
-            label={tr(locale, 'overview.inWork')}
-            value={String(active)}
-            sub={trucks.length > 0 ? tr(locale, 'overview.inWorkSub').replace('{n}', String(freeTrucks)) : undefined}
-            subTone={freeTrucks > 0 ? 'good' : undefined}
-            info={tr(locale, 'overview.inWorkInfo')}
-          />
-          <Stat
-            href="/trucks"
-            icon={<Route size={15} strokeWidth={2.5} />}
-            accent="haul"
-            label={tr(locale, 'overview.totalMiles')}
-            value={Math.round(totalMiles).toLocaleString('en-US')}
-            info={tr(locale, 'overview.totalMilesInfo')}
-          />
-        </div>
-      )}
+  if (loads.length > 0) {
+    add(
+      'gross',
+      's',
+        <Stat
+              surface="panel"
+          href="/loads"
+          hero
+          icon={<DollarSign size={15} strokeWidth={2.5} />}
+          accent="haul"
+          label={tr(locale, 'overview.rateTotal')}
+          value={usd.format(totalGross)}
+          info={tr(locale, 'overview.rateTotalInfo')}
+        />,
+    )
+    add(
+      'rpm',
+      's',
+        <Stat
+              surface="panel"
+          href="/trucks"
+          icon={<TrendingUp size={15} strokeWidth={2.5} />}
+          accent="good"
+          label={tr(locale, 'overview.rpm')}
+          value={`${usd2.format(avgRpm)}/mi`}
+          info={tr(locale, 'overview.rpmInfo')}
+        />,
+    )
+    add(
+      'active',
+      's',
+        <Stat
+              surface="panel"
+          href="/loads"
+          icon={<Package size={15} strokeWidth={2.5} />}
+          accent="warn"
+          label={tr(locale, 'overview.inWork')}
+          value={String(active)}
+          sub={trucks.length > 0 ? tr(locale, 'overview.inWorkSub').replace('{n}', String(freeTrucks)) : undefined}
+          subTone={freeTrucks > 0 ? 'good' : undefined}
+          info={tr(locale, 'overview.inWorkInfo')}
+        />,
+    )
+    add(
+      'miles',
+      's',
+        <Stat
+              surface="panel"
+          href="/trucks"
+          icon={<Route size={15} strokeWidth={2.5} />}
+          accent="haul"
+          label={tr(locale, 'overview.totalMiles')}
+          value={Math.round(totalMiles).toLocaleString('en-US')}
+          info={tr(locale, 'overview.totalMilesInfo')}
+        />,
+    )
+  }
 
-      {/* Календарь загрузки за 14 дней: кто когда освободится. */}
-      {trucks.length > 0 && live.length > 0 && (
-        <div className="mb-4">
-          <FleetHeatmap
-            today={todayEt()}
-            rows={trucks.map((t) => {
-              const cur = currentByTruck.get(t.id)
-              return {
-                id: t.id,
-                label: t.number?.trim() || t.name,
-                sub: shortName(t.driverName),
-                working: buildWorkingDays(live.filter((l) => l.truckId === t.id)),
-                // Те же два правых столбца, что и на /trucks: куда едет либо где
-                // стоит, и когда освободится. Иначе на обзоре они стояли бы пустыми.
-                place: cur
-                  ? `→ ${cur.destination ?? '—'}`
-                  : (placeCity((t.number ? byUnit.get(t.number)?.location : null) ?? null) ??
-                     tr(locale, 'overview.noEldData')),
-                when: t.unavailable
-                  ? {
-                      text: tr(locale, t.unavailable === 'repair' ? 'overview.repair' : 'overview.onVacation'),
-                      tone: 'off' as const,
-                    }
-                  : cur
-                    ? { text: tr(locale, 'trucks.heatmap.onLoad'), tone: 'busy' as const }
-                    : { text: tr(locale, 'trucks.heatmap.free'), tone: 'free' as const },
-              }
-            })}
-          />
-        </div>
-      )}
+  if (trucks.length > 0 && live.length > 0)
+    add(
+      'heatmap',
+      'l',
+        <FleetHeatmap
+          today={todayEt()}
+          rows={trucks.map((t) => {
+            const cur = currentByTruck.get(t.id)
+            return {
+              id: t.id,
+              label: t.number?.trim() || t.name,
+              sub: shortName(t.driverName),
+              working: buildWorkingDays(live.filter((l) => l.truckId === t.id)),
+              // Те же два правых столбца, что и на /trucks: куда едет либо где
+              // стоит, и когда освободится. Иначе на обзоре они стояли бы пустыми.
+              place: cur
+                ? `→ ${cur.destination ?? '—'}`
+                : (placeCity((t.number ? byUnit.get(t.number)?.location : null) ?? null) ??
+                   tr(locale, 'overview.noEldData')),
+              when: t.unavailable
+                ? {
+                    text: tr(locale, t.unavailable === 'repair' ? 'overview.repair' : 'overview.onVacation'),
+                    tone: 'off' as const,
+                  }
+                : cur
+                  ? { text: tr(locale, 'trucks.heatmap.onLoad'), tone: 'busy' as const }
+                  : { text: tr(locale, 'trucks.heatmap.free'), tone: 'free' as const },
+            }
+          })}
+        />,
+    )
 
-      {/* «Кому искать груз» — под «Загрузкой парка» (просьба пользователя): сначала
-          картина по дням, кто когда освободится, потом список, кому искать сейчас. */}
-      <NeedsLoad
-        rows={idleFleet(trucks, live, placeByTruck, Date.now(), homeByTruck)}
-        trucks={byId}
-        trailers={trailers}
-        locale={locale}
-      />
+  add(
+    'needs-load',
+    'l',
+    // «Кому искать груз» — исходно под «Загрузкой парка» (просьба пользователя):
+    // сначала картина по дням, кто когда освободится, потом список, кому искать сейчас.
+    <NeedsLoad
+      rows={idleFleet(trucks, live, placeByTruck, Date.now(), homeByTruck)}
+      trucks={byId}
+      trailers={trailers}
+      locale={locale}
+    />,
+  )
 
+  add(
+    'fleet',
+    'l',
+    <div>
       {/* Fleet at a glance — driver + last-known ELD status, straight from the trucks. */}
-      <div className="mb-2 mt-2 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
           {tr(locale, 'overview.fleetHeading')}
           <Info text={tr(locale, 'overview.fleetInfo')} />
@@ -485,7 +501,13 @@ export default async function Page() {
           )
         })}
       </div>
+    </div>,
+  )
 
+  add(
+    'recent-loads',
+    'l',
+    <div>
       {rows.length > 0 ? (
         <>
           <h2 className="mb-2 mt-4 text-base leading-6 font-semibold text-t1">
@@ -544,10 +566,39 @@ export default async function Page() {
           </div>
         </div>
       )}
+    </div>,
+  )
 
+  const layout = applyLayout(await readLayout('overview'), defaults)
+
+  return (
+    <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
+      <header className="mb-4 flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">{tr(locale, 'overview.title')}</h1>
+          <p className="mt-0.5 text-base text-t2">
+            {tr(locale, 'overview.truckCount').replace('{n}', String(trucks.length))}
+          </p>
+        </div>
+        <span className="flex shrink-0 items-center gap-1.5">
+          <Button href="/loads/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
+            {tr(locale, 'overview.addLoad')}
+          </Button>
+          <Info side="bottom" text={tr(locale, 'overview.addLoadInfo')} />
+        </span>
+      </header>
+
+      <WidgetGrid
+        page="overview"
+        layout={layout}
+        defaults={defaults}
+        widgets={widgets}
+        labels={gridLabels(locale)}
+      />
     </main>
   )
 }
+
 
 /** The "→ Ashland, VA … 220 mi · ~4h" strip on a fleet card. Rendered by both the
  * streamed result and its placeholder, so the card never changes height when the

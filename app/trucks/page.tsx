@@ -22,6 +22,10 @@ import { getLocale } from '@/lib/i18n-server'
 import { placeCity } from '@/lib/place'
 import { t, type Locale } from '@/lib/i18n'
 import { Info } from '@/components/info'
+import { TRUCKS_TILES } from '@/components/fleet-panel'
+import { gridLabels } from '@/lib/grid-labels'
+import { readLayout } from '@/lib/tiles'
+import { applyLayout } from '@/lib/tiles-core'
 
 export const dynamic = 'force-dynamic'
 
@@ -134,6 +138,8 @@ export default async function Page() {
   // только те, кого нельзя грузить: этого числа в плитках нет.
   const unavailable = trucks.filter((t) => t.unavailable).length
 
+  const layout = applyLayout(await readLayout('trucks'), TRUCKS_TILES)
+
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       {/* Телефон: заголовок с цифрами на всю ширину, кнопки строкой под ним. В одну
@@ -191,6 +197,9 @@ export default async function Page() {
         <FleetBoard
           locale={locale}
           money={moneyByTruck}
+          layout={layout}
+          defaults={TRUCKS_TILES}
+          labels={gridLabels(locale)}
           // «Загрузка парка» — сразу под картой: кто когда освободится смотрят первым делом.
           underMap={
           <div className="mb-4">

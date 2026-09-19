@@ -28,6 +28,7 @@ export function Stat({
   hero,
   onClick,
   compact,
+  surface = 'inset',
   children,
 }: {
   label: string
@@ -47,6 +48,10 @@ export function Stat({
    * tier 2 and caps it with an accent strip, so four equal numbers gain a focal point
    * instead of reading as an undifferentiated row. */
   hero?: boolean
+  /** На какой поверхности живёт плитка. 'inset' — внутри общей карточки (так она
+   * устроена на странице грузов). 'panel' — сама себе карточка: в переставляемой
+   * сетке плитка лежит прямо на странице, и плёнка panel-inset на ней не видна. */
+  surface?: 'inset' | 'panel'
   /** Плитка-кнопка: на странице грузов клик сужает список до своих грузов. */
   onClick?: () => void
   /** Поля и число на шаг мельче: когда плиток на экране много и первый экран телефона
@@ -56,12 +61,13 @@ export function Stat({
   children?: ReactNode
 }) {
   const a = ACCENTS[accent]
+  const skin = surface === 'panel' ? 'panel panel-interactive' : 'panel-inset'
   const body = (
     <>
       {hero && (
         <span
           aria-hidden
-          className={`absolute inset-x-0 top-0 h-[3px] rounded-t-xl ${a.bar}`}
+          className={`absolute inset-x-0 top-0 h-[3px] ${surface === 'panel' ? 'rounded-t-2xl' : 'rounded-t-xl'} ${a.bar}`}
         />
       )}
       {/* Label first, figure second. The old tile led with the number and buried the
@@ -145,7 +151,7 @@ export function Stat({
             onClick()
           }
         }}
-        className={`panel-inset block cursor-pointer text-left transition-colors duration-150 hover:bg-white/[0.06] ${
+        className={`${skin} block cursor-pointer text-left transition-colors duration-150 hover:bg-white/[0.06] ${
           compact ? 'px-3 py-2.5 lg:px-4 lg:py-4' : 'px-4 py-4'
         } ${hero ? 'relative overflow-hidden' : ''}`}
       >
@@ -156,12 +162,12 @@ export function Stat({
     return (
       <Link
         href={href}
-        className={`panel-inset block transition-colors duration-150 hover:bg-white/[0.06] ${
+        className={`${skin} block transition-colors duration-150 hover:bg-white/[0.06] ${
           compact ? 'px-3 py-2.5 lg:px-4 lg:py-4' : 'px-4 py-4'
         } ${hero ? 'relative overflow-hidden' : ''}`}
       >
         {body}
       </Link>
     )
-  return <div className="panel-inset px-3.5 py-3">{body}</div>
+  return <div className={`${skin} px-3.5 py-3`}>{body}</div>
 }

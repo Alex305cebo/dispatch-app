@@ -15,6 +15,9 @@ import { Button } from '@/components/button'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 import { LocalTime } from '@/components/local-time'
+import { WidgetGrid, type Widget } from '@/components/widget-grid'
+import type { GridLabels } from '@/lib/grid-labels'
+import type { TilePlacement } from '@/lib/tiles-core'
 
 /** Суточные снимки DAT по сериям — всё, что нужно слою «Рынок» на карте. */
 export type FleetSnaps = Partial<Record<DatEquipment, DatSnapshot & { date: string }>>
@@ -43,6 +46,19 @@ function Tile({ value, label, tone }: TileData) {
   )
 }
 
+/** Порядок плиток раздела «Траки» по умолчанию — тот же, в котором они стояли, пока
+ *  их нельзя было двигать: карта, выбор трака, счётчики, загрузка парка, справочник
+ *  водителей, список траков, подключение ELD. */
+export const TRUCKS_TILES: TilePlacement[] = [
+  { id: 'map', size: 'l' },
+  { id: 'picker', size: 'l' },
+  { id: 'counters', size: 'l' },
+  { id: 'heatmap', size: 'l' },
+  { id: 'drivers', size: 'l' },
+  { id: 'list', size: 'l' },
+  { id: 'eld', size: 'l' },
+]
+
 export function FleetPanel({
   markers,
   routes,
@@ -55,6 +71,9 @@ export function FleetPanel({
   between,
   after,
   money,
+  layout,
+  defaults,
+  labels,
 }: {
   markers: MapMarker[]
   routes: MapRoute[]
@@ -77,6 +96,10 @@ export function FleetPanel({
   after?: React.ReactNode
   /** Экономика по траку — вторая половина строки списка. */
   money?: Record<number, TruckMoney>
+  /** Раскладка плиток раздела, прочитанная страницей из настроек компании. */
+  layout: TilePlacement[]
+  defaults: TilePlacement[]
+  labels: GridLabels
 }) {
   const locale = useLocale()
   const [selected, setSelected] = useState<number | null>(null)
@@ -142,11 +165,16 @@ export function FleetPanel({
         },
       ]
 
-  return (
-    <>
-      {/* Якорь для «Показать на карте» с «Рынка»: планировщик живёт там,
-          а карта осталась здесь. scroll-mt — чтобы верхнее меню её не накрывало. */}
-      <div id="fleet-map" className="mb-2 scroll-mt-16">
+  // Плитки раздела. Каждая — самостоятельный блок, который человек может подвинуть
+  // или сделать меньше; порядок общий для всей компании (lib/tiles.ts).
+  const widgets: Widget[] = []
+  const add = (id: string, node: React.ReactNode) => widgets.push({ id, node })
+
+  add(
+    'map',
+    // Якорь для «Показать на карте» с «Рынка»: планировщик живёт там,
+    // а карта осталась здесь. scroll-mt — чтобы верхнее меню её не накрывало.
+    <div id="fleet-map" className="scroll-mt-16">
         <FleetMap
           markers={markers}
           routes={routes}
@@ -154,91 +182,101 @@ export function FleetPanel({
           focus={focus}
           market={market}
         />
-      </div>
+    </div>,
+  )
 
-      {/* Быстрый выбор трака — чипы прямо под картой: номер и цвет статуса. Нажатие
-          ведёт карту к траку и показывает его цифры в плитках ниже; повторное —
-          снимает выбор. Ряд переносится: весь парк виден без горизонтального
-          жеста, а на телефоне чип не ниже 44px. */}
-      {rows.length > 1 && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          {rows.map((r) => {
-            const active = selected === r.id
-            return (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => pick(r)}
-                title={r.label}
-                aria-pressed={active}
-                className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-colors md:min-h-8 md:px-2.5 md:text-[12px] ${
-                  active
-                    ? 'border-haul-400/70 bg-haul-500/25 text-white'
-                    : 'border-white/12 bg-white/[0.04] text-t2 hover:border-white/30 hover:bg-white/[0.08]'
-                }`}
-              >
-                <Truck
-                  size={13}
-                  strokeWidth={2.3}
-                  className={r.unavailable ? 'text-warn-400' : toneDot[r.statusTone]}
-                />
-                <span className="nums">{unitOf(r.label)}</span>
-              </button>
-            )
-          })}
-        </div>
-      )}
+  if (rows.length > 1)
+    add(
+      'picker',
+      // Быстрый выбор трака — чипы прямо под картой: номер и цвет статуса. Нажатие
+      // ведёт карту к траку и показывает его цифры в счётчиках; повторное — снимает
+      // выбор. Ряд переносится: весь парк виден без горизонтального жеста, а на
+      // телефоне чип не ниже 44px.
+      <div className="flex flex-wrap gap-2">
+        {rows.map((r) => {
+          const active = selected === r.id
+          return (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => pick(r)}
+              title={r.label}
+              aria-pressed={active}
+              className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-colors md:min-h-8 md:px-2.5 md:text-[12px] ${
+                active
+                  ? 'border-haul-400/70 bg-haul-500/25 text-white'
+                  : 'border-white/12 bg-white/[0.04] text-t2 hover:border-white/30 hover:bg-white/[0.08]'
+              }`}
+            >
+              <Truck
+                size={13}
+                strokeWidth={2.3}
+                className={r.unavailable ? 'text-warn-400' : toneDot[r.statusTone]}
+              />
+              <span className="nums">{unitOf(r.label)}</span>
+            </button>
+          )
+        })}
+      </div>,
+    )
 
-      {/* Deliberately NOT the map's legend again. Moving / on duty / stopped is already
-          drawn over the map in colour, and repeating it in words underneath was the
-          same fact stated twice. These four answer what the map cannot: a truck with no
-          GPS has no pin to look at, a truck standing under a load looks exactly like one
-          parked between jobs, and miles-to-delivery is nowhere on a map at all. */}
-      <div className="panel mb-4 p-2.5">
-        {/* Title line doubles as the "you are looking at one truck" indicator. Without
-            a selection it says how to get one, so the interaction isn't hidden. */}
-        {/* «Обновлено · live · Обновить» — справа в этой же строке, а не отдельным рядом
-            под плитками: лишний ряд занимал высоту ради одной кнопки. */}
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 px-1.5">
-          {row ? (
-            <span className="flex min-w-0 items-baseline gap-2">
-              <span className="truncate text-[13px] font-semibold text-white">{row.label}</span>
-              {/* Время водителя, а не пятая плитка: плиток ровно четыре в обоих
-                  состояниях, и пятая ломала бы ряд именно при выборе трака. */}
-              {row.zone && (
-                <span className="shrink-0 text-[11.5px] text-t3">
-                  {t(locale, 'trucks.head.driverTimeShort')} <LocalTime zone={row.zone} className="nums font-semibold text-t1" />
-                </span>
-              )}
-            </span>
-          ) : (
-            <span className="truncate text-[11.5px] text-t3">{t(locale, 'tracking.pickOnMap')}</span>
-          )}
-          <span className="ml-auto flex min-w-0 items-center gap-2 text-[11px] text-t3">
-            <span className="truncate">{updatedText}</span>
-            <RefreshFleetButton staleMinutes={staleMinutes} />
-            {row && (
-              <Button size="sm" variant="ghost" icon={<X size={12} />} onClick={() => setSelected(null)}>
-                {t(locale, 'tracking.wholeFleet')}
-              </Button>
+  add(
+    'counters',
+    // Осознанно НЕ повторение легенды карты. «Едет / на смене / стоит» уже нарисовано
+    // на ней цветом. Эти четыре отвечают на то, чего карта не говорит: у трака без GPS
+    // нет пина, стоящий под грузом выглядит как стоящий без дела, а миль до выгрузки на
+    // карте нет вовсе.
+    <div className="panel h-full p-2.5">
+      {/* Строка заголовка заодно говорит «вы смотрите один трак». Без выбора — как его
+          сделать, чтобы действие не осталось спрятанным. «Обновлено · Обновить» справа
+          в этой же строке: отдельный ряд занимал высоту ради одной кнопки. */}
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 px-1.5">
+        {row ? (
+          <span className="flex min-w-0 items-baseline gap-2">
+            <span className="truncate text-[13px] font-semibold text-white">{row.label}</span>
+            {/* Время водителя, а не пятая плитка: счётчиков ровно четыре в обоих
+                состояниях, и пятый ломал бы ряд именно при выборе трака. */}
+            {row.zone && (
+              <span className="shrink-0 text-[11.5px] text-t3">
+                {t(locale, 'trucks.head.driverTimeShort')}{' '}
+                <LocalTime zone={row.zone} className="nums font-semibold text-t1" />
+              </span>
             )}
           </span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-          {tiles.map((tile) => (
-            <Tile key={tile.label} {...tile} />
-          ))}
-        </div>
+        ) : (
+          <span className="truncate text-[11.5px] text-t3">{t(locale, 'tracking.pickOnMap')}</span>
+        )}
+        <span className="ml-auto flex min-w-0 items-center gap-2 text-[11px] text-t3">
+          <span className="truncate">{updatedText}</span>
+          <RefreshFleetButton staleMinutes={staleMinutes} />
+          {row && (
+            <Button size="sm" variant="ghost" icon={<X size={12} />} onClick={() => setSelected(null)}>
+              {t(locale, 'tracking.wholeFleet')}
+            </Button>
+          )}
+        </span>
       </div>
 
-      {underMap}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        {tiles.map((tile) => (
+          <Tile key={tile.label} {...tile} />
+        ))}
+      </div>
+    </div>,
+  )
 
-      {between}
+  if (underMap) add('heatmap', <div>{underMap}</div>)
+  if (between) add('drivers', <div>{between}</div>)
+  add('list', <div><FleetList rows={rows} selectedId={selected} money={money} /></div>)
+  if (after) add('eld', <div>{after}</div>)
 
-      <FleetList rows={rows} selectedId={selected} money={money} />
-
-      {after}
-    </>
+  return (
+    <WidgetGrid
+      page="trucks"
+      layout={layout}
+      defaults={defaults}
+      widgets={widgets}
+      labels={labels}
+    />
   )
 }

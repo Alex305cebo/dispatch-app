@@ -222,4 +222,26 @@ export const overviewDict = {
     ro: 'Trage un card cu mouse-ul',
     kk: 'Тақтаны тінтуірмен сүйреңіз',
   },
+  // Размеры плитки. Слова владельца: маленькая / широкая / большая.
+  'grid.size': { ru: 'Размер', en: 'Size', es: 'Tamaño', uk: 'Розмір', ro: 'Mărime', kk: 'Өлшемі' },
+  'grid.size.s': { ru: 'Маленькая', en: 'Small', es: 'Pequeña', uk: 'Маленька', ro: 'Mic', kk: 'Кіші' },
+  'grid.size.w': { ru: 'Широкая', en: 'Wide', es: 'Ancha', uk: 'Широка', ro: 'Lat', kk: 'Кең' },
+  'grid.size.l': { ru: 'Большая', en: 'Large', es: 'Grande', uk: 'Велика', ro: 'Mare', kk: 'Үлкен' },
+  // Порядок общий для всей компании, и человек должен это знать ДО того, как подвинет.
+  'grid.shared': {
+    ru: 'Порядок общий для всех',
+    en: 'This order is shared with everyone',
+    es: 'Este orden es el mismo para todos',
+    uk: 'Порядок спільний для всіх',
+    ro: 'Ordinea este comună pentru toți',
+    kk: 'Реті бәріне ортақ',
+  },
+  'grid.saveFailed': {
+    ru: 'Не сохранилось — порядок вернётся при перезагрузке',
+    en: "Didn't save — the order will revert on reload",
+    es: 'No se guardó: el orden volverá al recargar',
+    uk: 'Не зберіглося — порядок повернеться після перезавантаження',
+    ro: 'Nu s-a salvat — ordinea revine la reîncărcare',
+    kk: 'Сақталмады — бет жаңарғанда реті қайтады',
+  },
 } as const
