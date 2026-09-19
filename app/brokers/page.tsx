@@ -9,6 +9,10 @@ import { detentionTerms } from '@/lib/settings'
 import { avgDwell, facilityIndex } from '@/lib/facilities'
 import { usDate } from '@/lib/fmt'
 import { todayEt } from '@/lib/payments'
+import { WidgetGrid, type Widget } from '@/components/widget-grid'
+import { gridLabels } from '@/lib/grid-labels'
+import { readLayout } from '@/lib/tiles'
+import { applyLayout, BROKERS_TILES } from '@/lib/tiles-core'
 import { Suspense } from 'react'
 import { RoutePlanSection } from '@/components/route-plan-section'
 import { Directory, type DirBroker, type DirFacility, type DirView } from './directory'
@@ -111,23 +115,47 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
       }
     })
 
+  const widgets: Widget[] = [
+    {
+      id: 'plan',
+      // «Куда отправить трак» переехало сюда с «Траков» (18.09.2026) — отсюда и новое
+      // имя раздела. Своя Suspense-граница: раздел ждёт снимок DAT и ставки по
+      // маршрутам, а списки брокеров и складов готовы сразу.
+      node: (
+        <div>
+          <Suspense fallback={<PlanSkeleton />}>
+            <RoutePlanSection />
+          </Suspense>
+        </div>
+      ),
+    },
+    {
+      id: 'directory',
+      node: (
+        <div>
+          <Directory
+            brokers={dirBrokers}
+            facilities={dirFacilities}
+            initialQuery={q}
+            initialView={VIEWS.includes(view as DirView) ? (view as DirView) : 'all'}
+          />
+        </div>
+      ),
+    },
+  ]
+  const layout = applyLayout(await readLayout('brokers'), BROKERS_TILES)
+
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <h1 className="text-xl font-bold tracking-tight">{t(locale, 'nav.brokers')}</h1>
-      <p className="mb-4 text-[13px] text-t2">{t(locale, 'brokers.dir.subtitle')}</p>
+      <p className="mb-4 text-base text-t2">{t(locale, 'brokers.dir.subtitle')}</p>
 
-      {/* «Куда отправить трак» переехало сюда с «Траков» (18.09.2026) — отсюда и новое
-          имя раздела. Своя Suspense-граница: раздел ждёт снимок DAT и ставки по
-          маршрутам, а списки брокеров и складов готовы сразу. */}
-      <Suspense fallback={<PlanSkeleton />}>
-        <RoutePlanSection />
-      </Suspense>
-
-      <Directory
-        brokers={dirBrokers}
-        facilities={dirFacilities}
-        initialQuery={q}
-        initialView={VIEWS.includes(view as DirView) ? (view as DirView) : 'all'}
+      <WidgetGrid
+        page="brokers"
+        layout={layout}
+        defaults={BROKERS_TILES}
+        widgets={widgets}
+        labels={gridLabels(locale)}
       />
     </main>
   )

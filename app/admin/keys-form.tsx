@@ -32,9 +32,9 @@ function Field({
   return (
     <div>
       <div className="mb-1 flex items-center gap-2">
-        <span className="text-[13px] font-medium">{label}</span>
+        <span className="text-base font-medium">{label}</span>
         <span
-          className={`rounded px-1.5 py-0.5 text-[10.5px] font-semibold ${
+          className={`rounded px-1.5 py-0.5 text-2xs font-semibold ${
             isSet ? 'bg-good-500/15 text-good-400' : 'bg-warn-400/15 text-warn-400'
           }`}
         >
@@ -44,7 +44,7 @@ function Field({
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="ml-auto text-[11.5px] text-haul-300 hover:underline"
+          className="ml-auto text-xs text-haul-300 hover:underline"
         >
           {t(locale, 'admin.keys.where')}
         </a>
@@ -55,9 +55,9 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={t(locale, isSet ? 'admin.keys.replacePlaceholder' : 'admin.keys.newPlaceholder')}
-        className="w-full rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-[13px] outline-none focus:border-haul-500"
+        className="w-full rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-base outline-none focus:border-haul-500"
       />
-      <p className="mt-1 text-[11.5px] leading-snug text-t3">{hint}</p>
+      <p className="mt-1 text-xs leading-snug text-t3">{hint}</p>
     </div>
   )
 }
@@ -118,7 +118,7 @@ export function KeysForm({
       {/* Ключ из переменной окружения — почти всегда тот, что ставили при установке.
           Пока он там, набранное в поле не действует: действует сохранённое. */}
       {status.geminiSource === 'env' && (
-        <p className="-mt-2 rounded-lg border border-warn-400/25 bg-warn-400/[0.07] px-2.5 py-1.5 text-[11.5px] leading-snug text-warn-400">
+        <p className="-mt-2 rounded-lg border border-warn-400/25 bg-warn-400/[0.07] px-2.5 py-1.5 text-xs leading-snug text-warn-400">
           {t(locale, 'admin.keys.fromEnv')}
         </p>
       )}
@@ -128,11 +128,11 @@ export function KeysForm({
         </Button>
         {/* Что именно проверяется — набранное или сохранённое: без этой подписи
             «не принят» непонятно к какому ключу относится. */}
-        <span className="text-[11px] text-t3">
+        <span className="text-xs text-t3">
           {t(locale, gemini.trim() ? 'admin.keys.testTyped' : 'admin.keys.testSaved')}
         </span>
         {check && (
-          <span className={`text-[12px] ${check.ok ? 'text-good-400' : 'text-bad-400'}`}>{check.text}</span>
+          <span className={`text-sm ${check.ok ? 'text-good-400' : 'text-bad-400'}`}>{check.text}</span>
         )}
       </div>
       {/* Проверка брокеров (FMCSA) и платные дороги (HERE) работают на НАШИХ
@@ -144,7 +144,7 @@ export function KeysForm({
           rather than hidden, so nobody switches it and then wonders why parsing dies
           after twenty documents. */}
       <div>
-        <p className="mb-1 text-[13px] font-medium">{t(locale, 'admin.keys.modelPref')}</p>
+        <p className="mb-1 text-base font-medium">{t(locale, 'admin.keys.modelPref')}</p>
         <div className="flex gap-1.5">
           {(['saving', 'quality'] as const).map((p) => (
             <Button
@@ -157,7 +157,7 @@ export function KeysForm({
             </Button>
           ))}
         </div>
-        <p className="mt-1 text-[11.5px] leading-snug text-t3">
+        <p className="mt-1 text-xs leading-snug text-t3">
           {t(locale, pref === 'saving' ? 'admin.keys.modelSavingHint' : 'admin.keys.modelQualityHint')}
         </p>
       </div>

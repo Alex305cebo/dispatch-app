@@ -22,13 +22,13 @@ export function EldNewTrucks({ units }: { units: { unit: string; driver: string 
         <Radio size={13} strokeWidth={2.2} />
         {t(locale, 'trucks.eldNew.title')}
       </div>
-      <p className="mt-1 text-[12.5px] text-t2">{t(locale, 'trucks.eldNew.hint')}</p>
+      <p className="mt-1 text-sm text-t2">{t(locale, 'trucks.eldNew.hint')}</p>
       <ul className="mt-2.5 flex flex-col gap-2">
         {units.map((u) => (
           <li key={u.unit} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl bg-ink-950/40 px-3 py-2">
-            <span className="nums text-[15px] font-bold">{u.unit}</span>
-            {u.driver && <span className="text-[13px] text-t1">{u.driver}</span>}
-            {u.location && <span className="truncate text-[12px] text-t3">📍 {u.location}</span>}
+            <span className="nums text-lg font-bold">{u.unit}</span>
+            {u.driver && <span className="text-base text-t1">{u.driver}</span>}
+            {u.location && <span className="truncate text-sm text-t3">📍 {u.location}</span>}
             <Button
               variant="primary"
               size="sm"

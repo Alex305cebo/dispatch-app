@@ -37,7 +37,7 @@ const NEEDED: DocKind[] = ['ratecon', 'bol', 'pod']
 const EXTRA_SHOWN = 2
 
 const chip =
-  'inline-flex min-h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-[11.5px] font-semibold transition-colors max-md:min-h-9'
+  'inline-flex min-h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-semibold transition-colors max-md:min-h-9'
 
 export function LoadPapers({
   loadId,

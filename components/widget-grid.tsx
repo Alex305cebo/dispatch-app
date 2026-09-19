@@ -1,29 +1,31 @@
 'use client'
 
-// Сетка плиток, которую можно переставить мышью или пальцем.
+// Сетка плиток, которую можно переставить мышью или пальцем и у каждой выбрать
+// размер: маленькая, широкая, большая.
 //
 // Перестановка живёт в отдельном режиме, который включает и выключает сам пользователь,
 // на каждой странице свой: пока режим выключен, плитки — обычные ссылки, страница
-// листается и нажимается как всегда, и случайно ничего не сдвинется. Включённый режим
-// тоже запоминается, так что оставить сетку «открытой» можно надолго.
+// листается и нажимается как всегда, и случайно ничего не сдвинется. Это тем важнее,
+// что порядок ОБЩИЙ для всей компании: случайный сдвиг пальцем менял бы экран всей
+// смене, а не только себе. Сам факт включённого режима — личный, он в localStorage.
 //
-// Порядок и сам режим лежат в localStorage браузера — в базу ничего не пишется, откат =
-// кнопка «Вернуть как было».
+// Раскладка приходит уже готовой со страницы (lib/tiles.ts читает её из settings) и
+// сохраняется серверным действием saveTileLayout. В браузере не хранится ничего, кроме
+// галочки «режим включён».
 //
 // Почему своими руками, а не пакетом: единственная зависимость образца с 21st.dev —
 // motion, он у нас уже стоит (toaster, notifier, ui.tsx). Ставить react-grid-layout или
 // dnd-kit ради этого не нужно.
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, useTransition } from 'react'
 import { motion, useDragControls, useReducedMotion } from 'motion/react'
 import { Check, GripVertical, LayoutGrid } from 'lucide-react'
+import { saveTileLayout } from '@/app/actions'
+import { TILE_SIZES, type TilePage, type TilePlacement, type TileSize } from '@/lib/tiles-core'
 
 export type Widget = {
   /** Устойчивый ключ: по нему запоминается место плитки. Менять нельзя — сбросит раскладку. */
   id: string
-  /** Ширина в колонках сетки: 1, 2 или во всю строку. На телефоне колонок всего две,
-   * поэтому 2 и 'full' там выглядят одинаково. */
-  span?: 1 | 2 | 'full'
   node: React.ReactNode
 }
 
@@ -32,120 +34,168 @@ export type Widget = {
  * иначе длинную страницу в нём стало бы не пролистать. */
 const HOLD_MS = 300
 
-/** Порядок из localStorage, отфильтрованный по тому, что реально пришло: виджет могли
- * убрать из кода, а ключ в браузере остался бы навсегда. */
-function restore(key: string, ids: string[]): string[] {
-  try {
-    const raw = localStorage.getItem(key)
-    if (!raw) return ids
-    const saved: unknown = JSON.parse(raw)
-    if (!Array.isArray(saved)) return ids
-    const known = saved.filter((id): id is string => typeof id === 'string' && ids.includes(id))
-    // Новые плитки, которых не было на момент сохранения, встают в конец, а не пропадают.
-    return [...known, ...ids.filter((id) => !known.includes(id))]
-  } catch {
-    return ids
-  }
+/** Ширина в колонках. Сетка — две колонки на телефоне и четыре на большом экране.
+ *  На телефоне широкая и большая выглядят одинаково: колонок всего две, и это не ошибка. */
+const SPAN: Record<TileSize, string> = {
+  s: '',
+  w: 'col-span-2',
+  l: 'col-span-2 lg:col-span-4',
 }
 
 export function WidgetGrid({
-  storageKey,
+  page,
+  layout,
+  defaults,
   widgets,
-  hintTouch = 'Нажмите, подержите и потяните плитку',
-  hintPointer = 'Потяните плитку мышью',
-  rearrangeLabel = 'Переставить',
-  doneLabel = 'Готово',
-  resetLabel = 'Вернуть как было',
+  labels,
   className = '',
 }: {
-  storageKey: string
+  page: TilePage
+  /** Порядок и размеры, уже склеенные сервером из сохранённого и заданного страницей. */
+  layout: TilePlacement[]
+  /** Что задала сама страница — к этому возвращает «Вернуть как было». */
+  defaults: TilePlacement[]
   widgets: Widget[]
-  /** Подсказка внутри режима: на тачскрине и мышью жесты разные. Две готовые строки, а
-   * не функция от вида указателя: сетка — клиентский компонент, а функцию в него со
-   * страницы-сервера передать нельзя, Next отвечает ошибкой прямо в браузер. */
-  hintTouch?: string
-  hintPointer?: string
-  rearrangeLabel?: string
-  doneLabel?: string
-  resetLabel?: string
+  /** Готовые строки, а не функция перевода: сетка — клиентский компонент, а функцию в
+   * него со страницы-сервера передать нельзя, Next отвечает ошибкой прямо в браузер. */
+  labels: {
+    rearrange: string
+    done: string
+    reset: string
+    hintTouch: string
+    hintPointer: string
+    shared: string
+    size: string
+    sizeNames: Record<TileSize, string>
+    saveFailed: string
+  }
   className?: string
 }) {
-  const ids = widgets.map((w) => w.id)
-  const key = ids.join(',')
-  const [order, setOrder] = useState<string[]>(ids)
+  const [places, setPlaces] = useState<TilePlacement[]>(layout)
   const [edit, setEdit] = useState(false)
   const [touch, setTouch] = useState(false)
   const [dragging, setDragging] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+  const [, startSaving] = useTransition()
   const reduce = useReducedMotion()
   const cells = useRef(new Map<string, HTMLElement>())
   const hintId = useId()
-  const editKey = `${storageKey}:edit`
+  const editKey = `tiles:${page}:edit`
 
-  // Порядок, режим и тип указателя читаются только в браузере: на сервере localStorage
-  // нет, а разное дерево на сервере и на клиенте — это гидрация #418.
+  // Сервер мог прислать другую раскладку (кто-то переставил у себя, страница
+  // перерисовалась) — принимаем её, пока плитку не держат в руке.
   useEffect(() => {
-    setOrder(restore(storageKey, key.split(',')))
+    if (!dragging) setPlaces(layout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout])
+
+  // Режим и тип указателя читаются только в браузере: на сервере localStorage нет, а
+  // разное дерево на сервере и на клиенте — это гидрация #418.
+  useEffect(() => {
     try {
-      setEdit(localStorage.getItem(`${storageKey}:edit`) === '1')
+      setEdit(localStorage.getItem(`tiles:${page}:edit`) === '1')
     } catch {
       /* приватный режим */
     }
     setTouch(window.matchMedia('(pointer: coarse)').matches)
-  }, [storageKey, key])
+  }, [page])
 
-  const save = useCallback((k: string, value: string) => {
-    try {
-      localStorage.setItem(k, value)
-    } catch {
-      // приватный режим — выбор просто не переживёт перезагрузку
-    }
-  }, [])
+  /** Записывается в базу, а не в браузер: порядок общий. Новый порядок на экране
+   *  остаётся в любом случае — если сохранить не вышло, говорим это словами, а не
+   *  откатываем работу человека молча. */
+  const persist = useCallback(
+    (next: TilePlacement[]) => {
+      startSaving(async () => {
+        const res = await saveTileLayout(page, next).catch(() => ({ error: 'x' }))
+        setFailed(!!res && 'error' in res)
+      })
+    },
+    [page],
+  )
 
+  /** Двигаем по КЛЮЧУ соседа, а не по номеру места на экране. На разделе это одно и
+   *  то же, а на карточке груза и трака — нет: там половина плиток условная (нет
+   *  заметок брокера — нет и плитки), и сохранённый порядок длиннее видимого. Номер
+   *  с экрана указал бы в раскладке на чужую плитку, и та уехала бы не туда. */
   const move = useCallback(
-    (id: string, to: number) => {
-      setOrder((prev) => {
-        const from = prev.indexOf(id)
-        if (from < 0 || to < 0 || to >= prev.length || to === from) return prev
+    (id: string, overId: string) => {
+      setPlaces((prev) => {
+        const from = prev.findIndex((p) => p.id === id)
+        const to = prev.findIndex((p) => p.id === overId)
+        if (from < 0 || to < 0 || to === from) return prev
         const next = prev.slice()
         next.splice(to, 0, next.splice(from, 1)[0])
-        save(storageKey, JSON.stringify(next))
         return next
       })
     },
-    [save, storageKey],
+    [],
+  )
+
+  const resize = useCallback(
+    (id: string, size: TileSize) => {
+      setPlaces((prev) => {
+        const next = prev.map((p) => (p.id === id ? { ...p, size } : p))
+        persist(next)
+        return next
+      })
+    },
+    [persist],
   )
 
   /** Над какой плиткой сейчас палец или курсор. Считаем попаданием точки в чужой
    * прямоугольник, а не «наибольшим перекрытием»: плитки разной ширины, и широкую
-   * перекрытие засчитывает раньше, чем её реально накрыли. */
+   * перекрытие засчитывает раньше, чем её реально накрыли.
+   *
+   * Точка приходит от motion в координатах ДОКУМЕНТА, а getBoundingClientRect даёт
+   * координаты окна, поэтому прокрутку надо прибавить. Без этого перестановка
+   * работала только у самого верха страницы: стоило прокрутить — и точка улетала
+   * ниже всех прямоугольников, плитка возвращалась на место, и это читалось как
+   * «перетаскивание не работает». */
   const over = (x: number, y: number, self: string): string | null => {
+    const sx = window.scrollX
+    const sy = window.scrollY
     for (const [id, el] of cells.current) {
       if (id === self) continue
       const r = el.getBoundingClientRect()
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return id
+      if (x >= r.left + sx && x <= r.right + sx && y >= r.top + sy && y <= r.bottom + sy) return id
     }
     return null
   }
 
+  // Раскладка может быть длиннее того, что страница отдала: на карточке груза и
+  // трака часть плиток условная. Чего сейчас нет — просто не рисуем, место в
+  // сохранённом порядке за ним остаётся.
   const byId = new Map(widgets.map((w) => [w.id, w]))
-  const list = order.map((id) => byId.get(id)).filter((w): w is Widget => !!w)
-  const moved = order.join(',') !== key
+  const list = places.filter((p) => byId.has(p.id))
+  const same =
+    places.length === defaults.length &&
+    places.every((p, i) => p.id === defaults[i].id && p.size === defaults[i].size)
 
   return (
     <div className={className}>
       <div className="mb-2 flex items-center justify-between gap-3 text-xs text-t3">
-        <span id={hintId}>{edit ? (touch ? hintTouch : hintPointer) : null}</span>
+        <span id={hintId}>
+          {failed ? (
+            <span className="text-bad-400">{labels.saveFailed}</span>
+          ) : edit ? (
+            <>
+              {touch ? labels.hintTouch : labels.hintPointer}
+              {' · '}
+              <span className="text-t3">{labels.shared}</span>
+            </>
+          ) : null}
+        </span>
         <span className="flex shrink-0 items-center gap-1.5">
-          {edit && moved && (
+          {edit && !same && (
             <button
               type="button"
               onClick={() => {
-                setOrder(key.split(','))
-                save(storageKey, JSON.stringify(key.split(',')))
+                setPlaces(defaults)
+                persist(defaults)
               }}
               className="rounded-md px-2 py-1 font-medium text-t2 ring-1 ring-white/12 hover:bg-white/[0.06]"
             >
-              {resetLabel}
+              {labels.reset}
             </button>
           )}
           <button
@@ -153,7 +203,11 @@ export function WidgetGrid({
             aria-pressed={edit}
             onClick={() => {
               setEdit(!edit)
-              save(editKey, edit ? '0' : '1')
+              try {
+                localStorage.setItem(editKey, edit ? '0' : '1')
+              } catch {
+                // приватный режим — выбор просто не переживёт перезагрузку
+              }
             }}
             className={`flex items-center gap-1.5 rounded-md px-2 py-1 font-medium ring-1 transition-colors ${
               edit
@@ -162,36 +216,52 @@ export function WidgetGrid({
             }`}
           >
             {edit ? <Check size={13} strokeWidth={2.5} /> : <LayoutGrid size={13} strokeWidth={2.5} />}
-            {edit ? doneLabel : rearrangeLabel}
+            {edit ? labels.done : labels.rearrange}
           </button>
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-        {list.map((w, i) => (
+      {/* dense: плитки разного размера оставляют дыры в строке, и без него широкая,
+          не влезшая в остаток строки, уезжала вниз, а слева зиял пустой квадрат. */}
+      <div className="grid grid-cols-2 gap-2.5 [grid-auto-flow:dense] lg:grid-cols-4">
+        {list.map((p, i) => (
           <Cell
-            key={w.id}
-            widget={w}
+            key={p.id}
+            id={p.id}
+            size={p.size}
+            node={byId.get(p.id)!.node}
             index={i}
             total={list.length}
             edit={edit}
             reduce={!!reduce}
             hintId={hintId}
-            dragging={dragging === w.id}
+            labels={labels}
+            dragging={dragging === p.id}
             bind={(el) => {
-              if (el) cells.current.set(w.id, el)
-              else cells.current.delete(w.id)
+              if (el) cells.current.set(p.id, el)
+              else cells.current.delete(p.id)
             }}
-            onStart={() => setDragging(w.id)}
+            onStart={() => setDragging(p.id)}
             onOver={(x, y) => {
-              const id = over(x, y, w.id)
-              if (id) move(w.id, order.indexOf(id))
+              const id = over(x, y, p.id)
+              if (id) move(p.id, id)
             }}
             onEnd={() => {
               setDragging(null)
-              save(storageKey, JSON.stringify(order))
+              persist(places)
             }}
-            onStep={(d) => move(w.id, i + d)}
+            onStep={(d) => {
+              const neighbour = list[i + d]
+              if (!neighbour) return
+              move(p.id, neighbour.id)
+              // Клавиатурой плитка идёт по одному шагу, и сохранять надо каждый: у
+              // стрелки нет «конца жеста», после которого можно записать разом.
+              setPlaces((next) => {
+                persist(next)
+                return next
+              })
+            }}
+            onResize={(size) => resize(p.id, size)}
           />
         ))}
       </div>
@@ -200,31 +270,39 @@ export function WidgetGrid({
 }
 
 function Cell({
-  widget,
+  id,
+  size,
+  node,
   index,
   total,
   edit,
   reduce,
   hintId,
+  labels,
   dragging,
   bind,
   onStart,
   onOver,
   onEnd,
   onStep,
+  onResize,
 }: {
-  widget: Widget
+  id: string
+  size: TileSize
+  node: React.ReactNode
   index: number
   total: number
   edit: boolean
   reduce: boolean
   hintId: string
+  labels: { size: string; sizeNames: Record<TileSize, string> }
   dragging: boolean
   bind: (el: HTMLElement | null) => void
   onStart: () => void
   onOver: (x: number, y: number) => void
   onEnd: () => void
   onStep: (d: -1 | 1) => void
+  onResize: (size: TileSize) => void
 }) {
   const controls = useDragControls()
   const dragged = useRef(false)
@@ -280,6 +358,8 @@ function Cell({
   const down = (e: React.PointerEvent) => {
     if (!edit) return
     if (e.button !== 0 && e.pointerType === 'mouse') return
+    // Нажатие по переключателю размера — не начало перетаскивания.
+    if ((e.target as HTMLElement).closest('[data-tile-controls]')) return
     if (e.pointerType === 'mouse') {
       setArmed(true)
       controls.start(e)
@@ -356,35 +436,83 @@ function Cell({
       // В режиме перестановки содержимое плитки не нажимается: иначе попытка её
       // подвинуть открывала бы ссылку под пальцем. Пунктирная рамка говорит, что
       // сетка сейчас «открыта».
-      className={`group relative [&>a]:h-full [&>div]:h-full ${
+      // :not([data-tile-controls]) в каждом правиле обязателен. Без него h-full
+      // растягивал сам переключатель размера на всю плитку (он тоже прямой потомок),
+      // а pointer-events-none отнимал у него нажатия — кнопки были видны и не
+      // работали.
+      // mt-0 — потому что блоки пришли со страниц, где отступ сверху был у них
+      // собственный («mt-4» в самом компоненте). В сетке расстояние задаёт gap, и
+      // чужой отступ сажал плитку ниже соседки в той же строке.
+      className={`group relative [&>*:not([data-tile-controls])]:mt-0 [&>*:not([data-tile-controls])]:h-full ${
         edit
-          ? 'cursor-grab rounded-2xl ring-1 ring-dashed ring-haul-400/40 [&>a]:pointer-events-none [&>div]:pointer-events-none'
+          ? 'cursor-grab rounded-2xl ring-1 ring-dashed ring-haul-400/40 [&>*:not([data-tile-controls])]:pointer-events-none'
           : ''
-      } ${widget.span === 'full' ? 'col-span-2 lg:col-span-4' : widget.span === 2 ? 'col-span-2' : ''} ${
-        dragging ? 'cursor-grabbing' : ''
-      }`}
+      } ${SPAN[size]} ${dragging ? 'cursor-grabbing' : ''}`}
     >
-      {widget.node}
+      {node}
 
-      {/* Ручка — только во включённом режиме и в нижнем правом углу. В верхнем она
-          ложилась ровно на иконку плитки, и четыре точки поверх значка читались как
-          соринки на экране. Она же — точка, с которой плитку двигают с клавиатуры. */}
+      {/* Размер и ручка — только во включённом режиме. Ручка в нижнем правом углу: в
+          верхнем она ложилась ровно на иконку плитки, и четыре точки поверх значка
+          читались как соринки на экране. Она же — точка, с которой плитку двигают с
+          клавиатуры. */}
       {edit && (
-        <button
-          type="button"
-          aria-label={`Переставить плитку (${index + 1} из ${total})`}
-          aria-describedby={hintId}
-          onKeyDown={(e) => {
-            const d = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0
-            if (!d) return
-            e.preventDefault()
-            onStep(d)
-          }}
-          className="absolute bottom-0.5 right-0.5 flex size-7 items-center justify-center rounded-md text-haul-300/70 hover:bg-white/10 hover:text-haul-300"
+        <div
+          data-tile-controls
+          className="absolute bottom-0.5 right-0.5 flex items-center gap-0.5 rounded-lg bg-ink-950/80 p-0.5 backdrop-blur"
         >
-          <GripVertical size={14} strokeWidth={2.5} />
-        </button>
+          <span className="flex items-center rounded-md ring-1 ring-white/12" role="group" aria-label={labels.size}>
+            {TILE_SIZES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                aria-pressed={size === s}
+                title={labels.sizeNames[s]}
+                aria-label={labels.sizeNames[s]}
+                onClick={() => onResize(s)}
+                className={`flex size-6 items-center justify-center first:rounded-l-md last:rounded-r-md transition-colors ${
+                  size === s ? 'bg-haul-500/25 text-haul-300' : 'text-t3 hover:bg-white/10 hover:text-t2'
+                }`}
+              >
+                <SizeMark size={s} />
+              </button>
+            ))}
+          </span>
+          <button
+            type="button"
+            aria-label={`${labels.size} (${index + 1}/${total})`}
+            aria-describedby={hintId}
+            onKeyDown={(e) => {
+              const d = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0
+              if (!d) return
+              e.preventDefault()
+              onStep(d)
+            }}
+            className="flex size-7 items-center justify-center rounded-md text-haul-300/70 hover:bg-white/10 hover:text-haul-300"
+          >
+            <GripVertical size={14} strokeWidth={2.5} />
+          </button>
+        </div>
       )}
     </motion.div>
+  )
+}
+
+/** Значок размера — сам прямоугольник нужной пропорции, а не буква: три подписи
+ *  «М / Ш / Б» на шести языках разъехались бы по ширине, а форма понятна без слов. */
+function SizeMark({ size }: { size: TileSize }) {
+  const w = size === 's' ? 7 : size === 'w' ? 12 : 14
+  const h = size === 'l' ? 11 : 7
+  return (
+    <svg width="16" height="14" viewBox="0 0 16 14" aria-hidden>
+      <rect
+        x={(16 - w) / 2}
+        y={(14 - h) / 2}
+        width={w}
+        height={h}
+        rx="2"
+        fill="currentColor"
+        opacity="0.85"
+      />
+    </svg>
   )
 }

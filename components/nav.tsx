@@ -248,10 +248,10 @@ export function Nav({
         aria-expanded={!railFolded}
         className="nav-brand-row group mb-4 mt-1 hidden w-full items-center gap-2.5 rounded-lg px-2 py-1 text-left hover:bg-white/5 md:flex"
       >
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-haul-500 to-good-500 text-[15px] font-bold">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-haul-500 to-good-500 text-lg font-bold">
           {brand.charAt(0)}
         </div>
-        <span className="nav-brand-name min-w-0 flex-1 text-[14px] font-semibold leading-tight">{brand}</span>
+        <span className="nav-brand-name min-w-0 flex-1 text-md font-semibold leading-tight">{brand}</span>
         <svg
           viewBox="0 0 24 24"
           fill="none"
@@ -278,7 +278,7 @@ export function Nav({
               <Link
                 key={it.href}
                 href={it.href}
-                className={`flex min-h-11 items-center gap-2.5 rounded-xl px-3 text-[13px] font-medium ${
+                className={`flex min-h-11 items-center gap-2.5 rounded-xl px-3 text-base font-medium ${
                   isOn(it, pathname) ? 'bg-haul-500/15 text-haul-300' : 'text-t1 hover:bg-white/5'
                 }`}
               >
@@ -310,11 +310,11 @@ export function Nav({
                 </span>
               )}
             </span>
-            <span className="nav-label max-w-full truncate text-[11px] font-medium md:whitespace-normal md:text-[13px] md:leading-tight">
+            <span className="nav-label max-w-full truncate text-xs font-medium md:whitespace-normal md:text-base md:leading-tight">
               {t(locale, it.labelKey)}
             </span>
             {it.soon && (
-              <span className="nav-label ml-auto hidden rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-t2 md:inline">
+              <span className="nav-label ml-auto hidden rounded-full bg-white/8 px-1.5 py-0.5 text-2xs uppercase tracking-wide text-t2 md:inline">
                 {t(locale, 'nav.soon')}
               </span>
             )}
@@ -364,7 +364,7 @@ export function Nav({
             className={`${shape} md:hidden ${restActive || moreOpen ? 'text-haul-400' : 'text-t2'}`}
           >
             <Icon d={icons.more} />
-            <span className="nav-label max-w-full truncate text-[11px] font-medium">{t(locale, 'common.more')}</span>
+            <span className="nav-label max-w-full truncate text-xs font-medium">{t(locale, 'common.more')}</span>
           </button>
         )}
         </div>
@@ -390,7 +390,7 @@ export function Nav({
       >
         {/* Название компании — только на телефоне (на десктопе оно в шапке сайдбара).
             Кнопки справа: mr-auto у названия отжимает их к правому краю. */}
-        <span className="mr-auto min-w-0 truncate text-[15px] font-semibold md:hidden">{brand}</span>
+        <span className="mr-auto min-w-0 truncate text-lg font-semibold md:hidden">{brand}</span>
         {/* Avatar first, bell to its RIGHT: the account button is the anchor of this
             row — it is what opens the menu — and an anchor belongs at the end of the
             group it owns, not buried mid-row. */}

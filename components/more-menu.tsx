@@ -6,7 +6,7 @@ import { Ellipsis } from 'lucide-react'
 export function MoreMenu({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <details className="relative shrink-0">
-      <summary className="inline-flex min-h-9 cursor-pointer list-none items-center gap-1 rounded-lg border border-white/10 px-2.5 text-[12px] font-medium text-t2 transition-colors hover:border-white/25 hover:text-white max-md:min-h-11 [&::-webkit-details-marker]:hidden">
+      <summary className="inline-flex min-h-9 cursor-pointer list-none items-center gap-1 rounded-lg border border-white/10 px-2.5 text-sm font-medium text-t2 transition-colors hover:border-white/25 hover:text-white max-md:min-h-11 [&::-webkit-details-marker]:hidden">
         <Ellipsis size={14} strokeWidth={2.2} />
         {label}
       </summary>

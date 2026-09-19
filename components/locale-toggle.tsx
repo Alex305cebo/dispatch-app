@@ -60,12 +60,12 @@ export function LocaleToggle({ collapsed = false }: { collapsed?: boolean }) {
         onClick={() => setOpen((v) => !v)}
         aria-label="Language"
         aria-expanded={open}
-        className={`flex h-8 items-center gap-1 rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-[11.5px] font-bold uppercase text-t1 transition-colors hover:border-haul-500/50 hover:bg-haul-500/10 ${
+        className={`flex h-8 items-center gap-1 rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-xs font-bold uppercase text-t1 transition-colors hover:border-haul-500/50 hover:bg-haul-500/10 ${
           collapsed ? 'nav-icon-btn is-collapsed' : ''
         }`}
       >
         {current.short}
-        <span className="text-[9px] text-t3">▾</span>
+        <span className="text-2xs text-t3">▾</span>
       </button>
 
       {open && (
@@ -77,11 +77,11 @@ export function LocaleToggle({ collapsed = false }: { collapsed?: boolean }) {
               key={l.code}
               type="button"
               onClick={() => choose(l.code)}
-              className={`flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] transition-colors hover:bg-white/8 ${
+              className={`flex w-full items-center gap-2 px-3 py-2 text-left text-base transition-colors hover:bg-white/8 ${
                 l.code === locale ? 'text-haul-300' : 'text-t1'
               }`}
             >
-              <span className="w-7 shrink-0 text-[10.5px] font-bold uppercase text-t3">{l.short}</span>
+              <span className="w-7 shrink-0 text-2xs font-bold uppercase text-t3">{l.short}</span>
               <span className="min-w-0 flex-1 truncate">{l.native}</span>
               {l.code === locale && <Check size={14} className="shrink-0" />}
             </button>

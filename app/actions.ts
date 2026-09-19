@@ -40,6 +40,8 @@ import { knownBrokerMc } from '@/lib/brokers'
 import type { HistoryLeg } from '@/lib/trip-history'
 import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
 import { deleteSetting, dispatcherPhoneKey, getSetting, setSetting } from '@/lib/settings'
+import { writeLayout } from '@/lib/tiles'
+import { TILE_PAGES, TILE_PATHS, TILE_SIZES, type TilePage, type TilePlacement } from '@/lib/tiles-core'
 import { facilityNoteKey } from '@/lib/facilities'
 import { companyScope, confirmDelete, demoReadOnly, getCurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
@@ -79,6 +81,47 @@ export async function saveDispatcherPhone(phone: string): Promise<{ error: strin
  * Возвращает, сколько проставлено и сколько ещё осталось: по остатку страница решает,
  * звать ли ещё раз.
  */
+/**
+ * Сохранить раскладку плиток раздела — порядок и размеры.
+ *
+ * Раскладка ОБЩАЯ для всей компании (решение владельца: «порядок для всех сразу»),
+ * поэтому пишем в settings, а не в браузер, и любой вошедший может её менять: это
+ * вид экрана, а не данные, и запретить одному диспетчеру двигать плитки — значит
+ * завести отдельное право ради перестановки квадратов.
+ *
+ * Возвращает ошибку строкой, а не бросает: сетка на такой ответ показывает «не
+ * сохранилось» и оставляет новый порядок на экране, чтобы работа человека не
+ * пропала молча.
+ */
+export async function saveTileLayout(
+  page: TilePage,
+  layout: TilePlacement[],
+): Promise<{ error: string } | void> {
+  const locale = await getLocale()
+  const user = await getCurrentUser()
+  if (!user) return { error: t(locale, 'actions.noAccess') }
+  // В демо запись в базу закрыта. Порядок при этом всё равно меняется на экране —
+  // в демо и показывать нечего, кроме того, что перестановка работает.
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  if (!TILE_PAGES.includes(page)) return { error: t(locale, 'actions.noAccess') }
+  const clean: TilePlacement[] = []
+  const seen = new Set<string>()
+  for (const p of layout) {
+    if (!p || typeof p.id !== 'string' || !p.id || seen.has(p.id)) continue
+    if (!TILE_SIZES.includes(p.size)) continue
+    seen.add(p.id)
+    clean.push({ id: p.id, size: p.size })
+  }
+  await writeLayout(page, clean)
+  // У карточек груза и трака адрес с подстановкой — такой путь Next обновляет только
+  // как 'page', иначе строка `/loads/[id]` считается обычным адресом и не совпадает
+  // ни с чем.
+  const path = TILE_PATHS[page]
+  if (path.includes('[')) revalidatePath(path, 'page')
+  else revalidatePath(path)
+}
+
 export async function fillBrokerMc(): Promise<{
   filled: number
   left: number

@@ -75,7 +75,7 @@ export function Notifier({ collapsed = false }: { collapsed?: boolean }) {
               {notes.length > 0 && (
                 <button
                   onClick={clearNotes}
-                  className="text-[11px] text-t2 transition-colors hover:text-t1"
+                  className="text-xs text-t2 transition-colors hover:text-t1"
                 >
                   {t(locale, 'notifier.clear')}
                 </button>
@@ -84,7 +84,7 @@ export function Notifier({ collapsed = false }: { collapsed?: boolean }) {
 
             <div className="max-h-[calc(60vh-2.5rem)] overflow-y-auto">
               {notes.length === 0 ? (
-                <p className="px-3 py-6 text-center text-[13px] text-t3">{t(locale, 'notifier.quiet')}</p>
+                <p className="px-3 py-6 text-center text-base text-t3">{t(locale, 'notifier.quiet')}</p>
               ) : (
                 notes.map((n) => (
                   <motion.div
@@ -100,8 +100,8 @@ export function Notifier({ collapsed = false }: { collapsed?: boolean }) {
                         <>
                           <span className={`mt-1.5 size-1.5 shrink-0 rounded-full ${TONE[n.kind].dot}`} />
                           <div className="min-w-0 flex-1">
-                            <p className="text-[13px] leading-snug text-t1">{n.text}</p>
-                            <p className="mt-0.5 text-[10px] text-t3">
+                            <p className="text-base leading-snug text-t1">{n.text}</p>
+                            <p className="mt-0.5 text-2xs text-t3">
                               {n.from ? `${n.from} · ` : ''}
                               {new Date(n.at).toLocaleTimeString(locale === 'ru' ? 'ru-RU' : 'en-US', {
                                 hour: '2-digit',
@@ -118,7 +118,7 @@ export function Notifier({ collapsed = false }: { collapsed?: boolean }) {
                           className="flex gap-2.5 px-3 py-2.5 transition-colors hover:bg-white/5"
                         >
                           {body}
-                          <span aria-hidden className="self-center text-[13px] text-t3">›</span>
+                          <span aria-hidden className="self-center text-base text-t3">›</span>
                         </Link>
                       ) : (
                         <div className="flex gap-2.5 px-3 py-2.5">{body}</div>
@@ -188,7 +188,7 @@ export function Notifier({ collapsed = false }: { collapsed?: boolean }) {
             animate={{ scale: 1 }}
             exit={{ scale: 0 }}
             transition={{ type: 'spring', stiffness: 500, damping: 18 }}
-            className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-haul-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-ink-950"
+            className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-haul-500 px-1 text-2xs font-bold leading-none text-white ring-2 ring-ink-950"
           >
             {unread > 9 ? '9+' : unread}
           </motion.span>

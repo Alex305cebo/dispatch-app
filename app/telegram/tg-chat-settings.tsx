@@ -74,14 +74,14 @@ export function TgChatSettings({
 
   return (
     <details className="panel p-4" open={shown.length === 0}>
-      <summary className="cursor-pointer text-[13px] font-semibold text-t1">
+      <summary className="cursor-pointer text-base font-semibold text-t1">
         {t(locale, 'telegram.settings.summary')}
-        <span className="ml-2 text-[12px] font-normal text-t3">
+        <span className="ml-2 text-sm font-normal text-t3">
           {t(locale, 'telegram.settings.marked').replace('{a}', String(shownSet.size)).replace('{b}', String(dialogs.length))}
         </span>
       </summary>
 
-      <p className="mt-2 text-[12px] text-t3">
+      <p className="mt-2 text-sm text-t3">
         {t(locale, 'telegram.settings.explain')}
       </p>
 
@@ -91,14 +91,14 @@ export function TgChatSettings({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={t(locale, 'telegram.settings.search')}
-          className="mt-3 w-full rounded-lg border border-white/10 bg-ink-950/60 px-3 py-2 text-[13px] text-white outline-none placeholder:text-t3 focus:border-haul-500"
+          className="mt-3 w-full rounded-lg border border-white/10 bg-ink-950/60 px-3 py-2 text-base text-white outline-none placeholder:text-t3 focus:border-haul-500"
         />
       )}
 
       {dialogs.length === 0 ? (
-        <p className="mt-3 text-[13px] text-t3">{t(locale, 'telegram.settings.noneVisible')}</p>
+        <p className="mt-3 text-base text-t3">{t(locale, 'telegram.settings.noneVisible')}</p>
       ) : list.length === 0 ? (
-        <p className="mt-3 text-[13px] text-t3">{t(locale, 'telegram.settings.noMatch')}</p>
+        <p className="mt-3 text-base text-t3">{t(locale, 'telegram.settings.noMatch')}</p>
       ) : (
         <div className="mt-3 flex flex-col gap-1.5">
           {list.map((d) => (
@@ -112,12 +112,12 @@ export function TgChatSettings({
                 onChange={() => toggle(d.id)}
                 className="size-4 shrink-0 accent-haul-500"
               />
-              <span className="min-w-0 flex-1 truncate text-[13px]">
+              <span className="min-w-0 flex-1 truncate text-base">
                 {d.name}
-                {d.phone && <span className="nums ml-1.5 text-[11px] text-t3">+{d.phone.replace(/^\+/, '')}</span>}
+                {d.phone && <span className="nums ml-1.5 text-xs text-t3">+{d.phone.replace(/^\+/, '')}</span>}
               </span>
               {!d.isUser && (
-                <span className="shrink-0 rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] text-t3">
+                <span className="shrink-0 rounded-full bg-white/8 px-1.5 py-0.5 text-2xs text-t3">
                   {t(locale, 'telegram.settings.group')}
                 </span>
               )}
@@ -125,7 +125,7 @@ export function TgChatSettings({
                 disabled={truckPending}
                 defaultValue={chatTruck[d.id] ?? ''}
                 onChange={(e) => assignTruck(d.id, e.target.value)}
-                className="shrink-0 rounded-md border border-white/10 bg-ink-800 px-1.5 py-1 text-[11px] disabled:opacity-40"
+                className="shrink-0 rounded-md border border-white/10 bg-ink-800 px-1.5 py-1 text-xs disabled:opacity-40"
               >
                 <option value="">{t(locale, 'telegram.settings.pickTruck')}</option>
                 {trucks.map((t) => (

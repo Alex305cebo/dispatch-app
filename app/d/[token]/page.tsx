@@ -98,7 +98,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
       </h1>
       {target && (
         <section className="panel mt-3 px-4 py-3">
-          <div className="flex items-baseline justify-between gap-3 text-[13px]">
+          <div className="flex items-baseline justify-between gap-3 text-base">
             <span className="text-t2">{t(locale, 'driver.weekTarget')}</span>
             <span className={`nums font-semibold ${target.done >= target.goal ? 'text-good-400' : 'text-t1'}`}>{target.text}</span>
           </div>
@@ -124,12 +124,12 @@ export default async function Page({ params }: { params: Promise<{ token: string
       ) : (
         <>
           <section className="panel mt-4 p-5">
-            <p className="text-[15px] font-medium">{t(locale, 'driver.noLoad')}</p>
-            <p className="mt-1 text-[13px] text-t2">{t(locale, 'driver.noLoadHint')}</p>
+            <p className="text-lg font-medium">{t(locale, 'driver.noLoad')}</p>
+            <p className="mt-1 text-base text-t2">{t(locale, 'driver.noLoadHint')}</p>
             {company.phone && (
               <a
                 href={`tel:${company.phone}`}
-                className="mt-3 inline-block rounded-xl border border-white/15 px-4 py-2 text-[14px] font-semibold"
+                className="mt-3 inline-block rounded-xl border border-white/15 px-4 py-2 text-md font-semibold"
               >
                 📞 {t(locale, 'driver.callDispatch')}
               </a>
@@ -148,13 +148,13 @@ export default async function Page({ params }: { params: Promise<{ token: string
       )}
       {next && (
         <section className="panel mt-4 p-4">
-          <p className="text-[13px] font-semibold text-t2">
+          <p className="text-base font-semibold text-t2">
             {t(locale, 'driver.nextLoad')}
           </p>
-          <p className="mt-1 text-[15px] font-semibold">
+          <p className="mt-1 text-lg font-semibold">
             {next.origin ?? '—'} → {next.destination ?? '—'}
           </p>
-          <p className="nums mt-0.5 text-[13px] text-t2">
+          <p className="nums mt-0.5 text-base text-t2">
             {next.pickupTime || usDate(next.pickupDate)}
             {next.pickupAddress ? ` · ${next.pickupAddress}` : ''}
           </p>

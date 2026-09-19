@@ -1,3 +1,7 @@
+import { WidgetGrid, type Widget } from '@/components/widget-grid'
+import { gridLabels } from '@/lib/grid-labels'
+import { readLayout } from '@/lib/tiles'
+import { applyLayout, TOLLS_TILES } from '@/lib/tiles-core'
 import { Info } from '@/components/info'
 import { TollsClient } from './tolls-client'
 import { TollMissing, TollMoney } from './toll-money'
@@ -67,28 +71,45 @@ export default async function TollsPage() {
   )
   const cities = citySuggestions((cityRows as { city: string }[]).map((r) => r.city))
 
+  const widgets: Widget[] = [
+    { id: 'missing', node: <div><TollMissing spend={spend} locale={locale} /></div> },
+    {
+      id: 'calc',
+      node: (
+        <div>
+          <TollsClient
+            hasKey={key !== ''}
+            used={usage.used}
+            cap={usage.cap}
+            cities={cities}
+            trucks={trucks.map((tr) => ({ id: tr.id, label: truckLabel(tr) }))}
+            loads={loadChoices}
+          />
+        </div>
+      ),
+    },
+    // То, ради чего в раздел заходят второй раз: сколько платные дороги уже стоили
+    // парку и что вообще про них нужно знать в США.
+    { id: 'money', node: <div><TollMoney spend={spend} days={SPEND_DAYS} locale={locale} /></div> },
+    { id: 'guide', node: <div><TollGuide /></div> },
+  ]
+  const layout = applyLayout(await readLayout('tolls'), TOLLS_TILES)
+
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
         {t(locale, 'tolls.title')}
         <Info text={t(locale, 'tolls.info')} />
       </h1>
-      <p className="mb-5 text-[13px] text-t2">{t(locale, 'tolls.subtitle')}</p>
+      <p className="mb-5 text-base text-t2">{t(locale, 'tolls.subtitle')}</p>
 
-      <TollMissing spend={spend} locale={locale} />
-      <TollsClient
-        hasKey={key !== ''}
-        used={usage.used}
-        cap={usage.cap}
-        cities={cities}
-        trucks={trucks.map((tr) => ({ id: tr.id, label: truckLabel(tr) }))}
-        loads={loadChoices}
+      <WidgetGrid
+        page="tolls"
+        layout={layout}
+        defaults={TOLLS_TILES}
+        widgets={widgets}
+        labels={gridLabels(locale)}
       />
-
-      {/* Ниже калькулятора — то, ради чего в раздел заходят второй раз: сколько
-          платные дороги уже стоили парку и что вообще нужно знать про них в США. */}
-      <TollMoney spend={spend} days={SPEND_DAYS} locale={locale} />
-      <TollGuide />
     </main>
   )
 }

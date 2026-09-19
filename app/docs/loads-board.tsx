@@ -100,11 +100,11 @@ const OPEN: PayGroup[] = ['problems', 'toSubmit', 'awaitingFunding', 'atRisk']
 const BATCH: PayGroup[] = ['toSubmit', 'awaitingFunding', 'funded', 'atRisk']
 
 const input =
-  'w-full rounded-lg border border-white/10 bg-ink-900/80 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500 max-md:min-h-11'
+  'w-full rounded-lg border border-white/10 bg-ink-900/80 px-2.5 py-1.5 text-base text-white outline-none focus:border-haul-500 max-md:min-h-11'
 const btn =
-  'inline-flex min-h-9 items-center rounded-lg border border-white/15 px-3 text-[12px] font-semibold text-t1 transition-colors hover:border-white/35 hover:text-white disabled:opacity-50 max-md:min-h-11'
+  'inline-flex min-h-9 items-center rounded-lg border border-white/15 px-3 text-sm font-semibold text-t1 transition-colors hover:border-white/35 hover:text-white disabled:opacity-50 max-md:min-h-11'
 const primary =
-  'inline-flex min-h-9 items-center rounded-lg bg-haul-500 px-3 text-[12px] font-semibold text-white transition-colors hover:bg-haul-400 disabled:opacity-50 max-md:min-h-11'
+  'inline-flex min-h-9 items-center rounded-lg bg-haul-500 px-3 text-sm font-semibold text-white transition-colors hover:bg-haul-400 disabled:opacity-50 max-md:min-h-11'
 
 const fill = (s: string, vars: Record<string, string | number>) =>
   Object.entries(vars).reduce((acc, [k, v]) => acc.replace(`{${k}}`, String(v)), s)
@@ -236,7 +236,7 @@ export function LoadsBoard({
     <div className="flex flex-col gap-3">
       {/* Факторинг и его условия — одна строка, правится на месте. */}
       {money && (
-      <div className="panel flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5 text-[12.5px] text-t2">
+      <div className="panel flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5 text-sm text-t2">
         {!editSettings ? (
           <>
             <span>
@@ -297,7 +297,7 @@ export function LoadsBoard({
       {/* Выбранные грузы — одним действием: брокер или факторинг проводит их пакетом. */}
       {money && selRows.length > 0 && (
         <div className="sticky top-2 z-10 rounded-xl border border-haul-500/40 bg-ink-900/95 px-3.5 py-2.5 shadow-lg backdrop-blur">
-          <div className="flex flex-wrap items-center gap-2 text-[13px]">
+          <div className="flex flex-wrap items-center gap-2 text-base">
             <span className="font-semibold">
               {fill(t(locale, 'payments.batch.selected'), {
                 n: selRows.length,
@@ -341,7 +341,7 @@ export function LoadsBoard({
       )}
 
       {shown.length === 0 && (
-        <p className="panel p-4 text-center text-[13px] text-t3">
+        <p className="panel p-4 text-center text-base text-t3">
           {rows.length ? t(locale, 'payments.nothingFound') : t(locale, 'payments.empty')}
         </p>
       )}
@@ -373,15 +373,15 @@ export function LoadsBoard({
                       />
                     )}
                     <Link href={`/loads/${r.id}`} className="min-w-0 flex-1">
-                      <div className="text-[14px] font-medium">{r.route}</div>
-                      <div className="mt-0.5 flex flex-wrap gap-x-2 text-[12px] text-t2">
+                      <div className="text-md font-medium">{r.route}</div>
+                      <div className="mt-0.5 flex flex-wrap gap-x-2 text-sm text-t2">
                         {r.ref && <span className="nums">#{r.ref}</span>}
                         <span>{r.truck}</span>
                         {r.broker && <span>· {r.broker}</span>}
                       </div>
                       {money && <StageLine row={r} group={g} settings={settings} today={today} locale={locale} />}
                     </Link>
-                    {money && <span className="nums shrink-0 text-[15px] font-bold">{usd.format(r.rate)}</span>}
+                    {money && <span className="nums shrink-0 text-lg font-bold">{usd.format(r.rate)}</span>}
                   </div>
                   {/* Бумаги груза — в той же строке: открыть или догрузить на месте. */}
                   <div className="mt-2">
@@ -482,7 +482,7 @@ function StageLine({
   if (!parts.length) return null
   const toneClass = { warn: 'text-warn-400', bad: 'text-bad-400', good: 'text-good-400' } as const
   return (
-    <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[12px] text-t2">
+    <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-sm text-t2">
       {parts.map((x, i) => (
         <span key={i} className={x.tone ? toneClass[x.tone] : undefined}>
           {i > 0 ? '· ' : ''}
@@ -515,7 +515,7 @@ function RowActions({
     <button
       type="button"
       disabled={pending}
-      className="text-[12px] text-t3 transition-colors hover:text-bad-400 max-md:min-h-9"
+      className="text-sm text-t3 transition-colors hover:text-bad-400 max-md:min-h-9"
       onClick={() => {
         if (window.confirm(fill(t(locale, 'payments.act.undoConfirm'), { route: r.route }))) run(() => undoPaymentStep(r.id))
       }}
@@ -524,7 +524,7 @@ function RowActions({
     </button>
   )
   const note = r.payment && (
-    <button type="button" className="text-[12px] text-t3 hover:text-t1 max-md:min-h-9" onClick={() => setForm({ kind: 'note', id: r.id })}>
+    <button type="button" className="text-sm text-t3 hover:text-t1 max-md:min-h-9" onClick={() => setForm({ kind: 'note', id: r.id })}>
       {t(locale, 'payments.act.note')}
     </button>
   )
@@ -608,11 +608,11 @@ function RowActions({
         <>
           {note}
           {undo}
-          {!r.payment && <span className="text-[12px] text-t3">{t(locale, 'payments.legacyHint')}</span>}
+          {!r.payment && <span className="text-sm text-t3">{t(locale, 'payments.legacyHint')}</span>}
         </>
       )
     default:
-      return <span className="text-[12px] text-t3">{t(locale, 'payments.inWorkHint')}</span>
+      return <span className="text-sm text-t3">{t(locale, 'payments.inWorkHint')}</span>
   }
 }
 
@@ -654,7 +654,7 @@ function ActionForm({
   )
 
   const dateField = (
-    <label className="flex flex-col gap-1 text-[11.5px] text-t2">
+    <label className="flex flex-col gap-1 text-xs text-t2">
       {t(locale, 'payments.form.date')}
       <input type="date" value={on} max={today} onChange={(e) => setOn(e.target.value)} className={input} />
     </label>
@@ -666,7 +666,7 @@ function ActionForm({
       body = (
         <>
           {dateField}
-          <label className="flex flex-col gap-1 text-[11.5px] text-t2">
+          <label className="flex flex-col gap-1 text-xs text-t2">
             {fill(t(locale, 'payments.form.ref'), { factor })}
             <input value={ref} onChange={(e) => setRef(e.target.value)} className={input} />
           </label>
@@ -684,14 +684,14 @@ function ActionForm({
               const m = money[id]!
               return (
                 <div key={id} className="grid grid-cols-[1fr_7rem_6rem] items-end gap-2 max-sm:grid-cols-2">
-                  <span className="truncate pb-1.5 text-[12px] text-t2 max-sm:col-span-2">
+                  <span className="truncate pb-1.5 text-sm text-t2 max-sm:col-span-2">
                     {r.route} · {usd.format(r.rate)}
                   </span>
-                  <label className="flex flex-col gap-1 text-[11.5px] text-t2">
+                  <label className="flex flex-col gap-1 text-xs text-t2">
                     {t(locale, 'payments.form.advance')}
                     <input inputMode="decimal" value={m.advance} onChange={(e) => setMoney({ ...money, [id]: { ...m, advance: e.target.value } })} className={input} />
                   </label>
-                  <label className="flex flex-col gap-1 text-[11.5px] text-t2">
+                  <label className="flex flex-col gap-1 text-xs text-t2">
                     {t(locale, 'payments.form.fee')}
                     <input inputMode="decimal" value={m.fee} onChange={(e) => setMoney({ ...money, [id]: { ...m, fee: e.target.value } })} className={input} />
                   </label>
@@ -711,7 +711,7 @@ function ActionForm({
       body = (
         <>
           {dateField}
-          <label className="flex min-w-0 flex-1 flex-col gap-1 text-[11.5px] text-t2">
+          <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-t2">
             {t(locale, 'payments.form.reason')}
             <input value={reason} onChange={(e) => setReason(e.target.value)} className={input} />
           </label>
@@ -723,7 +723,7 @@ function ActionForm({
       body = (
         <>
           {dateField}
-          <label className="flex flex-col gap-1 text-[11.5px] text-t2">
+          <label className="flex flex-col gap-1 text-xs text-t2">
             {t(locale, 'payments.form.amount')}
             <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} className={input} />
           </label>
@@ -735,7 +735,7 @@ function ActionForm({
       body = (
         <>
           {dateField}
-          <label className="flex flex-col gap-1 text-[11.5px] text-t2">
+          <label className="flex flex-col gap-1 text-xs text-t2">
             {t(locale, 'payments.form.via')}
             <select value={via} onChange={(e) => setVia(e.target.value as PayVia)} className={input}>
               {PAY_VIA.map((v) => (
@@ -745,11 +745,11 @@ function ActionForm({
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-[11.5px] text-t2">
+          <label className="flex flex-col gap-1 text-xs text-t2">
             {t(locale, 'payments.form.amount')}
             <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} className={input} />
           </label>
-          <label className="flex flex-col gap-1 text-[11.5px] text-t2">
+          <label className="flex flex-col gap-1 text-xs text-t2">
             {t(locale, 'payments.form.paidRef')}
             <input value={ref} onChange={(e) => setRef(e.target.value)} className={input} />
           </label>
@@ -759,7 +759,7 @@ function ActionForm({
       break
     case 'note':
       body = (
-        <label className="flex min-w-0 flex-1 flex-col gap-1 text-[11.5px] text-t2">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-t2">
           {t(locale, 'payments.act.note')}
           <input value={note} onChange={(e) => setNote(e.target.value)} className={input} />
         </label>
@@ -798,16 +798,16 @@ function SettingsForm({
   const [s, setS] = useState(initial)
   return (
     <div className="flex w-full flex-wrap items-end gap-2">
-      <label className="flex flex-col gap-1 text-[11.5px] text-t2">
+      <label className="flex flex-col gap-1 text-xs text-t2">
         {t(locale, 'payments.settings.name')}
         <input value={s.name} onChange={(e) => setS({ ...s, name: e.target.value })} className={input} />
       </label>
-      <label className="flex items-center gap-2 pb-2 text-[12.5px] text-t2">
+      <label className="flex items-center gap-2 pb-2 text-sm text-t2">
         <input type="checkbox" checked={s.recourse} onChange={(e) => setS({ ...s, recourse: e.target.checked })} className="size-4 accent-haul-500" />
         {t(locale, 'payments.settings.recourse')}
       </label>
       {s.recourse && (
-        <label className="flex flex-col gap-1 text-[11.5px] text-t2">
+        <label className="flex flex-col gap-1 text-xs text-t2">
           {t(locale, 'payments.settings.days')}
           <input
             inputMode="numeric"

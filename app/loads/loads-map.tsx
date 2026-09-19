@@ -59,7 +59,7 @@ export function LoadsMap({ rows, locale }: { rows: LoadsMapRow[]; locale: Locale
     return (
       <section className="panel mb-4 px-3.5 py-3">
         {heading}
-        <p className="mt-0.5 text-[13px] text-t3">{t(locale, 'loads.dash.noActive')}</p>
+        <p className="mt-0.5 text-base text-t3">{t(locale, 'loads.dash.noActive')}</p>
       </section>
     )
 
@@ -67,7 +67,7 @@ export function LoadsMap({ rows, locale }: { rows: LoadsMapRow[]; locale: Locale
     <section className="panel mb-4 overflow-hidden">
       <div className="flex items-center gap-2 px-3.5 py-2.5">
         {heading}
-        <span className="nums rounded-full bg-white/10 px-1.5 py-0.5 text-[11px] font-bold text-t2">{rows.length}</span>
+        <span className="nums rounded-full bg-white/10 px-1.5 py-0.5 text-xs font-bold text-t2">{rows.length}</span>
       </div>
       <div className="grid min-w-0 border-t border-white/[0.06] lg:grid-cols-[minmax(0,3fr)_minmax(240px,2fr)]">
         <div className="min-w-0">
@@ -104,44 +104,44 @@ export function LoadsMap({ rows, locale }: { rows: LoadsMapRow[]; locale: Locale
               >
                 <button type="button" aria-pressed={active} onClick={() => setId(row.load.id)} className="block w-full text-left">
                   <span className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="min-w-0 break-words text-[12px] font-medium text-t3">{row.name}</span>
+                    <span className="min-w-0 break-words text-sm font-medium text-t3">{row.name}</span>
                     <StatusBadge status={row.load.status} locale={locale} />
                   </span>
-                  <span className="mt-1 block break-words text-[13.5px] font-medium">
+                  <span className="mt-1 block break-words text-base font-medium">
                     {row.load.origin ?? '—'} → {row.load.destination ?? '—'}
                   </span>
                   {stop && (
-                    <span className="mt-0.5 block break-words text-[12px] text-t2">
+                    <span className="mt-0.5 block break-words text-sm text-t2">
                       {t(locale, stop.role === 'pickup' ? 'stops.pickup' : 'stops.delivery')} · {stop.city ?? stop.address ?? '—'} ·{' '}
                       {whenText(stop.date, stop.time, noDate, noTime)}
                     </span>
                   )}
                   {showDrop && (
-                    <span className="mt-0.5 block break-words text-[12px] text-t2">
+                    <span className="mt-0.5 block break-words text-sm text-t2">
                       {t(locale, 'stops.delivery')} · {drop.city ?? drop.address ?? '—'} · {whenText(drop.date, drop.time, noDate, noTime)}
                     </span>
                   )}
                 </button>
                 <div className="mt-1.5 flex items-center justify-between gap-2">
                   <span className="flex flex-wrap items-baseline gap-x-2" title={t(locale, 'loads.dash.rpmHint')}>
-                    <span className="nums text-[15px] font-bold">{usd.format(row.load.rate)}</span>
-                    {loadedRpm > 0 && <span className="nums text-[13px] font-semibold text-t1">{usd2.format(loadedRpm)}/mi</span>}
+                    <span className="nums text-lg font-bold">{usd.format(row.load.rate)}</span>
+                    {loadedRpm > 0 && <span className="nums text-base font-semibold text-t1">{usd2.format(loadedRpm)}/mi</span>}
                     {allInRpm > 0 && row.load.deadheadMiles > 0 && (
-                      <span className="nums text-[11.5px] text-t3">
+                      <span className="nums text-xs text-t3">
                         {t(locale, 'loads.dash.allIn')} {usd2.format(allInRpm)}
                       </span>
                     )}
                   </span>
                   <Link
                     href={`/loads/${row.load.id}`}
-                    className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-haul-500 px-3 text-[12px] font-semibold text-white transition-colors hover:bg-haul-400 max-md:h-10"
+                    className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-haul-500 px-3 text-sm font-semibold text-white transition-colors hover:bg-haul-400 max-md:h-10"
                   >
                     {t(locale, 'loads.dash.open')}
                     <ArrowUpRight size={13} />
                   </Link>
                 </div>
                 {(!row.markers.length || row.seenText) && (
-                  <p className="text-[11px] text-t3">
+                  <p className="text-xs text-t3">
                     {!row.markers.length ? t(locale, 'loads.dash.noPosition') : `${t(locale, 'loads.dash.gps')}: ${row.seenText}`}
                   </p>
                 )}

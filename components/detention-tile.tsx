@@ -70,11 +70,11 @@ export function DetentionTile({
       <div className="text-xs text-t2 font-medium">
         {t(locale, at === 'pickup' ? 'detention.atPickup' : 'detention.atDelivery')}
       </div>
-      <div className={`nums min-h-[1.375rem] text-[14px] font-semibold ${over ? 'text-bad-400' : 'text-t1'}`}>
+      <div className={`nums min-h-[1.375rem] text-md font-semibold ${over ? 'text-bad-400' : 'text-t1'}`}>
         {driveTime(min, locale)}
         {over && <span className="ml-2">· ${amount.toFixed(0)}</span>}
       </div>
-      <div className="nums mt-0.5 text-[11px] text-t3">
+      <div className="nums mt-0.5 text-xs text-t3">
         {t(locale, endStamp ? 'detention.between' : 'detention.since')
           .replace('{t}', stamp)
           .replace('{e}', endStamp ?? '')}{' '}
@@ -84,7 +84,7 @@ export function DetentionTile({
         <button
           type="button"
           onClick={copyLetter}
-          className="mt-1.5 rounded-lg bg-bad-500/15 px-2.5 py-1 text-[11.5px] font-semibold text-bad-300 hover:bg-bad-500/25"
+          className="mt-1.5 rounded-lg bg-bad-500/15 px-2.5 py-1 text-xs font-semibold text-bad-300 hover:bg-bad-500/25"
         >
           ✉ {t(locale, 'detention.letter')}
         </button>

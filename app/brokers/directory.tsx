@@ -179,7 +179,7 @@ export function Directory({
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t(locale, 'brokers.dir.search')}
           aria-label={t(locale, 'brokers.dir.search')}
-          className="min-w-0 flex-1 bg-transparent py-2 text-[14px] text-white outline-none placeholder:text-t3"
+          className="min-w-0 flex-1 bg-transparent py-2 text-md text-white outline-none placeholder:text-t3"
         />
       </label>
 
@@ -190,7 +190,7 @@ export function Directory({
             type="button"
             aria-pressed={view === key}
             onClick={() => setView(key)}
-            className={`nums min-h-9 rounded-full border px-3 text-[12.5px] font-medium transition-colors max-md:min-h-10 ${
+            className={`nums min-h-9 rounded-full border px-3 text-sm font-medium transition-colors max-md:min-h-10 ${
               view === key
                 ? 'border-haul-500/60 bg-haul-500/15 text-haul-300'
                 : key === 'attention' && counts.attention > 0
@@ -201,19 +201,19 @@ export function Directory({
             {label}
           </button>
         ))}
-        {mcState === 'working' && <span className="text-[12px] text-t3">{t(locale, 'brokers.mcWorking')}</span>}
-        {mcState === 'no_key' && <span className="text-[12px] text-warn-400">{t(locale, 'brokers.mcNoKey')}</span>}
+        {mcState === 'working' && <span className="text-sm text-t3">{t(locale, 'brokers.mcWorking')}</span>}
+        {mcState === 'no_key' && <span className="text-sm text-warn-400">{t(locale, 'brokers.mcNoKey')}</span>}
       </div>
 
       {lookup && (!known || check.state !== 'idle') && (
         <div className="panel mt-3 p-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="min-w-0 flex-1 text-[13px] text-t1">{t(locale, 'brokers.dir.unknownMc').replace('{mc}', lookup)}</span>
+            <span className="min-w-0 flex-1 text-base text-t1">{t(locale, 'brokers.dir.unknownMc').replace('{mc}', lookup)}</span>
             <button
               type="button"
               disabled={check.state === 'loading'}
               onClick={() => runCheck('mc')}
-              className="min-h-9 rounded-lg bg-haul-500 px-3 text-[12.5px] font-semibold text-white hover:bg-haul-400 disabled:opacity-50 max-md:min-h-11"
+              className="min-h-9 rounded-lg bg-haul-500 px-3 text-sm font-semibold text-white hover:bg-haul-400 disabled:opacity-50 max-md:min-h-11"
             >
               {check.state === 'loading' ? t(locale, 'brokers.checking') : t(locale, 'brokers.dir.checkMc')}
             </button>
@@ -221,18 +221,18 @@ export function Directory({
               type="button"
               disabled={check.state === 'loading'}
               onClick={() => runCheck('dot')}
-              className="min-h-9 rounded-lg border border-white/12 px-3 text-[12.5px] text-t2 hover:border-white/30 hover:text-white disabled:opacity-50 max-md:min-h-11"
+              className="min-h-9 rounded-lg border border-white/12 px-3 text-sm text-t2 hover:border-white/30 hover:text-white disabled:opacity-50 max-md:min-h-11"
             >
               {t(locale, 'brokers.dir.checkDot')}
             </button>
           </div>
-          {check.state === 'error' && <p className="mt-2 text-[12.5px] text-warn-400">{check.err}</p>}
+          {check.state === 'error' && <p className="mt-2 text-sm text-warn-400">{check.err}</p>}
           {check.state === 'done' && check.data && <BrokerChecklist check={check.data} />}
         </div>
       )}
 
       {list.length === 0 ? (
-        <p className="mt-4 text-[13px] text-t3">
+        <p className="mt-4 text-base text-t3">
           {q || view === 'attention' ? t(locale, 'brokers.noMatch') : t(locale, 'brokers.dir.empty')}
         </p>
       ) : (
@@ -287,15 +287,15 @@ function DirRow({
           {icon}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13.5px] font-medium text-t1">{name}</span>
-          <span className="nums block truncate text-[12px] text-t3">{meta}</span>
+          <span className="block truncate text-base font-medium text-t1">{name}</span>
+          <span className="nums block truncate text-sm text-t3">{meta}</span>
         </span>
-        {right && <span className={`nums max-w-[38%] shrink-0 text-right text-[12px] ${rightCls}`}>{right}</span>}
+        {right && <span className={`nums max-w-[38%] shrink-0 text-right text-sm ${rightCls}`}>{right}</span>}
       </span>
       {/* Связь со второй половиной раздела — своей строкой во всю ширину. В общей
           строке её всегда обрезало первой именно на телефоне, а она здесь главное:
           ради неё брокеры и склады и сведены в один список. */}
-      {linked && <span className="mt-0.5 block truncate pl-10 text-[12px] text-t3">{linked}</span>}
+      {linked && <span className="mt-0.5 block truncate pl-10 text-sm text-t3">{linked}</span>}
     </Link>
   )
 }

@@ -50,7 +50,7 @@ export async function NeedsLoad({
         </h2>
         {/* Итог словами, а не процентом: «шесть без груза, простой $648 в день» —
             это и есть то, ради чего на карту смотрят. */}
-        <p className="text-[12px] text-t3">
+        <p className="text-sm text-t3">
           {freeCount > 0 ? (
             <>
               <span className="font-semibold text-warn-400">{freeCount}</span>{' '}
@@ -88,7 +88,7 @@ export async function NeedsLoad({
               >
                 {/* На телефоне имя занимает всю строку, место и срок — под ним: в один ряд
                     от «Jordan L. TRK-DEMO-317» оставалось «Jordan L. …». */}
-                <span className="min-w-0 basis-full truncate text-[13px] font-medium sm:flex-1 sm:basis-auto">
+                <span className="min-w-0 basis-full truncate text-base font-medium sm:flex-1 sm:basis-auto">
                   {truckLabel(truck, trailers.get(r.truckId))}
                 </span>
 
@@ -96,9 +96,9 @@ export async function NeedsLoad({
                     копируют. У едущего в этой колонке город ВЫГРУЗКИ, а не место
                     трака, — там копировать нечего. */}
                 {r.free && !off && r.place ? (
-                  <CopyPlace text={r.place} size="sm" className="min-w-0 text-[12px] text-t2" />
+                  <CopyPlace text={r.place} size="sm" className="min-w-0 text-sm text-t2" />
                 ) : (
-                  <span className="min-w-0 truncate text-[12px] text-t3">
+                  <span className="min-w-0 truncate text-sm text-t3">
                     {r.homeUntil
                       ? t(locale, 'needsLoad.home').replace('{date}', usDate(r.homeUntil))
                       : r.unavailable
@@ -114,7 +114,7 @@ export async function NeedsLoad({
                 {snap && lt && heat && (
                   <span
                     title={`${state} · ${t(locale, 'loadCard.marketAsOf').replace('{when}', usDate(todayEt(new Date(snap.at))))}`}
-                    className="order-last basis-full text-[12px] text-t3 lg:order-none lg:basis-auto"
+                    className="order-last basis-full text-sm text-t3 lg:order-none lg:basis-auto"
                   >
                     {(() => {
                       // Ставка за милю региона и насколько горячий штат словами — без цифры
@@ -137,7 +137,7 @@ export async function NeedsLoad({
 
                 {/* Правая часть — ответ на «когда». У стоящего это «сколько уже»,
                     у едущего «до какого числа занят». */}
-                <span className="nums shrink-0 text-right text-[12px]">
+                <span className="nums shrink-0 text-right text-sm">
                   {r.free ? (
                     r.days === null ? (
                       <span className="text-t3">{t(locale, 'needsLoad.never')}</span>

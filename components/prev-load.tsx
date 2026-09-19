@@ -32,7 +32,7 @@ export function PrevLoad({
     <div className={className}>
       {/* Подпись со значком — отдельной строкой над самим грузом: внутри строки ⓘ
           попадал под ссылку и открывал груз вместо подсказки. */}
-      <p className="mb-1 flex items-center gap-1.5 px-0.5 text-[11.5px] font-semibold tracking-wide text-t3 uppercase">
+      <p className="mb-1 flex items-center gap-1.5 px-0.5 text-xs font-semibold tracking-wide text-t3 uppercase">
         <History size={12} strokeWidth={2.2} aria-hidden />
         {t(locale, 'prevLoad.label')}
         <Info text={t(locale, 'prevLoad.info')} />
@@ -41,7 +41,7 @@ export function PrevLoad({
           переносом на телефоне вторая строка начиналась с висящей точки-разделителя. */}
       <Link
         href={`/loads/${load.id}`}
-        className="panel-inset group block px-3 py-2 text-[12.5px] transition-colors hover:bg-white/[0.06] max-md:min-h-11"
+        className="panel-inset group block px-3 py-2 text-sm transition-colors hover:bg-white/[0.06] max-md:min-h-11"
       >
         <span className="flex items-baseline gap-x-2">
           <span className="min-w-0 font-medium text-t1 group-hover:underline">

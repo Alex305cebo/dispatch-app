@@ -41,7 +41,7 @@ export function Collapse({
           strokeWidth={2.75}
           className="shrink-0 text-t3 transition-transform duration-200 group-open:rotate-90"
         />
-        <span className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px] font-semibold">
+        <span className="flex min-w-0 flex-1 items-center gap-1.5 text-base font-semibold">
           <span className="truncate">{title}</span>
           {hint}
         </span>
@@ -85,7 +85,7 @@ export function ShowMore({
     <>
       {items.slice(0, limit)}
       <details className="group/more">
-        <summary className="flex cursor-pointer list-none items-center justify-center gap-1 rounded-lg border border-dashed border-white/12 py-1.5 text-[13px] font-semibold text-t2 transition-colors hover:border-white/25 hover:text-t1">
+        <summary className="flex cursor-pointer list-none items-center justify-center gap-1 rounded-lg border border-dashed border-white/12 py-1.5 text-base font-semibold text-t2 transition-colors hover:border-white/25 hover:text-t1">
           <ChevronRight
             size={12}
             strokeWidth={2.75}

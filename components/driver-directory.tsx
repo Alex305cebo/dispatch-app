@@ -84,8 +84,8 @@ export function DriverDirectory({
         <h2 className="text-base leading-6 font-semibold text-t1">
           {t(locale, 'drivers.title')}
         </h2>
-        <span className="nums text-[11px] text-t3">{drivers.length}</span>
-        <span className="ml-auto truncate text-[11px] text-t3">
+        <span className="nums text-xs text-t3">{drivers.length}</span>
+        <span className="ml-auto truncate text-xs text-t3">
           {t(locale, 'drivers.subtitle')}
         </span>
       </button>
@@ -95,7 +95,7 @@ export function DriverDirectory({
           {/* Свой номер диспетчер вписывает прямо здесь: в базе его негде было
               хранить, а в блок он обязан попасть — брокер перезванивает человеку,
               а не на общий номер компании. */}
-          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-white/6 px-3 py-2 text-[12px]">
+          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-white/6 px-3 py-2 text-sm">
             <span className="text-t3">{t(locale, 'drivers.myPhone')}</span>
             {editPhone ? (
               <>
@@ -103,7 +103,7 @@ export function DriverDirectory({
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="786 461 4739"
-                  className="nums min-w-0 flex-1 rounded-md border border-white/10 bg-ink-950/70 px-2 py-1 text-[12px] text-white outline-none focus:border-haul-500"
+                  className="nums min-w-0 flex-1 rounded-md border border-white/10 bg-ink-950/70 px-2 py-1 text-sm text-white outline-none focus:border-haul-500"
                 />
                 <button
                   type="button"
@@ -118,7 +118,7 @@ export function DriverDirectory({
                       }
                     })
                   }
-                  className="shrink-0 rounded-md bg-haul-500/20 px-2 py-1 text-[12px] font-medium text-haul-300 hover:bg-haul-500/30 disabled:opacity-50"
+                  className="shrink-0 rounded-md bg-haul-500/20 px-2 py-1 text-sm font-medium text-haul-300 hover:bg-haul-500/30 disabled:opacity-50"
                 >
                   {t(locale, 'drivers.save')}
                 </button>
@@ -129,7 +129,7 @@ export function DriverDirectory({
                 <button
                   type="button"
                   onClick={() => setEditPhone(true)}
-                  className="text-[11px] text-haul-400 hover:underline"
+                  className="text-xs text-haul-400 hover:underline"
                 >
                   {t(locale, 'drivers.editPhone')}
                 </button>
@@ -154,15 +154,15 @@ export function DriverDirectory({
                       strokeWidth={2.5}
                       className={`shrink-0 text-t3 transition-transform ${isOpen ? 'rotate-90' : ''}`}
                     />
-                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
+                    <span className="min-w-0 flex-1 truncate text-base font-medium">
                       {d.driverName || t(locale, 'drivers.noName')}
                     </span>
                     {d.dispatcherName && (
-                      <span className="hidden shrink-0 text-[11px] text-t3 sm:inline">
+                      <span className="hidden shrink-0 text-xs text-t3 sm:inline">
                         {d.dispatcherName}
                       </span>
                     )}
-                    <span className="nums shrink-0 text-[12px] text-t3">
+                    <span className="nums shrink-0 text-sm text-t3">
                       {d.truckNumber ? `TRK-${d.truckNumber}` : '—'}
                       {d.trailerNumber ? ` · TRL-${d.trailerNumber}` : ''}
                     </span>
@@ -170,13 +170,13 @@ export function DriverDirectory({
 
                   {isOpen && (
                     <div className="border-t border-white/6 p-3">
-                      <pre className="nums overflow-x-auto whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-t1">
+                      <pre className="nums overflow-x-auto whitespace-pre-wrap break-words text-sm leading-relaxed text-t1">
                         {block}
                       </pre>
                       <button
                         type="button"
                         onClick={() => copy(block, t(locale, 'drivers.copied'))}
-                        className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border border-haul-500/35 bg-haul-500/[0.10] px-2.5 py-1 text-[12px] font-medium text-haul-300 transition-colors hover:border-haul-400/60 hover:bg-haul-500/20"
+                        className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border border-haul-500/35 bg-haul-500/[0.10] px-2.5 py-1 text-sm font-medium text-haul-300 transition-colors hover:border-haul-400/60 hover:bg-haul-500/20"
                       >
                         <Copy size={12} strokeWidth={2.5} />
                         {t(locale, 'drivers.copy')}

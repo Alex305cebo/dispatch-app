@@ -124,14 +124,14 @@ export function DriverCard({
                     t(locale, 'trucks.driverCard.copied'),
                   )
                 }
-                className="rounded-lg border border-white/10 px-3 py-1 text-[12px] font-medium text-t2 transition-colors hover:border-white/25 hover:text-white"
+                className="rounded-lg border border-white/10 px-3 py-1 text-sm font-medium text-t2 transition-colors hover:border-white/25 hover:text-white"
               >
                 {t(locale, 'trucks.driverCard.copyForBroker')}
               </button>
             )}
             <button
               onClick={() => setEditing(true)}
-              className="rounded-lg border border-white/10 px-3 py-1 text-[12px] font-medium text-t2 transition-colors hover:border-white/25 hover:text-white"
+              className="rounded-lg border border-white/10 px-3 py-1 text-sm font-medium text-t2 transition-colors hover:border-white/25 hover:text-white"
             >
               {name || phone ? t(locale, 'trucks.driverCard.edit') : t(locale, 'trucks.driverCard.fill')}
             </button>
@@ -144,7 +144,7 @@ export function DriverCard({
           <div className="flex items-center gap-3">
             <label className={`group relative block shrink-0 ${photoPending ? 'opacity-50' : 'cursor-pointer'}`}>
               <DriverAvatar truckId={truckId} name={name} hasPhoto={hasPhoto} size={44} locale={locale} />
-              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-[9px] font-medium text-transparent transition-colors group-hover:bg-black/50 group-hover:text-white">
+              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-2xs font-medium text-transparent transition-colors group-hover:bg-black/50 group-hover:text-white">
                 {photoPending ? '…' : t(locale, 'trucks.driverCard.photoOverlay')}
               </span>
               <input
@@ -190,7 +190,7 @@ export function DriverCard({
                 })
                 setEditing(false)
               }}
-              className="rounded-lg px-4 py-2 text-[13px] text-t2 transition-colors hover:text-white"
+              className="rounded-lg px-4 py-2 text-base text-t2 transition-colors hover:text-white"
             >
               {t(locale, 'trucks.common.cancel')}
             </button>
@@ -204,7 +204,7 @@ export function DriverCard({
         <div className="flex items-center gap-3">
           <label className={`group relative block shrink-0 ${photoPending ? 'opacity-50' : 'cursor-pointer'}`}>
             <DriverAvatar truckId={truckId} name={name} hasPhoto={hasPhoto} size={44} locale={locale} />
-            <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-[9px] font-medium text-transparent transition-colors group-hover:bg-black/50 group-hover:text-white">
+            <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-2xs font-medium text-transparent transition-colors group-hover:bg-black/50 group-hover:text-white">
               {photoPending ? '…' : t(locale, 'trucks.driverCard.photoOverlay')}
             </span>
             <input
@@ -218,7 +218,7 @@ export function DriverCard({
           </label>
           {/* Порядок строк — как в блоке для брокера: имя, телефон, трак, прицеп,
               VIN. Дальше сроки документов, они нужны не брокеру, а нам. */}
-          <dl className="grid flex-1 grid-cols-2 gap-x-4 gap-y-1.5 text-[13px] sm:grid-cols-4">
+          <dl className="grid flex-1 grid-cols-2 gap-x-4 gap-y-1.5 text-base sm:grid-cols-4">
             <Row label={t(locale, 'trucks.driverCard.nameRowLabel')} value={name || '—'} />
             <Row label={t(locale, 'trucks.driverCard.phoneRowLabel')} value={phone || '—'} href={phone ? `tel:${phone}` : undefined} />
             <Row label={t(locale, 'trucks.driverCard.truckRowLabel')} value={truckNumber || '—'} />
@@ -259,7 +259,7 @@ function Field({
   placeholder?: string
 }) {
   const input =
-    'w-full rounded-lg border border-white/10 bg-ink-950/70 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500'
+    'w-full rounded-lg border border-white/10 bg-ink-950/70 px-2.5 py-1.5 text-base text-white outline-none focus:border-haul-500'
   return (
     <label className="flex flex-col gap-1">
       <span className="text-xs text-t2 font-medium">{label}</span>

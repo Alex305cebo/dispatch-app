@@ -158,7 +158,7 @@ export function TruckPhoto({
                       }`}
                     >
                       <img src={truckModelSrc(m.key)} alt={m.label} loading="lazy" className="aspect-[2/1] w-full object-contain" />
-                      <span className="text-[12px] font-medium leading-4 text-t1">{m.label}</span>
+                      <span className="text-sm font-medium leading-4 text-t1">{m.label}</span>
                       {sel && (
                         <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-haul-500 text-white">
                           <Check size={12} strokeWidth={3} />
@@ -170,7 +170,7 @@ export function TruckPhoto({
               </div>
               <div className="flex flex-wrap gap-2 border-t border-white/10 px-4 py-3">
                 <label
-                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/15 px-3 text-[13px] font-medium text-t1 hover:border-white/30 hover:text-white max-md:min-h-11 ${
+                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/15 px-3 text-base font-medium text-t1 hover:border-white/30 hover:text-white max-md:min-h-11 ${
                     pending ? 'pointer-events-none opacity-50' : 'cursor-pointer'
                   }`}
                 >
@@ -189,7 +189,7 @@ export function TruckPhoto({
                   type="button"
                   disabled={pending || (!custom && !picked)}
                   onClick={() => choose(null)}
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/15 px-3 text-[13px] font-medium text-t2 hover:border-white/30 hover:text-white disabled:opacity-40 max-md:min-h-11"
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/15 px-3 text-base font-medium text-t2 hover:border-white/30 hover:text-white disabled:opacity-40 max-md:min-h-11"
                 >
                   <RotateCcw size={14} strokeWidth={2.2} />
                   {t(locale, 'trucks.photo.default')}

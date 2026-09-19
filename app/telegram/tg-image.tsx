@@ -61,7 +61,7 @@ export function TgImage({ src }: { src: string }) {
               href={src}
               download
               title={t(locale, 'telegram.image.download')}
-              className="flex size-9 items-center justify-center rounded-full bg-white/10 text-[15px] text-t1 transition-colors hover:bg-white/20"
+              className="flex size-9 items-center justify-center rounded-full bg-white/10 text-lg text-t1 transition-colors hover:bg-white/20"
             >
               ⭳
             </a>
@@ -72,7 +72,7 @@ export function TgImage({ src }: { src: string }) {
                 navigator.clipboard.writeText(location.origin + src)
                 notify('ok', t(locale, 'telegram.image.linkCopied'))
               }}
-              className="flex size-9 items-center justify-center rounded-full bg-white/10 text-[15px] text-t1 transition-colors hover:bg-white/20"
+              className="flex size-9 items-center justify-center rounded-full bg-white/10 text-lg text-t1 transition-colors hover:bg-white/20"
             >
               🔗
             </button>
@@ -80,7 +80,7 @@ export function TgImage({ src }: { src: string }) {
               type="button"
               title={t(locale, 'telegram.image.close')}
               onClick={() => setOpen(false)}
-              className="flex size-9 items-center justify-center rounded-full bg-white/10 text-[15px] text-t1 transition-colors hover:bg-white/20"
+              className="flex size-9 items-center justify-center rounded-full bg-white/10 text-lg text-t1 transition-colors hover:bg-white/20"
             >
               ✕
             </button>
@@ -118,7 +118,7 @@ export function TgImage({ src }: { src: string }) {
             className="max-h-[85vh] max-w-[92vw] select-none rounded-lg object-contain"
           />
 
-          <p className="text-[11px] text-t3" onClick={(e) => e.stopPropagation()}>
+          <p className="text-xs text-t3" onClick={(e) => e.stopPropagation()}>
             {zoom > 1 ? t(locale, 'telegram.image.hintZoomed') : t(locale, 'telegram.image.hintFit')} ·{' '}
             {t(locale, 'telegram.image.hintCloseSuffix')}
           </p>

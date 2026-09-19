@@ -93,7 +93,7 @@ export function DocUpload({
     })
   }
 
-  const select = 'rounded-xl border border-white/8 bg-ink-900/80 px-2.5 py-2 text-[13px] text-white outline-none'
+  const select = 'rounded-xl border border-white/8 bg-ink-900/80 px-2.5 py-2 text-base text-white outline-none'
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -115,7 +115,7 @@ export function DocUpload({
         </select>
       )}
       <label
-        className={`cursor-pointer rounded-xl bg-haul-500 px-4 py-2 text-[13px] font-semibold transition-colors hover:bg-haul-400 ${
+        className={`cursor-pointer rounded-xl bg-haul-500 px-4 py-2 text-base font-semibold transition-colors hover:bg-haul-400 ${
           pending ? 'opacity-50' : ''
         }`}
       >
@@ -136,7 +136,7 @@ export function DocUpload({
           /* Цвета берём из палитры приложения (haul), а не из готовых оттенков
              Tailwind: под светлой темой подменяются только свои переменные, и
              sky-300 остался бы бледным по белому. */
-          className={`cursor-pointer rounded-xl border border-haul-500/40 px-3 py-2 text-[13px] font-semibold text-haul-300 transition-colors hover:bg-haul-500/10 ${
+          className={`cursor-pointer rounded-xl border border-haul-500/40 px-3 py-2 text-base font-semibold text-haul-300 transition-colors hover:bg-haul-500/10 ${
             pending ? 'opacity-50' : ''
           }`}
         >
@@ -152,7 +152,7 @@ export function DocUpload({
           />
         </label>
       )}
-      <span className="text-[11px] text-t3">{t(locale, 'docs.upload.hint')}</span>
+      <span className="text-xs text-t3">{t(locale, 'docs.upload.hint')}</span>
       <Info text={t(locale, 'docs.upload.info')} />
     </div>
   )
@@ -200,7 +200,7 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
   }
 
   const field =
-    'w-full rounded-xl border border-white/10 bg-ink-950/70 px-3 py-2 text-[14px] text-white outline-none focus:border-haul-500'
+    'w-full rounded-xl border border-white/10 bg-ink-950/70 px-3 py-2 text-md text-white outline-none focus:border-haul-500'
 
   return (
     <div
@@ -211,8 +211,8 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
         className="w-full max-w-sm rounded-2xl border border-white/10 bg-ink-900 p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-[15px] font-semibold">{t(locale, 'docs.delete.title')}</h3>
-        <p className="mt-1 text-[12.5px] leading-relaxed text-t2">
+        <h3 className="text-lg font-semibold">{t(locale, 'docs.delete.title')}</h3>
+        <p className="mt-1 text-sm leading-relaxed text-t2">
           {t(locale, 'docs.delete.body').replace('{t}', doc.title)}
         </p>
         <div className="mt-4 flex flex-col gap-2">
@@ -230,7 +230,7 @@ function DeleteDialog({ doc, onClose }: { doc: DocMeta; onClose: () => void }) {
             className={`${field} nums tracking-[0.2em]`}
           />
         </div>
-        {err && <p className="mt-2 text-[12.5px] text-bad-400">{err}</p>}
+        {err && <p className="mt-2 text-sm text-bad-400">{err}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>
             {t(locale, 'docs.delete.cancel')}
@@ -323,7 +323,7 @@ function KindPicker({ doc, small }: { doc: DocMeta; small?: boolean }) {
         })
       }}
       className={`shrink-0 cursor-pointer rounded-md border border-white/15 font-medium outline-none hover:border-white/35 disabled:opacity-50 ${KIND_TONE[doc.kind]} ${
-        small ? 'px-1 py-0.5 text-[10px]' : 'mt-0.5 px-1.5 py-1 text-2xs'
+        small ? 'px-1 py-0.5 text-2xs' : 'mt-0.5 px-1.5 py-1 text-2xs'
       }`}
     >
       {(Object.keys(DOC_KINDS) as DocKind[]).map((k) => (
@@ -382,29 +382,29 @@ function DocRow({
         <Thumb doc={doc} size={7} />
         <DocLink
           docId={doc.id}
-          className="order-first basis-full text-left text-[13px] leading-4 text-t1 [overflow-wrap:anywhere] sm:truncate hover:text-haul-400 hover:underline sm:order-none sm:min-w-0 sm:shrink sm:basis-auto"
+          className="order-first basis-full text-left text-base leading-4 text-t1 [overflow-wrap:anywhere] sm:truncate hover:text-haul-400 hover:underline sm:order-none sm:min-w-0 sm:shrink sm:basis-auto"
           title={doc.title}
         >
           {name}
         </DocLink>
         {name !== doc.title && (
-          <span className="hidden min-w-0 shrink truncate text-[11.5px] text-t3 sm:block">{doc.title}</span>
+          <span className="hidden min-w-0 shrink truncate text-xs text-t3 sm:block">{doc.title}</span>
         )}
-        <span className="nums ml-auto shrink-0 text-[11.5px] text-t3">{usDate(todayEt(new Date(doc.uploadedAt)))}</span>
+        <span className="nums ml-auto shrink-0 text-xs text-t3">{usDate(todayEt(new Date(doc.uploadedAt)))}</span>
         {showLinks && doc.truckId && (
-          <a href={`/trucks/${doc.truckId}`} className="shrink-0 text-[11px] text-t3 hover:text-t1">
+          <a href={`/trucks/${doc.truckId}`} className="shrink-0 text-xs text-t3 hover:text-t1">
             {t(locale, 'docs.row.truck')}
           </a>
         )}
         {showLinks && doc.loadId && (
-          <a href={`/loads/${doc.loadId}`} className="shrink-0 text-[11px] text-t3 hover:text-t1">
+          <a href={`/loads/${doc.loadId}`} className="shrink-0 text-xs text-t3 hover:text-t1">
             {t(locale, 'docs.row.load')}
           </a>
         )}
         <button
           onClick={() => onDelete(doc)}
           title={t(locale, 'docs.delete.rowTitle')}
-          className="shrink-0 px-1 text-[13px] text-t3 transition-colors hover:text-bad-400"
+          className="shrink-0 px-1 text-base text-t3 transition-colors hover:text-bad-400"
         >
           ✕
         </button>
@@ -445,19 +445,19 @@ function DocRow({
         )}
       </div>
       {showLinks && doc.truckId && (
-        <a href={`/trucks/${doc.truckId}`} className="shrink-0 text-[11px] text-t3 hover:text-t1">
+        <a href={`/trucks/${doc.truckId}`} className="shrink-0 text-xs text-t3 hover:text-t1">
           {t(locale, 'docs.row.truck')}
         </a>
       )}
       {showLinks && doc.loadId && (
-        <a href={`/loads/${doc.loadId}`} className="shrink-0 text-[11px] text-t3 hover:text-t1">
+        <a href={`/loads/${doc.loadId}`} className="shrink-0 text-xs text-t3 hover:text-t1">
           {t(locale, 'docs.row.load')}
         </a>
       )}
       <button
         title={t(locale, 'docs.delete.rowTitle')}
         onClick={() => onDelete(doc)}
-        className="order-first shrink-0 px-1 text-[13px] text-t3 transition-colors hover:text-bad-400 sm:order-none"
+        className="order-first shrink-0 px-1 text-base text-t3 transition-colors hover:text-bad-400 sm:order-none"
       >
         ✕
       </button>
@@ -588,7 +588,7 @@ export function DocLibrary({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={t(locale, 'docs.library.search')}
-        className="mb-3 w-full rounded-xl border border-white/10 bg-ink-900/60 px-3 py-2 text-[13px] text-t1 outline-none focus:border-haul-500 max-md:min-h-11"
+        className="mb-3 w-full rounded-xl border border-white/10 bg-ink-900/60 px-3 py-2 text-base text-t1 outline-none focus:border-haul-500 max-md:min-h-11"
       />
 
       {/* Kind filter */}
@@ -597,7 +597,7 @@ export function DocLibrary({
           <button
             key={k}
             onClick={() => setKind(k)}
-            className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
+            className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
               kind === k ? 'bg-haul-500 text-white' : 'bg-white/6 text-t2 hover:bg-white/10 hover:text-t1'
             }`}
           >
@@ -626,9 +626,9 @@ export function DocLibrary({
                   className="flex w-full items-center gap-3 bg-white/[0.03] px-3 py-2.5 text-left transition-colors hover:bg-white/[0.06]"
                 >
                   <span className="text-t3">{open ? '▾' : '▸'}</span>
-                  <span className="text-[14px] font-semibold">{g.label}</span>
-                  {g.sub && <span className="truncate text-[12px] text-t3">{g.sub}</span>}
-                  <span className="ml-auto shrink-0 rounded-full bg-white/8 px-2 py-0.5 text-[11px] text-t2">
+                  <span className="text-md font-semibold">{g.label}</span>
+                  {g.sub && <span className="truncate text-sm text-t3">{g.sub}</span>}
+                  <span className="ml-auto shrink-0 rounded-full bg-white/8 px-2 py-0.5 text-xs text-t2">
                     {g.rows.length}
                   </span>
                 </button>
@@ -684,19 +684,19 @@ export function DocTrash({ rows }: { rows: DocLibRow[] }) {
     <ul className="flex flex-col gap-1.5">
       {rows.map((d) => (
         <li key={d.id} className="flex items-center gap-3 rounded-lg border border-white/6 px-3 py-2">
-          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${KIND_TONE[d.kind]}`}>
+          <span className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-medium ${KIND_TONE[d.kind]}`}>
             {docKindLabel(d.kind, locale)}
           </span>
           <div className="min-w-0 flex-1">
-            <span className="block truncate text-[14px] text-t2">{d.title}</span>
-            <span className="text-[11px] text-t3">
+            <span className="block truncate text-md text-t2">{d.title}</span>
+            <span className="text-xs text-t3">
               {t(locale, 'docs.trash.deletedOn').replace('{d}', usDate(d.deletedAt && todayEt(new Date(d.deletedAt))))} · {fmtSize(d.sizeBytes)}
             </span>
           </div>
           <button
             disabled={pending}
             onClick={() => restore(d.id, d.title)}
-            className="shrink-0 rounded-lg bg-white/8 px-2.5 py-1 text-[12px] font-medium text-t1 transition-colors hover:bg-white/16 disabled:opacity-40"
+            className="shrink-0 rounded-lg bg-white/8 px-2.5 py-1 text-sm font-medium text-t1 transition-colors hover:bg-white/16 disabled:opacity-40"
           >
             {t(locale, 'docs.trash.restore')}
           </button>

@@ -23,7 +23,7 @@ function EyeIcon({ open }: { open: boolean }) {
 }
 
 const input =
-  'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none transition-all placeholder:text-t3 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
+  'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-lg text-white outline-none transition-all placeholder:text-t3 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
 
 /** Что показывает карточка. 'signin' — обычный вход; 'register' — заявка на аккаунт;
  * 'forgot' — сброс пароля по дате рождения; 'sent' — заявка отправлена, ждём
@@ -155,12 +155,12 @@ export function LoginForm({
       <main className="fixed inset-0 z-[100] flex items-center justify-center bg-ink-950 px-4">
         <div className="panel w-full max-w-sm p-6">
           <div className="mb-5 flex items-center gap-2.5">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-haul-500 to-good-500 text-[17px] font-bold">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-haul-500 to-good-500 text-xl font-bold">
               D
             </div>
             <div>
-              <h1 className="text-[15px] font-semibold leading-tight">{companyName || 'Dispatch'}</h1>
-              <p className="text-[12px] text-t2">Choose your language · Выберите язык</p>
+              <h1 className="text-lg font-semibold leading-tight">{companyName || 'Dispatch'}</h1>
+              <p className="text-sm text-t2">Choose your language · Выберите язык</p>
             </div>
           </div>
 
@@ -170,7 +170,7 @@ export function LoginForm({
                 key={l.code}
                 type="button"
                 onClick={() => chooseFirstLocale(l.code)}
-                className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-left text-[14px] font-semibold text-t1 transition-colors hover:border-haul-500/60 hover:bg-haul-500/10"
+                className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-left text-md font-semibold text-t1 transition-colors hover:border-haul-500/60 hover:bg-haul-500/10"
               >
                 <LocaleFlag code={l.code} />
                 {l.native}
@@ -178,7 +178,7 @@ export function LoginForm({
             ))}
           </div>
 
-          <p className="mt-3 text-center text-[11px] text-t3">
+          <p className="mt-3 text-center text-xs text-t3">
             You can change it any time · Можно сменить в любой момент
           </p>
         </div>
@@ -191,8 +191,8 @@ export function LoginForm({
     return (
       <main className="fixed inset-0 z-[100] flex items-center justify-center bg-ink-950 px-4">
         <div className="panel w-full max-w-sm p-6">
-          <h1 className="text-[15px] font-semibold">{t(locale, 'login.sent.title')}</h1>
-          <p className="mt-1.5 text-[13px] leading-relaxed text-t2">{t(locale, 'login.sent.text')}</p>
+          <h1 className="text-lg font-semibold">{t(locale, 'login.sent.title')}</h1>
+          <p className="mt-1.5 text-base leading-relaxed text-t2">{t(locale, 'login.sent.text')}</p>
           <Button variant="primary" size="lg" block className="mt-4" onClick={() => switchMode('signin')}>
             {t(locale, 'login.backToSignIn')}
           </Button>
@@ -253,12 +253,12 @@ export function LoginForm({
         className="panel my-auto w-full max-w-sm p-6 shadow-[0_24px_70px_-20px_rgb(0_0_0/0.45)] ring-1 ring-haul-500/10 sm:p-7"
       >
         <div className="mb-5 flex items-center gap-2.5">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-haul-500 to-good-500 text-[18px] font-bold text-[#fff] shadow-lg shadow-haul-500/30">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-haul-500 to-good-500 text-xl font-bold text-[#fff] shadow-lg shadow-haul-500/30">
             D
           </div>
           <div>
-            <h1 className="text-[15px] font-semibold leading-tight">{companyName || 'Dispatch'}</h1>
-            <p className="text-[12px] text-t2">{title}</p>
+            <h1 className="text-lg font-semibold leading-tight">{companyName || 'Dispatch'}</h1>
+            <p className="text-sm text-t2">{title}</p>
           </div>
         </div>
 
@@ -272,7 +272,7 @@ export function LoginForm({
               title={l.native}
               aria-label={l.native}
               aria-pressed={locale === l.code}
-              className={`flex flex-col items-center gap-1 rounded-lg border px-1 py-1.5 text-[10px] font-bold transition-colors ${
+              className={`flex flex-col items-center gap-1 rounded-lg border px-1 py-1.5 text-2xs font-bold transition-colors ${
                 locale === l.code
                   ? 'border-haul-500 bg-haul-500/15 text-haul-300'
                   : 'border-white/8 text-t3 hover:border-white/25 hover:text-t1'
@@ -287,17 +287,17 @@ export function LoginForm({
         <ThemePicker locale={locale} className="mb-4" />
 
         {bootstrap && (
-          <p className="mb-3 rounded-lg border border-haul-500/25 bg-haul-500/[0.07] px-3 py-2 text-[12.5px] leading-relaxed text-haul-300">
+          <p className="mb-3 rounded-lg border border-haul-500/25 bg-haul-500/[0.07] px-3 py-2 text-sm leading-relaxed text-haul-300">
             {needsSchema ? t(locale, 'login.install_subtitle') : t(locale, 'login.bootstrap_subtitle')}
           </p>
         )}
         {!bootstrap && mode === 'register' && (
-          <p className="mb-3 rounded-lg border border-haul-500/25 bg-haul-500/[0.07] px-3 py-2 text-[12.5px] leading-relaxed text-haul-300">
+          <p className="mb-3 rounded-lg border border-haul-500/25 bg-haul-500/[0.07] px-3 py-2 text-sm leading-relaxed text-haul-300">
             {t(locale, 'login.register_subtitle')}
           </p>
         )}
         {!bootstrap && mode === 'forgot' && (
-          <p className="mb-3 rounded-lg border border-haul-500/25 bg-haul-500/[0.07] px-3 py-2 text-[12.5px] leading-relaxed text-haul-300">
+          <p className="mb-3 rounded-lg border border-haul-500/25 bg-haul-500/[0.07] px-3 py-2 text-sm leading-relaxed text-haul-300">
             {t(locale, 'login.forgot_subtitle')}
           </p>
         )}
@@ -364,7 +364,7 @@ export function LoginForm({
               max={`${new Date().getFullYear() - 10}-12-31`}
               className={input}
             />
-            <span className="mt-1 block text-[11px] leading-relaxed text-t3">
+            <span className="mt-1 block text-xs leading-relaxed text-t3">
               {t(locale, mode === 'forgot' ? 'login.birthdayForgotHint' : 'login.birthdayHint')}
             </span>
           </label>
@@ -398,7 +398,7 @@ export function LoginForm({
               onChange={(e) => setConsent(e.target.checked)}
               className="mt-0.5 size-4 shrink-0 accent-haul-500"
             />
-            <span className="text-[12px] leading-relaxed text-t2">{t(locale, 'login.consent')}</span>
+            <span className="text-sm leading-relaxed text-t2">{t(locale, 'login.consent')}</span>
           </label>
         )}
 
@@ -411,9 +411,9 @@ export function LoginForm({
                 onChange={(e) => setRemember(e.target.checked)}
                 className="size-4 shrink-0 accent-haul-500"
               />
-              <span className="text-[13px] text-t2">{t(locale, 'login.remember')}</span>
+              <span className="text-base text-t2">{t(locale, 'login.remember')}</span>
             </label>
-            <p className="mt-1 text-[11px] leading-relaxed text-t3">
+            <p className="mt-1 text-xs leading-relaxed text-t3">
               {remember ? t(locale, 'login.remember_on') : t(locale, 'login.remember_off')}
             </p>
           </>
@@ -426,12 +426,12 @@ export function LoginForm({
           {submitLabel}
         </Button>
 
-        {error && <p className="mt-2 text-[13px] text-bad-400">{error}</p>}
+        {error && <p className="mt-2 text-base text-bad-400">{error}</p>}
 
         {/* Две дороги: забыл пароль и нет аккаунта. Ссылками под кнопкой, а не
             отдельными кнопками — вход остаётся главным. */}
         {!bootstrap && (
-          <div className="mt-3 flex flex-wrap justify-between gap-x-4 gap-y-1 text-[12.5px]">
+          <div className="mt-3 flex flex-wrap justify-between gap-x-4 gap-y-1 text-sm">
             {mode === 'signin' ? (
               <>
                 <button type="button" onClick={() => switchMode('forgot')} className="text-haul-300 hover:underline">
@@ -478,13 +478,13 @@ export function LoginForm({
               </svg>
             </span>
             <span className="min-w-0 flex-1">
-              <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[15px] font-bold whitespace-nowrap text-white">
+              <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-lg font-bold whitespace-nowrap text-white">
                 {t(locale, 'login.demoTitle')}
-                <span className="rounded-full bg-good-500/20 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide whitespace-nowrap text-good-500">
+                <span className="rounded-full bg-good-500/20 px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide whitespace-nowrap text-good-500">
                   {t(locale, 'login.demoBadge')}
                 </span>
               </span>
-              <span className="mt-0.5 block text-[12px] leading-snug text-t2">{t(locale, 'login.demoSub')}</span>
+              <span className="mt-0.5 block text-sm leading-snug text-t2">{t(locale, 'login.demoSub')}</span>
             </span>
             <span className="text-[20px] text-haul-300 transition-transform group-hover:translate-x-1" aria-hidden>
               →

@@ -510,7 +510,7 @@ function LiveStatus({ trucks, locale }: { trucks: MapMarker[]; locale: ReturnTyp
     return (
       <div className={`${box} gap-2 px-3 py-1.5`}>
         <StatusDot color={STATE_COLOR[tone]} live={tone === 'move'} />
-        <span className="text-[12px] font-semibold text-t1">{t(locale, TONE_KEY[tone])}</span>
+        <span className="text-sm font-semibold text-t1">{t(locale, TONE_KEY[tone])}</span>
       </div>
     )
   }
@@ -523,8 +523,8 @@ function LiveStatus({ trucks, locale }: { trucks: MapMarker[]; locale: ReturnTyp
       {shown.map((tone) => (
         <span key={tone} className="flex items-center gap-1.5">
           <StatusDot color={STATE_COLOR[tone]} live={tone === 'move'} />
-          <span className="nums text-[12px] font-semibold text-t1">{counts[tone]}</span>
-          <span className="text-[11px] text-t3">{t(locale, TONE_KEY[tone])}</span>
+          <span className="nums text-sm font-semibold text-t1">{counts[tone]}</span>
+          <span className="text-xs text-t3">{t(locale, TONE_KEY[tone])}</span>
         </span>
       ))}
     </div>
@@ -1162,7 +1162,7 @@ export function FleetMap({
 
   if (markers.length === 0) {
     return (
-      <div className="panel flex items-center justify-center p-8 text-[13px] text-t3">
+      <div className="panel flex items-center justify-center p-8 text-base text-t3">
         {t(locale, 'tracking.noCoordsPanel')}
       </div>
     )
@@ -1208,17 +1208,17 @@ export function FleetMap({
           середину карты; на широком экране — сверху по центру, как было. */}
       {distanceMi != null && distanceMi > 0 && (
         <div className="pointer-events-none absolute bottom-2.5 right-2.5 z-[1000] rounded-full border border-white/15 bg-ink-950/85 px-3 py-1 text-center backdrop-blur sm:bottom-auto sm:left-1/2 sm:right-auto sm:top-2.5 sm:-translate-x-1/2 sm:px-3.5 sm:py-1.5">
-          <span className="nums text-[14px] font-bold leading-none text-white sm:text-[17px]">
+          <span className="nums text-md font-bold leading-none text-white sm:text-xl">
             {Math.round(distanceMi).toLocaleString('en-US')}
           </span>
-          <span className="ml-1 text-[11px] font-medium text-t2 sm:text-[12px]">mi</span>
+          <span className="ml-1 text-xs font-medium text-t2 sm:text-sm">mi</span>
           {/* Сколько уже позади — на телефоне в той же строке, на широком экране
               второй строкой. Строку готовит страница — карта не знает ни статуса
               груза, ни его миль. */}
           {subNote && (
             <>
-              <span className="nums text-[11px] font-medium text-t2 sm:hidden"> · {subNote}</span>
-              <div className="nums mt-0.5 hidden text-[10.5px] font-medium leading-tight text-t2 sm:block">{subNote}</div>
+              <span className="nums text-xs font-medium text-t2 sm:hidden"> · {subNote}</span>
+              <div className="nums mt-0.5 hidden text-2xs font-medium leading-tight text-t2 sm:block">{subNote}</div>
             </>
           )}
         </div>
@@ -1249,7 +1249,7 @@ export function FleetMap({
             disabled={refreshing}
             title={t(locale, 'tracking.refreshTrucksTitle')}
             aria-label={t(locale, 'tracking.refreshTrucksTitle')}
-            className="flex h-[26px] items-center justify-center gap-1 rounded-lg border border-white/15 bg-ink-950/85 px-1.5 text-[10.5px] font-semibold text-t1 backdrop-blur transition-colors hover:bg-ink-900 disabled:opacity-60 sm:px-2"
+            className="flex h-[26px] items-center justify-center gap-1 rounded-lg border border-white/15 bg-ink-950/85 px-1.5 text-2xs font-semibold text-t1 backdrop-blur transition-colors hover:bg-ink-900 disabled:opacity-60 sm:px-2"
           >
             <RefreshCw size={12} strokeWidth={2.2} className={refreshing ? 'animate-spin' : undefined} aria-hidden />
           </button>
@@ -1261,7 +1261,7 @@ export function FleetMap({
           aria-pressed={marketOn}
           title={t(locale, 'tracking.marketTitle')}
           aria-label={t(locale, 'tracking.marketTitle')}
-          className={`flex h-[26px] items-center justify-center gap-1 rounded-lg border px-1.5 text-[10.5px] font-semibold backdrop-blur transition-colors sm:px-2 ${
+          className={`flex h-[26px] items-center justify-center gap-1 rounded-lg border px-1.5 text-2xs font-semibold backdrop-blur transition-colors sm:px-2 ${
             marketOn
               ? 'border-white/25 bg-ink-950/85 text-white'
               : 'border-white/15 bg-ink-950/60 text-t2 hover:text-t1'
@@ -1274,7 +1274,7 @@ export function FleetMap({
           onClick={() => setSatellite((v) => !v)}
           title={satellite ? t(locale, 'tracking.mapLabel') : t(locale, 'tracking.satelliteLabel')}
           aria-label={satellite ? t(locale, 'tracking.mapLabel') : t(locale, 'tracking.satelliteLabel')}
-          className="flex h-[26px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 px-1.5 text-[10.5px] font-semibold text-t1 backdrop-blur transition-colors hover:bg-ink-900 sm:px-2"
+          className="flex h-[26px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 px-1.5 text-2xs font-semibold text-t1 backdrop-blur transition-colors hover:bg-ink-900 sm:px-2"
         >
           {/* На телефоне — иконка слоёв, на широком экране — слово. */}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 sm:hidden" aria-hidden>
@@ -1321,7 +1321,7 @@ export function FleetMap({
         <LiveStatus trucks={markers.filter((m) => m.kind === 'truck')} locale={locale} />
       </div>
       {layerOn && mk && (
-        <div className="absolute bottom-2.5 right-2.5 z-[1000] flex max-w-[calc(100%-20px)] flex-col gap-1 rounded-xl border border-white/15 bg-ink-950/85 px-2.5 py-2 text-[11px] text-t2 backdrop-blur">
+        <div className="absolute bottom-2.5 right-2.5 z-[1000] flex max-w-[calc(100%-20px)] flex-col gap-1 rounded-xl border border-white/15 bg-ink-950/85 px-2.5 py-2 text-xs text-t2 backdrop-blur">
           <div className="flex items-start gap-2">
             <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <span className="flex items-center gap-1 font-semibold text-t1">
@@ -1339,7 +1339,7 @@ export function FleetMap({
                         type="button"
                         aria-pressed={active}
                         onClick={() => setLayerMode(mode)}
-                        className={`rounded px-1.5 py-0.5 text-[10.5px] font-semibold transition-colors max-md:min-h-8 max-md:px-2 ${
+                        className={`rounded px-1.5 py-0.5 text-2xs font-semibold transition-colors max-md:min-h-8 max-md:px-2 ${
                           active ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-t3 hover:text-t1'
                         }`}
                       >
@@ -1368,7 +1368,7 @@ export function FleetMap({
                 <span className="h-2 w-24 rounded-full opacity-80" style={{ background: PLAN_GRADIENT }} aria-hidden />
                 <span>{planShown.legend.high}</span>
               </div>
-              <div className="text-[10.5px] text-t3">{planShown.legend.hint}</div>
+              <div className="text-2xs text-t3">{planShown.legend.hint}</div>
             </>
           ) : (
             <>
@@ -1380,7 +1380,7 @@ export function FleetMap({
                       type="button"
                       aria-pressed={eq === shownSeries}
                       onClick={() => setSeries(eq)}
-                      className={`rounded px-1.5 py-0.5 text-[10.5px] font-semibold transition-colors max-md:min-h-8 max-md:px-2 ${
+                      className={`rounded px-1.5 py-0.5 text-2xs font-semibold transition-colors max-md:min-h-8 max-md:px-2 ${
                         eq === shownSeries ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-t3 hover:text-t1'
                       }`}
                     >
@@ -1394,10 +1394,10 @@ export function FleetMap({
                 <span className="h-2 w-24 rounded-full opacity-80" style={{ background: PLAN_GRADIENT }} aria-hidden />
                 <span>{(marketMedian * 2).toFixed(1)}+</span>
               </div>
-              <div className="nums text-[10.5px] text-t3">{t(locale, 'tracking.marketScale').replace('{m}', marketMedian.toFixed(1))}</div>
+              <div className="nums text-2xs text-t3">{t(locale, 'tracking.marketScale').replace('{m}', marketMedian.toFixed(1))}</div>
             </>
           )}
-          <div className="nums text-[10.5px] text-t3">
+          <div className="nums text-2xs text-t3">
             {t(locale, 'loadCard.marketAsOf').replace('{when}', mk.date)}
           </div>
         </div>

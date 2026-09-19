@@ -50,7 +50,7 @@ export function RcEvidence({ fields }: { fields: RateConFields }) {
     // Свёрнуто по умолчанию: на обычном рейт-коне всё прочиталось верно, и четырнадцать
     // строк с цитатами только отодвигают форму. Открывают, когда цифра вызывает сомнение.
     <details className="panel mb-3 p-3">
-      <summary className="cursor-pointer list-none text-[12px] font-semibold text-t2">
+      <summary className="cursor-pointer list-none text-sm font-semibold text-t2">
         <span className="text-t3">▸ </span>
         {t(locale, 'import.whatWasRead')}
       </summary>
@@ -66,14 +66,14 @@ export function RcEvidence({ fields }: { fields: RateConFields }) {
               }`}
             >
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-[11px] text-t2">{LABELS[k]}</span>
-                <span className={`nums text-[13px] ${f ? 'text-t1' : 'text-amber-300/70'}`}>
+                <span className="text-xs text-t2">{LABELS[k]}</span>
+                <span className={`nums text-base ${f ? 'text-t1' : 'text-amber-300/70'}`}>
                   {f ? String(f.value) : t(locale, 'import.notFound')}
                 </span>
               </div>
               {/* Цитата из документа — по ней число проверяют, а не принимают на веру. */}
               {f && (
-                <p className="mt-0.5 truncate text-[10px] text-t3" title={f.evidence}>
+                <p className="mt-0.5 truncate text-2xs text-t3" title={f.evidence}>
                   {f.evidence}
                 </p>
               )}
@@ -82,7 +82,7 @@ export function RcEvidence({ fields }: { fields: RateConFields }) {
         })}
       </div>
 
-      <p className="mt-3 text-[12px] leading-relaxed text-t2">{t(locale, 'import.nothingGuessed')}</p>
+      <p className="mt-3 text-sm leading-relaxed text-t2">{t(locale, 'import.nothingGuessed')}</p>
     </details>
   )
 }

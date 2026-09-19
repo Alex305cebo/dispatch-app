@@ -13,7 +13,7 @@ import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 
 const input =
-  'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[14px] text-white outline-none transition-all placeholder:text-t3 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
+  'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-md text-white outline-none transition-all placeholder:text-t3 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
 
 /** On the load page: generate the packet; где деньги — метка со ссылкой в «Финансы». */
 export function InvoiceBox({
@@ -51,8 +51,8 @@ export function InvoiceBox({
   if (!invoiceNumber && !companyReady)
     return (
       <div className="rounded-xl border border-warn-400/30 bg-warn-400/[0.07] p-3.5">
-        <p className="text-[13px] font-medium text-warn-200">{t(locale, 'finances.gate.title')}</p>
-        <p className="mt-1 text-[12.5px] leading-relaxed text-t2">
+        <p className="text-base font-medium text-warn-200">{t(locale, 'finances.gate.title')}</p>
+        <p className="mt-1 text-sm leading-relaxed text-t2">
           {t(locale, 'finances.gate.body1')}
           <b>{t(locale, 'finances.gate.companyName')}</b>
           {t(locale, 'finances.gate.and')}
@@ -61,7 +61,7 @@ export function InvoiceBox({
         </p>
         <Link
           href="/admin#company"
-          className="mt-2.5 inline-block rounded-lg bg-warn-400 px-3.5 py-1.5 text-[12px] font-semibold text-ink-950 transition-colors hover:bg-warn-300"
+          className="mt-2.5 inline-block rounded-lg bg-warn-400 px-3.5 py-1.5 text-sm font-semibold text-ink-950 transition-colors hover:bg-warn-300"
         >
           {t(locale, 'finances.gate.cta')}
         </Link>
@@ -78,17 +78,17 @@ export function InvoiceBox({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <span className="text-[13px] font-medium">{invoiceNumber}</span>
+      <span className="text-base font-medium">{invoiceNumber}</span>
       {invoiceDocId && (
         <DocLink
           docId={invoiceDocId}
-          className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-t1 hover:bg-white/5"
+          className="rounded-lg border border-white/10 px-3 py-1.5 text-sm font-semibold text-t1 hover:bg-white/5"
         >
           {t(locale, 'finances.invoiceBox.open')}
         </DocLink>
       )}
-      {pay && <PayChipView pay={pay} className="rounded-lg px-3 py-1.5 text-[12px] font-semibold" />}
-      <button onClick={gen} disabled={pending} className="text-[12px] text-t3 hover:text-t2">
+      {pay && <PayChipView pay={pay} className="rounded-lg px-3 py-1.5 text-sm font-semibold" />}
+      <button onClick={gen} disabled={pending} className="text-sm text-t3 hover:text-t2">
         {t(locale, 'finances.invoiceBox.rebuild')}
       </button>
       {/* Счёт выписался раньше времени (промежуточный POD приняли за конечный) —
@@ -104,7 +104,7 @@ export function InvoiceBox({
               else notify('ok', t(locale, 'finances.invoiceBox.removed'))
             })
           }}
-          className="text-[12px] text-t3 transition-colors hover:text-bad-400"
+          className="text-sm text-t3 transition-colors hover:text-bad-400"
         >
           {t(locale, 'finances.invoiceBox.remove')}
         </button>
@@ -170,7 +170,7 @@ export function CompanyForm({ initial }: { initial: Company }) {
           {t(locale, 'finances.form.remitTo')}
         </span>
         <textarea value={c.remitTo} onChange={f('remitTo')} rows={2} className={input} />
-        <span className="mt-1 block text-[11.5px] leading-relaxed text-t3">
+        <span className="mt-1 block text-xs leading-relaxed text-t3">
           {t(locale, 'finances.form.remitToHint')}
         </span>
       </label>

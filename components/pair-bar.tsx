@@ -24,7 +24,7 @@ export function PairBar({
   // На телефоне — одна строка на половину: короткая подпись, мелкие отступы. Три
   // строки «ОТКРЫТЬ КАРТОЧКУ ТРАКА →» на 180px ширины съедали пол-экрана.
   const base =
-    'flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-2 py-1 text-[12.5px] transition-colors sm:gap-2.5 sm:rounded-xl sm:px-3 sm:py-2 sm:text-[13px]'
+    'flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-2 py-1 text-sm transition-colors sm:gap-2.5 sm:rounded-xl sm:px-3 sm:py-2 sm:text-base'
   const active = `${base} border-haul-500/50 bg-haul-500/[0.14] text-white`
   const link = `${base} border-white/12 bg-ink-900/70 text-t1 hover:border-haul-400/60 hover:bg-haul-500/10 hover:text-white`
   const empty = `${base} border-white/8 text-t3`
@@ -41,13 +41,13 @@ export function PairBar({
   const cap = 'hidden truncate text-xs font-medium text-t2 sm:block'
   // Без «block» в общем классе: он перебивал «hidden», и на телефоне показывались
   // обе подписи разом. Видимость — только через варианты sm:/max-sm:.
-  const label = 'font-semibold max-sm:line-clamp-2 max-sm:text-[12px] max-sm:leading-[1.2] sm:block sm:truncate'
+  const label = 'font-semibold max-sm:line-clamp-2 max-sm:text-sm max-sm:leading-[1.2] sm:block sm:truncate'
   const truckInner = (
     <>
       <Truck strokeWidth={2.2} className="size-4 shrink-0 text-haul-400 sm:size-[18px]" />
       <span className="min-w-0">
         <span className={cap}>{truckCap}</span>
-        <span className="line-clamp-2 text-[12px] font-semibold leading-[1.2] sm:hidden">
+        <span className="line-clamp-2 text-sm font-semibold leading-[1.2] sm:hidden">
           {truck?.short ?? truck?.label ?? t(locale, 'pair.noTruck')}
         </span>
         <span className="hidden truncate font-semibold sm:block">{truck?.label ?? t(locale, 'pair.noTruck')}</span>

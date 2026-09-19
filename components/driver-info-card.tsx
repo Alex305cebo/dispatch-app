@@ -41,11 +41,11 @@ export function DriverInfoCard({ text, locale = 'en' }: { text: string; locale?:
         </div>
         {/* ИИ читал рейт-кон: названия складов, адреса и окна бывают с ошибкой,
             а водитель поедет ровно по этому тексту. */}
-        <p className="mb-2 flex items-start gap-1.5 rounded-lg border border-warn-400/35 bg-warn-500/[0.08] px-3 py-2 text-[12.5px] leading-snug text-warn-300">
+        <p className="mb-2 flex items-start gap-1.5 rounded-lg border border-warn-400/35 bg-warn-500/[0.08] px-3 py-2 text-sm leading-snug text-warn-300">
           <AlertTriangle size={14} strokeWidth={2.4} className="mt-0.5 shrink-0" />
           {t(locale, 'trucks.driverInfo.verify')}
         </p>
-        <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-ink-900/60 p-3 font-mono text-[12px] leading-relaxed text-t1">
+        <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-ink-900/60 p-3 font-mono text-sm leading-relaxed text-t1">
           {text}
         </pre>
       </div>

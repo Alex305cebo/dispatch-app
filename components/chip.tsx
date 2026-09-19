@@ -14,7 +14,7 @@ export function Chip({ label, value, href }: { label: string; value: string; hre
       <span className="break-all text-t1">{value}</span>
     </>
   )
-  const cls = 'flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-1.5 text-[12px]'
+  const cls = 'flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-1.5 text-sm'
   if (!href) return <div className={cls}>{inner}</div>
   // Внутренний адрес — через Link: переход без перезагрузки. tel:/mailto: Link не берёт.
   const external = /^[a-z]+:/i.test(href)

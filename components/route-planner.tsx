@@ -75,7 +75,7 @@ const SERIES_NAME: Record<DatEquipment, string> = { VAN: 'Van', REEFER: 'Reefer'
 const HEAT_KEY: Record<DatHeat, MsgKey> = { hot: 'needsLoad.heatHot', warm: 'needsLoad.heatWarm', cold: 'needsLoad.heatCold' }
 const TONE_TEXT = { hit: 'text-good-400', near: 'text-warn-400', miss: 'text-bad-400' } as const
 const input =
-  'w-full rounded-xl border border-white/10 bg-ink-950/70 px-3 py-2 text-[14px] text-white outline-none focus:border-haul-500 max-md:min-h-11'
+  'w-full rounded-xl border border-white/10 bg-ink-950/70 px-3 py-2 text-md text-white outline-none focus:border-haul-500 max-md:min-h-11'
 
 /** Регион DAT по-человечески: NORTHEAST → Northeast. */
 const regionTitle = (code: string) => code.charAt(0) + code.slice(1).toLowerCase()
@@ -252,7 +252,7 @@ function clean(v: Partial<Opts>): Partial<Opts> {
 function HeatTag({ heat, ratio, median, locale }: { heat: DatHeat | null; ratio: number | null; median: number; locale: Locale }) {
   if (heat !== 'hot' && heat !== 'cold') return null
   return (
-    <span className={`inline-flex items-center gap-0.5 text-[11px] font-medium ${heat === 'hot' ? 'text-good-400' : 'text-bad-400'}`}>
+    <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${heat === 'hot' ? 'text-good-400' : 'text-bad-400'}`}>
       {t(locale, HEAT_LEVEL_KEY[heatLevel(median, ratio)])}
     </span>
   )
@@ -297,7 +297,7 @@ function BoardShotSample({ locale }: { locale: Locale }) {
           </g>
         ))}
       </svg>
-      <span className="text-[10.5px] text-t3">{t(locale, 'plan.boardSample')}</span>
+      <span className="text-2xs text-t3">{t(locale, 'plan.boardSample')}</span>
     </span>
   )
 }
@@ -363,7 +363,7 @@ export function RoutePlanner({
       .replace('{cpm}', usd2.format(cpm))
       .replace('{fixed}', usd.format(s.truckPaymentPerDay + s.insurancePerDay + s.eldPermitsPerDay)) +
     (s.driverPay.mode === 'percent' ? t(locale, 'plan.costsDriverPct').replace('{v}', String(s.driverPay.percentOfGross)) : '')
-  const label = 'mb-1 block text-[11px] font-medium text-t3'
+  const label = 'mb-1 block text-xs font-medium text-t3'
 
   return (
     <section id="route-planner" className="panel mb-4 scroll-mt-4 p-3 sm:p-4">
@@ -372,7 +372,7 @@ export function RoutePlanner({
           {t(locale, 'plan.title')}
           <Info text={t(locale, 'plan.info')} />
         </h2>
-        {snap && <span className="nums text-[11.5px] text-t3">{t(locale, 'loadCard.marketAsOf').replace('{when}', snap.date)}</span>}
+        {snap && <span className="nums text-xs text-t3">{t(locale, 'loadCard.marketAsOf').replace('{when}', snap.date)}</span>}
       </div>
 
       {/* Трак — кнопками, а не списком: диспетчер жмёт трак и весь расчёт ниже
@@ -386,7 +386,7 @@ export function RoutePlanner({
               type="button"
               aria-pressed={x.id === truck.id}
               onClick={() => plan.pickTruck(x.id)}
-              className={`rounded-xl border px-2.5 py-1.5 text-[12.5px] font-semibold transition-colors max-md:min-h-10 ${
+              className={`rounded-xl border px-2.5 py-1.5 text-sm font-semibold transition-colors max-md:min-h-10 ${
                 x.id === truck.id
                   ? 'border-haul-500/60 bg-haul-500/15 text-white'
                   : 'border-white/10 bg-white/[0.04] text-t2 hover:border-white/20 hover:text-t1'
@@ -420,7 +420,7 @@ export function RoutePlanner({
                   type="button"
                   aria-pressed={eq === series}
                   onClick={() => plan.setSeries(eq)}
-                  className={`flex-1 rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold transition-colors max-md:min-h-10 ${
+                  className={`flex-1 rounded-lg px-2.5 py-1.5 text-sm font-semibold transition-colors max-md:min-h-10 ${
                     eq === series ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-t3 hover:text-t1'
                   }`}
                 >
@@ -431,11 +431,11 @@ export function RoutePlanner({
           </div>
         )}
       </div>
-      <p className="mt-1.5 break-words text-[12px] text-t3">{originLine}</p>
+      <p className="mt-1.5 break-words text-sm text-t3">{originLine}</p>
       {/* Профиль водителя: скоро домой — домашнее направление первым; стоп-лист штатов
           вырезан из списка. Обе строки только когда в паспорте это заполнено. */}
       {(truck.homeBy || truck.avoid.length > 0) && (
-        <p className="mt-1 break-words text-[12px] text-t3">
+        <p className="mt-1 break-words text-sm text-t3">
           {truck.homeBy && truck.homeState && (
             <span className="text-haul-300">
               🏠 {t(locale, 'plan.homeBy').replace('{state}', stateName(truck.homeState)).replace('{date}', usDate(truck.homeBy))}
@@ -447,7 +447,7 @@ export function RoutePlanner({
       )}
 
       <details className="group mt-2 rounded-xl border border-white/8">
-        <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 text-[12px] text-t3 max-md:min-h-11">
+        <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 text-sm text-t3 max-md:min-h-11">
           <span className="text-t3 transition-transform group-open:rotate-90" aria-hidden>
             ▸
           </span>
@@ -485,7 +485,7 @@ export function RoutePlanner({
             </label>
           ))}
         </div>
-        <p className="px-3 pb-2.5 pt-2 text-[11.5px] text-t3">
+        <p className="px-3 pb-2.5 pt-2 text-xs text-t3">
           {costs} ·{' '}
           <Link href={`/trucks/${truck.id}`} className="text-haul-400 hover:underline">
             {t(locale, 'plan.editCosts')}
@@ -494,11 +494,11 @@ export function RoutePlanner({
       </details>
 
       {!snap ? (
-        <p className="mt-3 text-[13px] text-t3">{t(locale, 'plan.noSnap')}</p>
+        <p className="mt-3 text-base text-t3">{t(locale, 'plan.noSnap')}</p>
       ) : !origin ? (
-        <p className="mt-3 text-[13px] text-t3">{t(locale, 'plan.noOrigin')}</p>
+        <p className="mt-3 text-base text-t3">{t(locale, 'plan.noOrigin')}</p>
       ) : !lanes.length || !best ? (
-        <p className="mt-3 text-[13px] text-t3">{t(locale, 'plan.noLanes').replace('{state}', stateName(origin))}</p>
+        <p className="mt-3 text-base text-t3">{t(locale, 'plan.noLanes').replace('{state}', stateName(origin))}</p>
       ) : (
         <>
           {/* Две плитки, а не четыре: «Худший штат» повторял строку «Ловушки» под списком,
@@ -542,7 +542,7 @@ export function RoutePlanner({
           </div>
           {/* Ставка DAT за милю одна на весь регион — одной строкой над списком, а не одной и
               той же цифрой у десятка штатов подряд. Сам список — горячие штаты сверху. */}
-          <p className="nums mt-1 break-words text-[11.5px] text-t3">
+          <p className="nums mt-1 break-words text-xs text-t3">
             {t(locale, 'plan.regionRates').replace(
               '{list}',
               [...snap.regions]
@@ -566,7 +566,7 @@ export function RoutePlanner({
                 type="button"
                 aria-pressed={range === key}
                 onClick={() => setRange(key)}
-                className={`flex-1 rounded-lg px-2 py-1.5 text-[12.5px] font-semibold transition-colors max-md:min-h-10 ${
+                className={`flex-1 rounded-lg px-2 py-1.5 text-sm font-semibold transition-colors max-md:min-h-10 ${
                   range === key ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-t3 hover:text-t1'
                 }`}
               >
@@ -575,7 +575,7 @@ export function RoutePlanner({
             ))}
           </div>
           {range === 'day' && (
-            <p className="mt-1.5 text-[12px] text-t3">{t(locale, 'plan.range.dayHint').replace('{mi}', String(opts.mpd))}</p>
+            <p className="mt-1.5 text-sm text-t3">{t(locale, 'plan.range.dayHint').replace('{mi}', String(opts.mpd))}</p>
           )}
           {/* «Все» — не один длинный список, а по четыре лучших в каждом плече: диспетчеру
               нужны разные варианты, а не десять соседних штатов подряд. */}
@@ -644,10 +644,10 @@ export function RoutePlanner({
               />
             </div>
           ) : (
-            <p className="mt-2 text-[13px] text-t3">{t(locale, 'plan.noRange').replace('{state}', stateName(origin))}</p>
+            <p className="mt-2 text-base text-t3">{t(locale, 'plan.noRange').replace('{state}', stateName(origin))}</p>
           )}
           {traps.length > 0 && (
-            <p className="mt-2 text-[12px] text-t3">
+            <p className="mt-2 text-sm text-t3">
               <span className="font-semibold text-bad-400">{t(locale, 'plan.traps')}:</span>{' '}
               {traps.map((l) => `${l.name} (${ltLine(l, locale)})`).join(', ')}
             </p>
@@ -681,7 +681,7 @@ function MarketDetails({
   const sub = 'text-2xs font-semibold uppercase tracking-wide text-t3'
   return (
     <details className="group mt-4 rounded-xl border border-white/8">
-      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2.5 gap-y-1 px-3 py-2 text-[12px] max-md:min-h-11">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2.5 gap-y-1 px-3 py-2 text-sm max-md:min-h-11">
         <span className="text-t3 transition-transform group-open:rotate-90" aria-hidden>
           ▸
         </span>
@@ -732,10 +732,10 @@ function MarketDetails({
               return (
                 <div key={r.code} className="min-w-0">
                   <div className="panel-inset px-2 py-1.5 sm:px-2.5">
-                    <div className="truncate text-[11px] text-t3">{r.code.charAt(0) + r.code.slice(1).toLowerCase()}</div>
-                    <div className="nums text-[16px] font-bold leading-tight sm:text-[18px]">
+                    <div className="truncate text-xs text-t3">{r.code.charAt(0) + r.code.slice(1).toLowerCase()}</div>
+                    <div className="nums text-xl font-bold leading-tight sm:text-xl">
                       {usd2.format(r.rpm)}
-                      <span className="text-[11px] font-medium text-t3">/mi</span>
+                      <span className="text-xs font-medium text-t3">/mi</span>
                     </div>
                   </div>
                   <div className="mt-1.5 space-y-1.5 px-1">
@@ -752,14 +752,14 @@ function MarketDetails({
                             <li
                               key={st.code}
                               title={`${stateLabel(st.code)} · ${t(locale, HEAT_LEVEL_KEY[heatLevel(median, st.ratio)])}\n${t(locale, 'plan.ltVsMedian').replace('{n}', st.ratio.toFixed(1)).replace('{m}', median.toFixed(1))}`}
-                              className="flex items-center gap-1.5 text-[12px]"
+                              className="flex items-center gap-1.5 text-sm"
                             >
                               <span className={`size-1.5 shrink-0 rounded-full ${dot}`} aria-hidden />
                               <span className="min-w-0 flex-1 truncate text-t1">
                                 <span className="lg:hidden">{st.code === 'DC' ? stateLabel(st.code) : st.code}</span>
                                 <span className="hidden lg:inline">{stateLabel(st.code)}</span>
                               </span>
-                              <span className="shrink-0 text-[10px]">{HEAT_LEVEL_ICON[heatLevel(median, st.ratio)]}</span>
+                              <span className="shrink-0 text-2xs">{HEAT_LEVEL_ICON[heatLevel(median, st.ratio)]}</span>
                             </li>
                             )
                           })}
@@ -776,13 +776,13 @@ function MarketDetails({
             {snap.regions.length % 3 !== 0 && (
               <div className="min-w-0 sm:hidden">
                 <div className="panel-inset px-2 py-1.5">
-                  <div className="truncate text-[11px] text-t3">{t(locale, 'plan.market.avgRegions')}</div>
-                  <div className="nums text-[16px] font-bold leading-tight">
+                  <div className="truncate text-xs text-t3">{t(locale, 'plan.market.avgRegions')}</div>
+                  <div className="nums text-xl font-bold leading-tight">
                     {usd2.format(snap.regions.reduce((sum, r) => sum + r.rpm, 0) / snap.regions.length)}
-                    <span className="text-[11px] font-medium text-t3">/mi</span>
+                    <span className="text-xs font-medium text-t3">/mi</span>
                   </div>
                 </div>
-                <ul className="mt-1.5 space-y-1 px-1 text-[11.5px] leading-snug text-t2">
+                <ul className="mt-1.5 space-y-1 px-1 text-xs leading-snug text-t2">
                   {(
                     [
                       ['bg-good-400', 'plan.market.legendBest'],
@@ -845,7 +845,7 @@ function StatesTable({ snaps, series, locale }: { snaps: PlanSnaps; series: DatE
                   type="button"
                   aria-pressed={e === eq}
                   onClick={() => setEq(e)}
-                  className={`rounded px-2 py-1 text-[11.5px] font-semibold transition-colors max-md:min-h-9 ${
+                  className={`rounded px-2 py-1 text-xs font-semibold transition-colors max-md:min-h-9 ${
                     e === eq ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-t3 hover:text-t1'
                   }`}
                 >
@@ -859,7 +859,7 @@ function StatesTable({ snaps, series, locale }: { snaps: PlanSnaps; series: DatE
               type="button"
               aria-pressed={compare}
               onClick={() => setCompare((v) => !v)}
-              className={`rounded-lg border px-2 py-1 text-[11.5px] font-semibold transition-colors max-md:min-h-9 ${
+              className={`rounded-lg border px-2 py-1 text-xs font-semibold transition-colors max-md:min-h-9 ${
                 compare ? 'border-haul-500/60 bg-haul-500/15 text-white' : 'border-white/10 text-t3 hover:text-t1'
               }`}
             >
@@ -869,7 +869,7 @@ function StatesTable({ snaps, series, locale }: { snaps: PlanSnaps; series: DatE
         </div>
       </div>
       <div className="mt-1.5 max-h-80 overflow-auto rounded-xl border border-white/8">
-        <table className="w-full border-collapse text-[12px]">
+        <table className="w-full border-collapse text-sm">
           <thead className="sticky top-0 bg-ink-950/95 backdrop-blur">
             <tr>
               <th className={th} onClick={() => setSort('state')}>
@@ -906,7 +906,7 @@ function StatesTable({ snaps, series, locale }: { snaps: PlanSnaps; series: DatE
                   ))
                 ) : (
                   <td className="px-2 py-1 text-right">
-                    <span className="mr-1 text-[10px]">{HEAT_LEVEL_ICON[heatLevel(median, r.ratio)]}</span>
+                    <span className="mr-1 text-2xs">{HEAT_LEVEL_ICON[heatLevel(median, r.ratio)]}</span>
                     <span className="text-t1">{r.ratio.toFixed(1)}</span>
                   </td>
                 )}
@@ -929,7 +929,7 @@ function WeekChange({ v, locale }: { v: number | null | undefined; locale: Local
   if (v == null) return null
   const Icon = v >= 0 ? TrendingUp : TrendingDown
   return (
-    <span className={`nums inline-flex shrink-0 items-center gap-1 text-[11.5px] font-medium ${v >= 0 ? 'text-good-400' : 'text-bad-400'}`}>
+    <span className={`nums inline-flex shrink-0 items-center gap-1 text-xs font-medium ${v >= 0 ? 'text-good-400' : 'text-bad-400'}`}>
       <Icon size={12} aria-hidden />
       {t(locale, 'plan.market.wow').replace('{v}', signedPct(v))}
     </span>
@@ -1058,7 +1058,7 @@ function LtChart({
               </g>
             ))}
             {months.map((m) => (
-              <text key={m.i} x={x(m.i)} y={H - 4} textAnchor="middle" className="fill-white/40 text-[10px]">
+              <text key={m.i} x={x(m.i)} y={H - 4} textAnchor="middle" className="fill-white/40 text-2xs">
                 {m.text}
               </text>
             ))}
@@ -1071,7 +1071,7 @@ function LtChart({
               x={w - R - 2}
               y={last.ratio >= avg ? y(avg) + 12 : y(avg) - 5}
               textAnchor="end"
-              className="fill-white/60 stroke-ink-900 text-[10px] [paint-order:stroke] [stroke-width:3px]"
+              className="fill-white/60 stroke-ink-900 text-2xs [paint-order:stroke] [stroke-width:3px]"
             >
               {t(locale, 'plan.market.avg').replace('{v}', avg.toFixed(1))}
             </text>
@@ -1087,12 +1087,12 @@ function LtChart({
         )}
         {p && hover != null && w > 0 && (
           <div
-            className="pointer-events-none absolute z-10 whitespace-nowrap rounded-lg border border-white/10 bg-ink-950 px-2 py-1.5 text-[11px] leading-tight"
+            className="pointer-events-none absolute z-10 whitespace-nowrap rounded-lg border border-white/10 bg-ink-950 px-2 py-1.5 text-xs leading-tight"
             style={x(hover) > w / 2 ? { top: T, right: w - x(hover) + 10 } : { top: T, left: x(hover) + 10 }}
           >
             <div className="nums text-t3">{t(locale, 'plan.market.week').replace('{date}', usDate(p.when))}</div>
             <div className="mt-0.5">
-              <span className="nums text-[14px] font-bold text-white">{signedPct(((p.ratio - avg) / avg) * 100)}</span>{' '}
+              <span className="nums text-md font-bold text-white">{signedPct(((p.ratio - avg) / avg) * 100)}</span>{' '}
               <span className="text-t2">{t(locale, 'plan.market.perTruck')}</span>
             </div>
             {change != null && (
@@ -1103,7 +1103,7 @@ function LtChart({
           </div>
         )}
       </div>
-      <figcaption className="nums mt-1 text-[11.5px] leading-snug text-t3">
+      <figcaption className="nums mt-1 text-xs leading-snug text-t3">
         <span className="font-semibold text-t1">{nowText}</span> ·{' '}
         <span className={vsAvg >= 0 ? 'text-good-400' : 'text-bad-400'}>{avgText}</span>
       </figcaption>
@@ -1193,27 +1193,27 @@ function LaneRow({
   return (
     <details className="group rounded-lg border border-white/8 transition-colors open:border-white/15 hover:border-white/15">
       <summary className="flex cursor-pointer list-none items-center gap-2.5 px-3 py-2 max-md:min-h-11">
-        {rank != null && <span className="nums w-4 shrink-0 text-right text-[11px] text-t3">{rank}</span>}
+        {rank != null && <span className="nums w-4 shrink-0 text-right text-xs text-t3">{rank}</span>}
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-x-2">
-            <span className="min-w-0 break-words text-[13.5px] font-semibold">{title ?? lane.name}</span>
+            <span className="min-w-0 break-words text-base font-semibold">{title ?? lane.name}</span>
             <HeatTag heat={lane.heat} ratio={lane.ratio} median={lane.median} locale={locale} />
           </span>
-          <span className="nums block break-words text-[11.5px] text-t3">
+          <span className="nums block break-words text-xs text-t3">
             {lane.miles.toLocaleString('en-US')} mi
             {board && ` · ${t(locale, 'plan.bench.boardRate').replace('{v}', usd2.format(lane.rpm))}`}
             {!pickup && lane.ratio != null && ` · ${lane.ratio.toFixed(1)} ${t(locale, 'plan.perTruck')}`}
           </span>
-          {reasons && reasons.length > 0 && <span className="block text-[11.5px] text-t2">{reasons.join(' · ')}</span>}
+          {reasons && reasons.length > 0 && <span className="block text-xs text-t2">{reasons.join(' · ')}</span>}
         </span>
         <span className="max-w-[46%] shrink-0 text-right sm:max-w-[40%]">
           {/* Главная цифра — та, на которую диспетчеру торговаться. У цены грузоотправителя
               это цена минус доля брокера; у DAT и USDA цифра и так со стороны трака. */}
-          <span className={`nums block text-[15px] font-bold leading-tight ${cls}`}>
+          <span className={`nums block text-lg font-bold leading-tight ${cls}`}>
             {band ? `≈${usd2.format(band.low)}/mi` : rpm != null ? `${usd2.format(rpm)}/mi` : '—'}
           </span>
           {band && b && (
-            <span className="nums block text-[10.5px] leading-snug text-haul-300">
+            <span className="nums block text-2xs leading-snug text-haul-300">
               {t(locale, band.broker ? 'plan.cut.lineBroker' : 'plan.cut.line')
                 .replace('{v}', usd2.format(b.rpm - band.low))
                 .replace('{shipper}', `${usd2.format(b.rpm)}/mi`)
@@ -1221,7 +1221,7 @@ function LaneRow({
                 .replace('{n}', String(band.n))}
             </span>
           )}
-          <span className="block text-[10.5px] leading-snug text-t3">
+          <span className="block text-2xs leading-snug text-t3">
             {b
               ? benchSource(b, bench, locale)
               : regionRpm != null
@@ -1242,7 +1242,7 @@ function LaneRow({
                 quote.run()
               }}
               title={t(locale, 'plan.quote.hint')}
-              className="mt-0.5 text-[11px] font-semibold text-haul-400 underline-offset-2 hover:underline disabled:opacity-50 max-md:min-h-8"
+              className="mt-0.5 text-xs font-semibold text-haul-400 underline-offset-2 hover:underline disabled:opacity-50 max-md:min-h-8"
             >
               {quote.busy ? '…' : t(locale, 'plan.quote.btn')}
             </button>
@@ -1286,7 +1286,7 @@ function LaneCalc({
   const section = (text: string) => <p className="mt-2 text-2xs font-semibold uppercase tracking-wide text-t3 first:mt-0">{text}</p>
   const totalMiles = (lane.miles + lane.deadhead).toLocaleString('en-US')
   return (
-    <div className="border-t border-white/[0.06] px-3 pb-3 pt-2 text-[12.5px]">
+    <div className="border-t border-white/[0.06] px-3 pb-3 pt-2 text-sm">
       {section(t(locale, 'plan.calc.load'))}
       {row(
         board
@@ -1460,7 +1460,7 @@ function BoardCompare({
     // Свёрнуто: зона под скриншот с примером занимала пол-экрана у всех, а нужна она под
     // звонок брокеру. Прочитанные грузы раскрывают блок сами — Ctrl+V со страницы не пропадает.
     <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)} className="group mt-4 rounded-xl border border-white/8">
-      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 text-[12px] max-md:min-h-11">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 text-sm max-md:min-h-11">
         <span className="text-t3 transition-transform group-open:rotate-90" aria-hidden>
           ▸
         </span>
@@ -1522,7 +1522,7 @@ function BoardCompare({
           ) : (
             <ImagePlus size={22} className="text-haul-400" aria-hidden />
           )}
-          <span className="text-[13.5px] font-semibold text-t1">
+          <span className="text-base font-semibold text-t1">
             {reading ? (
               t(locale, 'plan.boardReading')
             ) : (
@@ -1532,7 +1532,7 @@ function BoardCompare({
               </>
             )}
           </span>
-          {!reading && <span className="text-[12px] text-t3">{t(locale, 'plan.boardDropSub')}</span>}
+          {!reading && <span className="text-sm text-t3">{t(locale, 'plan.boardDropSub')}</span>}
           {!reading && (
             <button
               type="button"
@@ -1540,7 +1540,7 @@ function BoardCompare({
                 e.stopPropagation()
                 pick()
               }}
-              className="mt-0.5 text-[12px] font-semibold text-haul-400 underline-offset-2 hover:underline max-md:hidden"
+              className="mt-0.5 text-sm font-semibold text-haul-400 underline-offset-2 hover:underline max-md:hidden"
             >
               {t(locale, 'plan.boardPick')}
             </button>
@@ -1624,14 +1624,14 @@ function BoardCompare({
             </Button>
           </div>
           <details className="group mt-2 rounded-xl border border-white/8" open={Boolean(bad)}>
-            <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[12px] max-md:min-h-11">
+            <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm max-md:min-h-11">
               <span className="text-t3 transition-transform group-open:rotate-90" aria-hidden>
                 ▸
               </span>
               <span className="font-medium text-t2">{t(locale, 'plan.boardEdit')}</span>
             </summary>
             <div className="border-t border-white/[0.06] px-3 pb-3 pt-2">
-              <p className="text-[12px] leading-snug text-t3">{t(locale, 'plan.boardHint')}</p>
+              <p className="text-sm leading-snug text-t3">{t(locale, 'plan.boardHint')}</p>
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -1645,10 +1645,10 @@ function BoardCompare({
                 rows={Math.min(8, Math.max(3, text.split('\n').length))}
                 wrap="off"
                 spellCheck={false}
-                className={`${input} mt-2 font-mono text-[13px]`}
+                className={`${input} mt-2 font-mono text-base`}
               />
               {bad && (
-                <p className="mt-1 break-words text-[12px] text-warn-400">
+                <p className="mt-1 break-words text-sm text-warn-400">
                   {t(locale, 'plan.boardBad').replace('{line}', bad.length > 40 ? `${bad.slice(0, 40)}…` : bad)}
                 </p>
               )}

@@ -39,8 +39,8 @@ export function OrphanRateCons({ truckId, docs }: { truckId: number; docs: Orpha
 
   return (
     <div className="mt-3 rounded-xl border border-warn-400/25 bg-warn-400/[0.06] p-3">
-      <p className="text-[12px] font-semibold text-warn-300">{t(locale, 'orphanRc.title')}</p>
-      <p className="mt-0.5 text-[11.5px] leading-relaxed text-t2">{t(locale, 'orphanRc.subtitle')}</p>
+      <p className="text-sm font-semibold text-warn-300">{t(locale, 'orphanRc.title')}</p>
+      <p className="mt-0.5 text-xs leading-relaxed text-t2">{t(locale, 'orphanRc.subtitle')}</p>
       <ul className="mt-2.5 flex flex-col gap-1.5">
         {docs.map((d) => (
           <li
@@ -49,11 +49,11 @@ export function OrphanRateCons({ truckId, docs }: { truckId: number; docs: Orpha
           >
             <DocLink
               docId={d.id}
-              className="min-w-0 flex-1 truncate text-left text-[12.5px] text-t1 hover:text-haul-400 hover:underline"
+              className="min-w-0 flex-1 truncate text-left text-sm text-t1 hover:text-haul-400 hover:underline"
             >
               {d.title}
             </DocLink>
-            <span className="nums shrink-0 text-[11px] text-t3">{usDate(todayEt(new Date(d.uploadedAt)))}</span>
+            <span className="nums shrink-0 text-xs text-t3">{usDate(todayEt(new Date(d.uploadedAt)))}</span>
             <Button variant="primary" size="sm" className="shrink-0" disabled={pending} onClick={() => make(d.id)}>
               {working === d.id ? t(locale, 'orphanRc.aiReading') : t(locale, 'orphanRc.createLoad')}
             </Button>

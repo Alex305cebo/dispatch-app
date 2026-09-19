@@ -118,7 +118,7 @@ export function LoadForm({
             <select
               value={truckId}
               onChange={(e) => setTruckId(Number(e.target.value))}
-              className="w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none transition-all duration-200 hover:border-white/15 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15"
+              className="w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-lg text-white outline-none transition-all duration-200 hover:border-white/15 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15"
             >
               {trucks.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -135,7 +135,7 @@ export function LoadForm({
                 todayEt(),
                 locale,
               ).map((w) => (
-                <span key={w} className="mt-1.5 block text-[12px] leading-snug text-warn-400">
+                <span key={w} className="mt-1.5 block text-sm leading-snug text-warn-400">
                   ⚠ {w}
                 </span>
               ))}
@@ -154,7 +154,7 @@ export function LoadForm({
             {/* Ориентир рынка прямо под ставкой: сколько за такой рейс даёт DAT по региону
                 погрузки — сравнить с предложением брокера одним взглядом. */}
             {dat && (
-              <p className="mt-1.5 text-[12px] text-t3">
+              <p className="mt-1.5 text-sm text-t3">
                 <span className="nums font-semibold text-t1">{usd2.format(dat.rpm)}</span>/mi
                 {load.loadedMiles > 0 &&
                   ` ${tr(locale, 'loadForm.datTotal')
@@ -193,7 +193,7 @@ export function LoadForm({
                       )
                   })
                 }
-                className="mt-1 text-[11px] text-haul-400 hover:underline disabled:text-t3"
+                className="mt-1 text-xs text-haul-400 hover:underline disabled:text-t3"
               >
                 {milesBusy ? tr(locale, 'loadForm.calculating') : tr(locale, 'loadForm.milesByMapButton')}
               </button>
@@ -254,7 +254,7 @@ export function LoadForm({
             disabled={pending || !!calcError}>
             {pending ? tr(locale, 'loadForm.saving') : tr(locale, 'loadForm.saveLoad')}
           </Button>
-          {error && <p className="mt-2 text-[13px] text-bad-400">{error}</p>}
+          {error && <p className="mt-2 text-base text-bad-400">{error}</p>}
         </section>
 
         <section className="panel p-5 lg:sticky lg:top-6">

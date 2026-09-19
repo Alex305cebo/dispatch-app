@@ -87,7 +87,7 @@ export function TripHistoryPanel({
                 pick(w.hours)
               }}
               disabled={pending}
-              className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors disabled:opacity-50 ${
+              className={`rounded-full px-2 py-0.5 text-2xs font-medium transition-colors disabled:opacity-50 ${
                 w.hours === hours ? 'bg-haul-500/15 text-haul-400' : 'text-t3 hover:text-t2'
               }`}
             >

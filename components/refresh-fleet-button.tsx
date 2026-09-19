@@ -66,7 +66,7 @@ export function RefreshFleetButton({ staleMinutes }: { staleMinutes: number | nu
 
   return (
     <div className="flex shrink-0 items-center gap-2">
-      <span className="flex items-center gap-1 text-[10px] text-good-400" title={t(locale, 'tracking.autoRefreshTitle')}>
+      <span className="flex items-center gap-1 text-2xs text-good-400" title={t(locale, 'tracking.autoRefreshTitle')}>
         <span className="relative flex size-1.5">
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-good-400 opacity-75" />
           <span className="relative inline-flex size-1.5 rounded-full bg-good-500" />

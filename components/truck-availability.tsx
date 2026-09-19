@@ -45,7 +45,7 @@ export function TruckAvailability({
   }
 
   return (
-    <div className="inline-flex h-8 overflow-hidden rounded-lg border border-white/12 bg-white/[0.03] text-[12.5px] font-semibold max-md:h-10">
+    <div className="inline-flex h-8 overflow-hidden rounded-lg border border-white/12 bg-white/[0.03] text-sm font-semibold max-md:h-10">
       {OPTIONS.map((o) => (
         <button
           key={o.value}

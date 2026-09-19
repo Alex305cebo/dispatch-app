@@ -154,7 +154,7 @@ export function LoadsWeekChart({ loads, trucks, weekFrom, locale }: { loads: Loa
             {t(locale, 'loads.dash.chart')}
             <Info text={t(locale, 'loads.dash.chartHint')} />
           </h2>
-          <p className="nums mt-0.5 text-[12px] text-t3">
+          <p className="nums mt-0.5 text-sm text-t3">
             {dateLabel(week, locale)} – {dateLabel(shiftDay(week, 6), locale)} ·{' '}
             <span className="font-semibold text-t1">{usd.format(stats.gross)}</span>
           </p>
@@ -164,7 +164,7 @@ export function LoadsWeekChart({ loads, trucks, weekFrom, locale }: { loads: Loa
             <button
               type="button"
               onClick={() => go(weekFrom)}
-              className="rounded-full bg-haul-500/15 px-2 py-0.5 text-[11px] font-semibold text-haul-400 transition-colors hover:bg-haul-500/25"
+              className="rounded-full bg-haul-500/15 px-2 py-0.5 text-xs font-semibold text-haul-400 transition-colors hover:bg-haul-500/25"
             >
               {t(locale, 'loads.page.today')}
             </button>
@@ -193,7 +193,7 @@ export function LoadsWeekChart({ loads, trucks, weekFrom, locale }: { loads: Loa
                 selected === b.day ? 'bg-haul-500/10 ring-1 ring-haul-400/40' : ''
               }`}
             >
-              <span className="nums hidden truncate text-center text-[11px] text-t3 sm:block">{b.gross ? usd.format(b.gross) : '—'}</span>
+              <span className="nums hidden truncate text-center text-xs text-t3 sm:block">{b.gross ? usd.format(b.gross) : '—'}</span>
               <span className="mt-1 flex h-28 flex-col justify-end">
                 <span className="block rounded-t-[3px] bg-haul-400/10" style={{ ...HATCH, height: `${(b.quoted / max) * 100}%` }} />
                 <span
@@ -201,7 +201,7 @@ export function LoadsWeekChart({ loads, trucks, weekFrom, locale }: { loads: Loa
                   style={{ height: `${(b.gross / max) * 100}%`, minHeight: b.gross ? 3 : 0 }}
                 />
               </span>
-              <span className="py-2 text-center text-[11px] capitalize leading-4 text-t3">
+              <span className="py-2 text-center text-xs capitalize leading-4 text-t3">
                 {weekdayLabel(b.day, locale)}
                 <br />
                 <span className="nums text-t1">{Number(b.day.slice(-2))}</span>
@@ -211,7 +211,7 @@ export function LoadsWeekChart({ loads, trucks, weekFrom, locale }: { loads: Loa
         })}
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-t3">
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-t3">
         <span className="flex items-center gap-1.5">
           <span className="size-2.5 rounded-sm bg-haul-500" />
           {t(locale, 'loads.dash.booked')}
@@ -227,16 +227,16 @@ export function LoadsWeekChart({ loads, trucks, weekFrom, locale }: { loads: Loa
         )}
       </div>
 
-      {!stats.buckets.some((b) => b.rows.length > 0) && <p className="mt-2 text-[12px] text-t3">{t(locale, 'loads.dash.noLoads')}</p>}
+      {!stats.buckets.some((b) => b.rows.length > 0) && <p className="mt-2 text-sm text-t3">{t(locale, 'loads.dash.noLoads')}</p>}
       {selected && (
         <div className="mt-2 divide-y divide-white/[0.06] border-t border-white/[0.06]">
-          <p className="py-2 text-[12px] font-semibold text-t2">{dateLabel(selected, locale)}</p>
+          <p className="py-2 text-sm font-semibold text-t2">{dateLabel(selected, locale)}</p>
           {rows.length ? (
             rows.map((l) => (
               <Link
                 key={l.id}
                 href={`/loads/${l.id}`}
-                className="flex items-baseline justify-between gap-3 py-1.5 text-[13px] text-t1 transition-colors hover:text-white max-md:min-h-11 max-md:items-center"
+                className="flex items-baseline justify-between gap-3 py-1.5 text-base text-t1 transition-colors hover:text-white max-md:min-h-11 max-md:items-center"
               >
                 <span className="min-w-0 break-words">
                   {l.origin ?? '—'} → {l.destination ?? '—'}
@@ -245,7 +245,7 @@ export function LoadsWeekChart({ loads, trucks, weekFrom, locale }: { loads: Loa
               </Link>
             ))
           ) : (
-            <p className="py-2 text-[12px] text-t3">{t(locale, 'loads.dash.noLoads')}</p>
+            <p className="py-2 text-sm text-t3">{t(locale, 'loads.dash.noLoads')}</p>
           )}
         </div>
       )}
@@ -294,7 +294,7 @@ export function LoadsAttention({ entries, locale, onSelect }: { entries: Attenti
                     type="button"
                     aria-pressed={category === key}
                     onClick={() => setCategory(category === key ? null : key)}
-                    className={`rounded-full px-2.5 py-1 text-[12px] font-medium transition-colors max-md:min-h-9 ${
+                    className={`rounded-full px-2.5 py-1 text-sm font-medium transition-colors max-md:min-h-9 ${
                       category === key ? 'bg-warn-400/20 text-warn-400 ring-1 ring-warn-400/30' : 'bg-white/[0.06] text-t2 hover:text-white'
                     }`}
                   >
@@ -310,10 +310,10 @@ export function LoadsAttention({ entries, locale, onSelect }: { entries: Attenti
             <Link
               key={`${e.id}-${e.category}`}
               href={`/loads/${e.id}`}
-              className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-1.5 text-[13px] text-t1 transition-colors hover:text-white max-md:min-h-11 max-md:items-center"
+              className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-1.5 text-base text-t1 transition-colors hover:text-white max-md:min-h-11 max-md:items-center"
             >
               <span className="min-w-0 break-words">{e.route}</span>
-              <span className="nums shrink-0 text-[12px] text-t3">
+              <span className="nums shrink-0 text-sm text-t3">
                 {category ? e.detail : `${t(locale, CATEGORY_KEY[e.category])} · ${e.detail}`}
               </span>
             </Link>
@@ -322,7 +322,7 @@ export function LoadsAttention({ entries, locale, onSelect }: { entries: Attenti
         <button
           type="button"
           onClick={() => onSelect({ ids, label: t(locale, category ? CATEGORY_KEY[category] : 'loads.dash.attention') })}
-          className="mt-1 text-[12px] font-medium text-warn-400 hover:underline max-md:min-h-9"
+          className="mt-1 text-sm font-medium text-warn-400 hover:underline max-md:min-h-9"
         >
           {t(locale, 'loads.dash.more')} · <span className="nums">{ids.length}</span> →
         </button>

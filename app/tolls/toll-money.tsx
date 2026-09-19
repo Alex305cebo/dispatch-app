@@ -57,7 +57,7 @@ export function TollMoney({
           {spend.top.map((l) => (
             <li
               key={l.id}
-              className="flex items-start gap-2 rounded-lg px-1.5 py-1.5 text-[12.5px] hover:bg-white/5"
+              className="flex items-start gap-2 rounded-lg px-1.5 py-1.5 text-sm hover:bg-white/5"
             >
               <Link
                 href={`/loads/${l.id}`}
@@ -93,7 +93,7 @@ function Tile({
   return (
     <div className="rounded-xl border border-white/8 bg-ink-950/50 px-3 py-2">
       <div
-        className={`nums text-[17px] font-bold ${tone === "warn" ? "text-warn-400" : "text-t1"}`}
+        className={`nums text-xl font-bold ${tone === "warn" ? "text-warn-400" : "text-t1"}`}
       >
         {value}
       </div>
@@ -117,13 +117,13 @@ export function TollMissing({
   if (spend.missing.length === 0) return null;
   return (
     <div className="mb-4 rounded-xl border border-warn-500/25 bg-warn-500/[0.07] p-3">
-      <p className="text-[12.5px] font-medium text-warn-400">
+      <p className="text-sm font-medium text-warn-400">
         {t(locale, "tolls.money.missing").replace(
           "{n}",
           String(spend.missing.length),
         )}
       </p>
-      <p className="mt-0.5 text-[11.5px] leading-relaxed text-t3">
+      <p className="mt-0.5 text-xs leading-relaxed text-t3">
         {t(locale, "tolls.money.missingWhy")}
       </p>
       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -131,7 +131,7 @@ export function TollMissing({
           <Link
             key={l.id}
             href={`/loads/${l.id}`}
-            className="rounded-full bg-white/8 px-2 py-0.5 text-[11.5px] text-t2 transition-colors hover:bg-white/15 hover:text-white"
+            className="rounded-full bg-white/8 px-2 py-0.5 text-xs text-t2 transition-colors hover:bg-white/15 hover:text-white"
           >
             {l.origin ?? "—"} → {l.destination ?? "—"}
           </Link>

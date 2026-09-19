@@ -215,10 +215,10 @@ export function DocViewer({ id, mime }: { id: number; mime: string }) {
       </div>
 
       {state === 'loading' && isPdf && (
-        <p className="py-10 text-center text-[13px] text-t3">{t(locale, 'docs.viewer.opening')}</p>
+        <p className="py-10 text-center text-base text-t3">{t(locale, 'docs.viewer.opening')}</p>
       )}
       {state === 'error' && (
-        <p className="py-10 text-center text-[13px] text-bad-400">
+        <p className="py-10 text-center text-base text-bad-400">
           {t(locale, 'docs.viewer.failed')}
           {error ? `: ${error}` : ''}.{' '}
           {/* Only reached here, when the in-app viewer actually failed — a direct file

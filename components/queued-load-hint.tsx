@@ -46,7 +46,7 @@ export function QueuedLoadHint({
   ]
   return (
     <div
-      className={`${compact ? 'mt-2' : 'mt-4'} rounded-xl border px-3 py-2.5 text-[12.5px] ${
+      className={`${compact ? 'mt-2' : 'mt-4'} rounded-xl border px-3 py-2.5 text-sm ${
         tight || (fit && fit.lateMin > 0) ? 'border-bad-500/35 bg-bad-500/[0.07]' : 'border-haul-500/30 bg-haul-500/[0.06]'
       }`}
     >

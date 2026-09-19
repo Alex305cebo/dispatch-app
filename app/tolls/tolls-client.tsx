@@ -137,13 +137,13 @@ export function TollsClient({
   }
 
   const input =
-    'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2 text-[13px] text-white outline-none placeholder:text-t3 focus:border-haul-500'
+    'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2 text-base text-white outline-none placeholder:text-t3 focus:border-haul-500'
   const label = 'mb-1.5 block text-xs font-medium text-t2'
 
   return (
     <div className="flex flex-col gap-4">
       {!hasKey && (
-        <p className="rounded-xl border border-warn-400/30 bg-warn-500/[0.08] px-3.5 py-2.5 text-[13px] text-warn-400">
+        <p className="rounded-xl border border-warn-400/30 bg-warn-500/[0.08] px-3.5 py-2.5 text-base text-warn-400">
           {t(locale, 'tolls.noKey')}
         </p>
       )}
@@ -193,7 +193,7 @@ export function TollsClient({
             <button
               type="button"
               onClick={() => setVia(via.filter((_, j) => j !== i))}
-              className="mb-1 shrink-0 rounded-lg px-2.5 py-1.5 text-[12px] text-t3 transition-colors hover:bg-bad-500/10 hover:text-bad-400"
+              className="mb-1 shrink-0 rounded-lg px-2.5 py-1.5 text-sm text-t3 transition-colors hover:bg-bad-500/10 hover:text-bad-400"
             >
               {t(locale, 'tolls.removeVia')}
             </button>
@@ -203,7 +203,7 @@ export function TollsClient({
           type="button"
           onClick={() => setVia([...via, ''])}
           title={t(locale, 'tolls.viaHint')}
-          className="mt-2 text-[12px] text-haul-400 transition-colors hover:underline"
+          className="mt-2 text-sm text-haul-400 transition-colors hover:underline"
         >
           {t(locale, 'tolls.addVia')}
         </button>
@@ -292,7 +292,7 @@ export function TollsClient({
               disabled={reading || pending}
               onClick={() => fileRef.current?.click()}
               title={t(locale, 'tolls.fromDocHint')}
-              className="rounded-xl border border-dashed border-white/20 px-3 py-2 text-[12.5px] text-t2 transition-colors hover:border-haul-400/60 hover:text-haul-300 disabled:opacity-50"
+              className="rounded-xl border border-dashed border-white/20 px-3 py-2 text-sm text-t2 transition-colors hover:border-haul-400/60 hover:text-haul-300 disabled:opacity-50"
             >
               {reading ? t(locale, 'tolls.reading') : t(locale, 'tolls.fromDoc')}
             </button>
@@ -302,7 +302,7 @@ export function TollsClient({
           </div>
         </div>
 
-        <p className="nums mt-2 text-[11px] text-t3">
+        <p className="nums mt-2 text-xs text-t3">
           {t(locale, 'tolls.usage')
             .replace('{used}', String(res?.used ?? used))
             .replace('{cap}', String(res?.cap ?? cap))}
@@ -316,12 +316,12 @@ export function TollsClient({
               чистая по восточным рейсам всё это время была завышена. */}
           {res.load && (
             <section className="panel border-warn-400/25 p-4">
-              <p className="text-[15px] font-semibold">
+              <p className="text-lg font-semibold">
                 {t(locale, 'tolls.loadImpact')
                   .replace('{before}', usd.format(res.load.netBefore))
                   .replace('{after}', usd.format(res.load.netBefore - option.total))}
               </p>
-              <p className="mt-1 text-[12.5px] text-t3">{res.load.lane}</p>
+              <p className="mt-1 text-sm text-t3">{res.load.lane}</p>
               {/* Записываем по кнопке, а не сами: маршрут считают и «на посмотреть»,
                   под ещё не взятый груз, и молча менять чужую чистую нельзя. */}
               <Button
@@ -393,7 +393,7 @@ export function TollsClient({
               <span className="nums font-bold text-warn-400">{usd.format(option.total)}</span>
             </h2>
             {option.fares.length === 0 ? (
-              <p className="text-[13px] text-t3">{t(locale, 'tolls.noTolls')}</p>
+              <p className="text-base text-t3">{t(locale, 'tolls.noTolls')}</p>
             ) : (
               <ul className="flex flex-col">
                 {option.fares.map((f, i) => {
@@ -407,12 +407,12 @@ export function TollsClient({
                         type="button"
                         disabled={!point}
                         onClick={() => point && setFocus({ lat: point.lat, lng: point.lng })}
-                        className="flex w-full items-baseline justify-between gap-3 border-b border-white/[0.06] px-1 py-2 text-left text-[13px] transition-colors enabled:hover:bg-white/[0.03] disabled:cursor-default"
+                        className="flex w-full items-baseline justify-between gap-3 border-b border-white/[0.06] px-1 py-2 text-left text-base transition-colors enabled:hover:bg-white/[0.03] disabled:cursor-default"
                       >
                         <span className="min-w-0">
                           <span className="text-t1">{f.name}</span>
                           {f.system && f.system !== f.name && (
-                            <span className="ml-2 text-[11px] text-t3">{f.system}</span>
+                            <span className="ml-2 text-xs text-t3">{f.system}</span>
                           )}
                         </span>
                         <span className="nums shrink-0 font-medium">{usd2.format(f.amount)}</span>
@@ -467,7 +467,7 @@ function OptionCard({
         {o.badges.map((b) => (
           <span
             key={b}
-            className={`rounded-full px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide ${
+            className={`rounded-full px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide ${
               b === 'cheapest' ? 'bg-good-500/20 text-good-400' : 'bg-white/8 text-t3'
             }`}
           >
@@ -486,10 +486,10 @@ function OptionCard({
       <p className="text-xs text-t3 font-medium">
         {t(locale, 'tolls.tollsTotal')}
       </p>
-      <p className="nums mt-1.5 text-[12px] text-t2">
+      <p className="nums mt-1.5 text-sm text-t2">
         {o.miles.toLocaleString('en-US')} mi · {driveTime(o.minutes, locale)}
       </p>
-      <p className="nums mt-1 text-[11px] text-t3" title={t(locale, 'tolls.fullCostHint')}>
+      <p className="nums mt-1 text-xs text-t3" title={t(locale, 'tolls.fullCostHint')}>
         {extra <= 0
           ? `${t(locale, 'tolls.isBest')} · ${usd.format(o.totalCost)}`
           : t(locale, 'tolls.vsBest').replace('{v}', usd.format(extra))}

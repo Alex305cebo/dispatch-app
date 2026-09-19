@@ -51,7 +51,7 @@ export default async function Page({
       <div className="mb-4 mt-2 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="truncate text-xl font-bold tracking-tight">{doc.title}</h1>
-          <p className="text-[12px] text-t3">
+          <p className="text-sm text-t3">
             {docKindLabel(doc.kind, locale)} · {fmtSize(doc.size_bytes)}
           </p>
         </div>
@@ -59,7 +59,7 @@ export default async function Page({
           <a
             href={`/api/docs/${doc.id}?download=1`}
             download={doc.title}
-            className="rounded-xl border border-white/10 px-3 py-2 text-[13px] font-semibold text-t1 transition-colors hover:bg-white/5"
+            className="rounded-xl border border-white/10 px-3 py-2 text-base font-semibold text-t1 transition-colors hover:bg-white/5"
           >
             {t(locale, 'docView.saveToComputer')}
           </a>

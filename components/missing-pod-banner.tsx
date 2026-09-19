@@ -17,7 +17,7 @@ export function MissingPodBanner({ loads, locale, className = '' }: { loads: Loa
   if (!loads.length) return null
   return (
     <div className={`rounded-xl border border-warn-400/40 bg-warn-400/[0.08] px-3 py-2.5 ${className}`}>
-      <p className="flex items-center gap-1.5 text-[13px] font-semibold text-warn-300">
+      <p className="flex items-center gap-1.5 text-base font-semibold text-warn-300">
         <TriangleAlert size={14} strokeWidth={2.2} aria-hidden />
         {loads.length === 1
           ? t(locale, 'missingPod.one')
@@ -28,7 +28,7 @@ export function MissingPodBanner({ loads, locale, className = '' }: { loads: Loa
           <li key={l.id}>
             <Link
               href={`/loads/${l.id}`}
-              className="group flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg px-1 py-0.5 text-[13px] transition-colors hover:bg-white/[0.04] max-md:min-h-11"
+              className="group flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg px-1 py-0.5 text-base transition-colors hover:bg-white/[0.04] max-md:min-h-11"
             >
               <span className="font-medium text-t1">
                 {l.origin ?? '—'} → {l.destination ?? '—'}
@@ -47,11 +47,11 @@ export function MissingPodBanner({ loads, locale, className = '' }: { loads: Loa
         ))}
       </ul>
       {loads.length > SHOWN && (
-        <p className="mt-1 px-1 text-[12px] text-t3">
+        <p className="mt-1 px-1 text-sm text-t3">
           {t(locale, 'missingPod.more').replace('{n}', String(loads.length - SHOWN))}
         </p>
       )}
-      <p className="mt-1 px-1 text-[11.5px] text-t3">{t(locale, 'missingPod.why')}</p>
+      <p className="mt-1 px-1 text-xs text-t3">{t(locale, 'missingPod.why')}</p>
     </div>
   )
 }

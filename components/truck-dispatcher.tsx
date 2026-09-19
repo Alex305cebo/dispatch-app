@@ -53,8 +53,8 @@ export function TruckDispatcher({
       onChange={(e) => save(e.target.value)}
       className={
         bare
-          ? 'h-8 max-w-full cursor-pointer rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-[13px] font-medium text-t1 outline-none transition-colors hover:border-white/30 focus:border-haul-500 disabled:opacity-50 max-md:h-10'
-          : 'rounded-lg border border-white/12 bg-ink-950/70 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500 disabled:opacity-50'
+          ? 'h-8 max-w-full cursor-pointer rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-base font-medium text-t1 outline-none transition-colors hover:border-white/30 focus:border-haul-500 disabled:opacity-50 max-md:h-10'
+          : 'rounded-lg border border-white/12 bg-ink-950/70 px-2.5 py-1.5 text-base text-white outline-none focus:border-haul-500 disabled:opacity-50'
       }
     >
       <option value="">{t(locale, 'admin.assign.free')}</option>
@@ -76,7 +76,7 @@ export function TruckDispatcher({
         value={value}
         disabled={pending}
         onChange={(e) => save(e.target.value)}
-        className="rounded-lg border border-white/12 bg-ink-950/70 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500 disabled:opacity-50"
+        className="rounded-lg border border-white/12 bg-ink-950/70 px-2.5 py-1.5 text-base text-white outline-none focus:border-haul-500 disabled:opacity-50"
       >
         <option value="">{t(locale, 'admin.assign.free')}</option>
         {users.map((u) => (

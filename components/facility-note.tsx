@@ -32,7 +32,7 @@ function NoteLine({ id, note, kind }: { id: string; note: string | null; kind: '
     })
   if (!editing)
     return (
-      <button type="button" onClick={() => setEditing(true)} className="text-left text-[12.5px] text-t2 hover:text-white max-md:min-h-9">
+      <button type="button" onClick={() => setEditing(true)} className="text-left text-sm text-t2 hover:text-white max-md:min-h-9">
         {note ? (
           <>
             <span className="font-semibold text-haul-300">{t(locale, broker ? 'brokers.note' : 'facilities.note')}:</span> {note}
@@ -50,13 +50,13 @@ function NoteLine({ id, note, kind }: { id: string; note: string | null; kind: '
         onKeyDown={(e) => e.key === 'Enter' && save()}
         placeholder={t(locale, broker ? 'brokers.notePlaceholder' : 'facilities.notePlaceholder')}
         autoFocus
-        className="min-h-9 flex-1 rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-[13px] text-white outline-none focus:border-haul-500/60 max-md:min-h-11"
+        className="min-h-9 flex-1 rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-base text-white outline-none focus:border-haul-500/60 max-md:min-h-11"
       />
       <div className="flex gap-1.5">
-        <button type="button" disabled={busy} onClick={save} className="min-h-9 rounded-lg bg-haul-500 px-3 text-[12.5px] font-semibold text-white hover:bg-haul-400 disabled:opacity-50 max-md:min-h-11">
+        <button type="button" disabled={busy} onClick={save} className="min-h-9 rounded-lg bg-haul-500 px-3 text-sm font-semibold text-white hover:bg-haul-400 disabled:opacity-50 max-md:min-h-11">
           {t(locale, 'facilities.save')}
         </button>
-        <button type="button" onClick={() => setEditing(false)} className="min-h-9 rounded-lg border border-white/12 px-3 text-[12.5px] text-t2 max-md:min-h-11">
+        <button type="button" onClick={() => setEditing(false)} className="min-h-9 rounded-lg border border-white/12 px-3 text-sm text-t2 max-md:min-h-11">
           {t(locale, 'facilities.cancel')}
         </button>
       </div>

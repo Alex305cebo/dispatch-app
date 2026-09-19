@@ -36,7 +36,7 @@ export function DocButton({
     return (
       <DocLink
         docId={docId}
-        className="inline-flex items-center gap-2 rounded-xl border border-good-400/30 px-3 py-2 text-[13px] font-semibold text-good-400 transition-colors hover:border-good-400/60 hover:bg-good-400/10"
+        className="inline-flex items-center gap-2 rounded-xl border border-good-400/30 px-3 py-2 text-base font-semibold text-good-400 transition-colors hover:border-good-400/60 hover:bg-good-400/10"
       >
         <svg
           viewBox="0 0 24 24"
@@ -91,7 +91,7 @@ export function DocButton({
            back to auto width once they sit inline. Press and focus ring mirror
            components/button.tsx: this control had neither, so a tap gave no answer and
            a keyboard user got no ring at all. */
-        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-warn-400/50 px-3 py-2 text-[13px] font-semibold text-warn-400 outline-none transition-[transform,background-color,border-color] duration-[120ms] ease-out hover:border-warn-400 hover:bg-warn-400/10 focus-visible:ring-2 focus-visible:ring-warn-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950 active:translate-y-px active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 sm:w-auto"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-warn-400/50 px-3 py-2 text-base font-semibold text-warn-400 outline-none transition-[transform,background-color,border-color] duration-[120ms] ease-out hover:border-warn-400 hover:bg-warn-400/10 focus-visible:ring-2 focus-visible:ring-warn-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950 active:translate-y-px active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 sm:w-auto"
       >
         {/* A spinner, not "…": the ellipsis was indistinguishable from a truncated
             label, which is the one thing a busy state must not look like. */}

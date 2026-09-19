@@ -46,7 +46,7 @@ function Tile({ value, label, tone }: { value: string; label: string; tone?: 'wa
   return (
     <div className="flex-1 basis-[6.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
       <div
-        className={`nums text-[15px] font-semibold ${
+        className={`nums text-lg font-semibold ${
           tone === 'warn' ? 'text-warn-400' : tone === 'good' ? 'text-good-400' : 'text-t1'
         }`}
       >
@@ -124,7 +124,7 @@ function DayRibbon({
           <span className="absolute inset-y-0 right-0 bg-ink-950/55" style={{ width: `${futurePct}%` }} aria-hidden />
         )}
       </div>
-      <div className="mt-1 flex justify-between text-[9px] tabular-nums text-t3">
+      <div className="mt-1 flex justify-between text-2xs tabular-nums text-t3">
         {['00', '06', '12', '18', '24'].map((h) => (
           <span key={h}>{h}</span>
         ))}
@@ -151,7 +151,7 @@ export function TripHistory({
   useEffect(() => setNowMs(Date.now()), [])
 
   if (legs.length === 0) {
-    return <p className="text-[13px] leading-relaxed text-t3">{t(locale, 'trucks.trip.empty')}</p>
+    return <p className="text-base leading-relaxed text-t3">{t(locale, 'trucks.trip.empty')}</p>
   }
 
   // Свежее — сверху. Историю открывают, чтобы узнать, что с траком СЕЙЧАС, а не
@@ -181,7 +181,7 @@ export function TripHistory({
           сегодняшний день или трак молчит со вчера, а по самой ленте это видно
           только тому, кто помнит сегодняшнее число. */}
       {freshest && nowMs !== null && (
-        <p className="mb-2 flex flex-wrap items-center gap-1.5 text-[11.5px]">
+        <p className="mb-2 flex flex-wrap items-center gap-1.5 text-xs">
           <span className={`size-1.5 rounded-full ${isToday ? 'bg-good-400' : 'bg-warn-400'}`} />
           <span className={isToday ? 'text-good-400' : 'text-warn-400'}>
             {t(locale, isToday ? 'trucks.trip.freshToday' : 'trucks.trip.freshOld')}
@@ -232,9 +232,9 @@ export function TripHistory({
               {isNewDay && (
                 <>
                   <li className="mt-3 flex items-baseline justify-between gap-2 px-1 first:mt-0">
-                    <span className="text-[13px] font-semibold text-t2">{day}</span>
+                    <span className="text-base font-semibold text-t2">{day}</span>
                     {totals && totals.driveMin > 0 && (
-                      <span className="nums text-[11px] text-t3">
+                      <span className="nums text-xs text-t3">
                         {totals.miles.toLocaleString('en-US')} mi ·{' '}
                         <span className="text-good-400">{driveTime(totals.driveMin, locale)}</span>{' '}
                         {t(locale, 'trucks.trip.behindWheel')}
@@ -260,7 +260,7 @@ export function TripHistory({
                 <button
                   type="button"
                   onClick={() => setSelected(isSel ? null : i)}
-                  className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left text-[12.5px] transition-colors ${
+                  className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
                     isSel
                       ? 'border-white/25 bg-white/[0.07]'
                       : role
@@ -291,7 +291,7 @@ export function TripHistory({
                         <span className="block truncate text-t1">
                           {leg.fromLocation ?? '—'} → {leg.toLocation ?? '—'}
                         </span>
-                        <span className="nums block text-[11px] text-t3">
+                        <span className="nums block text-xs text-t3">
                           {rangeLabel(leg.from, leg.to, locale)}
                           {avg !== null && ` · ${avg} mi/h ${t(locale, 'trucks.trip.avgShort')}`}
                         </span>
@@ -300,7 +300,7 @@ export function TripHistory({
                         <span className="nums block font-semibold text-t1">
                           {leg.miles.toLocaleString('en-US')} mi
                         </span>
-                        <span className="nums block text-[11px] text-t3">{driveTime(leg.minutes, locale)}</span>
+                        <span className="nums block text-xs text-t3">{driveTime(leg.minutes, locale)}</span>
                       </span>
                     </>
                   ) : (
@@ -311,17 +311,17 @@ export function TripHistory({
                             {leg.location ?? t(locale, leg.long ? 'trucks.trip.longRest' : 'trucks.trip.stop')}
                           </span>
                           {role && (
-                            <span className="shrink-0 rounded-full bg-haul-500/20 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-haul-400">
+                            <span className="shrink-0 rounded-full bg-haul-500/20 px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide text-haul-400">
                               {t(locale, role === 'pickup' ? 'trucks.trip.atPickup' : 'trucks.trip.atDelivery')}
                             </span>
                           )}
                           {!role && leg.long && (
-                            <span className="shrink-0 rounded-full bg-warn-400/15 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-warn-400">
+                            <span className="shrink-0 rounded-full bg-warn-400/15 px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide text-warn-400">
                               {t(locale, 'trucks.trip.longRest')}
                             </span>
                           )}
                         </span>
-                        <span className="nums block text-[11px] text-t3">
+                        <span className="nums block text-xs text-t3">
                           {rangeLabel(leg.from, leg.to, locale)}
                         </span>
                       </span>
@@ -333,7 +333,7 @@ export function TripHistory({
                         >
                           {driveTime(leg.minutes, locale)}
                         </span>
-                        <span className="block text-[11px] text-t3">
+                        <span className="block text-xs text-t3">
                           {t(locale, role ? 'trucks.trip.underLoad' : 'trucks.trip.standing')}
                         </span>
                       </span>

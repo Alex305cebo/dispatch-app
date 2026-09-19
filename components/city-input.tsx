@@ -108,7 +108,7 @@ export function CityInput({
                   pick(c)
                 }}
                 onMouseEnter={() => setActive(i)}
-                className={`block w-full px-3 py-2 text-left text-[13px] transition-colors ${
+                className={`block w-full px-3 py-2 text-left text-base transition-colors ${
                   i === active ? 'bg-haul-500/20 text-white' : 'text-t2 hover:bg-white/[0.04]'
                 }`}
               >

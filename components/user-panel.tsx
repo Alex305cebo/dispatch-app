@@ -59,7 +59,7 @@ function initialsOf(name: string): string {
 }
 
 const ROW =
-  'flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-[13px] text-t1 transition-colors hover:bg-white/8 hover:text-white'
+  'flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-base text-t1 transition-colors hover:bg-white/8 hover:text-white'
 
 /** Строка меню: значок, подпись, справа — значение, стрелка или переключатель. */
 function Row({
@@ -84,7 +84,7 @@ function Row({
     <>
       <span className="shrink-0 text-t3">{icon}</span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      {right && <span className="shrink-0 text-[12px] text-t3">{right}</span>}
+      {right && <span className="shrink-0 text-sm text-t3">{right}</span>}
     </>
   )
   if (href) {
@@ -104,7 +104,7 @@ function Row({
 /** Строка, правый край которой занимает готовый переключатель (язык, тема, журнал). */
 function ControlRow({ icon, label, control }: { icon: React.ReactNode; label: string; control: React.ReactNode }) {
   return (
-    <div className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-[13px] text-t1">
+    <div className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-base text-t1">
       <span className="shrink-0 text-t3">{icon}</span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
       <span className="shrink-0">{control}</span>
@@ -116,7 +116,7 @@ function Group({ title, children }: { title?: string; children: React.ReactNode 
   return (
     <div className="border-t border-white/8 py-1 first:border-t-0">
       {title && (
-        <p className="px-2 pb-1 pt-1.5 text-[13px] font-semibold text-t2">
+        <p className="px-2 pb-1 pt-1.5 text-base font-semibold text-t2">
           {title}
         </p>
       )}
@@ -233,8 +233,8 @@ export function UserPanel({
       >
         {/* Просто «Alex C.» — имя и первая буква фамилии. Без кружка с инициалами:
             имя само говорит, кто вошёл. В свёрнутом рельсе остаются инициалы. */}
-        <span className="nav-avatar-name min-w-0 truncate text-[13px] font-medium">{shortName(user.name)}</span>
-        <span className="nav-avatar-initials hidden text-[12px] font-semibold">{initialsOf(user.name)}</span>
+        <span className="nav-avatar-name min-w-0 truncate text-base font-medium">{shortName(user.name)}</span>
+        <span className="nav-avatar-initials hidden text-sm font-semibold">{initialsOf(user.name)}</span>
       </button>
 
       {open && (
@@ -243,15 +243,15 @@ export function UserPanel({
         <div className="user-menu fixed inset-x-3 top-14 z-[55] mx-auto max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-ink-900 shadow-2xl md:bottom-16 md:left-3 md:right-auto md:top-auto md:mx-0 md:w-[18rem] md:max-w-none">
           {/* 1. Кто ты. Меню аккаунта начинается с аккаунта. */}
           <div className="flex items-center gap-3 border-b border-white/8 px-3 py-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-haul-400 to-haul-600 text-[13px] font-semibold text-white">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-haul-400 to-haul-600 text-base font-semibold text-white">
               {initialsOf(user.name)}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[14px] font-semibold">{user.name}</span>
-              <span className="block truncate text-[11.5px] text-t3">{user.email}</span>
+              <span className="block truncate text-md font-semibold">{user.name}</span>
+              <span className="block truncate text-xs text-t3">{user.email}</span>
             </span>
             <span
-              className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium ${
+              className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-medium ${
                 user.role === 'admin' ? 'bg-haul-500/20 text-haul-300' : 'bg-white/8 text-t2'
               }`}
             >
@@ -322,11 +322,11 @@ export function UserPanel({
                       key={l.code}
                       type="button"
                       onClick={() => chooseLocale(l.code)}
-                      className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-white/8 ${
+                      className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-base transition-colors hover:bg-white/8 ${
                         l.code === locale ? 'text-haul-300' : 'text-t2'
                       }`}
                     >
-                      <span className="w-7 shrink-0 text-[10.5px] font-bold uppercase text-t3">{l.short}</span>
+                      <span className="w-7 shrink-0 text-2xs font-bold uppercase text-t3">{l.short}</span>
                       <span className="min-w-0 flex-1 truncate">{l.native}</span>
                       {l.code === locale && <Check size={14} className="shrink-0" />}
                     </button>
@@ -358,7 +358,7 @@ export function UserPanel({
                     autoFocus
                     onChange={(e) => setPw(e.target.value)}
                     placeholder={t(locale, 'userPanel.newPasswordPlaceholder')}
-                    className="w-full rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500"
+                    className="w-full rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-base text-white outline-none focus:border-haul-500"
                   />
                   <Button
                     variant="primary"
@@ -385,14 +385,14 @@ export function UserPanel({
               />
               {bdayOpen && (
                 <div className="px-2 pb-2">
-                  <p className="mb-1.5 text-[11px] leading-relaxed text-t3">
+                  <p className="mb-1.5 text-xs leading-relaxed text-t3">
                     {t(locale, 'userPanel.recoveryHint')}
                   </p>
                   <input
                     type="date"
                     value={bday}
                     onChange={(e) => setBday(e.target.value)}
-                    className="w-full rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500"
+                    className="w-full rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-base text-white outline-none focus:border-haul-500"
                   />
                   <Button
                     variant="primary"

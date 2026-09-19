@@ -24,12 +24,12 @@ export function StalePartialBanner({ items, locale }: { items: StalePartial[]; l
   const [busy, start] = useTransition()
   if (!items.length) return null
   const btn =
-    'inline-flex min-h-8 items-center rounded-lg px-3 text-[12.5px] font-semibold transition-colors disabled:opacity-50 max-md:min-h-10'
+    'inline-flex min-h-8 items-center rounded-lg px-3 text-sm font-semibold transition-colors disabled:opacity-50 max-md:min-h-10'
   return (
     <div className="mb-3 flex flex-col gap-2">
       {items.map((p) => (
         <div key={p.id} className="rounded-xl border border-warn-400/35 bg-warn-400/[0.07] px-3.5 py-2.5">
-          <p className="flex items-start gap-1.5 text-[13px] leading-snug text-t1">
+          <p className="flex items-start gap-1.5 text-base leading-snug text-t1">
             <AlertTriangle size={14} strokeWidth={2.4} className="mt-0.5 shrink-0 text-warn-400" />
             <span>
               {t(locale, 'stalePartial.text').replace('{load}', p.label).replace('{date}', usDate(p.deliveryDate))}

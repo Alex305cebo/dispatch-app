@@ -44,8 +44,8 @@ export default function Error({
   return (
     <main className="mx-auto max-w-2xl px-4 pb-20 pt-10 sm:px-6">
       <section className="panel p-6">
-        <h1 className="text-[17px] font-bold">{t(locale, 'error.heading')}</h1>
-        <p className="mt-2 text-[13.5px] leading-relaxed text-t2">{t(locale, 'error.body')}</p>
+        <h1 className="text-xl font-bold">{t(locale, 'error.heading')}</h1>
+        <p className="mt-2 text-base leading-relaxed text-t2">{t(locale, 'error.body')}</p>
 
         <div className="mt-5 flex flex-wrap gap-2">
           <Button variant="primary" onClick={() => reset()}>
@@ -53,7 +53,7 @@ export default function Error({
           </Button>
           <Link
             href="/"
-            className="rounded-xl border border-white/10 px-4 py-2 text-[13px] font-semibold text-t1 transition-colors hover:bg-white/5"
+            className="rounded-xl border border-white/10 px-4 py-2 text-base font-semibold text-t1 transition-colors hover:bg-white/5"
           >
             {t(locale, 'error.toOverview')}
           </Link>
@@ -62,7 +62,7 @@ export default function Error({
         {/* Метка нужна, только если придётся искать след в логах — поэтому мелким и
             последней строкой, а не первым, что бросается в глаза. */}
         {error.digest && (
-          <p className="nums mt-4 text-[11px] text-t3">
+          <p className="nums mt-4 text-xs text-t3">
             {t(locale, 'error.code')} {error.digest}
           </p>
         )}

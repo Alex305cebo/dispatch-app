@@ -95,10 +95,10 @@ export function TaskStops({
 
   return (
     <section className={className} aria-busy={pending}>
-      <h3 className="mb-1.5 flex flex-wrap items-center gap-x-1.5 text-[13px] font-semibold text-t1">
+      <h3 className="mb-1.5 flex flex-wrap items-center gap-x-1.5 text-base font-semibold text-t1">
         {t(locale, 'task.title')}
         <Info text={t(locale, 'task.info')} />
-        <span className="nums text-[12px] font-medium text-t3">
+        <span className="nums text-sm font-medium text-t3">
           {t(locale, 'task.left').replace('{n}', String(left))}
         </span>
         {truckId != null && !!keys?.length && (
@@ -112,7 +112,7 @@ export function TaskStops({
                 if (res?.error) notify('error', res.error)
               })
             }
-            className="ml-auto text-[11.5px] font-medium text-t3 transition-colors hover:text-white max-md:min-h-9"
+            className="ml-auto text-xs font-medium text-t3 transition-colors hover:text-white max-md:min-h-9"
           >
             {t(locale, 'task.resetOrder')}
           </button>
@@ -121,7 +121,7 @@ export function TaskStops({
       {/* Два груза в трейлере — сразу сказать, чьи строки: иначе лента из пяти точек
           выглядела остановками одного груза, у которого в рейт-коне их две. */}
       {loads.length > 1 && (
-        <p className="mb-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11.5px] text-t3">
+        <p className="mb-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-t3">
           {loads.map((l, k) => (
             <span key={l.id} className="flex items-center gap-1.5">
               <span className={`size-2 rounded-full ${TONES[k % TONES.length]}`} aria-hidden />
@@ -142,24 +142,24 @@ export function TaskStops({
           return (
             <li
               key={stopKey(m)}
-              className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-2.5 py-1.5 text-[13px] ${
+              className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-2.5 py-1.5 text-base ${
                 isNow ? 'bg-haul-500/[0.10] ring-1 ring-haul-400/30' : isPast ? 'bg-white/[0.02] text-t3' : 'bg-white/[0.04]'
               } ${focusLoadId != null && m.loadId !== focusLoadId ? 'opacity-55' : ''}`}
             >
-              <span className={`nums w-4 shrink-0 text-[12px] ${isPast ? 'text-good-400' : 'text-t3'}`}>
+              <span className={`nums w-4 shrink-0 text-sm ${isPast ? 'text-good-400' : 'text-t3'}`}>
                 {isPast ? '✓' : i + 1}
               </span>
               <span className={`shrink-0 font-semibold ${isNow ? 'text-haul-300' : ''}`}>
                 {stopTitle(m, stopsOf.get(m.loadId) ?? [], locale)}
               </span>
               <span className="min-w-0 break-words">{m.city ?? m.address ?? '—'}</span>
-              <span className="nums text-[12px] text-t2">
+              <span className="nums text-sm text-t2">
                 {whenText(m.date, m.time, t(locale, 'loads.dash.noDate'), t(locale, 'loads.dash.noTime'))}
               </span>
               {/* Чей это груз — всегда рядом со строкой: в трейлере едут бумаги двух брокеров. */}
               <Link
                 href={`/loads/${m.loadId}`}
-                className="ml-auto flex shrink-0 items-center gap-1.5 text-[11.5px] text-t3 transition-colors hover:text-white"
+                className="ml-auto flex shrink-0 items-center gap-1.5 text-xs text-t3 transition-colors hover:text-white"
               >
                 <span className={`size-2 rounded-full ${tone}`} aria-hidden />
                 <span className="nums">{m.ref ? `#${m.ref}` : `#${m.loadId}`}</span>
@@ -180,7 +180,7 @@ export function TaskStops({
                   value={state}
                   onChange={(e) => setState(m, e.target.value as StopState)}
                   aria-label={t(locale, 'task.stState')}
-                  className={`h-7 rounded-md border px-1.5 text-[11.5px] font-medium outline-none focus:border-haul-500 max-md:h-9 ${
+                  className={`h-7 rounded-md border px-1.5 text-xs font-medium outline-none focus:border-haul-500 max-md:h-9 ${
                     state === 'done'
                       ? 'border-good-400/30 bg-good-400/10 text-good-400'
                       : state === 'arrived'
