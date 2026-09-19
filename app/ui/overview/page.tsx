@@ -139,6 +139,7 @@ export default async function Page() {
         id: 'gross',
         node: (
           <Stat
+            compact
             href="/loads"
             hero
             icon={<DollarSign size={15} strokeWidth={2.5} />}
@@ -153,6 +154,7 @@ export default async function Page() {
         id: 'rpm',
         node: (
           <Stat
+            compact
             href="/trucks"
             icon={<TrendingUp size={15} strokeWidth={2.5} />}
             accent="good"
@@ -166,6 +168,7 @@ export default async function Page() {
         id: 'active',
         node: (
           <Stat
+            compact
             href="/loads"
             icon={<Package size={15} strokeWidth={2.5} />}
             accent="warn"
@@ -181,6 +184,7 @@ export default async function Page() {
         id: 'miles',
         node: (
           <Stat
+            compact
             href="/trucks"
             icon={<Route size={15} strokeWidth={2.5} />}
             accent="haul"
@@ -364,7 +368,9 @@ export default async function Page() {
                 <Link
                   key={t.id}
                   href={`/trucks/${t.id}`}
-                  className="flex min-w-0 items-center gap-2.5 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-white/[0.06]"
+                  /* min-h на телефоне: у трака без места кнопок нет, и без общей высоты
+                     он оказывался на четверть ниже соседей — строки шли лесенкой. */
+                  className="flex min-w-0 items-center gap-2.5 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-white/[0.06] max-sm:min-h-[4.5rem]"
                 >
                   <div className="relative shrink-0">
                     <DriverAvatar truckId={t.id} name={t.driverName} hasPhoto={photoIds.has(t.id)} size={30} />
@@ -387,17 +393,15 @@ export default async function Page() {
                         </span>
                       )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-white/60">
-                      {placeCity(fs?.location ?? null) ? (
-                        <CopyPlace
-                          text={placeCity(fs?.location ?? null)!}
-                          coords={{ lat: fs?.lat, lng: fs?.lng }}
-                          size="sm"
-                          className="min-w-0 text-xs text-white/70"
-                        />
-                      ) : (
-                        <span className="min-w-0 truncate">{tr(locale, 'overview.noEldData')}</span>
-                      )}
+                    {/* Место и топливо — одной строкой, кнопки «Копировать» и «Карта» —
+                        отдельной под ними. Раньше они стояли в общей строке с переносом,
+                        и от длины названия города зависело, где именно строка порвётся:
+                        у одного трака кнопки вставали рядом, у другого — столбиком, и
+                        список шёл лесенкой в четыре строки на трак вместо трёх. */}
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-white/60">
+                      <span className="min-w-0 truncate">
+                        {placeCity(fs?.location ?? null) ?? tr(locale, 'overview.noEldData')}
+                      </span>
                       {fs?.fuel != null && (
                         <span
                           className={`nums flex shrink-0 items-center gap-0.5 text-2xs font-medium ${
@@ -407,6 +411,19 @@ export default async function Page() {
                           <Fuel size={10} strokeWidth={2.5} />
                           {Math.round(fs.fuel)}%
                         </span>
+                      )}
+                      {placeCity(fs?.location ?? null) && (
+                        <CopyPlace
+                          hideText
+                          text={placeCity(fs?.location ?? null)!}
+                          coords={{ lat: fs?.lat, lng: fs?.lng }}
+                          size="sm"
+                          /* На телефоне кнопки занимают всю ширину и потому всегда
+                             оказываются на своей строке — одинаково у всех траков.
+                             На широком экране места хватает, и они встают рядом с
+                             городом, как и было. */
+                          className="max-sm:basis-full"
+                        />
                       )}
                     </div>
                   </div>

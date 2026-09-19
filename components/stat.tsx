@@ -27,6 +27,7 @@ export function Stat({
   meter,
   hero,
   onClick,
+  compact,
   children,
 }: {
   label: string
@@ -48,6 +49,9 @@ export function Stat({
   hero?: boolean
   /** Плитка-кнопка: на странице грузов клик сужает список до своих грузов. */
   onClick?: () => void
+  /** Поля и число на шаг мельче: когда плиток на экране много и первый экран телефона
+   * иначе занимают одни только четыре числа. Обычные плитки не трогает. */
+  compact?: boolean
   /** Мини-график под цифрой. */
   children?: ReactNode
 }) {
@@ -82,8 +86,16 @@ export function Stat({
       {/* Размер по ширине экрана: на узком крупный шрифт не помещался и число
           обрезалось молча — это хуже, чем то же число на пару пунктов мельче. */}
       <div
-        className={`nums mt-2 break-all font-bold leading-none tracking-tight ${
-          hero ? 'text-2xl lg:text-3xl' : 'text-xl lg:text-2xl'
+        className={`nums break-all font-bold leading-none tracking-tight ${
+          compact ? 'mt-1.5 lg:mt-2' : 'mt-2'
+        } ${
+          hero
+            ? compact
+              ? 'text-xl lg:text-3xl'
+              : 'text-2xl lg:text-3xl'
+            : compact
+              ? 'text-lg lg:text-2xl'
+              : 'text-xl lg:text-2xl'
         } ${
           tone === 'good' ? 'text-good-400' : tone === 'bad' ? 'text-bad-400' : ''
         }`}
@@ -133,9 +145,9 @@ export function Stat({
             onClick()
           }
         }}
-        className={`panel-inset block cursor-pointer px-4 py-4 text-left transition-colors duration-150 hover:bg-white/[0.06] ${
-          hero ? 'relative overflow-hidden' : ''
-        }`}
+        className={`panel-inset block cursor-pointer text-left transition-colors duration-150 hover:bg-white/[0.06] ${
+          compact ? 'px-3 py-2.5 lg:px-4 lg:py-4' : 'px-4 py-4'
+        } ${hero ? 'relative overflow-hidden' : ''}`}
       >
         {body}
       </div>
@@ -144,9 +156,9 @@ export function Stat({
     return (
       <Link
         href={href}
-        className={`panel-inset block px-4 py-4 transition-colors duration-150 hover:bg-white/[0.06] ${
-          hero ? 'relative overflow-hidden' : ''
-        }`}
+        className={`panel-inset block transition-colors duration-150 hover:bg-white/[0.06] ${
+          compact ? 'px-3 py-2.5 lg:px-4 lg:py-4' : 'px-4 py-4'
+        } ${hero ? 'relative overflow-hidden' : ''}`}
       >
         {body}
       </Link>
