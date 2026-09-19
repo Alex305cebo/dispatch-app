@@ -24,6 +24,10 @@ import { TgAttachButton } from './tg-attach-button'
 import { TgImage } from './tg-image'
 import { TgChatSettings } from './tg-chat-settings'
 import { Info } from '@/components/info'
+import { WidgetGrid, type Widget } from '@/components/widget-grid'
+import { gridLabels } from '@/lib/grid-labels'
+import { readLayout } from '@/lib/tiles'
+import { applyLayout, TELEGRAM_TILES } from '@/lib/tiles-core'
 import { usDate } from '@/lib/fmt'
 
 export const dynamic = 'force-dynamic'
@@ -168,6 +172,90 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   const open = chatId ? allDialogs.find((d) => d.id === chatId) : undefined
   const truckChatMissing = !!wantTruck && !open && !error
 
+  const widgets: Widget[] = [
+    {
+      id: 'chat',
+      // Список чатов и открытая переписка — ОДНА плитка: делить их нельзя, слева
+      // список, справа чат, и работают они только вместе.
+      node: (
+        <div>
+          <div className="grid gap-3 md:grid-cols-[minmax(240px,1fr)_2fr]">
+            {/* Dialog list — on phones it hides once a chat is open (back link shows it). */}
+            <div className={`panel overflow-hidden ${open ? 'max-md:hidden' : ''}`}>
+              {dialogs.length === 0 && !error ? (
+                <p className="p-4 text-base text-t3">{t(locale, 'telegram.page.noneShownYet')}</p>
+              ) : (
+                <ul className="max-h-[70vh] overflow-y-auto">
+                  {dialogs.map((d) => {
+                    const truck = truckByChat.get(d.id)
+                    return (
+                      <li key={d.id}>
+                        <Link
+                          href={`/telegram?chat=${d.id}`}
+                          className={`flex flex-col gap-0.5 border-b border-white/5 px-3.5 py-2.5 transition-colors hover:bg-white/4 ${
+                            d.id === chatId ? 'bg-white/6' : ''
+                          }`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <span className="min-w-0 flex-1 truncate text-md font-medium">{d.name}</span>
+                            {truck && (
+                              <span className="shrink-0 rounded-full bg-haul-500/15 px-1.5 py-0.5 text-2xs font-medium text-haul-400">
+                                #{truck}
+                              </span>
+                            )}
+                            {d.unread > 0 && (
+                              <span className="nums shrink-0 rounded-full bg-haul-500 px-1.5 py-0.5 text-2xs font-bold">
+                                {d.unread}
+                              </span>
+                            )}
+                            <span className="shrink-0 text-xs text-t3">{when(d.lastAt, locale)}</span>
+                          </span>
+                          <span className="truncate text-sm text-t3">{d.last}</span>
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+
+            {/* Conversation */}
+            <div className="panel flex min-h-[50vh] flex-col overflow-hidden">
+              {!open ? (
+                <p className="m-auto max-w-sm p-8 text-center text-base text-t3">
+                  {truckChatMissing ? t(locale, 'telegram.page.noTruckChat') : t(locale, 'telegram.page.pickDialog')}
+                </p>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 border-b border-white/8 px-4 py-3">
+                    <Link href="/telegram" className="text-base text-t3 hover:text-t1 md:hidden">
+                      ←
+                    </Link>
+                    <span className="text-md font-semibold">{open.name}</span>
+                    {open.phone && <span className="text-sm text-t3">+{open.phone}</span>}
+                  </div>
+                  <TgMessages chatId={open.id} phone={open.phone} initial={msgs ?? []} />
+                  <TgSendBox chatId={open.id} />
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'settings',
+      // Какие чаты показывать: настраивают один раз при подключении, а диалоги
+      // открывают каждый день — поэтому исходно ниже переписки.
+      node: (
+        <div>
+          <TgChatSettings dialogs={allDialogs} shown={[...shown]} chatTruck={chatTruck} trucks={trucks} />
+        </div>
+      ),
+    },
+  ]
+  const layout = applyLayout(await readLayout('telegram'), TELEGRAM_TILES)
+
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -190,75 +278,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
 
       {/* Ошибка — первой: сломанное подключение важнее любых настроек. */}
       {error && <p className="panel mb-4 p-4 text-base text-bad-400">{error}</p>}
-
-      <div className="grid gap-3 md:grid-cols-[minmax(240px,1fr)_2fr]">
-        {/* Dialog list — on phones it hides once a chat is open (back link shows it). */}
-        <div className={`panel overflow-hidden ${open ? 'max-md:hidden' : ''}`}>
-          {dialogs.length === 0 && !error ? (
-            <p className="p-4 text-base text-t3">{t(locale, 'telegram.page.noneShownYet')}</p>
-          ) : (
-            <ul className="max-h-[70vh] overflow-y-auto">
-              {dialogs.map((d) => {
-                const truck = truckByChat.get(d.id)
-                return (
-                  <li key={d.id}>
-                    <Link
-                      href={`/telegram?chat=${d.id}`}
-                      className={`flex flex-col gap-0.5 border-b border-white/5 px-3.5 py-2.5 transition-colors hover:bg-white/4 ${
-                        d.id === chatId ? 'bg-white/6' : ''
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate text-md font-medium">{d.name}</span>
-                        {truck && (
-                          <span className="shrink-0 rounded-full bg-haul-500/15 px-1.5 py-0.5 text-2xs font-medium text-haul-400">
-                            #{truck}
-                          </span>
-                        )}
-                        {d.unread > 0 && (
-                          <span className="nums shrink-0 rounded-full bg-haul-500 px-1.5 py-0.5 text-2xs font-bold">
-                            {d.unread}
-                          </span>
-                        )}
-                        <span className="shrink-0 text-xs text-t3">{when(d.lastAt, locale)}</span>
-                      </span>
-                      <span className="truncate text-sm text-t3">{d.last}</span>
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
-
-        {/* Conversation */}
-        <div className="panel flex min-h-[50vh] flex-col overflow-hidden">
-          {!open ? (
-            <p className="m-auto max-w-sm p-8 text-center text-base text-t3">
-              {truckChatMissing ? t(locale, 'telegram.page.noTruckChat') : t(locale, 'telegram.page.pickDialog')}
-            </p>
-          ) : (
-            <>
-              <div className="flex items-center gap-3 border-b border-white/8 px-4 py-3">
-                <Link href="/telegram" className="text-base text-t3 hover:text-t1 md:hidden">
-                  ←
-                </Link>
-                <span className="text-md font-semibold">{open.name}</span>
-                {open.phone && <span className="text-sm text-t3">+{open.phone}</span>}
-              </div>
-              <TgMessages chatId={open.id} phone={open.phone} initial={msgs ?? []} />
-              <TgSendBox chatId={open.id} />
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Какие чаты показывать — под перепиской: настраивают один раз при подключении,
-          а диалоги открывают каждый день. Пока список пуст — это единственное, что
-          здесь нужно, и на первом входе он и так почти наверху. */}
-      <div className="mt-3">
-        <TgChatSettings dialogs={allDialogs} shown={[...shown]} chatTruck={chatTruck} trucks={trucks} />
-      </div>
+      <WidgetGrid
+        page="telegram"
+        layout={layout}
+        defaults={TELEGRAM_TILES}
+        widgets={widgets}
+        labels={gridLabels(locale)}
+      />
     </main>
   )
 }

@@ -148,3 +148,7 @@ export const LOADS_TILES: TilePlacement[] = [
   { id: 'lanes', size: 'l' },
 ]
 
+export const TELEGRAM_TILES: TilePlacement[] = [
+  { id: 'chat', size: 'l' },
+  { id: 'settings', size: 'l' },
+]
