@@ -210,7 +210,7 @@ export function LoadsToolbar({
     <div className="panel mb-3 flex flex-col gap-2 p-2.5">
       <div className="flex flex-wrap items-center gap-2">
         <label className="relative flex min-w-[12rem] flex-1 items-center">
-          <Search size={14} className="pointer-events-none absolute left-2.5 text-white/35" />
+          <Search size={14} className="pointer-events-none absolute left-2.5 text-t3" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -222,7 +222,7 @@ export function LoadsToolbar({
               type="button"
               onClick={() => setQuery('')}
               aria-label={t(locale, 'loads.search.clear')}
-              className="absolute right-2 text-white/40 hover:text-white/80"
+              className="absolute right-2 text-t3 hover:text-t1"
             >
               <X size={13} />
             </button>
@@ -232,7 +232,7 @@ export function LoadsToolbar({
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as LoadSort)}
-          className="rounded-lg border border-white/10 bg-ink-950/70 px-2 py-1.5 text-[12.5px] text-white/85 outline-none focus:border-haul-500"
+          className="rounded-lg border border-white/10 bg-ink-950/70 px-2 py-1.5 text-[12.5px] text-t1 outline-none focus:border-haul-500"
         >
           {SORTS.map((s) => (
             <option key={s.key} value={s.key}>
@@ -245,7 +245,7 @@ export function LoadsToolbar({
           type="button"
           onClick={() => download(toCsv(rows, trucks, metrics), `loads-${new Date().toISOString().slice(0, 10)}.csv`)}
           title={t(locale, 'loads.export.title')}
-          className="flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-[12.5px] font-medium text-white/75 transition-colors hover:border-white/25 hover:text-white"
+          className="flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-[12.5px] font-medium text-t2 transition-colors hover:border-white/25 hover:text-white"
         >
           <Download size={13} />
           CSV
@@ -259,7 +259,7 @@ export function LoadsToolbar({
             type="button"
             onClick={() => setFilter(f.key)}
             className={`rounded-full px-2.5 py-1 text-[11.5px] font-medium transition-colors max-md:min-h-9 ${
-              filter === f.key ? 'bg-haul-500/25 text-haul-300' : 'bg-white/6 text-white/60 hover:text-white/90'
+              filter === f.key ? 'bg-haul-500/25 text-haul-300' : 'bg-white/6 text-t2 hover:text-t1'
             }`}
           >
             {t(locale, f.label)}
@@ -267,7 +267,7 @@ export function LoadsToolbar({
         ))}
         {/* Сколько показано из скольких — иначе после фильтра непонятно, пусто
             потому что ничего нет, или потому что фильтр отсёк всё. */}
-        <span className="nums ml-auto text-[11.5px] text-white/40">
+        <span className="nums ml-auto text-[11.5px] text-t3">
           {shown === total
             ? `${total}`
             : t(locale, 'loads.filter.shownOf').replace('{n}', String(shown)).replace('{total}', String(total))}

@@ -67,14 +67,14 @@ export function DetentionTile({
     <div
       className={`rounded-xl border px-3 py-2 ${wide ? 'mt-4 sm:px-4' : 'flex-1 basis-[11rem]'} ${over ? 'border-bad-500/35 bg-bad-500/[0.07]' : 'border-white/10 bg-white/[0.04]'}`}
     >
-      <div className="text-xs text-white/60 font-medium">
+      <div className="text-xs text-t2 font-medium">
         {t(locale, at === 'pickup' ? 'detention.atPickup' : 'detention.atDelivery')}
       </div>
-      <div className={`nums min-h-[1.375rem] text-[14px] font-semibold ${over ? 'text-bad-400' : 'text-white/85'}`}>
+      <div className={`nums min-h-[1.375rem] text-[14px] font-semibold ${over ? 'text-bad-400' : 'text-t1'}`}>
         {driveTime(min, locale)}
         {over && <span className="ml-2">· ${amount.toFixed(0)}</span>}
       </div>
-      <div className="nums mt-0.5 text-[11px] text-white/45">
+      <div className="nums mt-0.5 text-[11px] text-t3">
         {t(locale, endStamp ? 'detention.between' : 'detention.since')
           .replace('{t}', stamp)
           .replace('{e}', endStamp ?? '')}{' '}

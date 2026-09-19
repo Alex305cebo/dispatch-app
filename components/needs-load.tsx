@@ -44,13 +44,13 @@ export async function NeedsLoad({
   return (
     <section className="panel mb-6 p-4">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
           {t(locale, 'needsLoad.title')}
           <Info text={t(locale, 'needsLoad.info')} />
         </h2>
         {/* Итог словами, а не процентом: «шесть без груза, простой $648 в день» —
             это и есть то, ради чего на карту смотрят. */}
-        <p className="text-[12px] text-white/55">
+        <p className="text-[12px] text-t3">
           {freeCount > 0 ? (
             <>
               <span className="font-semibold text-warn-400">{freeCount}</span>{' '}
@@ -96,9 +96,9 @@ export async function NeedsLoad({
                     копируют. У едущего в этой колонке город ВЫГРУЗКИ, а не место
                     трака, — там копировать нечего. */}
                 {r.free && !off && r.place ? (
-                  <CopyPlace text={r.place} size="sm" className="min-w-0 text-[12px] text-white/70" />
+                  <CopyPlace text={r.place} size="sm" className="min-w-0 text-[12px] text-t2" />
                 ) : (
-                  <span className="min-w-0 truncate text-[12px] text-white/55">
+                  <span className="min-w-0 truncate text-[12px] text-t3">
                     {r.homeUntil
                       ? t(locale, 'needsLoad.home').replace('{date}', usDate(r.homeUntil))
                       : r.unavailable
@@ -114,7 +114,7 @@ export async function NeedsLoad({
                 {snap && lt && heat && (
                   <span
                     title={`${state} · ${t(locale, 'loadCard.marketAsOf').replace('{when}', usDate(todayEt(new Date(snap.at))))}`}
-                    className="order-last basis-full text-[12px] text-white/55 lg:order-none lg:basis-auto"
+                    className="order-last basis-full text-[12px] text-t3 lg:order-none lg:basis-auto"
                   >
                     {(() => {
                       // Ставка за милю региона и насколько горячий штат словами — без цифры
@@ -123,9 +123,9 @@ export async function NeedsLoad({
                       const rpm = regionOf(snap, state)?.rpm
                       return (
                         <>
-                          {rpm ? <span className="nums text-white/75">{usd2.format(rpm)}/mi · </span> : null}
+                          {rpm ? <span className="nums text-t2">{usd2.format(rpm)}/mi · </span> : null}
                           {before}
-                          <span className={heat === 'hot' ? 'font-semibold text-good-400' : heat === 'cold' ? 'font-semibold text-bad-400' : 'text-white/70'}>
+                          <span className={heat === 'hot' ? 'font-semibold text-good-400' : heat === 'cold' ? 'font-semibold text-bad-400' : 'text-t2'}>
                             {t(locale, HEAT_LEVEL_KEY[heatLevel(ltMedian(snap), lt.ratio)])}
                           </span>
                           {after}
@@ -140,14 +140,14 @@ export async function NeedsLoad({
                 <span className="nums shrink-0 text-right text-[12px]">
                   {r.free ? (
                     r.days === null ? (
-                      <span className="text-white/40">{t(locale, 'needsLoad.never')}</span>
+                      <span className="text-t3">{t(locale, 'needsLoad.never')}</span>
                     ) : (
                       <>
                         <span className={r.days >= 5 ? 'font-semibold text-bad-400' : 'text-warn-400'}>
                           {t(locale, 'needsLoad.idleDays').replace('{n}', String(r.days))}
                         </span>
                         {!off && r.idleCost > 0 && (
-                          <span className="ml-2 text-white/45">−{usd.format(r.idleCost)}</span>
+                          <span className="ml-2 text-t3">−{usd.format(r.idleCost)}</span>
                         )}
                       </>
                     )

@@ -223,7 +223,7 @@ export function Tour({
           {t(locale, 'tour.next')}
         </Button>
       )}
-      <button onClick={close} className="ml-auto text-[12px] text-white/45 transition-colors hover:text-white/80">
+      <button onClick={close} className="ml-auto text-[12px] text-t3 transition-colors hover:text-t1">
         {t(locale, 'tour.skip')}
       </button>
     </div>
@@ -251,7 +251,7 @@ export function Tour({
           с текстом выше окна, а выход должен оставаться на виду. */}
       <div className="panel fixed z-[196] flex flex-col" style={cardStyle}>
         <div className="flex items-center gap-2 pl-4 pr-2.5 pt-3">
-          <p className="min-w-0 flex-1 text-[13px] font-semibold text-white/75">
+          <p className="min-w-0 flex-1 text-[13px] font-semibold text-t2">
             {t(locale, 'tour.stepOf')
               .replace('{n}', String(i + 1))
               .replace('{total}', String(steps.length))}
@@ -261,7 +261,7 @@ export function Tour({
             type="button"
             onClick={close}
             aria-label={t(locale, 'tour.skip')}
-            className="flex size-7 shrink-0 items-center justify-center rounded-full text-[15px] text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+            className="flex size-7 shrink-0 items-center justify-center rounded-full text-[15px] text-t3 transition-colors hover:bg-white/10 hover:text-white"
           >
             ✕
           </button>
@@ -278,7 +278,7 @@ export function Tour({
               className="mt-3 w-full rounded-lg border border-white/10"
             />
           )}
-          <p className="mt-2.5 text-[13px] leading-relaxed text-white/72">{step.text}</p>
+          <p className="mt-2.5 text-[13px] leading-relaxed text-t2">{step.text}</p>
           {nav}
         </div>
       </div>

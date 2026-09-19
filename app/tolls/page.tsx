@@ -73,7 +73,7 @@ export default async function TollsPage() {
         {t(locale, 'tolls.title')}
         <Info text={t(locale, 'tolls.info')} />
       </h1>
-      <p className="mb-5 text-[13px] text-white/65">{t(locale, 'tolls.subtitle')}</p>
+      <p className="mb-5 text-[13px] text-t2">{t(locale, 'tolls.subtitle')}</p>
 
       <TollMissing spend={spend} locale={locale} />
       <TollsClient

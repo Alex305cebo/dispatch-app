@@ -53,7 +53,7 @@ export function TruckDispatcher({
       onChange={(e) => save(e.target.value)}
       className={
         bare
-          ? 'h-8 max-w-full cursor-pointer rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-[13px] font-medium text-white/90 outline-none transition-colors hover:border-white/30 focus:border-haul-500 disabled:opacity-50 max-md:h-10'
+          ? 'h-8 max-w-full cursor-pointer rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-[13px] font-medium text-t1 outline-none transition-colors hover:border-white/30 focus:border-haul-500 disabled:opacity-50 max-md:h-10'
           : 'rounded-lg border border-white/12 bg-ink-950/70 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500 disabled:opacity-50'
       }
     >
@@ -69,7 +69,7 @@ export function TruckDispatcher({
 
   return (
     <label className="flex flex-wrap items-center gap-2">
-      <span className="text-xs text-white/60 font-medium">
+      <span className="text-xs text-t2 font-medium">
         {t(locale, 'trucks.detail.dispatcherPick')}
       </span>
       <select

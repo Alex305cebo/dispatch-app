@@ -63,7 +63,7 @@ export default async function Page({
       <h1 className="mb-1 mt-3 text-xl font-bold tracking-tight">
         {t(locale, repeat ? 'loads.new.repeatTitle' : 'loads.new.title')}
       </h1>
-      <p className="mb-6 text-[13px] text-white/65">
+      <p className="mb-6 text-[13px] text-t2">
         {repeat
           ? t(locale, 'loads.new.repeatSubtitle').replace('{broker}', src?.brokerName ?? '—')
           : t(locale, 'loads.new.subtitle')}

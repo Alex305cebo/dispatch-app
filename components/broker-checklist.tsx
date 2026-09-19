@@ -21,7 +21,7 @@ const TONE: Record<Status, string> = {
   ok: 'text-good-400',
   warn: 'text-warn-400',
   bad: 'text-bad-400',
-  info: 'text-white/45',
+  info: 'text-t3',
 }
 
 function monthsSince(date: string | null): number | null {
@@ -72,7 +72,7 @@ function SafetyMeter({ score }: { score: number }) {
   return (
     <div className="rounded-xl border border-white/8 bg-white/[0.02] p-3">
       <div className="mb-1.5 flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-[13px] font-semibold text-white/75">
+        <span className="flex items-center gap-1.5 text-[13px] font-semibold text-t2">
           {t(locale, 'brokers.safetyHeading')}
           <Info text={t(locale, 'brokers.safetyInfo')} />
         </span>
@@ -192,7 +192,7 @@ export function BrokerChecklist({ check, collapsible = false }: { check: BrokerC
         if (i > revealed) return null
         if (en.kind === 'header')
           return (
-            <p key={i} className="mt-2 flex items-center gap-1.5 px-1 text-[13px] font-semibold text-white/75 first:mt-0">
+            <p key={i} className="mt-2 flex items-center gap-1.5 px-1 text-[13px] font-semibold text-t2 first:mt-0">
               {en.label}
               <Info text={t(locale, en.info)} />
             </p>
@@ -206,11 +206,11 @@ export function BrokerChecklist({ check, collapsible = false }: { check: BrokerC
             <span className={`w-4 shrink-0 text-center font-semibold ${done ? TONE[en.status] : 'text-haul-400'}`}>
               {done ? MARK[en.status] : '…'}
             </span>
-            <span className="flex items-center gap-1 text-white/60">
+            <span className="flex items-center gap-1 text-t2">
               {en.label}
               {en.info && <Info text={t(locale, en.info)} />}
             </span>
-            <span className={`ml-auto text-right font-medium ${done ? 'text-white/90' : 'animate-pulse text-haul-400'}`}>
+            <span className={`ml-auto text-right font-medium ${done ? 'text-t1' : 'animate-pulse text-haul-400'}`}>
               {done ? en.value : t(locale, 'brokers.checking')}
             </span>
           </div>
@@ -224,8 +224,8 @@ export function BrokerChecklist({ check, collapsible = false }: { check: BrokerC
   // раскрывашкой.
   const rows = collapsible ? (
     <details className="group mt-3">
-      <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2 text-[12px] font-medium text-white/70 hover:border-white/15">
-        <span className="text-white/40 transition-transform group-open:rotate-90">▸</span>
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2 text-[12px] font-medium text-t2 hover:border-white/15">
+        <span className="text-t3 transition-transform group-open:rotate-90">▸</span>
         {t(locale, 'brokers.detailsToggle').replace('{n}', String(entries.filter((e) => e.kind === 'row').length))}
       </summary>
       {list}
@@ -242,7 +242,7 @@ export function BrokerChecklist({ check, collapsible = false }: { check: BrokerC
           {check.legalName ?? check.dbaName ?? '—'}
         </h3>
         {(check.mc || check.dotNumber) && (
-          <p className="mt-1 text-[12px] tracking-wide text-white/45">
+          <p className="mt-1 text-[12px] tracking-wide text-t3">
             {check.mc && `MC ${check.mc}`}
             {check.mc && check.dotNumber && ' · '}
             {check.dotNumber && `DOT ${check.dotNumber}`}
@@ -256,7 +256,7 @@ export function BrokerChecklist({ check, collapsible = false }: { check: BrokerC
 
       {revealed >= entries.length && (
         <>
-          {check.address && <p className="mt-2 px-1 text-[12px] text-white/45">{check.address}</p>}
+          {check.address && <p className="mt-2 px-1 text-[12px] text-t3">{check.address}</p>}
           {check.flags.length > 0 ? (
             <div className="mt-2.5">
               <p className={`text-[12px] font-medium ${hasBlock ? 'text-bad-400' : 'text-warn-400'}`}>
@@ -289,7 +289,7 @@ export function BrokerChecklist({ check, collapsible = false }: { check: BrokerC
               проверка была одним кликом, а не поиском по трём сайтам. */}
           {check.mc && (
             <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-white/[0.03] px-3 py-2 text-[12px]">
-              <span className="text-white/50">{t(locale, 'brokers.payHistory')}</span>
+              <span className="text-t3">{t(locale, 'brokers.payHistory')}</span>
               <a
                 href={`https://www.carrier411.com/`}
                 target="_blank"

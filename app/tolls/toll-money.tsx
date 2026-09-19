@@ -23,7 +23,7 @@ export function TollMoney({
 
   return (
     <section className="panel mt-4 p-4">
-      <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+      <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
         {t(locale, "tolls.money.title").replace("{days}", String(days))}
         <Info text={t(locale, "tolls.money.info")} />
       </h2>
@@ -61,16 +61,16 @@ export function TollMoney({
             >
               <Link
                 href={`/loads/${l.id}`}
-                className="min-w-0 flex-1 leading-4 text-white/75 hover:text-white hover:underline"
+                className="min-w-0 flex-1 leading-4 text-t2 hover:text-white hover:underline"
               >
                 {l.origin ?? "—"} → {l.destination ?? "—"}
               </Link>
-              <span className="nums shrink-0 text-white/45">
+              <span className="nums shrink-0 text-t3">
                 {l.miles > 0
                   ? `${usd2.format((l.tolls ?? 0) / l.miles)}/mi`
                   : ""}
               </span>
-              <span className="nums shrink-0 font-semibold text-white/85">
+              <span className="nums shrink-0 font-semibold text-t1">
                 {usd.format(l.tolls ?? 0)}
               </span>
             </li>
@@ -93,11 +93,11 @@ function Tile({
   return (
     <div className="rounded-xl border border-white/8 bg-ink-950/50 px-3 py-2">
       <div
-        className={`nums text-[17px] font-bold ${tone === "warn" ? "text-warn-400" : "text-white/90"}`}
+        className={`nums text-[17px] font-bold ${tone === "warn" ? "text-warn-400" : "text-t1"}`}
       >
         {value}
       </div>
-      <div className="mt-0.5 text-xs text-white/60 font-medium">
+      <div className="mt-0.5 text-xs text-t2 font-medium">
         {label}
       </div>
     </div>
@@ -123,7 +123,7 @@ export function TollMissing({
           String(spend.missing.length),
         )}
       </p>
-      <p className="mt-0.5 text-[11.5px] leading-relaxed text-white/55">
+      <p className="mt-0.5 text-[11.5px] leading-relaxed text-t3">
         {t(locale, "tolls.money.missingWhy")}
       </p>
       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -131,7 +131,7 @@ export function TollMissing({
           <Link
             key={l.id}
             href={`/loads/${l.id}`}
-            className="rounded-full bg-white/8 px-2 py-0.5 text-[11.5px] text-white/70 transition-colors hover:bg-white/15 hover:text-white"
+            className="rounded-full bg-white/8 px-2 py-0.5 text-[11.5px] text-t2 transition-colors hover:bg-white/15 hover:text-white"
           >
             {l.origin ?? "—"} → {l.destination ?? "—"}
           </Link>

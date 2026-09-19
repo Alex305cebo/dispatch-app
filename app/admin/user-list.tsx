@@ -141,7 +141,7 @@ export function UserList({
               <div className="flex items-center gap-2">
                 <span className="truncate text-[14px] font-medium">{u.name}</span>
                 {u.id === currentUserId && (
-                  <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] text-white/55">{t(locale, 'admin.users.you')}</span>
+                  <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] text-t3">{t(locale, 'admin.users.you')}</span>
                 )}
                 {u.disabledAt && (
                   <span className="rounded-full bg-bad-500/15 px-1.5 py-0.5 text-[10px] font-medium text-bad-400">
@@ -154,7 +154,7 @@ export function UserList({
                   </span>
                 )}
               </div>
-              <div className="text-[12px] text-white/55">{u.email}</div>
+              <div className="text-[12px] text-t3">{u.email}</div>
             </div>
 
             {u.pendingSince ? (
@@ -185,7 +185,7 @@ export function UserList({
             <button
               disabled={pending}
               onClick={() => setResetFor(resetFor === u.id ? null : u.id)}
-              className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[12px] text-white/70 transition-colors hover:border-white/25 hover:text-white disabled:opacity-40"
+              className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[12px] text-t2 transition-colors hover:border-white/25 hover:text-white disabled:opacity-40"
             >
               {t(locale, 'admin.users.password')}
             </button>
@@ -232,7 +232,7 @@ export function UserList({
                   </span>
                 ))
               ) : (
-                <span className="text-white/35">{t(locale, 'admin.assign.none')}</span>
+                <span className="text-t3">{t(locale, 'admin.assign.none')}</span>
               )}
               {/* Номер диспетчера — здесь же: он уходит брокеру в блоке водителя по
                   всем закреплённым тракам, а вписать его самому может только сам
@@ -256,13 +256,13 @@ export function UserList({
                     setPhoneFor(u.id)
                     setPhoneVal(u.phone)
                   }}
-                  className="nums rounded-full border border-white/10 px-2 py-0.5 text-white/55 transition-colors hover:border-white/25 hover:text-white/85"
+                  className="nums rounded-full border border-white/10 px-2 py-0.5 text-t3 transition-colors hover:border-white/25 hover:text-t1"
                 >
                   {u.phone || t(locale, 'drivers.noPhone')}
                 </button>
               )}
               {u.loads30 > 0 && (
-                <span className="nums ml-auto text-white/40">
+                <span className="nums ml-auto text-t3">
                   {t(locale, 'admin.assign.loads30').replace('{n}', String(u.loads30))}
                 </span>
               )}
@@ -273,8 +273,8 @@ export function UserList({
               иначе непонятно, свободна она или её надо забирать. */}
           {!u.pendingSince && fleet.length > 0 && (
             <details className="group mt-2.5 border-t border-white/6 pt-2.5">
-              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium text-white/70 transition-colors hover:text-white/95">
-                <span className="text-[12px] leading-none text-white/40 transition-transform duration-200 group-open:rotate-90">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium text-t2 transition-colors hover:text-t1">
+                <span className="text-[12px] leading-none text-t3 transition-transform duration-200 group-open:rotate-90">
                   ▸
                 </span>
                 {t(locale, 'admin.assign.heading')}
@@ -297,7 +297,7 @@ export function UserList({
                         className="size-4 shrink-0 accent-good-500"
                       />
                       <span className="min-w-0 flex-1 truncate text-[13px]">{tr.label}</span>
-                      <span className="shrink-0 text-[11px] text-white/40">
+                      <span className="shrink-0 text-[11px] text-t3">
                         {tr.dispatcherId === null
                           ? t(locale, 'admin.assign.free')
                           : mine
@@ -315,8 +315,8 @@ export function UserList({
               them. New capabilities added to the registry show up here automatically. */}
           {u.capabilities && (
             <details className="group mt-2.5 border-t border-white/6 pt-2.5">
-              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium text-white/70 transition-colors hover:text-white/95">
-                <span className="text-[12px] leading-none text-white/40 transition-transform duration-200 group-open:rotate-90">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium text-t2 transition-colors hover:text-t1">
+                <span className="text-[12px] leading-none text-t3 transition-transform duration-200 group-open:rotate-90">
                   ▸
                 </span>
                 {t(locale, 'admin.users.dispatcherPerms')}
@@ -339,7 +339,7 @@ export function UserList({
                       />
                       <span className="min-w-0">
                         <span className="block text-[13px] font-medium">{meta.label}</span>
-                        <span className="block text-[11.5px] leading-snug text-white/55">{meta.description}</span>
+                        <span className="block text-[11.5px] leading-snug text-t3">{meta.description}</span>
                       </span>
                     </label>
                   )
@@ -389,7 +389,7 @@ export function UserList({
             </Button>
             <button
               onClick={() => setAdding(false)}
-              className="rounded-lg px-4 py-1.5 text-[12px] text-white/70 transition-colors hover:text-white"
+              className="rounded-lg px-4 py-1.5 text-[12px] text-t2 transition-colors hover:text-white"
             >
               {t(locale, 'admin.users.cancel')}
             </button>
@@ -398,7 +398,7 @@ export function UserList({
       ) : (
         <button
           onClick={() => setAdding(true)}
-          className="mt-1 rounded-xl border border-dashed border-white/15 px-4 py-2.5 text-[13px] text-white/60 transition-colors hover:border-white/30 hover:text-white/85"
+          className="mt-1 rounded-xl border border-dashed border-white/15 px-4 py-2.5 text-[13px] text-t2 transition-colors hover:border-white/30 hover:text-t1"
         >
           {t(locale, 'admin.users.addUser')}
         </button>

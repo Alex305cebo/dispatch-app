@@ -166,11 +166,11 @@ export function LoadsViews({
 
   const tabClass = (active: boolean) =>
     `-mb-px min-h-9 border-b-2 px-3 py-2 text-[13px] font-medium transition-colors max-md:min-h-11 ${
-      active ? 'border-haul-500 text-white' : 'border-transparent text-white/55 hover:text-white/85'
+      active ? 'border-haul-500 text-white' : 'border-transparent text-t3 hover:text-t1'
     }`
   const scopeClass = (active: boolean) =>
     `rounded-md px-3 py-1 text-[12px] font-medium transition-colors max-md:min-h-9 ${
-      active ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-white/55 hover:text-white/85'
+      active ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-t3 hover:text-t1'
     }`
 
   return (
@@ -228,7 +228,7 @@ export function LoadsViews({
           <span className="rounded-full bg-haul-500/15 px-2.5 py-1 font-medium text-haul-300">
             {selection.label} · <span className="nums">{selection.ids.length}</span>
           </span>
-          <button type="button" onClick={() => setSelection(null)} className="text-white/55 transition-colors hover:text-white max-md:min-h-9">
+          <button type="button" onClick={() => setSelection(null)} className="text-t3 transition-colors hover:text-white max-md:min-h-9">
             {t(locale, 'loads.dash.clear')} ×
           </button>
         </div>
@@ -251,7 +251,7 @@ export function LoadsViews({
       />
 
       {loads.length === 0 && (
-        <p className="panel p-4 text-center text-[13px] text-white/55">{t(locale, 'loads.filter.nothingFound')}</p>
+        <p className="panel p-4 text-center text-[13px] text-t3">{t(locale, 'loads.filter.nothingFound')}</p>
       )}
 
       {view === 'board' ? (
@@ -260,7 +260,7 @@ export function LoadsViews({
         <div className="stagger flex flex-col gap-3">
           {unassigned.length > 0 && (
             <section className="panel p-3">
-              <h2 className="mb-2 px-0.5 text-base leading-6 font-semibold text-white/90">{t(locale, 'loads.dash.unassigned')}</h2>
+              <h2 className="mb-2 px-0.5 text-base leading-6 font-semibold text-t1">{t(locale, 'loads.dash.unassigned')}</h2>
               <div className="space-y-2">
                 {unassigned.map((l) => (
                   <LoadRow key={l.id} load={l} truck={undefined} rcId={rateCons.get(l.id)} locale={locale} />
@@ -299,7 +299,7 @@ function MarketBadge({ load, locale }: { load: LoadRecord; locale: Locale }) {
     <span
       title={`${usd2.format(rpm)} vs ${usd2.format(m.market)}/mi · ${source}`}
       className={`nums shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
-        v.tone === 'good' ? 'bg-good-500/15 text-good-400' : v.tone === 'bad' ? 'bg-bad-500/15 text-bad-400' : 'bg-white/8 text-white/70'
+        v.tone === 'good' ? 'bg-good-500/15 text-good-400' : v.tone === 'bad' ? 'bg-bad-500/15 text-bad-400' : 'bg-white/8 text-t2'
       }`}
     >
       {t(locale, 'loads.dash.vsMarket').replace('{pct}', pctText(v.diff))}
@@ -337,14 +337,14 @@ function StatusBoard({
           {/* Count AND money in the header. A column that says only "37" tells the
               dispatcher how much work is in it but nothing about what it's worth,
               which is the number they actually compare columns on. */}
-          <h2 className="mb-2 flex items-center justify-between gap-2 text-base leading-6 font-semibold text-white/90">
+          <h2 className="mb-2 flex items-center justify-between gap-2 text-base leading-6 font-semibold text-t1">
             <span className="flex min-w-0 items-center gap-1.5">
               <span className="truncate">{statusLabel(locale, status)}</span>
-              <span className="nums shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 font-bold text-white/70">
+              <span className="nums shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 font-bold text-t2">
                 {loads.length}
               </span>
             </span>
-            <span className="nums shrink-0 text-base font-bold text-white/85">
+            <span className="nums shrink-0 text-base font-bold text-t1">
               {usd.format(loads.reduce((s, l) => s + l.rate, 0))}
             </span>
           </h2>
@@ -380,7 +380,7 @@ function StatusBoard({
                         230px column the driver's name pushed this line 110px past its
                         box on every card; the number is what identifies a truck on a
                         board about loads, and the driver is one click away. */}
-                    <span className="min-w-0 truncate text-xs text-white/55">
+                    <span className="min-w-0 truncate text-xs text-t3">
                       {truck ? (truck.number?.trim() || truck.name) : '—'}
                     </span>
                     <span className="shrink-0 whitespace-nowrap">
@@ -487,7 +487,7 @@ function Calendar({
   const weekCount = [...barsByTruck.values()].flat().length
 
   const TONE: Record<string, string> = {
-    quoted: 'border-white/15 bg-white/[0.06] text-white/70',
+    quoted: 'border-white/15 bg-white/[0.06] text-t2',
     booked: 'border-cyan-400/40 bg-cyan-400/15 text-cyan-200',
     in_transit: 'border-amber-400/40 bg-amber-400/15 text-amber-200',
     delivered: 'border-fuchsia-400/40 bg-fuchsia-400/15 text-fuchsia-200',
@@ -496,7 +496,7 @@ function Calendar({
   }
   // Телефон: цвет клетки дня и точки у груза — по статусу.
   const STRIP: Record<string, [string, string]> = {
-    quoted: ['bg-white/30', 'text-white/70'],
+    quoted: ['bg-white/30', 'text-t2'],
     booked: ['bg-cyan-400', 'text-cyan-300'],
     in_transit: ['bg-amber-400', 'text-amber-300'],
     delivered: ['bg-fuchsia-400', 'text-fuchsia-300'],
@@ -514,12 +514,12 @@ function Calendar({
         <button
           type="button"
           onClick={() => onWeek(shiftDay(week, -7))}
-          className="inline-flex min-h-9 items-center rounded-xl border border-white/10 px-3.5 text-[12px] font-semibold text-white/75 transition-colors hover:border-white/25 hover:bg-white/5 max-md:min-h-11"
+          className="inline-flex min-h-9 items-center rounded-xl border border-white/10 px-3.5 text-[12px] font-semibold text-t2 transition-colors hover:border-white/25 hover:bg-white/5 max-md:min-h-11"
         >
           {t(locale, 'loads.page.prevWeek')}
         </button>
         <span className="flex min-w-0 flex-col items-center gap-0.5 text-center">
-          <span className="flex items-center gap-2 text-[13.5px] font-semibold capitalize text-white/90">
+          <span className="flex items-center gap-2 text-[13.5px] font-semibold capitalize text-t1">
             {weekLabel(Date.parse(`${week}T12:00:00`), locale)}
             {!isCurrentWeek && (
               <button
@@ -532,16 +532,16 @@ function Calendar({
             )}
           </span>
           {weekCount > 0 && (
-            <span className="nums text-[12px] text-white/55">
+            <span className="nums text-[12px] text-t3">
               {t(locale, 'loads.page.countLoads').replace('{n}', String(weekCount))} ·{' '}
-              <span className="font-semibold text-white/85">{usd.format(weekGross)}</span>
+              <span className="font-semibold text-t1">{usd.format(weekGross)}</span>
             </span>
           )}
         </span>
         <button
           type="button"
           onClick={() => onWeek(shiftDay(week, 7))}
-          className="inline-flex min-h-9 items-center rounded-xl border border-white/10 px-3.5 text-[12px] font-semibold text-white/75 transition-colors hover:border-white/25 hover:bg-white/5 max-md:min-h-11"
+          className="inline-flex min-h-9 items-center rounded-xl border border-white/10 px-3.5 text-[12px] font-semibold text-t2 transition-colors hover:border-white/25 hover:bg-white/5 max-md:min-h-11"
         >
           {t(locale, 'loads.page.nextWeek')}
         </button>
@@ -560,16 +560,16 @@ function Calendar({
               const isToday = iso === todayIso
               return (
                 <div key={iso} className={`flex flex-col items-center py-1.5 ${isToday ? 'rounded-md bg-haul-500/10' : ''}`}>
-                  <span className={`text-[10px] font-medium capitalize ${isToday ? 'text-haul-300' : 'text-white/45'}`}>
+                  <span className={`text-[10px] font-medium capitalize ${isToday ? 'text-haul-300' : 'text-t3'}`}>
                     {weekdayLabel(iso, locale)}
                   </span>
-                  <span className={`nums text-[12.5px] font-semibold ${isToday ? 'text-haul-300' : 'text-white/80'}`}>{Number(iso.slice(8, 10))}</span>
+                  <span className={`nums text-[12.5px] font-semibold ${isToday ? 'text-haul-300' : 'text-t1'}`}>{Number(iso.slice(8, 10))}</span>
                 </div>
               )
             })}
           </div>
           {/* Какой цвет что значит — только статусы, что есть на этой неделе. */}
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-white/[0.06] px-2.5 py-1.5 text-[11px] text-white/55">
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 border-b border-white/[0.06] px-2.5 py-1.5 text-[11px] text-t3">
             {[...new Set(rows.flatMap((r) => r.bars.map((b) => b.load.status)))].map((s) => (
               <span key={s} className="flex items-center gap-1">
                 <span className={`size-2 rounded-full ${(STRIP[s] ?? STRIP.quoted!)[0]}`} />
@@ -588,10 +588,10 @@ function Calendar({
                       {row.label}
                     </Link>
                   ) : (
-                    <span className="shrink-0 text-[13px] font-semibold text-white/70">{row.label}</span>
+                    <span className="shrink-0 text-[13px] font-semibold text-t2">{row.label}</span>
                   )}
-                  {row.sub && <span className="min-w-0 truncate text-[11.5px] text-white/50">{row.sub}</span>}
-                  {row.bars.length === 0 && <span className="ml-auto shrink-0 text-[11px] text-white/45">{t(locale, 'loads.board.free')}</span>}
+                  {row.sub && <span className="min-w-0 truncate text-[11.5px] text-t3">{row.sub}</span>}
+                  {row.bars.length === 0 && <span className="ml-auto shrink-0 text-[11px] text-t3">{t(locale, 'loads.board.free')}</span>}
                 </div>
                 <div className="mt-1.5 grid grid-cols-7 gap-0.5">
                   {cells.map((b, i) => (
@@ -606,11 +606,11 @@ function Calendar({
                     {row.bars.map((b) => (
                       <Link key={b.load.id} href={`/loads/${b.load.id}`} className="flex items-baseline gap-1.5 rounded py-0.5 text-[12.5px] hover:bg-white/5">
                         <span className={`size-2 shrink-0 self-center rounded-full ${(STRIP[b.load.status] ?? STRIP.quoted!)[0]}`} />
-                        <span className="nums shrink-0 text-[11.5px] text-white/55">{dayRange(b.start, b.end)}</span>
-                        <span className="min-w-0 font-medium text-white/85">
+                        <span className="nums shrink-0 text-[11.5px] text-t3">{dayRange(b.start, b.end)}</span>
+                        <span className="min-w-0 font-medium text-t1">
                           {city(b.load.origin)} → {city(b.load.destination)}
                         </span>
-                        <span className="nums ml-auto shrink-0 font-semibold text-white/85">{usd.format(b.load.rate)}</span>
+                        <span className="nums ml-auto shrink-0 font-semibold text-t1">{usd.format(b.load.rate)}</span>
                       </Link>
                     ))}
                   </div>
@@ -623,7 +623,7 @@ function Calendar({
           <div className="min-w-[640px]">
             {/* Шапка дней */}
             <div className="grid grid-cols-[132px_repeat(7,minmax(0,1fr))] border-b border-white/8">
-              <div className="sticky left-0 z-10 bg-ink-900 px-3 py-2 text-[11px] font-medium text-white/45">
+              <div className="sticky left-0 z-10 bg-ink-900 px-3 py-2 text-[11px] font-medium text-t3">
                 {t(locale, 'loads.board.truck')}
               </div>
               {weekIsos.map((iso) => {
@@ -633,10 +633,10 @@ function Calendar({
                     key={iso}
                     className={`flex items-baseline justify-center gap-1 px-1 py-2 text-center ${isToday ? 'bg-haul-500/10' : ''}`}
                   >
-                    <span className={`text-[11px] font-medium capitalize ${isToday ? 'text-haul-300' : 'text-white/45'}`}>
+                    <span className={`text-[11px] font-medium capitalize ${isToday ? 'text-haul-300' : 'text-t3'}`}>
                       {weekdayLabel(iso, locale)}
                     </span>
-                    <span className={`nums text-[13px] font-semibold ${isToday ? 'text-haul-300' : 'text-white/80'}`}>
+                    <span className={`nums text-[13px] font-semibold ${isToday ? 'text-haul-300' : 'text-t1'}`}>
                       {Number(iso.slice(8, 10))}
                     </span>
                   </div>
@@ -657,9 +657,9 @@ function Calendar({
                         {row.label}
                       </Link>
                     ) : (
-                      <span className="truncate text-[13px] font-semibold text-white/70">{row.label}</span>
+                      <span className="truncate text-[13px] font-semibold text-t2">{row.label}</span>
                     )}
-                    {row.sub && <span className="truncate text-[11px] text-white/50">{row.sub}</span>}
+                    {row.sub && <span className="truncate text-[11px] text-t3">{row.sub}</span>}
                   </div>
                   <div
                     className="relative col-span-7 grid grid-cols-7 gap-y-1 py-1.5"
@@ -676,7 +676,7 @@ function Calendar({
                     ))}
                     {row.bars.length === 0 && (
                       <span
-                        className="self-center px-2 text-[11px] text-white/30"
+                        className="self-center px-2 text-[11px] text-t3"
                         style={{ gridColumn: '1 / span 7', gridRow: 1 }}
                       >
                         {t(locale, 'loads.board.free')}
@@ -707,7 +707,7 @@ function Calendar({
         </div>
         </>
       )}
-      <p className="mt-2 text-[11.5px] text-white/45">{t(locale, 'loads.board.hint')}</p>
+      <p className="mt-2 text-[11.5px] text-t3">{t(locale, 'loads.board.hint')}</p>
     </div>
   )
 }
@@ -726,8 +726,8 @@ function Connection({ current, next, locale }: { current: LoadRecord; next: Load
     whenText(date, time, t(locale, 'loads.dash.noDate'), t(locale, 'loads.dash.noTime'))
   return (
     <div className="panel-inset px-3 py-2 text-[12px]">
-      <p className="text-2xs font-semibold uppercase tracking-wide text-white/55">{t(locale, 'loads.dash.connection')}</p>
-      <p className="mt-1 break-words text-white/65">
+      <p className="text-2xs font-semibold uppercase tracking-wide text-t3">{t(locale, 'loads.dash.connection')}</p>
+      <p className="mt-1 break-words text-t2">
         {current.destination ?? '—'} · {when(current.deliveryDate, current.deliveryTime)} → {next.origin ?? '—'} ·{' '}
         {when(next.pickupDate, next.pickupTime)}
       </p>
@@ -779,9 +779,9 @@ function DriverGroup({
       <Link href={`/trucks/${truck.id}`} className="mb-2 flex items-center gap-2.5 transition-colors hover:text-haul-400">
         <DriverAvatar truckId={truck.id} name={truck.driverName} hasPhoto={hasPhoto} size={30} />
         <span className="min-w-0 flex-1 break-words text-[13px] font-semibold leading-snug sm:text-[14px]">{truckLabel(truck)}</span>
-        <span className="nums shrink-0 text-[12px] font-semibold text-white/75">{usd.format(total)}</span>
+        <span className="nums shrink-0 text-[12px] font-semibold text-t2">{usd.format(total)}</span>
         {/* Счётчик уходит первым на узком телефоне: он наименее важен из трёх. */}
-        <span className="hidden shrink-0 text-[11px] text-white/40 min-[380px]:inline">
+        <span className="hidden shrink-0 text-[11px] text-t3 min-[380px]:inline">
           {t(locale, 'loads.page.countLoads').replace('{n}', String(loads.length))}
         </span>
       </Link>
@@ -793,13 +793,13 @@ function DriverGroup({
             {t(locale, 'loads.dash.noNext')} · {current.destination ?? '—'} · {usDate(current.deliveryDate) || t(locale, 'loads.dash.noDate')}
           </p>
         )}
-        {future.map((l) => labelled(l, 'loads.dash.next', 'text-white/55'))}
-        {drafts.map((l) => labelled(l, 'loads.dash.quoted', 'text-white/45'))}
+        {future.map((l) => labelled(l, 'loads.dash.next', 'text-t3'))}
+        {drafts.map((l) => labelled(l, 'loads.dash.quoted', 'text-t3'))}
         {rest.length > 0 &&
           (active.length || future.length ? (
             <details className="group">
-              <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium text-white/55 transition-colors hover:text-white max-md:min-h-11">
-                <span className="text-white/40 transition-transform group-open:rotate-90">▸</span>
+              <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium text-t3 transition-colors hover:text-white max-md:min-h-11">
+                <span className="text-t3 transition-transform group-open:rotate-90">▸</span>
                 {t(locale, 'loads.dash.history')} · {rest.length}
               </summary>
               <div className="mt-1 space-y-2">{rest.map(row)}</div>
@@ -842,7 +842,7 @@ function LoadRow({
               {load.origin ?? '—'} → {load.destination ?? '—'}
             </span>
             <StatusBadge status={load.status} locale={locale} />
-            <span className="nums text-[11.5px] text-white/60">
+            <span className="nums text-[11.5px] text-t2">
               {Math.round(totalMiles)} mi · {usd2.format(totalMiles > 0 ? load.rate / totalMiles : 0)}/mi
             </span>
             <DeadheadFlag miles={load.deadheadMiles} okMiles={load.deadheadOkMiles} locale={locale} />
@@ -855,14 +855,14 @@ function LoadRow({
             )}
           </div>
           {/* Номер, брокер и бумаги одной строкой: RC и POD — то, без чего не выставить счёт. */}
-          <p className="mt-1 flex flex-wrap gap-x-2 text-[11px] text-white/60">
+          <p className="mt-1 flex flex-wrap gap-x-2 text-[11px] text-t2">
             {meta && <span className="break-words">{meta}</span>}
-            {load.status !== 'quoted' && <span className={m?.hasRc ? 'text-good-400' : 'text-white/40'}>RC {m?.hasRc ? '✓' : '—'}</span>}
-            {wantsPod && <span className={m?.hasPod ? 'text-good-400' : 'text-white/40'}>POD {m?.hasPod ? '✓' : '—'}</span>}
+            {load.status !== 'quoted' && <span className={m?.hasRc ? 'text-good-400' : 'text-t3'}>RC {m?.hasRc ? '✓' : '—'}</span>}
+            {wantsPod && <span className={m?.hasPod ? 'text-good-400' : 'text-t3'}>POD {m?.hasPod ? '✓' : '—'}</span>}
             {!truck && <span className="text-warn-400">{t(locale, 'loads.dash.unassigned')}</span>}
           </p>
           {stop && (
-            <p className="mt-1 break-words text-[12px] text-white/75" title={t(locale, 'loads.dash.localTime')}>
+            <p className="mt-1 break-words text-[12px] text-t2" title={t(locale, 'loads.dash.localTime')}>
               {t(locale, stop.role === 'pickup' ? 'stops.pickup' : 'stops.delivery')} · {stop.city ?? stop.address ?? '—'} ·{' '}
               {whenText(stop.date, stop.time, t(locale, 'loads.dash.noDate'), t(locale, 'loads.dash.noTime'))}
             </p>

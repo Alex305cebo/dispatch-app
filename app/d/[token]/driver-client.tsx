@@ -159,7 +159,7 @@ export function DriverClient({
               : 'border-white/10 bg-white/[0.03]'
         }`}
       >
-        <div className="text-xs text-white/60 font-medium">
+        <div className="text-xs text-t2 font-medium">
           {finished ? '✓ ' : ''}
           {stopTitle(s, stopsOf(s.loadId), locale)}
           {tag(s)}
@@ -176,19 +176,19 @@ export function DriverClient({
             <div className="text-[12px] font-bold uppercase tracking-wide text-warn-400">
               ⚠ {t(locale, 'driver.directionsTitle')}
             </div>
-            <p className="mt-1 text-[14px] leading-snug text-white/90">{s.directions}</p>
+            <p className="mt-1 text-[14px] leading-snug text-t1">{s.directions}</p>
             <p className="mt-1 text-[12px] font-semibold text-warn-400">{t(locale, 'driver.directionsGps')}</p>
           </div>
         )}
-        {s.name && <div className="mt-0.5 text-[13px] font-semibold text-white/80">{s.name}</div>}
+        {s.name && <div className="mt-0.5 text-[13px] font-semibold text-t1">{s.name}</div>}
         <div className="mt-0.5 text-[15px] font-semibold leading-snug">{where}</div>
         {(s.date || s.time) && (
-          <div className="nums mt-0.5 text-[13px] text-white/70">
+          <div className="nums mt-0.5 text-[13px] text-t2">
             {usDate(s.date)}
             {s.time ? ` · ${s.time}` : ''}
           </div>
         )}
-        {s.refs.length > 0 && <div className="nums mt-0.5 text-[12px] text-white/50">Ref: {s.refs.join(', ')}</div>}
+        {s.refs.length > 0 && <div className="nums mt-0.5 text-[12px] text-t3">Ref: {s.refs.join(', ')}</div>}
         {!finished && (
           <a
             href={mapsHref(where)}
@@ -216,7 +216,7 @@ export function DriverClient({
                   <span
                     className={`size-2.5 shrink-0 rounded-full ${state === 'done' ? 'bg-good-400' : state === 'now' ? 'bg-haul-400 ring-4 ring-haul-500/25' : 'bg-white/15'}`}
                   />
-                  <span className={`truncate ${state === 'now' ? 'text-white' : 'text-white/40'}`}>
+                  <span className={`truncate ${state === 'now' ? 'text-white' : 'text-t3'}`}>
                     {(s.city ?? stopTitle(s, stopsOf(s.loadId), locale)).replace(/,.*$/, '')}
                   </span>
                 </li>
@@ -226,10 +226,10 @@ export function DriverClient({
           <div className="mt-3 text-[18px] font-bold leading-snug">
             {load.origin ?? '—'} → {load.destination ?? '—'}
             {(stops.length > 2 || many) && (
-              <span className="ml-2 text-[13px] font-medium text-white/50">· {stopsLabel(stops, locale)}</span>
+              <span className="ml-2 text-[13px] font-medium text-t3">· {stopsLabel(stops, locale)}</span>
             )}
           </div>
-          <div className="mt-0.5 text-[13px] text-white/60">
+          <div className="mt-0.5 text-[13px] text-t2">
             {t(locale, stepText)}
             {next && next.city ? ` · ${next.city}` : ''}
             {!many && load.referenceId ? ` · #${load.referenceId}` : ''}
@@ -239,10 +239,10 @@ export function DriverClient({
           {/* Памятка на остановке: три вещи, из-за которых чаще всего теряют деньги —
               печать/счёт, число мест и фото бумаги. Появляется только когда трак уже на месте. */}
           {next && arrived && (
-            <ul className="mt-3 space-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-[13px] text-white/75">
+            <ul className="mt-3 space-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-[13px] text-t2">
               {[1, 2, 3].map((i) => (
                 <li key={i} className="flex gap-2">
-                  <span className="text-white/35">•</span>
+                  <span className="text-t3">•</span>
                   {t(locale, (`driver.check.${next.role}${i}`) as MsgKey)}
                 </li>
               ))}
@@ -251,10 +251,10 @@ export function DriverClient({
           {/* Памятка на остановке: три вещи, из-за которых чаще всего теряют деньги —
               печать и бумаги, счёт мест и фото документа. Видна, только когда трак на месте. */}
           {next && arrived && (
-            <ul className="mt-3 space-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-[13px] text-white/75">
+            <ul className="mt-3 space-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-[13px] text-t2">
               {[1, 2, 3].map((i) => (
                 <li key={i} className="flex gap-2">
-                  <span className="text-white/35">•</span>
+                  <span className="text-t3">•</span>
                   {t(locale, `driver.check.${next.role}${i}` as MsgKey)}
                 </li>
               ))}
@@ -298,7 +298,7 @@ export function DriverClient({
                 type="button"
                 disabled={!!busy}
                 onClick={() => act({ action: 'status', ...target(next) }, 'skip')}
-                className="mt-2 w-full rounded-lg py-1.5 text-[12.5px] text-white/50 underline-offset-2 hover:underline"
+                className="mt-2 w-full rounded-lg py-1.5 text-[12.5px] text-t3 underline-offset-2 hover:underline"
               >
                 {t(locale, next.role === 'pickup' ? 'driver.alreadyLoaded' : 'driver.alreadyDelivered')}
               </button>
@@ -334,7 +334,7 @@ export function DriverClient({
 
       {load && (
         <section className="mt-4">
-          <p className="mb-2 text-xs text-white/60 font-medium">{t(locale, 'driver.docsHeading')}</p>
+          <p className="mb-2 text-xs text-t2 font-medium">{t(locale, 'driver.docsHeading')}</p>
           <input
             ref={bolRef}
             type="file"
@@ -419,7 +419,7 @@ export function DriverClient({
               type="button"
               disabled={!!busy}
               onClick={() => sealRef.current?.click()}
-              className={`${big} border-2 ${load.hasSeal ? 'border-good-500/40 text-good-400' : 'border-white/15 text-white/85'}`}
+              className={`${big} border-2 ${load.hasSeal ? 'border-good-500/40 text-good-400' : 'border-white/15 text-t1'}`}
             >
               🔒{' '}
               {busy === 'seal'
@@ -432,19 +432,19 @@ export function DriverClient({
               type="button"
               disabled={!!busy}
               onClick={() => photoRef.current?.click()}
-              className={`${big} border-2 border-white/15 text-white/85`}
+              className={`${big} border-2 border-white/15 text-t1`}
             >
               📷 {busy === 'photo' ? t(locale, 'driver.sending') : t(locale, 'driver.cargoPhoto')}
-              {load.photos > 0 && <span className="nums text-[13px] font-medium text-white/50">· {load.photos}</span>}
+              {load.photos > 0 && <span className="nums text-[13px] font-medium text-t3">· {load.photos}</span>}
             </button>
           </div>
-          <p className="mt-2 text-center text-[12px] text-white/45">{t(locale, 'driver.docsHint')}</p>
+          <p className="mt-2 text-center text-[12px] text-t3">{t(locale, 'driver.docsHint')}</p>
         </section>
       )}
 
       {/* Сообщение диспетчеру — сломался, задержка, вопрос. Пишет сам водитель. */}
       <section className="mt-4">
-        <p className="mb-2 text-xs text-white/60 font-medium">{t(locale, 'driver.noteHeading')}</p>
+        <p className="mb-2 text-xs text-t2 font-medium">{t(locale, 'driver.noteHeading')}</p>
         <div className="flex flex-wrap gap-2">
           {(
             ['driver.quick.delay', 'driver.quick.breakdown', 'driver.quick.waiting', 'driver.quick.question'] as const
@@ -453,7 +453,7 @@ export function DriverClient({
               key={k}
               type="button"
               onClick={() => setNote(t(locale, k))}
-              className="rounded-full border border-white/15 px-3 py-1 text-[12.5px] text-white/80 hover:border-white/35"
+              className="rounded-full border border-white/15 px-3 py-1 text-[12.5px] text-t1 hover:border-white/35"
             >
               {t(locale, k)}
             </button>
@@ -480,11 +480,11 @@ export function DriverClient({
         </div>
       </section>
 
-      {msg && <p className="mt-3 text-center text-[14px] font-medium text-white/80">{msg}</p>}
+      {msg && <p className="mt-3 text-center text-[14px] font-medium text-t1">{msg}</p>}
 
       {events.length > 0 && (
         <section className="mt-5">
-          <p className="mb-2 text-xs text-white/60 font-medium">
+          <p className="mb-2 text-xs text-t2 font-medium">
             {t(locale, 'driver.historyHeading')}
           </p>
           <ul className="flex flex-col gap-1 text-[12.5px]">
@@ -498,8 +498,8 @@ export function DriverClient({
                     ? stops.find((s) => s.loadId === e.loadId && s.seq === e.stopSeq)
                     : null
                 return (
-                  <li key={e.id} className="flex items-baseline gap-2 text-white/70">
-                    <span className="nums shrink-0 text-white/45">{clock(e.at)}</span>
+                  <li key={e.id} className="flex items-baseline gap-2 text-t2">
+                    <span className="nums shrink-0 text-t3">{clock(e.at)}</span>
                     <span>
                       {t(locale, EVENT_KEY[e.kind as keyof typeof EVENT_KEY] ?? 'driver.ev.note')}
                       {st?.city ? ` · ${st.city}` : ''}
@@ -511,7 +511,7 @@ export function DriverClient({
           </ul>
         </section>
       )}
-      <p className="mt-4 text-center text-[12px] text-white/45">{t(locale, 'driver.hint')}</p>
+      <p className="mt-4 text-center text-[12px] text-t3">{t(locale, 'driver.hint')}</p>
     </>
   )
 }
@@ -530,7 +530,7 @@ export function LangSwitch({ locale }: { locale: Locale }) {
           key={l}
           type="button"
           onClick={() => pick(l)}
-          className={`rounded-lg px-2.5 py-1 text-[12px] font-semibold uppercase ${l === locale ? 'bg-white/15 text-white' : 'text-white/45'}`}
+          className={`rounded-lg px-2.5 py-1 text-[12px] font-semibold uppercase ${l === locale ? 'bg-white/15 text-white' : 'text-t3'}`}
         >
           {l}
         </button>

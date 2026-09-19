@@ -22,7 +22,7 @@ export function OpenAccessToggle({ enabled }: { enabled: boolean }) {
 
   return (
     <div className="flex items-center justify-between gap-3">
-      <p className="text-[12.5px] leading-relaxed text-white/65">
+      <p className="text-[12.5px] leading-relaxed text-t2">
         {enabled ? t(locale, 'admin.openAccess.currentlyOn') : t(locale, 'admin.openAccess.currentlyOff')}
       </p>
       <button

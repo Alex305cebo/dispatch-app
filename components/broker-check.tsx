@@ -50,7 +50,7 @@ export function BrokerCheckPanel({ fields }: { fields: RateConFields }) {
   return (
     <div className="panel mb-4 p-4">
       <div className="flex items-center gap-2">
-        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
           {t(locale, 'brokerCheck.heading').replace('{mc}', mc)}
           <Info text={t(locale, 'brokerCheck.info')} />
         </h2>
@@ -60,7 +60,7 @@ export function BrokerCheckPanel({ fields }: { fields: RateConFields }) {
       </div>
 
       {state === 'nokey' && (
-        <p className="mt-2 text-[12px] leading-relaxed text-white/55">
+        <p className="mt-2 text-[12px] leading-relaxed text-t3">
           {t(locale, 'brokerCheck.noKey')}
         </p>
       )}
@@ -85,10 +85,10 @@ export function BrokerCheckPanel({ fields }: { fields: RateConFields }) {
               />
             )}
             {data.authorityGranted && (
-              <span className="text-white/55">{t(locale, 'brokerCheck.grantedOn').replace('{date}', usDate(data.authorityGranted))}</span>
+              <span className="text-t3">{t(locale, 'brokerCheck.grantedOn').replace('{date}', usDate(data.authorityGranted))}</span>
             )}
           </div>
-          {data.address && <p className="mt-1 text-[12px] text-white/50">{data.address}</p>}
+          {data.address && <p className="mt-1 text-[12px] text-t3">{data.address}</p>}
 
           {data.flags.length > 0 && (
             <ul className="mt-3 flex flex-col gap-1.5">

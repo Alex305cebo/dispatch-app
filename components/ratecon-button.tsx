@@ -40,8 +40,8 @@ export function RateConButton({
       aria-label={t(locale, 'rateconButton.openTitle')}
       className={
         compact
-          ? 'flex min-h-9 shrink-0 items-center gap-1 rounded-lg border border-white/10 px-2.5 text-[11px] font-semibold max-md:min-h-11 text-white/70 transition-colors hover:border-haul-500 hover:text-haul-400'
-          : 'inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-[13px] font-semibold text-white/85 transition-colors hover:border-haul-500 hover:text-haul-400'
+          ? 'flex min-h-9 shrink-0 items-center gap-1 rounded-lg border border-white/10 px-2.5 text-[11px] font-semibold max-md:min-h-11 text-t2 transition-colors hover:border-haul-500 hover:text-haul-400'
+          : 'inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-[13px] font-semibold text-t1 transition-colors hover:border-haul-500 hover:text-haul-400'
       }
     >
       <svg

@@ -11,7 +11,7 @@ import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 
 const input =
-  'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none transition-all placeholder:text-white/45 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
+  'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none transition-all placeholder:text-t3 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
 
 export function TgSetup() {
   const locale = useLocale()
@@ -53,7 +53,7 @@ export function TgSetup() {
   return (
     <div className="panel mx-auto max-w-sm p-4">
       <h2 className="text-[14px] font-semibold">{t(locale, 'telegram.setup.title')}</h2>
-      <p className="mt-1 text-[12px] leading-snug text-white/60">
+      <p className="mt-1 text-[12px] leading-snug text-t2">
         {t(locale, 'telegram.setup.introPre')} <b>{t(locale, 'telegram.setup.introBold')}</b> {t(locale, 'telegram.setup.introPost')}
       </p>
 
@@ -64,8 +64,8 @@ export function TgSetup() {
               аккаунт. Инструкция говорит прямо: не удалит, удаление — отдельная
               кнопка, которую никто не трогает. */}
           <details className="group rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2" open>
-            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium text-white/75">
-              <span className="text-[11px] text-white/40 transition-transform group-open:rotate-90">▸</span>
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium text-t2">
+              <span className="text-[11px] text-t3 transition-transform group-open:rotate-90">▸</span>
               {t(locale, 'telegram.setup.guideTitle')}
             </summary>
             {/* Сайт Telegram — заметной кнопкой, а не словом в тексте шага:
@@ -82,7 +82,7 @@ export function TgSetup() {
               {t(locale, 'telegram.setup.openSite')}
               <span className="text-[12px] opacity-70">↗</span>
             </a>
-            <ol className="mt-2 flex list-decimal flex-col gap-1.5 pl-4 text-[11.5px] leading-snug text-white/60">
+            <ol className="mt-2 flex list-decimal flex-col gap-1.5 pl-4 text-[11.5px] leading-snug text-t2">
               <li>{t(locale, 'telegram.setup.step1')}</li>
               <li className="text-warn-400/90">{t(locale, 'telegram.setup.step2')}</li>
               <li>{t(locale, 'telegram.setup.step3')}</li>
@@ -127,7 +127,7 @@ export function TgSetup() {
 
       {step === '2fa' && (
         <div className="mt-3 flex flex-col gap-2">
-          <p className="text-[12px] text-white/60">{t(locale, 'telegram.setup.twoFaText')}</p>
+          <p className="text-[12px] text-t2">{t(locale, 'telegram.setup.twoFaText')}</p>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t(locale, 'telegram.setup.cloudPasswordPlaceholder')} className={input} autoFocus />
           <Button variant="primary" disabled={pending || !password}
             onClick={confirm}>
@@ -138,7 +138,7 @@ export function TgSetup() {
 
       {error && <p className="mt-2 text-[12px] text-bad-400">{error}</p>}
 
-      <p className="mt-3 text-[10.5px] leading-snug text-white/40">
+      <p className="mt-3 text-[10.5px] leading-snug text-t3">
         {t(locale, 'telegram.setup.footer')}
       </p>
     </div>

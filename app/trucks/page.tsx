@@ -142,12 +142,12 @@ export default async function Page() {
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div className="min-w-0">
           <h1 className="text-xl font-bold tracking-tight">{t(locale, 'trucks.page.title')}</h1>
-          <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-white/65">
+          <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-t2">
             {/* Строка стояла отдельной панелью ПОД списком и повторяла плитки над
                 картой: «с грузом» и «свободно» там уже есть. Здесь осталось только
                 то, чего в плитках нет, — деньги парка за неделю и машины, которые
                 нельзя грузить. */}
-            <span className="nums font-semibold text-white/85">
+            <span className="nums font-semibold text-t1">
               {usd.format(perTruck.reduce((sum, x) => sum + x.weekGross, 0))}
             </span>
             <span className="flex items-center gap-1">
@@ -159,12 +159,12 @@ export default async function Page() {
                 · {unavailable} {t(locale, 'trucks.page.unavailable')}
               </span>
             )}
-            <span className="text-white/40">·</span>
+            <span className="text-t3">·</span>
             {trucks.length} {t(locale, 'trucks.page.inFleet')}
             {company.owner && (
               <>
                 {t(locale, 'trucks.page.ownerPrefix')}
-                <span className="font-medium text-white/80">{company.owner}</span>
+                <span className="font-medium text-t1">{company.owner}</span>
               </>
             )}
           </p>

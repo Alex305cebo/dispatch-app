@@ -133,7 +133,7 @@ export function WidgetGrid({
 
   return (
     <div className={className}>
-      <div className="mb-2 flex items-center justify-between gap-3 text-xs text-white/55">
+      <div className="mb-2 flex items-center justify-between gap-3 text-xs text-t3">
         <span id={hintId}>{edit ? (touch ? hintTouch : hintPointer) : null}</span>
         <span className="flex shrink-0 items-center gap-1.5">
           {edit && moved && (
@@ -143,7 +143,7 @@ export function WidgetGrid({
                 setOrder(key.split(','))
                 save(storageKey, JSON.stringify(key.split(',')))
               }}
-              className="rounded-md px-2 py-1 font-medium text-white/70 ring-1 ring-white/12 hover:bg-white/[0.06]"
+              className="rounded-md px-2 py-1 font-medium text-t2 ring-1 ring-white/12 hover:bg-white/[0.06]"
             >
               {resetLabel}
             </button>
@@ -158,7 +158,7 @@ export function WidgetGrid({
             className={`flex items-center gap-1.5 rounded-md px-2 py-1 font-medium ring-1 transition-colors ${
               edit
                 ? 'bg-haul-500/15 text-haul-300 ring-haul-400/30 hover:bg-haul-500/25'
-                : 'text-white/60 ring-white/12 hover:bg-white/[0.06]'
+                : 'text-t2 ring-white/12 hover:bg-white/[0.06]'
             }`}
           >
             {edit ? <Check size={13} strokeWidth={2.5} /> : <LayoutGrid size={13} strokeWidth={2.5} />}

@@ -75,15 +75,15 @@ export default async function BrokerPage({ params }: { params: Promise<{ key: st
     : null
   // Неоплаченные первыми: с ними разговор нужен сегодня.
   const ordered = [...mine.filter((l) => unpaid.has(l.id)), ...mine.filter((l) => !unpaid.has(l.id))]
-  const h2 = 'mb-2 text-base leading-6 font-semibold text-white/90'
+  const h2 = 'mb-2 text-base leading-6 font-semibold text-t1'
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <Link href="/brokers" className="text-[12.5px] text-white/55 hover:text-white">
+      <Link href="/brokers" className="text-[12.5px] text-t3 hover:text-white">
         ← {t(locale, 'nav.brokers')}
       </Link>
       <h1 className="mt-2 break-words text-xl font-bold tracking-tight">{name}</h1>
-      <p className="nums text-[13px] text-white/60">
+      <p className="nums text-[13px] text-t2">
         {b.mc ? `MC ${b.mc}` : t(locale, 'brokers.noMc')}
         {b.payVia && ` · ${t(locale, 'brokers.payVia').replace('{name}', b.payVia)}`}
       </p>
@@ -131,32 +131,32 @@ export default async function BrokerPage({ params }: { params: Promise<{ key: st
       </div>
 
       {b.loadCount === 0 ? (
-        <p className="mt-4 text-[13px] text-white/55">{t(locale, 'brokers.card.none')}</p>
+        <p className="mt-4 text-[13px] text-t3">{t(locale, 'brokers.card.none')}</p>
       ) : (
         <>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <section className="panel min-w-0 p-4">
               <h2 className={h2}>{t(locale, 'brokers.card.people')}</h2>
               {b.reps.length === 0 ? (
-                <p className="nums text-[13px] text-white/60">
+                <p className="nums text-[13px] text-t2">
                   {[b.phone, b.email].filter(Boolean).join(' · ') || '—'}
                 </p>
               ) : (
                 <ul className="flex flex-col gap-1.5">
                   {b.reps.map((p, i) => (
                     <li key={(p.email ?? p.name ?? '') + i} className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[13px]">
-                      <span className="min-w-0 font-medium text-white/85">{p.name ?? p.email}</span>
+                      <span className="min-w-0 font-medium text-t1">{p.name ?? p.email}</span>
                       {p.phone && (
-                        <a href={`tel:${p.phone.replace(/[^+\d]/g, '')}`} className="nums text-white/60 hover:text-white hover:underline">
+                        <a href={`tel:${p.phone.replace(/[^+\d]/g, '')}`} className="nums text-t2 hover:text-white hover:underline">
                           {p.phone}
                         </a>
                       )}
                       {p.email && p.name && (
-                        <a href={`mailto:${p.email}`} className="min-w-0 truncate text-white/60 hover:text-white hover:underline">
+                        <a href={`mailto:${p.email}`} className="min-w-0 truncate text-t2 hover:text-white hover:underline">
                           {p.email}
                         </a>
                       )}
-                      <span className="nums ml-auto text-[12px] text-white/40">
+                      <span className="nums ml-auto text-[12px] text-t3">
                         {t(locale, 'brokers.repLoads').replace('{n}', String(p.loads))}
                         {p.lastAt ? ` · ${usDate(p.lastAt)}` : ''}
                       </span>
@@ -168,17 +168,17 @@ export default async function BrokerPage({ params }: { params: Promise<{ key: st
 
             <section className="panel min-w-0 p-4">
               <h2 className={h2}>{t(locale, 'brokers.card.lanes')}</h2>
-              <ul className="nums flex flex-col gap-1 text-[13px] text-white/80">
+              <ul className="nums flex flex-col gap-1 text-[13px] text-t1">
                 {lanes.map(([lane, n]) => (
                   <li key={lane} className="flex justify-between gap-3">
                     <span>{lane}</span>
-                    <span className="text-white/50">{n}</span>
+                    <span className="text-t3">{n}</span>
                   </li>
                 ))}
               </ul>
               {facilities.length > 0 && (
                 <>
-                  <h3 className="mb-1 mt-3 text-[12px] font-medium text-white/55">{t(locale, 'brokers.card.facilities')}</h3>
+                  <h3 className="mb-1 mt-3 text-[12px] font-medium text-t3">{t(locale, 'brokers.card.facilities')}</h3>
                   <ul className="flex flex-col gap-1 text-[13px]">
                     {facilities.map((f) => (
                       <li key={f.key} className="flex justify-between gap-3">
@@ -186,7 +186,7 @@ export default async function BrokerPage({ params }: { params: Promise<{ key: st
                           {f.name ?? f.address ?? f.city}
                           {f.name && f.city ? ` · ${f.city}` : ''}
                         </Link>
-                        <span className="nums shrink-0 text-white/50">{f.visits}</span>
+                        <span className="nums shrink-0 text-t3">{f.visits}</span>
                       </li>
                     ))}
                   </ul>
@@ -205,21 +205,21 @@ export default async function BrokerPage({ params }: { params: Promise<{ key: st
                   const u = unpaid.get(l.id)
                   return (
                     <div key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-lg border border-white/8 px-3 py-2 text-[13px]">
-                      <span className="nums w-[70px] shrink-0 text-white/50">{usDate(when(l))}</span>
-                      <Link href={`/loads/${l.id}`} className="min-w-0 flex-1 truncate text-white/85 hover:underline">
+                      <span className="nums w-[70px] shrink-0 text-t3">{usDate(when(l))}</span>
+                      <Link href={`/loads/${l.id}`} className="min-w-0 flex-1 truncate text-t1 hover:underline">
                         {l.origin ?? '—'} → {l.destination ?? '—'}
                         {l.referenceId ? ` · ${l.referenceId}` : ''}
                       </Link>
-                      <span className="nums font-semibold text-white/85">{usd.format(Number(l.rate) || 0)}</span>
+                      <span className="nums font-semibold text-t1">{usd.format(Number(l.rate) || 0)}</span>
                       {u ? (
                         <Link
                           href={financesHref({ id: l.id, referenceId: l.referenceId })}
-                          className={`nums text-[12px] hover:underline ${u.days > 30 ? 'text-warn-400' : 'text-white/55'}`}
+                          className={`nums text-[12px] hover:underline ${u.days > 30 ? 'text-warn-400' : 'text-t3'}`}
                         >
                           {t(locale, 'brokers.waitingDays').replace('{n}', String(u.days))} →
                         </Link>
                       ) : (
-                        <span className="text-[12px] text-white/45">{t(locale, `status.${l.status}`)}</span>
+                        <span className="text-[12px] text-t3">{t(locale, `status.${l.status}`)}</span>
                       )}
                     </div>
                   )

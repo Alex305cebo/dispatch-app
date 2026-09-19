@@ -30,12 +30,12 @@ export function MissingPodBanner({ loads, locale, className = '' }: { loads: Loa
               href={`/loads/${l.id}`}
               className="group flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg px-1 py-0.5 text-[13px] transition-colors hover:bg-white/[0.04] max-md:min-h-11"
             >
-              <span className="font-medium text-white/90">
+              <span className="font-medium text-t1">
                 {l.origin ?? '—'} → {l.destination ?? '—'}
               </span>
-              {l.referenceId && <span className="nums text-white/55">#{l.referenceId}</span>}
+              {l.referenceId && <span className="nums text-t3">#{l.referenceId}</span>}
               {l.deliveryDate && (
-                <span className="nums text-white/55">
+                <span className="nums text-t3">
                   · {t(locale, 'missingPod.delivered')} {usDate(l.deliveryDate)}
                 </span>
               )}
@@ -47,11 +47,11 @@ export function MissingPodBanner({ loads, locale, className = '' }: { loads: Loa
         ))}
       </ul>
       {loads.length > SHOWN && (
-        <p className="mt-1 px-1 text-[12px] text-white/50">
+        <p className="mt-1 px-1 text-[12px] text-t3">
           {t(locale, 'missingPod.more').replace('{n}', String(loads.length - SHOWN))}
         </p>
       )}
-      <p className="mt-1 px-1 text-[11.5px] text-white/50">{t(locale, 'missingPod.why')}</p>
+      <p className="mt-1 px-1 text-[11.5px] text-t3">{t(locale, 'missingPod.why')}</p>
     </div>
   )
 }

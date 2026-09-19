@@ -19,7 +19,7 @@ const ROWS = [
 const TONE: Record<string, string> = {
   'В пути': 'bg-good-500/15 text-good-400 ring-good-400/20',
   Забукирован: 'bg-haul-500/15 text-haul-300 ring-haul-400/20',
-  Доставлен: 'bg-white/[0.06] text-white/60 ring-white/10',
+  Доставлен: 'bg-white/[0.06] text-t2 ring-white/10',
 }
 
 /** Плотная строка-журнал по образцу trade-journal-table. Не таблица: таблица требовала
@@ -29,7 +29,7 @@ const TONE: Record<string, string> = {
 function Journal() {
   return (
     <div className="panel-inset px-3.5 py-3">
-      <div className="mb-1.5 text-2xs font-semibold uppercase tracking-wide text-white/55">
+      <div className="mb-1.5 text-2xs font-semibold uppercase tracking-wide text-t3">
         Грузы недели
       </div>
       {ROWS.map((r) => (
@@ -37,8 +37,8 @@ function Journal() {
           key={r.unit}
           className="grid grid-cols-[2rem_1fr_auto] items-center gap-x-2 gap-y-1 border-t border-white/[0.06] py-2 first:border-0 lg:grid-cols-[2.5rem_1fr_auto_auto] lg:gap-x-5"
         >
-          <span className="nums text-md font-semibold text-white/80">{r.unit}</span>
-          <span className="min-w-0 truncate text-base text-white/70">{r.lane}</span>
+          <span className="nums text-md font-semibold text-t1">{r.unit}</span>
+          <span className="min-w-0 truncate text-base text-t2">{r.lane}</span>
           {/* На узком экране ставка стоит в первой строке, на широком уезжает в конец
               строки — это единственная колонка, которую читают справа налево. */}
           <span className="nums text-right text-base font-semibold lg:order-last">{r.rate}</span>
@@ -46,7 +46,7 @@ function Journal() {
             <span className={`rounded-md px-1.5 py-0.5 text-2xs font-semibold ring-1 ${TONE[r.state]}`}>
               {r.state}
             </span>
-            <span className="nums text-xs text-white/50">{r.rpm}/mi</span>
+            <span className="nums text-xs text-t3">{r.rpm}/mi</span>
           </span>
         </div>
       ))}
@@ -58,7 +58,7 @@ export default function Page() {
   return (
     <div className="mx-auto max-w-5xl px-3 py-4">
       <h1 className="text-xl font-bold">Обзор в новом виде</h1>
-      <p className="mt-1 mb-4 max-w-prose text-base text-white/60">
+      <p className="mt-1 mb-4 max-w-prose text-base text-t2">
         Плитки можно переставить, порядок запомнится. Цифры здесь выдуманные — тот же вид{' '}
         <Link href="/ui/overview" className="font-semibold text-haul-400 hover:underline">
           на настоящих данных

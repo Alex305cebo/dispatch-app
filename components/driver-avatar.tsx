@@ -37,7 +37,7 @@ export function DriverAvatar({
   }
   return (
     <div
-      className="flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-haul-500/35 to-good-500/25 font-semibold text-white/80 ring-1 ring-white/10"
+      className="flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-haul-500/35 to-good-500/25 font-semibold text-t1 ring-1 ring-white/10"
       style={{ width: size, height: size, fontSize: Math.max(10, Math.round(size * 0.34)) }}
     >
       {initialsOf(name)}

@@ -146,7 +146,7 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
             {t(locale, 'loads.page.title')}
             <Info side="bottom" text={t(locale, 'loads.page.tooltip')} />
           </h1>
-          <p className="text-[13px] text-white/65">{t(locale, 'loads.page.countSuffix').replace('{n}', String(loads.length))}</p>
+          <p className="text-[13px] text-t2">{t(locale, 'loads.page.countSuffix').replace('{n}', String(loads.length))}</p>
         </div>
         <Button href="/loads/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
           {t(locale, 'loads.page.new')}

@@ -32,13 +32,13 @@ function NoteLine({ id, note, kind }: { id: string; note: string | null; kind: '
     })
   if (!editing)
     return (
-      <button type="button" onClick={() => setEditing(true)} className="text-left text-[12.5px] text-white/70 hover:text-white max-md:min-h-9">
+      <button type="button" onClick={() => setEditing(true)} className="text-left text-[12.5px] text-t2 hover:text-white max-md:min-h-9">
         {note ? (
           <>
             <span className="font-semibold text-haul-300">{t(locale, broker ? 'brokers.note' : 'facilities.note')}:</span> {note}
           </>
         ) : (
-          <span className="text-white/45">+ {t(locale, broker ? 'brokers.addNote' : 'facilities.addNote')}</span>
+          <span className="text-t3">+ {t(locale, broker ? 'brokers.addNote' : 'facilities.addNote')}</span>
         )}
       </button>
     )
@@ -56,7 +56,7 @@ function NoteLine({ id, note, kind }: { id: string; note: string | null; kind: '
         <button type="button" disabled={busy} onClick={save} className="min-h-9 rounded-lg bg-haul-500 px-3 text-[12.5px] font-semibold text-white hover:bg-haul-400 disabled:opacity-50 max-md:min-h-11">
           {t(locale, 'facilities.save')}
         </button>
-        <button type="button" onClick={() => setEditing(false)} className="min-h-9 rounded-lg border border-white/12 px-3 text-[12.5px] text-white/70 max-md:min-h-11">
+        <button type="button" onClick={() => setEditing(false)} className="min-h-9 rounded-lg border border-white/12 px-3 text-[12.5px] text-t2 max-md:min-h-11">
           {t(locale, 'facilities.cancel')}
         </button>
       </div>

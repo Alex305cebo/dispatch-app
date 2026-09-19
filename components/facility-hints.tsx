@@ -24,7 +24,7 @@ export async function FacilityHints({ companyId, load, locale }: { companyId: 'd
   const stops = stopsFrom(load, stopNames(load.driverInfo))
   return (
     <section className="panel mt-4 p-4">
-      <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+      <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
         {t(locale, 'facilities.hintsHeading')}
         <Info text={t(locale, 'facilities.hintsInfo')} />
       </h2>
@@ -34,11 +34,11 @@ export async function FacilityHints({ companyId, load, locale }: { companyId: 'd
           return (
             <li key={`${stop.seq}-${f.key}`} className="py-2 text-[13px]">
               <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-white/50">{stopTitle(stop, stops, locale)}</span>
-                <Link href={`/facilities/${encodeURIComponent(f.key)}`} className="font-medium text-white/90 hover:text-haul-300 hover:underline">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-t3">{stopTitle(stop, stops, locale)}</span>
+                <Link href={`/facilities/${encodeURIComponent(f.key)}`} className="font-medium text-t1 hover:text-haul-300 hover:underline">
                   {f.name ?? f.address ?? f.city}
                 </Link>
-                <span className="nums text-white/60">
+                <span className="nums text-t2">
                   {t(locale, 'facilities.visits').replace('{n}', String(f.visits))}
                   {f.lastDate && ` · ${usDate(f.lastDate)}`}
                   {dwell != null && ` · ${t(locale, 'facilities.dwell').replace('{t}', driveTime(dwell, locale))}`}
@@ -50,7 +50,7 @@ export async function FacilityHints({ companyId, load, locale }: { companyId: 'd
                 )}
               </p>
               {f.directions && !stop.directions && (
-                <p className="mt-1 text-[12.5px] text-white/75">
+                <p className="mt-1 text-[12.5px] text-t2">
                   <span className="font-semibold text-warn-400">⚠ {t(locale, 'facilities.lastDirections')}:</span> {f.directions}
                 </p>
               )}

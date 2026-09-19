@@ -196,7 +196,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       ? [
           <Link
             href={`/brokers?q=${encodeURIComponent(load.brokerMc ?? load.brokerName)}`}
-            className="font-medium text-white/85 hover:underline"
+            className="font-medium text-t1 hover:underline"
           >
             {load.brokerName}
           </Link>,
@@ -246,9 +246,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <div className="min-w-0">
             <h1 className="text-[21px] font-semibold sm:text-[23px]">
               {load.origin ?? '—'} → {load.destination ?? '—'}
-              {via && <span className="ml-2 text-[15px] font-medium text-white/50 sm:text-[16px]">· {via}</span>}
+              {via && <span className="ml-2 text-[15px] font-medium text-t3 sm:text-[16px]">· {via}</span>}
             </h1>
-            <p className="mt-1 text-[13px] text-white/65">
+            <p className="mt-1 text-[13px] text-t2">
               {/* Откуда взялся груз. Раньше здесь стояло «Пришёл с DAT по QR» у ЛЮБОГО
                   груза, заведённого не руками, — в том числе у приехавших рейт-коном в
                   Telegram, которые доски DAT в глаза не видели. Смотрим не на пометку в
@@ -276,7 +276,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         {late && (
           <div className="mt-3 rounded-xl border border-bad-500/30 bg-bad-500/[0.08] px-4 py-3 text-[13px]">
             <span className="font-semibold text-bad-400">{t(locale, 'loads.dash.late')}</span>{' '}
-            <span className="text-white/75">
+            <span className="text-t2">
               {t(locale, late.stop.role === 'pickup' ? 'stops.pickup' : 'stops.delivery')} · {late.stop.city ?? late.stop.address ?? '—'} ·{' '}
               {t(locale, 'loads.dash.lateBy').replace('{t}', driveTime(late.minutes, locale))}. {t(locale, 'loadDetail.lateHint')}
             </span>
@@ -308,10 +308,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             занимали три ряда и уводили ставку и кнопки за край экрана. Имя ведёт в
             справочник — там его история и оценка. */}
         {brokerFacts.length > 0 && (
-          <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] text-white/60">
+          <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] text-t2">
             {brokerFacts.map((part, k) => (
               <Fragment key={k}>
-                {k > 0 && <span className="text-white/25">·</span>}
+                {k > 0 && <span className="text-t3">·</span>}
                 {part}
               </Fragment>
             ))}
@@ -362,7 +362,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           {rateConDoc ? (
             <RateConButton docId={rateConDoc.id} />
           ) : (
-            <span className="col-span-2 text-xs text-white/45 sm:col-auto">{t(locale, 'loadDetail.noRateCon')}</span>
+            <span className="col-span-2 text-xs text-t3 sm:col-auto">{t(locale, 'loadDetail.noRateCon')}</span>
           )}
           <DocButton label="BOL" kind="bol" docId={bolDoc?.id ?? null} loadId={load.id} />
           <DocButton label="POD" kind="pod" docId={podDoc?.id ?? null} loadId={load.id} />
@@ -381,14 +381,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               заново каждую неделю — вместе с перепечатыванием почты брокера и миль. */}
           <Link
             href={`/loads/new?repeat=${load.id}`}
-            className="inline-flex items-center justify-center rounded-xl border border-white/12 px-3 py-2 text-[12.5px] font-medium text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300 sm:ml-auto"
+            className="inline-flex items-center justify-center rounded-xl border border-white/12 px-3 py-2 text-[12.5px] font-medium text-t2 transition-colors hover:border-haul-500/50 hover:text-haul-300 sm:ml-auto"
           >
             ⟳ {t(locale, 'loads.repeat')}
           </Link>
         </div>
 
         <div className="mt-4 border-t border-white/8 pt-4">
-          <h2 className="mb-4 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+          <h2 className="mb-4 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
             {t(locale, 'loadDetail.rateHeading')}
             <Info text={t(locale, 'loadDetail.rateInfo')} />
           </h2>
@@ -465,7 +465,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       {load.milesEstimated && (
         <div className="mt-4 rounded-xl border border-warn-400/35 bg-warn-500/[0.08] px-4 py-3 text-[13px]">
           <span className="font-semibold text-warn-400">{t(locale, 'loadDetail.milesEstimated')}</span>{' '}
-          <span className="text-white/75">{t(locale, 'loadDetail.milesEstimatedHint')}</span>
+          <span className="text-t2">{t(locale, 'loadDetail.milesEstimatedHint')}</span>
         </div>
       )}
 
@@ -474,7 +474,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       {brokerGrade?.payGrade === 'slow' && load.status !== 'paid' && load.status !== 'cancelled' && (
         <div className="mt-4 rounded-xl border border-bad-500/30 bg-bad-500/[0.08] px-4 py-3 text-[13px]">
           <span className="font-semibold text-bad-400">{t(locale, 'brokers.grade.slowWarn')}</span>{' '}
-          <span className="text-white/75">
+          <span className="text-t2">
             {t(locale, 'brokers.grade.info')
               .replace('{n}', String(brokerGrade.paidCount))
               .replace('{late}', String(brokerGrade.lateCount))}
@@ -508,7 +508,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       )}
 
       <section className="panel mt-4 p-5">
-        <h2 className="mb-4 text-base leading-6 font-semibold text-white/90">
+        <h2 className="mb-4 text-base leading-6 font-semibold text-t1">
           {t(locale, 'loadDetail.detailsHeading')}
         </h2>
         <LoadEditNumbers
@@ -546,7 +546,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       {showBackhaul && <BackhaulList state={backhaul.state} brokers={backhaul.brokers} locale={locale} />}
 
       <section className="panel mt-4 p-5">
-        <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+        <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
           {t(locale, 'loadDetail.docsHeading')}
           <Info text={t(locale, 'loadDetail.docsInfo')} />
         </h2>
@@ -556,7 +556,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
       <section className="panel mt-4 p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+          <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
             {t(locale, 'loadDetail.invoiceHeading')}
             <Info text={t(locale, 'loadDetail.invoiceInfo')} />
           </h2>
@@ -576,13 +576,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           pay={pay}
           companyReady={!!(company.name && company.mcdot)}
         />
-        <p className="mt-2 text-[12px] text-white/50">{t(locale, 'loadDetail.invoicePackageNote')}</p>
+        <p className="mt-2 text-[12px] text-t3">{t(locale, 'loadDetail.invoicePackageNote')}</p>
       </section>
 
       {/* The truck economics that drive every cost line above — editable inline. */}
       <details className="group mt-4">
-        <summary className="panel flex cursor-pointer list-none items-center gap-1.5 p-4 text-[13px] font-semibold text-white/72 transition-colors hover:text-white">
-          <span className="text-white/40 transition-transform group-open:rotate-90">▸</span>
+        <summary className="panel flex cursor-pointer list-none items-center gap-1.5 p-4 text-[13px] font-semibold text-t2 transition-colors hover:text-white">
+          <span className="text-t3 transition-transform group-open:rotate-90">▸</span>
           {t(locale, 'loadDetail.truckCostsHeading')}
           <Info text={t(locale, 'loadDetail.truckCostsInfo')} />
         </summary>
@@ -665,7 +665,7 @@ async function LoadMapSection({
     // Заголовок → карта → плитки (order) на любой ширине: сначала где трак на карте,
     // потом цифры. Плитки над картой отодвигали её за экран.
     <section className="panel mt-4 flex flex-col p-4">
-      <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90 order-[-2]">
+      <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1 order-[-2]">
         {t(locale, 'loadDetail.mapHeading')}
         <Info text={t(locale, 'loadDetail.mapInfo')} />
       </h2>
@@ -682,7 +682,7 @@ async function LoadMapSection({
                   столбиком из трёх строк в узкой плитке. */}
           {fs?.location && (
             <div className="basis-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 sm:flex-1 sm:basis-[11rem]">
-              <div className="text-xs text-white/60 font-medium">
+              <div className="text-xs text-t2 font-medium">
                 {t(locale, 'loadDetail.driverPlace')}
               </div>
               <CopyPlace
@@ -690,44 +690,44 @@ async function LoadMapSection({
                 copy={placeCity(fs.location) ?? fs.location}
                 coords={{ lat: fs.lat, lng: fs.lng }}
                 size="sm"
-                className="min-h-[1.375rem] text-[15px] font-semibold text-white/85"
+                className="min-h-[1.375rem] text-[15px] font-semibold text-t1"
               />
             </div>
           )}
           {driverZone && (
             <div className="flex-1 basis-[7.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-              <div className="text-xs text-white/60 font-medium">
+              <div className="text-xs text-t2 font-medium">
                 {t(locale, 'loadDetail.driverTime')}
               </div>
               {/* Высота зафиксирована: первый кадр LocalTime пустой (гидратация),
                       и без неё плитка подпрыгивала бы при загрузке страницы. */}
               <div className="flex min-h-[1.375rem] items-baseline">
-                <LocalTime zone={driverZone} className="nums text-[15px] font-semibold text-white/85" />
+                <LocalTime zone={driverZone} className="nums text-[15px] font-semibold text-t1" />
               </div>
             </div>
           )}
           {routeMiles != null && (
             <div className="flex-1 basis-[7.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-              <div className="text-xs text-white/60 font-medium">
+              <div className="text-xs text-t2 font-medium">
                 {t(locale, 'loadDetail.distanceLeft')}
               </div>
-              <div className="nums min-h-[1.375rem] text-[15px] font-semibold text-white/85">
-                {routeMiles} <span className="text-[11px] font-medium text-white/45">mi</span>
+              <div className="nums min-h-[1.375rem] text-[15px] font-semibold text-t1">
+                {routeMiles} <span className="text-[11px] font-medium text-t3">mi</span>
               </div>
             </div>
           )}
           {etaMin != null && (
             <div className="flex-1 basis-[7.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-              <div className="text-xs text-white/60 font-medium">
+              <div className="text-xs text-t2 font-medium">
                 {t(locale, 'loadDetail.etaLeft')}
               </div>
-              <div className="nums min-h-[1.375rem] text-[15px] font-semibold text-white/85">
+              <div className="nums min-h-[1.375rem] text-[15px] font-semibold text-t1">
                 ~{driveTime(etaMin, locale)}
               </div>
               {/* Чистый драйв — крупно, а реальный путь с ночёвками 11/10 —
                       подписью: раньше диспетчер пересчитывал это в голове. */}
               {live.realEtaMin != null && live.realEtaMin > etaMin && (
-                <div className="nums mt-0.5 text-[11px] text-white/45">
+                <div className="nums mt-0.5 text-[11px] text-t3">
                   {t(locale, 'loadDetail.withRest').replace('{t}', driveTime(live.realEtaMin, locale))}
                 </div>
               )}
@@ -741,7 +741,7 @@ async function LoadMapSection({
                 live.slackMin >= 0 ? 'border-good-500/25 bg-good-500/[0.06]' : 'border-bad-500/30 bg-bad-500/[0.07]'
               }`}
             >
-              <div className="text-xs text-white/60 font-medium">
+              <div className="text-xs text-t2 font-medium">
                 {t(locale, 'loadDetail.deadline')}
               </div>
               <div
@@ -774,7 +774,7 @@ async function LoadMapSection({
                   детеншн не там — повод позвонить, пока не позвонил брокер. */}
           {live.idleMin != null && live.idleMin >= 120 && (
             <div className="flex-1 basis-[8rem] rounded-xl border border-warn-500/30 bg-warn-500/[0.07] px-3 py-2">
-              <div className="text-xs text-white/60 font-medium">
+              <div className="text-xs text-t2 font-medium">
                 {t(locale, 'loadDetail.idleWarn')}
               </div>
               <div className="nums min-h-[1.375rem] text-[14px] font-semibold text-warn-400">
@@ -784,7 +784,7 @@ async function LoadMapSection({
           )}
           {live.offRouteMi != null && (
             <div className="flex-1 basis-[8rem] rounded-xl border border-warn-500/30 bg-warn-500/[0.07] px-3 py-2">
-              <div className="text-xs text-white/60 font-medium">
+              <div className="text-xs text-t2 font-medium">
                 {t(locale, 'loadDetail.offRoute')}
               </div>
               <div className="nums min-h-[1.375rem] text-[14px] font-semibold text-warn-400">~{live.offRouteMi} mi</div>
@@ -804,13 +804,13 @@ async function LoadMapSection({
                     short ? 'border-warn-500/30 bg-warn-500/[0.07]' : 'border-white/10 bg-white/[0.04]'
                   }`}
                 >
-                  <div className="text-xs text-white/60 font-medium">
+                  <div className="text-xs text-t2 font-medium">
                     {t(locale, 'loadDetail.fuelFor')}
                   </div>
                   <div
-                    className={`nums min-h-[1.375rem] text-[15px] font-semibold ${short ? 'text-warn-400' : 'text-white/85'}`}
+                    className={`nums min-h-[1.375rem] text-[15px] font-semibold ${short ? 'text-warn-400' : 'text-t1'}`}
                   >
-                    ~{rangeMi.toLocaleString('en-US')} <span className="text-[11px] font-medium text-white/45">mi</span>
+                    ~{rangeMi.toLocaleString('en-US')} <span className="text-[11px] font-medium text-t3">mi</span>
                   </div>
                   {short && (
                     <div className="mt-0.5 text-[11px] text-warn-400/85">{t(locale, 'loadDetail.fuelShort')}</div>
@@ -823,21 +823,21 @@ async function LoadMapSection({
       {/* Дизель по пути: цена в каждом штате маршрута и где заливать полный бак. */}
       {fuel && fuel.stops.length >= 2 && (
         <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-          <div className="flex flex-wrap items-baseline gap-x-2 text-xs text-white/60 font-medium">
+          <div className="flex flex-wrap items-baseline gap-x-2 text-xs text-t2 font-medium">
             {t(locale, 'fuel.heading')}
             <span className="normal-case tracking-normal">· EIA {fuel.asOf}</span>
           </div>
           <div className="nums mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px]">
             {fuel.stops.map((st, i) => (
               <span key={`${st.state}-${i}`} className="flex items-center gap-1.5">
-                {i > 0 && <span className="text-white/30">→</span>}
+                {i > 0 && <span className="text-t3">→</span>}
                 <span
                   className={`rounded-md px-1.5 py-0.5 font-semibold ${
                     st.state === fuel.cheapest.state
                       ? 'bg-good-500/15 text-good-400'
                       : st.state === fuel.priciest.state
                         ? 'bg-bad-500/15 text-bad-400'
-                        : 'bg-white/6 text-white/80'
+                        : 'bg-white/6 text-t1'
                   }`}
                   title={st.region ?? st.state}
                 >
@@ -847,7 +847,7 @@ async function LoadMapSection({
             ))}
           </div>
           {fuel.tankSavings >= 20 && (
-            <div className="mt-1 text-[12px] text-white/65">
+            <div className="mt-1 text-[12px] text-t2">
               {t(locale, 'fuel.advice')
                 .replace('{state}', fuel.cheapest.state)
                 .replace('{save}', usd.format(Math.round(fuel.tankSavings)))}
@@ -869,7 +869,7 @@ async function LoadMapSection({
               <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
                 <div className="h-full rounded-full bg-haul-500" style={{ width: `${pct}%` }} />
               </div>
-              <div className="nums mt-1 text-[11px] text-white/50">
+              <div className="nums mt-1 text-[11px] text-t3">
                 {t(locale, 'loadDetail.progressLine')
                   .replace('{p}', String(pct))
                   .replace('{left}', String(Math.round(routeMiles)))

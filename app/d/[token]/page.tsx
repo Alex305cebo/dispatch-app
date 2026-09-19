@@ -92,15 +92,15 @@ export default async function Page({ params }: { params: Promise<{ token: string
 
   return (
     <main className="mx-auto max-w-lg px-4 pb-16 pt-6">
-      <p className="text-xs text-white/60 font-medium">{company.name || 'TMS'}</p>
+      <p className="text-xs text-t2 font-medium">{company.name || 'TMS'}</p>
       <h1 className="mt-1 text-[22px] font-bold">
         {truck.driverName || t(locale, 'driver.noName')} · {truck.number ?? truck.id}
       </h1>
       {target && (
         <section className="panel mt-3 px-4 py-3">
           <div className="flex items-baseline justify-between gap-3 text-[13px]">
-            <span className="text-white/70">{t(locale, 'driver.weekTarget')}</span>
-            <span className={`nums font-semibold ${target.done >= target.goal ? 'text-good-400' : 'text-white/90'}`}>{target.text}</span>
+            <span className="text-t2">{t(locale, 'driver.weekTarget')}</span>
+            <span className={`nums font-semibold ${target.done >= target.goal ? 'text-good-400' : 'text-t1'}`}>{target.text}</span>
           </div>
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/8">
             <div
@@ -125,7 +125,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
         <>
           <section className="panel mt-4 p-5">
             <p className="text-[15px] font-medium">{t(locale, 'driver.noLoad')}</p>
-            <p className="mt-1 text-[13px] text-white/60">{t(locale, 'driver.noLoadHint')}</p>
+            <p className="mt-1 text-[13px] text-t2">{t(locale, 'driver.noLoadHint')}</p>
             {company.phone && (
               <a
                 href={`tel:${company.phone}`}
@@ -148,13 +148,13 @@ export default async function Page({ params }: { params: Promise<{ token: string
       )}
       {next && (
         <section className="panel mt-4 p-4">
-          <p className="text-[13px] font-semibold text-white/75">
+          <p className="text-[13px] font-semibold text-t2">
             {t(locale, 'driver.nextLoad')}
           </p>
           <p className="mt-1 text-[15px] font-semibold">
             {next.origin ?? '—'} → {next.destination ?? '—'}
           </p>
-          <p className="nums mt-0.5 text-[13px] text-white/70">
+          <p className="nums mt-0.5 text-[13px] text-t2">
             {next.pickupTime || usDate(next.pickupDate)}
             {next.pickupAddress ? ` · ${next.pickupAddress}` : ''}
           </p>

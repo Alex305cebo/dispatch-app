@@ -13,7 +13,7 @@ import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 
 const input =
-  'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[14px] text-white outline-none transition-all placeholder:text-white/45 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
+  'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[14px] text-white outline-none transition-all placeholder:text-t3 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
 
 /** On the load page: generate the packet; где деньги — метка со ссылкой в «Финансы». */
 export function InvoiceBox({
@@ -52,7 +52,7 @@ export function InvoiceBox({
     return (
       <div className="rounded-xl border border-warn-400/30 bg-warn-400/[0.07] p-3.5">
         <p className="text-[13px] font-medium text-warn-200">{t(locale, 'finances.gate.title')}</p>
-        <p className="mt-1 text-[12.5px] leading-relaxed text-white/70">
+        <p className="mt-1 text-[12.5px] leading-relaxed text-t2">
           {t(locale, 'finances.gate.body1')}
           <b>{t(locale, 'finances.gate.companyName')}</b>
           {t(locale, 'finances.gate.and')}
@@ -82,13 +82,13 @@ export function InvoiceBox({
       {invoiceDocId && (
         <DocLink
           docId={invoiceDocId}
-          className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/85 hover:bg-white/5"
+          className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-t1 hover:bg-white/5"
         >
           {t(locale, 'finances.invoiceBox.open')}
         </DocLink>
       )}
       {pay && <PayChipView pay={pay} className="rounded-lg px-3 py-1.5 text-[12px] font-semibold" />}
-      <button onClick={gen} disabled={pending} className="text-[12px] text-white/45 hover:text-white/75">
+      <button onClick={gen} disabled={pending} className="text-[12px] text-t3 hover:text-t2">
         {t(locale, 'finances.invoiceBox.rebuild')}
       </button>
       {/* Счёт выписался раньше времени (промежуточный POD приняли за конечный) —
@@ -104,7 +104,7 @@ export function InvoiceBox({
               else notify('ok', t(locale, 'finances.invoiceBox.removed'))
             })
           }}
-          className="text-[12px] text-white/45 transition-colors hover:text-bad-400"
+          className="text-[12px] text-t3 transition-colors hover:text-bad-400"
         >
           {t(locale, 'finances.invoiceBox.remove')}
         </button>
@@ -121,7 +121,7 @@ const PAY_TONE = {
   good: 'bg-good-500/15 text-good-400 ring-good-400/30',
   warn: 'bg-warn-400/15 text-warn-400 ring-warn-400/40',
   bad: 'bg-bad-500/15 text-bad-400 ring-bad-500/40',
-  plain: 'bg-white/[0.06] text-white/70 ring-white/15',
+  plain: 'bg-white/[0.06] text-t2 ring-white/15',
 } as const
 
 export function PayChipView({ pay, className }: { pay: PayChip; className: string }) {
@@ -159,18 +159,18 @@ export function CompanyForm({ initial }: { initial: Company }) {
         ] as const
       ).map(([k, key]) => (
         <label key={k}>
-          <span className="mb-1 block text-xs text-white/65 font-medium">
+          <span className="mb-1 block text-xs text-t2 font-medium">
             {t(locale, key)}
           </span>
           <input value={c[k]} onChange={f(k)} className={input} />
         </label>
       ))}
       <label className="sm:col-span-2">
-        <span className="mb-1 block text-xs text-white/65 font-medium">
+        <span className="mb-1 block text-xs text-t2 font-medium">
           {t(locale, 'finances.form.remitTo')}
         </span>
         <textarea value={c.remitTo} onChange={f('remitTo')} rows={2} className={input} />
-        <span className="mt-1 block text-[11.5px] leading-relaxed text-white/50">
+        <span className="mt-1 block text-[11.5px] leading-relaxed text-t3">
           {t(locale, 'finances.form.remitToHint')}
         </span>
       </label>

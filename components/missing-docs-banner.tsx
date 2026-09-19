@@ -46,7 +46,7 @@ export function MissingDocsBanner({
         <p className="text-base leading-6 font-semibold text-warn-400">
           {t(locale, 'loadDetail.docsMissingTitle').replace('{missing}', missing)}
         </p>
-        <p className="mt-0.5 text-[13px] text-white/75">
+        <p className="mt-0.5 text-[13px] text-t2">
           {t(locale, blocksPaid ? 'loadDetail.docsMissingBlocksPaid' : 'loadDetail.docsMissingHint')}
         </p>
       </div>

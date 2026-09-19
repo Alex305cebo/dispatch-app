@@ -59,7 +59,7 @@ export function DeadheadFlag({
   const btn =
     'inline-flex min-h-8 items-center rounded-lg px-3 text-[12px] font-semibold transition-colors disabled:opacity-50 max-md:min-h-10'
   return (
-    <div className={`rounded-xl border border-bad-500/35 bg-bad-500/[0.07] px-3 py-2 text-[12.5px] leading-snug text-white/85 ${className}`}>
+    <div className={`rounded-xl border border-bad-500/35 bg-bad-500/[0.07] px-3 py-2 text-[12.5px] leading-snug text-t1 ${className}`}>
       <p className="flex items-start gap-1.5">
         <Flag size={14} strokeWidth={2.4} className="mt-0.5 shrink-0 text-bad-400" />
         <span>{text}</span>
@@ -68,7 +68,7 @@ export function DeadheadFlag({
         <div className="mt-2 flex flex-wrap items-center gap-2 pl-5">
           {editing ? (
             <>
-              <label className="flex items-center gap-1.5 text-[12px] text-white/70">
+              <label className="flex items-center gap-1.5 text-[12px] text-t2">
                 {t(locale, 'dhFlag.label')}
                 <input
                   inputMode="numeric"
@@ -82,7 +82,7 @@ export function DeadheadFlag({
               <button type="button" disabled={busy || value === ''} onClick={() => save(Number(value))} className={`${btn} bg-haul-500 text-white hover:bg-haul-400`}>
                 {t(locale, 'dhFlag.save')}
               </button>
-              <button type="button" onClick={() => setEditing(false)} className={`${btn} border border-white/15 text-white/75 hover:text-white`}>
+              <button type="button" onClick={() => setEditing(false)} className={`${btn} border border-white/15 text-t2 hover:text-white`}>
                 {t(locale, 'dhFlag.cancel')}
               </button>
             </>
@@ -91,7 +91,7 @@ export function DeadheadFlag({
               <button type="button" disabled={busy} onClick={() => setEditing(true)} className={`${btn} bg-haul-500 text-white hover:bg-haul-400`}>
                 {t(locale, 'dhFlag.fix')}
               </button>
-              <button type="button" disabled={busy} onClick={() => save(miles)} className={`${btn} border border-white/15 text-white/80 hover:border-white/35 hover:text-white`}>
+              <button type="button" disabled={busy} onClick={() => save(miles)} className={`${btn} border border-white/15 text-t1 hover:border-white/35 hover:text-white`}>
                 {t(locale, 'dhFlag.ok')}
               </button>
             </>

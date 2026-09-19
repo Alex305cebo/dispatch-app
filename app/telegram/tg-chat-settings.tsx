@@ -74,14 +74,14 @@ export function TgChatSettings({
 
   return (
     <details className="panel p-4" open={shown.length === 0}>
-      <summary className="cursor-pointer text-[13px] font-semibold text-white/85">
+      <summary className="cursor-pointer text-[13px] font-semibold text-t1">
         {t(locale, 'telegram.settings.summary')}
-        <span className="ml-2 text-[12px] font-normal text-white/50">
+        <span className="ml-2 text-[12px] font-normal text-t3">
           {t(locale, 'telegram.settings.marked').replace('{a}', String(shownSet.size)).replace('{b}', String(dialogs.length))}
         </span>
       </summary>
 
-      <p className="mt-2 text-[12px] text-white/55">
+      <p className="mt-2 text-[12px] text-t3">
         {t(locale, 'telegram.settings.explain')}
       </p>
 
@@ -91,14 +91,14 @@ export function TgChatSettings({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={t(locale, 'telegram.settings.search')}
-          className="mt-3 w-full rounded-lg border border-white/10 bg-ink-950/60 px-3 py-2 text-[13px] text-white outline-none placeholder:text-white/40 focus:border-haul-500"
+          className="mt-3 w-full rounded-lg border border-white/10 bg-ink-950/60 px-3 py-2 text-[13px] text-white outline-none placeholder:text-t3 focus:border-haul-500"
         />
       )}
 
       {dialogs.length === 0 ? (
-        <p className="mt-3 text-[13px] text-white/55">{t(locale, 'telegram.settings.noneVisible')}</p>
+        <p className="mt-3 text-[13px] text-t3">{t(locale, 'telegram.settings.noneVisible')}</p>
       ) : list.length === 0 ? (
-        <p className="mt-3 text-[13px] text-white/55">{t(locale, 'telegram.settings.noMatch')}</p>
+        <p className="mt-3 text-[13px] text-t3">{t(locale, 'telegram.settings.noMatch')}</p>
       ) : (
         <div className="mt-3 flex flex-col gap-1.5">
           {list.map((d) => (
@@ -114,10 +114,10 @@ export function TgChatSettings({
               />
               <span className="min-w-0 flex-1 truncate text-[13px]">
                 {d.name}
-                {d.phone && <span className="nums ml-1.5 text-[11px] text-white/40">+{d.phone.replace(/^\+/, '')}</span>}
+                {d.phone && <span className="nums ml-1.5 text-[11px] text-t3">+{d.phone.replace(/^\+/, '')}</span>}
               </span>
               {!d.isUser && (
-                <span className="shrink-0 rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] text-white/55">
+                <span className="shrink-0 rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] text-t3">
                   {t(locale, 'telegram.settings.group')}
                 </span>
               )}

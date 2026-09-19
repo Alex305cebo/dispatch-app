@@ -29,7 +29,7 @@ export function StalePartialBanner({ items, locale }: { items: StalePartial[]; l
     <div className="mb-3 flex flex-col gap-2">
       {items.map((p) => (
         <div key={p.id} className="rounded-xl border border-warn-400/35 bg-warn-400/[0.07] px-3.5 py-2.5">
-          <p className="flex items-start gap-1.5 text-[13px] leading-snug text-white/85">
+          <p className="flex items-start gap-1.5 text-[13px] leading-snug text-t1">
             <AlertTriangle size={14} strokeWidth={2.4} className="mt-0.5 shrink-0 text-warn-400" />
             <span>
               {t(locale, 'stalePartial.text').replace('{load}', p.label).replace('{date}', usDate(p.deliveryDate))}
@@ -52,7 +52,7 @@ export function StalePartialBanner({ items, locale }: { items: StalePartial[]; l
             <button
               type="button"
               disabled={busy}
-              className={`${btn} border border-white/15 text-white/80 hover:border-white/35 hover:text-white`}
+              className={`${btn} border border-white/15 text-t1 hover:border-white/35 hover:text-white`}
               onClick={() =>
                 start(async () => {
                   const res = await setLoadPartial(p.id, false)

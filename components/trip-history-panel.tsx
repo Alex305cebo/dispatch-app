@@ -70,7 +70,7 @@ export function TripHistoryPanel({
 
   return (
     <details className="panel mt-4 p-4" open={initialLegs.length > 0}>
-      <summary className="flex flex-wrap items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+      <summary className="flex flex-wrap items-center gap-1.5 text-base leading-6 font-semibold text-t1">
         {t(locale, 'trucks.detail.tripHistory')} · {t(locale, current.key)}
         <Info text={t(locale, 'trucks.detail.tripHistoryInfo')} />
         <SmallRefreshButton />
@@ -88,7 +88,7 @@ export function TripHistoryPanel({
               }}
               disabled={pending}
               className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors disabled:opacity-50 ${
-                w.hours === hours ? 'bg-haul-500/15 text-haul-400' : 'text-white/45 hover:text-white/75'
+                w.hours === hours ? 'bg-haul-500/15 text-haul-400' : 'text-t3 hover:text-t2'
               }`}
             >
               {t(locale, w.key)}

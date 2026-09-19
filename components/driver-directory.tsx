@@ -79,13 +79,13 @@ export function DriverDirectory({
         <ChevronRight
           size={14}
           strokeWidth={2.5}
-          className={`shrink-0 text-white/40 transition-transform ${openSection ? 'rotate-90' : ''}`}
+          className={`shrink-0 text-t3 transition-transform ${openSection ? 'rotate-90' : ''}`}
         />
-        <h2 className="text-base leading-6 font-semibold text-white/90">
+        <h2 className="text-base leading-6 font-semibold text-t1">
           {t(locale, 'drivers.title')}
         </h2>
-        <span className="nums text-[11px] text-white/35">{drivers.length}</span>
-        <span className="ml-auto truncate text-[11px] text-white/40">
+        <span className="nums text-[11px] text-t3">{drivers.length}</span>
+        <span className="ml-auto truncate text-[11px] text-t3">
           {t(locale, 'drivers.subtitle')}
         </span>
       </button>
@@ -96,7 +96,7 @@ export function DriverDirectory({
               хранить, а в блок он обязан попасть — брокер перезванивает человеку,
               а не на общий номер компании. */}
           <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-white/6 px-3 py-2 text-[12px]">
-            <span className="text-white/50">{t(locale, 'drivers.myPhone')}</span>
+            <span className="text-t3">{t(locale, 'drivers.myPhone')}</span>
             {editPhone ? (
               <>
                 <input
@@ -125,7 +125,7 @@ export function DriverDirectory({
               </>
             ) : (
               <>
-                <span className="nums text-white/85">{phone || t(locale, 'drivers.noPhone')}</span>
+                <span className="nums text-t1">{phone || t(locale, 'drivers.noPhone')}</span>
                 <button
                   type="button"
                   onClick={() => setEditPhone(true)}
@@ -152,17 +152,17 @@ export function DriverDirectory({
                     <ChevronRight
                       size={13}
                       strokeWidth={2.5}
-                      className={`shrink-0 text-white/35 transition-transform ${isOpen ? 'rotate-90' : ''}`}
+                      className={`shrink-0 text-t3 transition-transform ${isOpen ? 'rotate-90' : ''}`}
                     />
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
                       {d.driverName || t(locale, 'drivers.noName')}
                     </span>
                     {d.dispatcherName && (
-                      <span className="hidden shrink-0 text-[11px] text-white/40 sm:inline">
+                      <span className="hidden shrink-0 text-[11px] text-t3 sm:inline">
                         {d.dispatcherName}
                       </span>
                     )}
-                    <span className="nums shrink-0 text-[12px] text-white/45">
+                    <span className="nums shrink-0 text-[12px] text-t3">
                       {d.truckNumber ? `TRK-${d.truckNumber}` : '—'}
                       {d.trailerNumber ? ` · TRL-${d.trailerNumber}` : ''}
                     </span>
@@ -170,7 +170,7 @@ export function DriverDirectory({
 
                   {isOpen && (
                     <div className="border-t border-white/6 p-3">
-                      <pre className="nums overflow-x-auto whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-white/85">
+                      <pre className="nums overflow-x-auto whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-t1">
                         {block}
                       </pre>
                       <button

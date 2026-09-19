@@ -1,7 +1,7 @@
 import { after } from 'next/server'
 import { ensureDocTitles } from '@/lib/doc-title'
 import type { Metadata, Viewport } from 'next'
-import { Inter, JetBrains_Mono } from 'next/font/google'
+import { Geist, Geist_Mono } from 'next/font/google'
 import { Nav } from '@/components/nav'
 import { getCompany } from '@/lib/invoice'
 import { getCurrentUser } from '@/lib/session'
@@ -27,21 +27,22 @@ import './globals.css'
 const THEME_INIT = `try{var t=localStorage.getItem('theme');document.documentElement.dataset.theme=(t==='dark'?'dark':'light')}catch(e){document.documentElement.dataset.theme='light'}`
 
 // Self-hosted by next/font at build time: no request to Google at runtime, no layout
-// shift while a webfont loads, and nothing for an ad blocker to break. Until now the
-// app had no font at all and fell back to the OS UI face (Segoe UI on Windows), which
-// is the single biggest reason a dense 11-14px interface read as flat and dated.
-const inter = Inter({
+// shift while a webfont loads, and nothing for an ad blocker to break.
+// Geist (19.09.2026, вместо Inter): у него шире плечи и спокойнее буквы на 11-13px,
+// то есть ровно на наших размерах, и есть кириллица — без неё русский интерфейс
+// свалился бы на системный шрифт. Цифры — Geist Mono, одной семьёй с текстом.
+const sans = Geist({
   subsets: ['latin', 'cyrillic'], // dispatcher names and the RU locale are Cyrillic
-  variable: '--font-inter',
+  variable: '--font-geist',
   display: 'swap',
 })
 
 // Numbers only — rates, miles, truck numbers, invoice ids. A monospaced face makes
 // figures line up column-to-column and, unlike the tabular-nums trick the `nums`
 // utility already applies, keeps digit shapes distinct at 11px.
-const mono = JetBrains_Mono({
+const mono = Geist_Mono({
   subsets: ['latin', 'cyrillic'],
-  variable: '--font-jetbrains',
+  variable: '--font-geist-mono',
   display: 'swap',
 })
 
@@ -63,7 +64,7 @@ async function onProductSite() {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#eef1f6',
+  themeColor: '#eef0fa',
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
@@ -109,7 +110,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     // suppressHydrationWarning: the inline script sets data-theme before hydration,
     // so the server HTML (no attr) and client (attr) legitimately differ on <html>.
-    <html lang={locale} suppressHydrationWarning className={`${inter.variable} ${mono.variable}`}>
+    <html lang={locale} suppressHydrationWarning className={`${sans.variable} ${mono.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
       </head>

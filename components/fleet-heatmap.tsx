@@ -122,12 +122,12 @@ export function FleetHeatmap({ rows, today, days = 14 }: { rows: HeatRow[]; toda
   return (
     <div className="panel relative p-3">
       <div className="mb-2.5 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-1.5 text-[13px] font-semibold text-white/75">
+        <h2 className="flex items-center gap-1.5 text-[13px] font-semibold text-t2">
           {t(locale, 'trucks.heatmap.title').replace('{n}', String(winDays))}
           <Info text={t(locale, 'trucks.heatmap.info')} />
         </h2>
         <div className="flex items-center gap-3">
-          <span className="hidden items-center gap-2.5 text-[11.5px] text-white/60 sm:flex">
+          <span className="hidden items-center gap-2.5 text-[11.5px] text-t2 sm:flex">
             <span className="flex items-center gap-1">
               <span className="size-2 rounded-full bg-good-400" />
               {t(locale, 'trucks.heatmap.pickup')}
@@ -148,17 +148,17 @@ export function FleetHeatmap({ rows, today, days = 14 }: { rows: HeatRow[]; toda
               type="button"
               onClick={() => setOffset((o) => o + 1)}
               aria-label={t(locale, 'trucks.heatmap.earlier')}
-              className="grid size-6 place-items-center rounded-md text-white/55 transition-colors hover:bg-white/8 hover:text-white/85"
+              className="grid size-6 place-items-center rounded-md text-t3 transition-colors hover:bg-white/8 hover:text-t1"
             >
               <ChevronLeft size={15} />
             </button>
-            <span className="nums w-[92px] text-center text-2xs tabular-nums text-white/50">{rangeLabel}</span>
+            <span className="nums w-[92px] text-center text-2xs tabular-nums text-t3">{rangeLabel}</span>
             <button
               type="button"
               onClick={() => setOffset((o) => Math.max(0, o - 1))}
               disabled={offset === 0}
               aria-label={t(locale, 'trucks.heatmap.later')}
-              className="grid size-6 place-items-center rounded-md text-white/55 transition-colors hover:bg-white/8 hover:text-white/85 disabled:pointer-events-none disabled:opacity-25"
+              className="grid size-6 place-items-center rounded-md text-t3 transition-colors hover:bg-white/8 hover:text-t1 disabled:pointer-events-none disabled:opacity-25"
             >
               <ChevronRight size={15} />
             </button>
@@ -168,7 +168,7 @@ export function FleetHeatmap({ rows, today, days = 14 }: { rows: HeatRow[]; toda
 
       {/* Plain-words caption for the two right-hand numbers — the Info tooltip repeats it,
           but this stays visible so "42% / $5,140" never reads as a mystery. */}
-      <p className="mb-2.5 max-w-2xl text-[11.5px] leading-relaxed text-white/55">
+      <p className="mb-2.5 max-w-2xl text-[11.5px] leading-relaxed text-t3">
         {t(locale, 'trucks.heatmap.axisNote')}
       </p>
 
@@ -197,8 +197,8 @@ export function FleetHeatmap({ rows, today, days = 14 }: { rows: HeatRow[]; toda
                 href={`/trucks/${r.id}`}
                 className="w-20 shrink-0 truncate leading-tight hover:underline sm:w-28"
               >
-                <span className="block truncate text-[12px] font-medium text-white/90">{r.label}</span>
-                {r.sub && <span className="block truncate text-[10.5px] text-white/60">{r.sub}</span>}
+                <span className="block truncate text-[12px] font-medium text-t1">{r.label}</span>
+                {r.sub && <span className="block truncate text-[10.5px] text-t2">{r.sub}</span>}
               </Link>
               <div className="flex min-w-0 flex-1 gap-1">
                 {cols.map((c, i) => {
@@ -261,7 +261,7 @@ export function FleetHeatmap({ rows, today, days = 14 }: { rows: HeatRow[]; toda
                   следует ни одного действия: он не говорит ни где трак, ни когда он
                   освободится, — а именно это нужно, чтобы искать ему груз. На их месте
                   два факта: место и срок. Скрыты на телефоне, как и полоса до них. */}
-              <span className="ml-2 hidden w-32 shrink-0 truncate text-[12px] text-white/75 sm:block lg:w-44">
+              <span className="ml-2 hidden w-32 shrink-0 truncate text-[12px] text-t2 sm:block lg:w-44">
                 {r.place ?? '—'}
               </span>
               <span
@@ -269,13 +269,13 @@ export function FleetHeatmap({ rows, today, days = 14 }: { rows: HeatRow[]; toda
                   r.when?.tone === 'busy'
                     ? 'text-good-400'
                     : r.when?.tone === 'off'
-                      ? 'text-white/35'
+                      ? 'text-t3'
                       : 'text-warn-400'
                 }`}
               >
                 {r.when?.text ?? ''}
               </span>
-              <span className="nums w-14 shrink-0 text-right text-[11px] text-white/70 sm:w-16 sm:text-[12px]">
+              <span className="nums w-14 shrink-0 text-right text-[11px] text-t2 sm:w-16 sm:text-[12px]">
                 {earned > 0 ? usd.format(earned) : '—'}
               </span>
             </div>
@@ -286,7 +286,7 @@ export function FleetHeatmap({ rows, today, days = 14 }: { rows: HeatRow[]; toda
         {/* Геометрия оси обязана повторять геометрию строк символ в символ, иначе
             числа разъезжаются с клетками, над которыми они стоят. */}
         <div className="mt-1 flex items-center gap-1.5">
-          <span className="w-20 shrink-0 truncate text-[11px] font-medium capitalize text-white/55 sm:w-28">
+          <span className="w-20 shrink-0 truncate text-[11px] font-medium capitalize text-t3 sm:w-28">
             {monthLabel}
           </span>
           <div className="flex min-w-0 flex-1 gap-1">
@@ -294,7 +294,7 @@ export function FleetHeatmap({ rows, today, days = 14 }: { rows: HeatRow[]; toda
               <span
                 key={i}
                 className={`nums min-w-0 max-w-7 flex-1 text-center text-[10px] font-semibold leading-none ${
-                  weekend[i] ? 'text-haul-300' : 'font-normal text-white/50'
+                  weekend[i] ? 'text-haul-300' : 'font-normal text-t3'
                 }`}
               >
                 {c.getDate()}
@@ -336,11 +336,11 @@ export function FleetHeatmap({ rows, today, days = 14 }: { rows: HeatRow[]; toda
                   className="pointer-events-auto min-w-[180px] max-w-[240px] rounded-lg border border-white/12 bg-ink-900 p-2.5 shadow-2xl"
                 >
             <div className="mb-1 flex items-baseline justify-between gap-2">
-              <span className="text-[13px] font-semibold text-white/75">{hover.label}</span>
-              <span className="nums text-2xs text-white/45">{prettyDay(hover.day)}</span>
+              <span className="text-[13px] font-semibold text-t2">{hover.label}</span>
+              <span className="nums text-2xs text-t3">{prettyDay(hover.day)}</span>
             </div>
             {hover.loads.length === 0 ? (
-              <p className="text-xs text-white/45">{t(locale, 'trucks.heatmap.idleDay')}</p>
+              <p className="text-xs text-t3">{t(locale, 'trucks.heatmap.idleDay')}</p>
             ) : (
               <div className="flex flex-col gap-1.5">
                 {hover.loads.map((l) => {
@@ -360,17 +360,17 @@ export function FleetHeatmap({ rows, today, days = 14 }: { rows: HeatRow[]; toda
                       className="group flex items-center justify-between gap-2 rounded-md bg-white/[0.04] px-2 py-1.5 transition-colors hover:bg-haul-500/15"
                     >
                       <span className="min-w-0">
-                        <span className="block truncate text-xs font-medium text-white/85 group-hover:text-white">
+                        <span className="block truncate text-xs font-medium text-t1 group-hover:text-white">
                           {l.route}
                         </span>
-                        <span className="flex items-center gap-1 text-2xs text-white/45">
+                        <span className="flex items-center gap-1 text-2xs text-t3">
                           <TripMark role={role} />
                           <span className="font-semibold text-good-300">{t(locale, roleKey)}</span>
-                          <span className="text-white/25">·</span>
+                          <span className="text-t3">·</span>
                           {statusLabel(locale, l.status)}
                         </span>
                       </span>
-                      <span className="nums shrink-0 text-xs font-semibold text-white/80">{usd.format(l.rate)}</span>
+                      <span className="nums shrink-0 text-xs font-semibold text-t1">{usd.format(l.rate)}</span>
                     </Link>
                   )
                 })}

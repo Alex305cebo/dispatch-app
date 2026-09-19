@@ -45,7 +45,7 @@ export function DriverLinkButton({
           {
             name: 'SMS',
             href: `sms:${driverPhone}?&body=${encodeURIComponent(text)}`,
-            cls: 'bg-white/10 text-white/85 hover:bg-white/20',
+            cls: 'bg-white/10 text-t1 hover:bg-white/20',
           },
         ]
       : []),
@@ -71,7 +71,7 @@ export function DriverLinkButton({
       }
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <Smartphone size={16} strokeWidth={2.2} className={fresh ? 'text-haul-300' : 'text-white/55'} />
+        <Smartphone size={16} strokeWidth={2.2} className={fresh ? 'text-haul-300' : 'text-t3'} />
         <span className="text-[13.5px] font-semibold">{t(locale, 'driver.link.title')}</span>
         <span className={`nums ml-auto text-[11.5px] ${fresh ? 'text-haul-300' : 'text-good-400/80'}`}>
           {seenAt
@@ -79,9 +79,9 @@ export function DriverLinkButton({
             : t(locale, 'driver.link.neverSeen')}
         </span>
       </div>
-      <p className="mt-1 text-[12.5px] leading-relaxed text-white/60">{t(locale, 'driver.link.info')}</p>
+      <p className="mt-1 text-[12.5px] leading-relaxed text-t2">{t(locale, 'driver.link.info')}</p>
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-        <span className="mr-0.5 text-xs text-white/60 font-medium">
+        <span className="mr-0.5 text-xs text-t2 font-medium">
           {t(locale, 'driver.link.share')}
         </span>
         {share.map((s) => (
@@ -98,7 +98,7 @@ export function DriverLinkButton({
         <button
           type="button"
           onClick={copy}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-[12.5px] font-medium text-white/80 hover:border-white/35"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-[12.5px] font-medium text-t1 hover:border-white/35"
         >
           {copied ? (
             <Check size={13} strokeWidth={2.5} className="text-good-400" />
@@ -111,7 +111,7 @@ export function DriverLinkButton({
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="rounded-lg px-2.5 py-1.5 text-[12.5px] text-white/50 underline-offset-2 hover:text-white/80 hover:underline"
+          className="rounded-lg px-2.5 py-1.5 text-[12.5px] text-t3 underline-offset-2 hover:text-t1 hover:underline"
         >
           {t(locale, 'driver.link.preview')}
         </a>

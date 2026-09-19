@@ -137,8 +137,8 @@ export function TollsClient({
   }
 
   const input =
-    'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2 text-[13px] text-white outline-none placeholder:text-white/30 focus:border-haul-500'
-  const label = 'mb-1.5 block text-xs font-medium text-white/65'
+    'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2 text-[13px] text-white outline-none placeholder:text-t3 focus:border-haul-500'
+  const label = 'mb-1.5 block text-xs font-medium text-t2'
 
   return (
     <div className="flex flex-col gap-4">
@@ -193,7 +193,7 @@ export function TollsClient({
             <button
               type="button"
               onClick={() => setVia(via.filter((_, j) => j !== i))}
-              className="mb-1 shrink-0 rounded-lg px-2.5 py-1.5 text-[12px] text-white/45 transition-colors hover:bg-bad-500/10 hover:text-bad-400"
+              className="mb-1 shrink-0 rounded-lg px-2.5 py-1.5 text-[12px] text-t3 transition-colors hover:bg-bad-500/10 hover:text-bad-400"
             >
               {t(locale, 'tolls.removeVia')}
             </button>
@@ -292,7 +292,7 @@ export function TollsClient({
               disabled={reading || pending}
               onClick={() => fileRef.current?.click()}
               title={t(locale, 'tolls.fromDocHint')}
-              className="rounded-xl border border-dashed border-white/20 px-3 py-2 text-[12.5px] text-white/70 transition-colors hover:border-haul-400/60 hover:text-haul-300 disabled:opacity-50"
+              className="rounded-xl border border-dashed border-white/20 px-3 py-2 text-[12.5px] text-t2 transition-colors hover:border-haul-400/60 hover:text-haul-300 disabled:opacity-50"
             >
               {reading ? t(locale, 'tolls.reading') : t(locale, 'tolls.fromDoc')}
             </button>
@@ -302,7 +302,7 @@ export function TollsClient({
           </div>
         </div>
 
-        <p className="nums mt-2 text-[11px] text-white/40">
+        <p className="nums mt-2 text-[11px] text-t3">
           {t(locale, 'tolls.usage')
             .replace('{used}', String(res?.used ?? used))
             .replace('{cap}', String(res?.cap ?? cap))}
@@ -321,7 +321,7 @@ export function TollsClient({
                   .replace('{before}', usd.format(res.load.netBefore))
                   .replace('{after}', usd.format(res.load.netBefore - option.total))}
               </p>
-              <p className="mt-1 text-[12.5px] text-white/55">{res.load.lane}</p>
+              <p className="mt-1 text-[12.5px] text-t3">{res.load.lane}</p>
               {/* Записываем по кнопке, а не сами: маршрут считают и «на посмотреть»,
                   под ещё не взятый груз, и молча менять чужую чистую нельзя. */}
               <Button
@@ -367,7 +367,7 @@ export function TollsClient({
           </section>
 
           <section className="panel p-4">
-            <h2 className="mb-2.5 text-base leading-6 font-semibold text-white/90">
+            <h2 className="mb-2.5 text-base leading-6 font-semibold text-t1">
               {t(locale, 'tolls.options')}
             </h2>
             <div className="grid gap-2 sm:grid-cols-3">
@@ -388,12 +388,12 @@ export function TollsClient({
           </section>
 
           <section className="panel p-4">
-            <h2 className="mb-2 flex items-baseline justify-between gap-3 text-base leading-6 font-semibold text-white/90">
+            <h2 className="mb-2 flex items-baseline justify-between gap-3 text-base leading-6 font-semibold text-t1">
               {t(locale, 'tolls.plazas')}
               <span className="nums font-bold text-warn-400">{usd.format(option.total)}</span>
             </h2>
             {option.fares.length === 0 ? (
-              <p className="text-[13px] text-white/55">{t(locale, 'tolls.noTolls')}</p>
+              <p className="text-[13px] text-t3">{t(locale, 'tolls.noTolls')}</p>
             ) : (
               <ul className="flex flex-col">
                 {option.fares.map((f, i) => {
@@ -410,9 +410,9 @@ export function TollsClient({
                         className="flex w-full items-baseline justify-between gap-3 border-b border-white/[0.06] px-1 py-2 text-left text-[13px] transition-colors enabled:hover:bg-white/[0.03] disabled:cursor-default"
                       >
                         <span className="min-w-0">
-                          <span className="text-white/85">{f.name}</span>
+                          <span className="text-t1">{f.name}</span>
                           {f.system && f.system !== f.name && (
-                            <span className="ml-2 text-[11px] text-white/40">{f.system}</span>
+                            <span className="ml-2 text-[11px] text-t3">{f.system}</span>
                           )}
                         </span>
                         <span className="nums shrink-0 font-medium">{usd2.format(f.amount)}</span>
@@ -468,7 +468,7 @@ function OptionCard({
           <span
             key={b}
             className={`rounded-full px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide ${
-              b === 'cheapest' ? 'bg-good-500/20 text-good-400' : 'bg-white/8 text-white/55'
+              b === 'cheapest' ? 'bg-good-500/20 text-good-400' : 'bg-white/8 text-t3'
             }`}
           >
             {t(locale, BADGE_KEY[b])}
@@ -483,13 +483,13 @@ function OptionCard({
       <p className={`nums mt-1.5 text-xl font-bold ${o.total > 0 ? 'text-warn-400' : 'text-good-400'}`}>
         {usd.format(o.total)}
       </p>
-      <p className="text-xs text-white/55 font-medium">
+      <p className="text-xs text-t3 font-medium">
         {t(locale, 'tolls.tollsTotal')}
       </p>
-      <p className="nums mt-1.5 text-[12px] text-white/60">
+      <p className="nums mt-1.5 text-[12px] text-t2">
         {o.miles.toLocaleString('en-US')} mi · {driveTime(o.minutes, locale)}
       </p>
-      <p className="nums mt-1 text-[11px] text-white/40" title={t(locale, 'tolls.fullCostHint')}>
+      <p className="nums mt-1 text-[11px] text-t3" title={t(locale, 'tolls.fullCostHint')}>
         {extra <= 0
           ? `${t(locale, 'tolls.isBest')} · ${usd.format(o.totalCost)}`
           : t(locale, 'tolls.vsBest').replace('{v}', usd.format(extra))}

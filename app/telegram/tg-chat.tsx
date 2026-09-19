@@ -110,19 +110,19 @@ export function TgSendBox({ chatId }: { chatId: string }) {
             }
           }}
           placeholder={t(locale, 'telegram.chat.placeholder')}
-          className="w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[14px] text-white outline-none transition-all placeholder:text-white/45 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15"
+          className="w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[14px] text-white outline-none transition-all placeholder:text-t3 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15"
         />
         <button
           disabled={pending || !text.trim()}
           onClick={trySend}
           title={unlocked ? t(locale, 'telegram.chat.unlockedTitle').replace('{n}', String(remaining)) : t(locale, 'telegram.chat.lockedTitle')}
           className={`relative shrink-0 rounded-xl px-4 text-[15px] font-semibold transition-colors disabled:opacity-40 ${
-            unlocked ? 'bg-haul-500 hover:bg-haul-400' : 'bg-white/10 text-white/70 hover:bg-white/16'
+            unlocked ? 'bg-haul-500 hover:bg-haul-400' : 'bg-white/10 text-t2 hover:bg-white/16'
           }`}
         >
           {pending ? '…' : '➤'}
           {unlocked && (
-            <span className="nums absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-ink-950 px-1 text-[9px] text-white/50">
+            <span className="nums absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-ink-950 px-1 text-[9px] text-t3">
               {remaining}{t(locale, 'telegram.chat.secondsSuffix')}
             </span>
           )}
@@ -135,11 +135,11 @@ export function TgSendBox({ chatId }: { chatId: string }) {
             type="button"
             aria-label={t(locale, 'telegram.chat.close')}
             onClick={() => setConfirming(false)}
-            className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full text-[15px] text-white/50 transition-colors hover:bg-white/10 hover:text-white/90"
+            className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full text-[15px] text-t3 transition-colors hover:bg-white/10 hover:text-t1"
           >
             ✕
           </button>
-          <p className="text-[12.5px] text-white/70">
+          <p className="text-[12.5px] text-t2">
             {t(locale, 'telegram.chat.confirmText')}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
