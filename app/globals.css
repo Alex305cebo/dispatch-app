@@ -120,27 +120,44 @@
    точке, а не в сотне компонентов. Размытие стоит дорого, поэтому оно только у
    верхнего слоя (panel); вложенная поверхность (panel-inset) — просто плёнка. */
 :root {
-  --glass-bg: rgba(255, 255, 255, 0.07);
-  --glass-edge: rgba(255, 255, 255, 0.14);
-  --glass-edge-hi: rgba(255, 255, 255, 0.3);
-  --glass-inset: rgba(255, 255, 255, 0.05);
-  --glass-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --glass-bg: rgba(255, 255, 255, 0.075);
+  /* Блик поверх заливки: сверху карточка светлее, снизу темнее — так стекло читается
+     как стекло даже на почти чёрной странице. Без него panel был ровной серой
+     заливкой, и вся тёмная тема выглядела плоской. */
+  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0) 42%);
+  --glass-edge: rgba(255, 255, 255, 0.16);
+  --glass-edge-hi: rgba(255, 255, 255, 0.34);
+  --glass-inset: rgba(255, 255, 255, 0.055);
+  --glass-inset-edge: rgba(255, 255, 255, 0.09);
+  --glass-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.14);
   --glass-blur: blur(20px) saturate(1.5);
-  /* Свечение под страницей: три пятна, из которых и получается «жидкое» стекло. */
-  --aura-1: rgba(124, 108, 255, 0.55);
-  --aura-2: rgba(20, 184, 166, 0.45);
-  --aura-3: rgba(217, 70, 239, 0.4);
+  /* Свечение под страницей. Один цветовой род — фиолетово-синий: три РАЗНЫХ цвета
+     (фиолет + бирюза + фуксия) давали по углам грязные зелёные и розовые пятна, и
+     тёмная тема выглядела как заляпанный экран. */
+  --aura-1: rgba(124, 108, 255, 0.34);
+  --aura-2: rgba(56, 108, 255, 0.26);
+  --aura-3: rgba(168, 85, 247, 0.22);
+  /* Плотная подложка под полосами навигации: сквозь них не должен просвечивать текст. */
+  --glass-dock: rgba(16, 18, 27, 0.92);
+  --glass-dock-edge: rgba(255, 255, 255, 0.1);
 }
 :root[data-theme='light'] {
-  --glass-bg: rgba(255, 255, 255, 0.72);
-  --glass-edge: rgba(255, 255, 255, 0.9);
-  --glass-edge-hi: #ffffff;
-  --glass-inset: rgba(255, 255, 255, 0.6);
-  --glass-shadow: 0 10px 26px -16px rgba(30, 35, 70, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --glass-bg: rgba(255, 255, 255, 0.82);
+  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 45%);
+  /* Кромка на светлой теме ЧЁРНАЯ прозрачная, а не белая. Белая на белой странице
+     границы не рисует вовсе: карточки сливались в одно молочное пятно, и именно это
+     читалось как «поломано». */
+  --glass-edge: rgba(17, 21, 40, 0.1);
+  --glass-edge-hi: rgba(79, 70, 229, 0.45);
+  --glass-inset: rgba(255, 255, 255, 0.85);
+  --glass-inset-edge: rgba(17, 21, 40, 0.07);
+  --glass-shadow: 0 10px 26px -18px rgba(30, 35, 70, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   --glass-blur: blur(18px) saturate(1.4);
-  --aura-1: rgba(165, 180, 252, 0.55);
-  --aura-2: rgba(153, 246, 228, 0.5);
-  --aura-3: rgba(244, 214, 255, 0.45);
+  --aura-1: rgba(165, 180, 252, 0.5);
+  --aura-2: rgba(191, 219, 254, 0.45);
+  --aura-3: rgba(221, 214, 254, 0.45);
+  --glass-dock: rgba(255, 255, 255, 0.93);
+  --glass-dock-edge: rgba(17, 21, 40, 0.1);
 }
 
 /* Тем, кто просил у системы меньше прозрачности (iOS Reduce Transparency,
@@ -148,11 +165,15 @@
 @media (prefers-reduced-transparency: reduce) {
   :root {
     --glass-bg: var(--color-ink-900);
+    --glass-sheen: none;
     --glass-blur: none;
+    --glass-dock: var(--color-ink-900);
   }
   :root[data-theme='light'] {
     --glass-bg: #ffffff;
+    --glass-sheen: none;
     --glass-blur: none;
+    --glass-dock: #ffffff;
   }
 }
 
@@ -259,11 +280,14 @@
     inset: -25%;
     z-index: -1;
     pointer-events: none;
+    /* Пятна стоят ВНУТРИ экрана (25/78/50 % по ширине), а не по краям: при inset -25%
+       прежние координаты 10/92/74 % уезжали за видимую область, и от всего свечения
+       на экране оставались грязные мазки по углам. */
     background:
-      radial-gradient(42% 34% at 10% 2%, var(--aura-1) 0%, transparent 70%),
-      radial-gradient(40% 32% at 92% 12%, var(--aura-2) 0%, transparent 72%),
-      radial-gradient(44% 38% at 74% 96%, var(--aura-3) 0%, transparent 74%);
-    filter: blur(40px);
+      radial-gradient(38% 30% at 25% 8%, var(--aura-1) 0%, transparent 72%),
+      radial-gradient(34% 28% at 78% 30%, var(--aura-2) 0%, transparent 74%),
+      radial-gradient(40% 34% at 50% 88%, var(--aura-3) 0%, transparent 76%);
+    filter: blur(60px);
     animation: aura-drift 30s ease-in-out infinite alternate;
   }
   @keyframes aura-drift {
@@ -297,6 +321,10 @@
    только вложенностью (panel → panel-inset), а не эффектами. */
 @utility panel {
   @apply rounded-2xl;
+  /* Заливка задаётся ДВУМЯ слоями: background-image — блик сверху, background-color —
+     сама плёнка. Разложено на два свойства, а не на сокращение `background`, чтобы
+     компоненты могли перекрасить фон своим bg-* и не потерять блик. */
+  background-image: var(--glass-sheen);
   background-color: var(--glass-bg);
   border: 1px solid var(--glass-edge);
   box-shadow: var(--glass-shadow);
@@ -308,9 +336,11 @@
 @utility panel-inset {
   @apply rounded-xl;
   /* Без своего размытия: она уже лежит на размытом panel, второй проход блюра
-     стоит столько же, а увидеть его нельзя. */
+     стоит столько же, а увидеть его нельзя. Кромка своя и слабее, чем у panel:
+     общая --glass-edge на вложенной плитке рисовала вторую рамку в полную силу,
+     и четыре плитки внутри карточки выглядели как четыре отдельные карточки. */
   background-color: var(--glass-inset);
-  border: 1px solid var(--glass-edge);
+  border: 1px solid var(--glass-inset-edge);
 }
 
 /* Cards that go somewhere: only the border answers hover/press. */
@@ -743,10 +773,13 @@
 .nav-dock {
   padding: 0.25rem;
   border-radius: 1.1rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(18, 20, 28, 0.72);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
-  backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid var(--glass-dock-edge);
+  /* Плотнее, чем карточка (0.92 против 0.075/0.82). Полоса вкладок висит НАД текстом
+     страницы, и на прежних 0.72 строки прокручивались под ней насквозь читаемыми —
+     из-за этого низ телефона выглядел как две наложенные страницы. */
+  background: var(--glass-dock);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
   box-shadow:
     0 10px 30px -8px rgba(0, 0, 0, 0.55),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.07);
@@ -761,8 +794,6 @@
    there the base rule and the reset have the same specificity. */
 @media (max-width: 767.98px) {
   :root[data-theme='light'] .nav-dock {
-    border-color: rgba(15, 23, 42, 0.08);
-    background: rgba(255, 255, 255, 0.82);
     box-shadow:
       0 10px 30px -8px rgba(15, 23, 42, 0.2),
       inset 0 1px 0 0 rgba(255, 255, 255, 0.9);

@@ -61,7 +61,7 @@ export function Stat({
       {hero && (
         <span
           aria-hidden
-          className={`absolute inset-x-0 top-0 h-[3px] rounded-t-2xl ${a.bar}`}
+          className={`absolute inset-x-0 top-0 h-[3px] rounded-t-xl ${a.bar}`}
         />
       )}
       {/* Label first, figure second. The old tile led with the number and buried the
