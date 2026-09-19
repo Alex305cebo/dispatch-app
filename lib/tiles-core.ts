@@ -31,6 +31,8 @@ export type TilePage =
   | 'tolls'
   | 'telegram'
   | 'invoices'
+  | 'load-detail'
+  | 'truck-detail'
 
 /** Список разделов и адрес каждого. Один источник, чтобы серверное действие могло
  *  проверить пришедшее с клиента имя раздела и обновить нужную страницу. */
@@ -44,6 +46,8 @@ export const TILE_PATHS: Record<TilePage, string> = {
   tolls: '/tolls',
   telegram: '/telegram',
   invoices: '/invoices',
+  'load-detail': '/loads/[id]',
+  'truck-detail': '/trucks/[id]',
 }
 
 export const TILE_PAGES = Object.keys(TILE_PATHS) as TilePage[]
@@ -161,4 +165,46 @@ export const LOADS_TILES: TilePlacement[] = [
 export const TELEGRAM_TILES: TilePlacement[] = [
   { id: 'chat', size: 'l' },
   { id: 'settings', size: 'l' },
+]
+
+/** Карточка груза. Здесь раскладка по умолчанию длиннее, чем то, что видно на
+ *  экране: половина блоков условная — предупреждение о медленном брокере есть не у
+ *  каждого брокера, «Обратный груз» — не у каждого направления, хронология водителя
+ *  пропадает у отменённого груза. Перечислены ВСЕ возможные плитки, и это важно:
+ *  applyLayout сверяется именно с этим списком, поэтому плитка, которой сегодня на
+ *  экране нет, не теряет своё место в сохранённом порядке, а сетка её просто
+ *  пропускает. Иначе у каждого следующего груза чужие блоки уезжали бы в конец.
+ *
+ *  Раскладка ОДНА на все грузы: карточка у них одинаковая, и переставлять её заново
+ *  на каждом грузе — не то, о чём просили. */
+export const LOAD_DETAIL_TILES: TilePlacement[] = [
+  { id: 'hero', size: 'l' },
+  { id: 'notes', size: 'l' },
+  { id: 'map', size: 'l' },
+  { id: 'driver', size: 'l' },
+  { id: 'queued', size: 'l' },
+  { id: 'miles-estimated', size: 'l' },
+  { id: 'slow-payer', size: 'l' },
+  { id: 'driver-info', size: 'l' },
+  { id: 'facility-hints', size: 'l' },
+  { id: 'details', size: 'l' },
+  { id: 'backhaul', size: 'l' },
+  { id: 'docs', size: 'l' },
+  { id: 'invoice', size: 'l' },
+  { id: 'truck-costs', size: 'l' },
+]
+
+/** Карточка трака — по той же причине со всеми условными плитками в списке. */
+export const TRUCK_DETAIL_TILES: TilePlacement[] = [
+  { id: 'hero', size: 'l' },
+  { id: 'todos', size: 'l' },
+  { id: 'map', size: 'l' },
+  { id: 'ratecon', size: 'l' },
+  { id: 'driver', size: 'l' },
+  { id: 'trips', size: 'l' },
+  { id: 'loads', size: 'w' },
+  { id: 'docs', size: 'w' },
+  { id: 'driver-card', size: 'l' },
+  { id: 'care', size: 'l' },
+  { id: 'economics', size: 'l' },
 ]

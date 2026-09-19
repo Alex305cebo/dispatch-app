@@ -113,11 +113,16 @@ export function WidgetGrid({
     [page],
   )
 
+  /** Двигаем по КЛЮЧУ соседа, а не по номеру места на экране. На разделе это одно и
+   *  то же, а на карточке груза и трака — нет: там половина плиток условная (нет
+   *  заметок брокера — нет и плитки), и сохранённый порядок длиннее видимого. Номер
+   *  с экрана указал бы в раскладке на чужую плитку, и та уехала бы не туда. */
   const move = useCallback(
-    (id: string, to: number) => {
+    (id: string, overId: string) => {
       setPlaces((prev) => {
         const from = prev.findIndex((p) => p.id === id)
-        if (from < 0 || to < 0 || to >= prev.length || to === from) return prev
+        const to = prev.findIndex((p) => p.id === overId)
+        if (from < 0 || to < 0 || to === from) return prev
         const next = prev.slice()
         next.splice(to, 0, next.splice(from, 1)[0])
         return next
@@ -139,16 +144,27 @@ export function WidgetGrid({
 
   /** Над какой плиткой сейчас палец или курсор. Считаем попаданием точки в чужой
    * прямоугольник, а не «наибольшим перекрытием»: плитки разной ширины, и широкую
-   * перекрытие засчитывает раньше, чем её реально накрыли. */
+   * перекрытие засчитывает раньше, чем её реально накрыли.
+   *
+   * Точка приходит от motion в координатах ДОКУМЕНТА, а getBoundingClientRect даёт
+   * координаты окна, поэтому прокрутку надо прибавить. Без этого перестановка
+   * работала только у самого верха страницы: стоило прокрутить — и точка улетала
+   * ниже всех прямоугольников, плитка возвращалась на место, и это читалось как
+   * «перетаскивание не работает». */
   const over = (x: number, y: number, self: string): string | null => {
+    const sx = window.scrollX
+    const sy = window.scrollY
     for (const [id, el] of cells.current) {
       if (id === self) continue
       const r = el.getBoundingClientRect()
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return id
+      if (x >= r.left + sx && x <= r.right + sx && y >= r.top + sy && y <= r.bottom + sy) return id
     }
     return null
   }
 
+  // Раскладка может быть длиннее того, что страница отдала: на карточке груза и
+  // трака часть плиток условная. Чего сейчас нет — просто не рисуем, место в
+  // сохранённом порядке за ним остаётся.
   const byId = new Map(widgets.map((w) => [w.id, w]))
   const list = places.filter((p) => byId.has(p.id))
   const same =
@@ -228,14 +244,16 @@ export function WidgetGrid({
             onStart={() => setDragging(p.id)}
             onOver={(x, y) => {
               const id = over(x, y, p.id)
-              if (id) move(p.id, list.findIndex((q) => q.id === id))
+              if (id) move(p.id, id)
             }}
             onEnd={() => {
               setDragging(null)
               persist(places)
             }}
             onStep={(d) => {
-              move(p.id, i + d)
+              const neighbour = list[i + d]
+              if (!neighbour) return
+              move(p.id, neighbour.id)
               // Клавиатурой плитка идёт по одному шагу, и сохранять надо каждый: у
               // стрелки нет «конца жеста», после которого можно записать разом.
               setPlaces((next) => {
@@ -418,13 +436,16 @@ function Cell({
       // В режиме перестановки содержимое плитки не нажимается: иначе попытка её
       // подвинуть открывала бы ссылку под пальцем. Пунктирная рамка говорит, что
       // сетка сейчас «открыта».
-      // :not([data-tile-controls]) в обоих правилах обязателен. Без него h-full
-      // растягивал сам переключатель размера на всю плитку (он тоже прямой потомок
-      // div), а pointer-events-none отнимал у него нажатия — кнопки были видны и не
+      // :not([data-tile-controls]) в каждом правиле обязателен. Без него h-full
+      // растягивал сам переключатель размера на всю плитку (он тоже прямой потомок),
+      // а pointer-events-none отнимал у него нажатия — кнопки были видны и не
       // работали.
-      className={`group relative [&>a]:h-full [&>div:not([data-tile-controls])]:h-full ${
+      // mt-0 — потому что блоки пришли со страниц, где отступ сверху был у них
+      // собственный («mt-4» в самом компоненте). В сетке расстояние задаёт gap, и
+      // чужой отступ сажал плитку ниже соседки в той же строке.
+      className={`group relative [&>*:not([data-tile-controls])]:mt-0 [&>*:not([data-tile-controls])]:h-full ${
         edit
-          ? 'cursor-grab rounded-2xl ring-1 ring-dashed ring-haul-400/40 [&>a]:pointer-events-none [&>div:not([data-tile-controls])]:pointer-events-none'
+          ? 'cursor-grab rounded-2xl ring-1 ring-dashed ring-haul-400/40 [&>*:not([data-tile-controls])]:pointer-events-none'
           : ''
       } ${SPAN[size]} ${dragging ? 'cursor-grabbing' : ''}`}
     >

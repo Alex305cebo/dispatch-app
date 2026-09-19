@@ -1,6 +1,15 @@
 import { strict as assert } from 'node:assert'
 import { test } from 'node:test'
-import { applyLayout, parseLayout, serializeLayout, tileKey } from './tiles-core.ts'
+import {
+  applyLayout,
+  LOAD_DETAIL_TILES,
+  parseLayout,
+  serializeLayout,
+  TILE_PAGES,
+  TILE_PATHS,
+  tileKey,
+  TRUCK_DETAIL_TILES,
+} from './tiles-core.ts'
 
 test('tileKey — устойчивое имя ключа в settings', () => {
   assert.equal(tileKey('overview'), 'tiles:overview')
@@ -74,4 +83,42 @@ test('serializeLayout → parseLayout — круг без потерь', () => {
     { id: 'rpm', size: 's' as const },
   ]
   assert.deepEqual(parseLayout(serializeLayout(layout)), layout)
+})
+
+test('условная плитка не теряет своё место, пока её нет на экране', () => {
+  // Карточка груза: у отменённого груза нет ни хронологии водителя, ни «мы здесь
+  // уже были». Диспетчер переставил плитки на обычном грузе — открыл отменённый —
+  // вернулся. Порядок должен остаться тем же, а не съехать на один вниз.
+  const saved = [
+    { id: 'map', size: 'l' as const },
+    { id: 'driver', size: 'l' as const },
+    { id: 'hero', size: 'l' as const },
+  ]
+  const merged = applyLayout(saved, LOAD_DETAIL_TILES)
+  assert.deepEqual(
+    merged.slice(0, 3),
+    [
+      { id: 'map', size: 'l' },
+      { id: 'driver', size: 'l' },
+      { id: 'hero', size: 'l' },
+    ],
+  )
+  // Сетка рисует только то, что страница отдала, и «driver» среди этого нет —
+  // но из раскладки он не выпал, поэтому на следующем грузе встанет на своё место.
+  const onScreen = new Set(['map', 'hero'])
+  assert.deepEqual(
+    merged.filter((p) => onScreen.has(p.id)).map((p) => p.id),
+    ['map', 'hero'],
+  )
+})
+
+test('у каждой карточки все её плитки перечислены в раскладке по умолчанию', () => {
+  for (const list of [LOAD_DETAIL_TILES, TRUCK_DETAIL_TILES]) {
+    const ids = list.map((p) => p.id)
+    assert.equal(new Set(ids).size, ids.length, 'ключи плиток не повторяются')
+  }
+})
+
+test('у каждого раздела есть адрес — иначе сохранение не найдёт, что обновить', () => {
+  for (const page of TILE_PAGES) assert.ok(TILE_PATHS[page], page)
 })

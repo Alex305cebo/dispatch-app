@@ -114,7 +114,12 @@ export async function saveTileLayout(
     clean.push({ id: p.id, size: p.size })
   }
   await writeLayout(page, clean)
-  revalidatePath(TILE_PATHS[page])
+  // У карточек груза и трака адрес с подстановкой — такой путь Next обновляет только
+  // как 'page', иначе строка `/loads/[id]` считается обычным адресом и не совпадает
+  // ни с чем.
+  const path = TILE_PATHS[page]
+  if (path.includes('[')) revalidatePath(path, 'page')
+  else revalidatePath(path)
 }
 
 export async function fillBrokerMc(): Promise<{
