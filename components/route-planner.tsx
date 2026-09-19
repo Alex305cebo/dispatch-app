@@ -109,17 +109,24 @@ const ltLine = (lane: Lane, locale: Locale) =>
     ? `${t(locale, HEAT_LEVEL_KEY[heatLevel(lane.median, lane.ratio)])} · ${lane.ratio.toFixed(1)} ${t(locale, 'plan.perTruck')}`
     : t(locale, 'plan.bench.none').replace('{to}', lane.state)
 
-export function useRoutePlan(trucks: PlanTruck[], snaps: PlanSnaps, selectedId: number | null) {
+/** С чего начать планировщик, когда его открыли по ссылке: трак и штат из адреса
+ * («Показать на карте» с «Рынка» ведёт на карту «Траков» с ними). */
+export type PlanInitial = { truckId?: number | null; state?: string | null }
+
+export function useRoutePlan(trucks: PlanTruck[], snaps: PlanSnaps, selectedId: number | null, initial?: PlanInitial) {
   const locale = useLocale()
-  // С кого начать: свободный трак в строю с известным штатом — ему груз ищут прямо сейчас.
+  // С кого начать: трак из адреса, иначе свободный трак в строю с известным штатом —
+  // ему груз ищут прямо сейчас.
   const first = trucks.find((x) => !x.unavailable && !x.busy && x.state) ?? trucks.find((x) => x.state) ?? trucks[0] ?? null
+  const start = (initial?.truckId != null ? trucks.find((x) => x.id === initial.truckId) : null) ?? first
   const seriesFor = (x: PlanTruck | null): DatEquipment | null =>
     x && snaps[x.series] ? x.series : ((Object.keys(snaps)[0] as DatEquipment | undefined) ?? null)
-  const [truckId, setTruckId] = useState<number | null>(first?.id ?? null)
-  const [origin, setOrigin] = useState<string | null>(first?.state ?? null)
-  const [series, setSeries] = useState<DatEquipment | null>(seriesFor(first))
+  const [truckId, setTruckId] = useState<number | null>(start?.id ?? null)
+  const [origin, setOrigin] = useState<string | null>(initial?.state || start?.state || null)
+  const [series, setSeries] = useState<DatEquipment | null>(seriesFor(start))
   const [opts, setOpts] = useState<Opts>(DEFAULT_OPTS)
-  const [signal, setSignal] = useState(0)
+  // Пришли по ссылке с траком или штатом — карта сразу включает слой «Из штата».
+  const [signal, setSignal] = useState(initial?.truckId != null || initial?.state ? 1 : 0)
   const truck = trucks.find((x) => x.id === truckId) ?? first
 
   const pickTruck = (id: number) => {
@@ -133,7 +140,8 @@ export function useRoutePlan(trucks: PlanTruck[], snaps: PlanSnaps, selectedId: 
   // Трак, выбранный на карте или чипом, — он же в планировщике. Только на СМЕНУ выбора:
   // живое обновление страницы приносит новые пропсы, и выбор в самом планировщике не
   // должен от этого откатываться.
-  const lastSelected = useRef<number | null>(null)
+  // Начальный выбор (трак из адреса) уже учтён в состоянии — заново его не выбирать.
+  const lastSelected = useRef<number | null>(selectedId)
   useEffect(() => {
     if (selectedId === lastSelected.current) return
     lastSelected.current = selectedId

@@ -134,6 +134,9 @@ export const TRUCKS_TILES: TilePlacement[] = [
 export const BROKERS_TILES: TilePlacement[] = [
   { id: 'plan', size: 'l' },
   { id: 'directory', size: 'l' },
+  // Проверка по MC/DOT и «Крупнейшие брокеры» — вернулись 19.09.2026, рядом в один ряд.
+  { id: 'check', size: 'w' },
+  { id: 'top', size: 'w' },
 ]
 
 export const TOLLS_TILES: TilePlacement[] = [

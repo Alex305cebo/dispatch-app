@@ -16,8 +16,8 @@ import { currentLoadsByTruck, prevLoadFor, truckLabel, eldStatus } from '@/lib/m
 import { zoneFor } from '@/lib/tz'
 import { fixPlace } from '@/lib/place'
 import { type MapMarker, type MapRoute } from '@/components/fleet-map'
-import { datCached } from '@/lib/dat-market'
-import { FleetPanel, type FleetSnaps } from '@/components/fleet-panel'
+import { loadPlanData } from '@/lib/plan-data'
+import { FleetPanel } from '@/components/fleet-panel'
 import type { GridLabels } from '@/lib/grid-labels'
 import type { TilePlacement } from '@/lib/tiles-core'
 import { type TrackingRow } from '@/components/fleet-list'
@@ -26,7 +26,6 @@ import { liveTrail, trailLabels } from '@/lib/eld'
 import { trailSegments } from '@/lib/geo'
 import { activeAlert, type WeatherAlert } from '@/lib/weather'
 import { agoText, driveTime, etaAt, usDate } from '@/lib/fmt'
-import { todayEt } from '@/lib/payments'
 import { tripEta } from '@/lib/trip-eta'
 import { t as tr, type Locale } from '@/lib/i18n'
 import { companyScope } from '@/lib/session'
@@ -70,22 +69,18 @@ export async function FleetBoard({
   // All four are independent, so they go together. The truck list and the share token
   // used to be awaited one after the other before this even started — two round trips
   // of dead time on a page that already has plenty.
-  const [trucks, loads, rowsRaw, phoneRowsRaw, datSnaps] = await Promise.all([
+  const [trucks, loads, rowsRaw, phoneRowsRaw] = await Promise.all([
     listTrucks(companyId),
     listLoads(companyId),
     sql`SELECT * FROM fleet_status`,
     // Прицеп берём здесь же: запрос к truck_meta всё равно уже идёт, а номер
     // прицепа нужен подписи трака (truckLabel) — отдельного захода он не стоит.
     sql`SELECT truck_id, driver_phone, trailer_number FROM truck_meta`,
-    // Слой «Рынок DAT» на карте: суточный снимок из settings по всем трём сериям.
-    // Только кэш: страница DAT не ждёт.
-    Promise.all((['VAN', 'REEFER', 'FLATBED'] as const).map(async (eq) => [eq, await datCached(eq)] as const)),
   ])
-  // Дата снимка — строкой отсюда и днём по восточному времени: из миллисекунд её посчитали
-  // бы ещё и в браузере, в его поясе, а сервер Hostinger живёт в UTC.
-  const snaps: FleetSnaps = Object.fromEntries(
-    datSnaps.flatMap(([eq, snap]) => (snap ? [[eq, { ...snap, date: usDate(todayEt(new Date(snap.at))) }]] : [])),
-  )
+  // Слои «Рынок DAT» и «Из штата» на карте: снимки по трём сериям и траки со
+  // ставками по направлениям — те же данные, что у «Куда отправить трак» на «Рынке».
+  // Траки и грузы уже на руках, второй раз в базу за ними не ходим. Только кэш DAT.
+  const { trucks: planTrucks, snaps } = await loadPlanData(companyId, { trucks, loads })
   // One query for the whole fleet, instead of currentLoadForTruck() per truck.
   const currentByTruck = currentLoadsByTruck(loads)
   // Строка места приходит из ELD с чужим штатом (см. lib/place.ts) — правим сразу
@@ -340,6 +335,7 @@ export async function FleetBoard({
       markers={markers}
       routes={routes}
       snaps={snaps}
+      planTrucks={planTrucks}
       rows={trackingRows}
       totals={{
         deliveryMiles: totalDeliveryMiles,

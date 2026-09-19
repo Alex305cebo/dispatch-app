@@ -1,9 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Building2, Handshake, Search } from 'lucide-react'
+import { Building2, ChevronDown, Handshake, Search } from 'lucide-react'
 import { fillBrokerMc, runBrokerCheck } from '@/app/actions'
 import type { BrokerCheck } from '@/lib/fmcsa'
 import { BrokerChecklist } from '@/components/broker-checklist'
@@ -11,6 +10,7 @@ import { ShowMore } from '@/components/collapse'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale } from '@/lib/i18n'
 import { driveTime, usd } from '@/lib/fmt'
+import { BrokerDetails, FacilityDetails, type BrokerDetail, type FacilityDetail } from './row-details'
 
 export type DirView = 'all' | 'brokers' | 'facilities' | 'attention'
 
@@ -31,6 +31,8 @@ export type DirBroker = {
   linked: string | null
   search: string
   attention: boolean
+  /** Всё остальное о брокере — раскрывается в строке. */
+  detail: BrokerDetail
 }
 
 export type DirFacility = {
@@ -45,6 +47,8 @@ export type DirFacility = {
   linked: string | null
   search: string
   attention: boolean
+  /** Всё остальное о складе — раскрывается в строке. */
+  detail: FacilityDetail
 }
 
 /** Строка общего списка: брокер и склад лежат в нём вперемешку и выглядят одинаково. */
@@ -68,8 +72,7 @@ const byImportance = (a: Row, b: Row) =>
 /** «C.H. Robinson» ищется и как «ch robinson». */
 const norm = (s: string) => s.toLowerCase().replace(/[.,]/g, '').replace(/\s+/g, ' ').trim()
 
-const row =
-  'block min-h-11 rounded-lg border border-white/8 px-3 py-2 transition-colors hover:border-white/20 hover:bg-white/[0.03]'
+const row = 'rounded-lg border border-white/8 px-3 py-2 transition-colors hover:border-white/20 hover:bg-white/[0.03]'
 
 export function Directory({
   brokers,
@@ -255,9 +258,10 @@ export function Directory({
  * Общая оболочка строки: значок слева говорит, брокер это или склад, дальше имя,
  * под ним одна строка фактов, справа одно главное число. Обе половины раздела
  * выглядят одинаково — иначе смешанный список читался бы как два списка подряд.
+ * Нажатие раскрывает строку на месте — под ней всё, что было на старых страницах
+ * «Брокеры» и «Склады» (row-details.tsx); полная карточка по адресу — ссылкой внутри.
  */
 function DirRow({
-  href,
   icon,
   kindLabel,
   name,
@@ -265,8 +269,8 @@ function DirRow({
   linked,
   right,
   rightCls,
+  children,
 }: {
-  href: string
   icon: ReactNode
   kindLabel: string
   name: string
@@ -275,37 +279,50 @@ function DirRow({
   linked: string | null
   right: string | null
   rightCls: string
+  /** Раскрытое содержимое строки. */
+  children: ReactNode
 }) {
+  const [open, setOpen] = useState(false)
   return (
-    <Link href={href} className={row}>
-      <span className="flex items-center gap-3">
-        <span
-          aria-label={kindLabel}
-          title={kindLabel}
-          className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-t3"
-        >
-          {icon}
+    <div className={`${row} ${open ? 'border-white/20 bg-white/[0.03]' : ''}`}>
+      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="block min-h-11 w-full text-left">
+        <span className="flex items-center gap-3">
+          <span
+            aria-label={kindLabel}
+            title={kindLabel}
+            className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-t3"
+          >
+            {icon}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-base font-medium text-t1">{name}</span>
+            <span className="nums block truncate text-sm text-t3">{meta}</span>
+          </span>
+          {right && <span className={`nums max-w-[38%] shrink-0 text-right text-sm ${rightCls}`}>{right}</span>}
+          <ChevronDown size={15} aria-hidden className={`shrink-0 text-t3 transition-transform ${open ? 'rotate-180' : ''}`} />
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-base font-medium text-t1">{name}</span>
-          <span className="nums block truncate text-sm text-t3">{meta}</span>
-        </span>
-        {right && <span className={`nums max-w-[38%] shrink-0 text-right text-sm ${rightCls}`}>{right}</span>}
-      </span>
-      {/* Связь со второй половиной раздела — своей строкой во всю ширину. В общей
-          строке её всегда обрезало первой именно на телефоне, а она здесь главное:
-          ради неё брокеры и склады и сведены в один список. */}
-      {linked && <span className="mt-0.5 block truncate pl-10 text-sm text-t3">{linked}</span>}
-    </Link>
+        {/* Связь со второй половиной раздела — своей строкой во всю ширину. В общей
+            строке её всегда обрезало первой именно на телефоне, а она здесь главное:
+            ради неё брокеры и склады и сведены в один список. */}
+        {linked && <span className="mt-0.5 block truncate pl-10 text-sm text-t3">{linked}</span>}
+      </button>
+      {open && children}
+    </div>
   )
 }
-
-/** Давно не возили / давно не были — после этого порога это стоит показать в строке. */
-const STALE_DAYS = 90
 
 /** «чаще всего — Walmart DC»: вторая сторона связи, брокер у склада и склад у брокера. */
 const linkedText = (linked: string | null, locale: Locale) =>
   linked ? t(locale, 'brokers.dir.mostOften').replace('{x}', linked) : null
+
+/** «сегодня» / «N дн. назад» — когда возили или были в последний раз. Владелец
+ * попросил вернуть дату в каждую строку (19.09.2026): порядок списка её не заменяет. */
+const sinceText = (days: number | null, kind: 'broker' | 'facility', locale: Locale) =>
+  days == null
+    ? null
+    : days === 0
+      ? t(locale, kind === 'broker' ? 'brokers.dir.lastToday' : 'brokers.dir.visitToday')
+      : t(locale, kind === 'broker' ? 'brokers.dir.lastDays' : 'brokers.dir.visitDays').replace('{n}', String(days))
 
 /** Строка брокера: сколько возили и когда, справа — одно главное про деньги. */
 function BrokerRow({ b, locale }: { b: DirBroker; locale: Locale }) {
@@ -320,16 +337,9 @@ function BrokerRow({ b, locale }: { b: DirBroker; locale: Locale }) {
           : b.loads === 0 && b.checked
             ? { text: t(locale, 'brokers.dir.checked').replace('{date}', b.checked), cls: 'text-t3' }
             : null
-  // Две вещи, не больше: сколько возили и с кем это связано. «Когда возили в
-  // последний раз» из строки убрано — свежесть и так видна порядком списка, а вот
-  // «давно не возили» само не всплывёт, поэтому оно остаётся.
-  const meta = [
-    b.loads > 0 ? t(locale, 'brokers.loadsCount').replace('{n}', String(b.loads)) : null,
-    b.sinceDays != null && b.sinceDays > STALE_DAYS ? t(locale, 'brokers.dir.lastDays').replace('{n}', String(b.sinceDays)) : null,
-  ].filter(Boolean)
+  const meta = [b.loads > 0 ? t(locale, 'brokers.loadsCount').replace('{n}', String(b.loads)) : null, sinceText(b.sinceDays, 'broker', locale)].filter(Boolean)
   return (
     <DirRow
-      href={`/brokers/${encodeURIComponent(b.key)}`}
       icon={<Handshake size={15} aria-hidden />}
       kindLabel={t(locale, 'brokers.dir.kindBroker')}
       name={b.name}
@@ -337,20 +347,17 @@ function BrokerRow({ b, locale }: { b: DirBroker; locale: Locale }) {
       linked={linkedText(b.linked, locale)}
       right={status?.text ?? null}
       rightCls={status?.cls ?? ''}
-    />
+    >
+      <BrokerDetails brokerKey={b.key} mc={b.mc} checked={b.checked} payDays={b.payDays} owed={b.owed} oldest={b.oldest} d={b.detail} />
+    </DirRow>
   )
 }
 
 /** Строка склада: где это и как часто бываем, справа — сколько там стоим. */
 function FacilityRow({ f, locale }: { f: DirFacility; locale: Locale }) {
-  const meta = [
-    f.place,
-    t(locale, 'facilities.visits').replace('{n}', String(f.visits)),
-    f.sinceDays != null && f.sinceDays > STALE_DAYS ? t(locale, 'brokers.dir.visitDays').replace('{n}', String(f.sinceDays)) : null,
-  ].filter(Boolean)
+  const meta = [f.place, t(locale, 'facilities.visits').replace('{n}', String(f.visits)), sinceText(f.sinceDays, 'facility', locale)].filter(Boolean)
   return (
     <DirRow
-      href={`/facilities/${encodeURIComponent(f.key)}`}
       icon={<Building2 size={15} aria-hidden />}
       kindLabel={t(locale, 'brokers.dir.kindFacility')}
       name={f.name}
@@ -359,6 +366,8 @@ function FacilityRow({ f, locale }: { f: DirFacility; locale: Locale }) {
       // Справа у склада — только то, во что он нам обходится: сколько там стоим.
       right={f.dwell != null ? t(locale, 'facilities.dwell').replace('{t}', driveTime(f.dwell, locale)) : null}
       rightCls={f.attention ? 'text-bad-400' : 'text-t2'}
-    />
+    >
+      <FacilityDetails facilityKey={f.key} visits={f.visits} dwell={f.dwell} d={f.detail} />
+    </DirRow>
   )
 }
