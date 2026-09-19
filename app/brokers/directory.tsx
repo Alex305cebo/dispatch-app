@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Search } from 'lucide-react'
+import { Building2, Handshake, Search } from 'lucide-react'
 import { fillBrokerMc, runBrokerCheck } from '@/app/actions'
 import type { BrokerCheck } from '@/lib/fmcsa'
 import { BrokerChecklist } from '@/components/broker-checklist'
@@ -27,6 +27,8 @@ export type DirBroker = {
   sinceDays: number | null
   inactive: boolean
   checked: string | null
+  /** Склад, куда чаще всего возим этого брокера — вторая половина связи. */
+  linked: string | null
   search: string
   attention: boolean
 }
@@ -37,15 +39,37 @@ export type DirFacility = {
   place: string | null
   visits: number
   dwell: number | null
+  /** Сколько дней назад были здесь; null — даты нет. */
+  sinceDays: number | null
+  /** Брокер, который чаще всего шлёт сюда грузы. */
+  linked: string | null
   search: string
   attention: boolean
 }
+
+/** Строка общего списка: брокер и склад лежат в нём вперемешку и выглядят одинаково. */
+type Row = { kind: 'broker'; b: DirBroker } | { kind: 'facility'; f: DirFacility }
+
+const rowKey = (r: Row) => (r.kind === 'broker' ? `b:${r.b.key}` : `f:${r.f.key}`)
+const rowAttention = (r: Row) => (r.kind === 'broker' ? r.b.attention : r.f.attention)
+const rowSince = (r: Row) => (r.kind === 'broker' ? r.b.sinceDays : r.f.sinceDays)
+const rowSize = (r: Row) => (r.kind === 'broker' ? r.b.loads : r.f.visits)
+
+/**
+ * Порядок общего списка. Сначала то, из-за чего трак теряет деньги или время, потом
+ * свежее: диспетчер приходит сюда с вопросом «с кем я сейчас имею дело», а не «покажи
+ * весь справочник». Размер (грузы, визиты) — только чтобы развести одинаковые даты.
+ */
+const byImportance = (a: Row, b: Row) =>
+  Number(rowAttention(b)) - Number(rowAttention(a)) ||
+  (rowSince(a) ?? 1e9) - (rowSince(b) ?? 1e9) ||
+  rowSize(b) - rowSize(a)
 
 /** «C.H. Robinson» ищется и как «ch robinson». */
 const norm = (s: string) => s.toLowerCase().replace(/[.,]/g, '').replace(/\s+/g, ' ').trim()
 
 const row =
-  'flex min-h-11 items-center justify-between gap-3 rounded-lg border border-white/8 px-3 py-2 transition-colors hover:border-white/20 hover:bg-white/[0.03]'
+  'block min-h-11 rounded-lg border border-white/8 px-3 py-2 transition-colors hover:border-white/20 hover:bg-white/[0.03]'
 
 export function Directory({
   brokers,
@@ -100,9 +124,15 @@ export function Directory({
   const hit = (text: string) =>
     !q || norm(text).includes(q) || (qDigits.length >= 3 && text.split('|').some((part) => part.replace(/\D/g, '').includes(qDigits)))
 
-  // Без поиска — только брокеры с грузами; проверенные в реестре без грузов находятся поиском.
-  const bList = brokers.filter((b) => (q ? hit(b.search) : b.loads > 0) && (view !== 'attention' || b.attention))
-  const fList = facilities.filter((f) => hit(f.search) && (view !== 'attention' || f.attention))
+  // Один список вместо двух колонок: брокер и склад — стороны одного дела, и искать
+  // их по отдельности приходилось только потому, что так было сделано. Без поиска
+  // брокеры без грузов не показываются: проверенные в реестре находятся поиском.
+  const list: Row[] = [
+    ...(view === 'facilities' ? [] : brokers.filter((b) => (q ? hit(b.search) : b.loads > 0)).map((b): Row => ({ kind: 'broker', b }))),
+    ...(view === 'brokers' ? [] : facilities.filter((f) => hit(f.search)).map((f): Row => ({ kind: 'facility', f }))),
+  ]
+    .filter((r) => view !== 'attention' || rowAttention(r))
+    .sort(byImportance)
   const counts = useMemo(
     () => ({
       brokers: brokers.filter((b) => b.loads > 0).length,
@@ -131,14 +161,14 @@ export function Directory({
     })
   }
 
+  // Чипы не переключают экраны, а сужают один и тот же список — поэтому у «Все» тоже
+  // стоит число: видно, что оно равно сумме, и что ничего не спрятано.
   const chips: [DirView, string][] = [
-    ['all', t(locale, 'brokers.dir.all')],
+    ['all', `${t(locale, 'brokers.dir.all')} ${counts.brokers + counts.facilities}`],
     ['brokers', `${t(locale, 'brokers.pageTitle')} ${counts.brokers}`],
     ['facilities', `${t(locale, 'facilities.title')} ${counts.facilities}`],
     ['attention', `${t(locale, 'brokers.dir.attention')} ${counts.attention}`],
   ]
-  const both = view === 'all' || view === 'attention'
-  const limit = both ? 8 : 40
 
   return (
     <>
@@ -201,57 +231,83 @@ export function Directory({
         </div>
       )}
 
-      <div className={`mt-4 grid gap-4 ${both ? 'md:grid-cols-2' : ''}`}>
-        {view !== 'facilities' && (
-          <section className="min-w-0">
-            <h2 className="nums mb-2 text-base leading-6 font-semibold text-t1">
-              {t(locale, 'brokers.pageTitle')} <span className="text-[13px] font-normal text-t3">{bList.length}</span>
-            </h2>
-            {bList.length === 0 ? (
-              <p className="text-[13px] text-t3">{q || view === 'attention' ? t(locale, 'brokers.noMatch') : t(locale, 'brokers.empty')}</p>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                <ShowMore
-                  key={`b-${view}-${q}`}
-                  limit={limit}
-                  label={t(locale, 'brokers.dir.more')}
-                  items={bList.map((b) => (
-                    <BrokerRow key={b.key} b={b} locale={locale} />
-                  ))}
-                />
-              </div>
+      {list.length === 0 ? (
+        <p className="mt-4 text-[13px] text-t3">
+          {q || view === 'attention' ? t(locale, 'brokers.noMatch') : t(locale, 'brokers.dir.empty')}
+        </p>
+      ) : (
+        <div className="mt-4 flex flex-col gap-1.5">
+          <ShowMore
+            key={`${view}-${q}`}
+            limit={12}
+            label={t(locale, 'brokers.dir.more')}
+            items={list.map((r) =>
+              r.kind === 'broker' ? <BrokerRow key={rowKey(r)} b={r.b} locale={locale} /> : <FacilityRow key={rowKey(r)} f={r.f} locale={locale} />,
             )}
-          </section>
-        )}
-        {view !== 'brokers' && (
-          <section className="min-w-0">
-            <h2 className="nums mb-2 text-base leading-6 font-semibold text-t1">
-              {t(locale, 'facilities.title')} <span className="text-[13px] font-normal text-t3">{fList.length}</span>
-            </h2>
-            {fList.length === 0 ? (
-              <p className="text-[13px] text-t3">
-                {q || view === 'attention' ? t(locale, 'brokers.noMatch') : t(locale, 'facilities.emptyText')}
-              </p>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                <ShowMore
-                  key={`f-${view}-${q}`}
-                  limit={limit}
-                  label={t(locale, 'brokers.dir.more')}
-                  items={fList.map((f) => (
-                    <FacilityRow key={f.key} f={f} locale={locale} />
-                  ))}
-                />
-              </div>
-            )}
-          </section>
-        )}
-      </div>
+          />
+        </div>
+      )}
     </>
   )
 }
 
-/** Строка брокера: имя и число грузов слева, справа одно главное про деньги. */
+/**
+ * Общая оболочка строки: значок слева говорит, брокер это или склад, дальше имя,
+ * под ним одна строка фактов, справа одно главное число. Обе половины раздела
+ * выглядят одинаково — иначе смешанный список читался бы как два списка подряд.
+ */
+function DirRow({
+  href,
+  icon,
+  kindLabel,
+  name,
+  meta,
+  linked,
+  right,
+  rightCls,
+}: {
+  href: string
+  icon: ReactNode
+  kindLabel: string
+  name: string
+  meta: ReactNode
+  /** Вторая сторона связи — своей строкой во всю ширину, её нельзя обрезать. */
+  linked: string | null
+  right: string | null
+  rightCls: string
+}) {
+  return (
+    <Link href={href} className={row}>
+      <span className="flex items-center gap-3">
+        <span
+          aria-label={kindLabel}
+          title={kindLabel}
+          className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-t3"
+        >
+          {icon}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13.5px] font-medium text-t1">{name}</span>
+          <span className="nums block truncate text-[12px] text-t3">{meta}</span>
+        </span>
+        {right && <span className={`nums max-w-[38%] shrink-0 text-right text-[12px] ${rightCls}`}>{right}</span>}
+      </span>
+      {/* Связь со второй половиной раздела — своей строкой во всю ширину. В общей
+          строке её всегда обрезало первой именно на телефоне, а она здесь главное:
+          ради неё брокеры и склады и сведены в один список. */}
+      {linked && <span className="mt-0.5 block truncate pl-10 text-[12px] text-t3">{linked}</span>}
+    </Link>
+  )
+}
+
+/** Давно не возили / давно не были — после этого порога это стоит показать в строке. */
+const STALE_DAYS = 90
+
+/** «чаще всего — Walmart DC»: вторая сторона связи, брокер у склада и склад у брокера. */
+const linkedText = (linked: string | null, locale: Locale) =>
+  linked ? t(locale, 'brokers.dir.mostOften').replace('{x}', linked) : null
+
+/** Строка брокера: сколько возили и когда, справа — одно главное про деньги. */
 function BrokerRow({ b, locale }: { b: DirBroker; locale: Locale }) {
   const status = b.inactive
     ? { text: t(locale, 'brokers.dir.inactive'), cls: 'text-bad-400' }
@@ -264,37 +320,45 @@ function BrokerRow({ b, locale }: { b: DirBroker; locale: Locale }) {
           : b.loads === 0 && b.checked
             ? { text: t(locale, 'brokers.dir.checked').replace('{date}', b.checked), cls: 'text-t3' }
             : null
+  // Две вещи, не больше: сколько возили и с кем это связано. «Когда возили в
+  // последний раз» из строки убрано — свежесть и так видна порядком списка, а вот
+  // «давно не возили» само не всплывёт, поэтому оно остаётся.
+  const meta = [
+    b.loads > 0 ? t(locale, 'brokers.loadsCount').replace('{n}', String(b.loads)) : null,
+    b.sinceDays != null && b.sinceDays > STALE_DAYS ? t(locale, 'brokers.dir.lastDays').replace('{n}', String(b.sinceDays)) : null,
+  ].filter(Boolean)
   return (
-    <Link href={`/brokers/${encodeURIComponent(b.key)}`} className={row}>
-      <span className="min-w-0 truncate">
-        <span className="text-[13.5px] font-medium text-t1">{b.name}</span>
-        {b.loads > 0 && <span className="nums text-[12px] text-t3"> · {t(locale, 'brokers.loadsCount').replace('{n}', String(b.loads))}</span>}
-        {b.sinceDays != null && (
-          <span className={`nums text-[12px] ${b.sinceDays > 90 ? 'text-warn-400/80' : 'text-t3'}`}>
-            {' · '}
-            {b.sinceDays === 0
-              ? t(locale, 'brokers.dir.lastToday')
-              : t(locale, 'brokers.dir.lastDays').replace('{n}', String(b.sinceDays))}
-          </span>
-        )}
-      </span>
-      {status && <span className={`nums shrink-0 text-right text-[12px] ${status.cls}`}>{status.text}</span>}
-    </Link>
+    <DirRow
+      href={`/brokers/${encodeURIComponent(b.key)}`}
+      icon={<Handshake size={15} aria-hidden />}
+      kindLabel={t(locale, 'brokers.dir.kindBroker')}
+      name={b.name}
+      meta={meta.join(' · ') || t(locale, 'brokers.dir.kindBroker')}
+      linked={linkedText(b.linked, locale)}
+      right={status?.text ?? null}
+      rightCls={status?.cls ?? ''}
+    />
   )
 }
 
-/** Строка склада: название и город слева, справа сколько раз были и сколько стоим. */
+/** Строка склада: где это и как часто бываем, справа — сколько там стоим. */
 function FacilityRow({ f, locale }: { f: DirFacility; locale: Locale }) {
+  const meta = [
+    f.place,
+    t(locale, 'facilities.visits').replace('{n}', String(f.visits)),
+    f.sinceDays != null && f.sinceDays > STALE_DAYS ? t(locale, 'brokers.dir.visitDays').replace('{n}', String(f.sinceDays)) : null,
+  ].filter(Boolean)
   return (
-    <Link href={`/facilities/${encodeURIComponent(f.key)}`} className={row}>
-      <span className="min-w-0 truncate">
-        <span className="text-[13.5px] font-medium text-t1">{f.name}</span>
-        {f.place && <span className="text-[12px] text-t3"> · {f.place}</span>}
-      </span>
-      <span className={`nums shrink-0 text-right text-[12px] ${f.attention ? 'text-bad-400' : 'text-t2'}`}>
-        {t(locale, 'facilities.visits').replace('{n}', String(f.visits))}
-        {f.dwell != null && ` · ${t(locale, 'facilities.dwell').replace('{t}', driveTime(f.dwell, locale))}`}
-      </span>
-    </Link>
+    <DirRow
+      href={`/facilities/${encodeURIComponent(f.key)}`}
+      icon={<Building2 size={15} aria-hidden />}
+      kindLabel={t(locale, 'brokers.dir.kindFacility')}
+      name={f.name}
+      meta={meta.join(' · ') || t(locale, 'brokers.dir.kindFacility')}
+      linked={linkedText(f.linked, locale)}
+      // Справа у склада — только то, во что он нам обходится: сколько там стоим.
+      right={f.dwell != null ? t(locale, 'facilities.dwell').replace('{t}', driveTime(f.dwell, locale)) : null}
+      rightCls={f.attention ? 'text-bad-400' : 'text-t2'}
+    />
   )
 }

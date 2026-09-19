@@ -209,6 +209,15 @@ export const brokersDict = {
   'brokers.dir.checkMc': { ru: 'Проверить как MC', en: 'Check as MC', es: 'Comprobar como MC', uk: 'Перевірити як MC', ro: 'Verifică ca MC', kk: 'MC ретінде тексеру' },
   'brokers.dir.checkDot': { ru: 'это DOT', en: 'it is a DOT', es: 'es un DOT', uk: 'це DOT', ro: 'e un DOT', kk: 'бұл DOT' },
   'brokers.dir.more': { ru: 'Ещё · {n}', en: 'More · {n}', es: 'Más · {n}', uk: 'Ще · {n}', ro: 'Mai multe · {n}', kk: 'Тағы · {n}' },
+  // Общий список: брокер и склад лежат вперемешку и выглядят одинаково, поэтому у
+  // строки есть значок с подписью, а связь между ними — «чаще всего …».
+  'brokers.dir.kindBroker': { ru: 'Брокер', en: 'Broker', es: 'Bróker', uk: 'Брокер', ro: 'Broker', kk: 'Брокер' },
+  'brokers.dir.kindFacility': { ru: 'Склад', en: 'Facility', es: 'Almacén', uk: 'Склад', ro: 'Depozit', kk: 'Қойма' },
+  // У склада «были», у брокера «возили» — одно и то же событие с разных сторон.
+  'brokers.dir.visitDays': { ru: 'были {n} дн. назад', en: '{n} d since last visit', es: 'hace {n} d la última visita', uk: 'були {n} дн. тому', ro: 'acum {n} z ultima vizită', kk: 'соңғы рет {n} күн бұрын' },
+  'brokers.dir.visitToday': { ru: 'были сегодня', en: 'here today', es: 'aquí hoy', uk: 'були сьогодні', ro: 'aici azi', kk: 'бүгін болдық' },
+  'brokers.dir.mostOften': { ru: 'чаще всего {x}', en: 'most often {x}', es: 'casi siempre {x}', uk: 'найчастіше {x}', ro: 'cel mai des {x}', kk: 'көбіне {x}' },
+  'brokers.dir.empty': { ru: 'Появятся сами: брокер — с первым Rate Con, склад — с первой доставкой по адресу.', en: 'They appear on their own: a broker with the first Rate Con, a facility with the first delivery to an address.', es: 'Aparecen solos: el bróker con el primer Rate Con, el almacén con la primera entrega en una dirección.', uk: 'З’являться самі: брокер — з першим Rate Con, склад — з першою доставкою за адресою.', ro: 'Apar singure: brokerul cu primul Rate Con, depozitul cu prima livrare la o adresă.', kk: 'Өздері пайда болады: брокер — алғашқы Rate Con-мен, қойма — мекенжайға алғашқы жеткізумен.' },
   'brokers.card.loads': { ru: 'Грузы', en: 'Loads', es: 'Cargas', uk: 'Вантажі', ro: 'Curse', kk: 'Жүктер' },
   'brokers.card.rate': { ru: 'Ставка', en: 'Rate', es: 'Tarifa', uk: 'Ставка', ro: 'Tarif', kk: 'Мөлшерлеме' },
   'brokers.card.rateSub': { ru: 'весь гросс на все мили', en: 'all gross over all miles', es: 'todo el bruto entre todas las millas', uk: 'увесь грос на всі милі', ro: 'tot brutul pe toate milele', kk: 'барлық гросс барлық мильге' },
