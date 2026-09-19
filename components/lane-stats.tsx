@@ -24,11 +24,11 @@ export function LaneStats({ rows, locale }: { rows: PricedLoad[]; locale: Locale
 
   return (
     <details className="panel mt-4 p-4">
-      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
-        <span className="text-white/40">▸</span>
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-1.5 text-base leading-6 font-semibold text-t1">
+        <span className="text-t3">▸</span>
         {t(locale, 'lanes.heading')}
         <Info text={t(locale, 'lanes.info')} />
-        <span className="nums ml-auto normal-case text-white/35">{all.length}</span>
+        <span className="nums ml-auto normal-case text-t3">{all.length}</span>
       </summary>
 
       {/* Список, а не таблица: таблица на телефоне уезжала в горизонтальную прокрутку и
@@ -42,16 +42,16 @@ export function LaneStats({ rows, locale }: { rows: PricedLoad[]; locale: Locale
                 из которых сложилась строка. */}
             <Link
               href={`/loads?q=${encodeURIComponent(l.origin)}`}
-              className="min-w-0 basis-full text-[13px] font-medium text-white/85 hover:text-white hover:underline sm:flex-1 sm:basis-auto sm:truncate"
+              className="min-w-0 basis-full text-[13px] font-medium text-t1 hover:text-white hover:underline sm:flex-1 sm:basis-auto sm:truncate"
             >
               {l.origin} → {l.destination}
             </Link>
-            <span className="nums flex shrink-0 items-baseline gap-x-3 text-white/60">
+            <span className="nums flex shrink-0 items-baseline gap-x-3 text-t2">
               <span>{t(locale, 'lanes.tripsInline').replace('{n}', String(l.loads))}</span>
-              <span className="text-white/85">{usd.format(l.avgRate)}</span>
+              <span className="text-t1">{usd.format(l.avgRate)}</span>
               <span
                 className={`font-semibold ${
-                  l.rpm >= 2 ? 'text-good-400' : l.rpm >= 1.5 ? 'text-white/85' : 'text-warn-400'
+                  l.rpm >= 2 ? 'text-good-400' : l.rpm >= 1.5 ? 'text-t1' : 'text-warn-400'
                 }`}
               >
                 {usd2.format(l.rpm)}/mi

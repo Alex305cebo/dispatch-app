@@ -57,7 +57,7 @@ function Field({
         placeholder={t(locale, isSet ? 'admin.keys.replacePlaceholder' : 'admin.keys.newPlaceholder')}
         className="w-full rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-[13px] outline-none focus:border-haul-500"
       />
-      <p className="mt-1 text-[11.5px] leading-snug text-white/45">{hint}</p>
+      <p className="mt-1 text-[11.5px] leading-snug text-t3">{hint}</p>
     </div>
   )
 }
@@ -128,7 +128,7 @@ export function KeysForm({
         </Button>
         {/* Что именно проверяется — набранное или сохранённое: без этой подписи
             «не принят» непонятно к какому ключу относится. */}
-        <span className="text-[11px] text-white/40">
+        <span className="text-[11px] text-t3">
           {t(locale, gemini.trim() ? 'admin.keys.testTyped' : 'admin.keys.testSaved')}
         </span>
         {check && (
@@ -157,7 +157,7 @@ export function KeysForm({
             </Button>
           ))}
         </div>
-        <p className="mt-1 text-[11.5px] leading-snug text-white/45">
+        <p className="mt-1 text-[11.5px] leading-snug text-t3">
           {t(locale, pref === 'saving' ? 'admin.keys.modelSavingHint' : 'admin.keys.modelQualityHint')}
         </p>
       </div>

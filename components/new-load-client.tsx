@@ -169,7 +169,7 @@ export function NewLoadClient({
             {busy ? t(locale, 'newLoad.readingRateCon') : t(locale, 'newLoad.scanCta')}
             {badge}
           </div>
-          <div className="text-[12px] text-white/60">{t(locale, 'newLoad.scanHint')}</div>
+          <div className="text-[12px] text-t2">{t(locale, 'newLoad.scanHint')}</div>
         </div>
         <Info text={t(locale, 'newLoad.scanInfo')} />
       </label>
@@ -184,9 +184,9 @@ export function NewLoadClient({
         </div>
       )}
       {fields && (
-        <div className="mb-3 flex items-center gap-3 text-[12px] text-white/60">
+        <div className="mb-3 flex items-center gap-3 text-[12px] text-t2">
           <span>{t(locale, 'newLoad.formFilled')}</span>
-          <button onClick={reset} className="text-white/55 hover:text-white/85">
+          <button onClick={reset} className="text-t3 hover:text-t1">
             {t(locale, 'newLoad.clearOtherFile')}
           </button>
         </div>

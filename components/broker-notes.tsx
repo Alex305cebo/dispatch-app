@@ -161,7 +161,7 @@ export function BrokerNotes({
   if (editing) {
     return (
       <section className="panel p-4">
-        <h2 className="mb-2 text-base leading-6 font-semibold text-white/90">
+        <h2 className="mb-2 text-base leading-6 font-semibold text-t1">
           {t(locale, 'brokerNotes.editHeading')}
         </h2>
         <textarea
@@ -181,7 +181,7 @@ export function BrokerNotes({
               setText(notes ?? '')
               setEditing(false)
             }}
-            className="rounded-lg px-4 py-1.5 text-[12px] text-white/70 transition-colors hover:text-white"
+            className="rounded-lg px-4 py-1.5 text-[12px] text-t2 transition-colors hover:text-white"
           >
             {t(locale, 'loadEdit.cancel')}
           </button>
@@ -201,7 +201,7 @@ export function BrokerNotes({
         )}
         <button
           onClick={() => setEditing(true)}
-          className="text-[13px] text-white/55 transition-colors hover:text-white/85"
+          className="text-[13px] text-t3 transition-colors hover:text-t1"
         >
           {hasRc ? t(locale, 'brokerNotes.orTypeManually') : t(locale, 'brokerNotes.addNote')}
         </button>
@@ -245,22 +245,22 @@ export function BrokerNotes({
         )}
         <span
           className={`shrink-0 text-[13px] font-semibold ${
-            unread ? 'text-warn-300' : 'text-white/90'
+            unread ? 'text-warn-300' : 'text-t1'
           }`}
         >
           {t(locale, 'brokerNotes.heading')}
         </span>
-        <span className="min-w-0 flex-1 truncate text-[12px] text-white/45 group-open:hidden">{preview}</span>
-        <span className="shrink-0 text-[11px] text-white/45">
+        <span className="min-w-0 flex-1 truncate text-[12px] text-t3 group-open:hidden">{preview}</span>
+        <span className="shrink-0 text-[11px] text-t3">
           {unread ? t(locale, 'brokerNotes.new') : t(locale, 'brokerNotes.readOn').replace('{date}', usDate(todayEt(new Date(readAt))))}
         </span>
         {/* Explicit fold/unfold hint — this being a <details> (click to toggle) isn't
             obvious on its own, especially now that unread notes open by default. */}
-        <span className="hidden shrink-0 items-center gap-1 text-[11px] text-white/45 group-open:flex">
-          {t(locale, 'brokerNotes.collapse')} <span className="text-white/40 transition-transform rotate-90">▸</span>
+        <span className="hidden shrink-0 items-center gap-1 text-[11px] text-t3 group-open:flex">
+          {t(locale, 'brokerNotes.collapse')} <span className="text-t3 transition-transform rotate-90">▸</span>
         </span>
-        <span className="flex shrink-0 items-center gap-1 text-[11px] text-white/45 group-open:hidden">
-          {t(locale, 'brokerNotes.expand')} <span className="text-white/40 transition-transform">▸</span>
+        <span className="flex shrink-0 items-center gap-1 text-[11px] text-t3 group-open:hidden">
+          {t(locale, 'brokerNotes.expand')} <span className="text-t3 transition-transform">▸</span>
         </span>
       </summary>
 
@@ -273,30 +273,30 @@ export function BrokerNotes({
                 <li key={i} className="flex items-baseline gap-2 text-[13.5px] leading-relaxed">
                   {meta ? (
                     <>
-                      <meta.icon size={14} strokeWidth={2} className="relative top-0.5 shrink-0 text-white/45" aria-hidden />
+                      <meta.icon size={14} strokeWidth={2} className="relative top-0.5 shrink-0 text-t3" aria-hidden />
                       <span>
-                        <span className={`mr-1.5 font-semibold ${meta.warn ? 'text-warn-300' : 'text-white/55'}`}>
+                        <span className={`mr-1.5 font-semibold ${meta.warn ? 'text-warn-300' : 'text-t3'}`}>
                           {meta.label}:
                         </span>
-                        <span className="text-white/85">{l.text}</span>
+                        <span className="text-t1">{l.text}</span>
                       </span>
                     </>
                   ) : (
-                    <span className="text-white/85">{l.text}</span>
+                    <span className="text-t1">{l.text}</span>
                   )}
                 </li>
               )
             })}
           </ul>
         ) : (
-          <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-white/85">{shown}</p>
+          <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-t1">{shown}</p>
         )}
 
         <div className="mt-3 flex items-center gap-2">
           <button
             disabled={translating}
             onClick={toggleTranslate}
-            className="text-[12px] text-white/55 transition-colors hover:text-white/85 disabled:opacity-40"
+            className="text-[12px] text-t3 transition-colors hover:text-t1 disabled:opacity-40"
           >
             {translating ? 'Перевожу…' : showRu && ru ? 'Оригинал (EN)' : '🌐 На русский'}
           </button>
@@ -311,7 +311,7 @@ export function BrokerNotes({
           )}
           <button
             onClick={() => setEditing(true)}
-            className="text-[12px] text-white/55 transition-colors hover:text-white/85"
+            className="text-[12px] text-t3 transition-colors hover:text-t1"
           >
             {t(locale, 'loadEdit.edit')}
           </button>
@@ -319,7 +319,7 @@ export function BrokerNotes({
             <button
               disabled={pending}
               onClick={parse}
-              className="text-[12px] text-white/45 transition-colors hover:text-white/75 disabled:opacity-40"
+              className="text-[12px] text-t3 transition-colors hover:text-t2 disabled:opacity-40"
             >
               {pending ? '…' : t(locale, 'brokerNotes.updateFromRc')}
             </button>

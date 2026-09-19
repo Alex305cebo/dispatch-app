@@ -10,8 +10,8 @@ import Link from 'next/link'
 export function Chip({ label, value, href }: { label: string; value: string; href?: string }) {
   const inner = (
     <>
-      <span className="text-white/62">{label}</span>
-      <span className="break-all text-white/85">{value}</span>
+      <span className="text-t2">{label}</span>
+      <span className="break-all text-t1">{value}</span>
     </>
   )
   const cls = 'flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-1.5 text-[12px]'

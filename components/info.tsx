@@ -78,7 +78,7 @@ export function Info({ text }: { text: string; side?: 'top' | 'bottom' }) {
           setHovered(true)
         }}
         onMouseLeave={() => setHovered(false)}
-        className="relative inline-flex size-[15px] shrink-0 items-center justify-center rounded-full border border-white/25 align-middle before:absolute before:-inset-3.5 before:content-[''] text-[10px] font-semibold leading-none text-white/55 transition-colors hover:border-haul-500 hover:text-haul-400"
+        className="relative inline-flex size-[15px] shrink-0 items-center justify-center rounded-full border border-white/25 align-middle before:absolute before:-inset-3.5 before:content-[''] text-[10px] font-semibold leading-none text-t3 transition-colors hover:border-haul-500 hover:text-haul-400"
       >
         i
       </button>
@@ -96,7 +96,7 @@ export function Info({ text }: { text: string; side?: 'top' | 'bottom' }) {
               width: box.width,
               transform: box.placement === 'above' ? 'translateY(-100%)' : undefined,
             }}
-            className="pointer-events-none z-[100] rounded-lg border border-white/15 bg-ink-800 px-3 py-2 text-[11px] font-normal normal-case leading-relaxed tracking-normal text-white/90 shadow-xl"
+            className="pointer-events-none z-[100] rounded-lg border border-white/15 bg-ink-800 px-3 py-2 text-[11px] font-normal normal-case leading-relaxed tracking-normal text-t1 shadow-xl"
           >
             {text}
           </span>,

@@ -60,16 +60,16 @@ export default async function FacilityPage({ params }: { params: Promise<{ key: 
   const title = f.name ?? f.address ?? f.city ?? '—'
   const where = f.address ?? f.city
   const mapQuery = [f.name, f.address ?? f.city].filter(Boolean).join(', ')
-  const h2 = 'mb-2 text-base leading-6 font-semibold text-white/90'
+  const h2 = 'mb-2 text-base leading-6 font-semibold text-t1'
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <Link href="/brokers?view=facilities" className="text-[12.5px] text-white/55 hover:text-white">
+      <Link href="/brokers?view=facilities" className="text-[12.5px] text-t3 hover:text-white">
         ← {t(locale, 'nav.brokers')}
       </Link>
       <h1 className="mt-2 break-words text-xl font-bold tracking-tight">{title}</h1>
       {where && (
-        <p className="text-[13px] text-white/60">
+        <p className="text-[13px] text-t2">
           {where} ·{' '}
           <a
             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`}
@@ -107,7 +107,7 @@ export default async function FacilityPage({ params }: { params: Promise<{ key: 
 
       <section className="panel mt-4 p-4">
         {f.directions && (
-          <p className="mb-2 rounded-lg bg-warn-500/10 px-3 py-2 text-[13px] text-white/85">
+          <p className="mb-2 rounded-lg bg-warn-500/10 px-3 py-2 text-[13px] text-t1">
             <span className="font-semibold text-warn-400">⚠ {t(locale, 'facilities.lastDirections')}:</span> {f.directions}
           </p>
         )}
@@ -118,7 +118,7 @@ export default async function FacilityPage({ params }: { params: Promise<{ key: 
         <section className="panel min-w-0 p-4">
           <h2 className={h2}>{t(locale, 'facilities.card.brokers')}</h2>
           {who.length === 0 ? (
-            <p className="text-[13px] text-white/50">—</p>
+            <p className="text-[13px] text-t3">—</p>
           ) : (
             <ul className="flex flex-col gap-1 text-[13px]">
               {who.map(([k, n]) => (
@@ -126,7 +126,7 @@ export default async function FacilityPage({ params }: { params: Promise<{ key: 
                   <Link href={`/brokers/${encodeURIComponent(k)}`} className="min-w-0 truncate text-haul-300 hover:underline">
                     {brokerName.get(k) ?? k}
                   </Link>
-                  <span className="nums shrink-0 text-white/50">{n}</span>
+                  <span className="nums shrink-0 text-t3">{n}</span>
                 </li>
               ))}
             </ul>
@@ -145,11 +145,11 @@ export default async function FacilityPage({ params }: { params: Promise<{ key: 
                   href={`/loads/${l.id}`}
                   className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-lg border border-white/8 px-3 py-2 text-[13px] hover:border-white/20"
                 >
-                  <span className="nums w-[70px] shrink-0 text-white/50">{usDate(when(l))}</span>
-                  <span className="min-w-0 flex-1 truncate text-white/85">
+                  <span className="nums w-[70px] shrink-0 text-t3">{usDate(when(l))}</span>
+                  <span className="min-w-0 flex-1 truncate text-t1">
                     {l.origin ?? '—'} → {l.destination ?? '—'}
                   </span>
-                  <span className="nums text-white/70">{usd.format(Number(l.rate) || 0)}</span>
+                  <span className="nums text-t2">{usd.format(Number(l.rate) || 0)}</span>
                 </Link>
               ))}
             />

@@ -68,7 +68,7 @@ export function Toaster() {
               className={`panel pointer-events-auto flex max-w-sm cursor-pointer items-center gap-2.5 px-3.5 py-2.5 ring-1 ${tone.ring}`}
             >
               <tone.Icon size={16} strokeWidth={2.5} className={`shrink-0 ${tone.icon}`} />
-              <span className="text-base text-white/85">{n.text}</span>
+              <span className="text-base text-t1">{n.text}</span>
             </motion.div>
           )
         })}

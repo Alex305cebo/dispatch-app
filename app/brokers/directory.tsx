@@ -143,13 +143,13 @@ export function Directory({
   return (
     <>
       <label className="flex min-h-11 items-center gap-2 rounded-xl border border-white/12 bg-white/[0.04] px-3 focus-within:border-haul-500/60">
-        <Search size={16} className="shrink-0 text-white/45" aria-hidden />
+        <Search size={16} className="shrink-0 text-t3" aria-hidden />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t(locale, 'brokers.dir.search')}
           aria-label={t(locale, 'brokers.dir.search')}
-          className="min-w-0 flex-1 bg-transparent py-2 text-[14px] text-white outline-none placeholder:text-white/40"
+          className="min-w-0 flex-1 bg-transparent py-2 text-[14px] text-white outline-none placeholder:text-t3"
         />
       </label>
 
@@ -165,20 +165,20 @@ export function Directory({
                 ? 'border-haul-500/60 bg-haul-500/15 text-haul-300'
                 : key === 'attention' && counts.attention > 0
                   ? 'border-warn-500/30 text-warn-400 hover:border-warn-500/60'
-                  : 'border-white/10 text-white/65 hover:border-white/25 hover:text-white/90'
+                  : 'border-white/10 text-t2 hover:border-white/25 hover:text-t1'
             }`}
           >
             {label}
           </button>
         ))}
-        {mcState === 'working' && <span className="text-[12px] text-white/40">{t(locale, 'brokers.mcWorking')}</span>}
+        {mcState === 'working' && <span className="text-[12px] text-t3">{t(locale, 'brokers.mcWorking')}</span>}
         {mcState === 'no_key' && <span className="text-[12px] text-warn-400">{t(locale, 'brokers.mcNoKey')}</span>}
       </div>
 
       {lookup && (!known || check.state !== 'idle') && (
         <div className="panel mt-3 p-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="min-w-0 flex-1 text-[13px] text-white/80">{t(locale, 'brokers.dir.unknownMc').replace('{mc}', lookup)}</span>
+            <span className="min-w-0 flex-1 text-[13px] text-t1">{t(locale, 'brokers.dir.unknownMc').replace('{mc}', lookup)}</span>
             <button
               type="button"
               disabled={check.state === 'loading'}
@@ -191,7 +191,7 @@ export function Directory({
               type="button"
               disabled={check.state === 'loading'}
               onClick={() => runCheck('dot')}
-              className="min-h-9 rounded-lg border border-white/12 px-3 text-[12.5px] text-white/70 hover:border-white/30 hover:text-white disabled:opacity-50 max-md:min-h-11"
+              className="min-h-9 rounded-lg border border-white/12 px-3 text-[12.5px] text-t2 hover:border-white/30 hover:text-white disabled:opacity-50 max-md:min-h-11"
             >
               {t(locale, 'brokers.dir.checkDot')}
             </button>
@@ -204,11 +204,11 @@ export function Directory({
       <div className={`mt-4 grid gap-4 ${both ? 'md:grid-cols-2' : ''}`}>
         {view !== 'facilities' && (
           <section className="min-w-0">
-            <h2 className="nums mb-2 text-base leading-6 font-semibold text-white/90">
-              {t(locale, 'brokers.pageTitle')} <span className="text-[13px] font-normal text-white/45">{bList.length}</span>
+            <h2 className="nums mb-2 text-base leading-6 font-semibold text-t1">
+              {t(locale, 'brokers.pageTitle')} <span className="text-[13px] font-normal text-t3">{bList.length}</span>
             </h2>
             {bList.length === 0 ? (
-              <p className="text-[13px] text-white/50">{q || view === 'attention' ? t(locale, 'brokers.noMatch') : t(locale, 'brokers.empty')}</p>
+              <p className="text-[13px] text-t3">{q || view === 'attention' ? t(locale, 'brokers.noMatch') : t(locale, 'brokers.empty')}</p>
             ) : (
               <div className="flex flex-col gap-1.5">
                 <ShowMore
@@ -225,11 +225,11 @@ export function Directory({
         )}
         {view !== 'brokers' && (
           <section className="min-w-0">
-            <h2 className="nums mb-2 text-base leading-6 font-semibold text-white/90">
-              {t(locale, 'facilities.title')} <span className="text-[13px] font-normal text-white/45">{fList.length}</span>
+            <h2 className="nums mb-2 text-base leading-6 font-semibold text-t1">
+              {t(locale, 'facilities.title')} <span className="text-[13px] font-normal text-t3">{fList.length}</span>
             </h2>
             {fList.length === 0 ? (
-              <p className="text-[13px] text-white/50">
+              <p className="text-[13px] text-t3">
                 {q || view === 'attention' ? t(locale, 'brokers.noMatch') : t(locale, 'facilities.emptyText')}
               </p>
             ) : (
@@ -258,19 +258,19 @@ function BrokerRow({ b, locale }: { b: DirBroker; locale: Locale }) {
     : b.owed > 0 && b.oldest > 30
       ? { text: t(locale, 'brokers.dir.owedLate').replace('{sum}', usd.format(b.owed)).replace('{n}', String(b.oldest)), cls: 'text-warn-400' }
       : b.owed > 0
-        ? { text: t(locale, 'brokers.dir.owed').replace('{sum}', usd.format(b.owed)), cls: 'text-white/60' }
+        ? { text: t(locale, 'brokers.dir.owed').replace('{sum}', usd.format(b.owed)), cls: 'text-t2' }
         : b.payDays != null
           ? { text: t(locale, 'brokers.paysIn').replace('{n}', String(b.payDays)), cls: b.payDays <= 30 ? 'text-good-400' : 'text-warn-400' }
           : b.loads === 0 && b.checked
-            ? { text: t(locale, 'brokers.dir.checked').replace('{date}', b.checked), cls: 'text-white/45' }
+            ? { text: t(locale, 'brokers.dir.checked').replace('{date}', b.checked), cls: 'text-t3' }
             : null
   return (
     <Link href={`/brokers/${encodeURIComponent(b.key)}`} className={row}>
       <span className="min-w-0 truncate">
-        <span className="text-[13.5px] font-medium text-white/90">{b.name}</span>
-        {b.loads > 0 && <span className="nums text-[12px] text-white/45"> · {t(locale, 'brokers.loadsCount').replace('{n}', String(b.loads))}</span>}
+        <span className="text-[13.5px] font-medium text-t1">{b.name}</span>
+        {b.loads > 0 && <span className="nums text-[12px] text-t3"> · {t(locale, 'brokers.loadsCount').replace('{n}', String(b.loads))}</span>}
         {b.sinceDays != null && (
-          <span className={`nums text-[12px] ${b.sinceDays > 90 ? 'text-warn-400/80' : 'text-white/40'}`}>
+          <span className={`nums text-[12px] ${b.sinceDays > 90 ? 'text-warn-400/80' : 'text-t3'}`}>
             {' · '}
             {b.sinceDays === 0
               ? t(locale, 'brokers.dir.lastToday')
@@ -288,10 +288,10 @@ function FacilityRow({ f, locale }: { f: DirFacility; locale: Locale }) {
   return (
     <Link href={`/facilities/${encodeURIComponent(f.key)}`} className={row}>
       <span className="min-w-0 truncate">
-        <span className="text-[13.5px] font-medium text-white/90">{f.name}</span>
-        {f.place && <span className="text-[12px] text-white/45"> · {f.place}</span>}
+        <span className="text-[13.5px] font-medium text-t1">{f.name}</span>
+        {f.place && <span className="text-[12px] text-t3"> · {f.place}</span>}
       </span>
-      <span className={`nums shrink-0 text-right text-[12px] ${f.attention ? 'text-bad-400' : 'text-white/60'}`}>
+      <span className={`nums shrink-0 text-right text-[12px] ${f.attention ? 'text-bad-400' : 'text-t2'}`}>
         {t(locale, 'facilities.visits').replace('{n}', String(f.visits))}
         {f.dwell != null && ` · ${t(locale, 'facilities.dwell').replace('{t}', driveTime(f.dwell, locale))}`}
       </span>

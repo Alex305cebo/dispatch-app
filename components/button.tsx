@@ -44,7 +44,7 @@ const VARIANTS: Record<Variant, string> = {
     'hover:border-white/20 hover:bg-white/[0.10]',
     'active:bg-white/[0.04] active:shadow-[inset_0_2px_4px_0_rgba(0,0,0,0.4)]',
   ].join(' '),
-  ghost: 'border-transparent bg-transparent text-white/70 hover:bg-white/[0.07] hover:text-white active:bg-white/[0.03]',
+  ghost: 'border-transparent bg-transparent text-t2 hover:bg-white/[0.07] hover:text-white active:bg-white/[0.03]',
   // Destructive actions get the status red, never the accent — deleting a load must
   // not look like the same kind of act as creating one.
   danger: [

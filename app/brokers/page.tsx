@@ -76,7 +76,7 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <h1 className="text-xl font-bold tracking-tight">{t(locale, 'nav.brokers')}</h1>
-      <p className="mb-4 text-[13px] text-white/65">{t(locale, 'brokers.dir.subtitle')}</p>
+      <p className="mb-4 text-[13px] text-t2">{t(locale, 'brokers.dir.subtitle')}</p>
 
       {/* «Куда отправить трак» переехало сюда с «Траков» (18.09.2026) — отсюда и новое
           имя раздела. Своя Suspense-граница: раздел ждёт снимок DAT и ставки по

@@ -137,7 +137,7 @@ export function TgAttachButton({
         <button
           disabled={pending}
           onClick={() => run()}
-          className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1.5 text-[11.5px] font-medium text-white/80 transition-colors hover:bg-white/16 disabled:cursor-default disabled:opacity-60"
+          className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1.5 text-[11.5px] font-medium text-t1 transition-colors hover:bg-white/16 disabled:cursor-default disabled:opacity-60"
         >
           {pending && !open ? t(locale, 'telegram.attach.adding') : t(locale, 'telegram.attach.toDriverLoad')}
         </button>
@@ -146,7 +146,7 @@ export function TgAttachButton({
           onClick={toggle}
           title={t(locale, 'telegram.attach.choose')}
           aria-expanded={open}
-          className="flex items-center bg-white/10 px-2 py-1.5 text-[11.5px] text-white/70 transition-colors hover:bg-white/16 disabled:opacity-60"
+          className="flex items-center bg-white/10 px-2 py-1.5 text-[11.5px] text-t2 transition-colors hover:bg-white/16 disabled:opacity-60"
         >
           {open ? '▴' : '▾'}
         </button>
@@ -154,10 +154,10 @@ export function TgAttachButton({
 
       {choose && (
         <div className="mt-1.5 w-[15rem] rounded-xl border border-warn-400/35 bg-ink-900/95 p-2 shadow-lg">
-          <div className="px-1 pb-1 text-[12px] font-semibold text-white/85">
+          <div className="px-1 pb-1 text-[12px] font-semibold text-t1">
             {t(locale, 'telegram.attach.pickTruckTitle')}
           </div>
-          <p className="px-1 pb-1.5 text-[11px] leading-snug text-white/55">{t(locale, 'telegram.attach.pickTruckHint')}</p>
+          <p className="px-1 pb-1.5 text-[11px] leading-snug text-t3">{t(locale, 'telegram.attach.pickTruckHint')}</p>
           <div className="flex max-h-56 flex-col gap-1 overflow-y-auto">
             {choose.trucks.map((tr) => (
               <Row key={tr.id} label={tr.label} disabled={pending} onClick={() => pick(tr)} />
@@ -165,7 +165,7 @@ export function TgAttachButton({
           </div>
           <button
             onClick={() => setChoose(null)}
-            className="mt-1 px-2 py-1 text-[11px] text-white/45 transition-colors hover:text-white/80"
+            className="mt-1 px-2 py-1 text-[11px] text-t3 transition-colors hover:text-t1"
           >
             {t(locale, 'telegram.attach.pickTruckCancel')}
           </button>
@@ -174,7 +174,7 @@ export function TgAttachButton({
 
       {open && (
         <div className="mt-1.5 w-[15rem] rounded-xl border border-white/12 bg-ink-900/95 p-2 shadow-lg">
-          <div className="px-1 pb-1 text-xs text-white/55 font-medium">
+          <div className="px-1 pb-1 text-xs text-t3 font-medium">
             {t(locale, 'telegram.attach.kindTitle')}
           </div>
           <div className="flex flex-wrap gap-1">
@@ -183,7 +183,7 @@ export function TgAttachButton({
                 key={k.key}
                 onClick={() => setKind(k.key)}
                 className={`rounded-full px-2 py-0.5 text-[10.5px] font-medium transition-colors ${
-                  kind === k.key ? 'bg-haul-500/25 text-haul-300' : 'bg-white/8 text-white/60 hover:text-white/90'
+                  kind === k.key ? 'bg-haul-500/25 text-haul-300' : 'bg-white/8 text-t2 hover:text-t1'
                 }`}
               >
                 {t(locale, k.label)}
@@ -191,7 +191,7 @@ export function TgAttachButton({
             ))}
           </div>
 
-          <div className="px-1 pb-1 pt-2.5 text-xs text-white/55 font-medium">
+          <div className="px-1 pb-1 pt-2.5 text-xs text-t3 font-medium">
             {t(locale, 'telegram.attach.whereTitle')}
           </div>
           <div className="flex flex-col gap-1">
@@ -211,7 +211,7 @@ export function TgAttachButton({
               <Row key={l.id} label={l.route} hint={l.status} disabled={pending} onClick={() => run({ kind, target: l.id })} />
             ))}
             {targets?.length === 0 && (
-              <div className="px-2 py-1 text-[11px] text-white/40">{t(locale, 'telegram.attach.noLoads')}</div>
+              <div className="px-2 py-1 text-[11px] text-t3">{t(locale, 'telegram.attach.noLoads')}</div>
             )}
           </div>
         </div>
@@ -237,8 +237,8 @@ function Row({
       onClick={onClick}
       className="rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/8 disabled:opacity-50"
     >
-      <span className="block truncate text-[11.5px] font-medium text-white/85">{label}</span>
-      {hint && <span className="block truncate text-[10px] text-white/40">{hint}</span>}
+      <span className="block truncate text-[11.5px] font-medium text-t1">{label}</span>
+      {hint && <span className="block truncate text-[10px] text-t3">{hint}</span>}
     </button>
   )
 }

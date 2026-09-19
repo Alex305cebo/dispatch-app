@@ -69,13 +69,13 @@ export function Notifier({ collapsed = false }: { collapsed?: boolean }) {
             className="panel absolute right-0 z-[60] max-h-[60vh] w-[min(20rem,calc(100vw-2rem))] overflow-hidden max-md:fixed max-md:inset-x-2 max-md:top-full max-md:mt-1 max-md:w-auto md:bottom-12 md:left-0 md:right-auto"
           >
             <div className="flex items-center justify-between border-b border-white/8 px-3 py-2">
-              <span className="text-base leading-6 font-semibold text-white/90">
+              <span className="text-base leading-6 font-semibold text-t1">
                 {t(locale, 'notifier.title')}
               </span>
               {notes.length > 0 && (
                 <button
                   onClick={clearNotes}
-                  className="text-[11px] text-white/62 transition-colors hover:text-white/85"
+                  className="text-[11px] text-t2 transition-colors hover:text-t1"
                 >
                   {t(locale, 'notifier.clear')}
                 </button>
@@ -84,7 +84,7 @@ export function Notifier({ collapsed = false }: { collapsed?: boolean }) {
 
             <div className="max-h-[calc(60vh-2.5rem)] overflow-y-auto">
               {notes.length === 0 ? (
-                <p className="px-3 py-6 text-center text-[13px] text-white/55">{t(locale, 'notifier.quiet')}</p>
+                <p className="px-3 py-6 text-center text-[13px] text-t3">{t(locale, 'notifier.quiet')}</p>
               ) : (
                 notes.map((n) => (
                   <motion.div
@@ -100,8 +100,8 @@ export function Notifier({ collapsed = false }: { collapsed?: boolean }) {
                         <>
                           <span className={`mt-1.5 size-1.5 shrink-0 rounded-full ${TONE[n.kind].dot}`} />
                           <div className="min-w-0 flex-1">
-                            <p className="text-[13px] leading-snug text-white/90">{n.text}</p>
-                            <p className="mt-0.5 text-[10px] text-white/55">
+                            <p className="text-[13px] leading-snug text-t1">{n.text}</p>
+                            <p className="mt-0.5 text-[10px] text-t3">
                               {n.from ? `${n.from} · ` : ''}
                               {new Date(n.at).toLocaleTimeString(locale === 'ru' ? 'ru-RU' : 'en-US', {
                                 hour: '2-digit',
@@ -118,7 +118,7 @@ export function Notifier({ collapsed = false }: { collapsed?: boolean }) {
                           className="flex gap-2.5 px-3 py-2.5 transition-colors hover:bg-white/5"
                         >
                           {body}
-                          <span aria-hidden className="self-center text-[13px] text-white/35">›</span>
+                          <span aria-hidden className="self-center text-[13px] text-t3">›</span>
                         </Link>
                       ) : (
                         <div className="flex gap-2.5 px-3 py-2.5">{body}</div>
@@ -156,7 +156,7 @@ export function Notifier({ collapsed = false }: { collapsed?: boolean }) {
             ? 'tone-error border-bad-500/40 text-bad-400'
             : worst === 'warn'
               ? 'tone-warn border-amber-400/40 text-amber-300'
-              : 'border-white/10 text-white/72 hover:text-white/90'
+              : 'border-white/10 text-t2 hover:text-t1'
         }`}
       >
         <svg

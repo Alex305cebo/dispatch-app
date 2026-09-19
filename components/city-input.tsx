@@ -109,7 +109,7 @@ export function CityInput({
                 }}
                 onMouseEnter={() => setActive(i)}
                 className={`block w-full px-3 py-2 text-left text-[13px] transition-colors ${
-                  i === active ? 'bg-haul-500/20 text-white' : 'text-white/75 hover:bg-white/[0.04]'
+                  i === active ? 'bg-haul-500/20 text-white' : 'text-t2 hover:bg-white/[0.04]'
                 }`}
               >
                 {c}

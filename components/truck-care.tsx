@@ -32,7 +32,7 @@ import { t, type Locale } from '@/lib/i18n'
 import { US_STATES } from '@/lib/us-states'
 
 const input =
-  'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none transition-all placeholder:text-white/45 hover:border-white/15 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
+  'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none transition-all placeholder:text-t3 hover:border-white/15 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
 
 function DateInput({
   label,
@@ -45,7 +45,7 @@ function DateInput({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-medium text-white/70">
+      <span className="mb-1.5 block text-xs font-medium text-t2">
         {label}
       </span>
       <input
@@ -230,7 +230,7 @@ export function TruckCare({
           Полоса отвечает на это без арифметики. */}
       <section className="panel p-4">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+          <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
             {t(locale, 'trucks.care.maintHeading')}
             <Info text={t(locale, 'trucks.care.oilInfo')} />
           </h2>
@@ -244,18 +244,18 @@ export function TruckCare({
 
         <div className="mt-3">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-[13px] font-medium text-white/80">
+            <span className="text-[13px] font-medium text-t1">
               {t(locale, 'trucks.care.oilHeading')}
             </span>
             {oil ? (
               <span className={`nums text-[16px] font-bold ${oilTone[oil.tone]}`}>
                 {oil.milesLeft.toLocaleString('en-US')} mi
-                <span className="ml-1.5 text-[11px] font-medium text-white/45">
+                <span className="ml-1.5 text-[11px] font-medium text-t3">
                   {t(locale, oil.tone === 'bad' ? 'trucks.care.overdueShort' : 'trucks.care.leftShort')}
                 </span>
               </span>
             ) : (
-              <span className="text-[12px] text-white/50">
+              <span className="text-[12px] text-t3">
                 {meta?.oilLastOdometer
                   ? t(locale, 'trucks.care.lastChangeRecorded')
                   : t(locale, 'trucks.care.needOdometer')}
@@ -274,7 +274,7 @@ export function TruckCare({
             </div>
           )}
 
-          <p className="nums mt-1.5 text-[11px] text-white/40">
+          <p className="nums mt-1.5 text-[11px] text-t3">
             {currentOdometer !== null && (
               <>
                 {t(locale, 'trucks.care.odometerShort')}{' '}
@@ -301,7 +301,7 @@ export function TruckCare({
                 suffix="mi"
               />
               <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-white/70">
+                <span className="mb-1.5 block text-xs font-medium text-t2">
                   {t(locale, 'trucks.care.dateLabel')}
                 </span>
                 <input type="date" value={oilDate} onChange={(e) => setOilDate(e.target.value)} className={input} />
@@ -349,7 +349,7 @@ export function TruckCare({
                     ? 'bg-bad-500/12 text-bad-400'
                     : e.tone === 'warn'
                       ? 'bg-warn-400/12 text-warn-400'
-                      : 'bg-white/[0.05] text-white/70'
+                      : 'bg-white/[0.05] text-t2'
                 }`}
               >
                 {e.label}
@@ -364,8 +364,8 @@ export function TruckCare({
         )}
 
         {!editMeta && profileLine.length > 0 && (
-          <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-white/65">
-            <span className="font-medium text-white/80">🏠 {t(locale, 'trucks.care.profileTitle')}</span>
+          <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-t2">
+            <span className="font-medium text-t1">🏠 {t(locale, 'trucks.care.profileTitle')}</span>
             <span className="break-words">{profileLine.join(' · ')}</span>
             <Info text={t(locale, 'trucks.care.profileInfo')} />
           </p>
@@ -414,12 +414,12 @@ export function TruckCare({
             <div />
 
             {/* Профиль водителя — для «Куда отправить трак» и «Кому искать груз». */}
-            <p className="flex items-center gap-1.5 text-[13px] font-semibold text-white/85 sm:col-span-3">
+            <p className="flex items-center gap-1.5 text-[13px] font-semibold text-t1 sm:col-span-3">
               🏠 {t(locale, 'trucks.care.profileTitle')}
               <Info text={t(locale, 'trucks.care.profileInfo')} />
             </p>
             <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-white/70">{t(locale, 'trucks.care.homeStateLabel')}</span>
+              <span className="mb-1.5 block text-xs font-medium text-t2">{t(locale, 'trucks.care.homeStateLabel')}</span>
               <select
                 value={m.homeState}
                 onChange={(e) => setM({ ...m, homeState: e.target.value })}
@@ -476,7 +476,7 @@ export function TruckCare({
         {/* «Нужно починить» и журнал — в той же карточке, что масло и паспорт. Было
             две карточки: масло видно в одной, а отмечается записью в другой, и
             журнал приходилось искать. */}
-        <h3 className="mt-4 flex items-center gap-1.5 border-t border-white/8 pt-4 text-[14px] font-semibold text-white/85">
+        <h3 className="mt-4 flex items-center gap-1.5 border-t border-white/8 pt-4 text-[14px] font-semibold text-t1">
           {t(locale, 'trucks.care.fixHeading')}
           <Info text={t(locale, 'trucks.care.todoInfo')} />
         </h3>
@@ -508,7 +508,7 @@ export function TruckCare({
         </div>
 
         {todos.length === 0 ? (
-          <p className="mt-3 text-[13px] text-white/55">{t(locale, 'trucks.care.todoEmpty')}</p>
+          <p className="mt-3 text-[13px] text-t3">{t(locale, 'trucks.care.todoEmpty')}</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-1.5">
             {todos.map((t) => (
@@ -523,14 +523,14 @@ export function TruckCare({
                   className="size-4 shrink-0 accent-good-500"
                 />
                 <span
-                  className={`flex-1 text-[14px] ${t.doneAt ? 'text-white/40 line-through' : 'text-white/85'}`}
+                  className={`flex-1 text-[14px] ${t.doneAt ? 'text-t3 line-through' : 'text-t1'}`}
                 >
                   {t.title}
                 </span>
                 {!t.doneAt && t.priority !== 'normal' && (
                   <span
                     className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                      t.priority === 'urgent' ? 'bg-bad-500/15 text-bad-400' : 'bg-white/8 text-white/55'
+                      t.priority === 'urgent' ? 'bg-bad-500/15 text-bad-400' : 'bg-white/8 text-t3'
                     }`}
                   >
                     {PRIO_LABEL[t.priority]}
@@ -549,7 +549,7 @@ export function TruckCare({
         {/* Maintenance log — same card as "Needs fixing": one ongoing story of
             what's broken and what's already been fixed on this truck. */}
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/8 pt-4">
-          <h3 className="flex items-center gap-1.5 text-[14px] font-semibold text-white/85">
+          <h3 className="flex items-center gap-1.5 text-[14px] font-semibold text-t1">
             {t(locale, 'trucks.care.logHeading')}
             <Info text={t(locale, 'trucks.care.logInfo')} />
           </h3>
@@ -561,7 +561,7 @@ export function TruckCare({
         {showMaint && (
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-white/70">
+              <span className="mb-1.5 block text-xs font-medium text-t2">
                 {t(locale, 'trucks.care.typeLabel')}
               </span>
               <select
@@ -593,7 +593,7 @@ export function TruckCare({
               suffix="mi"
             />
             <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-white/70">
+              <span className="mb-1.5 block text-xs font-medium text-t2">
                 {t(locale, 'trucks.care.dateLabel')}
               </span>
               <input
@@ -614,7 +614,7 @@ export function TruckCare({
                 }>
                 {t(locale, 'trucks.care.saveRecord')}
               </Button>
-              <span className="ml-3 text-[12px] text-white/45">
+              <span className="ml-3 text-[12px] text-t3">
                 {t(locale, 'trucks.care.oilResetHint')}
               </span>
             </div>
@@ -622,7 +622,7 @@ export function TruckCare({
         )}
 
         {records.length === 0 ? (
-          <p className="mt-3 text-[13px] text-white/55">{t(locale, 'trucks.care.recordsEmpty')}</p>
+          <p className="mt-3 text-[13px] text-t3">{t(locale, 'trucks.care.recordsEmpty')}</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-1.5">
             {records.map((r) => {
@@ -636,20 +636,20 @@ export function TruckCare({
                       <DocLink
                         docId={receipt.id}
                         title={t(locale, 'trucks.care.openReceipt')}
-                        className="text-left text-[14px] text-white/85 hover:text-haul-400 hover:underline"
+                        className="text-left text-[14px] text-t1 hover:text-haul-400 hover:underline"
                       >
                         {r.title}
                       </DocLink>
                     ) : (
-                      <span className="text-[14px] text-white/85">{r.title}</span>
+                      <span className="text-[14px] text-t1">{r.title}</span>
                     )}
                     <span className="flex shrink-0 items-center gap-2">
-                      <span className="nums text-[13px] text-white/70">
+                      <span className="nums text-[13px] text-t2">
                         {r.cost !== null ? usd.format(r.cost) : ''}
                       </span>
                       <label
                         title={t(locale, 'trucks.care.attachDoc')}
-                        className={`flex size-6 cursor-pointer items-center justify-center rounded-md bg-white/8 text-[13px] text-white/70 transition-colors hover:bg-white/16 hover:text-haul-400 ${pending ? 'opacity-40' : ''}`}
+                        className={`flex size-6 cursor-pointer items-center justify-center rounded-md bg-white/8 text-[13px] text-t2 transition-colors hover:bg-white/16 hover:text-haul-400 ${pending ? 'opacity-40' : ''}`}
                       >
                         📎
                         <input
@@ -670,7 +670,7 @@ export function TruckCare({
                       />
                     </span>
                   </div>
-                  <div className="mt-0.5 text-[12px] text-white/50">
+                  <div className="mt-0.5 text-[12px] text-t3">
                     {KIND_LABEL[r.kind]} · {r.doneAt}
                     {r.odometer !== null && ` · ${Math.round(r.odometer).toLocaleString('en-US')} mi`}
                     {r.notes && ` · ${r.notes}`}

@@ -215,7 +215,7 @@ export function DocViewer({ id, mime }: { id: number; mime: string }) {
       </div>
 
       {state === 'loading' && isPdf && (
-        <p className="py-10 text-center text-[13px] text-white/55">{t(locale, 'docs.viewer.opening')}</p>
+        <p className="py-10 text-center text-[13px] text-t3">{t(locale, 'docs.viewer.opening')}</p>
       )}
       {state === 'error' && (
         <p className="py-10 text-center text-[13px] text-bad-400">

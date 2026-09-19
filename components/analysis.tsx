@@ -65,10 +65,10 @@ function RateSplit({ r, locale }: { r: Breakdown; locale: ReturnType<typeof useL
       </div>
       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
         {parts.map((p) => (
-          <span key={p.key} className="flex items-center gap-1 text-2xs text-white/55">
+          <span key={p.key} className="flex items-center gap-1 text-2xs text-t3">
             <span className={`size-1.5 shrink-0 rounded-full ${p.color}`} />
             {t(locale, p.labelKey)}
-            <span className="nums text-white/75">{usd.format(p.amount)}</span>
+            <span className="nums text-t2">{usd.format(p.amount)}</span>
           </span>
         ))}
         <span className="flex items-center gap-1 text-2xs font-semibold">
@@ -150,7 +150,7 @@ export function Analysis({
       )}
 
       {target && (
-        <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">
+        <p className="mt-1.5 text-[13px] leading-relaxed text-t2">
           {t(locale, 'analysis.target').replace('{target}', usd2.format(targetRpm!))}{' '}
           <span
             className={`font-semibold ${target.kind === 'ok' ? 'text-good-400' : target.kind === 'short' ? 'text-warn-400' : 'text-bad-400'}`}
@@ -168,14 +168,14 @@ export function Analysis({
       {/* Цель торга по маршруту: сколько из цены грузоотправителя обычно доходит до трака.
           Цифра рынка чужая (Warp), доля — по нашим рейт-конам; и то, и другое подписано. */}
       {cut && (
-        <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">
+        <p className="mt-1.5 text-[13px] leading-relaxed text-t2">
           {t(locale, 'analysis.cutTarget').replace('{low}', usd2.format(cut.low)).replace('{high}', usd2.format(cut.high))}{' '}
           <span className={`font-semibold ${r.loadedRpm >= cut.low ? 'text-good-400' : 'text-warn-400'}`}>
             {r.loadedRpm >= cut.low
               ? t(locale, 'analysis.cutOk')
               : t(locale, 'analysis.cutBelow').replace('{usd}', usd.format(((cut.low - r.loadedRpm) * r.gross) / r.loadedRpm))}
           </span>
-          <span className="block text-[12px] text-white/45">
+          <span className="block text-[12px] text-t3">
             {t(locale, cut.broker ? 'analysis.cutFromBroker' : 'analysis.cutFrom')
               .replace('{shipper}', usd2.format(cut.shipper))
               .replace('{n}', String(cut.n))
@@ -186,7 +186,7 @@ export function Analysis({
 
       {/* Цели торга нет — котировки по маршруту ещё не собраны: спросить Warp сейчас. */}
       {!cut && quote && (
-        <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">
+        <p className="mt-1.5 text-[13px] leading-relaxed text-t2">
           <button
             type="button"
             disabled={quoting}
@@ -195,20 +195,20 @@ export function Analysis({
           >
             {quoting ? '…' : t(locale, 'plan.quote.btn')}
           </button>
-          <span className="ml-1.5 text-[12px] text-white/45">{t(locale, 'plan.quote.hint')}</span>
+          <span className="ml-1.5 text-[12px] text-t3">{t(locale, 'plan.quote.hint')}</span>
         </p>
       )}
 
       {vsSpot !== null && (
-        <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">
-          {t(locale, 'analysis.datMarket')} <span className="nums text-white/85">{usd2.format(spot!)}</span>/mi
+        <p className="mt-1.5 text-[13px] leading-relaxed text-t2">
+          {t(locale, 'analysis.datMarket')} <span className="nums text-t1">{usd2.format(spot!)}</span>/mi
           {vsSpot >= 0 ? t(locale, 'analysis.aboveMarketBy') : t(locale, 'analysis.belowMarketBy')}
           <span className={`nums ${vsSpot >= 0 ? 'text-good-400/80' : 'text-amber-400/90'}`}>
             {usd2.format(Math.abs(vsSpot))}
           </span>
           /mi{vsSpot < 0 ? t(locale, 'analysis.roomToNegotiate') : '.'}
           {fromDat && (
-            <span className="block text-[12px] text-white/45">
+            <span className="block text-[12px] text-t3">
               {t(locale, 'analysis.datRegion').replace('{region}', fromDat.region).replace('{date}', fromDat.date)}
             </span>
           )}
@@ -217,7 +217,7 @@ export function Analysis({
 
       {/* All the numbers with deductions live here, opened on demand. */}
       <details className="group mt-4">
-        <summary className="flex cursor-pointer list-none items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] py-3 text-center text-[14px] font-semibold text-white/75 transition-colors hover:border-haul-500/40 hover:bg-white/[0.07] hover:text-white">
+        <summary className="flex cursor-pointer list-none items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] py-3 text-center text-[14px] font-semibold text-t2 transition-colors hover:border-haul-500/40 hover:bg-white/[0.07] hover:text-white">
           <span className="text-haul-400 transition-transform group-open:rotate-90">▸</span>
           {t(locale, 'analysis.clickToSeeExpenses')}
         </summary>
@@ -226,13 +226,13 @@ export function Analysis({
             рейт-кона, всё с вычетом расходов открывается по желанию. */}
         {!notConfigured && (
           <>
-            <p className="mt-3 text-[13px] leading-relaxed text-white/70">
+            <p className="mt-3 text-[13px] leading-relaxed text-t2">
               {t(locale, 'analysis.net')}{' '}
               <span className={`nums font-semibold ${good ? 'text-good-400' : 'text-bad-400'}`}>
                 {usd.format(r.net)}
               </span>
               {t(locale, 'analysis.marginLine').replace('{pct}', r.marginPercent.toFixed(0))}
-              <span className="nums text-white/85">{usd.format(r.breakEvenRate)}</span>
+              <span className="nums text-t1">{usd.format(r.breakEvenRate)}</span>
               {t(locale, 'analysis.belowLoss')}
             </p>
             <RateSplit r={r} locale={locale} />
@@ -252,7 +252,7 @@ export function Analysis({
                 spot && spot > 0 ? (
                   <Money value={spot} format={usd2} />
                 ) : (
-                  <span className="text-white/35">—</span>
+                  <span className="text-t3">—</span>
                 ),
               info: t(locale, 'analysis.spotRateInfo'),
             },
@@ -264,7 +264,7 @@ export function Analysis({
           ].map((s) => (
             <div key={s.label} className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5">
               <div className="nums text-lg font-semibold">{s.node}</div>
-              <div className="flex items-center gap-1 text-xs text-white/70 font-medium">
+              <div className="flex items-center gap-1 text-xs text-t2 font-medium">
                 {s.label}
                 <Info text={s.info} />
               </div>
@@ -279,13 +279,13 @@ export function Analysis({
             сказано подписью. */}
         {r.deadheadMiles > 0 && (
           <div className="mt-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5">
-            <span className="text-[13px] text-white/78">
+            <span className="text-[13px] text-t1">
               {t(locale, 'analysis.deadhead')}
               <Info text={t(locale, 'analysis.deadheadInfo')} />
             </span>
-            <span className="nums text-[13px] text-white/85">
+            <span className="nums text-[13px] text-t1">
               {Math.round(r.deadheadMiles)} mi ·{' '}
-              <span className={r.deadheadPercent >= 20 ? 'text-warn-400' : 'text-white/60'}>
+              <span className={r.deadheadPercent >= 20 ? 'text-warn-400' : 'text-t2'}>
                 {r.deadheadPercent.toFixed(0)}%
               </span>{' '}
               · <span className="text-bad-400">−{usd.format(r.deadheadCost)}</span>
@@ -295,7 +295,7 @@ export function Analysis({
 
         <div className="mt-5 border-t border-white/8 pt-3">
           <div className="flex items-baseline justify-between pb-2">
-            <span className="text-[13px] text-white/78">{t(locale, 'analysis.gross')}</span>
+            <span className="text-[13px] text-t1">{t(locale, 'analysis.gross')}</span>
             <span className="nums text-[13px] font-semibold">{usd.format(r.gross)}</span>
           </div>
 
@@ -372,7 +372,7 @@ export function Analysis({
           )}
 
           <div className="mt-2 flex items-baseline justify-between border-t border-white/8 pt-2.5">
-            <span className="text-[13px] text-white/78">
+            <span className="text-[13px] text-t1">
               {t(locale, 'analysis.netMarginLine').replace('{pct}', r.marginPercent.toFixed(1))}
             </span>
             <span className={`nums text-sm font-bold ${good ? 'text-good-400' : 'text-bad-400'}`}>

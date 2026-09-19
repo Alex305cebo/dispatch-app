@@ -12,7 +12,7 @@ import type { StateBroker } from '@/lib/state-brokers'
 export function BackhaulList({ state, brokers, locale }: { state: string; brokers: StateBroker[]; locale: Locale }) {
   return (
     <section className="panel mt-4 p-4">
-      <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+      <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
         {t(locale, 'backhaul.heading').replace('{state}', state)}
         <Info text={t(locale, 'backhaul.info')} />
       </h2>
@@ -38,8 +38,8 @@ export function BackhaulList({ state, brokers, locale }: { state: string; broker
                 <Link href={`/brokers?q=${encodeURIComponent(b.mc ?? b.name)}`} className="text-[13px] font-medium hover:underline">
                   {b.name}
                 </Link>
-                {b.mc && <span className="nums text-[11px] text-white/40">MC {b.mc}</span>}
-                <span className="nums text-[11.5px] text-white/55">
+                {b.mc && <span className="nums text-[11px] text-t3">MC {b.mc}</span>}
+                <span className="nums text-[11.5px] text-t3">
                   {t(locale, 'backhaul.count').replace('{state}', state).replace('{n}', String(b.total))}
                   {b.payDays != null && (
                     <span className={b.payDays <= 30 ? ' text-good-400/80' : ' text-warn-400'}>
@@ -56,7 +56,7 @@ export function BackhaulList({ state, brokers, locale }: { state: string; broker
                   </a>
                 )}
                 {b.email && (
-                  <a href={`mailto:${b.email}`} className="rounded-md border border-white/12 px-2 py-0.5 text-[12px] font-medium text-white/75 hover:border-white/30 max-md:py-1.5">
+                  <a href={`mailto:${b.email}`} className="rounded-md border border-white/12 px-2 py-0.5 text-[12px] font-medium text-t2 hover:border-white/30 max-md:py-1.5">
                     ✉
                   </a>
                 )}
@@ -65,9 +65,9 @@ export function BackhaulList({ state, brokers, locale }: { state: string; broker
             <ul className="mt-0.5 flex flex-col">
               {b.loads.map((l) => (
                 <li key={l.id}>
-                  <Link href={`/loads/${l.id}`} className="block rounded px-1 text-[11.5px] leading-[18px] text-white/50 hover:bg-white/5 hover:text-white/85">
+                  <Link href={`/loads/${l.id}`} className="block rounded px-1 text-[11.5px] leading-[18px] text-t3 hover:bg-white/5 hover:text-t1">
                     <span className="nums">{usDate(l.day)}</span> · {l.route} · <span className="nums">{usd.format(l.rate)}</span>
-                    <span className="text-white/40">
+                    <span className="text-t3">
                       {' · '}
                       {[l.pickup && t(locale, 'backhaul.rolePickup'), l.delivery && t(locale, 'backhaul.roleDelivery')].filter(Boolean).join(' + ')}
                     </span>

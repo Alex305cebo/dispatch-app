@@ -68,7 +68,7 @@ export function Stat({
           label underneath in 10px grey, so four tiles in a row read as four loose
           numbers with no way to tell at a glance which was which. */}
       <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1 text-2xs font-semibold uppercase tracking-wide text-white/55">
+        <div className="flex min-w-0 items-center gap-1 text-2xs font-semibold uppercase tracking-wide text-t3">
           {/* Переносится на вторую строку, а не обрезается: «TOT…» не говорит ничего,
               две строки говорят всё. Плитки в ряду тянутся до общей высоты. */}
           <span className="min-w-0">{label}</span>
@@ -106,7 +106,7 @@ export function Stat({
       {sub && (
         <div
           className={`nums mt-1 text-xs font-medium ${
-            subTone === 'good' ? 'text-good-400/90' : subTone === 'bad' ? 'text-bad-400/90' : 'text-white/55'
+            subTone === 'good' ? 'text-good-400/90' : subTone === 'bad' ? 'text-bad-400/90' : 'text-t3'
           }`}
         >
           {sub}

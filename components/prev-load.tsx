@@ -32,7 +32,7 @@ export function PrevLoad({
     <div className={className}>
       {/* Подпись со значком — отдельной строкой над самим грузом: внутри строки ⓘ
           попадал под ссылку и открывал груз вместо подсказки. */}
-      <p className="mb-1 flex items-center gap-1.5 px-0.5 text-[11.5px] font-semibold tracking-wide text-white/45 uppercase">
+      <p className="mb-1 flex items-center gap-1.5 px-0.5 text-[11.5px] font-semibold tracking-wide text-t3 uppercase">
         <History size={12} strokeWidth={2.2} aria-hidden />
         {t(locale, 'prevLoad.label')}
         <Info text={t(locale, 'prevLoad.info')} />
@@ -44,19 +44,19 @@ export function PrevLoad({
         className="panel-inset group block px-3 py-2 text-[12.5px] transition-colors hover:bg-white/[0.06] max-md:min-h-11"
       >
         <span className="flex items-baseline gap-x-2">
-          <span className="min-w-0 font-medium text-white/85 group-hover:underline">
+          <span className="min-w-0 font-medium text-t1 group-hover:underline">
             {load.origin ?? '—'} → {load.destination ?? '—'}
           </span>
-          <span className="nums ml-auto shrink-0 font-semibold text-white/70">{usd.format(load.rate)}</span>
+          <span className="nums ml-auto shrink-0 font-semibold text-t2">{usd.format(load.rate)}</span>
         </span>
         {(load.deliveryDate || load.referenceId) && (
-          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-white/55">
+          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-t3">
             {load.deliveryDate && (
               <span className="nums">
                 {t(locale, 'prevLoad.delivered')} {usDate(load.deliveryDate)}
               </span>
             )}
-            {load.referenceId && <span className="nums text-white/40">#{load.referenceId}</span>}
+            {load.referenceId && <span className="nums text-t3">#{load.referenceId}</span>}
           </span>
         )}
       </Link>

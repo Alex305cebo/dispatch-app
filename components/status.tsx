@@ -32,7 +32,7 @@ export function statusLabel(locale: Locale, status: LoadStatus): string {
 // Statuses now avoid the accent hue entirely and run cyan → amber → fuchsia → green
 // across the pipeline, which is the widest hue separation six states allow.
 export const STATUS_STYLE: Record<LoadStatus, string> = {
-  quoted: 'bg-white/8 text-white/70 ring-1 ring-white/10',
+  quoted: 'bg-white/8 text-t2 ring-1 ring-white/10',
   booked: 'bg-cyan-400/12 text-cyan-300 ring-1 ring-cyan-400/25',
   in_transit: 'bg-amber-400/12 text-amber-300 ring-1 ring-amber-400/25',
   delivered: 'bg-fuchsia-400/12 text-fuchsia-300 ring-1 ring-fuchsia-400/25',

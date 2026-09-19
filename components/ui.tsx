@@ -38,12 +38,12 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-medium text-white/70">
+      <span className="mb-1.5 block text-xs font-medium text-t2">
         {label}
       </span>
       <div className="relative">
         {prefix && (
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/55">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-t3">
             {prefix}
           </span>
         )}
@@ -65,7 +65,7 @@ export function Field({
           ].join(' ')}
         />
         {suffix && (
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/55">
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-t3">
             {suffix}
           </span>
         )}
@@ -89,7 +89,7 @@ export function TextField({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-medium text-white/70">
+      <span className="mb-1.5 block text-xs font-medium text-t2">
         {label}
       </span>
       <input
@@ -98,7 +98,7 @@ export function TextField({
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none transition-all duration-200 placeholder:text-white/45 hover:border-white/15 focus:border-haul-500 focus:bg-ink-900 focus:ring-4 focus:ring-haul-500/15"
+        className="w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-[15px] text-white outline-none transition-all duration-200 placeholder:text-t3 hover:border-white/15 focus:border-haul-500 focus:bg-ink-900 focus:ring-4 focus:ring-haul-500/15"
       />
     </label>
   )
@@ -122,11 +122,11 @@ export function CostBar({
   return (
     <div className="py-1.5">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="flex items-center gap-1 text-[13px] text-white/78">
+        <span className="flex items-center gap-1 text-[13px] text-t1">
           {label}
           {hint && <Info text={hint} />}
         </span>
-        <span className="nums text-[13px] text-white/90">−{usd.format(amount)}</span>
+        <span className="nums text-[13px] text-t1">−{usd.format(amount)}</span>
       </div>
       <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/6">
         <motion.div

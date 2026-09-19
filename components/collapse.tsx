@@ -39,7 +39,7 @@ export function Collapse({
         <ChevronRight
           size={14}
           strokeWidth={2.75}
-          className="shrink-0 text-white/40 transition-transform duration-200 group-open:rotate-90"
+          className="shrink-0 text-t3 transition-transform duration-200 group-open:rotate-90"
         />
         <span className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px] font-semibold">
           <span className="truncate">{title}</span>
@@ -50,7 +50,7 @@ export function Collapse({
             {count}
           </span>
         )}
-        {amount && <span className="nums shrink-0 text-base font-bold text-white/85">{amount}</span>}
+        {amount && <span className="nums shrink-0 text-base font-bold text-t1">{amount}</span>}
       </summary>
       <div className="border-t border-white/8 p-2.5">{children}</div>
     </details>
@@ -58,7 +58,7 @@ export function Collapse({
 }
 
 const TONES = {
-  plain: { edge: '', text: 'text-white/60', chip: 'bg-white/10 text-white/70' },
+  plain: { edge: '', text: 'text-t2', chip: 'bg-white/10 text-t2' },
   good: { edge: 'border-good-500/25', text: 'text-good-400', chip: 'bg-good-500/15 text-good-400' },
   warn: { edge: 'border-warn-400/30', text: 'text-warn-400', chip: 'bg-warn-400/15 text-warn-400' },
   bad: { edge: 'border-bad-500/30', text: 'text-bad-400', chip: 'bg-bad-500/15 text-bad-400' },
@@ -85,7 +85,7 @@ export function ShowMore({
     <>
       {items.slice(0, limit)}
       <details className="group/more">
-        <summary className="flex cursor-pointer list-none items-center justify-center gap-1 rounded-lg border border-dashed border-white/12 py-1.5 text-[13px] font-semibold text-white/75 transition-colors hover:border-white/25 hover:text-white/80">
+        <summary className="flex cursor-pointer list-none items-center justify-center gap-1 rounded-lg border border-dashed border-white/12 py-1.5 text-[13px] font-semibold text-t2 transition-colors hover:border-white/25 hover:text-t1">
           <ChevronRight
             size={12}
             strokeWidth={2.75}

@@ -38,7 +38,7 @@ export function PartialButton({
         disabled={busy}
         onClick={run}
         title={t(locale, 'partial.unmark')}
-        className="inline-flex items-center gap-0.5 rounded bg-white/[0.06] px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-white/60 transition-colors hover:bg-bad-500/15 hover:text-bad-400 disabled:opacity-50 max-md:min-h-7"
+        className="inline-flex items-center gap-0.5 rounded bg-white/[0.06] px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-t2 transition-colors hover:bg-bad-500/15 hover:text-bad-400 disabled:opacity-50 max-md:min-h-7"
       >
         {t(locale, 'partial.tag')}
         <X size={10} strokeWidth={3} />

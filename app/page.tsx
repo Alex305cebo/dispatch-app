@@ -155,7 +155,7 @@ export default async function Page() {
       <header className="mb-4 flex items-end justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight">{tr(locale, 'overview.title')}</h1>
-          <p className="mt-0.5 text-base text-white/60">
+          <p className="mt-0.5 text-base text-t2">
             {tr(locale, 'overview.truckCount').replace('{n}', String(trucks.length))}
           </p>
         </div>
@@ -184,9 +184,9 @@ export default async function Page() {
               <Link
                 key={`${a.truckId}-${a.item.label}`}
                 href={`/trucks/${a.truckId}#care`}
-                className="text-white/80 hover:underline"
+                className="text-t1 hover:underline"
               >
-                <span className="text-white/50">#{a.number}</span> {a.item.label} —{' '}
+                <span className="text-t3">#{a.number}</span> {a.item.label} —{' '}
                 <span className={a.item.tone === 'bad' ? 'text-bad-400' : 'text-warn-400'}>
                   {a.item.daysLeft < 0 ? tr(locale, 'overview.overdue') : tr(locale, 'overview.daysLeft').replace('{n}', String(a.item.daysLeft))}
                 </span>
@@ -220,7 +220,7 @@ export default async function Page() {
             </p>
             <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-base">
               {unreadNotes.slice(0, 6).map((l) => (
-                <Link key={l.id} href={`/loads/${l.id}`} className="text-white/80 hover:underline">
+                <Link key={l.id} href={`/loads/${l.id}`} className="text-t1 hover:underline">
                   {l.origin ?? '—'} → {l.destination ?? '—'}
                 </Link>
               ))}
@@ -242,7 +242,7 @@ export default async function Page() {
             className={`mt-px flex size-6 shrink-0 items-center justify-center rounded-md ring-1 ${
               overdueTotal > 0
                 ? 'bg-bad-500/15 text-bad-400 ring-bad-400/25'
-                : 'bg-white/[0.06] text-white/60 ring-white/10'
+                : 'bg-white/[0.06] text-t2 ring-white/10'
             }`}
           >
             <Wallet size={15} strokeWidth={2.5} />
@@ -250,13 +250,13 @@ export default async function Page() {
           <div className="min-w-0 flex-1">
           <p
             className={`flex items-center gap-1.5 text-base font-semibold leading-6 ${
-              overdueTotal > 0 ? 'text-bad-400' : 'text-white/55'
+              overdueTotal > 0 ? 'text-bad-400' : 'text-t3'
             }`}
           >
             {tr(locale, 'overview.awaitingPayment')}
             <Info text={tr(locale, 'overview.awaitingPaymentInfo')} />
           </p>
-          <p className="mt-1 text-base text-white/80">
+          <p className="mt-1 text-base text-t1">
             <Link href="/invoices?tab=unpaid" className="nums font-semibold hover:underline">
               {usd.format(unpaidTotal)}
             </Link>
@@ -363,7 +363,7 @@ export default async function Page() {
 
       {/* Fleet at a glance — driver + last-known ELD status, straight from the trucks. */}
       <div className="mb-2 mt-2 flex items-center justify-between">
-        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
           {tr(locale, 'overview.fleetHeading')}
           <Info text={tr(locale, 'overview.fleetInfo')} />
         </h2>
@@ -425,7 +425,7 @@ export default async function Page() {
                       </span>
                     )}
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-white/60">
+                  <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-t2">
                     {/* Прицеп уехал в подпись выше (truckLabel), здесь осталось
                         только место — иначе номер печатался бы дважды подряд. Место
                         копируется: с обзора его и диктуют брокеру чаще всего. */}
@@ -434,7 +434,7 @@ export default async function Page() {
                         text={placeCity(fs?.location ?? null)!}
                         coords={{ lat: fs?.lat, lng: fs?.lng }}
                         size="sm"
-                        className="min-w-0 text-[12px] text-white/70"
+                        className="min-w-0 text-[12px] text-t2"
                       />
                     ) : (
                       <span className="min-w-0 truncate">{tr(locale, 'overview.noEldData')}</span>
@@ -449,7 +449,7 @@ export default async function Page() {
                             ? 'text-bad-400'
                             : fs.fuel <= 30
                               ? 'text-warn-400'
-                              : 'text-white/45'
+                              : 'text-t3'
                         }`}
                       >
                         <Fuel size={10} strokeWidth={2.5} />
@@ -466,11 +466,11 @@ export default async function Page() {
                     it was worth. */}
                 <div className="min-w-0 shrink-0 text-right">
                   <div
-                    className={`nums whitespace-nowrap text-md font-bold leading-tight ${week > 0 ? 'text-good-400' : 'text-white/40'}`}
+                    className={`nums whitespace-nowrap text-md font-bold leading-tight ${week > 0 ? 'text-good-400' : 'text-t3'}`}
                   >
                     {usd.format(week)}
                   </div>
-                  <div className="flex items-center justify-end gap-1 text-xs text-white/55 font-medium">
+                  <div className="flex items-center justify-end gap-1 text-xs text-t3 font-medium">
                     {tr(locale, 'overview.perWeek')}
                     <Info text={tr(locale, 'overview.perWeekInfo')} />
                   </div>
@@ -488,7 +488,7 @@ export default async function Page() {
 
       {rows.length > 0 ? (
         <>
-          <h2 className="mb-2 mt-4 text-base leading-6 font-semibold text-white/90">
+          <h2 className="mb-2 mt-4 text-base leading-6 font-semibold text-t1">
             {tr(locale, 'overview.recentLoads')}
           </h2>
           <div className="flex flex-col gap-1.5">
@@ -508,8 +508,8 @@ export default async function Page() {
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                         <StatusBadge status={load.status} locale={locale} />
-                        <span className="nums min-w-0 text-[12px] text-white/65">
-                          <span className="text-white/45">{truckLabel(truck)}</span> · {usd2.format(r.allInRpm)}/mi
+                        <span className="nums min-w-0 text-[12px] text-t2">
+                          <span className="text-t3">{truckLabel(truck)}</span> · {usd2.format(r.allInRpm)}/mi
                         </span>
                       </div>
                     </div>
@@ -531,7 +531,7 @@ export default async function Page() {
       ) : (
         <div className="panel mt-6 p-6 text-center">
           <p className="text-[14px] font-medium">{tr(locale, 'overview.noLoadsYet')}</p>
-          <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-white/65">
+          <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-t2">
             {tr(locale, 'overview.noLoadsBody')}
           </p>
           <div className="mt-4 flex justify-center gap-2">
@@ -555,11 +555,11 @@ export default async function Page() {
 function DeliveryRow({ to, locale, figure }: { to: string; locale: Locale; figure?: string }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-1.5">
-      <span className="min-w-0 truncate text-[11px] text-white/55">
+      <span className="min-w-0 truncate text-[11px] text-t3">
         {tr(locale, 'overview.toDelivery')}
-        <span className="text-white/75">{to}</span>
+        <span className="text-t2">{to}</span>
       </span>
-      <span className="nums shrink-0 text-[11px] font-semibold text-white/80">
+      <span className="nums shrink-0 text-[11px] font-semibold text-t1">
         {figure ?? (
           <span className="inline-block h-3 w-20 animate-pulse rounded bg-white/10 align-middle" />
         )}

@@ -15,7 +15,7 @@ export function TgDisconnectButton() {
     return (
       <button
         onClick={() => setConfirming(true)}
-        className="shrink-0 text-[12px] text-white/45 underline decoration-dotted transition-colors hover:text-white/75"
+        className="shrink-0 text-[12px] text-t3 underline decoration-dotted transition-colors hover:text-t2"
       >
         {t(locale, 'telegram.disconnect.wrongAccount')}
       </button>
@@ -24,7 +24,7 @@ export function TgDisconnectButton() {
 
   return (
     <div className="flex shrink-0 items-center gap-2 text-[12px]">
-      <span className="text-white/55">{t(locale, 'telegram.disconnect.confirmText')}</span>
+      <span className="text-t3">{t(locale, 'telegram.disconnect.confirmText')}</span>
       <button
         disabled={pending}
         onClick={() =>
@@ -37,7 +37,7 @@ export function TgDisconnectButton() {
       >
         {pending ? '…' : t(locale, 'telegram.disconnect.yes')}
       </button>
-      <button onClick={() => setConfirming(false)} className="text-white/55 hover:text-white/85">
+      <button onClick={() => setConfirming(false)} className="text-t3 hover:text-t1">
         {t(locale, 'telegram.disconnect.cancel')}
       </button>
     </div>

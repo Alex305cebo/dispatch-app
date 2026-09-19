@@ -26,8 +26,8 @@ export function PairBar({
   const base =
     'flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-2 py-1 text-[12.5px] transition-colors sm:gap-2.5 sm:rounded-xl sm:px-3 sm:py-2 sm:text-[13px]'
   const active = `${base} border-haul-500/50 bg-haul-500/[0.14] text-white`
-  const link = `${base} border-white/12 bg-ink-900/70 text-white/85 hover:border-haul-400/60 hover:bg-haul-500/10 hover:text-white`
-  const empty = `${base} border-white/8 text-white/40`
+  const link = `${base} border-white/12 bg-ink-900/70 text-t1 hover:border-haul-400/60 hover:bg-haul-500/10 hover:text-white`
+  const empty = `${base} border-white/8 text-t3`
 
   // Подпись говорит прямо, что это и что случится по клику: «Ты на карточке трака» /
   // «Открыть карточку груза →». Голые «Трак» и «Груз» читались как заголовки, а не
@@ -38,7 +38,7 @@ export function PairBar({
     current === 'load' ? t(locale, 'pair.hereLoad') : load ? t(locale, 'pair.openLoad') : t(locale, 'pair.load')
   // Телефон: без заголовка-капса и без «TRK-/TRL-» — иконка говорит, что это, подсветка
   // говорит, где ты; остаётся одна строка «Morgan T. · DEMO-512», маршрут — до двух.
-  const cap = 'hidden truncate text-xs font-medium text-white/65 sm:block'
+  const cap = 'hidden truncate text-xs font-medium text-t2 sm:block'
   // Без «block» в общем классе: он перебивал «hidden», и на телефоне показывались
   // обе подписи разом. Видимость — только через варианты sm:/max-sm:.
   const label = 'font-semibold max-sm:line-clamp-2 max-sm:text-[12px] max-sm:leading-[1.2] sm:block sm:truncate'
@@ -78,7 +78,7 @@ export function PairBar({
       ) : (
         <div className={empty}>{truckInner}</div>
       )}
-      <span className="hidden self-center text-white/30 sm:inline">⇄</span>
+      <span className="hidden self-center text-t3 sm:inline">⇄</span>
       {current === 'load' ? (
         <div className={active} aria-current="page">{loadInner}</div>
       ) : load ? (

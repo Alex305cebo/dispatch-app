@@ -61,8 +61,8 @@ export function DeleteButton({
         onClick={() => setOpen(true)}
         className={
           label
-            ? 'inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-2xs font-medium text-white/35 transition-colors hover:bg-bad-500/10 hover:text-bad-400'
-            : 'shrink-0 text-[13px] text-white/35 transition-colors hover:text-bad-400'
+            ? 'inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-2xs font-medium text-t3 transition-colors hover:bg-bad-500/10 hover:text-bad-400'
+            : 'shrink-0 text-[13px] text-t3 transition-colors hover:text-bad-400'
         }
       >
         {label ?? '✕'}
@@ -77,7 +77,7 @@ export function DeleteButton({
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-[15px] font-semibold">{t(locale, 'deleteButton.heading')}</h3>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-white/60">
+            <p className="mt-1 text-[12.5px] leading-relaxed text-t2">
               «{title}» {note ?? t(locale, 'deleteButton.defaultNote')} {t(locale, 'deleteButton.body')}
             </p>
             <div className="mt-4 flex flex-col gap-2">

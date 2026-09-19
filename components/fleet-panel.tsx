@@ -35,10 +35,10 @@ type TileData = { value: string; label: string; tone?: 'warn' }
 function Tile({ value, label, tone }: TileData) {
   return (
     <div className="panel-inset flex flex-col justify-center px-3 py-2.5">
-      <div className={`nums truncate text-[18px] leading-tight ${tone === 'warn' ? 'text-warn-400' : 'text-white/90'}`}>
+      <div className={`nums truncate text-[18px] leading-tight ${tone === 'warn' ? 'text-warn-400' : 'text-t1'}`}>
         {value}
       </div>
-      <div className="mt-0.5 truncate text-[11px] text-white/45">{label}</div>
+      <div className="mt-0.5 truncate text-[11px] text-t3">{label}</div>
     </div>
   )
 }
@@ -102,7 +102,7 @@ export function FleetPanel({
   }
   // «Edwin M. TRK-2237 TRL-1186» → «2237»: на чипе только номер, остальное — в title.
   const unitOf = (label: string) => /TRK-(\S+)/.exec(label)?.[1] ?? label
-  const toneDot = { move: 'text-good-400', on: 'text-haul-300', rest: 'text-white/45' } as const
+  const toneDot = { move: 'text-good-400', on: 'text-haul-300', rest: 'text-t3' } as const
 
   // Same four slots either way, so clicking a pin swaps the numbers without the strip
   // changing height or the tiles jumping to new widths.
@@ -174,7 +174,7 @@ export function FleetPanel({
                 className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-colors md:min-h-8 md:px-2.5 md:text-[12px] ${
                   active
                     ? 'border-haul-400/70 bg-haul-500/25 text-white'
-                    : 'border-white/12 bg-white/[0.04] text-white/75 hover:border-white/30 hover:bg-white/[0.08]'
+                    : 'border-white/12 bg-white/[0.04] text-t2 hover:border-white/30 hover:bg-white/[0.08]'
                 }`}
               >
                 <Truck
@@ -206,15 +206,15 @@ export function FleetPanel({
               {/* Время водителя, а не пятая плитка: плиток ровно четыре в обоих
                   состояниях, и пятая ломала бы ряд именно при выборе трака. */}
               {row.zone && (
-                <span className="shrink-0 text-[11.5px] text-white/55">
-                  {t(locale, 'trucks.head.driverTimeShort')} <LocalTime zone={row.zone} className="nums font-semibold text-white/80" />
+                <span className="shrink-0 text-[11.5px] text-t3">
+                  {t(locale, 'trucks.head.driverTimeShort')} <LocalTime zone={row.zone} className="nums font-semibold text-t1" />
                 </span>
               )}
             </span>
           ) : (
-            <span className="truncate text-[11.5px] text-white/35">{t(locale, 'tracking.pickOnMap')}</span>
+            <span className="truncate text-[11.5px] text-t3">{t(locale, 'tracking.pickOnMap')}</span>
           )}
-          <span className="ml-auto flex min-w-0 items-center gap-2 text-[11px] text-white/40">
+          <span className="ml-auto flex min-w-0 items-center gap-2 text-[11px] text-t3">
             <span className="truncate">{updatedText}</span>
             <RefreshFleetButton staleMinutes={staleMinutes} />
             {row && (

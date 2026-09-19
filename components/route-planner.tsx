@@ -297,7 +297,7 @@ function BoardShotSample({ locale }: { locale: Locale }) {
           </g>
         ))}
       </svg>
-      <span className="text-[10.5px] text-white/45">{t(locale, 'plan.boardSample')}</span>
+      <span className="text-[10.5px] text-t3">{t(locale, 'plan.boardSample')}</span>
     </span>
   )
 }
@@ -363,16 +363,16 @@ export function RoutePlanner({
       .replace('{cpm}', usd2.format(cpm))
       .replace('{fixed}', usd.format(s.truckPaymentPerDay + s.insurancePerDay + s.eldPermitsPerDay)) +
     (s.driverPay.mode === 'percent' ? t(locale, 'plan.costsDriverPct').replace('{v}', String(s.driverPay.percentOfGross)) : '')
-  const label = 'mb-1 block text-[11px] font-medium text-white/55'
+  const label = 'mb-1 block text-[11px] font-medium text-t3'
 
   return (
     <section id="route-planner" className="panel mb-4 scroll-mt-4 p-3 sm:p-4">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
           {t(locale, 'plan.title')}
           <Info text={t(locale, 'plan.info')} />
         </h2>
-        {snap && <span className="nums text-[11.5px] text-white/45">{t(locale, 'loadCard.marketAsOf').replace('{when}', snap.date)}</span>}
+        {snap && <span className="nums text-[11.5px] text-t3">{t(locale, 'loadCard.marketAsOf').replace('{when}', snap.date)}</span>}
       </div>
 
       {/* Трак — кнопками, а не списком: диспетчер жмёт трак и весь расчёт ниже
@@ -389,7 +389,7 @@ export function RoutePlanner({
               className={`rounded-xl border px-2.5 py-1.5 text-[12.5px] font-semibold transition-colors max-md:min-h-10 ${
                 x.id === truck.id
                   ? 'border-haul-500/60 bg-haul-500/15 text-white'
-                  : 'border-white/10 bg-white/[0.04] text-white/60 hover:border-white/20 hover:text-white/85'
+                  : 'border-white/10 bg-white/[0.04] text-t2 hover:border-white/20 hover:text-t1'
               }`}
             >
               {x.label}
@@ -421,7 +421,7 @@ export function RoutePlanner({
                   aria-pressed={eq === series}
                   onClick={() => plan.setSeries(eq)}
                   className={`flex-1 rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold transition-colors max-md:min-h-10 ${
-                    eq === series ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-white/55 hover:text-white/85'
+                    eq === series ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-t3 hover:text-t1'
                   }`}
                 >
                   {SERIES_NAME[eq]}
@@ -431,11 +431,11 @@ export function RoutePlanner({
           </div>
         )}
       </div>
-      <p className="mt-1.5 break-words text-[12px] text-white/55">{originLine}</p>
+      <p className="mt-1.5 break-words text-[12px] text-t3">{originLine}</p>
       {/* Профиль водителя: скоро домой — домашнее направление первым; стоп-лист штатов
           вырезан из списка. Обе строки только когда в паспорте это заполнено. */}
       {(truck.homeBy || truck.avoid.length > 0) && (
-        <p className="mt-1 break-words text-[12px] text-white/55">
+        <p className="mt-1 break-words text-[12px] text-t3">
           {truck.homeBy && truck.homeState && (
             <span className="text-haul-300">
               🏠 {t(locale, 'plan.homeBy').replace('{state}', stateName(truck.homeState)).replace('{date}', usDate(truck.homeBy))}
@@ -447,11 +447,11 @@ export function RoutePlanner({
       )}
 
       <details className="group mt-2 rounded-xl border border-white/8">
-        <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 text-[12px] text-white/55 max-md:min-h-11">
-          <span className="text-white/40 transition-transform group-open:rotate-90" aria-hidden>
+        <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 text-[12px] text-t3 max-md:min-h-11">
+          <span className="text-t3 transition-transform group-open:rotate-90" aria-hidden>
             ▸
           </span>
-          <span className="font-medium text-white/75">{t(locale, 'plan.settings')}</span>
+          <span className="font-medium text-t2">{t(locale, 'plan.settings')}</span>
           <span className="nums">
             {t(locale, 'plan.settingsSummary')
               .replace('{target}', usd.format(opts.target))
@@ -485,7 +485,7 @@ export function RoutePlanner({
             </label>
           ))}
         </div>
-        <p className="px-3 pb-2.5 pt-2 text-[11.5px] text-white/50">
+        <p className="px-3 pb-2.5 pt-2 text-[11.5px] text-t3">
           {costs} ·{' '}
           <Link href={`/trucks/${truck.id}`} className="text-haul-400 hover:underline">
             {t(locale, 'plan.editCosts')}
@@ -494,11 +494,11 @@ export function RoutePlanner({
       </details>
 
       {!snap ? (
-        <p className="mt-3 text-[13px] text-white/55">{t(locale, 'plan.noSnap')}</p>
+        <p className="mt-3 text-[13px] text-t3">{t(locale, 'plan.noSnap')}</p>
       ) : !origin ? (
-        <p className="mt-3 text-[13px] text-white/55">{t(locale, 'plan.noOrigin')}</p>
+        <p className="mt-3 text-[13px] text-t3">{t(locale, 'plan.noOrigin')}</p>
       ) : !lanes.length || !best ? (
-        <p className="mt-3 text-[13px] text-white/55">{t(locale, 'plan.noLanes').replace('{state}', stateName(origin))}</p>
+        <p className="mt-3 text-[13px] text-t3">{t(locale, 'plan.noLanes').replace('{state}', stateName(origin))}</p>
       ) : (
         <>
           {/* Две плитки, а не четыре: «Худший штат» повторял строку «Ловушки» под списком,
@@ -524,7 +524,7 @@ export function RoutePlanner({
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-white/55">
+            <h3 className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-t3">
               {t(locale, 'plan.lanesFrom').replace('{state}', stateName(origin))}
               <Info text={t(locale, 'plan.bench.info')} />
             </h3>
@@ -542,7 +542,7 @@ export function RoutePlanner({
           </div>
           {/* Ставка DAT за милю одна на весь регион — одной строкой над списком, а не одной и
               той же цифрой у десятка штатов подряд. Сам список — горячие штаты сверху. */}
-          <p className="nums mt-1 break-words text-[11.5px] text-white/50">
+          <p className="nums mt-1 break-words text-[11.5px] text-t3">
             {t(locale, 'plan.regionRates').replace(
               '{list}',
               [...snap.regions]
@@ -567,7 +567,7 @@ export function RoutePlanner({
                 aria-pressed={range === key}
                 onClick={() => setRange(key)}
                 className={`flex-1 rounded-lg px-2 py-1.5 text-[12.5px] font-semibold transition-colors max-md:min-h-10 ${
-                  range === key ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-white/55 hover:text-white/85'
+                  range === key ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-t3 hover:text-t1'
                 }`}
               >
                 {t(locale, msg)}
@@ -575,7 +575,7 @@ export function RoutePlanner({
             ))}
           </div>
           {range === 'day' && (
-            <p className="mt-1.5 text-[12px] text-white/55">{t(locale, 'plan.range.dayHint').replace('{mi}', String(opts.mpd))}</p>
+            <p className="mt-1.5 text-[12px] text-t3">{t(locale, 'plan.range.dayHint').replace('{mi}', String(opts.mpd))}</p>
           )}
           {/* «Все» — не один длинный список, а по четыре лучших в каждом плече: диспетчеру
               нужны разные варианты, а не десять соседних штатов подряд. */}
@@ -600,7 +600,7 @@ export function RoutePlanner({
                 if (!list.length) return null
                 return (
                   <div key={key}>
-                    <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wide text-white/45">{t(locale, `plan.range.${key}` as MsgKey)}</p>
+                    <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wide text-t3">{t(locale, `plan.range.${key}` as MsgKey)}</p>
                     <div className="flex flex-col gap-1.5">
                       {list.map((lane, i) => (
                         <LaneRow
@@ -644,10 +644,10 @@ export function RoutePlanner({
               />
             </div>
           ) : (
-            <p className="mt-2 text-[13px] text-white/55">{t(locale, 'plan.noRange').replace('{state}', stateName(origin))}</p>
+            <p className="mt-2 text-[13px] text-t3">{t(locale, 'plan.noRange').replace('{state}', stateName(origin))}</p>
           )}
           {traps.length > 0 && (
-            <p className="mt-2 text-[12px] text-white/55">
+            <p className="mt-2 text-[12px] text-t3">
               <span className="font-semibold text-bad-400">{t(locale, 'plan.traps')}:</span>{' '}
               {traps.map((l) => `${l.name} (${ltLine(l, locale)})`).join(', ')}
             </p>
@@ -678,23 +678,23 @@ function MarketDetails({
 }) {
   const trend = snap.trend
   const nowRatio = snap.history?.length ? snap.history[snap.history.length - 1]!.ratio : null
-  const sub = 'text-2xs font-semibold uppercase tracking-wide text-white/55'
+  const sub = 'text-2xs font-semibold uppercase tracking-wide text-t3'
   return (
     <details className="group mt-4 rounded-xl border border-white/8">
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2.5 gap-y-1 px-3 py-2 text-[12px] max-md:min-h-11">
-        <span className="text-white/40 transition-transform group-open:rotate-90" aria-hidden>
+        <span className="text-t3 transition-transform group-open:rotate-90" aria-hidden>
           ▸
         </span>
-        <span className="font-semibold text-white/80">{t(locale, 'plan.market.title').replace('{series}', SERIES_NAME[series])}</span>
+        <span className="font-semibold text-t1">{t(locale, 'plan.market.title').replace('{series}', SERIES_NAME[series])}</span>
         {/* Свёрнутый блок всё равно называет главную цифру рынка — грузов на трак по стране
             за последнюю неделю DAT: ради неё его и раскрывают. */}
         {nowRatio != null && (
-          <span className="nums text-white/70">
+          <span className="nums text-t2">
             {nowRatio.toFixed(1)} {t(locale, 'plan.perTruck')}
           </span>
         )}
         {snap.fuel && (
-          <span className="nums inline-flex items-center gap-1 text-white/70">
+          <span className="nums inline-flex items-center gap-1 text-t2">
             <Fuel size={12} aria-hidden />
             {t(locale, 'plan.market.diesel').replace('{v}', usd2.format(snap.fuel.price))}
           </span>
@@ -732,10 +732,10 @@ function MarketDetails({
               return (
                 <div key={r.code} className="min-w-0">
                   <div className="panel-inset px-2 py-1.5 sm:px-2.5">
-                    <div className="truncate text-[11px] text-white/55">{r.code.charAt(0) + r.code.slice(1).toLowerCase()}</div>
+                    <div className="truncate text-[11px] text-t3">{r.code.charAt(0) + r.code.slice(1).toLowerCase()}</div>
                     <div className="nums text-[16px] font-bold leading-tight sm:text-[18px]">
                       {usd2.format(r.rpm)}
-                      <span className="text-[11px] font-medium text-white/45">/mi</span>
+                      <span className="text-[11px] font-medium text-t3">/mi</span>
                     </div>
                   </div>
                   <div className="mt-1.5 space-y-1.5 px-1">
@@ -755,7 +755,7 @@ function MarketDetails({
                               className="flex items-center gap-1.5 text-[12px]"
                             >
                               <span className={`size-1.5 shrink-0 rounded-full ${dot}`} aria-hidden />
-                              <span className="min-w-0 flex-1 truncate text-white/80">
+                              <span className="min-w-0 flex-1 truncate text-t1">
                                 <span className="lg:hidden">{st.code === 'DC' ? stateLabel(st.code) : st.code}</span>
                                 <span className="hidden lg:inline">{stateLabel(st.code)}</span>
                               </span>
@@ -776,13 +776,13 @@ function MarketDetails({
             {snap.regions.length % 3 !== 0 && (
               <div className="min-w-0 sm:hidden">
                 <div className="panel-inset px-2 py-1.5">
-                  <div className="truncate text-[11px] text-white/55">{t(locale, 'plan.market.avgRegions')}</div>
+                  <div className="truncate text-[11px] text-t3">{t(locale, 'plan.market.avgRegions')}</div>
                   <div className="nums text-[16px] font-bold leading-tight">
                     {usd2.format(snap.regions.reduce((sum, r) => sum + r.rpm, 0) / snap.regions.length)}
-                    <span className="text-[11px] font-medium text-white/45">/mi</span>
+                    <span className="text-[11px] font-medium text-t3">/mi</span>
                   </div>
                 </div>
-                <ul className="mt-1.5 space-y-1 px-1 text-[11.5px] leading-snug text-white/60">
+                <ul className="mt-1.5 space-y-1 px-1 text-[11.5px] leading-snug text-t2">
                   {(
                     [
                       ['bg-good-400', 'plan.market.legendBest'],
@@ -795,7 +795,7 @@ function MarketDetails({
                       {t(locale, msg)}
                     </li>
                   ))}
-                  <li className="pt-0.5 text-white/45">{t(locale, 'plan.market.legendUnit')}</li>
+                  <li className="pt-0.5 text-t3">{t(locale, 'plan.market.legendUnit')}</li>
                 </ul>
               </div>
             )}
@@ -831,11 +831,11 @@ function StatesTable({ snaps, series, locale }: { snaps: PlanSnaps; series: DatE
     }))
     .filter((r) => r.ratio > 0)
     .sort((a, b) => (sort === 'state' ? a.name.localeCompare(b.name) : sort === 'rate' ? b.rate - a.rate : b.ratio - a.ratio))
-  const th = 'cursor-pointer select-none px-2 py-1 text-left font-semibold text-white/55 hover:text-white/85'
+  const th = 'cursor-pointer select-none px-2 py-1 text-left font-semibold text-t3 hover:text-t1'
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <h4 className="text-2xs font-semibold uppercase tracking-wide text-white/55">{t(locale, 'plan.market.states')}</h4>
+        <h4 className="text-2xs font-semibold uppercase tracking-wide text-t3">{t(locale, 'plan.market.states')}</h4>
         <div className="flex flex-wrap items-center gap-1.5">
           {list.length > 1 && (
             <div className="flex rounded-lg border border-white/10 bg-white/[0.04] p-0.5">
@@ -846,7 +846,7 @@ function StatesTable({ snaps, series, locale }: { snaps: PlanSnaps; series: DatE
                   aria-pressed={e === eq}
                   onClick={() => setEq(e)}
                   className={`rounded px-2 py-1 text-[11.5px] font-semibold transition-colors max-md:min-h-9 ${
-                    e === eq ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-white/55 hover:text-white/85'
+                    e === eq ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-t3 hover:text-t1'
                   }`}
                 >
                   {SERIES_NAME[e]}
@@ -860,7 +860,7 @@ function StatesTable({ snaps, series, locale }: { snaps: PlanSnaps; series: DatE
               aria-pressed={compare}
               onClick={() => setCompare((v) => !v)}
               className={`rounded-lg border px-2 py-1 text-[11.5px] font-semibold transition-colors max-md:min-h-9 ${
-                compare ? 'border-haul-500/60 bg-haul-500/15 text-white' : 'border-white/10 text-white/55 hover:text-white/85'
+                compare ? 'border-haul-500/60 bg-haul-500/15 text-white' : 'border-white/10 text-t3 hover:text-t1'
               }`}
             >
               {t(locale, 'plan.market.compare')}
@@ -894,23 +894,23 @@ function StatesTable({ snaps, series, locale }: { snaps: PlanSnaps; series: DatE
           <tbody className="nums">
             {rows.map((r) => (
               <tr key={r.code} className="border-t border-white/[0.06]">
-                <td className="px-2 py-1 text-white/80">
+                <td className="px-2 py-1 text-t1">
                   <span className="lg:hidden">{r.code === 'DC' ? r.name : r.code}</span>
                   <span className="hidden lg:inline">{r.name}</span>
                 </td>
                 {compare ? (
                   list.map((e) => (
-                    <td key={e} className="px-2 py-1 text-right text-white/75">
+                    <td key={e} className="px-2 py-1 text-right text-t2">
                       {r.byEq[e] != null ? r.byEq[e]!.toFixed(1) : '—'}
                     </td>
                   ))
                 ) : (
                   <td className="px-2 py-1 text-right">
                     <span className="mr-1 text-[10px]">{HEAT_LEVEL_ICON[heatLevel(median, r.ratio)]}</span>
-                    <span className="text-white/85">{r.ratio.toFixed(1)}</span>
+                    <span className="text-t1">{r.ratio.toFixed(1)}</span>
                   </td>
                 )}
-                <td className="px-2 py-1 text-right text-white/60" title={r.region}>
+                <td className="px-2 py-1 text-right text-t2" title={r.region}>
                   {r.rate ? usd2.format(r.rate) : '—'}
                 </td>
               </tr>
@@ -1090,10 +1090,10 @@ function LtChart({
             className="pointer-events-none absolute z-10 whitespace-nowrap rounded-lg border border-white/10 bg-ink-950 px-2 py-1.5 text-[11px] leading-tight"
             style={x(hover) > w / 2 ? { top: T, right: w - x(hover) + 10 } : { top: T, left: x(hover) + 10 }}
           >
-            <div className="nums text-white/50">{t(locale, 'plan.market.week').replace('{date}', usDate(p.when))}</div>
+            <div className="nums text-t3">{t(locale, 'plan.market.week').replace('{date}', usDate(p.when))}</div>
             <div className="mt-0.5">
               <span className="nums text-[14px] font-bold text-white">{signedPct(((p.ratio - avg) / avg) * 100)}</span>{' '}
-              <span className="text-white/60">{t(locale, 'plan.market.perTruck')}</span>
+              <span className="text-t2">{t(locale, 'plan.market.perTruck')}</span>
             </div>
             {change != null && (
               <div className={`nums mt-0.5 ${change >= 0 ? 'text-good-400' : 'text-bad-400'}`}>
@@ -1103,8 +1103,8 @@ function LtChart({
           </div>
         )}
       </div>
-      <figcaption className="nums mt-1 text-[11.5px] leading-snug text-white/55">
-        <span className="font-semibold text-white/85">{nowText}</span> ·{' '}
+      <figcaption className="nums mt-1 text-[11.5px] leading-snug text-t3">
+        <span className="font-semibold text-t1">{nowText}</span> ·{' '}
         <span className={vsAvg >= 0 ? 'text-good-400' : 'text-bad-400'}>{avgText}</span>
       </figcaption>
     </figure>
@@ -1185,7 +1185,7 @@ function LaneRow({
   const regionRpm = b ? null : (regionOf(snap, regionState)?.rpm ?? null)
   const rpm = b?.rpm ?? regionRpm
   const vs = board && rpm != null ? lane.rpm / rpm : null
-  const cls = vs == null ? 'text-white/85' : vs >= 1.05 ? TONE_TEXT.hit : vs <= 0.95 ? TONE_TEXT.miss : 'text-white/85'
+  const cls = vs == null ? 'text-t1' : vs >= 1.05 ? TONE_TEXT.hit : vs <= 0.95 ? TONE_TEXT.miss : 'text-t1'
   const none = t(locale, 'plan.bench.none').replace('{to}', lane.state)
   // Цель торга — только у цены грузоотправителя: ставки DAT и USDA и так со стороны трака.
   // Доля — этого брокера, если по нему сравнений хватает (band.broker), иначе общая.
@@ -1193,18 +1193,18 @@ function LaneRow({
   return (
     <details className="group rounded-lg border border-white/8 transition-colors open:border-white/15 hover:border-white/15">
       <summary className="flex cursor-pointer list-none items-center gap-2.5 px-3 py-2 max-md:min-h-11">
-        {rank != null && <span className="nums w-4 shrink-0 text-right text-[11px] text-white/40">{rank}</span>}
+        {rank != null && <span className="nums w-4 shrink-0 text-right text-[11px] text-t3">{rank}</span>}
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-x-2">
             <span className="min-w-0 break-words text-[13.5px] font-semibold">{title ?? lane.name}</span>
             <HeatTag heat={lane.heat} ratio={lane.ratio} median={lane.median} locale={locale} />
           </span>
-          <span className="nums block break-words text-[11.5px] text-white/50">
+          <span className="nums block break-words text-[11.5px] text-t3">
             {lane.miles.toLocaleString('en-US')} mi
             {board && ` · ${t(locale, 'plan.bench.boardRate').replace('{v}', usd2.format(lane.rpm))}`}
             {!pickup && lane.ratio != null && ` · ${lane.ratio.toFixed(1)} ${t(locale, 'plan.perTruck')}`}
           </span>
-          {reasons && reasons.length > 0 && <span className="block text-[11.5px] text-white/60">{reasons.join(' · ')}</span>}
+          {reasons && reasons.length > 0 && <span className="block text-[11.5px] text-t2">{reasons.join(' · ')}</span>}
         </span>
         <span className="max-w-[46%] shrink-0 text-right sm:max-w-[40%]">
           {/* Главная цифра — та, на которую диспетчеру торговаться. У цены грузоотправителя
@@ -1221,7 +1221,7 @@ function LaneRow({
                 .replace('{n}', String(band.n))}
             </span>
           )}
-          <span className="block text-[10.5px] leading-snug text-white/45">
+          <span className="block text-[10.5px] leading-snug text-t3">
             {b
               ? benchSource(b, bench, locale)
               : regionRpm != null
@@ -1279,11 +1279,11 @@ function LaneCalc({
   const days = (v: number) => t(locale, 'plan.days').replace('{v}', v.toFixed(1))
   const row = (text: string, value: string, cls = '') => (
     <div className="flex justify-between gap-3 border-b border-dashed border-white/[0.07] py-1">
-      <span className="min-w-0 text-white/60">{text}</span>
+      <span className="min-w-0 text-t2">{text}</span>
       <span className={`nums shrink-0 font-medium ${cls}`}>{value}</span>
     </div>
   )
-  const section = (text: string) => <p className="mt-2 text-2xs font-semibold uppercase tracking-wide text-white/45 first:mt-0">{text}</p>
+  const section = (text: string) => <p className="mt-2 text-2xs font-semibold uppercase tracking-wide text-t3 first:mt-0">{text}</p>
   const totalMiles = (lane.miles + lane.deadhead).toLocaleString('en-US')
   return (
     <div className="border-t border-white/[0.06] px-3 pb-3 pt-2 text-[12.5px]">
@@ -1334,11 +1334,11 @@ function LaneCalc({
 
       <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
         <div className="panel-inset flex items-center justify-between gap-3 px-3 py-2">
-          <span className="text-white/60">{t(locale, 'plan.calc.grossDay').replace('{target}', usd.format(opts.target))}</span>
+          <span className="text-t2">{t(locale, 'plan.calc.grossDay').replace('{target}', usd.format(opts.target))}</span>
           <span className={`nums font-bold ${TONE_TEXT[tone]}`}>{usd.format(lane.grossPerDay)}</span>
         </div>
         <div className="panel-inset flex items-center justify-between gap-3 px-3 py-2">
-          <span className="text-white/60">{t(locale, 'plan.calc.netDay')}</span>
+          <span className="text-t2">{t(locale, 'plan.calc.netDay')}</span>
           <span className={`nums font-bold ${lane.netPerDay >= 0 ? 'text-good-400' : 'text-bad-400'}`}>{usd.format(lane.netPerDay)}</span>
         </div>
       </div>
@@ -1461,11 +1461,11 @@ function BoardCompare({
     // звонок брокеру. Прочитанные грузы раскрывают блок сами — Ctrl+V со страницы не пропадает.
     <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)} className="group mt-4 rounded-xl border border-white/8">
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 text-[12px] max-md:min-h-11">
-        <span className="text-white/40 transition-transform group-open:rotate-90" aria-hidden>
+        <span className="text-t3 transition-transform group-open:rotate-90" aria-hidden>
           ▸
         </span>
-        <span className="font-semibold text-white/80">{t(locale, 'plan.board')}</span>
-        <span className="min-w-0 text-white/50">{t(locale, 'plan.boardDropSub')}</span>
+        <span className="font-semibold text-t1">{t(locale, 'plan.board')}</span>
+        <span className="min-w-0 text-t3">{t(locale, 'plan.boardDropSub')}</span>
         <Info text={t(locale, 'plan.boardInfo')} />
       </summary>
       <div className="border-t border-white/[0.06] px-3 pb-3 pt-2.5">
@@ -1522,7 +1522,7 @@ function BoardCompare({
           ) : (
             <ImagePlus size={22} className="text-haul-400" aria-hidden />
           )}
-          <span className="text-[13.5px] font-semibold text-white/85">
+          <span className="text-[13.5px] font-semibold text-t1">
             {reading ? (
               t(locale, 'plan.boardReading')
             ) : (
@@ -1532,7 +1532,7 @@ function BoardCompare({
               </>
             )}
           </span>
-          {!reading && <span className="text-[12px] text-white/50">{t(locale, 'plan.boardDropSub')}</span>}
+          {!reading && <span className="text-[12px] text-t3">{t(locale, 'plan.boardDropSub')}</span>}
           {!reading && (
             <button
               type="button"
@@ -1625,13 +1625,13 @@ function BoardCompare({
           </div>
           <details className="group mt-2 rounded-xl border border-white/8" open={Boolean(bad)}>
             <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[12px] max-md:min-h-11">
-              <span className="text-white/40 transition-transform group-open:rotate-90" aria-hidden>
+              <span className="text-t3 transition-transform group-open:rotate-90" aria-hidden>
                 ▸
               </span>
-              <span className="font-medium text-white/75">{t(locale, 'plan.boardEdit')}</span>
+              <span className="font-medium text-t2">{t(locale, 'plan.boardEdit')}</span>
             </summary>
             <div className="border-t border-white/[0.06] px-3 pb-3 pt-2">
-              <p className="text-[12px] leading-snug text-white/55">{t(locale, 'plan.boardHint')}</p>
+              <p className="text-[12px] leading-snug text-t3">{t(locale, 'plan.boardHint')}</p>
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}

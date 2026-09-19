@@ -7,7 +7,7 @@ export function Tab({ href, active, children }: { href: string; active: boolean;
       href={href}
       aria-current={active ? 'page' : undefined}
       className={`-mb-px border-b-2 px-3 py-2 text-[13px] font-medium transition-colors ${
-        active ? 'border-haul-500 text-white' : 'border-transparent text-white/55 hover:text-white/85'
+        active ? 'border-haul-500 text-white' : 'border-transparent text-t3 hover:text-t1'
       }`}
     >
       {children}

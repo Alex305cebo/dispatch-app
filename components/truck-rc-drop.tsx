@@ -41,7 +41,7 @@ type Result = {
 const WTONE = {
   danger: 'bg-bad-500/12 text-bad-400',
   warn: 'bg-warn-400/12 text-warn-400',
-  info: 'bg-white/6 text-white/70',
+  info: 'bg-white/6 text-t2',
 }
 
 export function TruckRcDrop({
@@ -219,7 +219,7 @@ export function TruckRcDrop({
             >
               {t(locale, 'rcDrop.openLoad')}
             </Link>
-            <Button variant="secondary" size="sm" className="text-white/75" onClick={() => setRes(null)}>
+            <Button variant="secondary" size="sm" className="text-t2" onClick={() => setRes(null)}>
               {t(locale, 'rcDrop.anotherRc')}
             </Button>
           </div>
@@ -233,7 +233,7 @@ export function TruckRcDrop({
               variant="ghost"
               size="sm"
               loading={undoBusy}
-              className="text-white/55 hover:text-bad-400"
+              className="text-t3 hover:text-bad-400"
               onClick={() => {
                 const route = `${res.fields.origin?.value ?? '—'} → ${res.fields.destination?.value ?? '—'}`
                 if (!window.confirm(t(locale, 'rcDrop.undoConfirm').replace('{route}', route))) return
@@ -274,7 +274,7 @@ export function TruckRcDrop({
                 .replace('{mi}', res.deadhead.miles.toLocaleString('en-US'))
                 .replace('{limit}', '150')}
             </p>
-            <p className="mt-0.5 text-white/65">
+            <p className="mt-0.5 text-t2">
               {t(locale, res.deadhead.from === 'load' ? 'rcDrop.deadheadFromLoad' : 'rcDrop.deadheadFromGps')
                 .replace('{from}', res.deadhead.fromLabel ?? '—')
                 .replace('{to}', res.deadhead.toLabel ?? '—')}
@@ -290,7 +290,7 @@ export function TruckRcDrop({
               <span className="text-good-300">{t(locale, 'rcDrop.partialMarked')}</span>
             ) : (
               <>
-                <span className="min-w-0 flex-1 text-white/70">{t(locale, 'rcDrop.partialHint')}</span>
+                <span className="min-w-0 flex-1 text-t2">{t(locale, 'rcDrop.partialHint')}</span>
                 <Button
                   variant="primary"
                   size="sm"
@@ -336,17 +336,17 @@ export function TruckRcDrop({
             stored on the server with the load; this is a local copy. */}
         {res.docId && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[12px] text-white/55">{t(locale, 'import.rateConLabel')}</span>
+            <span className="text-[12px] text-t3">{t(locale, 'import.rateConLabel')}</span>
             <DocLink
               docId={res.docId}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/85 hover:bg-white/5"
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-t1 hover:bg-white/5"
             >
               {t(locale, 'import.open')}
             </DocLink>
             <a
               href={`/api/docs/${res.docId}?download=1`}
               download={res.fileName || 'rate-con.pdf'}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/85 hover:bg-white/5"
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-[12px] font-semibold text-t1 hover:bg-white/5"
             >
               {t(locale, 'docView.saveToComputer')}
             </a>
@@ -355,7 +355,7 @@ export function TruckRcDrop({
 
         {res.warnings.length > 0 && (
           <div>
-            <p className="mb-1.5 text-base leading-6 font-semibold text-white/90">
+            <p className="mb-1.5 text-base leading-6 font-semibold text-t1">
               {t(locale, 'rcDrop.checkOnLoad')}
             </p>
             <ul className="flex flex-col gap-1.5">
@@ -373,7 +373,7 @@ export function TruckRcDrop({
 
         <div>
           <div className="mb-1.5 flex items-center justify-between">
-            <p className="text-base leading-6 font-semibold text-white/90">Driver Information</p>
+            <p className="text-base leading-6 font-semibold text-t1">Driver Information</p>
             <Button
               variant="primary"
               size="sm"
@@ -391,7 +391,7 @@ export function TruckRcDrop({
               {t(locale, 'import.copy')}
             </Button>
           </div>
-          <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-ink-900/60 p-3 font-mono text-[12px] leading-relaxed text-white/85">
+          <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-ink-900/60 p-3 font-mono text-[12px] leading-relaxed text-t1">
             {driverInfo}
           </pre>
         </div>
@@ -431,7 +431,7 @@ export function TruckRcDrop({
           <span className="flex items-center gap-2 text-[14px] font-medium">
             <span className="inline-block size-3.5 animate-spin rounded-full border-2 border-white/25 border-t-haul-400" />
             {stage}
-            <span className="nums text-white/55">
+            <span className="nums text-t3">
               {elapsed}
               {t(locale, 'rcDrop.secondsSuffix')}
             </span>
@@ -463,8 +463,8 @@ export function TruckRcDrop({
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-[14px] font-semibold">{t(locale, 'rcDrop.title')}</span>
-            <span className="mt-0.5 block text-[12px] leading-snug text-white/60">{t(locale, 'rcDrop.explain')}</span>
-            <span className="mt-0.5 hidden text-[11.5px] text-white/40 sm:block">{t(locale, 'rcDrop.orDrop')}</span>
+            <span className="mt-0.5 block text-[12px] leading-snug text-t2">{t(locale, 'rcDrop.explain')}</span>
+            <span className="mt-0.5 hidden text-[11.5px] text-t3 sm:block">{t(locale, 'rcDrop.orDrop')}</span>
           </span>
           <span className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-haul-500 px-4 py-2.5 text-[14px] font-semibold text-white transition-transform hover:bg-haul-400 active:scale-[0.98] sm:w-auto">
             <svg

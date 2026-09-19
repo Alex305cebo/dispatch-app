@@ -37,7 +37,7 @@ export function DemoToggle({ enabled, url }: { enabled: boolean; url: string }) 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[12.5px] leading-relaxed text-white/65">
+        <p className="text-[12.5px] leading-relaxed text-t2">
           {on ? t(locale, 'admin.demoPublic.currentlyOn') : t(locale, 'admin.demoPublic.currentlyOff')}
         </p>
         <button
@@ -54,7 +54,7 @@ export function DemoToggle({ enabled, url }: { enabled: boolean; url: string }) 
       </div>
 
       <div>
-        <span className="mb-1 block text-xs text-white/65 font-medium">
+        <span className="mb-1 block text-xs text-t2 font-medium">
           {t(locale, 'admin.demoPublic.urlLabel')}
         </span>
         <div className="flex gap-2">
@@ -68,7 +68,7 @@ export function DemoToggle({ enabled, url }: { enabled: boolean; url: string }) 
             {t(locale, 'common.save')}
           </Button>
         </div>
-        <p className="mt-1 text-[11.5px] leading-relaxed text-white/45">{t(locale, 'admin.demoPublic.urlHint')}</p>
+        <p className="mt-1 text-[11.5px] leading-relaxed text-t3">{t(locale, 'admin.demoPublic.urlHint')}</p>
       </div>
     </div>
   )

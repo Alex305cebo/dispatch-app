@@ -22,7 +22,7 @@ type Tools = {
 }
 
 const btn =
-  'inline-flex min-h-9 items-center rounded-lg border border-white/10 px-3 text-[12.5px] text-white/70 transition-colors hover:border-haul-500/50 hover:text-haul-300 disabled:opacity-50 max-md:min-h-11'
+  'inline-flex min-h-9 items-center rounded-lg border border-white/10 px-3 text-[12.5px] text-t2 transition-colors hover:border-haul-500/50 hover:text-haul-300 disabled:opacity-50 max-md:min-h-11'
 
 /** Реестр FMCSA и правка данных брокера — строкой под названием карточки. */
 export function BrokerTools({ broker }: { broker: Tools }) {
@@ -52,7 +52,7 @@ export function BrokerTools({ broker }: { broker: Tools }) {
     ? broker.authorityStatus === 'active'
       ? { text: `authority ${t(locale, 'brokers.statusActive')}`, cls: 'bg-good-500/15 text-good-400' }
       : { text: `authority ${t(locale, 'brokers.statusInactive')}`, cls: 'bg-bad-500/15 text-bad-400' }
-    : { text: t(locale, 'brokers.card.notChecked'), cls: 'bg-white/8 text-white/60' }
+    : { text: t(locale, 'brokers.card.notChecked'), cls: 'bg-white/8 text-t2' }
 
   return (
     <div className="mt-2.5">
@@ -116,19 +116,19 @@ function BrokerEdit({ broker, onCancel, onSaved }: { broker: Tools; onCancel: ()
     <div className="mt-2.5 rounded-xl border border-white/10 bg-ink-950/60 p-3">
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-0.5 block text-[11px] text-white/45">{t(locale, 'brokers.editName')}</span>
+          <span className="mb-0.5 block text-[11px] text-t3">{t(locale, 'brokers.editName')}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} className={field} />
         </label>
         <label className="block">
-          <span className="mb-0.5 block text-[11px] text-white/45">{t(locale, 'brokers.editMc')}</span>
+          <span className="mb-0.5 block text-[11px] text-t3">{t(locale, 'brokers.editMc')}</span>
           <input value={mc} onChange={(e) => setMc(e.target.value)} inputMode="numeric" placeholder="123456" className={`${field} nums`} />
         </label>
         <label className="block">
-          <span className="mb-0.5 block text-[11px] text-white/45">{t(locale, 'brokers.editPhone')}</span>
+          <span className="mb-0.5 block text-[11px] text-t3">{t(locale, 'brokers.editPhone')}</span>
           <input value={phone} onChange={(e) => setPhone(e.target.value)} className={field} />
         </label>
         <label className="block">
-          <span className="mb-0.5 block text-[11px] text-white/45">{t(locale, 'brokers.editEmail')}</span>
+          <span className="mb-0.5 block text-[11px] text-t3">{t(locale, 'brokers.editEmail')}</span>
           <input value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" className={field} />
         </label>
       </div>
@@ -144,7 +144,7 @@ function BrokerEdit({ broker, onCancel, onSaved }: { broker: Tools; onCancel: ()
         <button type="button" onClick={onCancel} className={btn}>
           {t(locale, 'brokers.editCancel')}
         </button>
-        <span className="text-[11.5px] text-white/40">{t(locale, 'brokers.editScope').replace('{n}', String(broker.loadCount))}</span>
+        <span className="text-[11.5px] text-t3">{t(locale, 'brokers.editScope').replace('{n}', String(broker.loadCount))}</span>
       </div>
     </div>
   )

@@ -107,12 +107,12 @@ export function LoadForm({
     <MotionConfig reducedMotion="user">
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <section className="panel p-5">
-          <h2 className="mb-4 text-base leading-6 font-semibold text-white/90">
+          <h2 className="mb-4 text-base leading-6 font-semibold text-t1">
             {tr(locale, 'loadForm.heading')}
           </h2>
 
           <label className="mb-4 block">
-            <span className="mb-1.5 block text-xs font-medium text-white/70">
+            <span className="mb-1.5 block text-xs font-medium text-t2">
               {tr(locale, 'loadForm.truckLabel')}
             </span>
             <select
@@ -154,8 +154,8 @@ export function LoadForm({
             {/* Ориентир рынка прямо под ставкой: сколько за такой рейс даёт DAT по региону
                 погрузки — сравнить с предложением брокера одним взглядом. */}
             {dat && (
-              <p className="mt-1.5 text-[12px] text-white/55">
-                <span className="nums font-semibold text-white/80">{usd2.format(dat.rpm)}</span>/mi
+              <p className="mt-1.5 text-[12px] text-t3">
+                <span className="nums font-semibold text-t1">{usd2.format(dat.rpm)}</span>/mi
                 {load.loadedMiles > 0 &&
                   ` ${tr(locale, 'loadForm.datTotal')
                     .replace('{total}', usd.format(dat.rpm * load.loadedMiles))
@@ -193,7 +193,7 @@ export function LoadForm({
                       )
                   })
                 }
-                className="mt-1 text-[11px] text-haul-400 hover:underline disabled:text-white/30"
+                className="mt-1 text-[11px] text-haul-400 hover:underline disabled:text-t3"
               >
                 {milesBusy ? tr(locale, 'loadForm.calculating') : tr(locale, 'loadForm.milesByMapButton')}
               </button>
@@ -258,7 +258,7 @@ export function LoadForm({
         </section>
 
         <section className="panel p-5 lg:sticky lg:top-6">
-          <h2 className="mb-4 text-base leading-6 font-semibold text-white/90">
+          <h2 className="mb-4 text-base leading-6 font-semibold text-t1">
             {tr(locale, 'loadDetail.rateHeading')}
           </h2>
           {calcError && <p className="text-sm text-bad-400">{calcError}</p>}

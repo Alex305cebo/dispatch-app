@@ -47,12 +47,12 @@ function Tile({ value, label, tone }: { value: string; label: string; tone?: 'wa
     <div className="flex-1 basis-[6.5rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
       <div
         className={`nums text-[15px] font-semibold ${
-          tone === 'warn' ? 'text-warn-400' : tone === 'good' ? 'text-good-400' : 'text-white/85'
+          tone === 'warn' ? 'text-warn-400' : tone === 'good' ? 'text-good-400' : 'text-t1'
         }`}
       >
         {value}
       </div>
-      <div className="mt-0.5 text-xs text-white/60 font-medium">{label}</div>
+      <div className="mt-0.5 text-xs text-t2 font-medium">{label}</div>
     </div>
   )
 }
@@ -124,7 +124,7 @@ function DayRibbon({
           <span className="absolute inset-y-0 right-0 bg-ink-950/55" style={{ width: `${futurePct}%` }} aria-hidden />
         )}
       </div>
-      <div className="mt-1 flex justify-between text-[9px] tabular-nums text-white/25">
+      <div className="mt-1 flex justify-between text-[9px] tabular-nums text-t3">
         {['00', '06', '12', '18', '24'].map((h) => (
           <span key={h}>{h}</span>
         ))}
@@ -151,7 +151,7 @@ export function TripHistory({
   useEffect(() => setNowMs(Date.now()), [])
 
   if (legs.length === 0) {
-    return <p className="text-[13px] leading-relaxed text-white/55">{t(locale, 'trucks.trip.empty')}</p>
+    return <p className="text-[13px] leading-relaxed text-t3">{t(locale, 'trucks.trip.empty')}</p>
   }
 
   // Свежее — сверху. Историю открывают, чтобы узнать, что с траком СЕЙЧАС, а не
@@ -186,7 +186,7 @@ export function TripHistory({
           <span className={isToday ? 'text-good-400' : 'text-warn-400'}>
             {t(locale, isToday ? 'trucks.trip.freshToday' : 'trucks.trip.freshOld')}
           </span>
-          <span className="nums text-white/45">
+          <span className="nums text-t3">
             {timeOf(freshest, locale)} · {agoText(freshest, locale)}
           </span>
         </p>
@@ -232,9 +232,9 @@ export function TripHistory({
               {isNewDay && (
                 <>
                   <li className="mt-3 flex items-baseline justify-between gap-2 px-1 first:mt-0">
-                    <span className="text-[13px] font-semibold text-white/75">{day}</span>
+                    <span className="text-[13px] font-semibold text-t2">{day}</span>
                     {totals && totals.driveMin > 0 && (
-                      <span className="nums text-[11px] text-white/45">
+                      <span className="nums text-[11px] text-t3">
                         {totals.miles.toLocaleString('en-US')} mi ·{' '}
                         <span className="text-good-400">{driveTime(totals.driveMin, locale)}</span>{' '}
                         {t(locale, 'trucks.trip.behindWheel')}
@@ -288,26 +288,26 @@ export function TripHistory({
                   {leg.kind === 'drive' ? (
                     <>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-white/80">
+                        <span className="block truncate text-t1">
                           {leg.fromLocation ?? '—'} → {leg.toLocation ?? '—'}
                         </span>
-                        <span className="nums block text-[11px] text-white/45">
+                        <span className="nums block text-[11px] text-t3">
                           {rangeLabel(leg.from, leg.to, locale)}
                           {avg !== null && ` · ${avg} mi/h ${t(locale, 'trucks.trip.avgShort')}`}
                         </span>
                       </span>
                       <span className="shrink-0 text-right">
-                        <span className="nums block font-semibold text-white/85">
+                        <span className="nums block font-semibold text-t1">
                           {leg.miles.toLocaleString('en-US')} mi
                         </span>
-                        <span className="nums block text-[11px] text-white/45">{driveTime(leg.minutes, locale)}</span>
+                        <span className="nums block text-[11px] text-t3">{driveTime(leg.minutes, locale)}</span>
                       </span>
                     </>
                   ) : (
                     <>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-1.5">
-                          <span className="truncate text-white/80">
+                          <span className="truncate text-t1">
                             {leg.location ?? t(locale, leg.long ? 'trucks.trip.longRest' : 'trucks.trip.stop')}
                           </span>
                           {role && (
@@ -321,19 +321,19 @@ export function TripHistory({
                             </span>
                           )}
                         </span>
-                        <span className="nums block text-[11px] text-white/45">
+                        <span className="nums block text-[11px] text-t3">
                           {rangeLabel(leg.from, leg.to, locale)}
                         </span>
                       </span>
                       <span className="shrink-0 text-right">
                         <span
                           className={`nums block font-semibold ${
-                            role ? 'text-haul-400' : leg.long ? 'text-warn-400' : 'text-white/70'
+                            role ? 'text-haul-400' : leg.long ? 'text-warn-400' : 'text-t2'
                           }`}
                         >
                           {driveTime(leg.minutes, locale)}
                         </span>
-                        <span className="block text-[11px] text-white/45">
+                        <span className="block text-[11px] text-t3">
                           {t(locale, role ? 'trucks.trip.underLoad' : 'trucks.trip.standing')}
                         </span>
                       </span>

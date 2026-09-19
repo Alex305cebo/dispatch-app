@@ -86,7 +86,7 @@ function JournalLink({
       className={`nav-icon-btn flex size-9 items-center justify-center rounded-full border ${collapsed ? 'is-collapsed' : ''} ${
         active
           ? 'border-haul-500/50 text-haul-400'
-          : 'border-white/10 text-white/72 hover:border-white/25 hover:text-white/90'
+          : 'border-white/10 text-t2 hover:border-white/25 hover:text-t1'
       }`}
     >
       <Icon d={icons.history} />
@@ -262,7 +262,7 @@ export function Nav({
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className={`size-4 shrink-0 text-white/40 transition-transform group-hover:text-white/70 ${
+          className={`size-4 shrink-0 text-t3 transition-transform group-hover:text-t2 ${
             railFolded ? 'rotate-180' : ''
           }`}
           aria-hidden
@@ -282,7 +282,7 @@ export function Nav({
                 key={it.href}
                 href={it.href}
                 className={`flex min-h-11 items-center gap-2.5 rounded-xl px-3 text-[13px] font-medium ${
-                  isOn(it, pathname) ? 'bg-haul-500/15 text-haul-300' : 'text-white/80 hover:bg-white/5'
+                  isOn(it, pathname) ? 'bg-haul-500/15 text-haul-300' : 'text-t1 hover:bg-white/5'
                 }`}
               >
                 <Icon d={icons[it.icon]} />
@@ -317,7 +317,7 @@ export function Nav({
               {t(locale, it.labelKey)}
             </span>
             {it.soon && (
-              <span className="nav-label ml-auto hidden rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-white/62 md:inline">
+              <span className="nav-label ml-auto hidden rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-t2 md:inline">
                 {t(locale, 'nav.soon')}
               </span>
             )}
@@ -330,7 +330,7 @@ export function Nav({
               key={it.href}
               aria-disabled
               title={t(locale, 'nav.notDoneYet')}
-              className={`${shape} cursor-not-allowed text-white/45 max-md:hidden`}
+              className={`${shape} cursor-not-allowed text-t3 max-md:hidden`}
             >
               {body}
             </div>
@@ -347,7 +347,7 @@ export function Nav({
             title={t(locale, it.labelKey)}
             aria-current={active ? 'page' : undefined}
             className={`${shape} ${it.primary ? '' : 'max-md:hidden'} ${
-              active ? 'text-haul-400 md:text-white' : 'text-white/70 hover:text-white/90'
+              active ? 'text-haul-400 md:text-white' : 'text-t2 hover:text-t1'
             }`}
           >
             {body}
@@ -364,7 +364,7 @@ export function Nav({
             onClick={() => setMoreOpen((o) => !o)}
             aria-expanded={moreOpen}
             aria-current={restActive ? 'page' : undefined}
-            className={`${shape} md:hidden ${restActive || moreOpen ? 'text-haul-400' : 'text-white/70'}`}
+            className={`${shape} md:hidden ${restActive || moreOpen ? 'text-haul-400' : 'text-t2'}`}
           >
             <Icon d={icons.more} />
             <span className="nav-label max-w-full truncate text-[11px] font-medium">{t(locale, 'common.more')}</span>

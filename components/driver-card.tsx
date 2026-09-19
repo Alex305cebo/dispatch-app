@@ -98,7 +98,7 @@ export function DriverCard({
   return (
     <Wrap className={embedded ? '' : 'panel p-4'}>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
           {t(locale, 'trucks.driverCard.heading')}
           {!embedded && <Info text={t(locale, 'trucks.driverCard.info')} />}
         </h2>
@@ -124,14 +124,14 @@ export function DriverCard({
                     t(locale, 'trucks.driverCard.copied'),
                   )
                 }
-                className="rounded-lg border border-white/10 px-3 py-1 text-[12px] font-medium text-white/70 transition-colors hover:border-white/25 hover:text-white"
+                className="rounded-lg border border-white/10 px-3 py-1 text-[12px] font-medium text-t2 transition-colors hover:border-white/25 hover:text-white"
               >
                 {t(locale, 'trucks.driverCard.copyForBroker')}
               </button>
             )}
             <button
               onClick={() => setEditing(true)}
-              className="rounded-lg border border-white/10 px-3 py-1 text-[12px] font-medium text-white/70 transition-colors hover:border-white/25 hover:text-white"
+              className="rounded-lg border border-white/10 px-3 py-1 text-[12px] font-medium text-t2 transition-colors hover:border-white/25 hover:text-white"
             >
               {name || phone ? t(locale, 'trucks.driverCard.edit') : t(locale, 'trucks.driverCard.fill')}
             </button>
@@ -190,7 +190,7 @@ export function DriverCard({
                 })
                 setEditing(false)
               }}
-              className="rounded-lg px-4 py-2 text-[13px] text-white/70 transition-colors hover:text-white"
+              className="rounded-lg px-4 py-2 text-[13px] text-t2 transition-colors hover:text-white"
             >
               {t(locale, 'trucks.common.cancel')}
             </button>
@@ -262,7 +262,7 @@ function Field({
     'w-full rounded-lg border border-white/10 bg-ink-950/70 px-2.5 py-1.5 text-[13px] text-white outline-none focus:border-haul-500'
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-xs text-white/65 font-medium">{label}</span>
+      <span className="text-xs text-t2 font-medium">{label}</span>
       <input type={type} value={value} onChange={onChange} placeholder={placeholder} className={input} />
     </label>
   )
@@ -271,8 +271,8 @@ function Field({
 function Row({ label, value, href }: { label: string; value: string; href?: string }) {
   return (
     <div className="min-w-0">
-      <dt className="text-xs text-white/60 font-medium">{label}</dt>
-      <dd className="font-medium text-white/85">
+      <dt className="text-xs text-t2 font-medium">{label}</dt>
+      <dd className="font-medium text-t1">
         {href ? (
           <a href={href} className="text-haul-400 hover:underline">
             {value}

@@ -65,7 +65,7 @@ function Tile({ title, right, children }: { title: string; right?: React.ReactNo
   return (
     <div className="panel-inset px-3.5 py-3">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-2xs font-semibold uppercase tracking-wide text-white/55">{title}</span>
+        <span className="text-2xs font-semibold uppercase tracking-wide text-t3">{title}</span>
         {right}
       </div>
       {children}
@@ -215,9 +215,9 @@ export default async function Page() {
               <Link
                 key={`${a.truckId}-${a.item.label}`}
                 href={`/trucks/${a.truckId}#care`}
-                className="text-white/80 hover:underline"
+                className="text-t1 hover:underline"
               >
-                <span className="text-white/50">#{a.number}</span> {a.item.label} —{' '}
+                <span className="text-t3">#{a.number}</span> {a.item.label} —{' '}
                 <span className={a.item.tone === 'bad' ? 'text-bad-400' : 'text-warn-400'}>
                   {a.item.daysLeft < 0
                     ? tr(locale, 'overview.overdue')
@@ -246,7 +246,7 @@ export default async function Page() {
         >
           <div className="flex flex-col gap-1 text-base">
             {unreadNotes.slice(0, 6).map((l) => (
-              <Link key={l.id} href={`/loads/${l.id}`} className="text-white/80 hover:underline">
+              <Link key={l.id} href={`/loads/${l.id}`} className="text-t1 hover:underline">
                 {l.origin ?? '—'} → {l.destination ?? '—'}
               </Link>
             ))}
@@ -268,14 +268,14 @@ export default async function Page() {
               className={`flex size-6 shrink-0 items-center justify-center rounded-md ring-1 ${
                 overdueTotal > 0
                   ? 'bg-bad-500/15 text-bad-400 ring-bad-400/25'
-                  : 'bg-white/[0.06] text-white/60 ring-white/10'
+                  : 'bg-white/[0.06] text-t2 ring-white/10'
               }`}
             >
               <Wallet size={15} strokeWidth={2.5} />
             </span>
           }
         >
-          <p className="text-base text-white/80">
+          <p className="text-base text-t1">
             <Link href="/invoices?tab=unpaid" className="nums text-2xl font-bold hover:underline">
               {usd.format(unpaidTotal)}
             </Link>
@@ -398,14 +398,14 @@ export default async function Page() {
                         и от длины названия города зависело, где именно строка порвётся:
                         у одного трака кнопки вставали рядом, у другого — столбиком, и
                         список шёл лесенкой в четыре строки на трак вместо трёх. */}
-                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-white/60">
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-t2">
                       <span className="min-w-0 truncate">
                         {placeCity(fs?.location ?? null) ?? tr(locale, 'overview.noEldData')}
                       </span>
                       {fs?.fuel != null && (
                         <span
                           className={`nums flex shrink-0 items-center gap-0.5 text-2xs font-medium ${
-                            fs.fuel <= 15 ? 'text-bad-400' : fs.fuel <= 30 ? 'text-warn-400' : 'text-white/45'
+                            fs.fuel <= 15 ? 'text-bad-400' : fs.fuel <= 30 ? 'text-warn-400' : 'text-t3'
                           }`}
                         >
                           <Fuel size={10} strokeWidth={2.5} />
@@ -428,7 +428,7 @@ export default async function Page() {
                     </div>
                   </div>
                   <div
-                    className={`nums shrink-0 whitespace-nowrap text-md font-bold ${week > 0 ? 'text-good-400' : 'text-white/40'}`}
+                    className={`nums shrink-0 whitespace-nowrap text-md font-bold ${week > 0 ? 'text-good-400' : 'text-t3'}`}
                   >
                     {usd.format(week)}
                   </div>
@@ -470,8 +470,8 @@ export default async function Page() {
                 </span>
                 <span className="col-span-2 flex items-center gap-2 lg:col-span-1">
                   <StatusBadge status={load.status} locale={locale} />
-                  <span className="nums min-w-0 truncate text-xs text-white/55">
-                    <span className="text-white/45">{truckLabel(truck)}</span> · {usd2.format(r.allInRpm)}/mi
+                  <span className="nums min-w-0 truncate text-xs text-t3">
+                    <span className="text-t3">{truckLabel(truck)}</span> · {usd2.format(r.allInRpm)}/mi
                   </span>
                 </span>
                 {rcId && (
@@ -492,7 +492,7 @@ export default async function Page() {
       <header className="mb-4 flex items-end justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight">{tr(locale, 'overview.title')}</h1>
-          <p className="mt-0.5 text-base text-white/60">
+          <p className="mt-0.5 text-base text-t2">
             {tr(locale, 'overview.truckCount').replace('{n}', String(trucks.length))}
           </p>
         </div>

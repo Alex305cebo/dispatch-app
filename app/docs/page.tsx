@@ -31,7 +31,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           {t(locale, 'docs.title')}
           <Info side="bottom" text={t(locale, 'docs.info')} />
         </h1>
-        <p className="text-[13px] text-white/65">{t(locale, 'docs.subtitle')}</p>
+        <p className="text-[13px] text-t2">{t(locale, 'docs.subtitle')}</p>
       </header>
 
       {/* Rate con recognizer — the fast path, folded into the library. */}
@@ -44,9 +44,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         </span>
         <span className="min-w-0">
           <span className="block text-[14px] font-semibold text-haul-300">{t(locale, 'docs.recognize.title')}</span>
-          <span className="block text-[12px] text-white/60">{t(locale, 'docs.recognize.sub')}</span>
+          <span className="block text-[12px] text-t2">{t(locale, 'docs.recognize.sub')}</span>
         </span>
-        <span className="ml-auto shrink-0 text-white/45">→</span>
+        <span className="ml-auto shrink-0 text-t3">→</span>
       </Link>
 
       <div className="panel mb-4 p-4">

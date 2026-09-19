@@ -57,7 +57,7 @@ export function TruckAvailability({
               ? o.value === 'active'
                 ? 'bg-good-500/20 text-good-400'
                 : 'bg-warn-400/20 text-warn-400'
-              : 'text-white/55 hover:bg-white/5 hover:text-white/85'
+              : 'text-t3 hover:bg-white/5 hover:text-t1'
           }`}
         >
           {t(locale, o.key)}

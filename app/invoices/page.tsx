@@ -84,7 +84,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
             }
           />
         </h1>
-        <p className="text-[13px] text-white/65">{tabDescription(locale)[tab]}</p>
+        <p className="text-[13px] text-t2">{tabDescription(locale)[tab]}</p>
       </header>
 
       <div className="mb-5 flex flex-wrap gap-1.5 border-b border-white/8">
@@ -273,7 +273,7 @@ async function Unpaid({
           (no invoiced_at yet), not visible anywhere else either. */}
       {uninvoiced.length > 0 && (
         <div className="mb-5">
-          <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+          <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
             {t(locale, 'finances.uninvoiced.heading')} · {usd.format(uninvoicedTotal)}
             <Info text={t(locale, 'finances.uninvoiced.info')} />
           </h2>
@@ -285,7 +285,7 @@ async function Unpaid({
                     <div className="text-[14px] font-medium leading-5">
                       {load.origin ?? '—'} → {load.destination ?? '—'}
                     </div>
-                    <div className="mt-0.5 text-[12px] text-white/60">
+                    <div className="mt-0.5 text-[12px] text-t2">
                       {load.brokerMc ? `MC ${load.brokerMc} · ` : ''}
                       {t(locale, 'finances.uninvoiced.cta')}
                     </div>
@@ -304,7 +304,7 @@ async function Unpaid({
                   </Link>
                   <Link
                     href={`/loads/${load.id}`}
-                    className="rounded-lg border border-white/15 px-3 py-1.5 text-[12px] font-semibold text-white/80 hover:border-white/35 hover:text-white"
+                    className="rounded-lg border border-white/15 px-3 py-1.5 text-[12px] font-semibold text-t1 hover:border-white/35 hover:text-white"
                   >
                     {t(locale, 'finances.card.buildInvoice')}
                   </Link>
@@ -353,9 +353,9 @@ async function Unpaid({
             <div className="text-[14px] font-medium">
               {r.load.origin ?? '—'} → {r.load.destination ?? '—'}
             </div>
-            <div className="mt-0.5 text-[12px] text-white/60">
+            <div className="mt-0.5 text-[12px] text-t2">
               {r.load.invoiceNumber} · {r.load.brokerMc ? `MC ${r.load.brokerMc} · ` : ''}
-              <span className={r.overdue ? 'text-bad-400' : 'text-white/60'}>
+              <span className={r.overdue ? 'text-bad-400' : 'text-t2'}>
                 {t(locale, 'finances.unpaid.daysOut')
                   .replace('{d}', String(r.daysOut))
                   .replace('{n}', String(r.load.paymentTermsDays))}
@@ -377,7 +377,7 @@ async function Unpaid({
                   </Link>
           <Link
             href={`/loads/${r.load.id}`}
-            className="inline-flex min-h-9 items-center rounded-lg border border-white/15 px-3 text-[12px] font-semibold text-white/80 hover:border-white/35 hover:text-white max-md:min-h-11"
+            className="inline-flex min-h-9 items-center rounded-lg border border-white/15 px-3 text-[12px] font-semibold text-t1 hover:border-white/35 hover:text-white max-md:min-h-11"
           >
             {t(locale, 'finances.card.openLoad')}
           </Link>
@@ -495,7 +495,7 @@ async function Paid({
                       <div className="text-[14px] font-medium">
                         {load.origin ?? '—'} → {load.destination ?? '—'}
                       </div>
-                      <div className="mt-0.5 text-[12px] text-white/60">
+                      <div className="mt-0.5 text-[12px] text-t2">
                         {load.invoiceNumber} · {load.paidAt ? usDate(todayEt(new Date(load.paidAt))) : '—'}
                         {r ? (
                           <>
@@ -510,7 +510,7 @@ async function Paid({
                       {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
                       <Link
                         href={financesHref(load)}
-                        className="inline-flex min-h-9 items-center rounded-lg border border-white/10 px-3 text-[12px] font-semibold text-white/60 hover:border-white/25 hover:text-white max-md:min-h-11"
+                        className="inline-flex min-h-9 items-center rounded-lg border border-white/10 px-3 text-[12px] font-semibold text-t2 hover:border-white/25 hover:text-white max-md:min-h-11"
                       >
                         {t(locale, 'payments.tab')}
                       </Link>
@@ -643,7 +643,7 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
     return (
       <>
         {openAccessWarning}
-        <p className="panel p-6 text-[13px] text-white/60">{t(locale, 'finances.noLoads')}</p>
+        <p className="panel p-6 text-[13px] text-t2">{t(locale, 'finances.noLoads')}</p>
       </>
     )
   }
@@ -652,7 +652,7 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
     <div className="flex flex-col gap-3">
       {openAccessWarning}
       {/* Период расчёта назван прямо: под ним суммы к выплате. */}
-      <p className="text-[11.5px] text-white/45">{t(locale, 'finances.payWeekNote')}</p>
+      <p className="text-[11.5px] text-t3">{t(locale, 'finances.payWeekNote')}</p>
       {sortedWeeks.map((week) => (
         <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
           <summary className="flex cursor-pointer list-none flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
@@ -667,7 +667,7 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
                 <div key={disp.key} className="rounded-xl border border-white/8 p-3">
                   <div className="flex items-center justify-between gap-3 text-[13px] font-semibold text-haul-300">
                     <span>{disp.name}</span>
-                    <span className="nums shrink-0 text-[12px] font-normal text-white/60">
+                    <span className="nums shrink-0 text-[12px] font-normal text-t2">
                       {usd.format(disp.gross)}
                     </span>
                   </div>
@@ -679,7 +679,7 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
                         <div key={drv.truckId} className="rounded-lg border border-white/6 bg-white/[0.015] p-2.5">
                           <div className="flex flex-wrap items-center justify-between gap-2 text-[12.5px] font-medium">
                             <span>{drv.label}</span>
-                            <span className="nums shrink-0 text-[11.5px] font-normal text-white/60">
+                            <span className="nums shrink-0 text-[11.5px] font-normal text-t2">
                               {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(drv.loads.length))} ·{' '}
                               {usd.format(drv.gross)} · {Math.round(drv.miles)} mi
                             </span>
@@ -689,7 +689,7 @@ async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'dem
                               <li key={load.id}>
                                 <Link
                                   href={`/loads/${load.id}`}
-                                  className="flex items-start justify-between gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-[12px] leading-4 text-white/65 transition-colors hover:bg-white/5 hover:text-white/90"
+                                  className="flex items-start justify-between gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-[12px] leading-4 text-t2 transition-colors hover:bg-white/5 hover:text-t1"
                                 >
                                   <span className="min-w-0">
                                     {load.referenceId ? `#${load.referenceId} · ` : ''}
@@ -766,12 +766,12 @@ async function ByWeek({
   const sortedWeeks = [...weeks.values()].sort((a, b) => b.weekStartMs - a.weekStartMs)
   const thisWeek = weekStart()
   if (sortedWeeks.length === 0) {
-    return <p className="panel p-6 text-[13px] text-white/60">{t(locale, 'finances.noLoads')}</p>
+    return <p className="panel p-6 text-[13px] text-t2">{t(locale, 'finances.noLoads')}</p>
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[11.5px] text-white/45">{t(locale, 'finances.payWeekNote')}</p>
+      <p className="text-[11.5px] text-t3">{t(locale, 'finances.payWeekNote')}</p>
       {sortedWeeks.map((week) => (
         <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
           {/* Дата и итог — первый уровень, грузы/мили/RPM — второй. На телефоне в
@@ -780,7 +780,7 @@ async function ByWeek({
             <span className="text-[15px] font-semibold capitalize">{weekLabel(week.weekStartMs, locale)}</span>
             <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 sm:justify-end">
               <span className="nums text-[17px] font-semibold">{usd.format(week.gross)}</span>
-              <span className="nums text-[12px] text-white/55">
+              <span className="nums text-[12px] text-t3">
                 {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(week.count))} · {Math.round(week.miles)} mi
                 {week.miles > 0 && ` · ${usd2.format(week.gross / week.miles)}/mi`}
               </span>
@@ -791,7 +791,7 @@ async function ByWeek({
             {/* Неделя одним файлом для бухгалтера: грузы, мили, ставки, счета, зарплата. */}
             <a
               href={`/api/export/week?start=${week.weekStartMs}`}
-              className="inline-flex min-h-9 items-center self-end rounded-md border border-white/12 px-2.5 text-[11.5px] font-medium text-white/70 hover:border-white/30 hover:text-white max-md:min-h-11"
+              className="inline-flex min-h-9 items-center self-end rounded-md border border-white/12 px-2.5 text-[11.5px] font-medium text-t2 hover:border-white/30 hover:text-white max-md:min-h-11"
             >
               CSV
             </a>
@@ -801,10 +801,10 @@ async function ByWeek({
                 <div key={row.label} className="rounded-lg border border-white/6 bg-white/[0.015] p-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2 text-[12.5px] font-medium">
                     <span className="text-haul-300">{row.label}</span>
-                    <span className="nums shrink-0 text-[11.5px] font-normal text-white/60">
+                    <span className="nums shrink-0 text-[11.5px] font-normal text-t2">
                       {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(row.loads.length))} ·{' '}
                       {Math.round(row.miles)} mi ·{' '}
-                      <span className="font-semibold text-white/85">{usd.format(row.gross)}</span>
+                      <span className="font-semibold text-t1">{usd.format(row.gross)}</span>
                     </span>
                   </div>
                   <ul className="mt-1.5 flex flex-col gap-1">
@@ -812,7 +812,7 @@ async function ByWeek({
                       <li key={load.id} className="flex items-center gap-2">
                         <Link
                           href={`/loads/${load.id}`}
-                          className="flex min-w-0 flex-1 items-start justify-between gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-[12px] leading-4 text-white/65 transition-colors hover:bg-white/5 hover:text-white/90"
+                          className="flex min-w-0 flex-1 items-start justify-between gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-[12px] leading-4 text-t2 transition-colors hover:bg-white/5 hover:text-t1"
                         >
                           <span className="min-w-0">
                             {load.referenceId ? `#${load.referenceId} · ` : ''}
@@ -889,20 +889,20 @@ async function ByDriver({ companyId, locale }: { companyId: 'default' | 'demo'; 
   const thisWeek = weekStart()
 
   if (sortedWeeks.length === 0) {
-    return <p className="panel p-6 text-[13px] text-white/60">{t(locale, 'finances.driver.noCommitted')}</p>
+    return <p className="panel p-6 text-[13px] text-t2">{t(locale, 'finances.driver.noCommitted')}</p>
   }
 
   return (
     <div className="flex flex-col gap-3">
       {/* Период расчёта назван прямо: под ним суммы к выплате. */}
-      <p className="text-[11.5px] text-white/45">{t(locale, 'finances.payWeekNote')}</p>
+      <p className="text-[11.5px] text-t3">{t(locale, 'finances.payWeekNote')}</p>
       {sortedWeeks.map((week) => (
         <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
           {/* «К выплате» белым и крупно: зелёный читался как уже проведённая выплата. */}
           <summary className="flex cursor-pointer list-none flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
             <span className="text-[15px] font-semibold capitalize">{weekLabel(week.weekStartMs, locale)}</span>
             <span className="flex items-baseline gap-x-2">
-              <span className="text-[12px] text-white/55">{t(locale, 'finances.payDue')}</span>
+              <span className="text-[12px] text-t3">{t(locale, 'finances.payDue')}</span>
               <span className="nums text-[17px] font-semibold">{usd.format(week.pay)}</span>
             </span>
           </summary>
@@ -914,7 +914,7 @@ async function ByDriver({ companyId, locale }: { companyId: 'default' | 'demo'; 
                 <div key={drv.label} className="rounded-xl border border-white/8 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] font-semibold">
                     <span className="text-haul-300">{drv.label}</span>
-                    <span className="nums text-[12.5px] font-normal text-white/60">
+                    <span className="nums text-[12.5px] font-normal text-t2">
                       {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(drv.loads.length))} ·{' '}
                       {Math.round(drv.miles)} mi · {t(locale, 'finances.payDue')}{' '}
                       <span className="font-semibold text-good-400">{usd.format(drv.pay)}</span>
@@ -925,7 +925,7 @@ async function ByDriver({ companyId, locale }: { companyId: 'default' | 'demo'; 
                       <li key={load.id}>
                         <Link
                           href={`/loads/${load.id}`}
-                          className="flex items-start justify-between gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-[12px] leading-4 text-white/65 transition-colors hover:bg-white/5 hover:text-white/90"
+                          className="flex items-start justify-between gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-[12px] leading-4 text-t2 transition-colors hover:bg-white/5 hover:text-t1"
                         >
                           <span className="min-w-0">
                             {load.referenceId ? `#${load.referenceId} · ` : ''}
@@ -955,7 +955,7 @@ function Stat({ label, value, tone, info }: { label: string; value: string; tone
       >
         {value}
       </div>
-      <div className="mt-0.5 flex items-center gap-1 text-xs text-white/70 font-medium">
+      <div className="mt-0.5 flex items-center gap-1 text-xs text-t2 font-medium">
         {label}
         {info && <Info text={info} />}
       </div>

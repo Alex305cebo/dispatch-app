@@ -109,7 +109,7 @@ export function TruckPhoto({
         onClick={() => setOpen(true)}
         title={t(locale, 'trucks.photo.change')}
         aria-label={t(locale, 'trucks.photo.change')}
-        className="absolute bottom-2 right-2 flex size-8 items-center justify-center rounded-full border border-white/15 bg-ink-900/80 text-white/70 transition-colors hover:border-white/35 hover:text-white max-md:size-10"
+        className="absolute bottom-2 right-2 flex size-8 items-center justify-center rounded-full border border-white/15 bg-ink-900/80 text-t2 transition-colors hover:border-white/35 hover:text-white max-md:size-10"
       >
         {pending ? (
           <span className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -134,12 +134,12 @@ export function TruckPhoto({
               className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl border border-white/12 bg-ink-900 shadow-[0_8px_24px_rgba(0,0,0,0.32)]"
             >
               <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
-                <h2 className="text-base font-semibold leading-6 text-white/90">{t(locale, 'trucks.photo.pickTitle')}</h2>
+                <h2 className="text-base font-semibold leading-6 text-t1">{t(locale, 'trucks.photo.pickTitle')}</h2>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
                   aria-label={t(locale, 'trucks.photo.close')}
-                  className="flex size-9 items-center justify-center rounded-lg text-white/60 hover:bg-white/5 hover:text-white max-md:size-11"
+                  className="flex size-9 items-center justify-center rounded-lg text-t2 hover:bg-white/5 hover:text-white max-md:size-11"
                 >
                   <X size={18} />
                 </button>
@@ -158,7 +158,7 @@ export function TruckPhoto({
                       }`}
                     >
                       <img src={truckModelSrc(m.key)} alt={m.label} loading="lazy" className="aspect-[2/1] w-full object-contain" />
-                      <span className="text-[12px] font-medium leading-4 text-white/80">{m.label}</span>
+                      <span className="text-[12px] font-medium leading-4 text-t1">{m.label}</span>
                       {sel && (
                         <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-haul-500 text-white">
                           <Check size={12} strokeWidth={3} />
@@ -170,7 +170,7 @@ export function TruckPhoto({
               </div>
               <div className="flex flex-wrap gap-2 border-t border-white/10 px-4 py-3">
                 <label
-                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/15 px-3 text-[13px] font-medium text-white/80 hover:border-white/30 hover:text-white max-md:min-h-11 ${
+                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/15 px-3 text-[13px] font-medium text-t1 hover:border-white/30 hover:text-white max-md:min-h-11 ${
                     pending ? 'pointer-events-none opacity-50' : 'cursor-pointer'
                   }`}
                 >
@@ -189,7 +189,7 @@ export function TruckPhoto({
                   type="button"
                   disabled={pending || (!custom && !picked)}
                   onClick={() => choose(null)}
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/15 px-3 text-[13px] font-medium text-white/70 hover:border-white/30 hover:text-white disabled:opacity-40 max-md:min-h-11"
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/15 px-3 text-[13px] font-medium text-t2 hover:border-white/30 hover:text-white disabled:opacity-40 max-md:min-h-11"
                 >
                   <RotateCcw size={14} strokeWidth={2.2} />
                   {t(locale, 'trucks.photo.default')}

@@ -74,7 +74,7 @@ function Stop({ stop, stops, locale }: { stop: LoadStop; stops: LoadStop[]; loca
         >
           {stopTitle(stop, stops, locale)}
         </span>
-        {when && <span className="nums min-w-0 text-[13px] font-semibold text-white/85">{when}</span>}
+        {when && <span className="nums min-w-0 text-[13px] font-semibold text-t1">{when}</span>}
         {nav && (
           <a
             href={nav}
@@ -91,9 +91,9 @@ function Stop({ stop, stops, locale }: { stop: LoadStop; stops: LoadStop[]; loca
       {/* Склад и адрес — одной строкой: две отдельные строки в карточке множились на
           число точек, а на широком экране места в строке вдоволь. */}
       {(stop.name || stop.address || city) && (
-        <p className="mt-1 text-[12.5px] leading-snug break-words text-white/65">
-          {stop.name && <span className="text-[13px] font-semibold text-white/90">{stop.name}</span>}
-          {stop.name && (stop.address || city) && <span className="text-white/25"> · </span>}
+        <p className="mt-1 text-[12.5px] leading-snug break-words text-t2">
+          {stop.name && <span className="text-[13px] font-semibold text-t1">{stop.name}</span>}
+          {stop.name && (stop.address || city) && <span className="text-t3"> · </span>}
           {[stop.address, city].filter(Boolean).join(', ')}
         </p>
       )}
@@ -104,17 +104,17 @@ function Stop({ stop, stops, locale }: { stop: LoadStop; stops: LoadStop[]; loca
               key={r}
               type="button"
               onClick={() => copy(r, locale)}
-              className="nums inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[11.5px] font-semibold text-white/85 hover:border-haul-500/40"
+              className="nums inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[11.5px] font-semibold text-t1 hover:border-haul-500/40"
             >
               {r}
-              <Copy size={10} strokeWidth={2.2} className="text-white/45" />
+              <Copy size={10} strokeWidth={2.2} className="text-t3" />
             </button>
           ))}
         </div>
       )}
       {stop.directions && (
-        <p className="mt-1.5 text-[11.5px] leading-snug break-words text-white/55">
-          <span className="text-white/40">{t(locale, 'loadEdit.directions')}: </span>
+        <p className="mt-1.5 text-[11.5px] leading-snug break-words text-t3">
+          <span className="text-t3">{t(locale, 'loadEdit.directions')}: </span>
           {stop.directions}
         </p>
       )}

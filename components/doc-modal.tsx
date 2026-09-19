@@ -80,7 +80,7 @@ export function DocModal({ docId, onClose }: { docId: number; onClose: () => voi
             type="button"
             onClick={onClose}
             aria-label={t(locale, 'userPanel.close')}
-            className="flex size-7 shrink-0 items-center justify-center rounded-full text-[15px] text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+            className="flex size-7 shrink-0 items-center justify-center rounded-full text-[15px] text-t3 transition-colors hover:bg-white/10 hover:text-white"
           >
             ✕
           </button>
@@ -91,7 +91,7 @@ export function DocModal({ docId, onClose }: { docId: number; onClose: () => voi
           ) : meta ? (
             <DocViewer id={docId} mime={meta.mime} />
           ) : (
-            <p className="p-6 text-center text-[13px] text-white/45">{t(locale, 'common.loading')}</p>
+            <p className="p-6 text-center text-[13px] text-t3">{t(locale, 'common.loading')}</p>
           )}
         </div>
       </div>

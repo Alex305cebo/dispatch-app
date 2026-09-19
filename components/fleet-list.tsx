@@ -53,11 +53,11 @@ export type TrackingRow = {
 const toneClass = {
   move: 'bg-good-500/15 text-good-400',
   on: 'bg-haul-500/15 text-haul-400',
-  rest: 'bg-white/8 text-white/60',
+  rest: 'bg-white/8 text-t2',
 }
 
 /** Fuel colour ladder — below 15% it's a stop-and-fix, below 30% a plan-ahead. */
-const fuelClass = (v: number) => (v <= 15 ? 'text-bad-400' : v <= 30 ? 'text-warn-400' : 'text-white/55')
+const fuelClass = (v: number) => (v <= 15 ? 'text-bad-400' : v <= 30 ? 'text-warn-400' : 'text-t3')
 
 /** Экономика трака за неделю — вторая половина строки. Раньше жила в отдельной
  * сетке карточек под этим же списком, и один трак показывался на странице дважды:
@@ -168,7 +168,7 @@ export function FleetList({
                 одной переносящейся строкой, топливо прижато вправо. Раньше «Карта»
                 уезжала на свою строку, а погода стояла отдельной третьей полосой: у
                 свободного трака карточка выходила в пять рядов, два из них почти пустые. */}
-            <div className="mt-0.5 flex items-start justify-between gap-2 text-[12px] text-white/55">
+            <div className="mt-0.5 flex items-start justify-between gap-2 text-[12px] text-t3">
               <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
                 {/* Место — кнопка с рамкой, а не текст с блёклым значком рядом.
                     Прежний значок в 11 пикселей и на треть прозрачный просто не
@@ -178,14 +178,14 @@ export function FleetList({
                     text={r.city}
                     coords={{ lat: r.lat, lng: r.lng }}
                     size="sm"
-                    className="min-w-0 text-[12px] text-white/70"
+                    className="min-w-0 text-[12px] text-t2"
                   />
                 ) : (
                   <span className="truncate">{t(locale, 'tracking.noEldData')}</span>
                 )}
                 {r.zone && (
-                  <span className="shrink-0 text-[11.5px] text-white/55">
-                    {t(locale, 'trucks.head.driverTimeShort')} <LocalTime zone={r.zone} className="nums font-semibold text-white/80" />
+                  <span className="shrink-0 text-[11.5px] text-t3">
+                    {t(locale, 'trucks.head.driverTimeShort')} <LocalTime zone={r.zone} className="nums font-semibold text-t1" />
                   </span>
                 )}
                 {r.weather &&
@@ -229,11 +229,11 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
 
             {r.delivery ? (
               <div className="panel-inset mt-1.5 flex items-baseline justify-between gap-2 px-2.5 py-1">
-                <span className="min-w-0 truncate text-[12px] text-white/55">
+                <span className="min-w-0 truncate text-[12px] text-t3">
                   {t(locale, 'tracking.toDeliveryLabel')}
-                  <span className="font-medium text-white/85">{r.delivery.to}</span>
+                  <span className="font-medium text-t1">{r.delivery.to}</span>
                 </span>
-                <span className="nums shrink-0 text-[11.5px] font-semibold text-white/80">
+                <span className="nums shrink-0 text-[11.5px] font-semibold text-t1">
                   {r.delivery.miles.toLocaleString('en-US')} mi · ~{r.driveTimeText}
                 </span>
               </div>
@@ -243,17 +243,17 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
                  — этим и проверяют, не потерян ли груз между рейсами. */
               <Link
                 href={`/loads/${r.prevLoad.id}`}
-                className="relative z-10 mt-1.5 flex items-baseline justify-between gap-2 text-[12px] text-white/45 transition-colors hover:text-white/75"
+                className="relative z-10 mt-1.5 flex items-baseline justify-between gap-2 text-[12px] text-t3 transition-colors hover:text-t2"
               >
                 <span className="min-w-0 truncate">
                   {t(locale, 'prevLoad.label')}
                   {': '}
-                  <span className="font-medium text-white/70">{r.prevLoad.route}</span>
+                  <span className="font-medium text-t2">{r.prevLoad.route}</span>
                 </span>
                 {r.prevLoad.date && <span className="nums shrink-0 text-[11.5px]">{usDate(r.prevLoad.date)}</span>}
               </Link>
             ) : (
-              <div className="mt-1.5 text-[12px] text-white/30">{t(locale, 'tracking.noActiveLoad')}</div>
+              <div className="mt-1.5 text-[12px] text-t3">{t(locale, 'tracking.noActiveLoad')}</div>
             )}
 
             {/* Bottom rail. Every label is short and every control is the shared
@@ -295,12 +295,12 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
                   <span className="flex items-baseline gap-1">
                     <span
                       className={`nums text-[13px] font-bold ${
-                        money[r.id]!.week > 0 ? 'text-good-400' : 'text-white/35'
+                        money[r.id]!.week > 0 ? 'text-good-400' : 'text-t3'
                       }`}
                     >
                       {money[r.id]!.week > 0 ? usd.format(money[r.id]!.week) : '—'}
                     </span>
-                    <span className="text-[11px] font-medium text-white/50">{t(locale, 'tracking.weekShort')}</span>
+                    <span className="text-[11px] font-medium text-t3">{t(locale, 'tracking.weekShort')}</span>
                   </span>
                 )}
               </span>
@@ -308,7 +308,7 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
           </div>
         ))}
         {shown.length === 0 && (
-          <p className="panel p-4 text-center text-[13px] text-white/55 sm:col-span-2 2xl:col-span-3">
+          <p className="panel p-4 text-center text-[13px] text-t3 sm:col-span-2 2xl:col-span-3">
             {t(locale, 'tracking.allTrucksBusy')}
           </p>
         )}

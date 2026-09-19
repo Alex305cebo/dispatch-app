@@ -60,7 +60,7 @@ function initialsOf(name: string): string {
 }
 
 const ROW =
-  'flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-[13px] text-white/80 transition-colors hover:bg-white/8 hover:text-white'
+  'flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-[13px] text-t1 transition-colors hover:bg-white/8 hover:text-white'
 
 /** Строка меню: значок, подпись, справа — значение, стрелка или переключатель. */
 function Row({
@@ -83,9 +83,9 @@ function Row({
   const cls = danger ? `${ROW} hover:bg-bad-500/10 hover:text-bad-400` : ROW
   const body = (
     <>
-      <span className="shrink-0 text-white/45">{icon}</span>
+      <span className="shrink-0 text-t3">{icon}</span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      {right && <span className="shrink-0 text-[12px] text-white/45">{right}</span>}
+      {right && <span className="shrink-0 text-[12px] text-t3">{right}</span>}
     </>
   )
   if (href) {
@@ -105,8 +105,8 @@ function Row({
 /** Строка, правый край которой занимает готовый переключатель (язык, тема, журнал). */
 function ControlRow({ icon, label, control }: { icon: React.ReactNode; label: string; control: React.ReactNode }) {
   return (
-    <div className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-[13px] text-white/80">
-      <span className="shrink-0 text-white/45">{icon}</span>
+    <div className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-[13px] text-t1">
+      <span className="shrink-0 text-t3">{icon}</span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
       <span className="shrink-0">{control}</span>
     </div>
@@ -117,7 +117,7 @@ function Group({ title, children }: { title?: string; children: React.ReactNode 
   return (
     <div className="border-t border-white/8 py-1 first:border-t-0">
       {title && (
-        <p className="px-2 pb-1 pt-1.5 text-[13px] font-semibold text-white/75">
+        <p className="px-2 pb-1 pt-1.5 text-[13px] font-semibold text-t2">
           {title}
         </p>
       )}
@@ -232,7 +232,7 @@ export function UserPanel({
         aria-label={user.name}
         aria-expanded={open}
         data-tour="avatar"
-        className="nav-avatar-btn flex h-9 max-w-[11rem] shrink-0 items-center justify-center rounded-full px-3.5 text-white/90"
+        className="nav-avatar-btn flex h-9 max-w-[11rem] shrink-0 items-center justify-center rounded-full px-3.5 text-t1"
       >
         {/* Просто «Alex C.» — имя и первая буква фамилии. Без кружка с инициалами:
             имя само говорит, кто вошёл. В свёрнутом рельсе остаются инициалы. */}
@@ -251,11 +251,11 @@ export function UserPanel({
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[14px] font-semibold">{user.name}</span>
-              <span className="block truncate text-[11.5px] text-white/45">{user.email}</span>
+              <span className="block truncate text-[11.5px] text-t3">{user.email}</span>
             </span>
             <span
               className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium ${
-                user.role === 'admin' ? 'bg-haul-500/20 text-haul-300' : 'bg-white/8 text-white/60'
+                user.role === 'admin' ? 'bg-haul-500/20 text-haul-300' : 'bg-white/8 text-t2'
               }`}
             >
               {t(locale, user.role === 'admin' ? 'userPanel.roleAdmin' : 'userPanel.roleDispatcher')}
@@ -319,7 +319,7 @@ export function UserPanel({
                 label={t(locale, 'userPanel.tileLang')}
                 right={
                   <span className="flex items-center gap-1">
-                    <span className="font-semibold text-white/70">{current.short}</span>
+                    <span className="font-semibold text-t2">{current.short}</span>
                     <ChevronRight size={14} className={`transition-transform ${langOpen ? 'rotate-90' : ''}`} />
                   </span>
                 }
@@ -333,10 +333,10 @@ export function UserPanel({
                       type="button"
                       onClick={() => chooseLocale(l.code)}
                       className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-white/8 ${
-                        l.code === locale ? 'text-haul-300' : 'text-white/75'
+                        l.code === locale ? 'text-haul-300' : 'text-t2'
                       }`}
                     >
-                      <span className="w-7 shrink-0 text-[10.5px] font-bold uppercase text-white/40">{l.short}</span>
+                      <span className="w-7 shrink-0 text-[10.5px] font-bold uppercase text-t3">{l.short}</span>
                       <span className="min-w-0 flex-1 truncate">{l.native}</span>
                       {l.code === locale && <Check size={14} className="shrink-0" />}
                     </button>
@@ -395,7 +395,7 @@ export function UserPanel({
               />
               {bdayOpen && (
                 <div className="px-2 pb-2">
-                  <p className="mb-1.5 text-[11px] leading-relaxed text-white/50">
+                  <p className="mb-1.5 text-[11px] leading-relaxed text-t3">
                     {t(locale, 'userPanel.recoveryHint')}
                   </p>
                   <input

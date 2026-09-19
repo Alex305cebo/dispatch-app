@@ -82,7 +82,7 @@ export function CopyPlace({
   const icon = variant === 'action' ? 14 : size === 'sm' ? 11 : 13
   const skin =
     variant === 'action'
-      ? 'relative z-10 inline-flex shrink-0 items-center rounded-lg border border-white/12 bg-white/[0.04] font-medium text-white/85 transition-colors hover:border-white/30 hover:bg-white/[0.08] hover:text-white [&>svg]:text-haul-300'
+      ? 'relative z-10 inline-flex shrink-0 items-center rounded-lg border border-white/12 bg-white/[0.04] font-medium text-t1 transition-colors hover:border-white/30 hover:bg-white/[0.08] hover:text-white [&>svg]:text-haul-300'
       : 'relative z-10 inline-flex shrink-0 items-center rounded-lg border border-haul-500/35 bg-haul-500/15 font-medium text-haul-300 transition-colors hover:border-haul-400 hover:bg-haul-500/30 hover:text-white'
 
   return (

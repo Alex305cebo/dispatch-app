@@ -66,7 +66,7 @@ export function TgMessages({ chatId, phone, initial }: { chatId: string; phone: 
           className={`max-w-[80%] rounded-2xl px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap ${
             m.out
               ? 'self-end rounded-br-sm bg-haul-500/25 text-white'
-              : 'self-start rounded-bl-sm bg-white/8 text-white/90'
+              : 'self-start rounded-bl-sm bg-white/8 text-t1'
           }`}
         >
           {m.media === 'image' && (
@@ -94,10 +94,10 @@ export function TgMessages({ chatId, phone, initial }: { chatId: string; phone: 
                 <span className="flex items-center gap-2 px-2.5 py-2">
                   <span className="text-[17px]">📄</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[12.5px] font-medium text-white/90">
+                    <span className="block truncate text-[12.5px] font-medium text-t1">
                       {m.fileName || t(locale, 'telegram.page.defaultDocName')}
                     </span>
-                    <span className="block text-[11px] text-white/45">
+                    <span className="block text-[11px] text-t3">
                       {m.fileSize ? `${humanSize(m.fileSize, locale)} · ` : ''}
                       {t(locale, 'telegram.page.openPdf')}
                     </span>
@@ -108,10 +108,10 @@ export function TgMessages({ chatId, phone, initial }: { chatId: string; phone: 
             </>
           )}
           {m.media === 'other' && !m.text && (
-            <span className="text-white/45">{t(locale, 'telegram.page.attachment')}</span>
+            <span className="text-t3">{t(locale, 'telegram.page.attachment')}</span>
           )}
           {m.text}
-          <span className="mt-0.5 block text-right text-[10px] text-white/40">{when(m.at, locale)}</span>
+          <span className="mt-0.5 block text-right text-[10px] text-t3">{when(m.at, locale)}</span>
         </div>
       ))}
     </div>

@@ -138,27 +138,27 @@ export default async function Page() {
     <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
       <div className="mb-4">
         <h1 className="text-xl font-bold tracking-tight">{t(locale, 'admin.logins.title')}</h1>
-        <p className="text-[13px] text-white/65">
+        <p className="text-[13px] text-t2">
           {t(locale, 'admin.logins.subtitle').replace('{n}', String(events.length))}
         </p>
       </div>
 
       {/* Gemini token spend — our running counter (Google AI Studio has the full total). */}
       <div className="panel mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 p-4">
-        <div className="flex items-center gap-1.5 text-[13px] font-semibold text-white/75">
+        <div className="flex items-center gap-1.5 text-[13px] font-semibold text-t2">
           {t(locale, 'admin.logins.geminiSpend')}
           <Info text={t(locale, 'admin.logins.geminiInfo')} />
         </div>
         <div>
           <span className="nums text-[18px] font-bold">{gemini.tokens.toLocaleString(numLocale)}</span>
-          <span className="ml-1 text-[12px] text-white/55">{t(locale, 'admin.logins.tokens')}</span>
+          <span className="ml-1 text-[12px] text-t3">{t(locale, 'admin.logins.tokens')}</span>
         </div>
         <div>
           <span className="nums text-[18px] font-bold">{gemini.calls.toLocaleString(numLocale)}</span>
-          <span className="ml-1 text-[12px] text-white/55">{t(locale, 'admin.logins.calls')}</span>
+          <span className="ml-1 text-[12px] text-t3">{t(locale, 'admin.logins.calls')}</span>
         </div>
         {gemini.since && (
-          <div className="text-[11px] text-white/45">
+          <div className="text-[11px] text-t3">
             {t(locale, 'admin.logins.since')}
             {gemini.since.slice(0, 10)}
           </div>
@@ -168,7 +168,7 @@ export default async function Page() {
       {events.length === 0 ? (
         <div className="panel p-8 text-center">
           <p className="text-[15px] font-medium">{t(locale, 'admin.logins.emptyTitle')}</p>
-          <p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-white/70">
+          <p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-t2">
             {t(locale, 'admin.logins.emptyBody')}
           </p>
         </div>
@@ -181,16 +181,16 @@ export default async function Page() {
                   <span
                     className={`size-1.5 shrink-0 rounded-full ${e.tone === 'delete' ? 'bg-bad-400' : 'bg-good-500'}`}
                   />
-                  <span className="font-medium text-white/90">
+                  <span className="font-medium text-t1">
                     {e.who ? <Name full={e.who} /> : t(locale, 'admin.logins.noName')}
                   </span>
                 </span>
-                <span className="pl-3.5 text-white/80">{e.what}</span>
-                {e.detail && <span className="pl-3.5 text-[11px] text-white/45">{e.detail}</span>}
+                <span className="pl-3.5 text-t1">{e.what}</span>
+                {e.detail && <span className="pl-3.5 text-[11px] text-t3">{e.detail}</span>}
               </div>
               <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
-                <span className="nums text-[12px] text-white/55">{when(e.at, locale)}</span>
-                <span className="text-[11px] text-white/45">{e.where}</span>
+                <span className="nums text-[12px] text-t3">{when(e.at, locale)}</span>
+                <span className="text-[11px] text-t3">{e.where}</span>
               </div>
             </li>
           ))}

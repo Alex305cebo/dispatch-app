@@ -28,8 +28,8 @@ export function DriverInfoCard({ text, locale = 'en' }: { text: string; locale?:
 
   return (
     <details className="group panel mt-4 p-4">
-      <summary className="flex cursor-pointer list-none items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
-        <span className="text-white/40 transition-transform group-open:rotate-90">▸</span>
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 text-base leading-6 font-semibold text-t1">
+        <span className="text-t3 transition-transform group-open:rotate-90">▸</span>
         {t(locale, 'trucks.driverInfo.heading')}
         <Info text={t(locale, 'trucks.driverInfo.info')} />
       </summary>
@@ -45,7 +45,7 @@ export function DriverInfoCard({ text, locale = 'en' }: { text: string; locale?:
           <AlertTriangle size={14} strokeWidth={2.4} className="mt-0.5 shrink-0" />
           {t(locale, 'trucks.driverInfo.verify')}
         </p>
-        <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-ink-900/60 p-3 font-mono text-[12px] leading-relaxed text-white/85">
+        <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-ink-900/60 p-3 font-mono text-[12px] leading-relaxed text-t1">
           {text}
         </pre>
       </div>

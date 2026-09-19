@@ -23,7 +23,7 @@ const PIPELINE: LoadStatus[] = ['quoted', 'booked', 'in_transit', 'delivered']
 // Each step's colour once reached. Matches components/status.tsx's badge hues so the
 // rail and the badge on the same page can never disagree about what "booked" looks like.
 const STEP_TONE: Record<LoadStatus, { dot: string; text: string; line: string }> = {
-  quoted: { dot: 'bg-white/25 text-white', text: 'text-white/80', line: 'bg-white/25' },
+  quoted: { dot: 'bg-white/25 text-white', text: 'text-t1', line: 'bg-white/25' },
   booked: { dot: 'bg-cyan-400 text-ink-950', text: 'text-cyan-300', line: 'bg-cyan-400/70' },
   in_transit: { dot: 'bg-amber-400 text-ink-950', text: 'text-amber-300', line: 'bg-amber-400/70' },
   delivered: { dot: 'bg-fuchsia-400 text-ink-950', text: 'text-fuchsia-300', line: 'bg-fuchsia-400/70' },
@@ -33,7 +33,7 @@ const STEP_TONE: Record<LoadStatus, { dot: string; text: string; line: string }>
 
 const STEP_W = 'flex w-[54px] shrink-0 flex-col items-center gap-1 sm:w-[72px]'
 const RING = 'ring-2 ring-white/25 ring-offset-2 ring-offset-ink-950'
-const HOLLOW = 'bg-white/[0.07] text-white/40 hover:bg-white/15 hover:text-white/70'
+const HOLLOW = 'bg-white/[0.07] text-t3 hover:bg-white/15 hover:text-t2'
 
 /**
  * The load's progress AND the control that moves it — one thing, not two.
@@ -69,7 +69,7 @@ function DocChip({ label, docId, due }: { label: string; docId: number | null; d
       </span>
     )
   return (
-    <span className="mt-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white/25">
+    <span className="mt-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-t3">
       {label}
     </span>
   )
@@ -114,7 +114,7 @@ function StopPod({ loadId, seq, docId, due }: { loadId: number; seq: number; doc
         className={`mt-1 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide transition-colors ${
           due
             ? 'animate-pulse bg-warn-400/20 text-warn-400 ring-1 ring-warn-400/60 hover:bg-warn-400/30'
-            : 'bg-white/[0.05] text-white/25 hover:bg-white/10 hover:text-white/60'
+            : 'bg-white/[0.05] text-t3 hover:bg-white/10 hover:text-t2'
         }`}
       >
         {pending ? '…' : '+ POD'}
@@ -350,11 +350,11 @@ export function StatusPicker({
                           )}
                         </button>
                         <span
-                          className={`w-full truncate text-center text-2xs font-medium ${atStop ? stTone.text : sd ? 'text-white/55' : 'text-white/30'}`}
+                          className={`w-full truncate text-center text-2xs font-medium ${atStop ? stTone.text : sd ? 'text-t3' : 'text-t3'}`}
                         >
                           {st.label}
                         </span>
-                        {st.sub && <span className="w-full truncate text-center text-[9px] text-white/40">{st.sub}</span>}
+                        {st.sub && <span className="w-full truncate text-center text-[9px] text-t3">{st.sub}</span>}
                         {st.role === 'delivery' && (
                           <StopPod loadId={id} seq={st.seq} docId={st.podId ?? null} due={sd || atStop} />
                         )}
@@ -381,7 +381,7 @@ export function StatusPicker({
                               <StepIcon icon={STATUS_ICON.in_transit} />
                             </button>
                             <span
-                              className={`w-full truncate text-center text-2xs font-medium ${sd ? STEP_TONE.in_transit.text : 'text-white/30'}`}
+                              className={`w-full truncate text-center text-2xs font-medium ${sd ? STEP_TONE.in_transit.text : 'text-t3'}`}
                             >
                               {statusLabel(locale, 'in_transit')}
                             </span>
@@ -411,7 +411,7 @@ export function StatusPicker({
                 </button>
                 <span
                   className={`w-full truncate text-center text-2xs font-medium ${
-                    isCurrent ? tone.text : done ? 'text-white/55' : 'text-white/30'
+                    isCurrent ? tone.text : done ? 'text-t3' : 'text-t3'
                   }`}
                 >
                   {statusLabel(locale, s)}
@@ -431,7 +431,7 @@ export function StatusPicker({
           была заблокирована, а подсказка обещала, что кружки нажимаются. */}
       {cancelled && (
         <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-warn-400/30 bg-warn-500/[0.06] px-3 py-2">
-          <p className="min-w-0 flex-1 text-[12.5px] text-white/70">{t(locale, 'loadStatus.cancelledHint')}</p>
+          <p className="min-w-0 flex-1 text-[12.5px] text-t2">{t(locale, 'loadStatus.cancelledHint')}</p>
           <button
             type="button"
             disabled={pending}
@@ -461,7 +461,7 @@ export function StatusPicker({
           className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-2xs font-medium transition-colors ${
             cancelled
               ? 'bg-bad-500/15 text-bad-400 ring-1 ring-bad-400/25'
-              : 'text-white/35 hover:bg-bad-500/10 hover:text-bad-400'
+              : 'text-t3 hover:bg-bad-500/10 hover:text-bad-400'
           }`}
         >
           <Ban size={12} strokeWidth={2.5} />

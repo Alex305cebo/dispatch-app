@@ -42,13 +42,13 @@ export function PriorityPicker({ loadId, value }: { loadId: number; value: LoadP
   const btn = 'min-h-8 rounded-full px-2.5 text-[12px] font-medium ring-1 transition-colors disabled:opacity-60 max-md:min-h-9'
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-[12px] text-white/55">{t(locale, 'loads.priority.label')}</span>
+      <span className="text-[12px] text-t3">{t(locale, 'loads.priority.label')}</span>
       <button
         type="button"
         disabled={busy}
         aria-pressed={shown === null}
         onClick={() => pick(null)}
-        className={`${btn} ${shown === null ? 'bg-white/[0.1] text-white ring-white/20' : 'text-white/55 ring-white/10 hover:text-white'}`}
+        className={`${btn} ${shown === null ? 'bg-white/[0.1] text-white ring-white/20' : 'text-t3 ring-white/10 hover:text-white'}`}
       >
         {t(locale, 'loads.priority.none')}
       </button>
@@ -59,7 +59,7 @@ export function PriorityPicker({ loadId, value }: { loadId: number; value: LoadP
           disabled={busy}
           aria-pressed={shown === p}
           onClick={() => pick(p)}
-          className={`${btn} ${shown === p ? PRIORITY_TONE[p] : 'text-white/55 ring-white/10 hover:text-white'}`}
+          className={`${btn} ${shown === p ? PRIORITY_TONE[p] : 'text-t3 ring-white/10 hover:text-white'}`}
         >
           {t(locale, PRIORITY_KEY[p])}
         </button>

@@ -1,11 +1,25 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-ink-950: #08090d;
-  --color-ink-900: #0d0f15;
-  --color-ink-800: #141821;
-  --color-ink-700: #1d2230;
-  --color-ink-600: #2a3142;
+  /* «Жидкое стекло» (выбрано 19.09.2026). Поверхности перестали быть плоскими:
+     страница — почти чёрное стекло с цветным свечением под ним (см. body::before),
+     карточка — полупрозрачный слой с размытием (утилита panel). Значения ink-*
+     остались именами поверхностей, но потеплели в синеву, чтобы стекло над ними
+     читалось как стекло, а не как серая заливка. */
+  --color-ink-950: #06070f;
+  --color-ink-900: #10121d;
+  --color-ink-800: #171a27;
+  --color-ink-700: #1f2333;
+  --color-ink-600: #2b3042;
+
+  /* Три уровня текста вместо прозрачностей белого. Прозрачность давала РАЗНЫЙ
+     контраст в двух темах: text-white/55 — 6.1 на тёмной и 4.0 на светлой при
+     норме 4.5, а text-white/40 не проходил нигде. Теперь у каждого уровня свой
+     цвет на тему, и все три проверены по WCAG на обеих поверхностях:
+       t1 — заголовки и значения, t2 — обычный текст, t3 — подписи и метки. */
+  --color-t1: #ffffff;
+  --color-t2: #cfd4e4;
+  --color-t3: #9aa2bb;
 
   /* Accent — "haul" is the brand action colour: buttons, active tab, links, focus.
      Deliberately violet and not blue, green, amber or red, because those four are
@@ -14,24 +28,24 @@
      Contrast, measured against the surface each one actually lands on:
        haul-500 + white label = 4.9:1  (WCAG AA for 13px semibold button text)
        haul-400 on ink-950    = 7.2:1  (links and active tabs on the dark page) */
-  --color-haul-300: #b6acff;
-  --color-haul-400: #9b8eff;
-  --color-haul-500: #6d5ae8;
-  --color-haul-600: #5b46d6;
+  --color-haul-300: #c3c9ff;
+  --color-haul-400: #8ea2ff;
+  --color-haul-500: #7c6cff;
+  --color-haul-600: #6455e6;
 
-  --color-good-400: #34d99b;
-  --color-good-500: #14b87e;
-  --color-bad-400: #ff6168;
-  --color-bad-500: #f0353d;
-  --color-warn-400: #f5b34a;
-  --color-warn-500: #e09a2b;
+  --color-good-400: #4ade80;
+  --color-good-500: #22c55e;
+  --color-bad-400: #ff7a85;
+  --color-bad-500: #f43f5e;
+  --color-warn-400: #fbbf24;
+  --color-warn-500: #d97706;
 
-  /* next/font puts --font-inter / --font-jetbrains on <html> (app/layout.tsx); these
+  /* next/font puts --font-geist / --font-geist-mono on <html> (app/layout.tsx); these
      two map them onto Tailwind's font-sans / font-mono utilities. The names have to
      differ from the theme tokens — `--font-sans: var(--font-sans)` would resolve to
      itself and silently fall through to the system stack. */
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
   /* Type scale. The app had 21 distinct sizes, most of them one-offs including
      12.5px / 11.5px / 9.5px — no ratio, no rhythm, so a heading, a label and a value
@@ -52,11 +66,11 @@
      a card, a popover and a dialog can't drift apart. Tuned for the dark surface —
      the light theme overrides them further down, where a dark shadow reads much
      heavier on white than the same shadow does on near-black. */
-  --shadow-e1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 0 0 rgba(255, 255, 255, 0.03) inset;
-  --shadow-e2: 0 4px 12px -2px rgba(0, 0, 0, 0.5), 0 1px 0 0 rgba(255, 255, 255, 0.05) inset;
-  --shadow-e3: 0 16px 40px -12px rgba(0, 0, 0, 0.75), 0 1px 0 0 rgba(255, 255, 255, 0.06) inset;
+  --shadow-e1: 0 2px 6px -2px rgba(0, 0, 0, 0.5), 0 1px 0 0 rgba(255, 255, 255, 0.08) inset;
+  --shadow-e2: 0 10px 30px -14px rgba(0, 0, 0, 0.75), 0 1px 0 0 rgba(255, 255, 255, 0.14) inset;
+  --shadow-e3: 0 26px 60px -18px rgba(0, 0, 0, 0.85), 0 1px 0 0 rgba(255, 255, 255, 0.2) inset;
   /* The accent's own glow, for a pressed/active control that should feel lit. */
-  --shadow-accent: 0 4px 16px -4px rgba(109, 90, 232, 0.5);
+  --shadow-accent: 0 4px 16px -4px rgba(124, 108, 255, 0.55);
 }
 
 /* Light theme by variable swap: Tailwind v4 compiles text-white/bg-ink/etc. to
@@ -65,21 +79,31 @@
    every text-white/•, bg-white/•, border-white/• inverts to a readable dark tone. */
 :root[data-theme='light'] {
   color-scheme: light;
-  --color-white: #14181f;
-  --color-ink-950: #eef1f6; /* page background */
+  --color-white: #131625;
+  --color-ink-950: #eef0fa; /* page background — под ним живёт то же свечение */
   --color-ink-900: #ffffff; /* inputs, raised cards */
-  --color-ink-800: #e7eaf1;
-  --color-ink-700: #dbdfe8;
-  --color-ink-600: #c6ccd8;
-  --color-good-400: #0f9d6e;
-  --color-bad-400: #e02531;
-  --color-warn-400: #b7791f;
-  --color-haul-400: #5b46d6;
+  --color-ink-800: #f1f2fb;
+  --color-ink-700: #e4e6f5;
+  --color-ink-600: #cdd1e8;
+  /* Уровни текста для белой поверхности: 17.6 / 8.6 / 4.9 по WCAG. */
+  --color-t1: #131625;
+  --color-t2: #434a63;
+  --color-t3: #646c85;
+  /* Состояния на белом: у тёмной темы они светлые, на белом их не видно.
+     Эти проверены на #ffffff — 5.3 / 6.2 / 6.3. */
+  --color-good-400: #0f7a4f;
+  --color-good-500: #0f7a4f;
+  --color-bad-400: #c1121f;
+  --color-bad-500: #c1121f;
+  --color-warn-400: #8a5300;
+  --color-warn-500: #8a5300;
+  --color-haul-400: #4f46e5;
+  --color-haul-500: #5b4bdb;
   /* haul-300 is the accent's TEXT tone. On the dark page it's a pale violet that
      lifts off near-black; left unswapped it landed as pale violet on a pale violet
      tint here, which is how the broker banner's heading came out near-invisible in
      light mode. On white the same job needs the dark end of the ramp. */
-  --color-haul-300: #4e3ac4;
+  --color-haul-300: #3730a3;
   /* То же для цветов статусов (забукирован / в пути / доставлен): их 200–300 — только
      цвет ТЕКСТА, светлый для тёмной страницы. На белом подписи на полосах календаря
      грузов и в значках статусов сливались с фоном — берём тёмный конец шкалы. */
@@ -89,6 +113,47 @@
   --color-amber-300: #a55a08;
   --color-fuchsia-200: #a21caf;
   --color-fuchsia-300: #a21caf;
+}
+
+/* ——— Стекло. Одно место, где задана «толщина» поверхности ———
+   panel и panel-inset берут цвета отсюда, поэтому вид карточки меняется в одной
+   точке, а не в сотне компонентов. Размытие стоит дорого, поэтому оно только у
+   верхнего слоя (panel); вложенная поверхность (panel-inset) — просто плёнка. */
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.07);
+  --glass-edge: rgba(255, 255, 255, 0.14);
+  --glass-edge-hi: rgba(255, 255, 255, 0.3);
+  --glass-inset: rgba(255, 255, 255, 0.05);
+  --glass-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --glass-blur: blur(20px) saturate(1.5);
+  /* Свечение под страницей: три пятна, из которых и получается «жидкое» стекло. */
+  --aura-1: rgba(124, 108, 255, 0.55);
+  --aura-2: rgba(20, 184, 166, 0.45);
+  --aura-3: rgba(217, 70, 239, 0.4);
+}
+:root[data-theme='light'] {
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-edge: rgba(255, 255, 255, 0.9);
+  --glass-edge-hi: #ffffff;
+  --glass-inset: rgba(255, 255, 255, 0.6);
+  --glass-shadow: 0 10px 26px -16px rgba(30, 35, 70, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --glass-blur: blur(18px) saturate(1.4);
+  --aura-1: rgba(165, 180, 252, 0.55);
+  --aura-2: rgba(153, 246, 228, 0.5);
+  --aura-3: rgba(244, 214, 255, 0.45);
+}
+
+/* Тем, кто просил у системы меньше прозрачности (iOS Reduce Transparency,
+   Windows «Эффекты прозрачности»), стекло не показываем: сплошная поверхность. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-bg: var(--color-ink-900);
+    --glass-blur: none;
+  }
+  :root[data-theme='light'] {
+    --glass-bg: #ffffff;
+    --glass-blur: none;
+  }
 }
 
 @layer base {
@@ -174,7 +239,7 @@
        which is why the light theme kept a black page. Referencing the var directly
        lets both themes flip the body. */
     background-color: var(--color-ink-950);
-    color: var(--color-white);
+    color: var(--color-t1);
     @apply font-sans antialiased;
     transition:
       background-color 0.2s,
@@ -182,6 +247,37 @@
     /* Home-screen PWA on iPhone: keep content clear of the notch and the bar. */
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
       env(safe-area-inset-left);
+  }
+
+  /* Свечение под страницей. Оно fixed и лежит ПОД всем (z-index: -1 на элементе,
+     который не создаёт своего контекста наложения), поэтому не ловит нажатия и не
+     перерисовывается при прокрутке. Пятна медленно дышат — 30 секунд на цикл,
+     чтобы движение читалось как жизнь, а не как мигание. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: -25%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(42% 34% at 10% 2%, var(--aura-1) 0%, transparent 70%),
+      radial-gradient(40% 32% at 92% 12%, var(--aura-2) 0%, transparent 72%),
+      radial-gradient(44% 38% at 74% 96%, var(--aura-3) 0%, transparent 74%);
+    filter: blur(40px);
+    animation: aura-drift 30s ease-in-out infinite alternate;
+  }
+  @keyframes aura-drift {
+    from {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    to {
+      transform: translate3d(2%, -3%, 0) scale(1.08);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body::before {
+      animation: none;
+    }
   }
 
   /* Spinners steal width and nobody nudges a rate by 1 with arrows. */
@@ -200,14 +296,21 @@
    значит для данных, поэтому он не меняется от карточки к карточке; глубина —
    только вложенностью (panel → panel-inset), а не эффектами. */
 @utility panel {
-  @apply rounded-xl border border-white/10;
-  background-color: var(--color-ink-900);
+  @apply rounded-2xl;
+  background-color: var(--glass-bg);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 /* Tier 2: a surface INSIDE a panel — поле, выбранная строка, метрика. */
 @utility panel-inset {
-  @apply rounded-lg;
-  background-color: var(--color-ink-800);
+  @apply rounded-xl;
+  /* Без своего размытия: она уже лежит на размытом panel, второй проход блюра
+     стоит столько же, а увидеть его нельзя. */
+  background-color: var(--glass-inset);
+  border: 1px solid var(--glass-edge);
 }
 
 /* Cards that go somewhere: only the border answers hover/press. */
@@ -216,28 +319,41 @@
     border-color 0.14s ease,
     background-color 0.14s ease;
 }
+.panel-interactive {
+  transition:
+    border-color 0.14s ease,
+    background-color 0.14s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
 .panel-interactive:hover {
-  border-color: rgba(155, 142, 255, 0.45);
+  border-color: var(--glass-edge-hi);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.24);
 }
 .panel-interactive:active {
-  background-color: rgba(255, 255, 255, 0.03);
+  transform: translateY(0);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel-interactive:hover {
+    transform: none;
+  }
 }
 .panel-interactive:focus-visible,
 .panel-interactive:has(:focus-visible) {
   outline: none;
-  border-color: rgba(155, 142, 255, 0.6);
-  box-shadow: 0 0 0 2px rgba(155, 142, 255, 0.6);
-}
-:root[data-theme='light'] .panel {
-  border-color: rgba(15, 20, 30, 0.1);
+  border-color: rgba(142, 162, 255, 0.65);
+  box-shadow: 0 0 0 2px rgba(142, 162, 255, 0.65);
 }
 :root[data-theme='light'] .panel-interactive:hover {
-  border-color: rgba(91, 70, 214, 0.45);
+  border-color: rgba(79, 70, 229, 0.45);
+  box-shadow: 0 18px 36px -18px rgba(30, 35, 70, 0.5), inset 0 1px 0 #fff;
 }
 :root[data-theme='light'] .panel-interactive:focus-visible,
 :root[data-theme='light'] .panel-interactive:has(:focus-visible) {
-  border-color: rgba(91, 70, 214, 0.55);
-  box-shadow: 0 0 0 2px rgba(91, 70, 214, 0.5);
+  border-color: rgba(79, 70, 229, 0.55);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.5);
 }
 
 /* On a filled accent (buttons, badges) text must stay light in BOTH themes — the
@@ -593,13 +709,13 @@
    what makes a control feel like it took the tap. */
 .user-menu .nav-icon-btn:active {
   transform: scale(0.93);
-  background-color: rgba(109, 90, 232, 0.28);
+  background-color: rgba(124, 108, 255, 0.3);
   box-shadow: inset 0 2px 6px 0 rgba(0, 0, 0, 0.4);
 }
 /* On/active tile — accent fill, the way a lit Control Centre toggle reads. */
 .user-menu .nav-icon-btn[aria-pressed='true'],
 .user-menu .nav-icon-btn[aria-current='page'] {
-  background: linear-gradient(160deg, rgba(139, 122, 255, 0.9), rgba(109, 90, 232, 0.75));
+  background: linear-gradient(160deg, rgba(142, 162, 255, 0.9), rgba(124, 108, 255, 0.75));
   border-color: rgba(255, 255, 255, 0.22);
   color: #fff;
 }
@@ -672,10 +788,10 @@
    from the component (text-haul-400), which reads on the tint in both themes. The icon
    lifts a touch so switching tabs has a small "pop". */
 .nav-tab-btn[aria-current='page'] {
-  background-color: rgba(109, 90, 232, 0.18);
+  background-color: rgba(124, 108, 255, 0.2);
 }
 :root[data-theme='light'] .nav-tab-btn[aria-current='page'] {
-  background-color: rgba(109, 90, 232, 0.13);
+  background-color: rgba(124, 108, 255, 0.15);
 }
 .nav-tab-btn svg {
   transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);

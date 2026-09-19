@@ -59,7 +59,7 @@ export function EldLinks({ count, eldOn = false }: { count: number; eldOn?: bool
         aria-expanded={open}
         className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5 text-left"
       >
-        <span className="flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+        <span className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
           <Radio size={13} strokeWidth={2.2} className="text-haul-300" />
           {t(locale, 'tracking.trackingHeader')}
         </span>
@@ -69,7 +69,7 @@ export function EldLinks({ count, eldOn = false }: { count: number; eldOn?: bool
             {eldOn ? t(locale, 'tracking.eldConnected') : `${t(locale, 'tracking.connectedShort')} ${count}`}
           </span>
         )}
-        <span className="ml-auto flex items-center gap-1.5 text-[12px] text-white/50">
+        <span className="ml-auto flex items-center gap-1.5 text-[12px] text-t3">
           {t(locale, open ? 'tracking.setupHide' : 'tracking.setupShow')}
           <ChevronDown size={15} strokeWidth={2.2} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
         </span>
@@ -77,7 +77,7 @@ export function EldLinks({ count, eldOn = false }: { count: number; eldOn?: bool
 
       {open && (
         <div className="mt-3 border-t border-white/[0.06] pt-3">
-          <p className="mb-2 text-[11px] leading-relaxed text-white/55">{t(locale, 'tracking.setupInfo')}</p>
+          <p className="mb-2 text-[11px] leading-relaxed text-t3">{t(locale, 'tracking.setupInfo')}</p>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -93,7 +93,7 @@ export function EldLinks({ count, eldOn = false }: { count: number; eldOn?: bool
               <button
                 disabled={pending}
                 onClick={clear}
-                className="text-[11.5px] text-white/45 transition-colors hover:text-bad-400 disabled:opacity-40"
+                className="text-[11.5px] text-t3 transition-colors hover:text-bad-400 disabled:opacity-40"
               >
                 {t(locale, 'tracking.disconnect')}
               </button>

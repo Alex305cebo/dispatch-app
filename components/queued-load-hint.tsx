@@ -51,7 +51,7 @@ export function QueuedLoadHint({
       }`}
     >
       {!compact && (
-        <p className="mb-1 flex items-center gap-1.5 text-base leading-6 font-semibold text-white/90">
+        <p className="mb-1 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
           <ListChecks size={13} strokeWidth={2.2} className="text-haul-300" />
           {t(locale, 'queued.title').replace('{route}', `${current.origin ?? '—'} → ${current.destination ?? '—'}`)}
         </p>
@@ -81,7 +81,7 @@ export function QueuedLoadHint({
           <PartialButton loadId={nextId} locale={locale} strong={tight} />
         </div>
       )}
-      <ol className="list-decimal space-y-0.5 pl-4 leading-relaxed text-white/70">
+      <ol className="list-decimal space-y-0.5 pl-4 leading-relaxed text-t2">
         {steps.map((s) => (
           <li key={s}>{s}</li>
         ))}

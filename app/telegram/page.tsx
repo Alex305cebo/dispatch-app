@@ -58,7 +58,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
         <h1 className="mb-5 text-xl font-bold tracking-tight">Telegram</h1>
         <div className="panel p-4">
-          <p className="text-[13px] text-white/75">{t(locale, 'telegram.page.needLogin')}</p>
+          <p className="text-[13px] text-t2">{t(locale, 'telegram.page.needLogin')}</p>
           <a
             href="/login"
             className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-haul-500 px-4 text-[13px] font-semibold text-white hover:bg-haul-400"
@@ -78,13 +78,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
         <h1 className="mb-5 text-xl font-bold tracking-tight">Telegram</h1>
         <section className="panel p-4 sm:p-5">
-          <h2 className="text-base font-semibold leading-6 text-white/90">
+          <h2 className="text-base font-semibold leading-6 text-t1">
             {t(locale, user.isDemo ? 'telegram.help.demoTitle' : 'telegram.help.noAccessTitle')}
           </h2>
-          <p className="mt-1 text-[13px] leading-relaxed text-white/65">{t(locale, 'telegram.help.what')}</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-t2">{t(locale, 'telegram.help.what')}</p>
           {user.isDemo ? (
             <>
-              <p className="mt-3 text-[13px] leading-relaxed text-white/75">{t(locale, 'telegram.help.demoText')}</p>
+              <p className="mt-3 text-[13px] leading-relaxed text-t2">{t(locale, 'telegram.help.demoText')}</p>
               <a
                 href="/login"
                 className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-haul-500 px-4 text-[13px] font-semibold text-white hover:bg-haul-400"
@@ -93,7 +93,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
               </a>
             </>
           ) : (
-            <ol className="mt-3 flex list-decimal flex-col gap-1.5 pl-5 text-[13px] leading-relaxed text-white/80">
+            <ol className="mt-3 flex list-decimal flex-col gap-1.5 pl-5 text-[13px] leading-relaxed text-t1">
               <li>{t(locale, 'telegram.help.step1')}</li>
               <li>{t(locale, 'telegram.help.step2')}</li>
               <li>{t(locale, 'telegram.help.step3')}</li>
@@ -176,7 +176,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
             Telegram
             <Info side="bottom" text={t(locale, 'telegram.page.tooltip')} />
           </h1>
-          <p className="text-[13px] text-white/65">
+          <p className="text-[13px] text-t2">
             {t(locale, 'telegram.page.yourAccount')}
             {account?.phone ? ` · +${account.phone}` : ''}
             {account?.name ? ` · ${account.name}` : ''}
@@ -195,7 +195,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
         {/* Dialog list — on phones it hides once a chat is open (back link shows it). */}
         <div className={`panel overflow-hidden ${open ? 'max-md:hidden' : ''}`}>
           {dialogs.length === 0 && !error ? (
-            <p className="p-4 text-[13px] text-white/55">{t(locale, 'telegram.page.noneShownYet')}</p>
+            <p className="p-4 text-[13px] text-t3">{t(locale, 'telegram.page.noneShownYet')}</p>
           ) : (
             <ul className="max-h-[70vh] overflow-y-auto">
               {dialogs.map((d) => {
@@ -220,9 +220,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
                             {d.unread}
                           </span>
                         )}
-                        <span className="shrink-0 text-[11px] text-white/40">{when(d.lastAt, locale)}</span>
+                        <span className="shrink-0 text-[11px] text-t3">{when(d.lastAt, locale)}</span>
                       </span>
-                      <span className="truncate text-[12px] text-white/55">{d.last}</span>
+                      <span className="truncate text-[12px] text-t3">{d.last}</span>
                     </Link>
                   </li>
                 )
@@ -234,17 +234,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
         {/* Conversation */}
         <div className="panel flex min-h-[50vh] flex-col overflow-hidden">
           {!open ? (
-            <p className="m-auto max-w-sm p-8 text-center text-[13px] text-white/50">
+            <p className="m-auto max-w-sm p-8 text-center text-[13px] text-t3">
               {truckChatMissing ? t(locale, 'telegram.page.noTruckChat') : t(locale, 'telegram.page.pickDialog')}
             </p>
           ) : (
             <>
               <div className="flex items-center gap-3 border-b border-white/8 px-4 py-3">
-                <Link href="/telegram" className="text-[13px] text-white/55 hover:text-white/85 md:hidden">
+                <Link href="/telegram" className="text-[13px] text-t3 hover:text-t1 md:hidden">
                   ←
                 </Link>
                 <span className="text-[14px] font-semibold">{open.name}</span>
-                {open.phone && <span className="text-[12px] text-white/45">+{open.phone}</span>}
+                {open.phone && <span className="text-[12px] text-t3">+{open.phone}</span>}
               </div>
               <TgMessages chatId={open.id} phone={open.phone} initial={msgs ?? []} />
               <TgSendBox chatId={open.id} />
