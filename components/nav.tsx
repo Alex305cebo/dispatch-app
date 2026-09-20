@@ -121,6 +121,7 @@ export function Nav({
   user,
   showTelegram,
   urgentDocs,
+  tilesEnabled,
 }: {
   companyName: string
   user: CurrentUser | null
@@ -130,6 +131,8 @@ export function Nav({
   /** Count of truck/driver documents overdue or ≤30 days out — badged on Траки so
    * it's visible from any page, not just the one banner on the dashboard. */
   urgentDocs: number
+  /** Разрешена ли перестановка плиток: выключатель живёт в меню аккаунта. */
+  tilesEnabled: boolean
 }) {
   const pathname = usePathname()
   // Страница водителя (/d/<token>) — без навигации: у водителя нет доступа к приложению.
@@ -400,6 +403,7 @@ export function Nav({
             dockCollapsed={!dockExpanded}
             onExpandDock={expandDock}
             showTelegram={showTelegram}
+            tilesEnabled={tilesEnabled}
             themeControl={<ThemeToggle />}
             journalControl={
               user.role === 'admin' ? <JournalLink pathname={pathname} locale={locale} /> : undefined

@@ -34,6 +34,7 @@ import {
   LifeBuoy,
   LogOut,
   PackagePlus,
+  LayoutGrid,
   Palette,
   RotateCw,
   Send,
@@ -42,7 +43,7 @@ import {
   Users,
 } from 'lucide-react'
 import { LOCALES, type Locale } from '@/lib/i18n'
-import { changeMyPassword, setRecoveryBirthday } from '@/app/account/actions'
+import { changeMyPassword, setRecoveryBirthday, setTilesRearrange } from '@/app/account/actions'
 import { signOut } from '@/app/login/actions'
 import { notify } from '@/lib/notify'
 import type { CurrentUser } from '@/lib/session'
@@ -112,6 +113,39 @@ function ControlRow({ icon, label, control }: { icon: React.ReactNode; label: st
   )
 }
 
+/** Переключатель перестановки плиток в меню аккаунта. Значение видно справа, не
+ *  нажимая, как у остальных строк этой группы. Настройка общая на компанию, об этом
+ *  говорит подпись под строкой — иначе человек не поймёт, почему включил он, а
+ *  кнопка появилась у всех. */
+function TilesRow({ enabled, locale }: { enabled: boolean; locale: Locale }) {
+  const [pending, start] = useTransition()
+  return (
+    <>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            const res = await setTilesRearrange(!enabled)
+            if (res?.error) notify('error', res.error)
+            else notify('ok', t(locale, enabled ? 'grid.setting.turnedOff' : 'grid.setting.turnedOn'))
+          })
+        }
+        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-base text-t1 transition-colors hover:bg-white/5 disabled:opacity-40"
+      >
+        <span className="shrink-0 text-t3">
+          <LayoutGrid size={15} />
+        </span>
+        <span className="min-w-0 flex-1 truncate">{t(locale, 'grid.setting.label')}</span>
+        <span className={`shrink-0 text-xs font-semibold ${enabled ? 'text-good-400' : 'text-t3'}`}>
+          {t(locale, enabled ? 'grid.setting.on' : 'grid.setting.off')}
+        </span>
+      </button>
+      <p className="px-2 pb-1 text-xs leading-relaxed text-t3">{t(locale, 'grid.setting.hint')}</p>
+    </>
+  )
+}
+
 function Group({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
     <div className="border-t border-white/8 py-1 first:border-t-0">
@@ -133,6 +167,7 @@ export function UserPanel({
   localeControl,
   themeControl,
   journalControl,
+  tilesEnabled = false,
 }: {
   user: CurrentUser
   /** Same capability flags the nav uses to hide dead tabs. A row pointing at a screen
@@ -148,6 +183,10 @@ export function UserPanel({
   localeControl?: React.ReactNode
   themeControl?: React.ReactNode
   journalControl?: React.ReactNode
+  /** Разрешена ли перестановка плиток. Настройка ОБЩАЯ на компанию (порядок плиток
+   *  тоже общий), но лежит здесь, а не в панели администратора: включать её может
+   *  любой, кто вошёл. */
+  tilesEnabled?: boolean
 }) {
   const router = useRouter()
   const locale = useLocale()
@@ -340,6 +379,9 @@ export function UserPanel({
                   control={themeControl}
                 />
               )}
+              {/* Перестановка плиток. Выключена — на разделах кнопка «Переставить»
+                  видна, но заперта и говорит, где её включить. */}
+              <TilesRow enabled={tilesEnabled} locale={locale} />
               {/* Уведомления браузера — разрешение спрашивается только отсюда. */}
               <AlertToggle />
               <Row

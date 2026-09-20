@@ -244,4 +244,41 @@ export const overviewDict = {
     ro: 'Nu s-a salvat — ordinea revine la reîncărcare',
     kk: 'Сақталмады — бет жаңарғанда реті қайтады',
   },
+
+  // Выключатель перестановки — в меню аккаунта (components/user-panel.tsx)
+  'grid.setting.label': { ru: 'Перестановка плиток', en: 'Rearranging tiles', es: 'Reordenar bloques', uk: 'Перестановка плиток', ro: 'Rearanjarea plăcilor', kk: 'Тақтайшаларды реттеу' },
+  'grid.setting.on': { ru: 'вкл', en: 'on', es: 'sí', uk: 'увімк', ro: 'pornit', kk: 'қосулы' },
+  'grid.setting.off': { ru: 'выкл', en: 'off', es: 'no', uk: 'вимк', ro: 'oprit', kk: 'өшірулі' },
+  'grid.setting.hint': {
+    ru: 'Порядок плиток общий для всей компании: включит один — двигать смогут все.',
+    en: 'Tile order is shared by the whole company: one person turns it on and everyone can move them.',
+    es: 'El orden de los bloques es común para toda la empresa: si uno lo activa, todos pueden moverlos.',
+    uk: 'Порядок плиток спільний для всієї компанії: увімкне один — рухати зможуть усі.',
+    ro: 'Ordinea plăcilor este comună pentru toată compania: dacă o pornește unul, toți le pot muta.',
+    kk: 'Тақтайшалар реті бүкіл компанияға ортақ: біреу қосса, бәрі жылжыта алады.',
+  },
+  'grid.setting.turnedOn': {
+    ru: 'Перестановка включена.',
+    en: 'Rearranging is on.',
+    es: 'Reordenar está activado.',
+    uk: 'Перестановку увімкнено.',
+    ro: 'Rearanjarea este activată.',
+    kk: 'Қайта реттеу қосылды.',
+  },
+  'grid.setting.turnedOff': {
+    ru: 'Перестановка выключена.',
+    en: 'Rearranging is off.',
+    es: 'Reordenar está apagado.',
+    uk: 'Перестановку вимкнено.',
+    ro: 'Rearanjarea este oprită.',
+    kk: 'Қайта реттеу өшірілді.',
+  },
+  'grid.locked': {
+    ru: 'Чтобы двигать плитки, включите перестановку в настройках аккаунта.',
+    en: 'To move tiles, turn rearranging on in your account settings.',
+    es: 'Para mover los bloques, activa el reordenamiento en los ajustes de tu cuenta.',
+    uk: 'Щоб рухати плитки, увімкніть перестановку в налаштуваннях акаунта.',
+    ro: 'Ca să muți plăcile, pornește rearanjarea din setările contului.',
+    kk: 'Тақтайшаларды жылжыту үшін аккаунт баптауларында қайта реттеуді қосыңыз.',
+  },
 } as const

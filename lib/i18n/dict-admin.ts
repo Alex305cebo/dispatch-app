@@ -317,51 +317,6 @@ export const adminDict = {
   'admin.openAccess.turnOff': { ru: 'Выключить', en: 'Turn off', es: 'Apagar', uk: 'Вимкнути', ro: 'Oprește', kk: 'Өшіру' },
   'admin.openAccess.turnOn': { ru: 'Включить', en: 'Turn on', es: 'Activar', uk: 'Увімкнути', ro: 'Activează', kk: 'Қосу' },
 
-  // Перестановка плиток (app/admin/tiles-toggle.tsx)
-  'admin.tilesHeading': { ru: 'Перестановка плиток', en: 'Rearranging tiles', es: 'Reordenar bloques', uk: 'Перестановка плиток', ro: 'Rearanjarea plăcilor', kk: 'Тақтайшаларды қайта орналастыру' },
-  'admin.tilesInfo': {
-    ru: 'Порядок плиток общий для всей компании: кто переставил — увидели все. Поэтому перестановка выключена, пока её здесь не включат.',
-    en: 'Tile order is shared by the whole company: whoever rearranges them, everyone sees it. That is why rearranging stays off until it is turned on here.',
-    es: 'El orden de los bloques es común para toda la empresa: quien los reordena, lo ven todos. Por eso reordenar está apagado hasta que se active aquí.',
-    uk: 'Порядок плиток спільний для всієї компанії: хто переставив — побачили всі. Тому перестановка вимкнена, доки її тут не увімкнуть.',
-    ro: 'Ordinea plăcilor este comună pentru toată compania: cine le rearanjează, toți văd. De aceea rearanjarea este oprită până nu este activată aici.',
-    kk: 'Тақтайшалар реті бүкіл компанияға ортақ: кім ауыстырса, оны бәрі көреді. Сондықтан осы жерде қосылғанша қайта орналастыру өшірулі.',
-  },
-  'admin.tiles.currentlyOn': {
-    ru: 'Сейчас плитки можно двигать: в разделах есть кнопка «Переставить».',
-    en: 'Tiles can be moved right now: sections show a “Rearrange” button.',
-    es: 'Ahora los bloques se pueden mover: las secciones muestran el botón «Reordenar».',
-    uk: 'Зараз плитки можна рухати: у розділах є кнопка «Переставити».',
-    ro: 'Acum plăcile pot fi mutate: secțiunile au butonul „Rearanjează”.',
-    kk: 'Қазір тақтайшаларды жылжытуға болады: бөлімдерде «Қайта орналастыру» түймесі бар.',
-  },
-  'admin.tiles.currentlyOff': {
-    ru: 'Сейчас плитки двигать нельзя: кнопки «Переставить» в разделах нет.',
-    en: 'Tiles cannot be moved: sections show no “Rearrange” button.',
-    es: 'Ahora los bloques no se pueden mover: no hay botón «Reordenar» en las secciones.',
-    uk: 'Зараз плитки рухати не можна: кнопки «Переставити» в розділах немає.',
-    ro: 'Acum plăcile nu pot fi mutate: secțiunile nu au butonul „Rearanjează”.',
-    kk: 'Қазір тақтайшаларды жылжытуға болмайды: бөлімдерде «Қайта орналастыру» түймесі жоқ.',
-  },
-  'admin.tiles.turnedOn': {
-    ru: 'Перестановка включена.',
-    en: 'Rearranging is on.',
-    es: 'Reordenar está activado.',
-    uk: 'Перестановку увімкнено.',
-    ro: 'Rearanjarea este activată.',
-    kk: 'Қайта орналастыру қосылды.',
-  },
-  'admin.tiles.turnedOff': {
-    ru: 'Перестановка выключена.',
-    en: 'Rearranging is off.',
-    es: 'Reordenar está apagado.',
-    uk: 'Перестановку вимкнено.',
-    ro: 'Rearanjarea este oprită.',
-    kk: 'Қайта орналастыру өшірілді.',
-  },
-  'admin.tiles.turnOff': { ru: 'Выключить', en: 'Turn off', es: 'Apagar', uk: 'Вимкнути', ro: 'Oprește', kk: 'Өшіру' },
-  'admin.tiles.turnOn': { ru: 'Включить', en: 'Turn on', es: 'Activar', uk: 'Увімкнути', ro: 'Activează', kk: 'Қосу' },
-
   // Server action errors (app/admin/actions.ts, app/account/actions.ts)
   'admin.err.adminOnly': { ru: 'Только для администратора.', en: 'Admins only.', es: 'Solo para administradores.', uk: 'Лише для адміністратора.', ro: 'Doar pentru administratori.', kk: 'Тек әкімші үшін.' },
   'admin.err.unknownCapability': { ru: 'Неизвестное право.', en: 'Unknown permission.', es: 'Permiso desconocido.', uk: 'Невідоме право.', ro: 'Permisiune necunoscută.', kk: 'Белгісіз құқық.' },
