@@ -1,7 +1,6 @@
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
-import { gridLabels } from '@/lib/grid-labels'
-import { readLayout } from '@/lib/tiles'
-import { applyLayout, TOLLS_TILES } from '@/lib/tiles-core'
+import { tileGrid } from '@/lib/tiles'
+import { TOLLS_TILES } from '@/lib/tiles-core'
 import { Info } from '@/components/info'
 import { TollsClient } from './tolls-client'
 import { TollMissing, TollMoney } from './toll-money'
@@ -93,7 +92,7 @@ export default async function TollsPage() {
     { id: 'money', node: <div><TollMoney spend={spend} days={SPEND_DAYS} locale={locale} /></div> },
     { id: 'guide', node: <div><TollGuide /></div> },
   ]
-  const layout = applyLayout(await readLayout('tolls'), TOLLS_TILES)
+  const grid = await tileGrid('tolls', TOLLS_TILES, locale)
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -104,11 +103,8 @@ export default async function TollsPage() {
       <p className="mb-5 text-base text-t2">{t(locale, 'tolls.subtitle')}</p>
 
       <WidgetGrid
-        page="tolls"
-        layout={layout}
-        defaults={TOLLS_TILES}
+        {...grid}
         widgets={widgets}
-        labels={gridLabels(locale)}
       />
     </main>
   )

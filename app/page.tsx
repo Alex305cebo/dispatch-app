@@ -13,9 +13,8 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/button'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
-import { gridLabels } from '@/lib/grid-labels'
-import { readLayout } from '@/lib/tiles'
-import { applyLayout, type TilePlacement, type TileSize } from '@/lib/tiles-core'
+import { tileGrid } from '@/lib/tiles'
+import { type TilePlacement, type TileSize } from '@/lib/tiles-core'
 import { Suspense, type ReactNode } from 'react'
 import Link from 'next/link'
 import {
@@ -569,7 +568,7 @@ export default async function Page() {
     </div>,
   )
 
-  const layout = applyLayout(await readLayout('overview'), defaults)
+  const grid = await tileGrid('overview', defaults, locale)
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -589,11 +588,8 @@ export default async function Page() {
       </header>
 
       <WidgetGrid
-        page="overview"
-        layout={layout}
-        defaults={defaults}
+        {...grid}
         widgets={widgets}
-        labels={gridLabels(locale)}
       />
     </main>
   )

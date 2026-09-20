@@ -40,7 +40,7 @@ import { knownBrokerMc } from '@/lib/brokers'
 import type { HistoryLeg } from '@/lib/trip-history'
 import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
 import { deleteSetting, dispatcherPhoneKey, getSetting, setSetting } from '@/lib/settings'
-import { writeLayout } from '@/lib/tiles'
+import { tilesEnabled, writeLayout } from '@/lib/tiles'
 import { TILE_PAGES, TILE_PATHS, TILE_SIZES, type TilePage, type TilePlacement } from '@/lib/tiles-core'
 import { facilityNoteKey } from '@/lib/facilities'
 import { companyScope, confirmDelete, demoReadOnly, getCurrentUser } from '@/lib/session'
@@ -105,6 +105,9 @@ export async function saveTileLayout(
   const ro = await demoReadOnly()
   if (ro) return ro
   if (!TILE_PAGES.includes(page)) return { error: t(locale, 'actions.noAccess') }
+  // Кнопки «Переставить» при выключенной перестановке на экране нет, но проверить
+  // надо и здесь: серверное действие вызывается по адресу, а не только кнопкой.
+  if (!(await tilesEnabled())) return { error: t(locale, 'actions.noAccess') }
   const clean: TilePlacement[] = []
   const seen = new Set<string>()
   for (const p of layout) {

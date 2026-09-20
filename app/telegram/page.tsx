@@ -25,9 +25,8 @@ import { TgImage } from './tg-image'
 import { TgChatSettings } from './tg-chat-settings'
 import { Info } from '@/components/info'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
-import { gridLabels } from '@/lib/grid-labels'
-import { readLayout } from '@/lib/tiles'
-import { applyLayout, TELEGRAM_TILES } from '@/lib/tiles-core'
+import { tileGrid } from '@/lib/tiles'
+import { TELEGRAM_TILES } from '@/lib/tiles-core'
 import { usDate } from '@/lib/fmt'
 
 export const dynamic = 'force-dynamic'
@@ -254,7 +253,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       ),
     },
   ]
-  const layout = applyLayout(await readLayout('telegram'), TELEGRAM_TILES)
+  const grid = await tileGrid('telegram', TELEGRAM_TILES, locale)
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -279,11 +278,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       {/* Ошибка — первой: сломанное подключение важнее любых настроек. */}
       {error && <p className="panel mb-4 p-4 text-base text-bad-400">{error}</p>}
       <WidgetGrid
-        page="telegram"
-        layout={layout}
-        defaults={TELEGRAM_TILES}
+        {...grid}
         widgets={widgets}
-        labels={gridLabels(locale)}
       />
     </main>
   )

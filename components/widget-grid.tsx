@@ -21,7 +21,26 @@ import { useCallback, useEffect, useId, useRef, useState, useTransition } from '
 import { motion, useDragControls, useReducedMotion } from 'motion/react'
 import { Check, GripVertical, LayoutGrid } from 'lucide-react'
 import { saveTileLayout } from '@/app/actions'
+import type { GridLabels } from '@/lib/grid-labels'
 import { TILE_SIZES, type TilePage, type TilePlacement, type TileSize } from '@/lib/tiles-core'
+
+/** Всё, что сетка берёт с сервера. Отдельным типом, потому что на «Траках» сетку
+ *  рисует не страница, а компонент двумя уровнями ниже, и тащить туда четыре
+ *  отдельных пропа (а потом не забыть добавить пятый) — верный способ забыть. */
+export type TileGridProps = {
+  page: TilePage
+  /** Порядок и размеры, уже склеенные сервером из сохранённого и заданного страницей. */
+  layout: TilePlacement[]
+  /** Что задала сама страница — к этому возвращает «Вернуть как было». */
+  defaults: TilePlacement[]
+  /** Готовые строки, а не функция перевода: сетка — клиентский компонент, а функцию в
+   * него со страницы-сервера передать нельзя, Next отвечает ошибкой прямо в браузер. */
+  labels: GridLabels
+  /** Разрешена ли перестановка. Выключатель живёт в настройках и по умолчанию
+   *  выключен: тогда кнопки «Переставить» нет вовсе, и плитки — обычные блоки
+   *  в сохранённом порядке. */
+  enabled: boolean
+}
 
 export type Widget = {
   /** Устойчивый ключ: по нему запоминается место плитки. Менять нельзя — сбросит раскладку. */
@@ -48,27 +67,10 @@ export function WidgetGrid({
   defaults,
   widgets,
   labels,
+  enabled,
   className = '',
-}: {
-  page: TilePage
-  /** Порядок и размеры, уже склеенные сервером из сохранённого и заданного страницей. */
-  layout: TilePlacement[]
-  /** Что задала сама страница — к этому возвращает «Вернуть как было». */
-  defaults: TilePlacement[]
+}: TileGridProps & {
   widgets: Widget[]
-  /** Готовые строки, а не функция перевода: сетка — клиентский компонент, а функцию в
-   * него со страницы-сервера передать нельзя, Next отвечает ошибкой прямо в браузер. */
-  labels: {
-    rearrange: string
-    done: string
-    reset: string
-    hintTouch: string
-    hintPointer: string
-    shared: string
-    size: string
-    sizeNames: Record<TileSize, string>
-    saveFailed: string
-  }
   className?: string
 }) {
   const [places, setPlaces] = useState<TilePlacement[]>(layout)
@@ -93,12 +95,12 @@ export function WidgetGrid({
   // разное дерево на сервере и на клиенте — это гидрация #418.
   useEffect(() => {
     try {
-      setEdit(localStorage.getItem(`tiles:${page}:edit`) === '1')
+      setEdit(enabled && localStorage.getItem(`tiles:${page}:edit`) === '1')
     } catch {
       /* приватный режим */
     }
     setTouch(window.matchMedia('(pointer: coarse)').matches)
-  }, [page])
+  }, [page, enabled])
 
   /** Записывается в базу, а не в браузер: порядок общий. Новый порядок на экране
    *  остаётся в любом случае — если сохранить не вышло, говорим это словами, а не
@@ -173,6 +175,9 @@ export function WidgetGrid({
 
   return (
     <div className={className}>
+      {/* Полоса с кнопкой — только когда перестановка разрешена в настройках. Пока
+          выключена, раздел выглядит ровно как до плиток: ни кнопки, ни подсказки. */}
+      {enabled && (
       <div className="mb-2 flex items-center justify-between gap-3 text-xs text-t3">
         <span id={hintId}>
           {failed ? (
@@ -220,6 +225,7 @@ export function WidgetGrid({
           </button>
         </span>
       </div>
+      )}
 
       {/* dense: плитки разного размера оставляют дыры в строке, и без него широкая,
           не влезшая в остаток строки, уезжала вниз, а слева зиял пустой квадрат. */}

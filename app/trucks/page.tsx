@@ -22,9 +22,8 @@ import { getLocale } from '@/lib/i18n-server'
 import { placeCity } from '@/lib/place'
 import { t, type Locale } from '@/lib/i18n'
 import { Info } from '@/components/info'
-import { gridLabels } from '@/lib/grid-labels'
-import { readLayout } from '@/lib/tiles'
-import { applyLayout, TRUCKS_TILES } from '@/lib/tiles-core'
+import { tileGrid } from '@/lib/tiles'
+import { TRUCKS_TILES } from '@/lib/tiles-core'
 
 export const dynamic = 'force-dynamic'
 
@@ -137,7 +136,7 @@ export default async function Page() {
   // только те, кого нельзя грузить: этого числа в плитках нет.
   const unavailable = trucks.filter((t) => t.unavailable).length
 
-  const layout = applyLayout(await readLayout('trucks'), TRUCKS_TILES)
+  const grid = await tileGrid('trucks', TRUCKS_TILES, locale)
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -147,32 +146,14 @@ export default async function Page() {
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div className="min-w-0">
           <h1 className="text-xl font-bold tracking-tight">{t(locale, 'trucks.page.title')}</h1>
-          <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-base text-t2">
-            {/* Строка стояла отдельной панелью ПОД списком и повторяла плитки над
-                картой: «с грузом» и «свободно» там уже есть. Здесь осталось только
-                то, чего в плитках нет, — деньги парка за неделю и машины, которые
-                нельзя грузить. */}
-            <span className="nums font-semibold text-t1">
-              {usd.format(perTruck.reduce((sum, x) => sum + x.weekGross, 0))}
-            </span>
-            <span className="flex items-center gap-1">
-              {t(locale, 'trucks.page.weekGross')}
-              <Info text={t(locale, 'trucks.page.weekGrossInfo')} />
-            </span>
-            {unavailable > 0 && (
-              <span className="text-warn-400">
-                · {unavailable} {t(locale, 'trucks.page.unavailable')}
-              </span>
-            )}
-            <span className="text-t3">·</span>
-            {trucks.length} {t(locale, 'trucks.page.inFleet')}
-            {company.owner && (
-              <>
-                {t(locale, 'trucks.page.ownerPrefix')}
-                <span className="font-medium text-t1">{company.owner}</span>
-              </>
-            )}
-          </p>
+          {/* Цифры парка ушли из этой строки в плитки над картой — их двигают и
+              уменьшают, как всё остальное. Здесь остался владелец: это не число. */}
+          {company.owner && (
+            <p className="text-base text-t2">
+              {t(locale, 'trucks.page.ownerPrefix').trim()}{' '}
+              <span className="font-medium text-t1">{company.owner}</span>
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
           {trucks.length > 0 && <FuelPriceButton truckId={null} locale={locale} size="md" />}
@@ -196,9 +177,47 @@ export default async function Page() {
         <FleetBoard
           locale={locale}
           money={moneyByTruck}
-          layout={layout}
-          defaults={TRUCKS_TILES}
-          labels={gridLabels(locale)}
+          grid={grid}
+          // Цифры парка — маленькими плитками, как на «Обзоре»: место каждой задаёт
+          // TRUCKS_TILES, поэтому порядок здесь значения не имеет.
+          extra={[
+            {
+              id: 'week-gross',
+              node: (
+                <div className="panel flex h-full flex-col justify-center px-3 py-2.5">
+                  <div className="nums truncate text-xl leading-tight text-t1">
+                    {usd.format(perTruck.reduce((sum, x) => sum + x.weekGross, 0))}
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-1 truncate text-xs text-t3">
+                    {t(locale, 'trucks.page.weekGross')}
+                    <Info text={t(locale, 'trucks.page.weekGrossInfo')} />
+                  </div>
+                </div>
+              ),
+            },
+            {
+              id: 'fleet-size',
+              node: (
+                <div className="panel flex h-full flex-col justify-center px-3 py-2.5">
+                  <div className="nums truncate text-xl leading-tight text-t1">{trucks.length}</div>
+                  <div className="mt-0.5 truncate text-xs text-t3">{t(locale, 'trucks.page.inFleet')}</div>
+                </div>
+              ),
+            },
+            {
+              id: 'unavailable',
+              node: (
+                <div className="panel flex h-full flex-col justify-center px-3 py-2.5">
+                  <div
+                    className={`nums truncate text-xl leading-tight ${unavailable > 0 ? 'text-warn-400' : 'text-t1'}`}
+                  >
+                    {unavailable}
+                  </div>
+                  <div className="mt-0.5 truncate text-xs text-t3">{t(locale, 'trucks.page.unavailable')}</div>
+                </div>
+              ),
+            },
+          ]}
           // «Загрузка парка» — сразу под картой: кто когда освободится смотрят первым делом.
           underMap={
           <div className="mb-4">

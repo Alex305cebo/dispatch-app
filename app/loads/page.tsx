@@ -1,7 +1,6 @@
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
-import { gridLabels } from '@/lib/grid-labels'
-import { readLayout } from '@/lib/tiles'
-import { applyLayout, LOADS_TILES } from '@/lib/tiles-core'
+import { tileGrid } from '@/lib/tiles'
+import { LOADS_TILES } from '@/lib/tiles-core'
 import { Suspense } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/button'
@@ -182,7 +181,7 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
       ),
     },
   ]
-  const layout = applyLayout(await readLayout('loads'), LOADS_TILES)
+  const grid = await tileGrid('loads', LOADS_TILES, locale)
 
   return (
     <>
@@ -200,11 +199,8 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
       </div>
 
       <WidgetGrid
-        page="loads"
-        layout={layout}
-        defaults={LOADS_TILES}
+        {...grid}
         widgets={widgets}
-        labels={gridLabels(locale)}
       />
     </>
   )

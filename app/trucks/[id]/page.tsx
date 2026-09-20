@@ -2,9 +2,8 @@ import { cityOf } from '@/lib/maintenance-core'
 import Link from 'next/link'
 import { type ReactNode } from 'react'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
-import { gridLabels } from '@/lib/grid-labels'
-import { readLayout } from '@/lib/tiles'
-import { applyLayout, TRUCK_DETAIL_TILES } from '@/lib/tiles-core'
+import { tileGrid } from '@/lib/tiles'
+import { TRUCK_DETAIL_TILES } from '@/lib/tiles-core'
 import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
 import { Phone, Plus } from 'lucide-react'
@@ -987,7 +986,7 @@ export default async function Page({
     </details>
   ))
 
-  const layout = applyLayout(await readLayout('truck-detail'), TRUCK_DETAIL_TILES)
+  const grid = await tileGrid('truck-detail', TRUCK_DETAIL_TILES, locale)
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-10">
@@ -1008,11 +1007,8 @@ export default async function Page({
       />
 
       <WidgetGrid
-        page="truck-detail"
-        layout={layout}
-        defaults={TRUCK_DETAIL_TILES}
+        {...grid}
         widgets={widgets}
-        labels={gridLabels(locale)}
         className="mt-3"
       />
     </main>

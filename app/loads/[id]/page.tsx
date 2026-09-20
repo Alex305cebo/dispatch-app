@@ -1,8 +1,7 @@
 import Link from 'next/link'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
-import { gridLabels } from '@/lib/grid-labels'
-import { readLayout } from '@/lib/tiles'
-import { applyLayout, LOAD_DETAIL_TILES } from '@/lib/tiles-core'
+import { tileGrid } from '@/lib/tiles'
+import { LOAD_DETAIL_TILES } from '@/lib/tiles-core'
 import { Fragment, Suspense, type ReactNode } from 'react'
 import { notFound } from 'next/navigation'
 import { currentLoadForTruck, getLoad, laneAvgRpmFor, listDocs, listLoads, truckForLoad } from '@/lib/loads'
@@ -605,7 +604,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     </details>
   ))
 
-  const layout = applyLayout(await readLayout('load-detail'), LOAD_DETAIL_TILES)
+  const grid = await tileGrid('load-detail', LOAD_DETAIL_TILES, locale)
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -625,11 +624,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       />
 
       <WidgetGrid
-        page="load-detail"
-        layout={layout}
-        defaults={LOAD_DETAIL_TILES}
+        {...grid}
         widgets={widgets}
-        labels={gridLabels(locale)}
         className="mt-3"
       />
     </main>

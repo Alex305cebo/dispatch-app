@@ -12,9 +12,8 @@
 // Старый адрес /invoices ведёт сюда со своей вкладкой (app/invoices/page.tsx).
 
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
-import { gridLabels } from '@/lib/grid-labels'
-import { readLayout } from '@/lib/tiles'
-import { applyLayout, DOCS_FLEET_TILES, DOCS_TILES } from '@/lib/tiles-core'
+import { tileGrid } from '@/lib/tiles'
+import { DOCS_FLEET_TILES, DOCS_TILES } from '@/lib/tiles-core'
 import Link from 'next/link'
 import { listDocsForLibrary, listTrashedDocs, listTrucks, rateConByLoad } from '@/lib/loads'
 import { DocLibrary, DocTrash, DocUpload } from '@/components/docs'
@@ -176,16 +175,10 @@ async function Loads({
       ),
     },
   ]
-  const layout = applyLayout(await readLayout('docs'), DOCS_TILES)
+  const grid = await tileGrid('docs', DOCS_TILES, locale)
 
   return (
-    <WidgetGrid
-      page="docs"
-      layout={layout}
-      defaults={DOCS_TILES}
-      widgets={widgets}
-      labels={gridLabels(locale)}
-    />
+    <WidgetGrid {...grid} widgets={widgets} />
   )
 }
 
@@ -215,16 +208,10 @@ async function Fleet({ companyId, locale }: { companyId: 'default' | 'demo'; loc
       ),
     },
   ]
-  const layout = applyLayout(await readLayout('docs-fleet'), DOCS_FLEET_TILES)
+  const grid = await tileGrid('docs-fleet', DOCS_FLEET_TILES, locale)
 
   return (
-    <WidgetGrid
-      page="docs-fleet"
-      layout={layout}
-      defaults={DOCS_FLEET_TILES}
-      widgets={widgets}
-      labels={gridLabels(locale)}
-    />
+    <WidgetGrid {...grid} widgets={widgets} />
   )
 }
 
