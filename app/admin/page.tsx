@@ -6,11 +6,12 @@ import { CompanyForm } from '@/components/invoice-actions'
 import { Info } from '@/components/info'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
-import { getDemoConfig, getKeyStatus, getOpenAccess, listFleetForAssign, listRecentErrors, listUsers } from './actions'
+import { getDemoConfig, getKeyStatus, getOpenAccess, getTilesEnabled, listFleetForAssign, listRecentErrors, listUsers } from './actions'
 import { UserList } from './user-list'
 import { OpenAccessToggle } from './open-access-toggle'
 import { KeysForm } from './keys-form'
 import { DemoToggle } from './demo-toggle'
+import { TilesToggle } from './tiles-toggle'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,7 +22,7 @@ export default async function AdminPage() {
   if (!user || user.role !== 'admin') redirect('/')
   const locale = await getLocale()
 
-  const [users, company, openAccess, keys, demo, fleet, errors] = await Promise.all([
+  const [users, company, openAccess, keys, demo, fleet, errors, tiles] = await Promise.all([
     listUsers(),
     getCompany(),
     getOpenAccess(),
@@ -29,6 +30,7 @@ export default async function AdminPage() {
     getDemoConfig(),
     listFleetForAssign(),
     listRecentErrors().catch(() => []),
+    getTilesEnabled(),
   ])
 
   return (
@@ -66,6 +68,13 @@ export default async function AdminPage() {
           <Info text={t(locale, 'admin.keysInfo')} />
         </h2>
         <KeysForm status={keys} />
+      </section>
+      <section className="panel mt-4 p-5">
+        <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
+          {t(locale, 'admin.tilesHeading')}
+          <Info text={t(locale, 'admin.tilesInfo')} />
+        </h2>
+        <TilesToggle enabled={tiles} />
       </section>
       <section className="panel mt-4 p-5">
         <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">

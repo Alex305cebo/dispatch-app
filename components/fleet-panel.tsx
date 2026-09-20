@@ -17,8 +17,7 @@ import { Button } from '@/components/button'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 import { LocalTime } from '@/components/local-time'
-import { WidgetGrid, type Widget } from '@/components/widget-grid'
-import type { GridLabels } from '@/lib/grid-labels'
+import { WidgetGrid, type TileGridProps, type Widget } from '@/components/widget-grid'
 import type { TilePlacement } from '@/lib/tiles-core'
 
 /** Суточные снимки DAT по сериям со ставками по маршрутам: слой «Рынок» на карте и
@@ -62,9 +61,7 @@ export function FleetPanel({
   between,
   after,
   money,
-  layout,
-  defaults,
-  labels,
+  grid,
 }: {
   markers: MapMarker[]
   routes: MapRoute[]
@@ -90,9 +87,7 @@ export function FleetPanel({
   /** Экономика по траку — вторая половина строки списка. */
   money?: Record<number, TruckMoney>
   /** Раскладка плиток раздела, прочитанная страницей из настроек компании. */
-  layout: TilePlacement[]
-  defaults: TilePlacement[]
-  labels: GridLabels
+  grid: TileGridProps
 }) {
   const locale = useLocale()
   // «Показать на карте» с «Рынка» приводит сюда с траком и штатом в адресе
@@ -278,11 +273,8 @@ export function FleetPanel({
 
   return (
     <WidgetGrid
-      page="trucks"
-      layout={layout}
-      defaults={defaults}
+      {...grid}
       widgets={widgets}
-      labels={labels}
     />
   )
 }

@@ -18,7 +18,7 @@ import { fixPlace } from '@/lib/place'
 import { type MapMarker, type MapRoute } from '@/components/fleet-map'
 import { loadPlanData } from '@/lib/plan-data'
 import { FleetPanel } from '@/components/fleet-panel'
-import type { GridLabels } from '@/lib/grid-labels'
+import type { TileGridProps } from '@/components/widget-grid'
 import type { TilePlacement } from '@/lib/tiles-core'
 import { type TrackingRow } from '@/components/fleet-list'
 import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
@@ -46,9 +46,7 @@ type FS = {
 /** Map, fleet counters and the truck list — the part that waits on routing. */
 export async function FleetBoard({
   locale,
-  layout,
-  defaults,
-  labels,
+  grid,
   underMap,
   between,
   after,
@@ -56,9 +54,7 @@ export async function FleetBoard({
 }: {
   locale: Locale
   /** Раскладка плиток раздела — страница читает её из настроек компании. */
-  layout: TilePlacement[]
-  defaults: TilePlacement[]
-  labels: GridLabels
+  grid: TileGridProps
   underMap?: React.ReactNode
   between?: React.ReactNode
   after?: React.ReactNode
@@ -354,9 +350,7 @@ export async function FleetBoard({
       between={between}
       after={after}
       money={money}
-      layout={layout}
-      defaults={defaults}
-      labels={labels}
+      grid={grid}
     />
   )
 }

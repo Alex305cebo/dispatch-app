@@ -15,9 +15,8 @@ import { TOP_BROKERS } from '@/lib/brokers-top'
 import { BrokerCheckForm } from '@/components/broker-check-form'
 import { TopBrokers } from '@/components/top-brokers'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
-import { gridLabels } from '@/lib/grid-labels'
-import { readLayout } from '@/lib/tiles'
-import { applyLayout, BROKERS_TILES } from '@/lib/tiles-core'
+import { tileGrid } from '@/lib/tiles'
+import { BROKERS_TILES } from '@/lib/tiles-core'
 import { Suspense } from 'react'
 import { RoutePlanSection } from '@/components/route-plan-section'
 import { Directory, type DirBroker, type DirFacility, type DirView } from './directory'
@@ -259,7 +258,7 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
     { id: 'check', node: <BrokerCheckForm /> },
     { id: 'top', node: <TopBrokers brokers={TOP_BROKERS} /> },
   ]
-  const layout = applyLayout(await readLayout('brokers'), BROKERS_TILES)
+  const grid = await tileGrid('brokers', BROKERS_TILES, locale)
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -267,11 +266,10 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
       <p className="mb-4 text-base text-t2">{t(locale, 'brokers.dir.subtitle')}</p>
 
       <WidgetGrid
-        page="brokers"
-        layout={layout}
-        defaults={BROKERS_TILES}
+
+
+        {...grid}
         widgets={widgets}
-        labels={gridLabels(locale)}
       />
     </main>
   )
