@@ -41,7 +41,7 @@ import type { HistoryLeg } from '@/lib/trip-history'
 import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
 import { deleteSetting, dispatcherPhoneKey, getSetting, setSetting } from '@/lib/settings'
 import { tilesEnabled, writeLayout } from '@/lib/tiles'
-import { TILE_PAGES, TILE_PATHS, TILE_SIZES, type TilePage, type TilePlacement } from '@/lib/tiles-core'
+import { TILE_PAGES, TILE_SIZES, type TilePage, type TilePlacement } from '@/lib/tiles-core'
 import { facilityNoteKey } from '@/lib/facilities'
 import { companyScope, confirmDelete, demoReadOnly, getCurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
@@ -117,12 +117,11 @@ export async function saveTileLayout(
     clean.push({ id: p.id, size: p.size })
   }
   await writeLayout(page, clean)
-  // У карточек груза и трака адрес с подстановкой — такой путь Next обновляет только
-  // как 'page', иначе строка `/loads/[id]` считается обычным адресом и не совпадает
-  // ни с чем.
-  const path = TILE_PATHS[page]
-  if (path.includes('[')) revalidatePath(path, 'page')
-  else revalidatePath(path)
+  // НИЧЕГО не обновляем. revalidatePath здесь заставлял Next перерисовать весь
+  // раздел на каждое перетаскивание и на каждую смену размера: страница уходила в
+  // «Загрузка…» на все свои блоки и висела, пока не пересчитаются база, карта и
+  // ставки. А обновлять нечего: порядок у того, кто двигает, уже на экране, а
+  // остальные прочитают его при следующем заходе — раздел и так force-dynamic.
 }
 
 export async function fillBrokerMc(): Promise<{
