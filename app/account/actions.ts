@@ -4,7 +4,7 @@ import { hashPassword, normalizeRecoveryCode } from '@/lib/auth'
 import { getCurrentUser } from '@/lib/session'
 import { sql } from '@/lib/db'
 import { setSetting } from '@/lib/settings'
-import { TILE_PATHS, TILES_ENABLED_KEY } from '@/lib/tiles-core'
+import { TILES_ENABLED_KEY } from '@/lib/tiles-core'
 import { revalidatePath } from 'next/cache'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
@@ -49,11 +49,8 @@ export async function setTilesRearrange(enabled: boolean): Promise<{ error: stri
   // В демо общий аккаунт на всех посетителей: настройка компании оттуда не меняется.
   if (user.isDemo) return { error: t(locale, 'admin.err.demoReadOnly') }
   await setSetting(TILES_ENABLED_KEY, enabled ? '1' : '0')
-  // Кнопка «Переставить» отпирается и запирается сразу на всех разделах, а не после
-  // захода заново. Меню аккаунта живёт в общем макете, поэтому и его обновляем.
+  // Одного обновления макета хватает: он общий для всех разделов, и кнопка
+  // «Переставить» отпирается сразу везде, а не после захода заново. Перебирать
+  // адреса разделов по одному незачем — это то же самое, только длиннее.
   revalidatePath('/', 'layout')
-  for (const path of new Set(Object.values(TILE_PATHS))) {
-    if (path.includes('[')) revalidatePath(path, 'page')
-    else revalidatePath(path)
-  }
 }
