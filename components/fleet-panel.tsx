@@ -34,12 +34,13 @@ export type FleetTotals = {
 
 type TileData = { value: string; label: string; tone?: 'warn' }
 
-/** One tile in the strip under the map. Fixed shape and a single `nums` line so the
- * four sit on an even baseline whatever the values are — uneven tiles are exactly what
- * made the old row look untidy. */
+/** Счётчик — отдельная маленькая плитка, а не вставка внутри общего блока: четыре
+ * числа раньше жили одной карточкой во всю строку, и двигать там было нечего.
+ * Форма фиксированная и цифра одной строкой `nums`, чтобы соседние плитки стояли на
+ * общей базовой линии, какими бы ни были значения. */
 function Tile({ value, label, tone }: TileData) {
   return (
-    <div className="panel-inset flex flex-col justify-center px-3 py-2.5">
+    <div className="panel flex h-full flex-col justify-center px-3 py-2.5">
       <div className={`nums truncate text-xl leading-tight ${tone === 'warn' ? 'text-warn-400' : 'text-t1'}`}>
         {value}
       </div>
@@ -61,6 +62,7 @@ export function FleetPanel({
   between,
   after,
   money,
+  extra = [],
   grid,
 }: {
   markers: MapMarker[]
@@ -86,6 +88,9 @@ export function FleetPanel({
   after?: React.ReactNode
   /** Экономика по траку — вторая половина строки списка. */
   money?: Record<number, TruckMoney>
+  /** Плитки, которые собрала сама страница: цифры парка из её шапки. Со своими
+   *  ключами, потому что место каждой задаёт TRUCKS_TILES, а не порядок вызовов. */
+  extra?: Widget[]
   /** Раскладка плиток раздела, прочитанная страницей из настроек компании. */
   grid: TileGridProps
 }) {
@@ -222,54 +227,47 @@ export function FleetPanel({
     )
 
   add(
-    'counters',
-    // Осознанно НЕ повторение легенды карты. «Едет / на смене / стоит» уже нарисовано
-    // на ней цветом. Эти четыре отвечают на то, чего карта не говорит: у трака без GPS
-    // нет пина, стоящий под грузом выглядит как стоящий без дела, а миль до выгрузки на
-    // карте нет вовсе.
-    <div className="panel h-full p-2.5">
-      {/* Строка заголовка заодно говорит «вы смотрите один трак». Без выбора — как его
-          сделать, чтобы действие не осталось спрятанным. «Обновлено · Обновить» справа
-          в этой же строке: отдельный ряд занимал высоту ради одной кнопки. */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 px-1.5">
-        {row ? (
-          <span className="flex min-w-0 items-baseline gap-2">
-            <span className="truncate text-base font-semibold text-white">{row.label}</span>
-            {/* Время водителя, а не пятая плитка: счётчиков ровно четыре в обоих
-                состояниях, и пятый ломал бы ряд именно при выборе трака. */}
-            {row.zone && (
-              <span className="shrink-0 text-xs text-t3">
-                {t(locale, 'trucks.head.driverTimeShort')}{' '}
-                <LocalTime zone={row.zone} className="nums font-semibold text-t1" />
-              </span>
-            )}
-          </span>
-        ) : (
-          <span className="truncate text-xs text-t3">{t(locale, 'tracking.pickOnMap')}</span>
-        )}
-        <span className="ml-auto flex min-w-0 items-center gap-2 text-xs text-t3">
-          <span className="truncate">{updatedText}</span>
-          <RefreshFleetButton staleMinutes={staleMinutes} />
-          {row && (
-            <Button size="sm" variant="ghost" icon={<X size={12} />} onClick={() => setSelected(null)}>
-              {t(locale, 'tracking.wholeFleet')}
-            </Button>
-          )}
+    'status',
+    // Кто сейчас выбран, когда обновлялось и кнопка «Обновить». Отдельной плиткой:
+    // раньше эта строка была шапкой общего блока со счётчиками, а счётчики разъехались
+    // по своим плиткам, и шапке стало не над чем стоять. Две строки, а не одна: в
+    // плитке шириной с соседний счётчик всё в ряд не встаёт и обрезается на полуслове.
+    <div className="panel flex h-full flex-col justify-center gap-1 px-3 py-2.5">
+      <span className="flex min-w-0 items-baseline gap-2">
+        <span className="truncate text-base font-semibold text-white">
+          {row ? row.label : t(locale, 'tracking.wholeFleet')}
         </span>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-        {tiles.map((tile) => (
-          <Tile key={tile.label} {...tile} />
-        ))}
-      </div>
+        {/* Время водителя, а не пятая плитка: счётчиков ровно четыре в обоих
+            состояниях, и пятый ломал бы ряд именно при выборе трака. */}
+        {row?.zone && (
+          <LocalTime zone={row.zone} className="nums shrink-0 text-xs font-semibold text-t1" />
+        )}
+      </span>
+      <span className="flex min-w-0 items-center gap-1.5 text-2xs text-t3">
+        <span className="truncate">{updatedText}</span>
+        <RefreshFleetButton staleMinutes={staleMinutes} />
+        {row && (
+          <Button size="sm" variant="ghost" icon={<X size={12} />} onClick={() => setSelected(null)}>
+            {t(locale, 'tracking.wholeFleet')}
+          </Button>
+        )}
+      </span>
     </div>,
   )
+
+  // Четыре счётчика — четыре маленькие плитки. Осознанно НЕ повторение легенды карты:
+  // «едет / на смене / стоит» уже нарисовано на ней цветом. Эти четыре отвечают на то,
+  // чего карта не говорит: у трака без GPS нет пина, стоящий под грузом выглядит как
+  // стоящий без дела, а миль до выгрузки на карте нет вовсе.
+  // Ключи позиционные (counter-1…4), потому что слотов ровно четыре в обоих состояниях,
+  // а смысл второго, третьего и четвёртого у парка и у выбранного трака разный.
+  tiles.forEach((tile, i) => add(`counter-${i + 1}`, <Tile {...tile} />))
 
   if (underMap) add('heatmap', <div>{underMap}</div>)
   if (between) add('drivers', <div>{between}</div>)
   add('list', <div><FleetList rows={rows} selectedId={selected} money={money} /></div>)
   if (after) add('eld', <div>{after}</div>)
+  for (const w of extra) add(w.id, w.node)
 
   return (
     <WidgetGrid

@@ -278,7 +278,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       {/* Ошибка — первой: сломанное подключение важнее любых настроек. */}
       {error && <p className="panel mb-4 p-4 text-base text-bad-400">{error}</p>}
       <WidgetGrid
-
         {...grid}
         widgets={widgets}
       />

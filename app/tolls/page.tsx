@@ -103,8 +103,6 @@ export default async function TollsPage() {
       <p className="mb-5 text-base text-t2">{t(locale, 'tolls.subtitle')}</p>
 
       <WidgetGrid
-
-
         {...grid}
         widgets={widgets}
       />

@@ -266,8 +266,6 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
       <p className="mb-4 text-base text-t2">{t(locale, 'brokers.dir.subtitle')}</p>
 
       <WidgetGrid
-
-
         {...grid}
         widgets={widgets}
       />

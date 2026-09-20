@@ -588,8 +588,6 @@ export default async function Page() {
       </header>
 
       <WidgetGrid
-
-
         {...grid}
         widgets={widgets}
       />

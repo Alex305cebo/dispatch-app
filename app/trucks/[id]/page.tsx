@@ -1007,8 +1007,6 @@ export default async function Page({
       />
 
       <WidgetGrid
-
-
         {...grid}
         widgets={widgets}
         className="mt-3"

@@ -199,8 +199,6 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
       </div>
 
       <WidgetGrid
-
-
         {...grid}
         widgets={widgets}
       />

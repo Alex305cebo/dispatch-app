@@ -624,8 +624,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       />
 
       <WidgetGrid
-
-
         {...grid}
         widgets={widgets}
         className="mt-3"

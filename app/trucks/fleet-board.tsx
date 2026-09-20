@@ -18,7 +18,7 @@ import { fixPlace } from '@/lib/place'
 import { type MapMarker, type MapRoute } from '@/components/fleet-map'
 import { loadPlanData } from '@/lib/plan-data'
 import { FleetPanel } from '@/components/fleet-panel'
-import type { TileGridProps } from '@/components/widget-grid'
+import type { TileGridProps, Widget } from '@/components/widget-grid'
 import type { TilePlacement } from '@/lib/tiles-core'
 import { type TrackingRow } from '@/components/fleet-list'
 import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
@@ -48,6 +48,7 @@ export async function FleetBoard({
   locale,
   grid,
   underMap,
+  extra,
   between,
   after,
   money,
@@ -56,6 +57,8 @@ export async function FleetBoard({
   /** Раскладка плиток раздела — страница читает её из настроек компании. */
   grid: TileGridProps
   underMap?: React.ReactNode
+  /** Плитки, собранные самой страницей: цифры парка из её шапки. */
+  extra?: Widget[]
   between?: React.ReactNode
   after?: React.ReactNode
   /** Деньги и бумаги по траку: считает страница, показывает список. */
@@ -347,6 +350,7 @@ export async function FleetBoard({
       }
       staleMinutes={staleMinutes}
       underMap={underMap}
+      extra={extra}
       between={between}
       after={after}
       money={money}
