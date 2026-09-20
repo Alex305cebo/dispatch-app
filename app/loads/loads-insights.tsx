@@ -46,7 +46,42 @@ function Spark({ values, tone }: { values: (number | null)[]; tone: keyof typeof
   )
 }
 
-export function LoadsKpis({
+/** Маленькая плитка со счётчиком: сколько грузов в таком состоянии. Нажатие сужает
+ *  список ниже до них же — как у плиток недели. Отдельными плитками, а не строкой
+ *  внутри общего блока: в сетке их можно поменять местами и убрать те, за которыми
+ *  здесь не следят. */
+export function CountTile({
+  label,
+  count,
+  tone,
+  onClick,
+}: {
+  label: string
+  count: number
+  tone?: 'good' | 'bad' | 'warn'
+  onClick?: () => void
+}) {
+  const colour = tone === 'good' ? 'text-good-400' : tone === 'bad' ? 'text-bad-400' : tone === 'warn' ? 'text-warn-400' : 'text-t1'
+  const body = (
+    <>
+      <div className={`nums truncate text-xl leading-tight ${count === 0 ? 'text-t3' : colour}`}>{count}</div>
+      <div className="mt-0.5 truncate text-xs text-t3">{label}</div>
+    </>
+  )
+  // w-full обязателен: <button> ужимается по содержимому, и счётчик в ряду с
+  // соседями вставал уже их, а ряд шёл рваным краем.
+  const skin = 'panel flex h-full w-full flex-col justify-center px-3 py-2.5'
+  if (!onClick || count === 0) return <div className={skin}>{body}</div>
+  return (
+    <button type="button" onClick={onClick} className={`${skin} cursor-pointer text-left transition-colors hover:bg-white/[0.06]`}>
+      {body}
+    </button>
+  )
+}
+
+/** Четыре числа недели — по плитке на каждое, а не общей карточкой на всю строку.
+ *  Возвращает готовые плитки с ключами, которыми их знает раскладка (lib/tiles-core). */
+export function loadsKpiTiles({
   loads,
   trucks,
   metrics,
@@ -73,63 +108,89 @@ export function LoadsKpis({
   const nextTone = nextTrucks === 0 ? 'warn' : 'haul'
   const pick = (key: MsgKey, rows: LoadRecord[]) => () => onSelect({ ids: rows.map((l) => l.id), label: t(locale, key) })
   const icon = { size: 15, strokeWidth: 2.5 }
-  return (
-    <div className="panel mb-4 grid grid-cols-2 gap-2.5 p-2.5 lg:grid-cols-4">
-      <Stat
-        hero
-        accent="haul"
-        icon={<DollarSign {...icon} />}
-        label={t(locale, 'loads.dash.booked')}
-        value={usd.format(week.gross)}
-        sub={`${dateLabel(weekFrom, locale)} – ${dateLabel(shiftDay(weekFrom, 6), locale)}`}
-        info={t(locale, 'loads.dash.bookedInfo')}
-        onClick={pick('loads.dash.booked', week.rows)}
-      >
-        <Spark values={week.buckets.map((b) => b.gross)} tone="haul" />
-      </Stat>
-      <Stat
-        accent="good"
-        icon={<TrendingUp {...icon} />}
-        label={t(locale, 'loads.dash.rpm')}
-        value={week.rpm == null ? '—' : `${usd2.format(week.rpm)}/mi`}
-        sub={vs ? t(locale, 'loads.dash.rpmVsMarket').replace('{pct}', pctText(vs.diff)) : t(locale, 'loads.dash.historyTrend')}
-        subTone={vs?.tone === 'good' ? 'good' : vs?.tone === 'bad' ? 'bad' : undefined}
-        info={
-          vs
-            ? `${t(locale, 'loads.dash.rpmInfo')} ${t(locale, 'loads.dash.rpmVsMarketInfo')
-                .replace('{rpm}', usd2.format(vs.rpm))
-                .replace('{market}', usd2.format(vs.market))
-                .replace('{n}', String(vs.loads))}`
-            : t(locale, 'loads.dash.rpmInfo')
-        }
-        onClick={pick('loads.dash.rpm', week.rows)}
-      >
-        <Spark values={trend} tone="good" />
-      </Stat>
-      <Stat
-        accent="haul"
-        icon={<Truck {...icon} />}
-        label={t(locale, 'loads.dash.utilization')}
-        value={week.utilization == null ? '—' : `${Math.round(week.utilization)}%`}
-        sub={`${week.occupied} / ${week.capacity} ${t(locale, 'loads.dash.truckDays')}`}
-        info={t(locale, 'loads.dash.utilizationInfo')}
-        onClick={pick('loads.dash.utilization', week.busy)}
-      >
-        <Spark values={week.coverage.map((c) => c.days)} tone="haul" />
-      </Stat>
-      <Stat
-        accent={nextTone}
-        icon={<CalendarDays {...icon} />}
-        label={t(locale, 'loads.dash.nextWeek')}
-        value={usd.format(next.gross)}
-        sub={`${nextTrucks} / ${next.coverage.length} ${t(locale, 'loads.dash.planned')}`}
-        info={t(locale, 'loads.dash.nextWeekInfo')}
-        onClick={pick('loads.dash.nextWeek', next.rows)}
-      >
-        <Spark values={next.buckets.map((b) => b.gross)} tone={nextTone} />
-      </Stat>
-    </div>
-  )
+  return [
+    {
+      id: 'week-gross',
+      node: (
+        <Stat
+          hero
+          compact
+          surface="panel"
+          accent="haul"
+          icon={<DollarSign {...icon} />}
+          label={t(locale, 'loads.dash.booked')}
+          value={usd.format(week.gross)}
+          sub={`${dateLabel(weekFrom, locale)} – ${dateLabel(shiftDay(weekFrom, 6), locale)}`}
+          info={t(locale, 'loads.dash.bookedInfo')}
+          onClick={pick('loads.dash.booked', week.rows)}
+        >
+          <Spark values={week.buckets.map((b) => b.gross)} tone="haul" />
+        </Stat>
+      ),
+    },
+    {
+      id: 'week-rpm',
+      node: (
+        <Stat
+          compact
+          surface="panel"
+          accent="good"
+          icon={<TrendingUp {...icon} />}
+          label={t(locale, 'loads.dash.rpm')}
+          value={week.rpm == null ? '—' : `${usd2.format(week.rpm)}/mi`}
+          sub={vs ? t(locale, 'loads.dash.rpmVsMarket').replace('{pct}', pctText(vs.diff)) : t(locale, 'loads.dash.historyTrend')}
+          subTone={vs?.tone === 'good' ? 'good' : vs?.tone === 'bad' ? 'bad' : undefined}
+          info={
+            vs
+              ? `${t(locale, 'loads.dash.rpmInfo')} ${t(locale, 'loads.dash.rpmVsMarketInfo')
+                  .replace('{rpm}', usd2.format(vs.rpm))
+                  .replace('{market}', usd2.format(vs.market))
+                  .replace('{n}', String(vs.loads))}`
+              : t(locale, 'loads.dash.rpmInfo')
+          }
+          onClick={pick('loads.dash.rpm', week.rows)}
+        >
+          <Spark values={trend} tone="good" />
+        </Stat>
+      ),
+    },
+    {
+      id: 'utilization',
+      node: (
+        <Stat
+          compact
+          surface="panel"
+          accent="haul"
+          icon={<Truck {...icon} />}
+          label={t(locale, 'loads.dash.utilization')}
+          value={week.utilization == null ? '—' : `${Math.round(week.utilization)}%`}
+          sub={`${week.occupied} / ${week.capacity} ${t(locale, 'loads.dash.truckDays')}`}
+          info={t(locale, 'loads.dash.utilizationInfo')}
+          onClick={pick('loads.dash.utilization', week.busy)}
+        >
+          <Spark values={week.coverage.map((c) => c.days)} tone="haul" />
+        </Stat>
+      ),
+    },
+    {
+      id: 'next-week',
+      node: (
+        <Stat
+          compact
+          surface="panel"
+          accent={nextTone}
+          icon={<CalendarDays {...icon} />}
+          label={t(locale, 'loads.dash.nextWeek')}
+          value={usd.format(next.gross)}
+          sub={`${nextTrucks} / ${next.coverage.length} ${t(locale, 'loads.dash.planned')}`}
+          info={t(locale, 'loads.dash.nextWeekInfo')}
+          onClick={pick('loads.dash.nextWeek', next.rows)}
+        >
+          <Spark values={next.buckets.map((b) => b.gross)} tone={nextTone} />
+        </Stat>
+      ),
+    },
+  ]
 }
 
 /** Неделя по дням: суммы ставок по дате пикапа, заявки штриховкой сверху. День
@@ -147,7 +208,7 @@ export function LoadsWeekChart({ loads, trucks, weekFrom, locale }: { loads: Loa
   const arrow =
     'inline-flex min-h-9 min-w-9 items-center justify-center rounded-xl border border-white/10 text-t2 transition-colors hover:border-white/25 hover:bg-white/5 max-md:min-h-11 max-md:min-w-11'
   return (
-    <section className="panel mt-4 p-3 sm:p-4">
+    <section className="panel p-3 sm:p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
@@ -274,7 +335,7 @@ export function LoadsAttention({ entries, locale, onSelect }: { entries: Attenti
   const ids = [...new Set(rows.map((e) => e.id))]
   const total = new Set(entries.map((e) => e.id)).size
   return (
-    <section className="mb-4 flex gap-2.5 rounded-xl border border-warn-400/25 bg-warn-400/[0.07] px-3.5 py-2.5">
+    <section className="flex gap-2.5 rounded-xl border border-warn-400/25 bg-warn-400/[0.07] px-3.5 py-2.5">
       <span className="mt-px flex size-6 shrink-0 items-center justify-center rounded-md bg-warn-400/15 text-warn-400 ring-1 ring-warn-400/25">
         <AlertTriangle size={15} strokeWidth={2.5} />
       </span>

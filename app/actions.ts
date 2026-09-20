@@ -105,8 +105,8 @@ export async function saveTileLayout(
   const ro = await demoReadOnly()
   if (ro) return ro
   if (!TILE_PAGES.includes(page)) return { error: t(locale, 'actions.noAccess') }
-  // Кнопки «Переставить» при выключенной перестановке на экране нет, но проверить
-  // надо и здесь: серверное действие вызывается по адресу, а не только кнопкой.
+  // Кнопка «Переставить» при выключенной перестановке заперта, но проверяем и здесь:
+  // серверное действие вызывается по адресу, а не только кнопкой.
   if (!(await tilesEnabled())) return { error: t(locale, 'actions.noAccess') }
   const clean: TilePlacement[] = []
   const seen = new Set<string>()

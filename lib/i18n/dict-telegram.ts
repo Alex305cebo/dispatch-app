@@ -77,6 +77,11 @@ export const telegramDict = {
     ro: 'Discuții cu șoferii direct în aplicație prin CONTUL TĂU de Telegram (nu un bot) — șoferii nu instalează și nu apasă nimic. Fiecare dispecer are contul lui, cu conversațiile lui. Bifează în setări ce chat-uri se afișează și leagă-le de camioane — pozele POD/BOL de la șofer sunt atașate automat de IA la cursă.',
     kk: 'Жүргізушілермен қолданба ішінде СІЗДІҢ Telegram аккаунтыңыз арқылы хат алысу (бот емес) — жүргізушілерге ештеңе орнатудың, басудың қажеті жоқ. Әр диспетчердің өз аккаунты, өз диалогтары. Баптауларда қай чаттар көрсетілетінін белгілеп, оларды тракттарға байлаңыз — жүргізушінің POD/BOL суреттерін ЖИ өзі жүкке тіркейді.',
   },
+  // Плитки со счётчиками над перепиской.
+  'telegram.tiles.chats': { ru: 'Чаты', en: 'Chats', es: 'Chats', uk: 'Чати', ro: 'Chaturi', kk: 'Чаттар' },
+  'telegram.tiles.unread': { ru: 'Непрочитанные', en: 'Unread', es: 'Sin leer', uk: 'Непрочитані', ro: 'Necitite', kk: 'Оқылмаған' },
+  'telegram.tiles.linked': { ru: 'С траком', en: 'Linked to a truck', es: 'Con camión', uk: 'З траком', ro: 'Cu camion', kk: 'Трактпен' },
+  'telegram.tiles.allChats': { ru: 'Всего в аккаунте', en: 'In the account', es: 'En la cuenta', uk: 'Усього в акаунті', ro: 'În cont', kk: 'Аккаунтта барлығы' },
   'telegram.page.yourAccount': { ru: 'Твой аккаунт', en: 'Your account', es: 'Tu cuenta', uk: 'Твій акаунт', ro: 'Contul tău', kk: 'Сіздің аккаунт' },
   'telegram.page.noneShownYet': {
     ru: 'Пока ни один чат не отмечен для показа — открой «Настроить, какие чаты показывать» выше.',

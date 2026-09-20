@@ -42,7 +42,8 @@ import { DriverAvatar } from '@/components/driver-avatar'
 import { deleteLoad } from '@/app/actions'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
-import { LoadsKpis, LoadsWeekChart, LoadsAttention, weekdayLabel, type AttentionEntry, type Selection } from './loads-insights'
+import { CountTile, loadsKpiTiles, LoadsWeekChart, LoadsAttention, weekdayLabel, type AttentionEntry, type Selection } from './loads-insights'
+import { WidgetGrid, type TileGridProps, type Widget } from '@/components/widget-grid'
 
 // Метрики груза (чистая, ставка-миля, RC/POD, ближайшая остановка) считает страница;
 // строкам они нужны глубоко в дереве, поэтому идут контекстом, а не через пять пропсов.
@@ -79,6 +80,8 @@ export function LoadsViews({
   initialWeek,
   initialDay,
   initialQuery,
+  grid,
+  extra = [],
 }: {
   loads: LoadRecord[]
   trucks: TruckRecord[]
@@ -99,6 +102,11 @@ export function LoadsViews({
   initialDay: string | null
   /** Поиск из адреса (?q=) — по нему открываются ссылки из свода направлений. */
   initialQuery: string
+  /** Раскладка плиток раздела: её читает страница-сервер (tileGrid), а рисует сетка
+   *  здесь — всё, что в плитках, завязано на состояние этого компонента. */
+  grid: TileGridProps
+  /** Плитки, которые собирает сама страница-сервер, — свод направлений. */
+  extra?: Widget[]
 }) {
   const locale = useLocale()
   // Поиск и фильтры стоят НАД видами и общие для всех трёх: искать груз, а потом
@@ -173,29 +181,57 @@ export function LoadsViews({
       active ? 'bg-ink-900 text-white ring-1 ring-white/10' : 'text-t3 hover:text-t1'
     }`
 
-  return (
-    <MetricsContext.Provider value={metrics}>
-      <LoadsKpis loads={allLoads} trucks={trucks} metrics={metrics} weekFrom={weekFrom} locale={locale} onSelect={select} />
-      {mapPanel}
-      {/* Календарь недели — сразу под картой и виден с первого экрана: где каждый трак и
-          что он везёт на неделю. Поиск и фильтры ниже его не сужают — это обзор парка,
-          а не список; отменённые грузы календарь не рисует сам. */}
-      <div className="mb-4">
-        <Calendar
-          loads={allLoads}
-          week={week}
-          selectedDay={selectedDay}
-          byId={byId}
-          rateCons={rateCons}
-          locale={locale}
-          onWeek={setWeek}
-          onDay={setSelectedDay}
-        />
-      </div>
-      <LoadsAttention entries={attention} locale={locale} onSelect={select} />
+  // Плитки раздела. Собираются здесь, а не на странице-сервере: карта, календарь,
+  // очередь внимания и список связаны общим состоянием этого компонента — выбор на
+  // плитке недели сужает список ниже, и разорвать их по разным компонентам нельзя.
+  const widgets: Widget[] = []
+  const add = (id: string, node: ReactNode) => widgets.push({ id, node })
+  for (const tile of loadsKpiTiles({ loads: allLoads, trucks, metrics, weekFrom, locale, onSelect: select })) add(tile.id, tile.node)
 
+  // Счётчики по состояниям — своя маленькая плитка на каждое. Это НЕ повторение
+  // очереди внимания: та говорит, что горит, а эти — сколько груза в каком состоянии
+  // вообще. Нажатие сужает список до них же.
+  const withStatus = (status: LoadRecord['status']) => allLoads.filter((l) => l.status === status)
+  const noTruck = allLoads.filter((l) => l.truckId == null || !byId.has(l.truckId))
+  const countTile = (id: string, label: string, rows: LoadRecord[], tone?: 'good' | 'bad' | 'warn') =>
+    add(id, <CountTile label={label} count={rows.length} tone={tone} onClick={() => select({ ids: rows.map((l) => l.id), label })} />)
+  countTile('total', t(locale, 'loads.page.title'), allLoads)
+  countTile('unassigned', t(locale, 'loads.dash.unassigned'), noTruck, noTruck.length ? 'warn' : undefined)
+  countTile('quoted', statusLabel(locale, 'quoted'), withStatus('quoted'))
+  countTile('booked', statusLabel(locale, 'booked'), withStatus('booked'))
+  countTile('in-transit', statusLabel(locale, 'in_transit'), withStatus('in_transit'))
+  countTile('delivered', statusLabel(locale, 'delivered'), withStatus('delivered'))
+
+  add('map', <div>{mapPanel}</div>)
+  // Календарь недели: где каждый трак и что он везёт. Поиск и фильтры его не сужают —
+  // это обзор парка, а не список; отменённые грузы календарь не рисует сам.
+  add(
+    'calendar',
+    <div>
+      <Calendar
+        loads={allLoads}
+        week={week}
+        selectedDay={selectedDay}
+        byId={byId}
+        rateCons={rateCons}
+        locale={locale}
+        onWeek={setWeek}
+        onDay={setSelectedDay}
+      />
+    </div>,
+  )
+  // Очередь внимания есть не всегда: когда ничего не горит, плитки просто нет, а своё
+  // место в сохранённом порядке она не теряет (applyLayout сверяется с раскладкой).
+  if (attention.length)
+    add('attention', <div><LoadsAttention entries={attention} locale={locale} onSelect={select} /></div>)
+
+  add(
+    'list',
+    // Список и всё, чем его сужают, — одна плитка: вкладки, «В работе / Завершённые /
+    // Все», поиск и фильтры управляют именно им, и по разным плиткам их растащить
+    // нельзя — человек бы двигал фильтр отдельно от того, что он фильтрует.
+    <div>
       <div ref={listRef} className="scroll-mt-4" />
-      {/* Одна строка управления: виды слева, «В работе / Завершённые / Все» справа. */}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-x-3 gap-y-2 border-b border-white/8">
         <div className="flex gap-1.5">
           <button type="button" onClick={() => setView('driver')} className={tabClass(view === 'driver')}>
@@ -206,19 +242,19 @@ export function LoadsViews({
           </button>
         </div>
         <div className="mb-1.5 flex rounded-lg bg-white/[0.05] p-0.5">
-          {(['working', 'completed', 'all'] as const).map((s) => (
+          {(['working', 'completed', 'all'] as const).map((sc) => (
             <button
-              key={s}
+              key={sc}
               type="button"
-              aria-pressed={scope === s}
+              aria-pressed={scope === sc}
               onClick={() => {
-                setScope(s)
+                setScope(sc)
                 setSelection(null)
                 setFilter('all')
               }}
-              className={scopeClass(scope === s)}
+              className={scopeClass(scope === sc)}
             >
-              {t(locale, SCOPE_KEY[s])}
+              {t(locale, SCOPE_KEY[sc])}
             </button>
           ))}
         </div>
@@ -234,8 +270,6 @@ export function LoadsViews({
         </div>
       )}
 
-      {/* Панель поиска и фильтров — под вкладками, над содержимым: она общая для всех
-          трёх видов, и её место там, где начинается содержимое. */}
       <LoadsToolbar
         query={query}
         setQuery={setQuery}
@@ -281,8 +315,15 @@ export function LoadsViews({
           ))}
         </div>
       )}
+    </div>,
+  )
 
-      <LoadsWeekChart loads={allLoads} trucks={trucks} weekFrom={weekFrom} locale={locale} />
+  add('chart', <div><LoadsWeekChart loads={allLoads} trucks={trucks} weekFrom={weekFrom} locale={locale} /></div>)
+  for (const w of extra) add(w.id, w.node)
+
+  return (
+    <MetricsContext.Provider value={metrics}>
+      <WidgetGrid {...grid} widgets={widgets} />
     </MetricsContext.Provider>
   )
 }

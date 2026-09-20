@@ -351,8 +351,50 @@ export default async function Page({
           )}
         </dl>
 
-      {/* ===== Current assignment: route, pickup/delivery dates, at a glance ===== */}
-      <div className="mt-4 border-t border-white/8 pt-4">
+        </div>
+        {/* Правая колонка — сама машина: фото на высоту левой колонки (по центру, а не
+            прижатое вниз под пустотой) и где стоит. На телефоне колонка раскладывается
+            (contents): фото полосой сверху, место — в паспорте. */}
+        <div className="flex min-w-0 flex-col gap-4 max-sm:contents sm:py-5 sm:pr-5">
+          <div className="relative h-44 max-sm:order-first sm:h-auto sm:min-h-44 sm:flex-1">
+            <TruckPhoto
+              fill
+              truckId={truck.id}
+              hasPhoto={meta?.hasTruckPhoto ?? false}
+              model={meta?.truckModel ?? null}
+              demo={companyId === 'demo'}
+              alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
+            />
+          </div>
+          {fs?.location && (
+            <dl className="max-sm:hidden">
+              <HeadField label={t(locale, 'trucks.head.location')}>
+                <span className="block">{fs.location}</span>
+                {zoneFor(fs.lat, fs.lng) && (
+                  <span className="mt-0.5 block text-sm text-t2">
+                    {t(locale, 'trucks.head.driverTime')}: <LocalTime zone={zoneFor(fs.lat, fs.lng)!} className="nums font-semibold text-t1" />
+                  </span>
+                )}
+                <CopyPlace
+                  text={fs.location}
+                  copy={cityOf(fs.location) ?? fs.location}
+                  coords={{ lat: fs.lat, lng: fs.lng }}
+                  variant="action"
+                  hideText
+                  className="mt-1.5"
+                />
+              </HeadField>
+            </dl>
+          )}
+        </div>
+      </div>
+    </section>
+  ))
+
+  // Текущее задание — своя плитка. В шапке оно жило внутри левой колонки, и вся
+  // шапка получалась блоком в пол-экрана, который нечем было двигать.
+  add('assignment', (
+    <section className="panel h-full p-4 sm:p-5">
         <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
           {t(locale, 'trucks.detail.currentAssignment')}
           <Info text={t(locale, 'trucks.detail.currentAssignmentInfo')} />
@@ -451,49 +493,15 @@ export default async function Page({
         {driverLink && !activeLoad && (
           <DriverLinkButton url={driverLink} driverPhone={meta?.driverPhone ?? null} seenAt={driverSeen} />
         )}
-      </div>
-        </div>
-        {/* Правая колонка — сама машина: фото на высоту левой колонки (по центру, а не
-            прижатое вниз под пустотой) и где стоит. На телефоне колонка раскладывается
-            (contents): фото полосой сверху, место — в паспорте. */}
-        <div className="flex min-w-0 flex-col gap-4 max-sm:contents sm:py-5 sm:pr-5">
-          <div className="relative h-44 max-sm:order-first sm:h-auto sm:min-h-44 sm:flex-1">
-            <TruckPhoto
-              fill
-              truckId={truck.id}
-              hasPhoto={meta?.hasTruckPhoto ?? false}
-              model={meta?.truckModel ?? null}
-              demo={companyId === 'demo'}
-              alt={`${t(locale, 'trucks.detail.truckAlt')} ${truck.number ?? ''}`}
-            />
-          </div>
-          {fs?.location && (
-            <dl className="max-sm:hidden">
-              <HeadField label={t(locale, 'trucks.head.location')}>
-                <span className="block">{fs.location}</span>
-                {zoneFor(fs.lat, fs.lng) && (
-                  <span className="mt-0.5 block text-sm text-t2">
-                    {t(locale, 'trucks.head.driverTime')}: <LocalTime zone={zoneFor(fs.lat, fs.lng)!} className="nums font-semibold text-t1" />
-                  </span>
-                )}
-                <CopyPlace
-                  text={fs.location}
-                  copy={cityOf(fs.location) ?? fs.location}
-                  coords={{ lat: fs.lat, lng: fs.lng }}
-                  variant="action"
-                  hideText
-                  className="mt-1.5"
-                />
-              </HeadField>
-            </dl>
-          )}
-        </div>
-      </div>
-      {/* Во всю ширину под колонками: длинные части задания (точки по порядку,
-          следующий груз, предупреждение о стыковке) и цифры трака. В колонке они
-          делали её то длиннее соседней, то короче — пустота переезжала туда-сюда. */}
-      {activeLoad && (taskLoads.length > 1 || activeStops.length > 2 || nextLoad) && (
-        <div className="relative px-4 sm:px-5">
+    </section>
+  ))
+
+  // Длинные части задания: точки по порядку, следующий груз, предупреждение о
+  // стыковке. Своей плиткой — в колонке шапки они делали её то длиннее соседней, то
+  // короче, и пустота переезжала туда-сюда.
+  if (activeLoad && (taskLoads.length > 1 || activeStops.length > 2 || nextLoad))
+    add('task', (
+      <section className="panel h-full p-4 sm:p-5">
           {/* Порядок точек нужен, только когда их больше двух: у обычного рейса
               «откуда → куда» в строке выше и есть всё задание. */}
           {(taskLoads.length > 1 || activeStops.length > 2) && (
@@ -527,110 +535,108 @@ export default async function Page({
           {nextLoad && (
             <QueuedLoadHint compact locale={locale} current={activeLoad} next={nextLoad} nextId={nextLoad.id} fit={queueFitNext} />
           )}
-        </div>
-      )}
-      <div className="relative px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
-        {(() => {
-          // Плиток то шесть, то восемь: пробег, топливо и топливо на рейс есть не у каждого
-          // трака. Линии между плитками — это фон сетки (gap-px), и на месте недостающей
-          // плитки он просвечивал пустым серым прямоугольником. Последняя забирает остаток строки.
-          const chips: ChipProps[] = [
-            {
-              label: t(locale, 'trucks.chip.weekRate'),
-              value: usd.format(weekGross),
-              tone: weekGross > 0 ? 'good' : undefined,
-              info: t(locale, 'trucks.chip.weekRateInfo'),
-            },
-            {
-              label: t(locale, 'trucks.chip.weekMiles'),
-              value: `${Math.round(weekMiles).toLocaleString('en-US')} mi`,
-              info: t(locale, 'trucks.chip.weekMilesInfo'),
-            },
-            { label: t(locale, 'trucks.chip.rpm'), value: usd2.format(avgRpm), info: t(locale, 'trucks.chip.rpmInfo') },
-            {
-              label: t(locale, 'trucks.chip.deadhead'),
-              value: weekMiles > 0 ? `${Math.round(weekDeadhead).toLocaleString('en-US')} mi · ${weekDeadheadPct}%` : '—',
-              tone: weekMiles > 0 ? (weekDeadheadPct >= 25 ? 'bad' : weekDeadheadPct >= 15 ? 'warn' : 'good') : undefined,
-              info: t(locale, 'trucks.chip.deadheadInfo'),
-            },
-            // Цель недели из профиля водителя: сколько уже проехал / заработал против цели.
-            ...(meta?.weekTargetMiles
-              ? [
-                  {
-                    label: t(locale, 'trucks.chip.weekTarget'),
-                    value: `${Math.round(weekMiles).toLocaleString('en-US')} / ${meta.weekTargetMiles.toLocaleString('en-US')} mi · ${Math.round((weekMiles / meta.weekTargetMiles) * 100)}%`,
-                    tone: weekMiles >= meta.weekTargetMiles ? ('good' as const) : undefined,
-                    info: t(locale, 'trucks.chip.weekTargetInfo'),
-                  },
-                ]
-              : []),
-            ...(meta?.weekTargetGross
-              ? [
-                  {
-                    label: t(locale, 'trucks.chip.weekTargetGross'),
-                    value: `${usd.format(weekGross)} / ${usd.format(meta.weekTargetGross)} · ${Math.round((weekGross / meta.weekTargetGross) * 100)}%`,
-                    tone: weekGross >= meta.weekTargetGross ? ('good' as const) : undefined,
-                    info: t(locale, 'trucks.chip.weekTargetInfo'),
-                  },
-                ]
-              : []),
-            {
-              label: `${t(locale, 'trucks.chip.onTime')}${truck.driverName ? ` · ${truck.driverName}` : ''}`,
-              value:
-                onTimePct == null
-                  ? t(locale, 'trucks.chip.onTimeFew')
-                  : t(locale, 'trucks.chip.onTimeValue').replace('{pct}', String(onTimePct)).replace('{n}', String(onTime.total)),
-              tone: onTimePct == null ? undefined : onTimePct >= 90 ? 'good' : onTimePct < 80 ? 'warn' : undefined,
-              info: t(locale, 'trucks.chip.onTimeInfo'),
-            },
-            ...(fs?.odometer != null
-              ? [
-                  {
-                    label: t(locale, 'trucks.chip.odometer'),
-                    value: `${Math.round(fs.odometer).toLocaleString('en-US')} mi`,
-                    info: t(locale, 'trucks.chip.odometerInfo'),
-                  },
-                ]
-              : []),
-            {
-              label: t(locale, 'trucks.chip.oilIn'),
-              value: oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—',
-              tone: oil?.tone,
-              info: t(locale, 'trucks.chip.oilInInfo'),
-            },
-            ...(fs?.fuel != null
-              ? [
-                  {
-                    label: t(locale, 'trucks.chip.fuel'),
-                    value: `${Math.round(fs.fuel)}%`,
-                    tone: fs.fuel <= 15 ? ('bad' as const) : fs.fuel <= 30 ? ('warn' as const) : undefined,
-                    info: t(locale, 'trucks.chip.fuelInfo'),
-                  },
-                ]
-              : []),
-            ...(activeLoad
-              ? [
-                  {
-                    label: t(locale, 'trucks.chip.loadFuel'),
-                    value: usd.format(calcLoad(activeLoad, truck).fuel),
-                    info: t(locale, 'trucks.chip.loadFuelInfo'),
-                  },
-                ]
-              : []),
-          ]
-          const n = chips.length
-          const tail = `${n % 2 ? 'col-span-2' : ''} ${['', 'sm:col-span-4', 'sm:col-span-3', 'sm:col-span-2'][n % 4]}`
-          return (
-            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10 sm:grid-cols-4">
-              {chips.map((c, i) => (
-                <Chip key={c.label} {...c} className={i === n - 1 ? tail : undefined} />
-              ))}
-            </div>
-          )
-        })()}
-      </div>
-    </section>
-  ))
+      </section>
+    ))
+
+  // Цифры трака — каждая своей маленькой плиткой. Раньше это была одна таблица на
+  // всю ширину: двенадцать чисел, которые нельзя ни подвинуть, ни убрать.
+  // Ключи смысловые, а не по порядку: часть цифр есть не у каждого трака, и
+  // сохранённый порядок не должен путать пробег с топливом.
+  const chips: (ChipProps & { id: string })[] = [
+  {
+    id: 'week-rate',
+    label: t(locale, 'trucks.chip.weekRate'),
+    value: usd.format(weekGross),
+    tone: weekGross > 0 ? 'good' : undefined,
+    info: t(locale, 'trucks.chip.weekRateInfo'),
+  },
+  {
+    id: 'week-miles',
+    label: t(locale, 'trucks.chip.weekMiles'),
+    value: `${Math.round(weekMiles).toLocaleString('en-US')} mi`,
+    info: t(locale, 'trucks.chip.weekMilesInfo'),
+  },
+  { id: 'rpm', label: t(locale, 'trucks.chip.rpm'), value: usd2.format(avgRpm), info: t(locale, 'trucks.chip.rpmInfo') },
+  {
+    id: 'deadhead',
+    label: t(locale, 'trucks.chip.deadhead'),
+    value: weekMiles > 0 ? `${Math.round(weekDeadhead).toLocaleString('en-US')} mi · ${weekDeadheadPct}%` : '—',
+    tone: weekMiles > 0 ? (weekDeadheadPct >= 25 ? 'bad' : weekDeadheadPct >= 15 ? 'warn' : 'good') : undefined,
+    info: t(locale, 'trucks.chip.deadheadInfo'),
+  },
+  // Цель недели из профиля водителя: сколько уже проехал / заработал против цели.
+  ...(meta?.weekTargetMiles
+    ? [
+        {
+          id: 'week-target',
+          label: t(locale, 'trucks.chip.weekTarget'),
+          value: `${Math.round(weekMiles).toLocaleString('en-US')} / ${meta.weekTargetMiles.toLocaleString('en-US')} mi · ${Math.round((weekMiles / meta.weekTargetMiles) * 100)}%`,
+          tone: weekMiles >= meta.weekTargetMiles ? ('good' as const) : undefined,
+          info: t(locale, 'trucks.chip.weekTargetInfo'),
+        },
+      ]
+    : []),
+  ...(meta?.weekTargetGross
+    ? [
+        {
+          id: 'week-target-gross',
+          label: t(locale, 'trucks.chip.weekTargetGross'),
+          value: `${usd.format(weekGross)} / ${usd.format(meta.weekTargetGross)} · ${Math.round((weekGross / meta.weekTargetGross) * 100)}%`,
+          tone: weekGross >= meta.weekTargetGross ? ('good' as const) : undefined,
+          info: t(locale, 'trucks.chip.weekTargetInfo'),
+        },
+      ]
+    : []),
+  {
+    id: 'on-time',
+    label: `${t(locale, 'trucks.chip.onTime')}${truck.driverName ? ` · ${truck.driverName}` : ''}`,
+    value:
+      onTimePct == null
+        ? t(locale, 'trucks.chip.onTimeFew')
+        : t(locale, 'trucks.chip.onTimeValue').replace('{pct}', String(onTimePct)).replace('{n}', String(onTime.total)),
+    tone: onTimePct == null ? undefined : onTimePct >= 90 ? 'good' : onTimePct < 80 ? 'warn' : undefined,
+    info: t(locale, 'trucks.chip.onTimeInfo'),
+  },
+  ...(fs?.odometer != null
+    ? [
+        {
+          id: 'odometer',
+          label: t(locale, 'trucks.chip.odometer'),
+          value: `${Math.round(fs.odometer).toLocaleString('en-US')} mi`,
+          info: t(locale, 'trucks.chip.odometerInfo'),
+        },
+      ]
+    : []),
+  {
+    id: 'oil',
+    label: t(locale, 'trucks.chip.oilIn'),
+    value: oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—',
+    tone: oil?.tone,
+    info: t(locale, 'trucks.chip.oilInInfo'),
+  },
+  ...(fs?.fuel != null
+    ? [
+        {
+          id: 'fuel',
+          label: t(locale, 'trucks.chip.fuel'),
+          value: `${Math.round(fs.fuel)}%`,
+          tone: fs.fuel <= 15 ? ('bad' as const) : fs.fuel <= 30 ? ('warn' as const) : undefined,
+          info: t(locale, 'trucks.chip.fuelInfo'),
+        },
+      ]
+    : []),
+  ...(activeLoad
+    ? [
+        {
+          id: 'load-fuel',
+          label: t(locale, 'trucks.chip.loadFuel'),
+          value: usd.format(calcLoad(activeLoad, truck).fuel),
+          info: t(locale, 'trucks.chip.loadFuelInfo'),
+        },
+      ]
+    : []),
+]
+  for (const c of chips) add(c.id, <Chip {...c} />)
 
   // Незакрытый ремонт: висит, пока пункт не отметят выполненным в «Нужно починить».
   // Строкой в самом низу страницы о поломке узнавали практически никогда.
@@ -1020,10 +1026,9 @@ type ChipProps = {
   value: string
   tone?: 'good' | 'bad' | 'warn'
   info?: string
-  className?: string
 }
 
-function Chip({ label, value, tone, info, className = '' }: ChipProps) {
+function Chip({ label, value, tone, info }: ChipProps) {
   const color =
     tone === 'good'
       ? 'text-good-400'
@@ -1034,7 +1039,7 @@ function Chip({ label, value, tone, info, className = '' }: ChipProps) {
           : 'text-white'
   // Плитка: подпись сверху, число под ней — одинаковая высота во всей таблице.
   return (
-    <div className={`flex min-w-0 flex-col justify-center gap-0.5 bg-ink-900 px-3 py-2.5 ${className}`}>
+    <div className="panel flex h-full w-full min-w-0 flex-col justify-center gap-0.5 px-3 py-2.5">
       <span className="flex min-w-0 items-center gap-1 text-sm font-medium leading-4 text-t3">
         <span className="truncate">{label}</span>
         {info && <Info text={info} />}

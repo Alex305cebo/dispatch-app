@@ -8,6 +8,7 @@ import {
   Plus,
   Route,
   TrendingUp,
+  Truck,
   Wallet,
   Wrench,
 } from 'lucide-react'
@@ -220,54 +221,60 @@ export default async function Page() {
       </div>,
     )
 
-  if (showFinances && unpaidTotal > 0)
+  // Число траков — своя плитка, а не строка под заголовком: нажимается и ведёт в парк.
+  if (trucks.length > 0)
+    add(
+      'trucks',
+      's',
+      <Stat
+        surface="panel"
+        compact
+        href="/trucks"
+        icon={<Truck size={15} strokeWidth={2.5} />}
+        accent="haul"
+        label={tr(locale, 'nav.trucks')}
+        value={String(trucks.length)}
+        info={tr(locale, 'overview.truckCount').replace('{n}', String(trucks.length))}
+      />,
+    )
+
+  // Деньги, которых ждут, — двумя маленькими плитками вместо одного баннера на
+  // пол-строки: «сколько ждём» и «сколько уже просрочено» — разные числа, и второе
+  // важнее первого. Просроченное показываем, только когда оно есть.
+  if (showFinances && unpaidTotal > 0) {
     add(
       'unpaid',
-      'w',
-      <div
-        className={`flex h-full gap-2.5 rounded-xl border px-3.5 py-2.5 ${
-          overdueTotal > 0 ? 'border-bad-500/25 bg-bad-500/[0.07]' : 'border-white/10 bg-white/[0.03]'
-        }`}
-      >
-        {/* Same icon-chip anatomy as the two banners above, so the three of them read
-            as one family of "things needing attention" instead of three loose boxes.
-            The chip is the only part that changes colour when money is overdue. */}
-        <span
-          className={`mt-px flex size-6 shrink-0 items-center justify-center rounded-md ring-1 ${
-            overdueTotal > 0
-              ? 'bg-bad-500/15 text-bad-400 ring-bad-400/25'
-              : 'bg-white/[0.06] text-t2 ring-white/10'
-          }`}
-        >
-          <Wallet size={15} strokeWidth={2.5} />
-        </span>
-        <div className="min-w-0 flex-1">
-        <p
-          className={`flex items-center gap-1.5 text-base font-semibold leading-6 ${
-            overdueTotal > 0 ? 'text-bad-400' : 'text-t3'
-          }`}
-        >
-          {tr(locale, 'overview.awaitingPayment')}
-          <Info text={tr(locale, 'overview.awaitingPaymentInfo')} />
-        </p>
-        <p className="mt-1 text-base text-t1">
-          <Link href="/docs?tab=unpaid" className="nums font-semibold hover:underline">
-            {usd.format(unpaidTotal)}
-          </Link>
-          {overdueTotal > 0 && (
-            <span className="text-bad-400">
-              {' '}
-              — {tr(locale, 'overview.ofWhichOverdue')}{' '}
-              <Link href="/docs?tab=unpaid" className="nums font-semibold hover:underline">
-                {usd.format(overdueTotal)}
-              </Link>{' '}
-              ({overdue.length})
-            </span>
-          )}
-        </p>
-        </div>
-      </div>,
+      's',
+      <Stat
+        surface="panel"
+        compact
+        href="/docs?tab=unpaid"
+        icon={<Wallet size={15} strokeWidth={2.5} />}
+        accent={overdueTotal > 0 ? 'bad' : 'haul'}
+        label={tr(locale, 'overview.awaitingPayment')}
+        value={usd.format(unpaidTotal)}
+        info={tr(locale, 'overview.awaitingPaymentInfo')}
+      />,
     )
+    if (overdueTotal > 0)
+      add(
+        'overdue',
+        's',
+        <Stat
+          surface="panel"
+          compact
+          href="/docs?tab=unpaid"
+          icon={<Wallet size={15} strokeWidth={2.5} />}
+          accent="bad"
+          tone="bad"
+          label={tr(locale, 'overview.ofWhichOverdue')}
+          value={usd.format(overdueTotal)}
+          sub={tr(locale, 'loads.page.countSuffix').replace('{n}', String(overdue.length))}
+          subTone="bad"
+          info={tr(locale, 'overview.awaitingPaymentInfo')}
+        />,
+      )
+  }
 
   if (loads.length > 0) {
     add(
@@ -572,13 +579,10 @@ export default async function Page() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
+      {/* Число траков ушло из шапки в свою плитку: в шапке его нельзя было ни
+          подвинуть, ни нажать. */}
       <header className="mb-4 flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">{tr(locale, 'overview.title')}</h1>
-          <p className="mt-0.5 text-base text-t2">
-            {tr(locale, 'overview.truckCount').replace('{n}', String(trucks.length))}
-          </p>
-        </div>
+        <h1 className="text-xl font-bold tracking-tight">{tr(locale, 'overview.title')}</h1>
         <span className="flex shrink-0 items-center gap-1.5">
           <Button href="/loads/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
             {tr(locale, 'overview.addLoad')}

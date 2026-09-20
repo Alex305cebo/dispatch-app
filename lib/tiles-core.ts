@@ -151,6 +151,9 @@ export const TRUCKS_TILES: TilePlacement[] = [
  *  плиток. Все здесь по той же причине, что и TRUCKS_TILES: страницы-серверы не могут
  *  забрать обычное значение из модуля с 'use client'. */
 export const BROKERS_TILES: TilePlacement[] = [
+  { id: 'brokers-count', size: 's' },
+  { id: 'facilities-count', size: 's' },
+  { id: 'attention-count', size: 's' },
   { id: 'plan', size: 'l' },
   { id: 'directory', size: 'l' },
   // Проверка по MC/DOT и «Крупнейшие брокеры» — вернулись 19.09.2026, рядом в один ряд.
@@ -158,10 +161,16 @@ export const BROKERS_TILES: TilePlacement[] = [
   { id: 'top', size: 'w' },
 ]
 
+/** «Толлы». Месячные числа разобраны на четыре маленькие плитки; они условные —
+ *  пока ни у одного рейса толлы не посчитаны, считать нечего и плиток нет. */
 export const TOLLS_TILES: TilePlacement[] = [
+  { id: 'toll-total', size: 's' },
+  { id: 'toll-per-mile', size: 's' },
+  { id: 'toll-share', size: 's' },
+  { id: 'toll-loads', size: 's' },
   { id: 'missing', size: 'l' },
   { id: 'calc', size: 'l' },
-  { id: 'money', size: 'l' },
+  { id: 'toll-top', size: 'w' },
   { id: 'guide', size: 'l' },
 ]
 
@@ -171,20 +180,53 @@ export const TOLLS_TILES: TilePlacement[] = [
  *  двигать там нечего, поэтому сетки у них нет. */
 export const DOCS_TILES: TilePlacement[] = [
   { id: 'recognize', size: 'w' },
+  // Денежные числа есть только у того, кому открыты «Финансы»; без права их нет.
+  { id: 'pay-to-submit', size: 's' },
+  { id: 'pay-awaiting', size: 's' },
+  { id: 'pay-funded', size: 's' },
+  { id: 'pay-risk', size: 's' },
   { id: 'loads', size: 'l' },
 ]
 
 export const DOCS_FLEET_TILES: TilePlacement[] = [
+  { id: 'docs-count', size: 's' },
+  { id: 'docs-trucks', size: 's' },
   { id: 'upload', size: 'w' },
   { id: 'library', size: 'l' },
 ]
 
+/** «Грузы». Верх страницы был одним блоком: четыре числа недели внутри общей
+ *  карточки, а под ними карта, календарь, очередь внимания и список — всё в одной
+ *  плитке во всю строку, двигать нечего. Теперь каждое число живёт своей маленькой
+ *  плиткой, к ним добавлены счётчики по состояниям, а крупными остались те блоки,
+ *  которые читают целиком. Плитка `attention` условная: очереди внимания нет, когда
+ *  ничего не горит. */
 export const LOADS_TILES: TilePlacement[] = [
-  { id: 'views', size: 'l' },
+  { id: 'week-gross', size: 's' },
+  { id: 'week-rpm', size: 's' },
+  { id: 'utilization', size: 's' },
+  { id: 'next-week', size: 's' },
+  { id: 'total', size: 's' },
+  { id: 'unassigned', size: 's' },
+  { id: 'quoted', size: 's' },
+  { id: 'booked', size: 's' },
+  { id: 'in-transit', size: 's' },
+  { id: 'delivered', size: 's' },
+  { id: 'map', size: 'l' },
+  { id: 'calendar', size: 'l' },
+  { id: 'attention', size: 'l' },
+  { id: 'list', size: 'l' },
+  { id: 'chart', size: 'l' },
   { id: 'lanes', size: 'l' },
 ]
 
 export const TELEGRAM_TILES: TilePlacement[] = [
+  { id: 'chats', size: 's' },
+  { id: 'unread', size: 's' },
+  { id: 'linked', size: 's' },
+  { id: 'all-chats', size: 's' },
+  // Список чатов и открытая переписка — одна плитка: слева список, справа чат,
+  // работают они только вместе.
   { id: 'chat', size: 'l' },
   { id: 'settings', size: 'l' },
 ]
@@ -200,7 +242,14 @@ export const TELEGRAM_TILES: TilePlacement[] = [
  *  Раскладка ОДНА на все грузы: карточка у них одинаковая, и переставлять её заново
  *  на каждом грузе — не то, о чём просили. */
 export const LOAD_DETAIL_TILES: TilePlacement[] = [
-  { id: 'hero', size: 'l' },
+  // Шапка разобрана: заголовок с брокером, предупреждения, адреса, полоса статуса,
+  // бумаги и разбор ставки — каждое своей плиткой.
+  { id: 'hero', size: 'w' },
+  { id: 'warnings', size: 'w' },
+  { id: 'stops', size: 'w' },
+  { id: 'status', size: 'w' },
+  { id: 'papers', size: 'w' },
+  { id: 'rate', size: 'l' },
   { id: 'notes', size: 'l' },
   { id: 'map', size: 'l' },
   { id: 'driver', size: 'l' },
@@ -218,7 +267,26 @@ export const LOAD_DETAIL_TILES: TilePlacement[] = [
 
 /** Карточка трака — по той же причине со всеми условными плитками в списке. */
 export const TRUCK_DETAIL_TILES: TilePlacement[] = [
+  // Шапка разобрана: паспорт с фото, текущее задание, длинные части задания и
+  // одиннадцать цифр трака, каждая своей маленькой плиткой. Часть цифр есть не у
+  // каждого трака — ключи смысловые, чтобы сохранённый порядок не путал пробег с
+  // топливом.
   { id: 'hero', size: 'l' },
+  // Во всю строку: задание бывает высоким (маршрут, даты, частичные грузы), и
+  // маленькая плитка рядом с ним растягивалась на его высоту с одной цифрой внутри.
+  { id: 'assignment', size: 'l' },
+  { id: 'task', size: 'l' },
+  { id: 'week-rate', size: 's' },
+  { id: 'week-miles', size: 's' },
+  { id: 'rpm', size: 's' },
+  { id: 'deadhead', size: 's' },
+  { id: 'week-target', size: 's' },
+  { id: 'week-target-gross', size: 's' },
+  { id: 'on-time', size: 's' },
+  { id: 'odometer', size: 's' },
+  { id: 'oil', size: 's' },
+  { id: 'fuel', size: 's' },
+  { id: 'load-fuel', size: 's' },
   { id: 'todos', size: 'l' },
   { id: 'map', size: 'l' },
   { id: 'ratecon', size: 'l' },

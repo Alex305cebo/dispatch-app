@@ -4,6 +4,7 @@
 // Правила этапов — lib/payments.ts, запись — app/docs/payment-actions.ts.
 
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import {
   listLoads,
   listLoadsByDispatcher,
@@ -33,7 +34,10 @@ import { Empty } from '@/components/empty'
 const DONE_DAYS = 45
 
 /** Вкладка «Грузы»: у каждого не отменённого груза — его бумаги и его этап денег. */
-export async function LoadsTab({
+/** Вкладка «Грузы» в «Документах» — готовыми плитками, а не одним блоком: четыре
+ *  денежных числа сверху были вставками внутри общей карточки, и подвинуть их было
+ *  нельзя. Ключи те, которыми их знает раскладка (lib/tiles-core). */
+export async function loadsTabTiles({
   companyId,
   locale,
   query,
@@ -44,7 +48,7 @@ export async function LoadsTab({
   query: string
   /** Есть право «Финансы» — со суммами и факторингом; иначе только бумаги. */
   money: boolean
-}) {
+}): Promise<{ id: string; node: ReactNode }[]> {
   const today = todayEt()
   const [loads, trucks, payments, settings] = await Promise.all([
     listLoads(companyId),
@@ -111,23 +115,37 @@ export async function LoadsTab({
   }
   const risk = sum(['problems', 'atRisk'])
 
-  return (
-    <>
-      {money && (
-        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label={t(locale, 'payments.stat.toSubmit')} value={usd.format(sum(['toSubmit']))} tone={sum(['toSubmit']) ? 'warn' : undefined} />
-          <Stat label={t(locale, 'payments.stat.awaiting')} value={usd.format(sum(['awaitingFunding']))} />
+  const tiles: { id: string; node: ReactNode }[] = []
+  if (money) {
+    const toSubmit = sum(['toSubmit'])
+    tiles.push(
+      {
+        id: 'pay-to-submit',
+        node: <Stat label={t(locale, 'payments.stat.toSubmit')} value={usd.format(toSubmit)} tone={toSubmit ? 'warn' : undefined} />,
+      },
+      { id: 'pay-awaiting', node: <Stat label={t(locale, 'payments.stat.awaiting')} value={usd.format(sum(['awaitingFunding']))} /> },
+      {
+        id: 'pay-funded',
+        node: (
           <Stat
             label={t(locale, 'payments.stat.fundedMonth')}
             value={usd.format(inMonth)}
             info={`${t(locale, 'payments.stat.feesMonth')}: ${usd2.format(feesMonth)}`}
           />
-          <Stat label={t(locale, 'payments.stat.risk')} value={usd.format(risk)} tone={risk ? 'bad' : undefined} />
-        </div>
-      )}
-      <LoadsBoard rows={rows} settings={settings} today={today} initialQuery={query} money={money} />
-    </>
-  )
+        ),
+      },
+      { id: 'pay-risk', node: <Stat label={t(locale, 'payments.stat.risk')} value={usd.format(risk)} tone={risk ? 'bad' : undefined} /> },
+    )
+  }
+  tiles.push({
+    id: 'loads',
+    node: (
+      <div>
+        <LoadsBoard rows={rows} settings={settings} today={today} initialQuery={query} money={money} />
+      </div>
+    ),
+  })
+  return tiles
 }
 
 export async function Unpaid({
@@ -857,7 +875,9 @@ export async function ByDriver({ companyId, locale }: { companyId: 'default' | '
 
 export function Stat({ label, value, tone, info }: { label: string; value: string; tone?: 'warn' | 'bad'; info?: string }) {
   return (
-    <div className="panel px-4 py-3">
+    // h-full: в сетке плиток соседки в ряду тянутся до общей высоты, и плитка
+    // пониже иначе висела бы с дырой под собой.
+    <div className="panel flex h-full flex-col justify-center px-4 py-3">
       <div
         className={`nums text-lg font-bold ${tone === 'bad' ? 'text-bad-400' : tone === 'warn' ? 'text-warn-400' : ''}`}
       >
