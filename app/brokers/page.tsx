@@ -15,6 +15,7 @@ import { TOP_BROKERS } from '@/lib/brokers-top'
 import { BrokerCheckForm } from '@/components/broker-check-form'
 import { TopBrokers } from '@/components/top-brokers'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
+import { CountTile } from '@/components/count-tile'
 import { tileGrid } from '@/lib/tiles'
 import { BROKERS_TILES } from '@/lib/tiles-core'
 import { Suspense } from 'react'
@@ -226,7 +227,23 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
       }
     })
 
+  // Сколько брокеров, сколько складов и сколько из них требуют внимания — своими
+  // маленькими плитками. Те же числа стоят на чипах списка, но там их видно, только
+  // дойдя до списка, а здесь — с первого экрана.
+  const needAttention = dirBrokers.filter((b) => b.attention).length + dirFacilities.filter((f) => f.attention).length
   const widgets: Widget[] = [
+    { id: 'brokers-count', node: <CountTile value={dirBrokers.length} label={t(locale, 'brokers.pageTitle')} /> },
+    { id: 'facilities-count', node: <CountTile value={dirFacilities.length} label={t(locale, 'facilities.title')} /> },
+    {
+      id: 'attention-count',
+      node: (
+        <CountTile
+          value={needAttention}
+          label={t(locale, 'brokers.dir.attention')}
+          tone={needAttention > 0 ? 'bad' : undefined}
+        />
+      ),
+    },
     {
       id: 'plan',
       // «Куда отправить трак» переехало сюда с «Траков» (18.09.2026) — отсюда и новое

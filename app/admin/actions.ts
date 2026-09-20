@@ -6,7 +6,6 @@ import { humanError } from '@/lib/msg'
 import { hashPassword } from '@/lib/auth'
 import { companyScope, demoReadOnly, getCurrentUser } from '@/lib/session'
 import { deleteSetting, dispatcherPhoneKey, getSetting, getSettings, setSetting } from '@/lib/settings'
-import { TILE_PATHS, TILES_ENABLED_KEY } from '@/lib/tiles-core'
 import { aiModelPref, fmcsaKey, geminiKey, hereKey } from '@/lib/keys'
 import { CAPABILITIES, type CapabilityKey } from '@/lib/capabilities'
 import { capabilitiesFor, setUserCapability } from '@/lib/capabilities-server'
@@ -267,27 +266,6 @@ export async function getOpenAccess(): Promise<boolean> {
 export async function setOpenAccess(enabled: boolean): Promise<{ error: string } | void> {
   await assertAdmin()
   await setSetting('open_access', enabled ? '1' : '0')
-  revalidatePath('/admin')
-}
-
-/** Перестановка плиток: разрешено ли вообще двигать блоки по разделам.
- *
- * Выключено по умолчанию — так решил владелец. Порядок общий на всю компанию, и
- * пока выключатель не включён, кнопки «Переставить» в разделах нет вовсе, то есть
- * случайный человек не может сдвинуть экран всей смене. */
-export async function getTilesEnabled(): Promise<boolean> {
-  await assertAdmin()
-  return (await getSetting(TILES_ENABLED_KEY)) === '1'
-}
-
-export async function setTilesEnabled(enabled: boolean): Promise<{ error: string } | void> {
-  await assertAdmin()
-  await setSetting(TILES_ENABLED_KEY, enabled ? '1' : '0')
-  // Кнопка появляется и исчезает на каждом разделе сразу, а не после захода заново.
-  for (const path of new Set(Object.values(TILE_PATHS))) {
-    if (path.includes('[')) revalidatePath(path, 'page')
-    else revalidatePath(path)
-  }
   revalidatePath('/admin')
 }
 

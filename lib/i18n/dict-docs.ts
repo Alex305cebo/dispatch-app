@@ -18,6 +18,9 @@ export const docsDict = {
     ro: 'Hârtiile și banii unei curse stau împreună. „Curse" este un rând per cursă: plăcuțele rate con, BOL, POD și factură (apeși și se deschide, iar dacă lipsește o încarci pe loc) și drumul banilor. „Camioane și șoferi" ține hârtiile fără cursă: asigurări, înmatriculări, bonuri, poze. „Bani" sunt rapoartele: cine datorează, ce s-a plătit, săptămâni, dispeceri, șoferi. Ștergerea cu nume și PIN mută în coș — definitiv doar de acolo, iar înregistrarea rămâne în Jurnal.',
     kk: 'Бір жүктің қағазы мен ақшасы бірге тұрады. «Жүктер» — жүкке бір жол: rate con, BOL, POD және инвойс тақташалары (бассаң ашылады, қағаз жоқ болса сол жерде жүктейсің) және ақшаның жолы. «Тракттар мен жүргізушілер» — жүксіз қағаздар: сақтандыру, тіркеу, чектер, фото. «Ақша» — есептер: кім қарыз, не төленді, апталар, диспетчерлер, жүргізушілер. Атпен және PIN-мен жою себетке жібереді — біржола тек содан, ал жазба Журналда қалады.',
   },
+  // Плитки-счётчики над библиотекой бумаг парка.
+  'docs.tiles.papers': { ru: 'Бумаг', en: 'Papers', es: 'Documentos', uk: 'Паперів', ro: 'Documente', kk: 'Құжат' },
+  'docs.tiles.trucks': { ru: 'Траков с бумагами', en: 'Trucks with papers', es: 'Camiones con documentos', uk: 'Траків з паперами', ro: 'Camioane cu documente', kk: 'Құжаты бар тракт' },
   'docs.recognize.title': { ru: 'Распознать rate con', en: 'Recognize a rate con', es: 'Leer un rate con', uk: 'Розпізнати rate con', ro: 'Citește un rate con', kk: 'Rate con тану' },
   'docs.recognize.sub': {
     ru: 'Перетащи PDF или фото — ИИ прочитает и сразу создаст груз',

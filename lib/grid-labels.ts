@@ -18,6 +18,8 @@ export type GridLabels = {
   size: string
   sizeNames: Record<TileSize, string>
   saveFailed: string
+  /** Что говорим, когда кнопку нажали, а перестановка выключена в настройках. */
+  locked: string
 }
 
 export function gridLabels(locale: Locale): GridLabels {
@@ -35,5 +37,6 @@ export function gridLabels(locale: Locale): GridLabels {
       l: t(locale, 'grid.size.l'),
     },
     saveFailed: t(locale, 'grid.saveFailed'),
+    locked: t(locale, 'grid.locked'),
   }
 }

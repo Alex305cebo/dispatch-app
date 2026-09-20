@@ -3,7 +3,7 @@ import { tileGrid } from '@/lib/tiles'
 import { TOLLS_TILES } from '@/lib/tiles-core'
 import { Info } from '@/components/info'
 import { TollsClient } from './tolls-client'
-import { TollMissing, TollMoney } from './toll-money'
+import { TollMissing, tollMoneyTiles } from './toll-money'
 import { TollGuide } from './toll-guide'
 import { tollSpend, type TollLoad } from '@/lib/toll-spend'
 import { hereKey } from '@/lib/keys'
@@ -89,7 +89,7 @@ export default async function TollsPage() {
     },
     // То, ради чего в раздел заходят второй раз: сколько платные дороги уже стоили
     // парку и что вообще про них нужно знать в США.
-    { id: 'money', node: <div><TollMoney spend={spend} days={SPEND_DAYS} locale={locale} /></div> },
+    ...tollMoneyTiles({ spend, days: SPEND_DAYS, locale }),
     { id: 'guide', node: <div><TollGuide /></div> },
   ]
   const grid = await tileGrid('tolls', TOLLS_TILES, locale)

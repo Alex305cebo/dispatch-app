@@ -17,9 +17,10 @@ import { DOCS_FLEET_TILES, DOCS_TILES } from '@/lib/tiles-core'
 import Link from 'next/link'
 import { listDocsForLibrary, listTrashedDocs, listTrucks, rateConByLoad } from '@/lib/loads'
 import { DocLibrary, DocTrash, DocUpload } from '@/components/docs'
-import { ByDispatcher, ByDriver, ByWeek, LoadsTab, Paid, Unpaid } from './finance-tabs'
+import { ByDispatcher, ByDriver, ByWeek, loadsTabTiles, Paid, Unpaid } from './finance-tabs'
 import { Tab } from '@/components/tab-link'
 import { Info } from '@/components/info'
+import { CountTile } from '@/components/count-tile'
 import { companyScope, getCurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
 import { getLocale } from '@/lib/i18n-server'
@@ -166,14 +167,7 @@ async function Loads({
         </Link>
       ),
     },
-    {
-      id: 'loads',
-      node: (
-        <div>
-          <LoadsTab companyId={companyId} locale={locale} query={query} money={money} />
-        </div>
-      ),
-    },
+    ...(await loadsTabTiles({ companyId, locale, query, money })),
   ]
   const grid = await tileGrid('docs', DOCS_TILES, locale)
 
@@ -190,7 +184,14 @@ async function Fleet({ companyId, locale }: { companyId: 'default' | 'demo'; loc
   // иначе это снова один общий список, в котором и искали через раз.
   const fleetRows = rows.filter((r) => r.loadId == null)
 
+  // Сколько бумаг и по скольким тракам — своими маленькими плитками: в шапке
+  // библиотеки этих чисел не было вовсе, а спрашивают их первыми.
   const widgets: Widget[] = [
+    { id: 'docs-count', node: <CountTile value={fleetRows.length} label={t(locale, 'docs.tiles.papers')} /> },
+    {
+      id: 'docs-trucks',
+      node: <CountTile value={new Set(fleetRows.map((r) => r.groupTruckId).filter((id) => id != null)).size} label={t(locale, 'docs.tiles.trucks')} />,
+    },
     {
       id: 'upload',
       node: (

@@ -19,8 +19,9 @@
 
 import { useCallback, useEffect, useId, useRef, useState, useTransition } from 'react'
 import { motion, useDragControls, useReducedMotion } from 'motion/react'
-import { Check, GripVertical, LayoutGrid } from 'lucide-react'
+import { Check, GripVertical, LayoutGrid, Lock } from 'lucide-react'
 import { saveTileLayout } from '@/app/actions'
+import { notify } from '@/lib/notify'
 import type { GridLabels } from '@/lib/grid-labels'
 import { TILE_SIZES, type TilePage, type TilePlacement, type TileSize } from '@/lib/tiles-core'
 
@@ -175,9 +176,8 @@ export function WidgetGrid({
 
   return (
     <div className={className}>
-      {/* Полоса с кнопкой — только когда перестановка разрешена в настройках. Пока
-          выключена, раздел выглядит ровно как до плиток: ни кнопки, ни подсказки. */}
-      {enabled && (
+      {/* Полоса с кнопкой стоит всегда. Когда перестановка выключена в настройках,
+          кнопка заперта: иначе о том, что плитки вообще двигаются, никто не узнает. */}
       <div className="mb-2 flex items-center justify-between gap-3 text-xs text-t3">
         <span id={hintId}>
           {failed ? (
@@ -203,10 +203,20 @@ export function WidgetGrid({
               {labels.reset}
             </button>
           )}
+          {/* Не aria-disabled и не disabled: кнопка заперта, но рабочая — она
+              объясняет, чего не хватает. У выключенной мимо проходят и палец, и
+              озвучка, и человек остаётся с молчащей кнопкой. */}
           <button
             type="button"
-            aria-pressed={edit}
+            aria-pressed={enabled ? edit : undefined}
+            title={enabled ? undefined : labels.locked}
             onClick={() => {
+              // Выключено в настройках — не молчим и не гасим кнопку совсем: молчащая
+              // кнопка читается как поломка, а погашенная не объясняет, чего не хватает.
+              if (!enabled) {
+                notify('warn', labels.locked)
+                return
+              }
               setEdit(!edit)
               try {
                 localStorage.setItem(editKey, edit ? '0' : '1')
@@ -215,17 +225,24 @@ export function WidgetGrid({
               }
             }}
             className={`flex items-center gap-1.5 rounded-md px-2 py-1 font-medium ring-1 transition-colors ${
-              edit
-                ? 'bg-haul-500/15 text-haul-300 ring-haul-400/30 hover:bg-haul-500/25'
-                : 'text-t2 ring-white/12 hover:bg-white/[0.06]'
+              !enabled
+                ? 'text-t3 ring-white/8 hover:bg-white/[0.04]'
+                : edit
+                  ? 'bg-haul-500/15 text-haul-300 ring-haul-400/30 hover:bg-haul-500/25'
+                  : 'text-t2 ring-white/12 hover:bg-white/[0.06]'
             }`}
           >
-            {edit ? <Check size={13} strokeWidth={2.5} /> : <LayoutGrid size={13} strokeWidth={2.5} />}
+            {!enabled ? (
+              <Lock size={13} strokeWidth={2.5} />
+            ) : edit ? (
+              <Check size={13} strokeWidth={2.5} />
+            ) : (
+              <LayoutGrid size={13} strokeWidth={2.5} />
+            )}
             {edit ? labels.done : labels.rearrange}
           </button>
         </span>
       </div>
-      )}
 
       {/* dense: плитки разного размера оставляют дыры в строке, и без него широкая,
           не влезшая в остаток строки, уезжала вниз, а слева зиял пустой квадрат. */}

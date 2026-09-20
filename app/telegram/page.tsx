@@ -24,6 +24,7 @@ import { TgAttachButton } from './tg-attach-button'
 import { TgImage } from './tg-image'
 import { TgChatSettings } from './tg-chat-settings'
 import { Info } from '@/components/info'
+import { CountTile } from '@/components/count-tile'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
 import { tileGrid } from '@/lib/tiles'
 import { TELEGRAM_TILES } from '@/lib/tiles-core'
@@ -171,7 +172,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   const open = chatId ? allDialogs.find((d) => d.id === chatId) : undefined
   const truckChatMissing = !!wantTruck && !open && !error
 
+  // Счётчики над перепиской — своими маленькими плитками. Непрочитанные считаем по
+  // показанным чатам: остальные в списке и не видны.
+  const unread = dialogs.reduce((n, d) => n + d.unread, 0)
+  const linked = dialogs.filter((d) => truckByChat.get(d.id)).length
   const widgets: Widget[] = [
+    { id: 'chats', node: <CountTile value={dialogs.length} label={t(locale, 'telegram.tiles.chats')} /> },
+    {
+      id: 'unread',
+      node: <CountTile value={unread} label={t(locale, 'telegram.tiles.unread')} tone={unread > 0 ? 'warn' : undefined} />,
+    },
+    { id: 'linked', node: <CountTile value={linked} label={t(locale, 'telegram.tiles.linked')} /> },
+    { id: 'all-chats', node: <CountTile value={allDialogs.length} label={t(locale, 'telegram.tiles.allChats')} /> },
     {
       id: 'chat',
       // Список чатов и открытая переписка — ОДНА плитка: делить их нельзя, слева

@@ -15,6 +15,7 @@ import { DemoModeBanner } from '@/components/demo-mode-banner'
 import { Toaster } from '@/components/toaster'
 import { Tour } from '@/components/tour'
 import { tourSteps } from '@/lib/tour'
+import { tilesEnabled } from '@/lib/tiles'
 import { t } from '@/lib/i18n'
 import { RevealGuard } from '@/components/reveal-guard'
 import { BuildWatch } from '@/components/build-watch'
@@ -100,6 +101,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // «Документы» права не спрашивают: право «Финансы» закрывает деньги внутри
     // раздела, а бумаги в нём нужны всем.
     can(user, 'telegram'),
+    tilesEnabled(),
   ]).catch(() => null)
   // Overdue/≤30-day document expiries — a badge on the Траки nav item, visible from
   // anywhere in the app, not just the one banner on the dashboard.
@@ -126,6 +128,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             user={user}
             showTelegram={chrome?.[2] ?? false}
             urgentDocs={urgentDocs}
+            tilesEnabled={chrome?.[3] ?? false}
           />
           {user?.isDemo && <DemoModeBanner />}
           {/* Room for the bottom bar on phones (tabs + utility strip), sidebar on desktop.

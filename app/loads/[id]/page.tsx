@@ -55,6 +55,7 @@ import { StatusPicker } from './status-picker'
 import { MissingPodBanner } from '@/components/missing-pod-banner'
 import { PrevLoad } from '@/components/prev-load'
 import { DeadheadFlag } from '@/components/deadhead-flag'
+import { DEADHEAD_FLAG_MI } from '@/lib/load-status'
 import { loadsMissingPod } from '@/lib/loads'
 import { CopyPlace } from '@/components/copy-place'
 import { placeCity } from '@/lib/place'
@@ -230,8 +231,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const add = (id: string, node: ReactNode) => widgets.push({ id, node })
 
   // Маршрут, трак, статус и ставка — одной карточкой, а не четырьмя кусками.
+  // Шапка груза разобрана на плитки. Одной секцией это был самый крупный блок
+  // карточки: заголовок, предупреждения, адреса, полоса статуса, бумаги и разбор
+  // ставки — всё вместе, и двигать внутри было нечего.
   add('hero', (
-    <section className="panel p-4">
+    <section className="panel h-full p-4">
       {/* Заголовок и флаг «следить» — в одной строке: на широком экране ряд из
           четырёх кнопок приоритета стоял отдельной полосой и отодвигал вниз всё,
           ради чего страницу открывают. На телефоне он переносится под заголовок. */}
@@ -257,43 +261,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             {load.referenceId && ` · ${t(locale, 'import.label.referenceId')} ${load.referenceId}`}
           </p>
         </div>
-        {/* Флаг «следить»: на широком экране — справа от заголовка, на телефоне
-            переносится под него. Своей полосой он отодвигал вниз всё, ради чего
-            страницу открывают. */}
         {load.status !== 'paid' && load.status !== 'cancelled' && (
           <div className="sm:ml-auto">
             <PriorityPicker loadId={load.id} value={load.priority} />
           </div>
         )}
       </div>
-      {late && (
-        <div className="mt-3 rounded-xl border border-bad-500/30 bg-bad-500/[0.08] px-4 py-3 text-base">
-          <span className="font-semibold text-bad-400">{t(locale, 'loads.dash.late')}</span>{' '}
-          <span className="text-t2">
-            {t(locale, late.stop.role === 'pickup' ? 'stops.pickup' : 'stops.delivery')} · {late.stop.city ?? late.stop.address ?? '—'} ·{' '}
-            {t(locale, 'loads.dash.lateBy').replace('{t}', driveTime(late.minutes, locale))}. {t(locale, 'loadDetail.lateHint')}
-          </span>
-        </div>
-      )}
-      {assign.length > 0 && (
-        <div className="mt-3 rounded-xl border border-warn-400/35 bg-warn-500/[0.08] px-4 py-3 text-base text-warn-400">
-          {assign.map((w) => (
-            <p key={w}>⚠ {w}</p>
-          ))}
-        </div>
-      )}
-      <MissingPodBanner loads={missingPod} locale={locale} className="mt-3" />
-      <DeadheadFlag miles={load.deadheadMiles} okMiles={load.deadheadOkMiles} loadId={load.id} locale={locale} banner className="mt-3" />
-      {/* Кнопка на трак живёт в полосе «Трак ⇄ Груз» наверху — второй раз здесь ни к чему. */}
-
-      {/* Где, когда и под какими номерами — сразу в шапке. Рейт-кон приносит склад,
-          улицу, окно и номера PU/PO, но в шапке стояли только два города: адрес
-          лежал внизу в «Подробностях», номер пикапа — в тексте водителю. Диспетчер,
-          которому звонит склад, искал их по всей странице. */}
-      <LoadStops stops={stops} locale={locale} className="mt-3" />
-
-      {/* Откуда трак пришёл на этот пикап — рядом с адресами и флагом Deadhead. */}
-      <PrevLoad load={prevLoad} locale={locale} className="mt-3" />
 
       {/* Брокер груза — тоже в шапке. Кому звонить и на какую почту слать бумаги,
           лежало только в форме «Подробности» внизу страницы, а звонят по нему с
@@ -310,31 +283,70 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           ))}
         </p>
       )}
+    </section>
+  ))
 
-      {/* The rail needs the full width to lay five labelled steps out; sharing a flex
-          row with the rate-con control squeezed it to ~160px and clipped every label
-          to "Оплач…". Rate con moves onto its own line underneath. */}
-      <div className="mt-4">
-        <StatusPicker
-          id={load.id}
-          truckId={truck.id}
-          title={`${load.origin ?? '—'} → ${load.destination ?? '—'}`}
-          current={load.status}
-          bolId={bolDoc?.id ?? null}
-          podId={podDoc?.id ?? null}
-          stops={stops.slice(1, -1).map((s) => ({
-            key: String(s.seq),
-            seq: s.seq,
-            role: s.role,
-            podId: s.role === 'delivery' ? (docs.find((d) => d.kind === 'pod' && d.stopSeq === s.seq)?.id ?? null) : null,
-            label: t(locale, s.role === 'pickup' ? 'stops.pickupStep' : 'stops.deliveryStep'),
-            sub: s.city ? s.city.replace(/,.*$/, '') : null,
-            done: load.status === 'delivered' || load.status === 'paid' || isDone(s, driverEvents, stops),
-            // Трак стоит на точке: «приехал» есть, «уехал» ещё нет.
-            arrived: load.status === 'in_transit' && !!arrivedAt(s, driverEvents, stops),
-          }))}
-        />
-      </div>
+  // Всё, что горит по этому грузу, — одной плиткой и только когда горит.
+  const deadheadBanner =
+    load.deadheadMiles > DEADHEAD_FLAG_MI &&
+    !(load.deadheadOkMiles != null && load.deadheadOkMiles === Math.round(load.deadheadMiles))
+  if (late || assign.length > 0 || missingPod.length > 0 || deadheadBanner)
+    add('warnings', (
+      <section className="panel flex h-full flex-col gap-3 p-4">
+        {late && (
+          <div className="rounded-xl border border-bad-500/30 bg-bad-500/[0.08] px-4 py-3 text-base">
+            <span className="font-semibold text-bad-400">{t(locale, 'loads.dash.late')}</span>{' '}
+            <span className="text-t2">
+              {t(locale, late.stop.role === 'pickup' ? 'stops.pickup' : 'stops.delivery')} · {late.stop.city ?? late.stop.address ?? '—'} ·{' '}
+              {t(locale, 'loads.dash.lateBy').replace('{t}', driveTime(late.minutes, locale))}. {t(locale, 'loadDetail.lateHint')}
+            </span>
+          </div>
+        )}
+        {assign.length > 0 && (
+          <div className="rounded-xl border border-warn-400/35 bg-warn-500/[0.08] px-4 py-3 text-base text-warn-400">
+            {assign.map((w) => (
+              <p key={w}>⚠ {w}</p>
+            ))}
+          </div>
+        )}
+        <MissingPodBanner loads={missingPod} locale={locale} />
+        <DeadheadFlag miles={load.deadheadMiles} okMiles={load.deadheadOkMiles} loadId={load.id} locale={locale} banner />
+      </section>
+    ))
+
+  // Где, когда и под какими номерами. Рейт-кон приносит склад, улицу, окно и номера
+  // PU/PO, но в шапке стояли только два города: адрес лежал внизу в «Подробностях»,
+  // номер пикапа — в тексте водителю. Диспетчер, которому звонит склад, искал их по
+  // всей странице.
+  add('stops', (
+    <section className="panel h-full p-4">
+      <LoadStops stops={stops} locale={locale} />
+      {/* Откуда трак пришёл на этот пикап. */}
+      <PrevLoad load={prevLoad} locale={locale} className="mt-3" />
+    </section>
+  ))
+
+  add('status', (
+    <section className="panel h-full p-4">
+      <StatusPicker
+        id={load.id}
+        truckId={truck.id}
+        title={`${load.origin ?? '—'} → ${load.destination ?? '—'}`}
+        current={load.status}
+        bolId={bolDoc?.id ?? null}
+        podId={podDoc?.id ?? null}
+        stops={stops.slice(1, -1).map((s) => ({
+          key: String(s.seq),
+          seq: s.seq,
+          role: s.role,
+          podId: s.role === 'delivery' ? (docs.find((d) => d.kind === 'pod' && d.stopSeq === s.seq)?.id ?? null) : null,
+          label: t(locale, s.role === 'pickup' ? 'stops.pickupStep' : 'stops.deliveryStep'),
+          sub: s.city ? s.city.replace(/,.*$/, '') : null,
+          done: load.status === 'delivered' || load.status === 'paid' || isDone(s, driverEvents, stops),
+          // Трак стоит на точке: «приехал» есть, «уехал» ещё нет.
+          arrived: load.status === 'in_transit' && !!arrivedAt(s, driverEvents, stops),
+        }))}
+      />
       {/* Груз едет не один: задание водителя — точки обоих грузов подряд. */}
       {taskLoads.length > 1 && (
         <TaskStops
@@ -347,11 +359,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           className="mt-4"
         />
       )}
-      {/* Бумаги груза одной сеткой: rate con, BOL, POD — три кнопки одного размера,
-          на телефоне 2×2 (четвёртая клетка — «Повторить груз»), на широком экране
-          в один ряд. Раньше rate con и «Повторить» стояли своим рядом с разными
-          размерами, BOL/POD — другим, и на телефоне это читалось как россыпь. */}
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+    </section>
+  ))
+
+  // Бумаги груза одной сеткой: rate con, BOL, POD — три кнопки одного размера,
+  // на телефоне 2×2 (четвёртая клетка — «Повторить груз»), на широком экране
+  // в один ряд.
+  add('papers', (
+    <section className="panel h-full p-4">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
         {rateConDoc ? (
           <RateConButton docId={rateConDoc.id} />
         ) : (
@@ -379,27 +395,29 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           ⟳ {t(locale, 'loads.repeat')}
         </Link>
       </div>
+    </section>
+  ))
 
-      <div className="mt-4 border-t border-white/8 pt-4">
-        <h2 className="mb-4 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
-          {t(locale, 'loadDetail.rateHeading')}
-          <Info text={t(locale, 'loadDetail.rateInfo')} />
-        </h2>
-        <Analysis
-          r={r}
-          mpg={truck.mpg}
-          spotRpm={load.spotRpm}
-          dat={datRate && datSnap && { ...datRate, date: usDate(todayEt(new Date(datSnap.at))) }}
-          targetRpm={truckMeta?.targetRpm}
-          cut={cutTarget}
-          // Warp котирует только Van; в демо — нет.
-          quote={
-            !cutTarget && !me?.isDemo && (datEquipment(truckMeta?.trailerNumber) ?? 'VAN') === 'VAN' && load.loadedMiles > 0
-              ? { label: `${load.origin} → ${load.destination}`, miles: load.loadedMiles, loadId: load.id }
-              : null
-          }
-        />
-      </div>
+  add('rate', (
+    <section className="panel h-full p-4">
+      <h2 className="mb-4 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
+        {t(locale, 'loadDetail.rateHeading')}
+        <Info text={t(locale, 'loadDetail.rateInfo')} />
+      </h2>
+      <Analysis
+        r={r}
+        mpg={truck.mpg}
+        spotRpm={load.spotRpm}
+        dat={datRate && datSnap && { ...datRate, date: usDate(todayEt(new Date(datSnap.at))) }}
+        targetRpm={truckMeta?.targetRpm}
+        cut={cutTarget}
+        // Warp котирует только Van; в демо — нет.
+        quote={
+          !cutTarget && !me?.isDemo && (datEquipment(truckMeta?.trailerNumber) ?? 'VAN') === 'VAN' && load.loadedMiles > 0
+            ? { label: `${load.origin} → ${load.destination}`, miles: load.loadedMiles, loadId: load.id }
+            : null
+        }
+      />
     </section>
   ))
 
