@@ -374,7 +374,10 @@ export function LoadsAttention({ entries, locale, onSelect }: { entries: Attenti
               className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-1.5 text-base text-t1 transition-colors hover:text-white max-md:min-h-11 max-md:items-center"
             >
               <span className="min-w-0 break-words">{e.route}</span>
-              <span className="nums shrink-0 text-sm text-t3">
+              {/* Без shrink-0: у строки вроде «Опаздывает · Пикап · Chicago, IL · окно…»
+                  на телефоне не оставалось места, и хвост уезжал за край экрана. Строка
+                  переносится, поэтому подпись просто уходит на вторую строку целиком. */}
+              <span className="nums min-w-0 break-words text-sm text-t3">
                 {category ? e.detail : `${t(locale, CATEGORY_KEY[e.category])} · ${e.detail}`}
               </span>
             </Link>
