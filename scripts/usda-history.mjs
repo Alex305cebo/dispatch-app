@@ -10,7 +10,7 @@
 //
 // Повторный запуск безопасен: строка недели по маршруту одна (UNIQUE), новые данные
 // дописываются. Чужой сервис берём страницами по 5000 строк.
-import mysql from 'mysql2/promise'
+import { connect } from './db-connect.mjs'
 
 const url = process.env.DATABASE_URL
 if (!url) {
@@ -25,7 +25,7 @@ const since =
 const PAGE = 5000
 const API = 'https://agtransport.usda.gov/resource/acar-e3r8.json'
 
-const db = await mysql.createConnection(url)
+const db = await connect(url)
 await db.query('SET SESSION wait_timeout = 900')
 
 let offset = 0

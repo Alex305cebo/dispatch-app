@@ -19,7 +19,7 @@
 // мили считает открытый OSRM — настоящие дорожные, как в карточке груза.
 //
 // Запускать можно хоть каждый день: одно направление в день от источника — одна строка.
-import mysql from 'mysql2/promise'
+import { connect } from './db-connect.mjs'
 import { nextMonday, warpQuote, zipOfCity } from '../lib/warp-quote.ts'
 import { WARP_MIN_MILES } from '../lib/rpm-bench-core.ts'
 
@@ -41,7 +41,7 @@ if (!url) {
 const zipOf = (s) => String(s ?? '').match(/\b(\d{5})\b(?!.*\b\d{5}\b)/)?.[1] ?? null
 /** Штат — две буквы после последней запятой: «San Jose, CA» → CA. */
 const stateOf = (s) => String(s ?? '').match(/,\s*([A-Za-z]{2})\s*$/)?.[1]?.toUpperCase() ?? null
-const db = await mysql.createConnection(url)
+const db = await connect(url)
 await db.query('SET SESSION wait_timeout = 900')
 
 /** Город с индексом, куда и откуда наш флот реально ездит: по одному на штат, чаще всего. */

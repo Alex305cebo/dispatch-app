@@ -8,7 +8,7 @@
 //   node --env-file=.env.local scripts/dat-daily.mjs
 //
 // Ничего не запрашивает у DAT: берёт снимок, который уже лежит в settings.
-import mysql from 'mysql2/promise'
+import { connect } from './db-connect.mjs'
 
 const url = process.env.DATABASE_URL
 if (!url) {
@@ -16,7 +16,7 @@ if (!url) {
   process.exit(1)
 }
 const SERIES = ['VAN', 'REEFER', 'FLATBED']
-const db = await mysql.createConnection(url)
+const db = await connect(url)
 await db.query('SET SESSION wait_timeout = 900')
 
 let saved = 0
