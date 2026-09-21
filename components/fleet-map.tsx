@@ -1224,24 +1224,6 @@ export function FleetMap({
         </div>
       )}
       <div className="absolute right-2 top-2 z-[1000] flex items-center gap-1">
-        {/* «Показать всё»: вписать трак и маршрут обратно в кадр. Иконка-прицел,
-            без слов — на телефоне ряд кнопок и так впритык. */}
-        <button
-          type="button"
-          onClick={() => {
-            const m = mapRef.current
-            const b = boundsRef.current
-            if (m && b && b.isValid()) m.fitBounds(b.pad(0.2), { maxZoom: 13 })
-          }}
-          title={t(locale, 'tracking.fitAll')}
-          aria-label={t(locale, 'tracking.fitAll')}
-          className="flex size-[26px] items-center justify-center rounded-lg border border-white/15 bg-ink-950/85 text-t1 backdrop-blur transition-colors hover:bg-ink-900"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4" aria-hidden>
-            <circle cx="12" cy="12" r="3" />
-            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-          </svg>
-        </button>
         {markers.some((m) => m.kind === 'truck') && (
           <button
             type="button"
@@ -1255,12 +1237,13 @@ export function FleetMap({
           </button>
         )}
         {/* Рынок — на каждой карте: не дала его страница — карта попросит сама при включении. */}
+        {/* Со словом, а не одним огоньком: по иконке не угадать, что она включает,
+            и рядом с «Вид карты» она читалась как значок, а не как кнопка. */}
         <button
           type="button"
           onClick={toggleMarket}
           aria-pressed={marketOn}
           title={t(locale, 'tracking.marketTitle')}
-          aria-label={t(locale, 'tracking.marketTitle')}
           className={`flex h-[26px] items-center justify-center gap-1 rounded-lg border px-1.5 text-2xs font-semibold backdrop-blur transition-colors sm:px-2 ${
             marketOn
               ? 'border-white/25 bg-ink-950/85 text-white'
@@ -1268,6 +1251,7 @@ export function FleetMap({
           }`}
         >
           <Flame size={12} strokeWidth={2.2} className={marketOn ? 'text-good-400' : undefined} aria-hidden />
+          {t(locale, 'tracking.marketLabel')}
         </button>
         <button
           type="button"

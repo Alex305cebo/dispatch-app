@@ -350,14 +350,6 @@ export const trackingDict = {
     ro: 'până la {t}',
     kk: '{t}-ге дейін',
   },
-  'tracking.fitAll': {
-    ru: 'Показать весь маршрут и трак',
-    en: 'Fit the whole route and truck',
-    es: 'Encuadrar ruta y camión',
-    uk: 'Показати весь маршрут і трак',
-    ro: 'Încadrează ruta și camionul',
-    kk: 'Бүкіл маршрут пен тракты көрсету',
-  },
   'tracking.trailLabel': {
     ru: 'След 12ч',
     en: 'Trail 12h',
