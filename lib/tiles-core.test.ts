@@ -4,6 +4,7 @@ import {
   applyLayout,
   driverTileId,
   migrateDriversTile,
+  migrateTruckDriverCard,
   trucksTiles,
   LOAD_DETAIL_TILES,
   parseLayout,
@@ -164,4 +165,19 @@ test('после разворота старой плитки водители �
   assert.ok(merged.findIndex((p) => p.id === 'driver-3') < merged.findIndex((p) => p.id === 'map'))
   // Ключи не задвоились: иначе сетка рисует две одинаковые плитки.
   assert.equal(new Set(merged.map((p) => p.id)).size, merged.length)
+})
+
+test('migrateTruckDriverCard: плитка-дубль «Водитель» уходит, шапка трака забирает строку', () => {
+  const saved = parseLayout(
+    '[{"id":"driver-card","size":"w"},{"id":"hero","size":"w"},{"id":"assignment","size":"l"}]',
+  )
+  const merged = applyLayout(migrateTruckDriverCard(saved), TRUCK_DETAIL_TILES)
+  assert.deepEqual(merged.slice(0, 2), [
+    { id: 'hero', size: 'l' },
+    { id: 'assignment', size: 'l' },
+  ])
+  assert.ok(!merged.some((p) => p.id === 'driver-card'))
+  // Раскладку уже сохранили без старой плитки — размер шапки больше не трогаем.
+  const fresh = parseLayout('[{"id":"hero","size":"w"}]')
+  assert.equal(migrateTruckDriverCard(fresh), fresh)
 })

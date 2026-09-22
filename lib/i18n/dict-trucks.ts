@@ -598,14 +598,6 @@ export const trucksDict = {
     ro: 'Livrare',
     kk: 'Жеткізу',
   },
-  'trucks.detail.driverHeading': {
-    ru: 'Водитель · CDL, медкарта, фото',
-    en: 'Driver · CDL, med card, photo',
-    es: 'Conductor · CDL, tarjeta médica, foto',
-    uk: 'Водій · CDL, медкарта, фото',
-    ro: 'Șofer · CDL, fișă medicală, poză',
-    kk: 'Жүргізуші · CDL, медкарта, фото',
-  },
   'trucks.detail.rate': { ru: 'Ставка', en: 'Rate', es: 'Tarifa', uk: 'Ставка', ro: 'Tarif', kk: 'Мөлшерлеме' },
   'trucks.detail.noActiveLoad': {
     ru: 'Груза сейчас нет — трак свободен.',
