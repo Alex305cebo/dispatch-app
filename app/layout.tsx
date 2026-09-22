@@ -7,7 +7,7 @@ import { getCompany } from '@/lib/invoice'
 import { getCurrentUser } from '@/lib/session'
 import { headers } from 'next/headers'
 import { isProductHost, PRODUCT_NAME } from '@/lib/brand'
-import { getLocale } from '@/lib/i18n-server'
+import { getLocale, getLoginLocale } from '@/lib/i18n-server'
 import { LocaleProvider } from '@/components/locale-provider'
 import { can } from '@/lib/capabilities-server'
 import { fleetExpiryAlerts } from '@/lib/maintenance'
@@ -55,6 +55,9 @@ export async function generateMetadata(): Promise<Metadata> {
     description: t(locale, 'app.description'),
     applicationName: name,
     appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: name },
+    // Своих шесть языков — встроенный переводчик Chrome не нужен: он предлагал
+    // «перевести на язык браузера» английский вход и ломает React, подменяя текст в DOM.
+    other: { google: 'notranslate' },
   }
 }
 
@@ -113,7 +116,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     // suppressHydrationWarning: the inline script sets data-theme before hydration,
     // so the server HTML (no attr) and client (attr) legitimately differ on <html>.
-    <html lang={locale} suppressHydrationWarning className={`${sans.variable} ${mono.variable}`}>
+    // Гость (форма входа) — язык формы, а не приложения: иначе lang="ru" над английским текстом.
+    <html lang={user ? locale : await getLoginLocale()} translate="no" suppressHydrationWarning className={`${sans.variable} ${mono.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
       </head>
