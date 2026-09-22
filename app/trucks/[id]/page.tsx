@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { type ReactNode } from 'react'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
 import { tileGrid } from '@/lib/tiles'
-import { TRUCK_DETAIL_TILES } from '@/lib/tiles-core'
+import { migrateTruckDriverCard, TRUCK_DETAIL_TILES } from '@/lib/tiles-core'
 import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
 import { Phone, Plus } from 'lucide-react'
@@ -26,7 +26,7 @@ import { StatusBadge, statusLabel } from '@/components/status'
 import { TruckForm } from '@/components/truck-form'
 import { FuelPriceButton } from '@/components/fuel-price-button'
 import { TruckCare } from '@/components/truck-care'
-import { DriverCard } from '@/components/driver-card'
+import { DriverActions, DriverPhoto } from '@/components/driver-card'
 import { TruckRcDrop } from '@/components/truck-rc-drop'
 import { OrphanRateCons } from '@/components/orphan-ratecons'
 import { DocList, DocUpload } from '@/components/docs'
@@ -255,16 +255,25 @@ export default async function Page({
   const widgets: Widget[] = []
   const add = (id: string, node: ReactNode) => widgets.push({ id, node })
 
-  // Шапка-баннер, как карточка товара: слева номер, паспорт и текущий груз;
-  // справа трак и где стоит; ниже во всю ширину — точки задания и цифры трака.
+  // Шапка-баннер, как карточка товара: слева номер, водитель и паспорт трака;
+  // справа сама машина и где стоит.
+  //
+  // Раскладка считается от ширины САМОЙ плитки (@container), а не экрана: плитку
+  // можно сделать широкой (пол-экрана), и тогда колонка с фото отъедала у паспорта
+  // почти всё — подписи кнопок статуса обрезались, трейлер налезал на телефон, VIN
+  // рвался на куски. Уже 48rem — фото полосой сверху, место в паспорте.
+  //
+  // Водитель здесь же, целиком: отдельная плитка «Водитель · CDL, медкарта, фото»
+  // повторяла имя, телефон, трак, трейлер и VIN, и её убрали — сроки CDL и медкарты,
+  // фото и кнопки «Скопировать для брокера» / «Изменить» переехали сюда.
   add('hero', (
-    <section className="panel relative overflow-hidden">
+    <section className="panel relative overflow-hidden @container">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 right-0 w-full bg-[radial-gradient(60%_60%_at_80%_22%,rgba(109,90,232,0.22),transparent_70%)] sm:w-3/5"
+        className="pointer-events-none absolute inset-y-0 right-0 w-full bg-[radial-gradient(60%_60%_at_80%_22%,rgba(109,90,232,0.22),transparent_70%)] @3xl:w-3/5"
       />
-      <div className="relative grid sm:grid-cols-[minmax(0,1fr)_minmax(280px,44%)]">
-        <div className="min-w-0 p-4 sm:p-5">
+      <div className="relative grid @3xl:grid-cols-[minmax(0,1fr)_minmax(280px,40%)]">
+        <div className="min-w-0 p-4 @lg:p-5">
         {/* Строка трака: номер, статус ELD значком, справа — доступность трака.
             Всё, что нажимается в шапке, одного вида: кнопка h-8 с рамкой и иконкой. */}
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
@@ -272,7 +281,7 @@ export default async function Page({
             <h1 className="nums text-[26px] font-semibold leading-8">{truck.number ?? truck.name}</h1>
             {fs?.driveStatus && (
               <span
-                className={`inline-flex h-6 items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 text-sm font-semibold ${toneClass[statusTone(fs.driveStatus)]}`}
+                className={`inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-md border border-white/10 bg-white/[0.04] px-2 text-sm font-semibold ${toneClass[statusTone(fs.driveStatus)]}`}
                 title="ELD"
               >
                 <span aria-hidden className="size-1.5 rounded-full bg-current" />
@@ -285,18 +294,57 @@ export default async function Page({
           <TruckAvailability truckId={truck.id} current={truck.unavailable} locale={locale} />
         </div>
 
+        {/* Водитель: фото (нажать — загрузить новое), имя и две кнопки. Кнопки
+            уходят под имя, когда плитке не хватает ширины, а не сжимают его. */}
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
+          <div className="flex min-w-0 flex-1 basis-48 items-center gap-3">
+            <DriverPhoto
+              truckId={truck.id}
+              name={truck.driverName}
+              hasPhoto={meta?.hasPhoto ?? false}
+              locale={locale}
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-medium leading-4 text-t3">{t(locale, 'trucks.driverCard.heading')}</p>
+              <p className="mt-1 truncate text-lg font-semibold leading-6 text-t1">
+                {truck.driverName || <span className="text-base font-medium text-t3">{t(locale, 'trucks.detail.noDriver')}</span>}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <DriverActions
+              truckId={truck.id}
+              name={truck.driverName}
+              phone={meta?.driverPhone ?? null}
+              cdlExpiry={meta?.cdlExpiry ?? null}
+              medcardExpiry={meta?.medcardExpiry ?? null}
+              hasPhoto={meta?.hasPhoto ?? false}
+              truckNumber={truck.number}
+              trailerNumber={meta?.trailerNumber ?? null}
+              vin={meta?.vin ?? null}
+              broker={{
+                // MC печатается без приставки: в блоке для брокера строка уже
+                // начинается с «MC - », и «MC - MC 626911» читалось бы как ошибка.
+                mc: company.mcdot.replace(/^MC[\s#-]*/i, ''),
+                companyName: company.name,
+                companyEmail: company.email,
+                dispatcherName: dispatcherName ?? user?.name ?? '',
+                dispatcherPhone: dispatcherPhone ?? '',
+              }}
+              locale={locale}
+            />
+          </div>
+        </div>
+
         {/* Паспорт одной сеткой подписанных полей: подпись сверху, значение под ней.
-            Раньше это была строка через точки, где имя, номер трейлера и телефон
-            сливались в одно предложение. */}
-        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-          <HeadField label={t(locale, 'trucks.driverCard.heading')}>
-            {truck.driverName || <span className="text-t3">{t(locale, 'trucks.detail.noDriver')}</span>}
-          </HeadField>
-          <HeadField label={t(locale, 'trucks.driverCard.phoneRowLabel')} className="max-sm:col-span-2">
+            Телефон и VIN не переносятся — номер, разорванный на куски, диктовать
+            брокеру нельзя; в две колонки им отдана вся строка. */}
+        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 @lg:grid-cols-3">
+          <HeadField label={t(locale, 'trucks.driverCard.phoneRowLabel')} className="col-span-2 @lg:col-span-1">
             {meta?.driverPhone ? (
               <a
                 href={`tel:${meta.driverPhone}`}
-                className="nums mt-0.5 inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-base font-medium text-t1 transition-colors hover:border-white/30 hover:bg-white/[0.08] max-md:h-10"
+                className="nums inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-base font-medium text-t1 transition-colors hover:border-white/30 hover:bg-white/[0.08] max-md:h-10"
               >
                 <Phone size={14} strokeWidth={2.2} className="text-haul-300" />
                 {meta.driverPhone}
@@ -308,10 +356,26 @@ export default async function Page({
           <HeadField label={t(locale, 'trucks.driverCard.trailerRowLabel')}>
             {meta?.trailerNumber ? <span className="nums">{meta.trailerNumber}</span> : <span className="text-t3">—</span>}
           </HeadField>
+          {meta?.plate && (
+            <HeadField label={t(locale, 'trucks.detail.plateLabel')}>
+              <span className="nums">{meta.plate}</span>
+            </HeadField>
+          )}
+          {meta?.vin && (
+            <HeadField label="VIN" className="col-span-2 @lg:col-span-1">
+              <span className="nums whitespace-nowrap text-base text-t2">{meta.vin}</span>
+            </HeadField>
+          )}
+          <HeadField label={t(locale, 'trucks.driverCard.cdlLabel')}>
+            {meta?.cdlExpiry ? <span className="nums">{usDate(meta.cdlExpiry)}</span> : <span className="text-t3">—</span>}
+          </HeadField>
+          <HeadField label={t(locale, 'trucks.driverCard.medcardLabel')}>
+            {meta?.medcardExpiry ? <span className="nums">{usDate(meta.medcardExpiry)}</span> : <span className="text-t3">—</span>}
+          </HeadField>
           {/* Кто ведёт эту машину. Закрепление живёт в админке, а нужно оно здесь: на
               странице трака и спрашивают «кто им занимается». */}
           {(user?.role === 'admin' || dispatcherName) && (
-            <HeadField label={t(locale, 'trucks.detail.dispatcherPick')}>
+            <HeadField label={t(locale, 'trucks.detail.dispatcherPick')} className="col-span-2">
               {user?.role === 'admin' ? (
                 <TruckDispatcher bare truckId={truck.id} current={dispatcherId} users={staff} />
               ) : (
@@ -319,20 +383,10 @@ export default async function Page({
               )}
             </HeadField>
           )}
-          {meta?.plate && (
-            <HeadField label={t(locale, 'trucks.detail.plateLabel')}>
-              <span className="nums">{meta.plate}</span>
-            </HeadField>
-          )}
-          {meta?.vin && (
-            <HeadField label="VIN">
-              <span className="nums text-base text-t2">{meta.vin}</span>
-            </HeadField>
-          )}
           {fs?.location && (
             /* Где сейчас: место — отдельной строкой во всю ширину, кнопки под ним.
                Ответ на «где трак» почти всегда тут же уходит брокеру. */
-            <HeadField label={t(locale, 'trucks.head.location')} className="col-span-2 sm:hidden">
+            <HeadField label={t(locale, 'trucks.head.location')} className="col-span-full @3xl:hidden">
               <span className="block">{fs.location}</span>
               {zoneFor(fs.lat, fs.lng) && (
                 <span className="mt-0.5 block text-sm text-t2">
@@ -353,10 +407,10 @@ export default async function Page({
 
         </div>
         {/* Правая колонка — сама машина: фото на высоту левой колонки (по центру, а не
-            прижатое вниз под пустотой) и где стоит. На телефоне колонка раскладывается
-            (contents): фото полосой сверху, место — в паспорте. */}
-        <div className="flex min-w-0 flex-col gap-4 max-sm:contents sm:py-5 sm:pr-5">
-          <div className="relative h-44 max-sm:order-first sm:h-auto sm:min-h-44 sm:flex-1">
+            прижатое вниз под пустотой) и где стоит. В узкой плитке колонка
+            раскладывается (contents): фото полосой сверху, место — в паспорте. */}
+        <div className="flex min-w-0 flex-col gap-4 @max-3xl:contents @3xl:py-5 @3xl:pr-5">
+          <div className="relative h-44 @max-3xl:order-first @3xl:h-auto @3xl:min-h-44 @3xl:flex-1">
             <TruckPhoto
               fill
               truckId={truck.id}
@@ -367,7 +421,7 @@ export default async function Page({
             />
           </div>
           {fs?.location && (
-            <dl className="max-sm:hidden">
+            <dl className="@max-3xl:hidden">
               <HeadField label={t(locale, 'trucks.head.location')}>
                 <span className="block">{fs.location}</span>
                 {zoneFor(fs.lat, fs.lng) && (
@@ -879,43 +933,6 @@ export default async function Page({
     </section>
   ))
 
-  // Водитель — раскрыт по умолчанию (просьба владельца): имя, телефон,
-  // трак/трейлер, VIN, сроки CDL и медкарты видны сразу.
-  add('driver-card', (
-    <details open className="group panel p-4">
-      <summary className="-m-1 flex cursor-pointer list-none items-center gap-1.5 rounded-lg p-1 text-base leading-6 font-semibold text-t1 transition-colors hover:bg-white/[0.03] hover:text-t1">
-        <span className="text-base leading-none text-t3 transition-transform duration-200 group-open:rotate-90">
-          ▸
-        </span>
-        {t(locale, 'trucks.detail.driverHeading')}
-      </summary>
-      <div className="mt-3">
-        <DriverCard
-          truckId={truck.id}
-          name={truck.driverName}
-          phone={meta?.driverPhone ?? null}
-          cdlExpiry={meta?.cdlExpiry ?? null}
-          medcardExpiry={meta?.medcardExpiry ?? null}
-          hasPhoto={meta?.hasPhoto ?? false}
-          truckNumber={truck.number}
-          trailerNumber={meta?.trailerNumber ?? null}
-          vin={meta?.vin ?? null}
-          broker={{
-            // MC печатается без приставки: в блоке для брокера строка уже
-            // начинается с «MC - », и «MC - MC 626911» читалось бы как ошибка.
-            mc: company.mcdot.replace(/^MC[\s#-]*/i, ''),
-            companyName: company.name,
-            companyEmail: company.email,
-            dispatcherName: dispatcherName ?? user?.name ?? '',
-            dispatcherPhone: dispatcherPhone ?? '',
-          }}
-          embedded
-          locale={locale}
-        />
-      </div>
-    </details>
-  ))
-
   // Масло, «нужно починить», сроки и журнал. id="care" — цель ссылок о сроках
   // документов с обзора, поэтому его менять нельзя.
   add('care', (
@@ -992,7 +1009,7 @@ export default async function Page({
     </details>
   ))
 
-  const grid = await tileGrid('truck-detail', TRUCK_DETAIL_TILES, locale)
+  const grid = await tileGrid('truck-detail', TRUCK_DETAIL_TILES, locale, migrateTruckDriverCard)
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-10">
