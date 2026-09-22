@@ -39,6 +39,10 @@ export async function tileGrid(
   page: TilePage,
   defaults: TilePlacement[],
   locale: Locale,
+  /** Правка сохранённого порядка перед склейкой: когда одну плитку разобрали на
+   *  несколько, старый ключ надо заменить новыми НА ЕГО МЕСТЕ, иначе applyLayout
+   *  выбросит его как незнакомый, а новые припишет в самый конец страницы. */
+  migrate?: (saved: TilePlacement[]) => TilePlacement[],
 ): Promise<{
   page: TilePage
   layout: TilePlacement[]
@@ -47,5 +51,6 @@ export async function tileGrid(
   enabled: boolean
 }> {
   const [saved, enabled] = await Promise.all([readLayout(page), tilesEnabled()])
-  return { page, layout: applyLayout(saved, defaults), defaults, labels: gridLabels(locale), enabled }
+  const start = migrate ? migrate(saved) : saved
+  return { page, layout: applyLayout(start, defaults), defaults, labels: gridLabels(locale), enabled }
 }

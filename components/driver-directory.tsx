@@ -1,29 +1,34 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { ChevronRight, Copy } from 'lucide-react'
+import { useCallback, useState, useSyncExternalStore, useTransition } from 'react'
+import Link from 'next/link'
+import { Copy, Pencil, Phone } from 'lucide-react'
 import { saveDispatcherPhone } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 
 /**
- * Справочник водителей — то, что у диспетчера спрашивает брокер.
+ * Данные водителей — то, что у диспетчера спрашивает брокер, плитками.
  *
- * Зачем отдельная секция. Эти поля брокер спрашивает в каждом звонке, а лежали они
- * в четырёх разных местах: имя и номер трака — на карточке, телефон, прицеп и VIN —
- * внутри «паспорта трака» на странице конкретного трака, MC и название компании —
- * в настройках. Собрать их во время разговора значило уйти со страницы два-три
- * раза, держа брокера на линии.
+ * Зачем эти поля вообще собраны вместе. Брокер спрашивает их в каждом звонке, а
+ * лежали они в четырёх разных местах: имя и номер трака — на карточке, телефон,
+ * прицеп и VIN — внутри «паспорта трака», MC и название компании — в настройках.
+ * Собрать их во время разговора значило уйти со страницы два-три раза, держа
+ * брокера на линии.
  *
- * Почему показываем ровно тот текст, который копируется. Диспетчер эти данные не
- * диктует, а отправляет сообщением, и формат у них устоявшийся — до строчки. Если
- * на экране одна раскладка, а в буфере другая, доверия к кнопке нет. Поэтому
- * развёрнутый водитель — это и есть готовый блок, а «Скопировать» кладёт в буфер
- * ровно его.
+ * Почему теперь плитки, а не свёрнутый список. Раньше это был один блок во всю
+ * строку: сначала нажать на заголовок, потом на водителя, и только тогда видно
+ * телефон. Два нажатия ради строки, которую диктуют в трубку. Теперь каждый
+ * водитель — своя маленькая плитка в общей сетке раздела: всё, что спрашивают,
+ * видно сразу, плитки двигаются и меняют размер, как все остальные, а порядок
+ * общий для всей компании (lib/tiles-core.ts).
  *
- * Сама секция свёрнута: она стоит первой на странице и в развёрнутом виде
- * отодвигала бы парк за нижний край экрана.
+ * Что на экране и что в буфере. Кнопка копирования кладёт тот же устоявшийся блок
+ * из десяти строк, который отправляют брокеру (infoBlock ниже) — на плитке те же
+ * значения, только подписаны коротко и на языке интерфейса. Общие для всех
+ * водителей строки (MC, компания, почта) вынесены в свою плитку: повторять их на
+ * каждой из восьми карточек незачем.
  */
 
 export interface DriverEntry {
@@ -39,157 +44,192 @@ export interface DriverEntry {
   dispatcherPhone?: string | null
 }
 
-export function DriverDirectory({
-  drivers,
-  mc,
-  companyName,
-  companyEmail,
-  dispatcherName,
-  dispatcherPhone,
-}: {
-  drivers: DriverEntry[]
+/** Компания и тот, кто открыл страницу: вторая половина блока для брокера. */
+export interface DirectoryCompany {
   mc: string
   companyName: string
-  /** Почта компании из профиля — та, что стоит в блоке строкой Email. */
   companyEmail: string
   dispatcherName: string
-  /** Личный номер диспетчера. В блоке он стоит рядом с именем — брокер звонит
-   * человеку, который прислал груз, а не на общий номер компании. */
   dispatcherPhone: string
-}) {
-  const locale = useLocale()
-  const [openSection, setOpenSection] = useState(false)
-  // Открыт максимум один водитель: справочник читают по одному за раз, а восемь
-  // развёрнутых блоков — это уже не компактная секция наверху страницы.
-  const [openDriver, setOpenDriver] = useState<number | null>(null)
-  const [phone, setPhone] = useState(dispatcherPhone)
-  const [editPhone, setEditPhone] = useState(false)
-  const [pending, start] = useTransition()
+}
 
-  if (drivers.length === 0) return null
+/* Свой номер диспетчера живёт в отдельной плитке, а подставляется в блок каждого
+   водителя без назначенного диспетчера. Плитки теперь разные компоненты и общего
+   состояния у них нет, поэтому номер держим в маленьком хранилище на модуль: иначе
+   человек поправил бы номер в своей плитке, а копировался бы до перезагрузки
+   страницы старый. Снимок для сервера — то, что пришло с сервера, иначе гидрация. */
+let edited: string | null = null
+const listeners = new Set<() => void>()
+
+function useDispatcherPhone(fromServer: string): string {
+  return useSyncExternalStore(
+    useCallback((cb: () => void) => {
+      listeners.add(cb)
+      return () => listeners.delete(cb)
+    }, []),
+    () => edited ?? fromServer,
+    () => fromServer,
+  )
+}
+
+function setDispatcherPhone(v: string) {
+  edited = v
+  for (const cb of listeners) cb()
+}
+
+/** Плитка одного водителя. Всё, что спрашивает брокер, — без единого нажатия. */
+export function DriverTile({ driver, company }: { driver: DriverEntry; company: DirectoryCompany }) {
+  const locale = useLocale()
+  const phone = useDispatcherPhone(company.dispatcherPhone)
+  const block = infoBlock(driver, { ...company, dispatcherPhone: phone })
+  // Диспетчер на карточке — только закреплённый за ЭТИМ траком. Когда трак ничей,
+  // в блок идёт тот, кто открыл страницу, и его номер стоит своей плиткой рядом:
+  // повторять собственное имя на каждой из восьми карточек незачем.
+  const dispatcher = driver.dispatcherName
+  const digits = (driver.driverPhone ?? '').replace(/[^\d+]/g, '')
 
   return (
-    <section className="panel mb-4 p-3 sm:p-4">
-      <button
-        type="button"
-        onClick={() => setOpenSection((v) => !v)}
-        aria-expanded={openSection}
-        className="flex w-full items-center gap-2 text-left"
-      >
-        <ChevronRight
-          size={14}
-          strokeWidth={2.5}
-          className={`shrink-0 text-t3 transition-transform ${openSection ? 'rotate-90' : ''}`}
-        />
-        <h2 className="text-base leading-6 font-semibold text-t1">
-          {t(locale, 'drivers.title')}
-        </h2>
-        <span className="nums text-xs text-t3">{drivers.length}</span>
-        <span className="ml-auto truncate text-xs text-t3">
-          {t(locale, 'drivers.subtitle')}
-        </span>
-      </button>
+    <div className="panel flex h-full flex-col gap-1 px-3 py-2.5">
+      <div className="flex items-start gap-1">
+        {/* Имя ведёт на карточку трака: оттуда берут VIN, бумаги и пробег — то, что
+            на плитку не помещается и в блок брокеру не идёт. */}
+        <Link
+          href={`/trucks/${driver.truckId}`}
+          className="line-clamp-2 min-w-0 flex-1 text-base leading-tight font-semibold break-words text-t1 hover:text-haul-300"
+        >
+          {driver.driverName || t(locale, 'drivers.noName')}
+        </Link>
+        <button
+          type="button"
+          onClick={() => copy(block, t(locale, 'drivers.copied'))}
+          title={t(locale, 'drivers.copy')}
+          aria-label={`${t(locale, 'drivers.copy')}: ${driver.driverName || t(locale, 'drivers.noName')}`}
+          className="-mr-1 -mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg text-haul-300/70 transition-colors hover:bg-white/10 hover:text-haul-300"
+        >
+          <Copy size={13} strokeWidth={2.5} />
+        </button>
+      </div>
 
-      {openSection && (
-        <>
-          {/* Свой номер диспетчер вписывает прямо здесь: в базе его негде было
-              хранить, а в блок он обязан попасть — брокер перезванивает человеку,
-              а не на общий номер компании. */}
-          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-white/6 px-3 py-2 text-sm">
-            <span className="text-t3">{t(locale, 'drivers.myPhone')}</span>
-            {editPhone ? (
-              <>
-                <input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="786 461 4739"
-                  className="nums min-w-0 flex-1 rounded-md border border-white/10 bg-ink-950/70 px-2 py-1 text-sm text-white outline-none focus:border-haul-500"
-                />
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() =>
-                    start(async () => {
-                      const res = await saveDispatcherPhone(phone)
-                      if (res?.error) notify('error', res.error)
-                      else {
-                        notify('ok', t(locale, 'drivers.phoneSaved'))
-                        setEditPhone(false)
-                      }
-                    })
-                  }
-                  className="shrink-0 rounded-md bg-haul-500/20 px-2 py-1 text-sm font-medium text-haul-300 hover:bg-haul-500/30 disabled:opacity-50"
-                >
-                  {t(locale, 'drivers.save')}
-                </button>
-              </>
-            ) : (
-              <>
-                <span className="nums text-t1">{phone || t(locale, 'drivers.noPhone')}</span>
-                <button
-                  type="button"
-                  onClick={() => setEditPhone(true)}
-                  className="text-xs text-haul-400 hover:underline"
-                >
-                  {t(locale, 'drivers.editPhone')}
-                </button>
-              </>
-            )}
-          </div>
-
-          <ul className="mt-2 flex flex-col gap-1">
-            {drivers.map((d) => {
-              const isOpen = openDriver === d.truckId
-              const block = infoBlock(d, { mc, companyName, companyEmail, dispatcherName, dispatcherPhone: phone })
-              return (
-                <li key={d.truckId} className="rounded-lg border border-white/6">
-                  <button
-                    type="button"
-                    onClick={() => setOpenDriver(isOpen ? null : d.truckId)}
-                    aria-expanded={isOpen}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-white/[0.03]"
-                  >
-                    <ChevronRight
-                      size={13}
-                      strokeWidth={2.5}
-                      className={`shrink-0 text-t3 transition-transform ${isOpen ? 'rotate-90' : ''}`}
-                    />
-                    <span className="min-w-0 flex-1 truncate text-base font-medium">
-                      {d.driverName || t(locale, 'drivers.noName')}
-                    </span>
-                    {d.dispatcherName && (
-                      <span className="hidden shrink-0 text-xs text-t3 sm:inline">
-                        {d.dispatcherName}
-                      </span>
-                    )}
-                    <span className="nums shrink-0 text-sm text-t3">
-                      {d.truckNumber ? `TRK-${d.truckNumber}` : '—'}
-                      {d.trailerNumber ? ` · TRL-${d.trailerNumber}` : ''}
-                    </span>
-                  </button>
-
-                  {isOpen && (
-                    <div className="border-t border-white/6 p-3">
-                      <pre className="nums overflow-x-auto whitespace-pre-wrap break-words text-sm leading-relaxed text-t1">
-                        {block}
-                      </pre>
-                      <button
-                        type="button"
-                        onClick={() => copy(block, t(locale, 'drivers.copied'))}
-                        className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border border-haul-500/35 bg-haul-500/[0.10] px-2.5 py-1 text-sm font-medium text-haul-300 transition-colors hover:border-haul-400/60 hover:bg-haul-500/20"
-                      >
-                        <Copy size={12} strokeWidth={2.5} />
-                        {t(locale, 'drivers.copy')}
-                      </button>
-                    </div>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-        </>
+      {/* Телефон водителя — ссылка: с телефона по нему сразу звонят, а не переписывают
+          цифры в звонилку руками. */}
+      {digits ? (
+        <a
+          href={`tel:${digits}`}
+          className="nums flex min-w-0 items-center gap-1 truncate text-sm text-haul-300 hover:underline"
+        >
+          <Phone size={11} strokeWidth={2.5} className="shrink-0 opacity-70" />
+          {driver.driverPhone}
+        </a>
+      ) : (
+        <span className="text-sm text-t3">{t(locale, 'drivers.noPhone')}</span>
       )}
-    </section>
+
+      <div className="nums truncate text-xs text-t3">
+        {driver.truckNumber ? `TRK-${driver.truckNumber}` : '—'}
+        {driver.trailerNumber ? ` · TRL-${driver.trailerNumber}` : ''}
+      </div>
+      {dispatcher && (
+        <div className="mt-auto truncate text-2xs text-t3">
+          {t(locale, 'drivers.dispatcher')} {dispatcher}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Свой номер: брокер перезванивает человеку, который прислал груз, а не на общий
+ *  номер компании. В базе его негде было хранить, поэтому диспетчер вписывает его
+ *  прямо здесь — и это единственная плитка раздела, которую правят. */
+export function MyPhoneTile({ phone: fromServer }: { phone: string }) {
+  const locale = useLocale()
+  const phone = useDispatcherPhone(fromServer)
+  const [draft, setDraft] = useState(phone)
+  const [edit, setEdit] = useState(false)
+  const [pending, start] = useTransition()
+
+  return (
+    <div className="panel flex h-full flex-col justify-center gap-1 px-3 py-2.5">
+      <div className="truncate text-xs text-t3">{t(locale, 'drivers.myPhone')}</div>
+      {edit ? (
+        <div className="flex items-center gap-1.5">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="786 461 4739"
+            aria-label={t(locale, 'drivers.myPhone')}
+            className="nums min-w-0 flex-1 rounded-md border border-white/10 bg-ink-950/70 px-2 py-1 text-sm text-white outline-none focus:border-haul-500"
+          />
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              start(async () => {
+                const res = await saveDispatcherPhone(draft)
+                if (res?.error) notify('error', res.error)
+                else {
+                  setDispatcherPhone(draft)
+                  notify('ok', t(locale, 'drivers.phoneSaved'))
+                  setEdit(false)
+                }
+              })
+            }
+            className="shrink-0 rounded-md bg-haul-500/20 px-2 py-1 text-sm font-medium text-haul-300 hover:bg-haul-500/30 disabled:opacity-50"
+          >
+            {t(locale, 'drivers.save')}
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5">
+          <span className="nums min-w-0 flex-1 truncate text-base font-semibold text-t1">
+            {phone || t(locale, 'drivers.noPhone')}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(phone)
+              setEdit(true)
+            }}
+            title={t(locale, 'drivers.editPhone')}
+            aria-label={t(locale, 'drivers.editPhone')}
+            className="-mr-1 flex size-7 shrink-0 items-center justify-center rounded-lg text-haul-300/70 transition-colors hover:bg-white/10 hover:text-haul-300"
+          >
+            <Pencil size={13} strokeWidth={2.5} />
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Компания: вторая половина блока, одинаковая у всех водителей. Отдельной плиткой,
+ *  чтобы не повторять три строки на каждой карточке. Копируется тоже — брокер часто
+ *  просит только MC и название. */
+export function CompanyTile({ mc, companyName, companyEmail }: Omit<DirectoryCompany, 'dispatcherName' | 'dispatcherPhone'>) {
+  const locale = useLocale()
+  const block = [
+    `MC - ${mc.trim() || '—'}`,
+    `Company Name - ${companyName.trim() || '—'}`,
+    `Email - ${companyEmail.trim() || '—'}`,
+  ].join('\n')
+
+  return (
+    <div className="panel flex h-full flex-col gap-1 px-3 py-2.5">
+      <div className="flex items-start gap-1">
+        <span className="min-w-0 flex-1 truncate text-xs text-t3">{t(locale, 'drivers.company')}</span>
+        <button
+          type="button"
+          onClick={() => copy(block, t(locale, 'drivers.copied'))}
+          title={t(locale, 'drivers.copy')}
+          aria-label={`${t(locale, 'drivers.copy')}: ${t(locale, 'drivers.company')}`}
+          className="-mr-1 -mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg text-haul-300/70 transition-colors hover:bg-white/10 hover:text-haul-300"
+        >
+          <Copy size={13} strokeWidth={2.5} />
+        </button>
+      </div>
+      <div className="nums truncate text-base leading-tight font-semibold text-t1">MC {mc || '—'}</div>
+      <div className="truncate text-xs text-t3">{companyName || '—'}</div>
+      <div className="mt-auto truncate text-2xs text-t3">{companyEmail || '—'}</div>
+    </div>
   )
 }
 
@@ -208,16 +248,7 @@ export function DriverDirectory({
  * Всегда по-английски, независимо от языка интерфейса: получатель — американский
  * брокер, а не пользователь приложения.
  */
-export function infoBlock(
-  d: DriverEntry,
-  co: {
-    mc: string
-    companyName: string
-    companyEmail: string
-    dispatcherName: string
-    dispatcherPhone: string
-  },
-): string {
+export function infoBlock(d: DriverEntry, co: DirectoryCompany): string {
   const dash = (v: string | null | undefined) => (v && v.trim() ? v.trim() : '—')
   // Телефон — одними цифрами: его вставляют в чужие поля и звонилки, а пробелы и
   // скобки там мешают. Плюс у международного номера сохраняем.

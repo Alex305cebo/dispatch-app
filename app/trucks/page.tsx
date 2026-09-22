@@ -8,7 +8,7 @@ import { BoardSkeleton, FleetBoard } from './fleet-board'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { currentLoadsByTruck } from '@/lib/map'
 import { FleetHeatmap } from '@/components/fleet-heatmap'
-import { DriverDirectory } from '@/components/driver-directory'
+import { CompanyTile, DriverTile, MyPhoneTile, type DirectoryCompany } from '@/components/driver-directory'
 import { dispatcherPhoneKey, getSetting } from '@/lib/settings'
 import { getCurrentUser } from '@/lib/session'
 import { buildWorkingDays } from '@/lib/heatmap'
@@ -23,7 +23,7 @@ import { placeCity } from '@/lib/place'
 import { t, type Locale } from '@/lib/i18n'
 import { Info } from '@/components/info'
 import { tileGrid } from '@/lib/tiles'
-import { TRUCKS_TILES } from '@/lib/tiles-core'
+import { driverTileId, migrateDriversTile, trucksTiles } from '@/lib/tiles-core'
 
 export const dynamic = 'force-dynamic'
 
@@ -136,7 +136,20 @@ export default async function Page() {
   // только те, кого нельзя грузить: этого числа в плитках нет.
   const unavailable = trucks.filter((t) => t.unavailable).length
 
-  const grid = await tileGrid('trucks', TRUCKS_TILES, locale)
+  // Данные водителей — по маленькой плитке на каждого: ключи зависят от парка,
+  // поэтому раскладку по умолчанию собирает функция, а старая единственная плитка
+  // «Данные водителей» из сохранённого порядка разворачивается на своём же месте.
+  const truckIds = trucks.map((truck) => truck.id)
+  const directory: DirectoryCompany = {
+    mc: company.mcdot.replace(/^MC[\s#-]*/i, ''),
+    companyName: company.name,
+    companyEmail: company.email,
+    dispatcherName: user?.name ?? '',
+    dispatcherPhone: dispatcherPhone ?? '',
+  }
+  const grid = await tileGrid('trucks', trucksTiles(truckIds), locale, (saved) =>
+    migrateDriversTile(saved, truckIds),
+  )
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -217,6 +230,42 @@ export default async function Page() {
                 </div>
               ),
             },
+            // Данные водителей: свой номер, компания и по плитке на каждого водителя.
+            // Всё, что спрашивает брокер, видно без единого нажатия; данные новых
+            // запросов не стоят — trucks, metas и company страница уже загрузила.
+            { id: 'drivers-me', node: <MyPhoneTile phone={directory.dispatcherPhone} /> },
+            {
+              id: 'drivers-co',
+              node: (
+                <CompanyTile
+                  mc={directory.mc}
+                  companyName={directory.companyName}
+                  companyEmail={directory.companyEmail}
+                />
+              ),
+            },
+            ...trucks.map((truck) => {
+              const meta = metas.get(truck.id)
+              const disp = dispByTruck.get(truck.id)
+              return {
+                id: driverTileId(truck.id),
+                node: (
+                  <DriverTile
+                    company={directory}
+                    driver={{
+                      truckId: truck.id,
+                      dispatcherName: disp?.name ?? null,
+                      dispatcherPhone: disp?.phone ?? null,
+                      driverName: truck.driverName,
+                      driverPhone: meta?.driverPhone ?? null,
+                      truckNumber: truck.number,
+                      trailerNumber: meta?.trailerNumber ?? null,
+                      vin: meta?.vin ?? null,
+                    }}
+                  />
+                ),
+              }
+            }),
           ]}
           // «Загрузка парка» — сразу под картой: кто когда освободится смотрят первым делом.
           underMap={
@@ -250,39 +299,6 @@ export default async function Page() {
               })}
             />
           </div>
-          }
-          // Справочник водителей — сразу под картой и счётчиками, ДО списка
-          // траков: эти шесть полей брокер спрашивает в каждом звонке.
-          between={
-            <>
-              {/* Справочник водителей — первым делом на странице. Эти шесть полей брокер
-          спрашивает в каждом звонке, а лежали они в четырёх разных местах: имя и
-          номер трака на карточке, телефон, прицеп и VIN — внутри «паспорта трака»
-          на странице конкретного трака, MC компании — в настройках. Данные новых
-          запросов не стоят: trucks, metas и company страница уже загрузила. */}
-              <DriverDirectory
-                mc={company.mcdot.replace(/^MC[\s#-]*/i, '')}
-                companyName={company.name}
-                companyEmail={company.email}
-                dispatcherName={user?.name ?? ''}
-                dispatcherPhone={dispatcherPhone ?? ''}
-                drivers={trucks.map((truck) => {
-                  const meta = metas.get(truck.id)
-                  const disp = dispByTruck.get(truck.id)
-                  return {
-                    truckId: truck.id,
-                    dispatcherName: disp?.name ?? null,
-                    dispatcherPhone: disp?.phone ?? null,
-                    driverName: truck.driverName,
-                    driverPhone: meta?.driverPhone ?? null,
-                    truckNumber: truck.number,
-                    trailerNumber: meta?.trailerNumber ?? null,
-                    vin: meta?.vin ?? null,
-                  }
-                })}
-              />
-
-            </>
           }
           // Под карточками: подключение ELD — раз в жизни трака.
           after={
