@@ -7,7 +7,7 @@ import { googleClientId, verifyGoogleToken } from '@/lib/google-auth'
 import { applySchema, schemaInstalled } from '@/lib/install'
 import { setSetting } from '@/lib/settings'
 import { t } from '@/lib/i18n'
-import { getLocale } from '@/lib/i18n-server'
+import { getLoginLocale } from '@/lib/i18n-server'
 
 async function startSession(userId: number) {
   const token = await createSession(userId)
@@ -56,7 +56,7 @@ export type GoogleResult = { error: string } | { ok: true } | { wait: true }
  * всегда отвергает): вход только через Google, и красть нечего.
  */
 export async function signInWithGoogle(idToken: string): Promise<GoogleResult> {
-  const locale = await getLocale()
+  const locale = await getLoginLocale()
   const clientId = googleClientId()
   if (!clientId) return { error: t(locale, 'login.error.googleOff') }
 

@@ -4,7 +4,7 @@ import { sql } from '@/lib/db'
 import { applyAdminReset, ensureSchema, schemaInstalled } from '@/lib/install'
 import { getSettings } from '@/lib/settings'
 import { googleClientId } from '@/lib/google-auth'
-import { LOCALE_COOKIE, localeFromAcceptLanguage, resolveLocale, t } from '@/lib/i18n'
+import { LOCALE_COOKIE, LOGIN_LOCALE_COOKIE, resolveLocale, t } from '@/lib/i18n'
 import { LoginForm } from './login-form'
 
 export const dynamic = 'force-dynamic'
@@ -86,12 +86,11 @@ export default async function LoginPage() {
   const demoUrl = conf.get('demo_url') ?? ''
   const showDemo = conf.get('demo_public') !== '0'
 
-  // Whether to ask for a language is decided here, server-side, because
-  // resolveLocale() answers "en" for anyone who has never chosen — a silent default
-  // that a Russian speaker never gets asked about. Reading the cookie here instead of
-  // in a client effect also keeps the first paint honest: no flash of the wrong
-  // language, and nothing for hydration to disagree about.
-  const cookie = (await cookies()).get(LOCALE_COOKIE)?.value
+  // Вход всегда открывается на английском, язык браузера не решает. Другой язык —
+  // только если человек сам выбрал его флагом на этой форме (LOGIN_LOCALE_COOKIE).
+  // Кука языка приложения не трогается: после входа интерфейс на том языке, что был.
+  // Решается на сервере — без мигания чужого языка и без расхождения при гидрации.
+  const picked = (await cookies()).get(LOGIN_LOCALE_COOKIE)?.value
 
   return (
     <LoginForm
@@ -101,11 +100,9 @@ export default async function LoginPage() {
       googleClientId={googleClientId()}
       demoUrl={demoUrl}
       needsSchema={!installed}
-      // Отдельного экрана «выберите язык» нет — лишний шаг. Нет куки — язык браузера;
-      // форма сама запишет его в куку, а сменить можно флагами на этой же странице.
+      // Отдельного экрана «выберите язык» нет — лишний шаг; сменить можно флагами.
       askLocale={false}
-      saveLocale={!cookie}
-      initialLocale={cookie ? resolveLocale(cookie) : (localeFromAcceptLanguage((await headers()).get('accept-language')) ?? 'en')}
+      initialLocale={picked ? resolveLocale(picked) : 'en'}
     />
   )
 }

@@ -6,9 +6,16 @@
 
 import 'server-only'
 import { cookies } from 'next/headers'
-import { resolveLocale, type Locale } from './i18n.ts'
+import { LOGIN_LOCALE_COOKIE, resolveLocale, type Locale } from './i18n.ts'
 
 export async function getLocale(): Promise<Locale> {
   const c = await cookies()
   return resolveLocale(c.get('locale')?.value)
+}
+
+/** Язык формы входа (см. LOGIN_LOCALE_COOKIE): английский, пока человек не выбрал
+ * другой флагом. Ошибки входа — на том же языке, что и сама форма. */
+export async function getLoginLocale(): Promise<Locale> {
+  const c = await cookies()
+  return resolveLocale(c.get(LOGIN_LOCALE_COOKIE)?.value)
 }
