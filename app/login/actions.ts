@@ -14,7 +14,7 @@ import {
 import { applySchema, schemaInstalled } from '@/lib/install'
 import { setSetting } from '@/lib/settings'
 import { t } from '@/lib/i18n'
-import { getLocale } from '@/lib/i18n-server'
+import { getLoginLocale } from '@/lib/i18n-server'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -124,7 +124,7 @@ export async function bootstrapAdmin(
   birthday: string,
   consent: boolean,
 ): Promise<{ error: string } | void> {
-  const locale = await getLocale()
+  const locale = await getLoginLocale()
   if (!name.trim()) return { error: t(locale, 'login.error.enterName') }
   if (!EMAIL_RE.test(email.trim())) return { error: t(locale, 'login.error.badEmail') }
   if (password.length < 8) return { error: t(locale, 'login.error.passwordMin') }
@@ -185,7 +185,7 @@ export async function registerRequest(
   birthday: string,
   consent: boolean,
 ): Promise<{ error: string } | void> {
-  const locale = await getLocale()
+  const locale = await getLoginLocale()
   if (!name.trim()) return { error: t(locale, 'login.error.enterName') }
   if (!EMAIL_RE.test(email.trim())) return { error: t(locale, 'login.error.badEmail') }
   if (password.length < 8) return { error: t(locale, 'login.error.passwordMin') }
@@ -217,7 +217,7 @@ export async function signIn(
   password: string,
   remember: boolean,
 ): Promise<{ error: string } | void> {
-  const locale = await getLocale()
+  const locale = await getLoginLocale()
   const ip = ((await headers()).get('x-forwarded-for') ?? '').split(',')[0]!.trim() || null
   const key = throttleKey(email, ip)
   if (lockedOut(key)) return { error: t(locale, 'login.error.tooManyTries') }
@@ -254,7 +254,7 @@ export async function resetWithRecovery(
   birthday: string,
   newPassword: string,
 ): Promise<{ error: string } | void> {
-  const locale = await getLocale()
+  const locale = await getLoginLocale()
   if (newPassword.length < 8) return { error: t(locale, 'login.error.passwordMin') }
   const mail = email.trim().toLowerCase()
   // Тот же замок, что и на входе: дата рождения — слабый секрет, и без счётчика

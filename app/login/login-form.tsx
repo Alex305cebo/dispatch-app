@@ -3,7 +3,7 @@
 import { Button } from '@/components/button'
 import { useEffect, useState, useTransition } from 'react'
 import { bootstrapAdmin, registerRequest, resetWithRecovery, signIn } from './actions'
-import { LOCALE_COOKIE, LOCALES, t, type Locale } from '@/lib/i18n'
+import { LOCALE_COOKIE, LOGIN_LOCALE_COOKIE, LOCALES, t, type Locale } from '@/lib/i18n'
 import { GoogleButton } from './google-button'
 import { ThemePicker } from '@/components/theme-picker'
 import { LocaleFlag } from '@/components/locale-flags'
@@ -40,7 +40,6 @@ export function LoginForm({
   demoUrl,
   googleClientId,
   askLocale,
-  saveLocale = false,
   initialLocale,
 }: {
   bootstrap: boolean
@@ -60,8 +59,6 @@ export function LoginForm({
   googleClientId: string
   /** No locale cookie yet — greet with the language choice before anything else. */
   askLocale: boolean
-  /** Куки языка ещё нет: записать язык, показанный по браузеру, чтобы он остался после входа. */
-  saveLocale?: boolean
   initialLocale: Locale
 }) {
   const [mode, setMode] = useState<Mode>('signin')
@@ -83,14 +80,11 @@ export function LoginForm({
     document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`
   }
 
-  useEffect(() => {
-    if (saveLocale) writeLocaleCookie(initialLocale)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   function chooseLocale(l: Locale) {
     setLocale(l)
     writeLocaleCookie(l)
+    // Выбор флагом запоминаем и для самой формы входа — иначе она снова откроется на английском.
+    document.cookie = `${LOGIN_LOCALE_COOKIE}=${l}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`
   }
 
   /** First-run choice reloads instead of swapping state, for two reasons. Swapping
