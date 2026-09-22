@@ -49,7 +49,6 @@ export async function FleetBoard({
   grid,
   underMap,
   extra,
-  between,
   after,
   money,
 }: {
@@ -59,7 +58,6 @@ export async function FleetBoard({
   underMap?: React.ReactNode
   /** Плитки, собранные самой страницей: цифры парка из её шапки. */
   extra?: Widget[]
-  between?: React.ReactNode
   after?: React.ReactNode
   /** Деньги и бумаги по траку: считает страница, показывает список. */
   money?: Record<number, import('@/components/fleet-list').TruckMoney>
@@ -351,7 +349,6 @@ export async function FleetBoard({
       staleMinutes={staleMinutes}
       underMap={underMap}
       extra={extra}
-      between={between}
       after={after}
       money={money}
       grid={grid}

@@ -142,10 +142,56 @@ export const TRUCKS_TILES: TilePlacement[] = [
   { id: 'map', size: 'l' },
   { id: 'picker', size: 'w' },
   { id: 'heatmap', size: 'l' },
-  { id: 'drivers', size: 'l' },
+  // Данные водителей: свой номер, компания и дальше по маленькой плитке на
+  // каждого водителя — их подставляет trucksTiles, потому что зависят от парка.
+  { id: 'drivers-me', size: 's' },
+  { id: 'drivers-co', size: 's' },
   { id: 'list', size: 'l' },
   { id: 'eld', size: 'w' },
 ]
+
+/** Ключ плитки водителя. Номер трака, а не место в списке: трак продали — его плитка
+ *  исчезла, остальные остались на своих местах. */
+export function driverTileId(truckId: number): string {
+  return `driver-${truckId}`
+}
+
+/** Раскладка «Траков» по умолчанию для КОНКРЕТНОГО парка: к постоянным плиткам
+ *  добавляются плитки водителей, сразу за «Мой номер» и «Компания».
+ *
+ *  Зачем функция, а не постоянный список: водителей столько, сколько траков, и ключи
+ *  у их плиток зависят от базы. applyLayout сверяет сохранённый порядок именно с этим
+ *  списком, поэтому плитка нового трака встаёт в конец, а не в середину чужой
+ *  раскладки, а плитка проданного не висит в настройках вечно. */
+export function trucksTiles(truckIds: number[]): TilePlacement[] {
+  const out: TilePlacement[] = []
+  for (const p of TRUCKS_TILES) {
+    out.push(p)
+    if (p.id === 'drivers-co') for (const id of truckIds) out.push({ id: driverTileId(id), size: 's' })
+  }
+  return out
+}
+
+/** Сохранённый порядок со старой единственной плиткой «Данные водителей» → новые
+ *  плитки на её месте.
+ *
+ *  Без этого раздел, где кто-то уже переставлял плитки, встретил бы владельца
+ *  водителями в самом низу страницы: старый ключ applyLayout выбросил бы как
+ *  незнакомый, а новые приписал бы в конец. Записывать обратно в настройки нечего —
+ *  как только плитку подвинут, сохранится уже новый порядок. */
+export function migrateDriversTile(saved: TilePlacement[], truckIds: number[]): TilePlacement[] {
+  if (!saved.some((p) => p.id === 'drivers')) return saved
+  const out: TilePlacement[] = []
+  for (const p of saved) {
+    if (p.id !== 'drivers') {
+      out.push(p)
+      continue
+    }
+    out.push({ id: 'drivers-me', size: 's' }, { id: 'drivers-co', size: 's' })
+    for (const id of truckIds) out.push({ id: driverTileId(id), size: 's' })
+  }
+  return out
+}
 
 /** Раскладки остальных разделов по умолчанию — тот порядок, в котором блоки стояли до
  *  плиток. Все здесь по той же причине, что и TRUCKS_TILES: страницы-серверы не могут

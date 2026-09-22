@@ -59,7 +59,6 @@ export function FleetPanel({
   updatedText,
   staleMinutes,
   underMap,
-  between,
   after,
   money,
   extra = [],
@@ -83,7 +82,6 @@ export function FleetPanel({
    * календарь загрузки. Место выбрано не случайно — оба отвечают на вопросы, которые
    * задают до разбора отдельного трака: «что сказать брокеру» и «кто когда
    * освободится». За списком карточек их приходилось искать прокруткой. */
-  between?: React.ReactNode
   /** Под списком траков: недельная аналитика и настройки. */
   after?: React.ReactNode
   /** Экономика по траку — вторая половина строки списка. */
@@ -264,7 +262,6 @@ export function FleetPanel({
   tiles.forEach((tile, i) => add(`counter-${i + 1}`, <Tile {...tile} />))
 
   if (underMap) add('heatmap', <div>{underMap}</div>)
-  if (between) add('drivers', <div>{between}</div>)
   add('list', <div><FleetList rows={rows} selectedId={selected} money={money} /></div>)
   if (after) add('eld', <div>{after}</div>)
   for (const w of extra) add(w.id, w.node)
