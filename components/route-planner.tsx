@@ -688,7 +688,9 @@ function MarketDetails({
   const nowRatio = snap.history?.length ? snap.history[snap.history.length - 1]!.ratio : null
   const sub = 'text-2xs font-semibold uppercase tracking-wide text-t3'
   return (
-    <details className="group mt-4 rounded-xl border border-white/8">
+    // Раскрыт сразу: свёрнутым блок показывал одну цифру, а график недели, ставки по
+    // пяти регионам и дизель — то, ради чего на «Рынок» и заходят (владелец, 22.09.2026).
+    <details open className="group mt-4 rounded-xl border border-white/8">
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2.5 gap-y-1 px-3 py-2 text-sm max-md:min-h-11">
         <span className="text-t3 transition-transform group-open:rotate-90" aria-hidden>
           ▸
@@ -1376,7 +1378,9 @@ function BoardCompare({
   bench?: RpmBench
 }) {
   const [text, setText] = useState('')
-  const [open, setOpen] = useState(false)
+  // Раскрыт сразу: за свёрнутой строкой пряталось поле, куда вставляют грузы с доски,
+  // и человек сначала должен был догадаться её раскрыть (владелец, 22.09.2026).
+  const [open, setOpen] = useState(true)
   const [reading, setReading] = useState(false)
   const [drag, setDrag] = useState(false)
   // Подпись груза, по которому сейчас идёт котировка Warp (одна за раз).
