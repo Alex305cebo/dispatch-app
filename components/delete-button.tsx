@@ -19,6 +19,7 @@ export function DeleteButton({
   title,
   note,
   label,
+  className,
   onDone,
 }: {
   action: (id: number, confirm: string) => Promise<{ error?: string } | void>
@@ -26,7 +27,9 @@ export function DeleteButton({
   title: string
   note?: string // e.g. "and its calculations will be gone for good."
   /** Кнопка словами вместо ✕ — где удаление не очевидно по крестику. */
-  label?: string
+  label?: React.ReactNode
+  /** Свой вид кнопки-подписи (полоса статуса груза). */
+  className?: string
   /** После удаления — например, уйти со страницы удалённого груза. */
   onDone?: () => void
 }) {
@@ -60,9 +63,10 @@ export function DeleteButton({
         title={t(locale, 'deleteButton.title')}
         onClick={() => setOpen(true)}
         className={
-          label
+          className ??
+          (label
             ? 'inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-2xs font-medium text-t3 transition-colors hover:bg-bad-500/10 hover:text-bad-400'
-            : 'shrink-0 text-base text-t3 transition-colors hover:text-bad-400'
+            : 'shrink-0 text-base text-t3 transition-colors hover:text-bad-400')
         }
       >
         {label ?? '✕'}
