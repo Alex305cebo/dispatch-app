@@ -250,12 +250,12 @@ export const overviewDict = {
   'grid.setting.on': { ru: 'вкл', en: 'on', es: 'sí', uk: 'увімк', ro: 'pornit', kk: 'қосулы' },
   'grid.setting.off': { ru: 'выкл', en: 'off', es: 'no', uk: 'вимк', ro: 'oprit', kk: 'өшірулі' },
   'grid.setting.hint': {
-    ru: 'Порядок плиток общий для всей компании: включит один — двигать смогут все.',
-    en: 'Tile order is shared by the whole company: one person turns it on and everyone can move them.',
-    es: 'El orden de los bloques es común para toda la empresa: si uno lo activa, todos pueden moverlos.',
-    uk: 'Порядок плиток спільний для всієї компанії: увімкне один — рухати зможуть усі.',
-    ro: 'Ordinea plăcilor este comună pentru toată compania: dacă o pornește unul, toți le pot muta.',
-    kk: 'Тақтайшалар реті бүкіл компанияға ортақ: біреу қосса, бәрі жылжыта алады.',
+    ru: 'Порядок плиток общий для всей компании. Двигать их могут только администраторы.',
+    en: 'Tile order is shared by the whole company. Only admins can move tiles.',
+    es: 'El orden de los bloques es común para toda la empresa. Solo los administradores pueden moverlos.',
+    uk: 'Порядок плиток спільний для всієї компанії. Рухати їх можуть лише адміністратори.',
+    ro: 'Ordinea plăcilor este comună pentru toată compania. Doar administratorii le pot muta.',
+    kk: 'Тақтайшалар реті бүкіл компанияға ортақ. Оларды тек әкімшілер жылжыта алады.',
   },
   'grid.setting.turnedOn': {
     ru: 'Перестановка включена.',

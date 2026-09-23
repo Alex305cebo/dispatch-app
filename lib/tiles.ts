@@ -4,6 +4,7 @@
 
 import { gridLabels } from './grid-labels.ts'
 import type { Locale } from './i18n.ts'
+import { getCurrentUser } from './session.ts'
 import { getSetting, setSetting } from './settings.ts'
 import {
   applyLayout,
@@ -48,9 +49,13 @@ export async function tileGrid(
   layout: TilePlacement[]
   defaults: TilePlacement[]
   labels: ReturnType<typeof gridLabels>
+  admin: boolean
   enabled: boolean
 }> {
-  const [saved, enabled] = await Promise.all([readLayout(page), tilesEnabled()])
+  const [saved, enabled, user] = await Promise.all([readLayout(page), tilesEnabled(), getCurrentUser()])
   const start = migrate ? migrate(saved) : saved
-  return { page, layout: applyLayout(start, defaults), defaults, labels: gridLabels(locale), enabled }
+  // Переставляет только администратор (решение владельца 23.09.2026): порядок общий
+  // на всю компанию, и диспетчер не должен сдвигать его остальным.
+  const admin = user?.role === 'admin'
+  return { page, layout: applyLayout(start, defaults), defaults, labels: gridLabels(locale), admin, enabled: admin && enabled }
 }
