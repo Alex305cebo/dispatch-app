@@ -49,6 +49,8 @@ import { DriverAvatar } from '@/components/driver-avatar'
 import { Info } from '@/components/info'
 import { Stat } from '@/components/stat'
 import { CopyPlace } from '@/components/copy-place'
+import { TourCard } from '@/components/tour-card'
+import { tourSteps } from '@/lib/tour'
 
 export const dynamic = 'force-dynamic'
 
@@ -577,6 +579,9 @@ export default async function Page() {
   )
 
   const grid = await tileGrid('overview', defaults, locale)
+  // Те же шаги, что у экскурсии в layout (cache — один запрос). null — показывать
+  // нечего: диспетчер или админ, который уже нажал «Готово».
+  const tour = await tourSteps(user, locale).catch(() => null)
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
@@ -591,6 +596,14 @@ export default async function Page() {
           <Info side="bottom" text={tr(locale, 'overview.addLoadInfo')} />
         </span>
       </header>
+
+      {tour && (
+        <TourCard
+          total={tour.length}
+          done={tour.filter((s) => s.done).length}
+          persist={user?.isDemo ? 'session' : 'local'}
+        />
+      )}
 
       <WidgetGrid
         {...grid}

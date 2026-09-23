@@ -109,7 +109,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Overdue/≤30-day document expiries — a badge on the Траки nav item, visible from
   // anywhere in the app, not just the one banner on the dashboard.
   const urgentDocs = (chrome?.[1] ?? []).filter((a) => a.item.tone === 'bad').length
-  // Вводная экскурсия для первого администратора. Отдельно от chrome и с тем же
+  // Вводная экскурсия (админу и гостю демо); открывается карточкой на «Обзоре». Отдельно от chrome и с тем же
   // .catch: не открылась настройка — это не повод не пустить человека в приложение.
   const tour = await tourSteps(user, locale).catch(() => null)
 
