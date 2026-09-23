@@ -1,7 +1,9 @@
 'use client'
 
 // Вводная экскурсия «как это работает»: экран за экраном, со снимком каждого.
-// Показывается администратору при первом входе и каждому гостю демо.
+// Доступна администратору и гостю демо. Сама не всплывает: открывается карточкой
+// «Пройти обучение» на «Обзоре» (components/tour-card.tsx, событие OPEN_EVENT) или
+// кнопкой «?» рядом с колокольчиком.
 //
 // Шаг со снимком — карточка по центру: картинка сверху, рассказ под ней, кнопка
 // «Открыть экран» ведёт на ту самую страницу. Шаг без снимка (их почти нет) —
@@ -24,6 +26,12 @@ import { finishTour } from '@/app/tour-actions'
 import type { TourStep } from '@/lib/tour'
 
 type Box = { top: number; left: number; width: number; height: number }
+
+/** Карточка «Пройти обучение» живёт на странице, экскурсия — в корневом layout;
+ * между ними — событие окна, а не общий контекст на всё приложение. */
+export const OPEN_EVENT = 'tour:open'
+/** «Готово» на последнем шаге — карточке больше незачем висеть. */
+export const FINISHED_EVENT = 'tour:finished'
 
 export function Tour({
   steps,
@@ -55,17 +63,21 @@ export function Tour({
     // по ним второй раз — ровно то, за что туры и ненавидят.
     const firstUndone = steps.findIndex((s) => !s.done)
     const start = firstUndone === -1 ? 0 : firstUndone
-    if (saved === 'closed') {
-      setI(start)
-      return
-    }
+    // Сама экскурсия не открывается никогда — ни при первом входе, ни в демо:
+    // окно во весь экран поверх приложения мешало (решение владельца 23.09.2026).
+    // Открывается карточкой «Пройти обучение» или кнопкой «?», с того шага, где бросили.
     const n = Number(saved)
-    setI(Number.isFinite(n) && saved !== null && n >= 0 && n < steps.length ? n : start)
-    setOpen(true)
+    setI(saved !== null && saved !== 'closed' && Number.isInteger(n) && n >= 0 && n < steps.length ? n : start)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [steps])
 
   useEffect(() => setImgOk(true), [i])
+
+  useEffect(() => {
+    const onOpen = () => setOpen(true)
+    window.addEventListener(OPEN_EVENT, onOpen)
+    return () => window.removeEventListener(OPEN_EVENT, onOpen)
+  }, [])
 
   const place = useCallback(() => {
     const target = step?.target
@@ -117,14 +129,16 @@ export function Tour({
     store().setItem(POS, String(next))
   }
 
+  // Позиция остаётся как есть: следующее открытие — с того же шага.
   function close() {
     setOpen(false)
-    store().setItem(POS, 'closed')
   }
 
   async function finish() {
     setOpen(false)
-    store().setItem(POS, 'closed')
+    setI(0)
+    store().removeItem(POS)
+    window.dispatchEvent(new Event(FINISHED_EVENT))
     if (persist === 'local') {
       await finishTour()
       router.refresh()

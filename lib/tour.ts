@@ -11,6 +11,7 @@
 // увидеть, как выглядит результат, до того как сам туда нажмёт.
 
 import 'server-only'
+import { cache } from 'react'
 import { sql } from './db.ts'
 import { getSettings } from './settings.ts'
 import { geminiKey } from './keys.ts'
@@ -60,7 +61,12 @@ const STEPS: Def[] = [
   { key: 'invoices', href: '/docs?tab=unpaid', target: '', image: 'invoices' },
 ]
 
-export async function tourSteps(user: CurrentUser | null, locale: Locale): Promise<TourStep[] | null> {
+/** cache(): читают и корневой layout (сама экскурсия), и «Обзор» (карточка «Пройти
+ * обучение») — запрос к базе уходит один раз за рендер. */
+export const tourSteps = cache(async function tourSteps(
+  user: CurrentUser | null,
+  locale: Locale,
+): Promise<TourStep[] | null> {
   if (!user) return null
   // Диспетчеру — нет: настраивать ему нечего, а экраны он и так знает от того,
   // кто его завёл. Админу и гостю демо — да.
@@ -107,4 +113,4 @@ export async function tourSteps(user: CurrentUser | null, locale: Locale): Promi
     loads: n.loads > 0,
   }
   return STEPS.map((s) => label(s, doneByKey[s.key] ?? false))
-}
+})

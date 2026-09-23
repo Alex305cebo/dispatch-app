@@ -9,6 +9,13 @@ export const tourDict = {
   'tour.skip': { ru: 'Закрыть', en: 'Close', es: 'Cerrar', uk: 'Закрити', ro: 'Închide', kk: 'Жабу' },
   'tour.stepOf': { ru: 'Шаг {n} из {total}', en: 'Step {n} of {total}', es: 'Paso {n} de {total}', uk: 'Крок {n} з {total}', ro: 'Pasul {n} din {total}', kk: '{total} қадамның {n}-і' },
   'tour.doneMark': { ru: 'уже сделано', en: 'already done', es: 'ya hecho', uk: 'уже зроблено', ro: 'deja făcut', kk: 'жасалып қойған' },
+  // Карточка «Пройти обучение» на «Обзоре» (components/tour-card.tsx).
+  'tour.card.title': { ru: 'Пройти обучение', en: 'Take the tour', es: 'Hacer el recorrido', uk: 'Пройти навчання', ro: 'Fă turul', kk: 'Оқудан өту' },
+  'tour.card.sub': { ru: '{n} шагов по всем разделам · пара минут', en: '{n} steps through every section · a couple of minutes', es: '{n} pasos por todas las secciones · un par de minutos', uk: '{n} кроків по всіх розділах · кілька хвилин', ro: '{n} pași prin toate secțiunile · câteva minute', kk: 'Барлық бөлім бойынша {n} қадам · бірнеше минут' },
+  'tour.card.progress': { ru: 'Сделано {done} из {total}', en: '{done} of {total} done', es: '{done} de {total} hechos', uk: 'Зроблено {done} з {total}', ro: '{done} din {total} făcuți', kk: '{total} ішінен {done} жасалды' },
+  'tour.card.start': { ru: 'Начать', en: 'Start', es: 'Empezar', uk: 'Почати', ro: 'Începe', kk: 'Бастау' },
+  'tour.card.continue': { ru: 'Продолжить', en: 'Continue', es: 'Continuar', uk: 'Продовжити', ro: 'Continuă', kk: 'Жалғастыру' },
+  'tour.card.hide': { ru: 'Скрыть — обучение останется под «?» у колокольчика', en: 'Hide — the tour stays under “?” by the bell', es: 'Ocultar — el recorrido queda en «?» junto a la campana', uk: 'Сховати — навчання лишиться під «?» біля дзвіночка', ro: 'Ascunde — turul rămâne la „?” de lângă clopoțel', kk: 'Жасыру — оқу қоңырау жанындағы «?» астында қалады' },
 
   'tour.welcome.title': { ru: 'Обзор: что парк заработал и что везёт', en: 'Overview: what the fleet earned and hauls', es: 'Resumen: lo que ganó la flota y lo que lleva', uk: 'Огляд: що парк заробив і що везе', ro: 'Prezentare: cât a câștigat flota și ce transportă', kk: 'Шолу: парк қанша тапты және не тасып жүр' },
   'tour.welcome.text': {
