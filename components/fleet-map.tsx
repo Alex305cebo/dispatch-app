@@ -285,7 +285,9 @@ function preferRaster(): boolean {
     if (window.matchMedia('(pointer: coarse)').matches) return true
     if (window.innerWidth < 768) return true
     const c = document.createElement('canvas')
-    if (!(c.getContext('webgl2') || c.getContext('webgl'))) return true
+    // maplibre-gl 6 рисует только на WebGL2: на WebGL1 его Map бросает ошибку уже
+    // при добавлении слоя, мимо запасного пути в buildBaseLayer. Такой браузер — сразу на растр.
+    if (!c.getContext('webgl2')) return true
   } catch {
     return true
   }
@@ -296,9 +298,12 @@ async function buildBaseLayer(L: any, sat: boolean): Promise<any> {
   if (sat) return L.tileLayer(SATELLITE_TILES, tileOpts(true))
   if (preferRaster()) return L.tileLayer(STREET_TILES, tileOpts(false))
   try {
-    const maplibregl = (await import('maplibre-gl')).default
-    // The Leaflet bridge reads maplibre-gl off the global, it doesn't import it itself.
-    ;(window as any).maplibregl = maplibregl
+    // maplibre-gl 6 is ESM-only with no default export. Its worker is a separate file
+    // it looks up next to its own module, which a bundle doesn't have — so it is served
+    // from public/maplibre (copied from node_modules, scripts/copy-maplibre-worker.mjs)
+    // and pointed at explicitly. The Leaflet bridge imports the same module itself.
+    const maplibregl = await import('maplibre-gl')
+    maplibregl.setWorkerUrl('/maplibre/maplibre-gl-worker.mjs')
     await import('@maplibre/maplibre-gl-leaflet')
     // attributionControl:false — MapLibre otherwise paints its own credit inside the WebGL
     // canvas, which Leaflet's attributionControl:false can't reach.
