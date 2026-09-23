@@ -7,6 +7,13 @@ name: DB backup
 #
 # До 09/13/26 база была в Neon (Postgres) и дамп делал pg_dump. Дампы того времени
 # лежат в артефактах прошлых запусков, пока не истекут 90 дней.
+#
+# ШИФРОВАНИЕ ОБЯЗАТЕЛЬНО. Репозиторий публичный, а артефакты публичного репозитория
+# скачивает любой, кто вошёл в GitHub. До 09/23/26 дамп выкладывался открытым —
+# с сессиями, хэшами паролей, ключами из settings и всеми документами. Теперь
+# в артефакт идёт только dispatch-ДАТА.sql.gz.gpg (AES-256, пароль — секрет
+# BACKUP_PASSPHRASE). Нет секрета — запуск падает и НИЧЕГО не выкладывает.
+# Расшифровать: gpg -d dispatch-ДАТА.sql.gz.gpg > dispatch-ДАТА.sql.gz
 
 on:
   schedule:
@@ -47,11 +54,28 @@ jobs:
           gzip -dc "dispatch-$stamp.sql.gz" | tail -1 | grep -q "Dump completed" || { echo "dump incomplete"; exit 1; }
           ls -lh "dispatch-$stamp.sql.gz"
 
+      - name: Encrypt dump
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          f=$(ls dispatch-*.sql.gz)
+          if [ -z "$BACKUP_PASSPHRASE" ]; then
+            # Открытый дамп не остаётся даже на раннере: шаг выгрузки ниже его не найдёт.
+            : > "$f"
+            echo "BACKUP_PASSPHRASE secret is not set — открытый дамп не выкладывается"
+            exit 1
+          fi
+          printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --symmetric --cipher-algo AES256 -o "$f.gpg" "$f"
+          ls -lh "$f.gpg"
+
       - name: Upload backup artifact
         uses: actions/upload-artifact@v4
         with:
           name: db-backup
-          path: dispatch-*.sql.gz
+          # Только .gpg: открытый .sql.gz рядом с ним в артефакт не попадает.
+          path: dispatch-*.sql.gz.gpg
+          if-no-files-found: error
           # 90 дней: потолок GitHub, и это дешёвая страховка — три месяца ежедневных
           # дампов на случай, если проблема в базе заметится не сразу.
           retention-days: 90

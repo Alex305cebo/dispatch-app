@@ -924,7 +924,7 @@ export function FleetMap({
                 // нулевой маркер текущей позиции.
                 interactive: label !== null,
               })
-              if (label) dot.bindTooltip(label, { direction: 'top', offset: [0, -6], opacity: 1 })
+              if (label) dot.bindTooltip(esc(label), { direction: 'top', offset: [0, -6], opacity: 1 })
               return dot
             })
             trailRef.current = L.layerGroup(dots)
@@ -960,7 +960,9 @@ export function FleetMap({
         // Кто едет этой линией. sticky — подпись идёт за курсором по всей длине пути,
         // иначе её приходилось бы ловить в одной точке. На каждом куске своя: путь
         // из общего и одиночного отрезков — это по-прежнему один трак.
-        if (r.title) for (const l of lines) l.bindTooltip(r.title, { sticky: true, direction: 'top', opacity: 1 })
+        // esc: Leaflet кладёт строку подсказки в innerHTML, а в подписи номер трака,
+        // прицепа и имя водителя — строки из базы, которые вводят люди.
+        if (r.title) for (const l of lines) l.bindTooltip(esc(r.title), { sticky: true, direction: 'top', opacity: 1 })
 
         if (r.id && road) {
           // Невыбранный маршрут можно выбрать щелчком прямо по нему. Тонкая линия
@@ -972,7 +974,7 @@ export function FleetMap({
           // Широкая мишень лежит ПОВЕРХ линии и перехватывает наведение, так что
           // подпись «чей путь» надо повесить и на неё — иначе на выбираемых картах
           // (грузы, платные дороги) она бы не показывалась вовсе.
-          if (r.title) hit.bindTooltip(r.title, { sticky: true, direction: 'top', opacity: 1 })
+          if (r.title) hit.bindTooltip(esc(r.title), { sticky: true, direction: 'top', opacity: 1 })
           for (const target of [...lines, hit]) {
             target.on('click', (e: { originalEvent?: Event }) => {
               // Иначе щелчок дойдёт до карты и та поймёт его как «снять выбор».
