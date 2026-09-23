@@ -17,7 +17,7 @@ import { retitleDocuments } from '@/lib/doc-title'
 import { DOC_KINDS } from '@/lib/docs'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { headers } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { shrinkPhoto } from '@/lib/photo'
 import { sql } from '@/lib/db'
 import { humanError } from '@/lib/msg'
@@ -40,8 +40,8 @@ import { knownBrokerMc } from '@/lib/brokers'
 import type { HistoryLeg } from '@/lib/trip-history'
 import { autoInvoiceIfReady, buildInvoicePacket, type Company } from '@/lib/invoice'
 import { deleteSetting, dispatcherPhoneKey, getSetting, setSetting } from '@/lib/settings'
-import { tilesEnabled, writeLayout } from '@/lib/tiles'
-import { TILE_PAGES, TILE_SIZES, type TilePage, type TilePlacement } from '@/lib/tiles-core'
+import { tilePeople, tilesEnabled, writeLayout } from '@/lib/tiles'
+import { TILE_PAGES, TILE_SIZES, TILES_FOR_COOKIE, type TilePage, type TilePlacement } from '@/lib/tiles-core'
 import { facilityNoteKey } from '@/lib/facilities'
 import { companyScope, confirmDelete, demoReadOnly, getCurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
@@ -95,6 +95,8 @@ export async function saveDispatcherPhone(phone: string): Promise<{ error: strin
 export async function saveTileLayout(
   page: TilePage,
   layout: TilePlacement[],
+  /** Личная раскладка этого диспетчера вместо общей. */
+  forUserId: number | null = null,
 ): Promise<{ error: string } | void> {
   const locale = await getLocale()
   const user = await getCurrentUser()
@@ -108,6 +110,9 @@ export async function saveTileLayout(
   // Кнопка «Переставить» при выключенной перестановке заперта, но проверяем и здесь:
   // серверное действие вызывается по адресу, а не только кнопкой.
   if (!(await tilesEnabled())) return { error: t(locale, 'actions.noAccess') }
+  if (forUserId != null && !(await tilePeople()).some((p) => p.id === forUserId)) {
+    return { error: t(locale, 'actions.noAccess') }
+  }
   const clean: TilePlacement[] = []
   const seen = new Set<string>()
   for (const p of layout) {
@@ -116,12 +121,38 @@ export async function saveTileLayout(
     seen.add(p.id)
     clean.push({ id: p.id, size: p.size })
   }
-  await writeLayout(page, clean)
+  await writeLayout(page, clean, forUserId ?? undefined)
   // НИЧЕГО не обновляем. revalidatePath здесь заставлял Next перерисовать весь
   // раздел на каждое перетаскивание и на каждую смену размера: страница уходила в
   // «Загрузка…» на все свои блоки и висела, пока не пересчитаются база, карта и
   // ставки. А обновлять нечего: порядок у того, кто двигает, уже на экране, а
   // остальные прочитают его при следующем заходе — раздел и так force-dynamic.
+}
+
+/**
+ * Чью раскладку администратор правит: диспетчера (его id) или общую (null).
+ *
+ * Кукой, а не параметром адреса: выбрав диспетчера, администратор ходит по разделам
+ * и расставляет ему плитки везде, не выбирая его заново на каждой странице. Смена
+ * куки в серверном действии сама перерисовывает текущую страницу — уже с раскладкой
+ * выбранного.
+ */
+export async function setTilesFor(userId: number | null): Promise<{ error: string } | void> {
+  const locale = await getLocale()
+  const user = await getCurrentUser()
+  if (!user || user.role !== 'admin' || user.isDemo) return { error: t(locale, 'actions.noAccess') }
+  const jar = await cookies()
+  if (userId == null) {
+    jar.delete(TILES_FOR_COOKIE)
+    return
+  }
+  if (!(await tilePeople()).some((p) => p.id === userId)) return { error: t(locale, 'actions.noAccess') }
+  jar.set(TILES_FOR_COOKIE, String(userId), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+  })
 }
 
 export async function fillBrokerMc(): Promise<{

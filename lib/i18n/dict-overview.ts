@@ -274,6 +274,35 @@ export const overviewDict = {
     ro: 'Rearanjarea este oprită.',
     kk: 'Қайта реттеу өшірілді.',
   },
+  // Не-администратору: кнопка «Переставить» видна с замком и говорит, к кому идти.
+  'grid.askAdmin': {
+    ru: 'Переставить плитки или поменять их размер может администратор. Попросите его.',
+    en: 'Only an admin can move or resize tiles. Ask your admin.',
+    es: 'Solo un administrador puede mover o cambiar el tamaño de los bloques. Pídeselo.',
+    uk: 'Переставити плитки або змінити їхній розмір може адміністратор. Попросіть його.',
+    ro: 'Doar un administrator poate muta sau redimensiona plăcile. Cere-i lui.',
+    kk: 'Тақтайшаларды жылжыту не өлшемін өзгерту тек әкімшіге рұқсат. Әкімшіден сұраңыз.',
+  },
+  // Личная раскладка диспетчера: администратор выбирает, для кого двигает плитки.
+  'grid.forWhom': { ru: 'Для кого', en: 'For whom', es: 'Para quién', uk: 'Для кого', ro: 'Pentru cine', kk: 'Кім үшін' },
+  'grid.forAll': { ru: 'Для всех', en: 'Everyone', es: 'Para todos', uk: 'Для всіх', ro: 'Pentru toți', kk: 'Барлығы үшін' },
+  'grid.onlyFor': {
+    ru: 'Раскладка только для {name}',
+    en: 'Layout just for {name}',
+    es: 'Diseño solo para {name}',
+    uk: 'Розкладка лише для {name}',
+    ro: 'Aranjament doar pentru {name}',
+    kk: 'Тек {name} үшін орналасу',
+  },
+  'grid.resetShared': { ru: 'Как у всех', en: 'Same as everyone', es: 'Como todos', uk: 'Як у всіх', ro: 'Ca la toți', kk: 'Бәріндегідей' },
+  'grid.backToShared': {
+    ru: 'Вернуться к общей раскладке',
+    en: 'Back to the shared layout',
+    es: 'Volver al diseño común',
+    uk: 'Повернутися до спільної розкладки',
+    ro: 'Înapoi la aranjamentul comun',
+    kk: 'Ортақ орналасуға оралу',
+  },
   'grid.locked': {
     ru: 'Чтобы двигать плитки, включите перестановку в настройках аккаунта.',
     en: 'To move tiles, turn rearranging on in your account settings.',

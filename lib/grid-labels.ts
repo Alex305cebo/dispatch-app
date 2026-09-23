@@ -20,6 +20,14 @@ export type GridLabels = {
   saveFailed: string
   /** Что говорим, когда кнопку нажали, а перестановка выключена в настройках. */
   locked: string
+  /** Что говорим не-администратору: двигать может только администратор. */
+  askAdmin: string
+  forWhom: string
+  forAll: string
+  /** «Раскладка только для {name}» — с подстановкой имени на клиенте. */
+  onlyFor: string
+  resetShared: string
+  backToShared: string
 }
 
 export function gridLabels(locale: Locale): GridLabels {
@@ -39,5 +47,11 @@ export function gridLabels(locale: Locale): GridLabels {
     },
     saveFailed: t(locale, 'grid.saveFailed'),
     locked: t(locale, 'grid.locked'),
+    askAdmin: t(locale, 'grid.askAdmin'),
+    forWhom: t(locale, 'grid.forWhom'),
+    forAll: t(locale, 'grid.forAll'),
+    onlyFor: t(locale, 'grid.onlyFor'),
+    resetShared: t(locale, 'grid.resetShared'),
+    backToShared: t(locale, 'grid.backToShared'),
   }
 }
