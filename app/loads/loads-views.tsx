@@ -18,6 +18,7 @@ import { CalendarDays, PackageOpen, Plus } from 'lucide-react'
 import { Button } from '@/components/button'
 import { ShowMore } from '@/components/collapse'
 import { Empty } from '@/components/empty'
+import { NoBreakWords } from '@/components/ui'
 import {
   STATUSES,
   truckLabel,
@@ -819,7 +820,7 @@ function DriverGroup({
     <section className="panel p-3">
       <Link href={`/trucks/${truck.id}`} className="mb-2 flex items-center gap-2.5 transition-colors hover:text-haul-400">
         <DriverAvatar truckId={truck.id} name={truck.driverName} hasPhoto={hasPhoto} size={30} />
-        <span className="min-w-0 flex-1 break-words text-base font-semibold leading-snug sm:text-md">{truckLabel(truck)}</span>
+        <span className="min-w-0 flex-1 break-words text-base font-semibold leading-snug sm:text-md"><NoBreakWords text={truckLabel(truck)} /></span>
         <span className="nums shrink-0 text-sm font-semibold text-t2">{usd.format(total)}</span>
         {/* Счётчик уходит первым на узком телефоне: он наименее важен из трёх. */}
         <span className="hidden shrink-0 text-xs text-t3 min-[380px]:inline">

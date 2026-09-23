@@ -555,7 +555,9 @@ function Cell({
       // mt-0 — потому что блоки пришли со страниц, где отступ сверху был у них
       // собственный («mt-4» в самом компоненте). В сетке расстояние задаёт gap, и
       // чужой отступ сажал плитку ниже соседки в той же строке.
-      className={`group relative [&>*:not([data-tile-controls])]:mt-0 [&>*:not([data-tile-controls])]:h-full ${
+      // my-0, а не только mt-0: нижний отступ блока («mb-6» у «Кому искать груз»)
+      // растягивал ячейку, h-full тянул за ней рамку, и внизу плитки зияла пустота.
+      className={`group relative [&>*:not([data-tile-controls])]:my-0 [&>*:not([data-tile-controls])]:h-full ${
         edit
           ? 'cursor-grab rounded-2xl ring-1 ring-dashed ring-haul-400/40 [&>*:not([data-tile-controls])]:pointer-events-none'
           : ''

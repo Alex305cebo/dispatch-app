@@ -298,7 +298,18 @@ function DirRow({
             <span className="block truncate text-base font-medium text-t1">{name}</span>
             <span className="nums block truncate text-sm text-t3">{meta}</span>
           </span>
-          {right && <span className={`nums max-w-[38%] shrink-0 text-right text-sm ${rightCls}`}>{right}</span>}
+          {/* Переносится только между частями «долг $1,003 · 50 дн»: иначе в узкой строке
+              телефона от неё отрывалось одно «дн» на вторую строку. */}
+          {right && (
+            <span className={`nums max-w-[38%] shrink-0 text-right text-sm ${rightCls}`}>
+              {right.split(' · ').map((part, i) => (
+                <span key={i} className="whitespace-nowrap">
+                  {i > 0 ? ' · ' : ''}
+                  {part}
+                </span>
+              ))}
+            </span>
+          )}
           <ChevronDown size={15} aria-hidden className={`shrink-0 text-t3 transition-transform ${open ? 'rotate-180' : ''}`} />
         </span>
         {/* Связь со второй половиной раздела — своей строкой во всю ширину. В общей

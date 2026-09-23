@@ -263,6 +263,8 @@ export function LoadsBoard({
       )}
 
       {/* Поиск и фильтры — для всех групп сразу; CSV выгружает то, что видно. */}
+      {/* Списки — sm:w-auto, а не w-auto: без префикса w-full из input шёл в CSS позже и
+          побеждал, и каждый список растягивался на всю строку. */}
       <div className="flex flex-wrap items-center gap-2">
         <input
           value={query}
@@ -270,7 +272,7 @@ export function LoadsBoard({
           placeholder={t(locale, money ? 'payments.filter.search' : 'papers.filter.search')}
           className={`${input} min-w-0 flex-1 sm:max-w-xs`}
         />
-        <select value={broker} onChange={(e) => setBroker(e.target.value)} className={`${input} w-auto`}>
+        <select value={broker} onChange={(e) => setBroker(e.target.value)} className={`${input} sm:w-auto sm:max-w-60`}>
           <option value="">{t(locale, 'payments.filter.allBrokers')}</option>
           {brokers.map((b) => (
             <option key={b} value={b}>
@@ -278,7 +280,7 @@ export function LoadsBoard({
             </option>
           ))}
         </select>
-        <select value={truck} onChange={(e) => setTruck(e.target.value)} className={`${input} w-auto`}>
+        <select value={truck} onChange={(e) => setTruck(e.target.value)} className={`${input} sm:w-auto sm:max-w-60`}>
           <option value="">{t(locale, 'payments.filter.allTrucks')}</option>
           {trucks.map((tr) => (
             <option key={tr} value={tr}>

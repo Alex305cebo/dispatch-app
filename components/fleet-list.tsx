@@ -14,6 +14,7 @@ import { WeatherIcon } from '@/components/weather-icon'
 import { t } from '@/lib/i18n'
 import { usd, usDate } from '@/lib/fmt'
 import { CopyPlace } from '@/components/copy-place'
+import { NoBreakWords } from '@/components/ui'
 
 export type TrackingRow = {
   id: number
@@ -148,7 +149,7 @@ export function FleetList({
                 Раньше «truncate» оставлял от «Evgeny Glagolev» одну букву. */}
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                <span className="text-lg font-semibold">{r.label}</span>
+                <span className="text-lg font-semibold"><NoBreakWords text={r.label} /></span>
                 {r.unavailable && (
                   <span className="shrink-0 rounded-full bg-warn-400/15 px-1.5 py-0.5 text-2xs font-semibold text-warn-400">
                     {r.unavailable === 'repair'
