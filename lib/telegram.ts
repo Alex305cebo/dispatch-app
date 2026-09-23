@@ -148,7 +148,11 @@ async function withClient<T>(uid: number, fn: (c: TelegramClient) => Promise<T>)
     // time (e.g. localhost open while prod is also live) — Telegram kills this side.
     // Drop the cached client so the NEXT call reconnects instead of reusing a
     // connection that will keep failing the same way forever.
-    if (String(e).includes('AUTH_KEY_DUPLICATED') && clients.get(uid) === c) {
+    // SESSION_REVOKED / AUTH_KEY_UNREGISTERED — ключ убит («Завершить другие сеансы»).
+    // Процессов у приложения несколько: переподключение прошло в одном, а другой
+    // держал старый клиент и отдавал 401 на каждый заход до перезапуска (09/23/26).
+    // Сброс — следующий вызов возьмёт свежий ключ из базы.
+    if (/AUTH_KEY_DUPLICATED|SESSION_REVOKED|AUTH_KEY_UNREGISTERED/.test(String(e)) && clients.get(uid) === c) {
       await c.disconnect().catch(() => {})
       clients.delete(uid)
       dialogsCache.delete(uid)
