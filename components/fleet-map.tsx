@@ -664,7 +664,7 @@ export function FleetMap({
                 // нулевой маркер текущей позиции.
                 interactive: label !== null,
               })
-              if (label) dot.bindTooltip(label, { direction: 'top', offset: [0, -6], opacity: 1 })
+              if (label) dot.bindTooltip(esc(label), { direction: 'top', offset: [0, -6], opacity: 1 })
               return dot
             })
             trailRef.current = L.layerGroup(dots)
