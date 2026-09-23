@@ -34,6 +34,10 @@ test('parseLayout: неизвестный размер превращается 
   assert.deepEqual(parseLayout('[{"id":"gross"}]'), [{ id: 'gross', size: 's' }])
 })
 
+test('parseLayout сохраняет размер «Мини» (xs), а не сбрасывает его в маленькую', () => {
+  assert.deepEqual(parseLayout('[{"id":"gross","size":"xs"}]'), [{ id: 'gross', size: 'xs' }])
+})
+
 test('parseLayout выкидывает повтор ключа: иначе плитка встала бы в сетку дважды', () => {
   assert.deepEqual(parseLayout('[{"id":"a","size":"w"},{"id":"a","size":"l"}]'), [
     { id: 'a', size: 'w' },

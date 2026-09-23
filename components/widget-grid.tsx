@@ -57,12 +57,13 @@ export type Widget = {
  * иначе длинную страницу в нём стало бы не пролистать. */
 const HOLD_MS = 300
 
-/** Ширина в колонках. Сетка — две колонки на телефоне и четыре на большом экране.
- *  На телефоне широкая и большая выглядят одинаково: колонок всего две, и это не ошибка. */
+/** Ширина в колонках. Сетка — шесть колонок на телефоне и двенадцать на большом
+ *  экране (см. TileSize). На телефоне широкая и большая выглядят одинаково. */
 const SPAN: Record<TileSize, string> = {
-  s: '',
-  w: 'col-span-2',
-  l: 'col-span-2 lg:col-span-4',
+  xs: 'col-span-2',
+  s: 'col-span-3',
+  w: 'col-span-6',
+  l: 'col-span-6 lg:col-span-12',
 }
 
 export function WidgetGrid({
@@ -79,6 +80,13 @@ export function WidgetGrid({
   className?: string
 }) {
   const [places, setPlaces] = useState<TilePlacement[]>(layout)
+  // Сохранение — не внутри функции-обновителя setPlaces. React перезапускает
+  // обновители, когда пересчитывает отложенные обновления, и каждый перезапуск
+  // заново звал saveTileLayout: смена размера плитки уходила в бесконечную череду
+  // запросов («Cannot call startTransition while rendering»). Поэтому новый порядок
+  // считается от этой ссылки, а сохраняется уже вне отрисовки.
+  const placesRef = useRef(places)
+  placesRef.current = places
   const [edit, setEdit] = useState(false)
   const [touch, setTouch] = useState(false)
   const [dragging, setDragging] = useState<string | null>(null)
@@ -124,27 +132,24 @@ export function WidgetGrid({
    *  то же, а на карточке груза и трака — нет: там половина плиток условная (нет
    *  заметок брокера — нет и плитки), и сохранённый порядок длиннее видимого. Номер
    *  с экрана указал бы в раскладке на чужую плитку, и та уехала бы не туда. */
-  const move = useCallback(
-    (id: string, overId: string) => {
-      setPlaces((prev) => {
-        const from = prev.findIndex((p) => p.id === id)
-        const to = prev.findIndex((p) => p.id === overId)
-        if (from < 0 || to < 0 || to === from) return prev
-        const next = prev.slice()
-        next.splice(to, 0, next.splice(from, 1)[0])
-        return next
-      })
-    },
-    [],
-  )
+  const move = useCallback((id: string, overId: string): TilePlacement[] => {
+    const prev = placesRef.current
+    const from = prev.findIndex((p) => p.id === id)
+    const to = prev.findIndex((p) => p.id === overId)
+    if (from < 0 || to < 0 || to === from) return prev
+    const next = prev.slice()
+    next.splice(to, 0, next.splice(from, 1)[0])
+    placesRef.current = next
+    setPlaces(next)
+    return next
+  }, [])
 
   const resize = useCallback(
     (id: string, size: TileSize) => {
-      setPlaces((prev) => {
-        const next = prev.map((p) => (p.id === id ? { ...p, size } : p))
-        persist(next)
-        return next
-      })
+      const next = placesRef.current.map((p) => (p.id === id ? { ...p, size } : p))
+      placesRef.current = next
+      setPlaces(next)
+      persist(next)
     },
     [persist],
   )
@@ -252,7 +257,7 @@ export function WidgetGrid({
 
       {/* dense: плитки разного размера оставляют дыры в строке, и без него широкая,
           не влезшая в остаток строки, уезжала вниз, а слева зиял пустой квадрат. */}
-      <div className="grid grid-cols-2 gap-2.5 [grid-auto-flow:dense] lg:grid-cols-4">
+      <div className="grid grid-cols-6 gap-2.5 [grid-auto-flow:dense] lg:grid-cols-12">
         {list.map((p, i) => (
           <Cell
             key={p.id}
@@ -277,20 +282,24 @@ export function WidgetGrid({
             }}
             onEnd={() => {
               setDragging(null)
-              persist(places)
+              persist(placesRef.current)
             }}
             onStep={(d) => {
               const neighbour = list[i + d]
               if (!neighbour) return
-              move(p.id, neighbour.id)
               // Клавиатурой плитка идёт по одному шагу, и сохранять надо каждый: у
               // стрелки нет «конца жеста», после которого можно записать разом.
-              setPlaces((next) => {
-                persist(next)
-                return next
-              })
+              persist(move(p.id, neighbour.id))
             }}
             onResize={(size) => resize(p.id, size)}
+            // «Мини» — только для плиток-чисел (по умолчанию маленьких). Карта,
+            // календарь или таблица в шестую часть строки не помещаются и вылезали
+            // бы на соседей.
+            sizes={
+              p.size === 'xs' || defaults.find((d) => d.id === p.id)?.size === 's'
+                ? TILE_SIZES
+                : TILE_SIZES.filter((s) => s !== 'xs')
+            }
           />
         ))}
       </div>
@@ -315,6 +324,7 @@ function Cell({
   onEnd,
   onStep,
   onResize,
+  sizes,
 }: {
   id: string
   size: TileSize
@@ -332,6 +342,7 @@ function Cell({
   onEnd: () => void
   onStep: (d: -1 | 1) => void
   onResize: (size: TileSize) => void
+  sizes: TileSize[]
 }) {
   const controls = useDragControls()
   const dragged = useRef(false)
@@ -414,6 +425,7 @@ function Cell({
         el.current = node
         bind(node)
       }}
+      data-tile-size={size}
       layout={reduce ? false : 'position'}
       transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 38 }}
       drag={edit}
@@ -487,10 +499,10 @@ function Cell({
       {edit && (
         <div
           data-tile-controls
-          className="absolute bottom-0.5 right-0.5 flex items-center gap-0.5 rounded-lg bg-ink-950/80 p-0.5 backdrop-blur"
+          className="absolute bottom-0.5 right-0.5 flex max-w-[calc(100%-4px)] flex-wrap items-center justify-end gap-0.5 rounded-lg bg-ink-950/80 p-0.5 backdrop-blur"
         >
           <span className="flex items-center rounded-md ring-1 ring-white/12" role="group" aria-label={labels.size}>
-            {TILE_SIZES.map((s) => (
+            {sizes.map((s) => (
               <button
                 key={s}
                 type="button"
@@ -526,10 +538,10 @@ function Cell({
   )
 }
 
-/** Значок размера — сам прямоугольник нужной пропорции, а не буква: три подписи
- *  «М / Ш / Б» на шести языках разъехались бы по ширине, а форма понятна без слов. */
+/** Значок размера — сам прямоугольник нужной пропорции, а не буква: четыре подписи
+ *  «Мини / М / Ш / Б» на шести языках разъехались бы по ширине, а форма понятна без слов. */
 function SizeMark({ size }: { size: TileSize }) {
-  const w = size === 's' ? 7 : size === 'w' ? 12 : 14
+  const w = size === 'xs' ? 4 : size === 's' ? 7 : size === 'w' ? 12 : 14
   const h = size === 'l' ? 11 : 7
   return (
     <svg width="16" height="14" viewBox="0 0 16 14" aria-hidden>

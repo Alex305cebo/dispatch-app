@@ -241,7 +241,7 @@ export function FleetPanel({
           <LocalTime zone={row.zone} className="nums shrink-0 text-xs font-semibold text-t1" />
         )}
       </span>
-      <span className="flex min-w-0 items-center gap-1.5 text-2xs text-t3">
+      <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-2xs text-t3">
         <span className="truncate">{updatedText}</span>
         <RefreshFleetButton staleMinutes={staleMinutes} />
         {row && (
