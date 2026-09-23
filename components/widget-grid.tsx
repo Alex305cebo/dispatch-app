@@ -19,10 +19,12 @@
 
 import { useCallback, useEffect, useId, useRef, useState, useTransition } from 'react'
 import { motion, useDragControls, useReducedMotion } from 'motion/react'
-import { Check, GripVertical, LayoutGrid, Lock } from 'lucide-react'
-import { saveTileLayout } from '@/app/actions'
+import { useRouter } from 'next/navigation'
+import { Check, GripVertical, LayoutGrid, Lock, X } from 'lucide-react'
+import { saveTileLayout, setTilesFor } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import type { GridLabels } from '@/lib/grid-labels'
+import type { TilePerson } from '@/lib/tiles'
 import { TILE_SIZES, type TilePage, type TilePlacement, type TileSize } from '@/lib/tiles-core'
 
 /** Всё, что сетка берёт с сервера. Отдельным типом, потому что на «Траках» сетку
@@ -37,9 +39,13 @@ export type TileGridProps = {
   /** Готовые строки, а не функция перевода: сетка — клиентский компонент, а функцию в
    * него со страницы-сервера передать нельзя, Next отвечает ошибкой прямо в браузер. */
   labels: GridLabels
-  /** Смотрит администратор. Переставлять может только он: у остальных полосы с
-   *  кнопкой «Переставить» нет вовсе, плитки — обычные блоки. */
+  /** Смотрит администратор. Переставлять может только он: у остальных кнопка
+   *  «Переставить» с замком и говорит, что просить надо администратора. */
   admin: boolean
+  /** Диспетчеры, которым администратор может поставить личную раскладку. */
+  people: TilePerson[]
+  /** Чью раскладку администратор сейчас правит; null — общую. */
+  forUser: TilePerson | null
   /** Разрешена ли перестановка. Выключатель живёт в настройках и по умолчанию
    *  выключен: тогда кнопки «Переставить» нет вовсе, и плитки — обычные блоки
    *  в сохранённом порядке. */
@@ -74,6 +80,8 @@ export function WidgetGrid({
   labels,
   admin,
   enabled,
+  people,
+  forUser,
   className = '',
 }: TileGridProps & {
   widgets: Widget[]
@@ -92,6 +100,8 @@ export function WidgetGrid({
   const [dragging, setDragging] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
   const [, startSaving] = useTransition()
+  const [switching, startSwitch] = useTransition()
+  const router = useRouter()
   const reduce = useReducedMotion()
   const cells = useRef(new Map<string, HTMLElement>())
   const hintId = useId()
@@ -121,12 +131,21 @@ export function WidgetGrid({
   const persist = useCallback(
     (next: TilePlacement[]) => {
       startSaving(async () => {
-        const res = await saveTileLayout(page, next).catch(() => ({ error: 'x' }))
+        const res = await saveTileLayout(page, next, forUser?.id ?? null).catch(() => ({ error: 'x' }))
         setFailed(!!res && 'error' in res)
       })
     },
-    [page],
+    [page, forUser],
   )
+
+  /** Для кого двигаем: смена куки на сервере сама перерисует страницу уже с
+   *  раскладкой выбранного диспетчера. */
+  const choose = (id: number | null) =>
+    startSwitch(async () => {
+      const res = await setTilesFor(id).catch(() => ({ error: labels.saveFailed }))
+      if (res?.error) notify('error', res.error)
+    })
+  const onlyFor = forUser ? labels.onlyFor.replace('{name}', forUser.name) : ''
 
   /** Двигаем по КЛЮЧУ соседа, а не по номеру места на экране. На разделе это одно и
    *  то же, а на карточке груза и трака — нет: там половина плиток условная (нет
@@ -185,23 +204,77 @@ export function WidgetGrid({
 
   return (
     <div className={className}>
-      {/* Полоса с кнопкой — только у администратора. Когда перестановка выключена в
-          настройках, кнопка заперта: иначе о том, что плитки вообще двигаются, он не узнает. */}
-      {admin && (
-        <div className="mb-2 flex items-center justify-between gap-3 text-xs text-t3">
-          <span id={hintId}>
-            {failed ? (
-              <span className="text-bad-400">{labels.saveFailed}</span>
-            ) : edit ? (
-              <>
-                {touch ? labels.hintTouch : labels.hintPointer}
-                {' · '}
-                <span className="text-t3">{labels.shared}</span>
-              </>
-            ) : null}
-          </span>
-          <span className="flex shrink-0 items-center gap-1.5">
-            {edit && !same && (
+      {/* Полоса с кнопкой стоит у всех. У диспетчера кнопка заперта и объясняет, что
+          переставить может администратор (просьба владельца 23.09.2026: «чтоб знали,
+          что можно попросить»). У администратора заперта, пока перестановка выключена
+          в настройках. */}
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-xs text-t3">
+        <span id={hintId} className="min-w-0">
+          {failed ? (
+            <span className="text-bad-400">{labels.saveFailed}</span>
+          ) : edit ? (
+            <>
+              {touch ? labels.hintTouch : labels.hintPointer}
+              {' · '}
+              <span className={forUser ? 'font-medium text-haul-300' : 'text-t3'}>
+                {forUser ? onlyFor : labels.shared}
+              </span>
+            </>
+          ) : forUser ? (
+            // Администратор смотрит чужую раскладку — видно всегда, а не только в
+            // режиме перестановки: иначе легко забыть, что экран сейчас не общий.
+            <span className="inline-flex items-center gap-1 rounded-md bg-haul-500/15 py-0.5 pl-2 pr-1 font-medium text-haul-300">
+              {onlyFor}
+              <button
+                type="button"
+                aria-label={labels.backToShared}
+                title={labels.backToShared}
+                disabled={switching}
+                onClick={() => choose(null)}
+                className="flex size-5 items-center justify-center rounded hover:bg-haul-500/25"
+              >
+                <X size={12} strokeWidth={2.5} />
+              </button>
+            </span>
+          ) : null}
+        </span>
+        <span className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+          {edit && people.length > 0 && (
+            <select
+              aria-label={labels.forWhom}
+              title={labels.forWhom}
+              value={forUser?.id ?? ''}
+              disabled={switching}
+              onChange={(e) => choose(e.target.value ? Number(e.target.value) : null)}
+              className="max-w-44 rounded-md border border-white/12 bg-ink-900 px-2 py-1 font-medium text-t2 outline-none disabled:opacity-50"
+            >
+              <option value="">{labels.forAll}</option>
+              {people.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {edit && forUser ? (
+            // У личной раскладки «вернуть» значит «как у всех»: личная стирается, и
+            // диспетчер снова видит общую.
+            <button
+              type="button"
+              onClick={() => {
+                startSaving(async () => {
+                  const res = await saveTileLayout(page, [], forUser.id).catch(() => ({ error: 'x' }))
+                  setFailed(!!res && 'error' in res)
+                  router.refresh()
+                })
+              }}
+              className="rounded-md px-2 py-1 font-medium text-t2 ring-1 ring-white/12 hover:bg-white/[0.06]"
+            >
+              {labels.resetShared}
+            </button>
+          ) : (
+            edit &&
+            !same && (
               <button
                 type="button"
                 onClick={() => {
@@ -212,48 +285,46 @@ export function WidgetGrid({
               >
                 {labels.reset}
               </button>
+            )
+          )}
+          {/* Не aria-disabled и не disabled: кнопка заперта, но рабочая — она
+              объясняет, чего не хватает. У выключенной мимо проходят и палец, и
+              озвучка, и человек остаётся с молчащей кнопкой. */}
+          <button
+            type="button"
+            aria-pressed={enabled ? edit : undefined}
+            title={enabled ? undefined : admin ? labels.locked : labels.askAdmin}
+            onClick={() => {
+              if (!enabled) {
+                notify('warn', admin ? labels.locked : labels.askAdmin)
+                return
+              }
+              setEdit(!edit)
+              try {
+                localStorage.setItem(editKey, edit ? '0' : '1')
+              } catch {
+                // приватный режим — выбор просто не переживёт перезагрузку
+              }
+            }}
+            className={`flex items-center gap-1.5 rounded-md px-2 py-1 font-medium ring-1 transition-colors ${
+              !enabled
+                ? 'text-t3 ring-white/8 hover:bg-white/[0.04]'
+                : edit
+                  ? 'bg-haul-500/15 text-haul-300 ring-haul-400/30 hover:bg-haul-500/25'
+                  : 'text-t2 ring-white/12 hover:bg-white/[0.06]'
+            }`}
+          >
+            {!enabled ? (
+              <Lock size={13} strokeWidth={2.5} />
+            ) : edit ? (
+              <Check size={13} strokeWidth={2.5} />
+            ) : (
+              <LayoutGrid size={13} strokeWidth={2.5} />
             )}
-            {/* Не aria-disabled и не disabled: кнопка заперта, но рабочая — она
-                объясняет, чего не хватает. У выключенной мимо проходят и палец, и
-                озвучка, и человек остаётся с молчащей кнопкой. */}
-            <button
-              type="button"
-              aria-pressed={enabled ? edit : undefined}
-              title={enabled ? undefined : labels.locked}
-              onClick={() => {
-                // Выключено в настройках — не молчим и не гасим кнопку совсем: молчащая
-                // кнопка читается как поломка, а погашенная не объясняет, чего не хватает.
-                if (!enabled) {
-                  notify('warn', labels.locked)
-                  return
-                }
-                setEdit(!edit)
-                try {
-                  localStorage.setItem(editKey, edit ? '0' : '1')
-                } catch {
-                  // приватный режим — выбор просто не переживёт перезагрузку
-                }
-              }}
-              className={`flex items-center gap-1.5 rounded-md px-2 py-1 font-medium ring-1 transition-colors ${
-                !enabled
-                  ? 'text-t3 ring-white/8 hover:bg-white/[0.04]'
-                  : edit
-                    ? 'bg-haul-500/15 text-haul-300 ring-haul-400/30 hover:bg-haul-500/25'
-                    : 'text-t2 ring-white/12 hover:bg-white/[0.06]'
-              }`}
-            >
-              {!enabled ? (
-                <Lock size={13} strokeWidth={2.5} />
-              ) : edit ? (
-                <Check size={13} strokeWidth={2.5} />
-              ) : (
-                <LayoutGrid size={13} strokeWidth={2.5} />
-              )}
-              {edit ? labels.done : labels.rearrange}
-            </button>
-          </span>
-        </div>
-      )}
+            {edit ? labels.done : labels.rearrange}
+          </button>
+        </span>
+      </div>
 
       {/* dense: плитки разного размера оставляют дыры в строке, и без него широкая,
           не влезшая в остаток строки, уезжала вниз, а слева зиял пустой квадрат. */}
