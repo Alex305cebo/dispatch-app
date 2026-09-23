@@ -109,5 +109,7 @@ export async function middleware(req: NextRequest) {
 export const config = {
   // These API routes are excluded: their callers (extension, cron pingers) can't
   // send a session cookie — each guards itself with its own shared token instead.
-  matcher: ['/((?!_next/static|_next/image|icon|apple-icon|manifest.webmanifest|favicon.ico|api/fleet|api/eld-poll|api/tg-poll|api/health).*)'],
+  // maplibre/ — воркер карты из public (scripts/copy-maplibre-worker.mjs): библиотечный
+  // код без данных, и подмена его страницей входа молча гасила бы подложку карты.
+  matcher: ['/((?!_next/static|_next/image|icon|apple-icon|manifest.webmanifest|favicon.ico|maplibre/|api/fleet|api/eld-poll|api/tg-poll|api/health).*)'],
 }
