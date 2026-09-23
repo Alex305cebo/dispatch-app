@@ -48,6 +48,7 @@ export async function tgConnected(uid: number): Promise<boolean> {
 /** Drops this user's stored session so /telegram shows the connect form again — for
  * switching which Telegram account they've hooked up (wrong account connected). */
 export async function disconnectTelegram(uid: number): Promise<void> {
+  await dropClient(uid)
   await Promise.all([
     deleteSetting(k('tg_session', uid)),
     deleteSetting(k('tg_api_id', uid)),
@@ -148,13 +149,21 @@ async function withClient<T>(uid: number, fn: (c: TelegramClient) => Promise<T>)
     // time (e.g. localhost open while prod is also live) — Telegram kills this side.
     // Drop the cached client so the NEXT call reconnects instead of reusing a
     // connection that will keep failing the same way forever.
-    if (String(e).includes('AUTH_KEY_DUPLICATED') && clients.get(uid) === c) {
-      await c.disconnect().catch(() => {})
-      clients.delete(uid)
-      dialogsCache.delete(uid)
+    if (/AUTH_KEY_DUPLICATED|SESSION_REVOKED|AUTH_KEY_UNREGISTERED/.test(String(e)) && clients.get(uid) === c) {
+      await dropClient(uid)
     }
     throw e
   }
+}
+
+/** Забыть живое соединение этого пользователя. Нужно при смене сессии: без
+ * этого процесс держал старый клиент, и после «Завершить все сеансы» и нового
+ * входа /telegram показывал SESSION_REVOKED до перезапуска сервера. */
+async function dropClient(uid: number): Promise<void> {
+  const c = clients.get(uid)
+  clients.delete(uid)
+  dialogsCache.delete(uid)
+  if (c) await c.disconnect().catch(() => {})
 }
 
 // getDialogs is called once per exported function just to resolve a chat entity —
@@ -257,6 +266,7 @@ export async function confirmLogin(
   ])
   await p.client.disconnect().catch(() => {})
   pending.delete(token)
+  await dropClient(p.uid)
   return { ok: true }
 }
 
