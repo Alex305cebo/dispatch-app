@@ -224,6 +224,7 @@ export const overviewDict = {
   },
   // Размеры плитки. Слова владельца: маленькая / широкая / большая.
   'grid.size': { ru: 'Размер', en: 'Size', es: 'Tamaño', uk: 'Розмір', ro: 'Mărime', kk: 'Өлшемі' },
+  'grid.size.xs': { ru: 'Мини', en: 'Mini', es: 'Mini', uk: 'Міні', ro: 'Mini', kk: 'Кішкентай' },
   'grid.size.s': { ru: 'Маленькая', en: 'Small', es: 'Pequeña', uk: 'Маленька', ro: 'Mic', kk: 'Кіші' },
   'grid.size.w': { ru: 'Широкая', en: 'Wide', es: 'Ancha', uk: 'Широка', ro: 'Lat', kk: 'Кең' },
   'grid.size.l': { ru: 'Большая', en: 'Large', es: 'Grande', uk: 'Велика', ro: 'Mare', kk: 'Үлкен' },

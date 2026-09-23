@@ -32,6 +32,7 @@ export function gridLabels(locale: Locale): GridLabels {
     shared: t(locale, 'grid.shared'),
     size: t(locale, 'grid.size'),
     sizeNames: {
+      xs: t(locale, 'grid.size.xs'),
       s: t(locale, 'grid.size.s'),
       w: t(locale, 'grid.size.w'),
       l: t(locale, 'grid.size.l'),

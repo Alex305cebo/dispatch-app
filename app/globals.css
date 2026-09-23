@@ -995,3 +995,12 @@
     animation: none;
   }
 }
+
+/* Плитка «Мини» на телефоне — треть ширины, около 110px. Крупное число плитки
+   (класс nums у Stat) там рвалось посередине: «$81,7 / 98». На шаг мельче — и влезает. */
+@media (max-width: 1023px) {
+  [data-tile-size='xs'] .nums.font-bold {
+    font-size: var(--text-lg);
+    line-height: 1.1;
+  }
+}
