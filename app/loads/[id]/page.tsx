@@ -258,7 +258,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 : t(locale, 'loadDetail.sourceManual')}
             {/* Это номер груза, который дал брокер, а не «reference» из бумаги: под ним
                 груз ищут, называют по телефону и пишут в счёте. */}
-            {load.referenceId && ` · ${t(locale, 'import.label.referenceId')} ${load.referenceId}`}
+            {load.referenceId && (
+              <>
+                {` · ${t(locale, 'import.label.referenceId')} `}
+                <span className="whitespace-nowrap">{load.referenceId}</span>
+              </>
+            )}
           </p>
         </div>
         {load.status !== 'paid' && load.status !== 'cancelled' && (

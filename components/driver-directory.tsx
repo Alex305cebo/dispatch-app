@@ -124,9 +124,11 @@ export function DriverTile({ driver, company }: { driver: DriverEntry; company: 
         <span className="text-sm text-t3">{t(locale, 'drivers.noPhone')}</span>
       )}
 
-      <div className="nums truncate text-xs text-t3">
-        {driver.truckNumber ? `TRK-${driver.truckNumber}` : '—'}
-        {driver.trailerNumber ? ` · TRL-${driver.trailerNumber}` : ''}
+      {/* Трак и прицеп переносятся целиком, вторым рядом: в узкой плитке телефона
+          обрезка оставляла «TRK-DEMO-101 · TRL…» — прицеп пропадал. */}
+      <div className="nums flex flex-wrap gap-x-1 text-xs text-t3">
+        <span className="whitespace-nowrap">{driver.truckNumber ? `TRK-${driver.truckNumber}` : '—'}</span>
+        {driver.trailerNumber && <span className="whitespace-nowrap">· TRL-{driver.trailerNumber}</span>}
       </div>
       {dispatcher && (
         <div className="mt-auto truncate text-2xs text-t3">
@@ -180,7 +182,11 @@ export function MyPhoneTile({ phone: fromServer }: { phone: string }) {
         </div>
       ) : (
         <div className="flex items-center gap-1.5">
-          <span className="nums min-w-0 flex-1 truncate text-base font-semibold text-t1">
+          {/* Номер — моноширинным и в одну строку; «не указан» — обычным текстом и с
+              переносом: в узкой плитке моноширинная подпись обрезалась до «no number …». */}
+          <span
+            className={`min-w-0 flex-1 ${phone ? 'nums truncate text-base font-semibold text-t1' : 'text-sm text-t3'}`}
+          >
             {phone || t(locale, 'drivers.noPhone')}
           </span>
           <button

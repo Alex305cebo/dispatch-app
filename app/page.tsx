@@ -39,6 +39,7 @@ import { can } from '@/lib/capabilities-server'
 import { usd, usd2, driveTime, shortName, weekStart } from '@/lib/fmt'
 import { StatusBadge } from '@/components/status'
 import { NeedsLoad } from '@/components/needs-load'
+import { NoBreakWords } from '@/components/ui'
 import { FleetHeatmap } from '@/components/fleet-heatmap'
 import { idleFleet } from '@/lib/idle-fleet'
 import { buildWorkingDays } from '@/lib/heatmap'
@@ -424,7 +425,7 @@ export default async function Page() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="min-w-0 break-words text-md font-medium leading-snug sm:text-md">
-                      {truckLabel(t, trailers.get(t.id))}
+                      <NoBreakWords text={truckLabel(t, trailers.get(t.id))} />
                     </span>
                     {/* Icon-only, with the words on hover. Spelled out ("🔧 в ремонте")
                         this badge took ~55px out of the very row that holds the truck

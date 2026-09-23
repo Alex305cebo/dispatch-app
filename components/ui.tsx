@@ -139,3 +139,15 @@ export function CostBar({
     </div>
   )
 }
+
+/** Подпись из слов, которые рвать нельзя: «Sam R. TRK-DEMO-204 TRL-TR-204». Браузер
+ *  переносит строку и после дефиса, и в узкой карточке номер разъезжался на
+ *  «TRK-DEMO-» и «204». Здесь переносится только между словами. */
+export function NoBreakWords({ text }: { text: string }) {
+  return text.split(' ').map((w, i) => (
+    <span key={i} className="whitespace-nowrap">
+      {i > 0 ? ' ' : ''}
+      {w}
+    </span>
+  ))
+}
