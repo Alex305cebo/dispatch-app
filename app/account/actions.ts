@@ -37,9 +37,9 @@ export async function setRecoveryBirthday(birthday: string): Promise<{ error: st
 
 /** Перестановка плиток: разрешено ли вообще двигать блоки по разделам.
  *
- * Здесь, а не в панели администратора: владелец сказал «сделай для всех, не только
- * для админов». Сам порядок плиток при этом общий на всю компанию — кто переставил,
- * увидели все, — поэтому выключатель и его подпись про это говорят.
+ * Только для администратора (решение владельца 23.09.2026, отменяет «для всех» от
+ * 20.09): порядок плиток общий на всю компанию — кто переставил, увидели все.
+ * Выключатель лежит в меню аккаунта, но у диспетчера его там нет.
  *
  * По умолчанию выключено: ключа в базе нет, пока его не поставят отсюда. */
 export async function setTilesRearrange(enabled: boolean): Promise<{ error: string } | void> {
@@ -48,6 +48,7 @@ export async function setTilesRearrange(enabled: boolean): Promise<{ error: stri
   if (!user) return { error: t(locale, 'admin.err.notAuthorized') }
   // В демо общий аккаунт на всех посетителей: настройка компании оттуда не меняется.
   if (user.isDemo) return { error: t(locale, 'admin.err.demoReadOnly') }
+  if (user.role !== 'admin') return { error: t(locale, 'admin.err.notAuthorized') }
   await setSetting(TILES_ENABLED_KEY, enabled ? '1' : '0')
   // Одного обновления макета хватает: он общий для всех разделов, и кнопка
   // «Переставить» отпирается сразу везде, а не после захода заново. Перебирать

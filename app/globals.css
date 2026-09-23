@@ -328,8 +328,11 @@
   background-color: var(--glass-bg);
   border: 1px solid var(--glass-edge);
   box-shadow: var(--glass-shadow);
-  backdrop-filter: var(--glass-blur);
+  /* Порядок важен: префиксная строка — первой. Наоборот lightningcss склеивал две
+     строки с одинаковым var() в одну -webkit-, а её Chrome не знает — стекло там
+     было без размытия, и карточки поверх страницы (экскурсия, меню) просвечивали. */
   -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
 }
 
 /* Tier 2: a surface INSIDE a panel — поле, выбранная строка, метрика. */

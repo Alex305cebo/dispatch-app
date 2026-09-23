@@ -116,7 +116,7 @@ function ControlRow({ icon, label, control }: { icon: React.ReactNode; label: st
 /** Переключатель перестановки плиток в меню аккаунта. Значение видно справа, не
  *  нажимая, как у остальных строк этой группы. Настройка общая на компанию, об этом
  *  говорит подпись под строкой — иначе человек не поймёт, почему включил он, а
- *  кнопка появилась у всех. */
+ *  кнопка появилась у всех администраторов. */
 function TilesRow({ enabled, locale }: { enabled: boolean; locale: Locale }) {
   const [pending, start] = useTransition()
   return (
@@ -379,9 +379,9 @@ export function UserPanel({
                   control={themeControl}
                 />
               )}
-              {/* Перестановка плиток. Выключена — на разделах кнопка «Переставить»
-                  видна, но заперта и говорит, где её включить. */}
-              <TilesRow enabled={tilesEnabled} locale={locale} />
+              {/* Перестановка плиток — только администратору. Выключена — на разделах
+                  кнопка «Переставить» видна, но заперта и говорит, где её включить. */}
+              {user.role === 'admin' && <TilesRow enabled={tilesEnabled} locale={locale} />}
               {/* Уведомления браузера — разрешение спрашивается только отсюда. */}
               <AlertToggle />
               <Row
