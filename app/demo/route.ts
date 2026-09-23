@@ -32,7 +32,9 @@ export async function GET(req: Request) {
   // (.example is reserved by RFC 2606 and can never resolve, so nobody reading this
   // comment can accidentally visit a stranger's domain.)
   const raw = new URL(req.url).searchParams.get('next')
-  const next = raw && /^\/[^/\\]/.test(raw) ? raw : '/'
+  // Управляющие символы и пробелы — тоже отказ: браузер выбрасывает из адреса табы и
+  // переводы строк, и "/<TAB>/attacker.example" после проверки превращался в "//…".
+  const next = raw && /^\/[^/\\]/.test(raw) && !/[\x00-\x20\x7f]/.test(raw) ? raw : '/'
   // Relative Location on purpose: behind Hostinger's reverse proxy the request's own
   // URL is the internal http://0.0.0.0:3000 bind address, so an absolute redirect
   // (new URL('/', req.url)) sent the browser to 0.0.0.0 (ERR_ADDRESS_INVALID). A
