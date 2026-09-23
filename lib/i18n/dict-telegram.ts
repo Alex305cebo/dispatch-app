@@ -168,6 +168,15 @@ export const telegramDict = {
   'telegram.settings.save': { ru: 'Сохранить список', en: 'Save list', es: 'Guardar la lista', uk: 'Зберегти список', ro: 'Salvează lista', kk: 'Тізімді сақтау' },
   'telegram.settings.saved': { ru: 'Список чатов обновлён', en: 'Chat list updated', es: 'Lista de chats actualizada', uk: 'Список чатів оновлено', ro: 'Lista de chat-uri a fost actualizată', kk: 'Чаттар тізімі жаңартылды' },
 
+  // app/telegram/tg-add-chat.tsx
+  'telegram.add.button': { ru: 'Добавить чат', en: 'Add chat', es: 'Añadir chat', uk: 'Додати чат', ro: 'Adaugă chat', kk: 'Чат қосу' },
+  'telegram.add.title': { ru: 'Добавить чат в список', en: 'Add a chat to the list', es: 'Añadir un chat a la lista', uk: 'Додати чат до списку', ro: 'Adaugă un chat în listă', kk: 'Тізімге чат қосу' },
+  'telegram.add.count': { ru: 'в списке: {n}', en: 'in list: {n}', es: 'en la lista: {n}', uk: 'у списку: {n}', ro: 'în listă: {n}', kk: 'тізімде: {n}' },
+  'telegram.add.add': { ru: 'Добавить', en: 'Add', es: 'Añadir', uk: 'Додати', ro: 'Adaugă', kk: 'Қосу' },
+  'telegram.add.inList': { ru: '✓ В списке', en: '✓ In list', es: '✓ En la lista', uk: '✓ У списку', ro: '✓ În listă', kk: '✓ Тізімде' },
+  'telegram.add.added': { ru: '«{name}» добавлен', en: '“{name}” added', es: '«{name}» añadido', uk: '«{name}» додано', ro: '„{name}” adăugat', kk: '«{name}» қосылды' },
+  'telegram.add.removed': { ru: '«{name}» убран из списка', en: '“{name}” removed from the list', es: '«{name}» quitado de la lista', uk: '«{name}» прибрано зі списку', ro: '„{name}” scos din listă', kk: '«{name}» тізімнен алынды' },
+
   // app/telegram/tg-setup.tsx
   'telegram.setup.codeRequested': { ru: 'Код запрошен', en: 'Code requested', es: 'Código solicitado', uk: 'Код запитано', ro: 'Cod solicitat', kk: 'Код сұралды' },
   'telegram.setup.connected': { ru: 'Telegram подключён', en: 'Telegram connected', es: 'Telegram conectado', uk: 'Telegram підключено', ro: 'Telegram conectat', kk: 'Telegram қосылды' },

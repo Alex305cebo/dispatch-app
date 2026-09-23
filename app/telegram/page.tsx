@@ -23,6 +23,7 @@ import { TgDisconnectButton } from './tg-disconnect-button'
 import { TgAttachButton } from './tg-attach-button'
 import { TgImage } from './tg-image'
 import { TgChatSettings } from './tg-chat-settings'
+import { TgAddChat } from './tg-add-chat'
 import { Info } from '@/components/info'
 import { CountTile } from '@/components/count-tile'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
@@ -193,6 +194,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
           <div className="grid gap-3 md:grid-cols-[minmax(240px,1fr)_2fr]">
             {/* Dialog list — on phones it hides once a chat is open (back link shows it). */}
             <div className={`panel overflow-hidden ${open ? 'max-md:hidden' : ''}`}>
+              {!error && <TgAddChat dialogs={allDialogs} shown={[...shown]} />}
               {dialogs.length === 0 && !error ? (
                 <p className="p-4 text-base text-t3">{t(locale, 'telegram.page.noneShownYet')}</p>
               ) : (
