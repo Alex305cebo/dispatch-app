@@ -90,7 +90,7 @@ export function NewLoadClient({
       // One automatic retry before bothering the dispatcher — a slow scan is usually
       // just slow, not a real failure.
       let res = await aiParseRateCon(input, locale)
-      if (!res.ok) {
+      if (!res.ok && res.reason !== 'off') {
         await new Promise((r) => setTimeout(r, 1500))
         res = await aiParseRateCon(input, locale)
       }
@@ -105,7 +105,9 @@ export function NewLoadClient({
         throw new Error(
           res.reason === 'no_key'
             ? t(locale, 'newLoad.aiUnavailable')
-            : t(locale, 'newLoad.notRecognized')
+            : res.reason === 'off' && res.detail
+              ? res.detail
+              : t(locale, 'newLoad.notRecognized')
                 .replace('{detail}', res.detail ?? t(locale, 'newLoad.aiUnavailableShort')),
         )
       }

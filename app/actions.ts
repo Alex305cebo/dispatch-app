@@ -49,6 +49,32 @@ import type { CapabilityKey } from '@/lib/capabilities'
 import { t } from '@/lib/i18n'
 import { getLocale } from '@/lib/i18n-server'
 
+/**
+ * Запись — только с настоящего входа. Демо — общая витрина (lib/session.ts
+ * demoReadOnly), а без сессии сюда попадает посетитель в режиме открытого доступа
+ * (переключатель в админке, middleware.ts): смотреть ему можно, менять парк — нет.
+ * Раньше companyScope() без сессии отвечал «основная компания», и аноним писал
+ * прямо в настоящие грузы.
+ *   const ro = await writeGuard(); if (ro) return ro
+ */
+async function writeGuard(): Promise<{ error: string } | null> {
+  const user = await getCurrentUser()
+  if (!user) return { error: t(await getLocale(), 'actions.signInRequired') }
+  return demoReadOnly()
+}
+
+/**
+ * Для всего, что тратит платный лимит Gemini, даже ничего не сохраняя (перевод,
+ * распознавание). Демо открыто всем, а ключ у компании один: витрина не должна
+ * выбирать его дневную квоту. Без сессии — то же самое.
+ */
+async function aiGuard(): Promise<{ error: string } | null> {
+  const user = await getCurrentUser()
+  if (!user) return { error: t(await getLocale(), 'actions.signInRequired') }
+  if (user.isDemo) return { error: t(await getLocale(), 'actions.demoAiOff') }
+  return null
+}
+
 export async function vetBroker(mc: string, ctx: RcContext): Promise<BrokerCheck | { error: string }> {
   return checkBroker(mc, ctx, await getLocale())
 }
@@ -61,7 +87,7 @@ export async function vetBroker(mc: string, ctx: RcContext): Promise<BrokerCheck
  * применён к ключам Telegram (lib/telegram.ts).
  */
 export async function saveDispatcherPhone(phone: string): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const user = await getCurrentUser()
   if (!user) return { error: t(await getLocale(), 'actions.noAccess') }
@@ -103,7 +129,7 @@ export async function saveTileLayout(
   if (!user) return { error: t(locale, 'actions.noAccess') }
   // В демо запись в базу закрыта. Порядок при этом всё равно меняется на экране —
   // в демо и показывать нечего, кроме того, что перестановка работает.
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   if (user.role !== 'admin') return { error: t(locale, 'actions.noAccess') }
   if (!TILE_PAGES.includes(page)) return { error: t(locale, 'actions.noAccess') }
@@ -186,7 +212,7 @@ export async function updateBrokerInfo(
   find: { mc: string | null; name: string | null },
   patch: { mc?: string; name?: string; phone?: string; email?: string },
 ): Promise<{ updated: number } | { error: string }> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   const companyId = await companyScope()
@@ -460,7 +486,7 @@ export async function fetchDatSnapshot(equipment: string | null, truckId: number
 export async function applyDieselPrice(
   truckId: number | null,
 ): Promise<{ price: number; asOf: string; count: number } | { error: string }> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const denied = await assertCan('edit_trucks')
   if (denied) return denied
@@ -511,8 +537,11 @@ export async function saveTracking(
   text: string,
 ): Promise<{ saved: number; updated: number; errors: string[] } | { error: string }> {
   // Ключи GPS общие для настоящего парка: из общей витрины демо их не меняют и не стирают.
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
+  // И только администратор: ключ один на всю компанию, диспетчер его не подменяет.
+  const denied = await assertAdmin()
+  if (denied) return denied
   const locale = await getLocale()
   const { parseShareTokens, liveShareSnapshot } = await import('@/lib/eld')
   const { setSetting } = await import('@/lib/settings')
@@ -550,8 +579,10 @@ export async function saveTracking(
 
 /** Отключить отслеживание: убрать и ссылки, и токен. */
 export async function clearTracking(): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
+  const denied = await assertAdmin()
+  if (denied) return denied
   const { deleteSetting } = await import('@/lib/settings')
   await deleteSetting('eld_share_tokens')
   await deleteSetting('samsara_token')
@@ -605,6 +636,8 @@ export async function refreshFleetStatus(): Promise<{
  * the page already on screen never re-renders to show it, so the caller only forces a
  * re-render when there's actually fresh data behind it. */
 export async function autoRefreshFleet(): Promise<boolean> {
+  // Здесь только демо, а не writeGuard: опрос GPS — не правка чьих-то данных, и в
+  // режиме открытого доступа карта без входа тоже должна оставаться живой.
   const ro = await demoReadOnly()
   if (ro) return false
   const THROTTLE_MS = 3 * 60 * 1000
@@ -696,6 +729,13 @@ async function autoAdvanceLoadStatuses(): Promise<void> {
 async function assertCan(key: CapabilityKey): Promise<{ error: string } | null> {
   const user = await getCurrentUser()
   if (!(await can(user, key))) return { error: t(await getLocale(), 'actions.noAccess') }
+  return null
+}
+
+/** Настройки на всю компанию (ключи GPS) — только администратор. */
+async function assertAdmin(): Promise<{ error: string } | null> {
+  const user = await getCurrentUser()
+  if (!user || user.role !== 'admin') return { error: t(await getLocale(), 'actions.noAccess') }
   return null
 }
 
@@ -908,7 +948,7 @@ export async function createLoad(
    * /import path) — null for a manual/QR entry, which has nothing to render. */
   driverInfo?: string,
 ): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   let id: number
   const locale = await getLocale()
@@ -1169,7 +1209,7 @@ export async function createLoadFromRc(
   /** Все остановки рейса из того же чтения (lib/stops.ts); две и меньше — обычный груз. */
   stops?: LoadStop[],
 ): Promise<RcCreateResult | { error: string; elsewhereLoadId?: number }> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   let lock: string | null = null
@@ -1414,6 +1454,10 @@ export async function createLoadFromExistingRc(
   docId: number,
   truckId: number,
 ): Promise<{ loadId: number } | { error: string }> {
+  // До чтения ИИ, а не только в createLoadFromRc: иначе демо тратило бы квоту Gemini
+  // и получало отказ уже после.
+  const ro = await writeGuard()
+  if (ro) return ro
   const companyId = await companyScope()
   const locale = await getLocale()
   // Postgres' encode() wraps base64 at PEM width; Gemini's inlineData rejects the
@@ -1459,7 +1503,7 @@ async function deliveryDocs(loadId: number): Promise<{ bol: boolean; pod: boolea
 }
 
 export async function setStatus(id: number, status: LoadStatus): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   // «Доставлен» больше НЕ требует бумаг. Груз доставлен в тот момент, когда водитель
   // его сдал, — а POD приходит фотографией через час-два, и всё это время статус врал.
@@ -1523,7 +1567,7 @@ function finiteTruck(t: TruckInput): TruckInput {
 }
 
 export async function saveTruck(id: number, t: TruckInput): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   t = finiteTruck(t)
   const denied = await assertCan('edit_trucks')
@@ -1563,7 +1607,7 @@ export async function setTruckAvailability(
   truckId: number,
   status: 'active' | 'repair' | 'vacation',
 ): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const denied = await assertCan('edit_trucks')
   if (denied) return denied
@@ -1581,6 +1625,8 @@ const MAX_DOC_BYTES = 8 * 1024 * 1024
  * with it — so a BOL dropped on the truck card is filed as a BOL, not force-labelled a rate
  * con. Degrades to 'other' with no AI key; never throws. */
 export async function classifyDoc(file: File): Promise<DocClass | null> {
+  // Демо и вход без сессии квоту Gemini не тратят; null значит «определить не удалось».
+  if (await aiGuard()) return null
   // Аргумент — ФАЙЛ, а не base64-строка. Строкой это ломалось на настоящих
   // рейт-конах: сериализатор сервер-экшенов Next режет длинную строку на вложенные
   // массивы и на ~мегабайте падает с «Maximum array nesting exceeded», а наружу
@@ -1601,7 +1647,7 @@ export async function classifyDoc(file: File): Promise<DocClass | null> {
  * id so the RC import can attach the document to the load it creates a moment later.
  */
 export async function uploadDocument(fd: FormData): Promise<{ id: number } | { error: string }> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   const file = fd.get('file')
@@ -1646,7 +1692,7 @@ export async function uploadDocument(fd: FormData): Promise<{ id: number } | { e
 /** Отметки водителя правит диспетчер: водитель мог нажать кнопку не вовремя или
  * забыть нажать вовсе, а от этих времён считается детеншен. */
 export async function removeLoadEvent(id: number): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const companyId = await companyScope()
   const { deleteLoadEvent } = await import('@/lib/load-events')
@@ -1655,7 +1701,7 @@ export async function removeLoadEvent(id: number): Promise<{ error: string } | v
 }
 
 export async function setLoadEventTime(id: number, atIso: string): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const when = new Date(atIso)
   if (Number.isNaN(when.getTime())) return { error: 'bad date' }
@@ -1673,7 +1719,7 @@ export async function addLoadEventManual(
   /** Какой остановки касается (lib/stops.ts); без номера — концы рейса. */
   stopSeq?: number | null,
 ): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const allowed = ['arrived_pickup', 'loaded', 'arrived_delivery', 'delivered', 'note']
   if (!allowed.includes(kind)) return { error: 'bad kind' }
@@ -1695,7 +1741,7 @@ export async function addLoadEventManual(
  * груз не заведён или выгрузок в день две. Подтверждённое число флаг больше не трогает.
  */
 export async function setDeadhead(loadId: number, miles: number): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   const mi = Math.round(Number(miles))
@@ -1712,7 +1758,7 @@ export async function setDeadhead(loadId: number, miles: number): Promise<{ erro
 /** Ручной порядок остановок задания трака (стрелки в «Задании по порядку»). Лента
  * в приложении водителя строится по нему же. */
 export async function saveTaskOrder(truckId: number, keys: string[]): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   if (!(await truckBelongs(await companyScope(), truckId))) return { error: 'truck' }
   const clean = keys.filter((k) => typeof k === 'string' && /^\d+:\d+$/.test(k)).slice(0, 100)
@@ -1732,7 +1778,7 @@ export async function setStopState(
   seq: number,
   state: 'none' | 'arrived' | 'done',
 ): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   if (!['none', 'arrived', 'done'].includes(state)) return { error: 'bad state' }
   const companyId = await companyScope()
@@ -1782,7 +1828,7 @@ export async function unmarkStop(
   stopSeq: number,
   role: 'pickup' | 'delivery',
 ): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const companyId = await companyScope()
   if (!(await loadBelongs(companyId, loadId))) return { error: 'load' }
@@ -1793,7 +1839,7 @@ export async function unmarkStop(
 }
 
 export async function setDocumentKind(docId: number, kind: string): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   if (!(kind in DOC_KINDS)) return { error: 'bad kind' }
   const companyId = await companyScope()
@@ -1809,21 +1855,43 @@ export async function setDocumentKind(docId: number, kind: string): Promise<{ er
   }
 }
 
-/** Постоянная ссылка на страницу водителя этого трака (lib/driver-link.ts). */
+/** Постоянная ссылка на страницу водителя этого трака (lib/driver-link.ts). Ссылка —
+ * ключ к записи в рейс без входа, поэтому выдаётся только тому, кто вошёл сам. */
 export async function getDriverLink(truckId: number): Promise<{ url: string } | { error: string }> {
-  const companyId = await companyScope()
+  const user = await getCurrentUser()
+  if (!user) return { error: t(await getLocale(), 'actions.signInRequired') }
+  const companyId = user.companyId
   if (companyId === 'demo') return { error: 'demo' }
   if (!(await truckBelongs(companyId, truckId))) return { error: 'truck' }
   const { driverTokenFor } = await import('@/lib/driver-link')
-  const token = await driverTokenFor(truckId)
+  return { url: await driverUrl(await driverTokenFor(truckId)) }
+}
+
+/**
+ * «Новая ссылка» водителю: прежние ссылки этого трака перестают открываться сразу
+ * (утекла, водитель ушёл). Сама собой ссылка не меняется никогда — только так.
+ */
+export async function newDriverLink(truckId: number): Promise<{ url: string } | { error: string }> {
+  const ro = await writeGuard()
+  if (ro) return ro
+  const companyId = await companyScope()
+  if (!(await truckBelongs(companyId, truckId))) return { error: t(await getLocale(), 'actions.truckNotFound') }
+  const { newDriverToken } = await import('@/lib/driver-link')
+  const url = await driverUrl(await newDriverToken(truckId))
+  revalidatePath(`/trucks/${truckId}`)
+  revalidatePath('/loads', 'layout')
+  return { url }
+}
+
+async function driverUrl(token: string): Promise<string> {
   const h = await headers()
   const host = h.get('x-forwarded-host') ?? h.get('host') ?? ''
   const proto = h.get('x-forwarded-proto') ?? 'https'
-  return { url: `${proto}://${host}/d/${token}` }
+  return `${proto}://${host}/d/${token}`
 }
 
 export async function attachDocumentToLoad(docId: number, loadId: number): Promise<void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return
   const companyId = await companyScope()
   if (!(await docBelongs(companyId, docId)) || !(await loadBelongs(companyId, loadId))) return
@@ -1866,7 +1934,7 @@ async function auditDelete(
  * own password, audited (who, what, the load route) — shown in the Журнал.
  */
 export async function deleteDocument(id: number, confirm: string): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   const check = await confirmDelete(confirm, locale)
@@ -1900,7 +1968,7 @@ export async function deleteDocument(id: number, confirm: string): Promise<{ err
 
 /** Pull a document back out of the trash — the safe direction, no PIN needed. */
 export async function restoreDocument(id: number): Promise<void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return
   const companyId = await companyScope()
   if (!(await docBelongs(companyId, id))) return
@@ -1913,7 +1981,7 @@ export async function restoreDocument(id: number): Promise<void> {
 /** Erases a trashed document for real — same name + PIN guard as the soft delete,
  * since this direction can't be undone. */
 export async function purgeDocument(id: number, confirm: string): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   const check = await confirmDelete(confirm, locale)
@@ -1968,7 +2036,7 @@ export type LoadDetailsPatch = {
 }
 
 export async function updateLoadDetails(loadId: number, p: LoadDetailsPatch): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   if (!(p.rate >= 0)) return { error: t(locale, 'actions.rateNegative') }
@@ -2002,7 +2070,7 @@ export async function updateLoadDetails(loadId: number, p: LoadDetailsPatch): Pr
  * с карты и со страницы водителя и не встаёт «следующим».
  */
 export async function setLoadPartial(loadId: number, partial: boolean): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const companyId = await companyScope()
   if (!(await loadBelongs(companyId, loadId))) return { error: t(await getLocale(), 'actions.loadNotFound') }
@@ -2019,7 +2087,7 @@ export async function setLoadPartial(loadId: number, partial: boolean): Promise<
 /** Флаг «следить» (caution / important / critical), как в Alvys: поднимает груз наверх
  * очереди внимания на /loads. null — снять. */
 export async function setLoadPriority(loadId: number, priority: LoadPriority | null): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const companyId = await companyScope()
   if (!(await loadBelongs(companyId, loadId))) return { error: t(await getLocale(), 'actions.loadNotFound') }
@@ -2038,7 +2106,7 @@ export async function addLoadCharge(
   amount: number,
   note: string,
 ): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   const companyId = await companyScope()
@@ -2054,7 +2122,7 @@ export async function addLoadCharge(
 }
 
 export async function deleteLoadCharge(id: number, loadId: number): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const companyId = await companyScope()
   if (!(await loadBelongs(companyId, loadId))) return { error: t(await getLocale(), 'actions.loadNotFound') }
@@ -2066,7 +2134,7 @@ export async function deleteLoadCharge(id: number, loadId: number): Promise<{ er
  * Пустая строка стирает. Ключ — нормализованный адрес, поэтому без проверки владельца:
  * settings и так общие на компанию. */
 export async function saveFacilityNote(key: string, text: string): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   if (!key || key.length > 120) return { error: 'bad key' }
   const value = text.trim().slice(0, 500)
@@ -2079,7 +2147,7 @@ export async function saveFacilityNote(key: string, text: string): Promise<{ err
 
 /** Заметка о брокере: как платит, с кем говорить. Видна в карточке брокера. */
 export async function saveBrokerNote(key: string, text: string): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   if (!key || key.length > 120) return { error: 'bad key' }
   const { brokerNoteKey } = await import('@/lib/broker-key')
@@ -2091,7 +2159,7 @@ export async function saveBrokerNote(key: string, text: string): Promise<{ error
 
 /** Save the broker's special-instructions text (the "must read" block). */
 export async function setBrokerNotes(loadId: number, notes: string): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   try {
     await sql`UPDATE loads SET broker_notes = ${notes.trim() || null}
@@ -2107,6 +2175,8 @@ export async function translateBrokerNotes(
   text: string,
   targetLang: 'ru' | 'en',
 ): Promise<{ text: string } | { error: string }> {
+  const off = await aiGuard()
+  if (off) return off
   const locale = await getLocale()
   if (!text.trim()) return { error: t(locale, 'actions.emptyText') }
   const { translatePlainText } = await import('@/lib/ratecon-gemini')
@@ -2123,7 +2193,7 @@ export async function translateBrokerNotes(
 
 /** Dispatcher acknowledged the broker notes — stops highlighting them. */
 export async function markNotesRead(loadId: number): Promise<void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return
   await sql`UPDATE loads SET notes_read_at = NOW(6)
     WHERE id = ${loadId} AND company_id = ${await companyScope()} AND notes_read_at IS NULL`
@@ -2143,7 +2213,7 @@ export async function markNotesRead(loadId: number): Promise<void> {
  * existed catches up to one created after, field for field.
  */
 export async function parseRcForNotes(loadId: number): Promise<{ error: string } | { ok: true; found: boolean }> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const companyId = await companyScope()
   const locale = await getLocale()
@@ -2209,7 +2279,7 @@ export async function parseRcForNotes(loadId: number): Promise<{ error: string }
  * library instead of blocking the delete on the foreign key.
  */
 export async function deleteLoad(id: number, confirm: string): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   const check = await confirmDelete(confirm, locale)
@@ -2251,7 +2321,7 @@ export type MaintenanceInput = {
 }
 
 export async function addMaintenance(truckId: number, m: MaintenanceInput): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   if (!m.title.trim()) return { error: t(locale, 'actions.sayWhatWasDone') }
@@ -2278,7 +2348,7 @@ export async function deleteMaintenance(
   truckId: number,
   confirm: string,
 ): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   const check = await confirmDelete(confirm, locale)
@@ -2303,7 +2373,7 @@ export async function addTodo(
   title: string,
   priority: 'low' | 'normal' | 'urgent',
 ): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   if (!title.trim()) return { error: t(locale, 'actions.sayWhatToFix') }
@@ -2318,7 +2388,7 @@ export async function addTodo(
 }
 
 export async function toggleTodo(id: number, truckId: number): Promise<void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return
   if (!(await truckBelongs(await companyScope(), truckId))) return
   await sql`UPDATE truck_todos
@@ -2328,7 +2398,7 @@ export async function toggleTodo(id: number, truckId: number): Promise<void> {
 }
 
 export async function deleteTodo(id: number, truckId: number, confirm: string): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   const check = await confirmDelete(confirm, locale)
@@ -2398,7 +2468,7 @@ export async function saveDriverInfo(
     vin?: string
   },
 ): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
@@ -2437,7 +2507,7 @@ const MAX_PHOTO_BYTES = 4 * 1024 * 1024
 
 /** FormData: file. Stored on truck_meta, served by /api/driver-photo/[truckId]. */
 export async function saveDriverPhoto(truckId: number, fd: FormData): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   const file = fd.get('file')
@@ -2464,7 +2534,7 @@ export async function saveDriverPhoto(truckId: number, fd: FormData): Promise<{ 
 
 /** Своё фото трака для шапки карточки. FormData: file. Отдаёт /api/truck-photo/[truckId]. */
 export async function saveTruckPhoto(truckId: number, fd: FormData): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   const file = fd.get('file')
@@ -2491,7 +2561,7 @@ export async function saveTruckPhoto(truckId: number, fd: FormData): Promise<{ e
 /** Готовая картинка трака из списка (lib/truck-models.ts) или null — стандартная.
  * Своё загруженное фото при этом снимается: показывается то, что выбрали последним. */
 export async function saveTruckModel(truckId: number, model: string | null): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   const { isTruckModel } = await import('@/lib/truck-models')
@@ -2512,7 +2582,7 @@ export async function saveTruckModel(truckId: number, model: string | null): Pro
 }
 
 export async function saveTruckMeta(truckId: number, m: TruckMetaInput): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
@@ -2556,8 +2626,11 @@ export async function saveTruckMeta(truckId: number, m: TruckMetaInput): Promise
 }
 
 export async function addTruck(t: TruckInput): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
+  // Та же проверка, что у saveTruck: без права «править траки» нельзя и завести новый.
+  const denied = await assertCan('edit_trucks')
+  if (denied) return denied
   t = finiteTruck(t)
   const cpm = t.driverPay.mode === 'cpm' ? t.driverPay.centsPerMile : null
   const pct = t.driverPay.mode === 'percent' ? t.driverPay.percentOfGross : null
@@ -2789,7 +2862,7 @@ export async function tollLoadChoices(): Promise<{ id: number; label: string }[]
 export async function tollsFromDocument(
   fd: FormData,
 ): Promise<{ from: string; to: string; rate: number | null } | { error: string }> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   const file = fd.get('file')
@@ -2831,7 +2904,9 @@ export async function readBoardScreenshot(
   fd: FormData,
 ): Promise<{ lines: string[]; skipped: number } | { error: string }> {
   const locale = await getLocale()
-  if ((await getCurrentUser())?.isDemo) return { error: t(locale, 'plan.boardDemo') }
+  const who = await getCurrentUser()
+  if (!who) return { error: t(locale, 'actions.signInRequired') }
+  if (who.isDemo) return { error: t(locale, 'plan.boardDemo') }
   // Список DAT не влезает в один экран — до четырёх скриншотов за раз.
   const files = fd
     .getAll('file')
@@ -2865,7 +2940,9 @@ export async function readBoardScreenshot(
  */
 export async function quoteBoardLane(label: string, miles: number, loadId?: number): Promise<{ rpm: number } | { error: string }> {
   const locale = await getLocale()
-  if ((await getCurrentUser())?.isDemo) return { error: t(locale, 'plan.boardDemo') }
+  const who = await getCurrentUser()
+  if (!who) return { error: t(locale, 'actions.signInRequired') }
+  if (who.isDemo) return { error: t(locale, 'plan.boardDemo') }
   const [fromCity = '', toCity = ''] = (label.split('·')[0] ?? '').split('→').map((s) => s.trim())
   const companyId = await companyScope()
   if (loadId != null && !(await loadBelongs(companyId, loadId))) return { error: t(locale, 'actions.loadNotFound') }
@@ -2919,7 +2996,7 @@ async function saveWarpLane(
  * грузу от одного взгляда на карту нельзя.
  */
 export async function saveLoadTolls(loadId: number, tolls: number): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   const companyId = await companyScope()
@@ -2964,7 +3041,7 @@ export async function logClientError(input: {
  * поправить. VIN подтянет ближайший опрос ELD (lib/eld.ts пишет его в truck_meta).
  */
 export async function addTruckFromEld(unit: string): Promise<{ error: string } | { id: number }> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   const companyId = await companyScope()
@@ -3006,7 +3083,7 @@ export async function addTruckFromEld(unit: string): Promise<{ error: string } |
  * удаление на карточке груза с подтверждением. Файлы возвращаются из корзины.
  */
 export async function undoRcUpload(loadId: number): Promise<{ error: string } | void> {
-  const ro = await demoReadOnly()
+  const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   const companyId = await companyScope()

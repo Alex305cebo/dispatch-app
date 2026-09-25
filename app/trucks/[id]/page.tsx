@@ -130,9 +130,10 @@ export default async function Page({
   // Когда водитель последний раз открывал свою страницу — видно, что ссылка живая.
   const driverSeen = await getSetting(`driver_seen:${truck.id}`)
   // Адрес страницы водителя готов сразу — тогда кнопки «отправить в Telegram или
-  // SMS» видны без лишнего нажатия. В демо ссылку не выдаём.
+  // SMS» видны без лишнего нажатия. В демо ссылку не выдаём — и без входа (открытый
+  // доступ) тоже: ссылка даёт записывать в рейс.
   const driverLink =
-    companyId === 'demo'
+    companyId === 'demo' || !user
       ? null
       : await (async () => {
           const { driverTokenFor } = await import('@/lib/driver-link')
@@ -545,7 +546,7 @@ export default async function Page({
         {/* Страница водителя — заметным блоком, а не значком в углу: пока водитель
             ссылку не открывал, блок подсвечен и зовёт её отправить. */}
         {driverLink && !activeLoad && (
-          <DriverLinkButton url={driverLink} driverPhone={meta?.driverPhone ?? null} seenAt={driverSeen} />
+          <DriverLinkButton url={driverLink} truckId={truck.id} driverPhone={meta?.driverPhone ?? null} seenAt={driverSeen} />
         )}
     </section>
   ))
@@ -799,7 +800,13 @@ export default async function Page({
         stops={activeStops}
         link={
           driverLink ? (
-            <DriverLinkButton embedded url={driverLink} driverPhone={meta?.driverPhone ?? null} seenAt={driverSeen} />
+            <DriverLinkButton
+              embedded
+              url={driverLink}
+              truckId={truck.id}
+              driverPhone={meta?.driverPhone ?? null}
+              seenAt={driverSeen}
+            />
           ) : undefined
         }
         detention={windows.map((w) => ({

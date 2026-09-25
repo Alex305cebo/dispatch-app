@@ -518,6 +518,14 @@ export const trackingDict = {
     ro: 'Deconectează',
     kk: 'Ажырату',
   },
+  'tracking.adminOnly': {
+    ru: 'Подключает и меняет администратор: ключ один на всю компанию.',
+    en: 'An admin connects and changes this — there is one key for the whole company.',
+    es: 'Lo conecta y cambia un administrador: hay una sola clave para toda la empresa.',
+    uk: 'Підключає і змінює адміністратор: ключ один на всю компанію.',
+    ro: 'Îl conectează și îl schimbă un administrator — există o singură cheie pentru toată compania.',
+    kk: 'Әкімші қосады және өзгертеді: бүкіл компанияға бір кілт.',
+  },
   'tracking.cleared': {
     ru: 'Отслеживание отключено',
     en: 'Tracking disconnected',

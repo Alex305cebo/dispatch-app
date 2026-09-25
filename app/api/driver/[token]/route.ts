@@ -2,7 +2,7 @@ import { retitleDocuments } from '@/lib/doc-title'
 import { NextResponse, type NextRequest } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { sql } from '@/lib/db'
-import { truckByDriverToken } from '@/lib/driver-link'
+import { clientIp, truckForDriverRequest } from '@/lib/driver-link'
 import { listLoads } from '@/lib/loads'
 import { activeLoadsByTruck } from '@/lib/map'
 import { eventSeq, nextOpenStop, stopsFrom } from '@/lib/stops'
@@ -12,6 +12,16 @@ import { addLoadEvent, listLoadEvents } from '@/lib/load-events'
 export const dynamic = 'force-dynamic'
 
 const MAX_BYTES = 8 * 1024 * 1024
+// Потолок одного запроса: не больше 10 файлов и ~40 МБ всего тела. Без него адрес без
+// входа принимал бы сколько угодно — и всё это ложилось в базу.
+// На деле тело сейчас режет ещё раньше middleware (Next 15.5 в среде Node): больше
+// 10 МБ он дальше не передаёт, и такой запрос не разбирается. Поэтому страница
+// водителя шлёт пачки фото частями до 9 МБ (driver-client.tsx), а этот потолок — на
+// случай, если лимит middleware когда-нибудь поднимут.
+const MAX_FILES = 10
+const MAX_TOTAL_BYTES = 40 * 1024 * 1024
+// Запас на разметку multipart (границы, заголовки частей) поверх самих файлов.
+const MAX_BODY_BYTES = MAX_TOTAL_BYTES + 1024 * 1024
 
 /**
  * Действия со страницы водителя (app/d/[token]). Не серверный экшен, а обычный
@@ -22,12 +32,15 @@ const MAX_BYTES = 8 * 1024 * 1024
  */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ token: string }> }) {
   const { token } = await ctx.params
-  const truck = await truckByDriverToken(token)
+  const truck = await truckForDriverRequest(token, clientIp(req.headers))
+  if (truck === 'limited') return NextResponse.json({ error: 'too many attempts' }, { status: 429 })
   if (!truck) return NextResponse.json({ error: 'bad token' }, { status: 404 })
   if (truck.companyId === 'demo') return NextResponse.json({ error: 'demo' }, { status: 403 })
 
+  const fd = await cappedFormData(req)
+  if (fd === 'too_large') return NextResponse.json({ error: 'too large' }, { status: 413 })
+  if (fd === 'bad') return NextResponse.json({ error: 'bad form' }, { status: 400 })
   const loads = await listLoads(truck.companyId, { truckId: truck.id })
-  const fd = await req.formData()
   const action = String(fd.get('action') || '')
   // Текущий груз и партиалы; страница называет, какого груза и какой остановки
   // касается нажатие. Токен всё равно даёт доступ только к грузам ЭТОГО трака.
@@ -108,6 +121,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
       return NextResponse.json({ error: 'bad kind' }, { status: 400 })
     const files = fd.getAll('file').filter((f): f is File => f instanceof File && f.size > 0)
     if (!files.length) return NextResponse.json({ error: 'no file' }, { status: 400 })
+    if (files.length > MAX_FILES) return NextResponse.json({ error: 'too many files' }, { status: 413 })
+    if (files.reduce((sum, f) => sum + f.size, 0) > MAX_TOTAL_BYTES)
+      return NextResponse.json({ error: 'too large' }, { status: 413 })
     let saved = 0
     for (const file of files) {
       if (file.size > MAX_BYTES) continue
@@ -130,6 +146,24 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ token: str
   }
 
   return NextResponse.json({ error: 'bad action' }, { status: 400 })
+}
+
+/**
+ * Тело запроса не больше MAX_BODY_BYTES — по заявленному Content-Length, ДО чтения.
+ * Заявке можно верить: HTTP-сервер Node не отдаёт телу больше байт, чем в ней
+ * написано. Без длины (chunked — так может переслать прокси хостинга) не отказываем:
+ * такое тело всё равно обрезает middleware на 10 МБ, а отказ сломал бы водителю
+ * кнопки «Приехал» и «Загрузился».
+ * 'too_large' / 'bad' — ответить 413 / 400.
+ */
+async function cappedFormData(req: NextRequest): Promise<FormData | 'too_large' | 'bad'> {
+  const declared = Number(req.headers.get('content-length'))
+  if (declared > MAX_BODY_BYTES) return 'too_large'
+  try {
+    return await req.formData()
+  } catch {
+    return 'bad'
+  }
 }
 
 function ext(f: File): string {

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { secretMatches } from '@/lib/secret-compare'
 
 // Two probes on one route.
 //
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, ts: Date.now(), build: process.env.BUILD_STAMP ?? null })
 
   const secret = process.env.CRON_SECRET
-  if (!secret || ready !== secret) {
+  if (!secretMatches(ready, secret)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 

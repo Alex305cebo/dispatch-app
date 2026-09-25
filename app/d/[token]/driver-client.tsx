@@ -83,17 +83,21 @@ export function DriverClient({
   const podRef = useRef<HTMLInputElement>(null)
   const photoRef = useRef<HTMLInputElement>(null)
 
-  async function post(fd: FormData, key: string) {
+  // Несколько запросов подряд под одной кнопкой: пачка фото уходит частями.
+  async function post(batches: FormData[], key: string) {
     setBusy(key)
     setMsg(null)
     try {
-      const r = await fetch(`/api/driver/${token}`, { method: 'POST', body: fd })
-      const j = (await r.json()) as { ok?: boolean }
-      if (!r.ok || !j.ok) setMsg(t(locale, 'driver.failed'))
-      else {
-        setMsg(t(locale, 'driver.done'))
-        router.refresh()
+      for (const fd of batches) {
+        const r = await fetch(`/api/driver/${token}`, { method: 'POST', body: fd })
+        const j = (await r.json()) as { ok?: boolean }
+        if (!r.ok || !j.ok) {
+          setMsg(t(locale, 'driver.failed'))
+          return
+        }
       }
+      setMsg(t(locale, 'driver.done'))
+      router.refresh()
     } catch {
       setMsg(t(locale, 'driver.failed'))
     } finally {
@@ -103,15 +107,33 @@ export function DriverClient({
   const act = (fields: Record<string, string>, key: string) => {
     const fd = new FormData()
     for (const [k, v] of Object.entries(fields)) fd.append(k, v)
-    void post(fd, key)
+    void post([fd], key)
   }
   function upload(kind: 'bol' | 'seal' | 'pod' | 'photo', files: FileList | null) {
     if (!files || !files.length) return
-    const fd = new FormData()
-    fd.append('action', 'photo')
-    fd.append('kind', kind)
-    for (const f of Array.from(files)) fd.append('file', safeUploadFile(f))
-    void post(fd, kind)
+    // Сервер берёт за раз не больше 10 файлов, а тело больше 10 МБ обрезает ещё
+    // middleware (app/api/driver/[token]), поэтому 30 фото из галереи уходят
+    // несколькими запросами по 9 МБ, а не одним отказом.
+    const PER_REQUEST = 10
+    const BYTES_PER_REQUEST = 9 * 1024 * 1024
+    const batches: FormData[] = []
+    let fd: FormData | null = null
+    let count = 0
+    let bytes = 0
+    for (const f of Array.from(files)) {
+      if (!fd || count >= PER_REQUEST || (count > 0 && bytes + f.size > BYTES_PER_REQUEST)) {
+        fd = new FormData()
+        fd.append('action', 'photo')
+        fd.append('kind', kind)
+        batches.push(fd)
+        count = 0
+        bytes = 0
+      }
+      fd.append('file', safeUploadFile(f))
+      count++
+      bytes += f.size
+    }
+    void post(batches, kind)
   }
 
   const big =

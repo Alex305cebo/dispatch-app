@@ -65,7 +65,14 @@ export function TgSendBox({ chatId }: { chatId: string }) {
   const send = () =>
     start(async () => {
       const res = await tgSendMessage(chatId, text)
-      if (res?.error) notify('error', res.error)
+      if (res?.locked) {
+        // Окно на сервере кончилось раньше, чем здесь (другая вкладка, часы) — снова пароль.
+        sessionStorage.removeItem(UNLOCK_KEY)
+        setUnlockedUntil(0)
+        setPw('')
+        setPwError(res.error)
+        setConfirming(true)
+      } else if (res?.error) notify('error', res.error)
       else {
         setText('')
       }

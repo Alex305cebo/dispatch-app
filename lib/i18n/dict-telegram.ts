@@ -129,6 +129,7 @@ export const telegramDict = {
   'telegram.actions.noActiveLoad': { ru: 'У этого трака сейчас нет активного груза.', en: 'This truck has no active load right now.', es: 'Este camión no tiene carga activa ahora.', uk: 'У цього трака зараз немає активного вантажу.', ro: 'Acest camion nu are cursă activă acum.', kk: 'Бұл тракттың қазір белсенді жүгі жоқ.' },
   'telegram.actions.downloadFailed': { ru: 'Не удалось скачать файл из Telegram.', en: 'Couldn\'t download the file from Telegram.', es: 'No se pudo descargar el archivo de Telegram.', uk: 'Не вдалося завантажити файл із Telegram.', ro: 'Fișierul nu a putut fi descărcat din Telegram.', kk: 'Telegram-нан файлды жүктеу мүмкін болмады.' },
   'telegram.actions.emptyMessage': { ru: 'Пустое сообщение.', en: 'Empty message.', es: 'Mensaje vacío.', uk: 'Порожнє повідомлення.', ro: 'Mesaj gol.', kk: 'Бос хабарлама.' },
+  'telegram.actions.sendLocked': { ru: 'Отправка снова заперта — подтверди своим паролем ещё раз.', en: 'Sending is locked again — confirm with your password once more.', es: 'El envío está bloqueado de nuevo: confirma con tu contraseña otra vez.', uk: 'Надсилання знову заблоковано — підтверди своїм паролем ще раз.', ro: 'Trimiterea e din nou blocată — confirmă încă o dată cu parola ta.', kk: 'Жіберу қайта жабылды — құпия сөзіңізбен тағы бір рет растаңыз.' },
   'telegram.actions.sendFailed': { ru: 'Не отправилось', en: 'Failed to send', es: 'No se envió', uk: 'Не надіслалося', ro: 'Nu s-a trimis', kk: 'Жіберілмеді' },
 
   // app/telegram/tg-chat.tsx

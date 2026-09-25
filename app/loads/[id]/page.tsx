@@ -93,10 +93,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   // последний (решается ниже, когда известны грузы трака).
   const wantBackhaul = load.status === 'booked' || load.status === 'in_transit' || load.status === 'delivered'
   // Страница водителя: адрес и когда он её открывал — как на карточке трака.
-  // В демо ссылку не выдаём.
+  // В демо ссылку не выдаём — и без входа (открытый доступ) тоже: ссылка даёт
+  // записывать в рейс, а смотреть груз можно и без неё.
   const driverSeen = await getSetting(`driver_seen:${truck.id}`)
   const driverLink =
-    companyId === 'demo'
+    companyId === 'demo' || !(await getCurrentUser())
       ? null
       : await (async () => {
           const { driverTokenFor } = await import('@/lib/driver-link')
@@ -454,7 +455,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         // «Водитель» одинаковый на обеих карточках и никуда не уводит.
         link={
           driverLink ? (
-            <DriverLinkButton embedded url={driverLink} driverPhone={truckMeta?.driverPhone ?? null} seenAt={driverSeen} />
+            <DriverLinkButton
+              embedded
+              url={driverLink}
+              truckId={truck.id}
+              driverPhone={truckMeta?.driverPhone ?? null}
+              seenAt={driverSeen}
+            />
           ) : undefined
         }
         detention={windows.map((w) => ({

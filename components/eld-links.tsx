@@ -16,7 +16,17 @@ import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 
-export function EldLinks({ count, eldOn = false }: { count: number; eldOn?: boolean }) {
+export function EldLinks({
+  count,
+  eldOn = false,
+  canEdit = true,
+}: {
+  count: number
+  eldOn?: boolean
+  /** Ключ GPS один на компанию — вставляет и отключает только администратор
+   * (saveTracking/clearTracking проверяют это и сами). Остальным — статус и подсказка. */
+  canEdit?: boolean
+}) {
   const locale = useLocale()
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
@@ -77,28 +87,34 @@ export function EldLinks({ count, eldOn = false }: { count: number; eldOn?: bool
 
       {open && (
         <div className="mt-3 border-t border-white/[0.06] pt-3">
-          <p className="mb-2 text-xs leading-relaxed text-t3">{t(locale, 'tracking.setupInfo')}</p>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={3}
-            placeholder={t(locale, 'tracking.setupPlaceholder')}
-            className="w-full rounded-lg border border-white/8 bg-ink-900/80 px-3 py-2 text-sm text-white outline-none focus:border-haul-500"
-          />
-          <div className="mt-2 flex items-center gap-2">
-            <Button variant="primary" size="sm" disabled={pending || !text.trim()} onClick={save}>
-              {pending ? t(locale, 'tracking.savingUpdating') : t(locale, 'tracking.saveAndUpdate')}
-            </Button>
-            {count > 0 && (
-              <button
-                disabled={pending}
-                onClick={clear}
-                className="text-xs text-t3 transition-colors hover:text-bad-400 disabled:opacity-40"
-              >
-                {t(locale, 'tracking.disconnect')}
-              </button>
-            )}
-          </div>
+          {!canEdit ? (
+            <p className="text-xs leading-relaxed text-t3">{t(locale, 'tracking.adminOnly')}</p>
+          ) : (
+            <>
+              <p className="mb-2 text-xs leading-relaxed text-t3">{t(locale, 'tracking.setupInfo')}</p>
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                rows={3}
+                placeholder={t(locale, 'tracking.setupPlaceholder')}
+                className="w-full rounded-lg border border-white/8 bg-ink-900/80 px-3 py-2 text-sm text-white outline-none focus:border-haul-500"
+              />
+              <div className="mt-2 flex items-center gap-2">
+                <Button variant="primary" size="sm" disabled={pending || !text.trim()} onClick={save}>
+                  {pending ? t(locale, 'tracking.savingUpdating') : t(locale, 'tracking.saveAndUpdate')}
+                </Button>
+                {count > 0 && (
+                  <button
+                    disabled={pending}
+                    onClick={clear}
+                    className="text-xs text-t3 transition-colors hover:text-bad-400 disabled:opacity-40"
+                  >
+                    {t(locale, 'tracking.disconnect')}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
     </section>

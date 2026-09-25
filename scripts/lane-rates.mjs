@@ -19,6 +19,12 @@
 // мили считает открытый OSRM — настоящие дорожные, как в карточке груза.
 //
 // Запускать можно хоть каждый день: одно направление в день от источника — одна строка.
+//
+// Что печатается. Скрипт гоняет публичный workflow (lane-rates.yml), а логи Actions
+// публичного репозитория видны всем: там нельзя ни штатов, где стоит парк, ни
+// направлений, ни цен. Поэтому по умолчанию — только числа: сколько сохранено и
+// сколько пропущено по какой причине. Построчный разбор — флагом --verbose у себя
+// в терминале; в GitHub Actions он не включается даже с флагом.
 import { connect } from './db-connect.mjs'
 import { nextMonday, warpQuote, zipOfCity } from '../lib/warp-quote.ts'
 import { WARP_MIN_MILES } from '../lib/rpm-bench-core.ts'
@@ -31,6 +37,17 @@ const args = process.argv.slice(2)
 const max = Number(args[args.indexOf('--max') + 1]) || 50
 /** --company demo — те же ставки для демо-компании: в демо тоже видно живой рынок. */
 const company = args[args.indexOf('--company') + 1] === 'demo' ? 'demo' : 'default'
+const verbose = args.includes('--verbose') && !process.env.GITHUB_ACTIONS
+/** Подробность — только в свой терминал (см. шапку); в общий лог идут лишь счётчики. */
+const detail = (line) => {
+  if (verbose) console.error(line)
+}
+/** Пропуски по причинам: в итоговой строке — числа, без направлений. */
+const skipped = new Map()
+const skip = (reason, line) => {
+  skipped.set(reason, (skipped.get(reason) ?? 0) + 1)
+  detail(`пропуск ${line}`)
+}
 const url = process.env.DATABASE_URL
 if (!url) {
   console.error('Нет DATABASE_URL (--env-file=.env.local)')
@@ -116,7 +133,8 @@ async function lanes() {
         [company],
       )
       from = [...new Set([...live, ...going].map((r) => stateOf(r.location)).filter(Boolean))]
-      console.error(`штаты траков и выгрузок: ${from.join(', ') || '—'}`)
+      console.error(`штатов траков и выгрузок: ${from.length}`)
+      detail(`  ${from.join(', ') || '—'}`)
       // Штат, из которого сетка собрана на этой неделе, второй раз не гоняем: ставка за
       // неделю так не меняется, а чужой сервис бесплатный.
       const [fresh] = await db.query(
@@ -125,9 +143,10 @@ async function lanes() {
           GROUP BY origin_state HAVING COUNT(DISTINCT dest_state) >= ?`,
         [company, FRESH_DAYS, FRESH_DESTS],
       )
-      const skip = new Set(fresh.map((r) => r.st))
-      from = from.filter((st) => !skip.has(st))
-      console.error(`собираем из: ${from.join(', ') || '— (везде свежо)'}`)
+      const freshStates = new Set(fresh.map((r) => r.st))
+      from = from.filter((st) => !freshStates.has(st))
+      console.error(`из них собираем (за неделю ещё не собраны): ${from.length}`)
+      detail(`  ${from.join(', ') || '— (везде свежо)'}`)
     }
     const all = await hubs()
     const out = []
@@ -143,7 +162,7 @@ async function lanes() {
           try {
             miles = await driveMiles(o.zip, d.zip)
           } catch (e) {
-            console.error(`пропуск ${o.city} → ${d.city}: ${e.message}`)
+            skip('мили не посчитались', `${o.city} → ${d.city}: ${e.message}`)
             continue
           }
           await new Promise((r) => setTimeout(r, 1100)) // OSRM и zippopotam — не чаще раза в секунду
@@ -151,7 +170,7 @@ async function lanes() {
         // Короткий прогон у Warp стоит почти как средний: цена ÷ мили давала $8–9/mi,
         // и эта цифра переносилась на весь коридор «штат → штат». Такие пары не берём.
         if (miles < WARP_MIN_MILES) {
-          console.error(`пропуск ${o.city} → ${d.city}: ${miles} mi — короче ${WARP_MIN_MILES}`)
+          skip(`короче ${WARP_MIN_MILES} mi`, `${o.city} → ${d.city}: ${miles} mi`)
           continue
         }
         out.push({ oz: o.zip, dz: d.zip, miles, origin: `${o.city}`, dest: `${d.city}` })
@@ -184,18 +203,19 @@ const date = nextMonday()
 let saved = 0
 for (const l of (await lanes()).slice(0, max)) {
   if (!(l.miles > 0)) {
-    console.error(`пропуск ${l.origin} → ${l.dest}: нет настоящих миль`)
+    skip('нет настоящих миль', `${l.origin} → ${l.dest}`)
     continue
   }
   if (l.miles < WARP_MIN_MILES) {
-    console.error(`пропуск ${l.origin} → ${l.dest}: ${l.miles} mi — короче ${WARP_MIN_MILES}, это минимальная цена за подачу, а не ставка`)
+    // Короче этого — минимальная цена за подачу, а не ставка.
+    skip(`короче ${WARP_MIN_MILES} mi`, `${l.origin} → ${l.dest}: ${l.miles} mi`)
     continue
   }
   let price
   try {
     price = await warpQuote(l.oz, l.dz, date)
   } catch (e) {
-    console.error(`пропуск ${l.origin} → ${l.dest}: ${e.message}`)
+    skip('Warp не ответил', `${l.origin} → ${l.dest}: ${e.message}`)
     continue
   }
   const rate = Math.round(price)
@@ -208,8 +228,9 @@ for (const l of (await lanes()).slice(0, max)) {
     [company, l.origin.slice(0, 120), l.dest.slice(0, 120), stateOf(l.origin), stateOf(l.dest), l.miles, rate, rpm],
   )
   saved++
-  console.log(`${l.origin} → ${l.dest}`.padEnd(42), `${l.miles} mi`.padEnd(9), `$${rate}`.padEnd(8), `$${rpm.toFixed(2)}/mi`)
+  detail(`${`${l.origin} → ${l.dest}`.padEnd(42)} ${`${l.miles} mi`.padEnd(9)} ${`$${rate}`.padEnd(8)} $${rpm.toFixed(2)}/mi`)
   await new Promise((r) => setTimeout(r, 700))
 }
 await db.end()
 console.log(`сохранено направлений: ${saved} (источник warp, дата погрузки ${date})`)
+for (const [reason, n] of skipped) console.log(`пропущено — ${reason}: ${n}`)
