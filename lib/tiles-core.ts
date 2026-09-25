@@ -222,6 +222,20 @@ export function migrateTruckDriverCard(saved: TilePlacement[]): TilePlacement[] 
     .map((p) => (p.id === 'hero' ? { id: 'hero', size: 'l' as const } : p))
 }
 
+/** Карточка груза: сохранённый порядок с отдельной плиткой кнопок («Открыть Rate Con»,
+ *  «Чат Telegram», «Повторить груз») → без неё, статус во всю строку.
+ *
+ *  Кнопки переехали в плитку статуса 25.09.2026 (владелец: «должна быть одна плитка»).
+ *  Статус остаётся на своём месте и забирает строку: теперь в нём и полоса, и кнопки,
+ *  а в половине строки рядом встала бы чужая плитка, растянутая на его высоту. Как и
+ *  migrateTruckDriverCard, срабатывает один раз — пока старый ключ лежит в раскладке. */
+export function migrateLoadPapers(saved: TilePlacement[]): TilePlacement[] {
+  if (!saved.some((p) => p.id === 'papers')) return saved
+  return saved
+    .filter((p) => p.id !== 'papers')
+    .map((p) => (p.id === 'status' ? { id: 'status', size: 'l' as const } : p))
+}
+
 /** Раскладки остальных разделов по умолчанию — тот порядок, в котором блоки стояли до
  *  плиток. Все здесь по той же причине, что и TRUCKS_TILES: страницы-серверы не могут
  *  забрать обычное значение из модуля с 'use client'. */
@@ -326,7 +340,6 @@ export const LOAD_DETAIL_TILES: TilePlacement[] = [
   // половинной плитке «Загрузка» и «В пути» сходились вплотную, а у груза с
   // несколькими точками подписи налезали друг на друга.
   { id: 'status', size: 'l' },
-  { id: 'papers', size: 'w' },
   { id: 'rate', size: 'l' },
   { id: 'notes', size: 'l' },
   { id: 'map', size: 'l' },
