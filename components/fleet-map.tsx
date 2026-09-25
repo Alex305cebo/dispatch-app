@@ -294,16 +294,23 @@ function preferRaster(): boolean {
   return false
 }
 
-async function buildBaseLayer(L: any, sat: boolean): Promise<any> {
+/** Вектор на этой вкладке уже отказал — дальше сразу растр, без повторных 12 секунд пустоты. */
+let vectorBroken = false
+/** Сколько ждать первый векторный тайл, прежде чем сдаться и перейти на растр. */
+const VECTOR_WATCHDOG_MS = 12_000
+
+async function buildBaseLayer(L: any, sat: boolean, onReplace?: (raster: any) => void): Promise<any> {
   if (sat) return L.tileLayer(SATELLITE_TILES, tileOpts(true))
-  if (preferRaster()) return L.tileLayer(STREET_TILES, tileOpts(false))
+  if (vectorBroken || preferRaster()) return L.tileLayer(STREET_TILES, tileOpts(false))
   try {
     // maplibre-gl 6 is ESM-only with no default export. Its worker is a separate file
     // it looks up next to its own module, which a bundle doesn't have — so it is served
     // from public/maplibre (copied from node_modules, scripts/copy-maplibre-worker.mjs)
     // and pointed at explicitly. The Leaflet bridge imports the same module itself.
     const maplibregl = await import('maplibre-gl')
-    maplibregl.setWorkerUrl('/maplibre/maplibre-gl-worker.mjs')
+    // .js, не .mjs: модульный воркер браузер запускает только с JS-типом, а хостинг
+    // отдавал .mjs чужим типом — воркер молча не стартовал, и карта была пустым фоном.
+    maplibregl.setWorkerUrl('/maplibre/maplibre-gl-worker.js')
     await import('@maplibre/maplibre-gl-leaflet')
     // attributionControl:false — MapLibre otherwise paints its own credit inside the WebGL
     // canvas, which Leaflet's attributionControl:false can't reach.
@@ -355,6 +362,27 @@ async function buildBaseLayer(L: any, sat: boolean): Promise<any> {
     layer.once('add', () => {
       const gl = layer.getMaplibreMap?.()
       if (!gl) return
+      // Страховка: вектор не отдал ни одного тайла (воркер не поднялся, OpenFreeMap
+      // недоступен) — меняем на растровые тайлы, чтобы вместо карты не было пустого фона.
+      let gotTile = false
+      const fallback = () => {
+        if (gotTile) return
+        const map = layer._map
+        if (!map || !map.hasLayer(layer)) return
+        // Карта в свёрнутой секции тайлов и не просит — это не отказ, ждём дальше.
+        if (!map.getSize().x) return void setTimeout(fallback, VECTOR_WATCHDOG_MS)
+        vectorBroken = true
+        const raster = L.tileLayer(STREET_TILES, tileOpts(false)).addTo(map)
+        map.removeLayer(layer)
+        onReplace?.(raster)
+      }
+      gl.on('sourcedata', (e: any) => {
+        if (e.tile) gotTile = true
+      })
+      gl.on('error', (e: any) => {
+        if (/worker/i.test(String(e?.error?.message ?? ''))) fallback()
+      })
+      setTimeout(fallback, VECTOR_WATCHDOG_MS)
       if (gl.isStyleLoaded?.()) tune()
       else gl.once('styledata', tune)
     })
@@ -364,6 +392,16 @@ async function buildBaseLayer(L: any, sat: boolean): Promise<any> {
   }
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
+
+/** Отступ плашки от точки. Значок трака — круг 22–26 px с центром в точке, а сверху
+ * над ним может стоять пин выгрузки: при прежних 8–10 px носик плашки заезжал на
+ * значок, и плашка закрывала сам трак. */
+const TIP_OFFSET: Record<'top' | 'bottom' | 'left' | 'right', [number, number]> = {
+  top: [0, -18],
+  bottom: [0, 18],
+  left: [-20, 0],
+  right: [20, 0],
+}
 
 const esc = (s: string) =>
   s.replace(/[&<>]/g, (c) => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'))
@@ -825,7 +863,10 @@ export function FleetMap({
         // сливались в одну точку. 3 ≈ вся страна целиком, 19 ≈ номера домов.
         map = L.map(ref.current, { zoomControl: true, attributionControl: false, minZoom: 3, maxZoom: 19 })
         mapRef.current = map
-        tileRef.current = (await buildBaseLayer(L, satelliteRef.current)).addTo(map)
+        const base = await buildBaseLayer(L, satelliteRef.current, (raster) => {
+          if (tileRef.current === base) tileRef.current = raster
+        })
+        tileRef.current = base.addTo(map)
         map.getContainer().classList.toggle('is-satellite', satelliteRef.current)
         if (disposed) return
         // Empty map = "show me the whole fleet again". Leaflet doesn't bubble a marker
@@ -1008,7 +1049,7 @@ export function FleetMap({
         // plain DOM click listener below — simplest thing that actually fires.
         marker.bindTooltip(() => popupHtml(m, t(locale, 'tracking.openArrow'), t(locale, 'trucks.head.driverTimeShort')), {
           direction: 'top',
-          offset: [0, -8],
+          offset: TIP_OFFSET.top,
           opacity: 1,
         })
         // Плашка не должна уходить за край карты: карта обрезает всё снаружи, и у
@@ -1028,7 +1069,7 @@ export function FleetMap({
           if (p.y - h - gap < 0) dir = size.y - p.y - h - gap >= 0 ? 'bottom' : p.x > size.x / 2 ? 'left' : 'right'
           if ((dir === 'top' || dir === 'bottom') && p.x - w / 2 < 6) dir = 'right'
           else if ((dir === 'top' || dir === 'bottom') && p.x + w / 2 > size.x - 6) dir = 'left'
-          const offset = { top: [0, -8], bottom: [0, 8], left: [-10, 0], right: [10, 0] }[dir] as [number, number]
+          const offset = TIP_OFFSET[dir]
           if (tip.options.direction === dir) return
           tip.options.direction = dir
           tip.options.offset = L.point(offset[0], offset[1])
@@ -1155,7 +1196,9 @@ export function FleetMap({
       // remove-then-add blanked the map while the new tiles downloaded — that empty gap is
       // what read as a slow, flickery toggle. Tile panes sit below markers, so stacking two
       // briefly never hides the pins. Fallback timer in case some tiles never fire 'load'.
-      const next = await buildBaseLayer(L, satellite)
+      const next = await buildBaseLayer(L, satellite, (raster) => {
+        if (tileRef.current === next) tileRef.current = raster
+      })
       const dropOld = () => {
         if (old && map.hasLayer(old)) map.removeLayer(old)
       }
