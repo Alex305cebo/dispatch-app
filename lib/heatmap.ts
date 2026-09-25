@@ -17,6 +17,8 @@ import { shiftDay } from './loads-dashboard.ts'
 export type HeatDayLoad = {
   id: number
   route: string
+  /** Куда везёт — подпись на полосе рейса. */
+  dest: string | null
   rate: number
   status: LoadStatus
   isPickup: boolean
@@ -65,6 +67,7 @@ export function buildWorkingDays(loads: LoadRecord[]): Map<string, HeatDayLoad[]
       const entry: HeatDayLoad = {
         id: l.id,
         route,
+        dest: l.destination ?? null,
         rate: l.rate,
         status: l.status,
         isPickup: idx === 0,
@@ -76,4 +79,55 @@ export function buildWorkingDays(loads: LoadRecord[]): Map<string, HeatDayLoad[]
     })
   }
   return working
+}
+
+/** Один рейс в окне календаря: с какой по какую колонку, на какой дорожке строки
+ * (у партиалов рейсы идут одновременно — каждый своей дорожкой), и обрезан ли он
+ * краем окна (погрузка раньше окна или выгрузка позже — край полосы прямой). */
+export type HeatSegment = {
+  load: HeatDayLoad
+  start: number
+  end: number
+  lane: number
+  cutStart: boolean
+  cutEnd: boolean
+}
+
+/** Полосы рейсов одного трака в окне `cols` (yyyy-mm-dd по порядку). */
+export function heatSegments(working: Map<string, HeatDayLoad[]>, cols: string[]): HeatSegment[] {
+  const byId = new Map<number, { first: HeatDayLoad; last: HeatDayLoad; start: number; end: number }>()
+  cols.forEach((k, i) => {
+    for (const l of working.get(k) ?? []) {
+      const seg = byId.get(l.id)
+      if (seg) {
+        seg.end = i
+        seg.last = l
+      } else byId.set(l.id, { first: l, last: l, start: i, end: i })
+    }
+  })
+  const segs = [...byId.values()].sort((a, b) => a.start - b.start || b.end - a.end)
+  // Дорожки жадно: рейс встаёт на первую, где предыдущий уже кончился.
+  const laneEnd: number[] = []
+  return segs.map((s) => {
+    let lane = laneEnd.findIndex((e) => e < s.start)
+    if (lane < 0) lane = laneEnd.length
+    laneEnd[lane] = s.end
+    return {
+      load: { ...s.first, isDelivery: s.last.isDelivery },
+      start: s.start,
+      end: s.end,
+      lane,
+      cutStart: !s.first.isPickup,
+      cutEnd: !s.last.isDelivery,
+    }
+  })
+}
+
+/** Сколько дней трак стоит без груза к `today`: от последнего дня рейса до сегодня.
+ * null — рейсов не было вовсе (не с чем сравнить) или трак в рейсе сегодня. */
+export function idleDays(working: Map<string, HeatDayLoad[]>, today: string): number | null {
+  let last: string | null = null
+  for (const k of working.keys()) if (k <= today && (!last || k > last)) last = k
+  if (!last || last === today) return null
+  return daysBetween(last, today)
 }

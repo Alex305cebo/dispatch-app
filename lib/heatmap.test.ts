@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildWorkingDays, daySpan } from './heatmap.ts'
+import { buildWorkingDays, daySpan, heatSegments, idleDays } from './heatmap.ts'
 import type { LoadRecord } from './map.ts'
 
 // Прод-сервер в UTC, диспетчеры в New York, а в Kiritimati (UTC+14) уже завтра: дни
@@ -51,4 +51,29 @@ zonedTest('a same-day load is exactly one cell', () => {
 
 zonedTest('delivery before pickup collapses to one day, never loops', () => {
   assert.deepEqual(daySpan('2026-07-18', '2026-07-15'), ['2026-07-18'])
+})
+
+zonedTest('полосы рейсов: обрезка краем окна и дорожки партиалов', () => {
+  const w = buildWorkingDays([
+    load({ id: 1, pickupDate: '2026-09-08', deliveryDate: '2026-09-11' }),
+    load({ id: 2, pickupDate: '2026-09-11', deliveryDate: '2026-09-12' }),
+    load({ id: 3, pickupDate: '2026-09-14', deliveryDate: '2026-09-16', destination: 'Reno, NV' }),
+  ])
+  const segs = heatSegments(w, daySpan('2026-09-10', '2026-09-15'))
+  assert.deepEqual(
+    segs.map((s) => [s.load.id, s.start, s.end, s.lane, s.cutStart, s.cutEnd]),
+    [
+      [1, 0, 1, 0, true, false],
+      [2, 1, 2, 1, false, false],
+      [3, 4, 5, 0, false, true],
+    ],
+  )
+  assert.equal(segs[2]!.load.dest, 'Reno, NV')
+})
+
+zonedTest('дни простоя считаются от последнего дня рейса', () => {
+  const w = buildWorkingDays([load({ pickupDate: '2026-09-08', deliveryDate: '2026-09-11' })])
+  assert.equal(idleDays(w, '2026-09-14'), 3)
+  assert.equal(idleDays(w, '2026-09-11'), null)
+  assert.equal(idleDays(new Map(), '2026-09-14'), null)
 })

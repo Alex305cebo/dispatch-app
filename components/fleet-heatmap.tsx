@@ -1,69 +1,74 @@
 'use client'
 
-// Fleet utilisation as a calendar grid: one row per truck, one cell per day. A cell is
-// lit for every day the truck was ON A LOAD — the whole pickup→delivery span, not just
-// the booking day — and dark for a day it genuinely sat idle. The row ends with a small
-// summary: the share of the window worked, and what it earned.
+// «Загрузка парка» — расписание парка по дням: строка — трак, полоса — рейс от погрузки
+// до выгрузки. Раньше рейс рисовался россыпью значков по клеткам (точка, стрелки,
+// ромб), и без легенды было не понять, где один груз кончается и начинается другой.
+// Полоса читается сразу: длина — дни в пути, цвет — где груз сейчас (выгружен / едет /
+// только запланирован), подпись — куда везёт. Пустое место — трак стоял.
 //
-// An earlier version lit only the pickup day and shaded it by rate. For trucking that
-// misled twice: a 3-day haul showed one green cell and two "idle" ones, and a small
-// fleet doing a load or two a week left the grid near-empty — read as broken, not
-// "utilised 40%". Spanning the load across its days is what makes utilisation mean it.
+// Окно заканчивается не сегодня, а на пару дней вперёд: запланированные грузы и дата
+// освобождения видны на той же сетке, столбец «Сегодня» подсвечен.
 //
-// Client component for ONE reason: the hover card. A pure-CSS popover would be clipped
-// by this panel's own overflow-x-auto (needed so the grid can scroll on a phone). A
-// single card positioned from the hovered cell's rect escapes that, and — being real
-// React — its route can be a Link straight to the load.
+// Сколько дней показывать и как раскладывать строку, решает ширина САМОЙ плитки
+// (ResizeObserver), а не экрана: плитку можно сделать маленькой и на компьютере.
 
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
-import { usd } from '@/lib/fmt'
+import { usd, usDate } from '@/lib/fmt'
 import { statusLabel } from '@/components/status'
 import { Info } from '@/components/info'
 import { useLocale } from '@/components/locale-provider'
-import { t } from '@/lib/i18n'
-import { daySpan, type HeatDayLoad, type HeatRow } from '@/lib/heatmap'
+import { t, type Locale } from '@/lib/i18n'
+import { daySpan, heatSegments, idleDays, type HeatDayLoad, type HeatRow } from '@/lib/heatmap'
 import { shiftDay } from '@/lib/loads-dashboard'
 
-type Hover = { x: number; top: number; bottom: number; label: string; day: string; loads: HeatDayLoad[] }
+type Hover = { x: number; top: number; bottom: number; label: string; load: HeatDayLoad }
 
-type TripRole = 'idle' | 'pickup' | 'transit' | 'delivery'
+const TAG: Record<Locale, string> = { ru: 'ru-RU', en: 'en-US', es: 'es-ES', uk: 'uk-UA', ro: 'ro-RO', kk: 'kk-KZ' }
 
-// One cell's glyph. A load reads as a journey — a dot where it's picked up, arrows
-// while it's driven, a diamond where it's delivered — so a multi-day haul is clearly
-// ONE trip, not one priced load per square. Idle days get a faint dot.
-function TripMark({ role }: { role: TripRole }) {
-  if (role === 'pickup') return <span className="size-2 rounded-full bg-good-400" />
-  if (role === 'delivery') return <span className="size-[7px] rotate-45 rounded-[1px] bg-good-500" />
-  if (role === 'transit')
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        className="size-2.5 text-good-400/70"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-      >
-        <path d="M9 6l6 6-6 6" />
-      </svg>
-    )
-  return <span className="size-1 rounded-full bg-white/12" />
+type Phase = 'done' | 'moving' | 'planned'
+const phaseOf = (l: HeatDayLoad): Phase =>
+  l.status === 'in_transit' ? 'moving' : l.status === 'delivered' || l.status === 'paid' ? 'done' : 'planned'
+
+const BAR: Record<Phase, string> = {
+  done: 'border-good-400/45 bg-good-500/25 text-good-100',
+  moving: 'heat-live border-haul-300/70 bg-haul-500/45 text-white',
+  planned: 'border-dashed border-haul-300/60 bg-haul-500/[0.08] text-haul-100',
 }
+const PHASE_KEY = {
+  done: 'trucks.heatmap.done',
+  moving: 'trucks.heatmap.moving',
+  planned: 'trucks.heatmap.planned',
+} as const
+
+const city = (p: string | null) => (p ? p.split(',')[0]!.trim() : '')
 
 /** today — день yyyy-mm-dd по ET с сервера (todayEt), а не new Date() здесь: сервер в
  * UTC после 20:00 ET живёт уже завтра, и его сетка расходилась с браузерной на
  * колонку — React #418 на обзоре и /trucks каждый вечер. */
-export function FleetHeatmap({ rows, today, days = 14 }: { rows: HeatRow[]; today: string; days?: number }) {
+export function FleetHeatmap({ rows, today }: { rows: HeatRow[]; today: string }) {
   const locale = useLocale()
+  const rootRef = useRef<HTMLDivElement>(null)
+  // 0 до первого замера: сервер и первый кадр в браузере рисуют одинаково (широко).
+  const [width, setWidth] = useState(0)
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([e]) => setWidth(e!.contentRect.width))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const narrow = width > 0 && width < 540
+  // Столбцы «где / когда / рейт» справа — только когда им есть место; иначе
+  // «где / когда» уходят второй строкой под полосы.
+  const wide = width === 0 || width >= 860
+  const winDays = narrow ? 7 : 14
+  const ahead = narrow ? 2 : 3
+
   const [hover, setHover] = useState<Hover | null>(null)
-  // Closing is DELAYED so the mouse can travel from the cube up into the card to click
-  // a load link; entering the card cancels the pending close. Without this the card
-  // vanishes the instant you leave the 14px cube and the links are unreachable.
+  // Закрытие с задержкой: мышь успевает дойти от полосы до карточки и нажать ссылку.
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const cancelClose = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current)
@@ -74,169 +79,193 @@ export function FleetHeatmap({ rows, today, days = 14 }: { rows: HeatRow[]; toda
     closeTimer.current = setTimeout(() => setHover(null), 140)
   }
 
-  // offset = whole windows shifted into the past (0 = the window ending today). The
-  // arrows step it by `days`, so each click pages a full 14 days back/forward; you can
-  // never page past today (offset floored at 0).
+  // offset — на сколько окон назад листнули (0 — окно с сегодняшним днём).
   const [offset, setOffset] = useState(0)
-  // Phones show a 7-day window instead of 14 — half the columns fit comfortably without
-  // shrinking to specks or forcing a horizontal scroll. matchMedia (not a CSS breakpoint)
-  // because the column COUNT changes, which is a data decision, not just styling.
-  const [mobile, setMobile] = useState(false)
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 639px)')
-    const sync = () => setMobile(mq.matches)
-    sync()
-    mq.addEventListener('change', sync)
-    return () => mq.removeEventListener('change', sync)
-  }, [])
-  const winDays = mobile ? 7 : days
-  const lastDay = shiftDay(today, -offset * winDays)
+  const lastDay = shiftDay(today, ahead - offset * winDays)
   const colKeys = daySpan(shiftDay(lastDay, 1 - winDays), lastDay)
-  // Полдень того же дня: getDay/getDate/месяц от него — этот день в любом поясе.
+  const todayIdx = colKeys.indexOf(today)
+  // Полдень того же дня: день недели от него — этот день в любом поясе.
   const cols = colKeys.map((k) => new Date(`${k}T12:00:00`))
-  // Sat/Sun get a faint different tint so the eye can find week boundaries in the grid.
   const weekend = cols.map((c) => c.getDay() === 0 || c.getDay() === 6)
+  const weekday = (d: Date) => d.toLocaleDateString(TAG[locale], { weekday: 'short' }).replace('.', '')
+  const md = (k: string) => usDate(k).slice(0, 5)
+  const rangeLabel = `${md(colKeys[0]!)} – ${md(colKeys[colKeys.length - 1]!)}`
+  const pastKeys = colKeys.filter((k) => k <= today)
 
-  const loc = locale === 'ru' ? 'ru-RU' : 'en-US'
-  const monthShort = (d: Date) => d.toLocaleDateString(loc, { month: 'short' }).replace('.', '')
-  const first = cols[0]!
-  const last = cols[cols.length - 1]!
-  const m0 = monthShort(first)
-  const mN = monthShort(last)
-  // Left-gutter label: one month, or "jun–jul" when the window straddles a boundary.
-  const monthLabel = m0 === mN ? m0 : `${m0}–${mN}`
-  // Header range beside the arrows, e.g. "10–23 jul" or "28 jun–11 jul".
-  const rangeLabel =
-    m0 === mN
-      ? `${first.getDate()}–${last.getDate()} ${mN}`
-      : `${first.getDate()} ${m0}–${last.getDate()} ${mN}`
+  // Полосы и рейт каждой строки считаются один раз — из них же сводка сверху.
+  const data = rows.map((r) => {
+    const segs = heatSegments(r.working, colKeys)
+    // Рейт — по дню погрузки: рейс, что пересекает край окна, не считается дважды.
+    const rate = segs.reduce((s, x) => s + (x.cutStart ? 0 : x.load.rate), 0)
+    const busyDays = pastKeys.filter((k) => r.working.has(k)).length
+    const idle = r.when?.tone === 'free' ? idleDays(r.working, today) : null
+    return { r, segs, rate, busyDays, idle, lanes: Math.max(1, ...segs.map((s) => s.lane + 1)) }
+  })
+  const count = (tone: 'busy' | 'free' | 'off') => rows.filter((r) => r.when?.tone === tone).length
+  const util = pastKeys.length
+    ? Math.round((100 * data.reduce((s, d) => s + d.busyDays, 0)) / (pastKeys.length * rows.length))
+    : 0
+  const totalRate = data.reduce((s, d) => s + d.rate, 0)
 
-  // Nice date for the hover heading, e.g. "Tue, Jul 15".
-  const prettyDay = (key: string) =>
-    new Date(`${key}T12:00:00`).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    })
+  // Одна сетка на всю плитку, чтобы шапка дней стояла ровно над клетками строк.
+  const gridCols = wide
+    ? '6.5rem minmax(0,1fr) minmax(7rem,10rem) 7.5rem 4.5rem'
+    : narrow
+      ? '4.5rem minmax(0,1fr) 4rem'
+      : '6rem minmax(0,1fr) 5rem'
+  const dayGrid = { gridTemplateColumns: `repeat(${winDays}, minmax(0,1fr))` }
+
+  const whenCls = (tone?: 'free' | 'busy' | 'off') =>
+    tone === 'busy' ? 'text-good-400' : tone === 'off' ? 'text-t3' : 'text-warn-400'
+  const whenText = (d: (typeof data)[number]) =>
+    d.idle ? t(locale, 'trucks.heatmap.freeDays').replace('{n}', String(d.idle)) : (d.r.when?.text ?? '')
 
   return (
-    <div className="panel relative p-3">
-      <div className="mb-2.5 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-1.5 text-base font-semibold text-t2">
-          {t(locale, 'trucks.heatmap.title').replace('{n}', String(winDays))}
+    <div ref={rootRef} className="panel relative p-3 sm:p-4">
+      {/* Шапка: название, листалка периода и возврат к сегодняшнему дню. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <h2 className="flex items-center gap-1.5 text-base font-semibold text-t1">
+          {t(locale, 'trucks.heatmap.name')}
           <Info text={t(locale, 'trucks.heatmap.info')} />
         </h2>
-        <div className="flex items-center gap-3">
-          <span className="hidden items-center gap-2.5 text-xs text-t2 sm:flex">
-            <span className="flex items-center gap-1">
-              <span className="size-2 rounded-full bg-good-400" />
-              {t(locale, 'trucks.heatmap.pickup')}
-            </span>
-            <span className="flex items-center gap-1">
-              <TripMark role="transit" />
-              {t(locale, 'trucks.heatmap.transit')}
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="size-[7px] rotate-45 rounded-[1px] bg-good-500" />
-              {t(locale, 'trucks.heatmap.delivery')}
-            </span>
-          </span>
-          {/* Page the 14-day window back/forward. Next is disabled at offset 0 — the
-              window already ends today, there's nothing in the future to show. */}
-          <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1">
+          {offset > 0 && (
             <button
               type="button"
-              onClick={() => setOffset((o) => o + 1)}
-              aria-label={t(locale, 'trucks.heatmap.earlier')}
-              className="grid size-6 place-items-center rounded-md text-t3 transition-colors hover:bg-white/8 hover:text-t1"
+              onClick={() => setOffset(0)}
+              className="mr-1 rounded-full border border-haul-400/50 px-2.5 py-0.5 text-xs font-medium text-haul-200 transition-colors hover:bg-haul-500/20"
             >
-              <ChevronLeft size={15} />
+              {t(locale, 'trucks.heatmap.today')}
             </button>
-            <span className="nums w-[92px] text-center text-2xs tabular-nums text-t3">{rangeLabel}</span>
-            <button
-              type="button"
-              onClick={() => setOffset((o) => Math.max(0, o - 1))}
-              disabled={offset === 0}
-              aria-label={t(locale, 'trucks.heatmap.later')}
-              className="grid size-6 place-items-center rounded-md text-t3 transition-colors hover:bg-white/8 hover:text-t1 disabled:pointer-events-none disabled:opacity-25"
-            >
-              <ChevronRight size={15} />
-            </button>
-          </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setOffset((o) => o + 1)}
+            aria-label={t(locale, 'trucks.heatmap.earlier')}
+            title={t(locale, 'trucks.heatmap.earlier')}
+            className="grid size-8 place-items-center rounded-lg text-t2 transition-colors hover:bg-white/8 hover:text-t1"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span className="nums min-w-[6.5rem] text-center text-xs font-medium text-t2">{rangeLabel}</span>
+          <button
+            type="button"
+            onClick={() => setOffset((o) => Math.max(0, o - 1))}
+            disabled={offset === 0}
+            aria-label={t(locale, 'trucks.heatmap.later')}
+            title={t(locale, 'trucks.heatmap.later')}
+            className="grid size-8 place-items-center rounded-lg text-t2 transition-colors hover:bg-white/8 hover:text-t1 disabled:pointer-events-none disabled:opacity-25"
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
       </div>
 
-      {/* Plain-words caption for the two right-hand numbers — the Info tooltip repeats it,
-          but this stays visible so "42% / $5,140" never reads as a mystery. */}
-      <p className="mb-2.5 max-w-2xl text-xs leading-relaxed text-t3">
-        {t(locale, 'trucks.heatmap.axisNote')}
-      </p>
+      {/* Сводка по парку: четыре числа, все из тех же строк, что ниже. */}
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        <Chip label={t(locale, 'trucks.heatmap.sumOnLoad')} value={String(count('busy'))} tone="text-good-400" />
+        <Chip label={t(locale, 'trucks.heatmap.sumFree')} value={String(count('free'))} tone="text-warn-400" />
+        {count('off') > 0 && <Chip label={t(locale, 'trucks.heatmap.sumOff')} value={String(count('off'))} />}
+        <Chip
+          label={t(locale, 'trucks.heatmap.sumUtil')}
+          value={`${util}%`}
+          hint={t(locale, 'trucks.heatmap.sumUtilHint')}
+        />
+        <Chip
+          label={t(locale, 'trucks.heatmap.sumRate')}
+          value={totalRate > 0 ? usd.format(totalRate) : '—'}
+          hint={t(locale, 'trucks.heatmap.colRateHint')}
+        />
+      </div>
 
-      {/* Всегда во всю ширину, без горизонтальной прокрутки: клетки резиновые, все
-          14 помещаются на любом экране. Растягивается именно календарь, а текстовые
-          столбцы справа фиксированы по ширине — раньше было наоборот (клетки жёстко
-          по 14px, место справа flex-1), и на широком экране между сеткой и текстом
-          зияло полтысячи пикселей пустоты. Потолок клетки max-w-7, иначе на большом
-          мониторе она расплывалась бы в прямоугольник. */}
-      <div className="w-full">
-        {rows.map((r) => {
-          // Window revenue: each load counted once even though it spans several cells.
-          const seen = new Set<number>()
-          let earned = 0
-          for (const k of colKeys)
-            for (const l of r.working.get(k) ?? [])
-              if (!seen.has(l.id)) {
-                seen.add(l.id)
-                earned += l.rate
-              }
+      <div className="mt-3 grid items-center gap-x-2 sm:gap-x-3" style={{ gridTemplateColumns: gridCols }}>
+        {/* Заголовки столбцов. */}
+        <span className="self-end pb-1 text-2xs font-semibold uppercase tracking-wide text-t3">
+          {t(locale, 'trucks.heatmap.colTruck')}
+        </span>
+        <div className="grid gap-px" style={dayGrid}>
+          {cols.map((c, i) => {
+            const isToday = i === todayIdx
+            return (
+              <span
+                key={colKeys[i]}
+                className={`flex min-w-0 flex-col items-center rounded-t-md pt-1 pb-1 leading-none ${
+                  isToday ? 'bg-haul-500/25 text-white' : weekend[i] ? 'text-haul-200' : 'text-t3'
+                }`}
+                title={isToday ? t(locale, 'trucks.heatmap.today') : undefined}
+              >
+                <span className="max-w-full truncate text-[10px] font-medium capitalize">
+                  {weekday(c)}
+                </span>
+                <span className={`nums mt-0.5 text-xs ${isToday ? 'font-bold' : 'font-semibold'}`}>
+                  {c.getDate()}
+                </span>
+              </span>
+            )
+          })}
+        </div>
+        {wide && (
+          <>
+            <span className="self-end truncate pb-1 text-2xs font-semibold uppercase tracking-wide text-t3">
+              {t(locale, 'trucks.heatmap.colPlace')}
+            </span>
+            <span className="self-end truncate pb-1 text-right text-2xs font-semibold uppercase tracking-wide text-t3">
+              {t(locale, 'trucks.heatmap.colWhen')}
+            </span>
+          </>
+        )}
+        <span
+          className="self-end truncate pb-1 text-right text-2xs font-semibold uppercase tracking-wide text-t3"
+          title={t(locale, 'trucks.heatmap.colRateHint')}
+        >
+          {t(locale, 'trucks.heatmap.colRate')}
+        </span>
+
+        {data.map((d, rowIdx) => {
+          const { r, segs, lanes } = d
           return (
-            <div key={r.id} className="flex items-center gap-1.5 py-0.5">
-              {/* Имя — ссылка на трак; шрифт крупнее и ярче: 10px на 40% серого не
-                  читались вовсе. */}
+            <div key={r.id} className="contents">
+              {/* Трак и водитель — ссылка на карточку трака. */}
               <Link
                 href={`/trucks/${r.id}`}
-                className="w-20 shrink-0 truncate leading-tight hover:underline sm:w-28"
+                className={`min-w-0 self-stretch border-t border-white/[0.06] py-2 leading-tight hover:underline ${
+                  wide ? '' : 'row-span-2'
+                }`}
               >
-                <span className="block truncate text-sm font-medium text-t1">{r.label}</span>
-                {r.sub && <span className="block truncate text-2xs text-t2">{r.sub}</span>}
+                <span className="nums block truncate text-sm font-semibold text-t1">{r.label}</span>
+                {r.sub && <span className="block truncate text-xs text-t2">{r.sub}</span>}
               </Link>
-              <div className="flex min-w-0 flex-1 gap-1">
-                {cols.map((c, i) => {
-                  const key = colKeys[i]!
-                  const loads = r.working.get(key)
-                  const dl = loads?.[0]
-                  // A day is the pickup, the delivery, a driving day in between, or idle.
-                  const role: TripRole = !dl ? 'idle' : dl.isPickup ? 'pickup' : dl.isDelivery ? 'delivery' : 'transit'
-                  const cellCls = `flex h-5 min-w-0 max-w-7 flex-1 items-center justify-center rounded-[3px] transition-colors hover:bg-white/10 ${
-                    weekend[i] ? 'bg-haul-500/[0.13]' : ''
-                  }`
-                  // Клетка с грузом — ссылка на груз, пустая — просто клетка.
-                  if (dl)
-                    return (
-                      <Link
-                        key={key}
-                        href={`/loads/${dl.id}`}
-                        onMouseEnter={(e) => {
-                          cancelClose()
-                          const box = e.currentTarget.getBoundingClientRect()
-                          setHover({
-                            x: box.left + box.width / 2,
-                            top: box.top,
-                            bottom: box.bottom,
-                            label: r.sub ? `${r.label} · ${r.sub}` : r.label,
-                            day: key,
-                            loads: loads ?? [],
-                          })
-                        }}
-                        onMouseLeave={scheduleClose}
-                        className={cellCls}
-                      >
-                        <TripMark role={role} />
-                      </Link>
-                    )
+
+              {/* Дни: фон столбцов (выходные, сегодня) и поверх — полосы рейсов. */}
+              <div
+                className="grid gap-x-px gap-y-1 self-stretch border-t border-white/[0.06]"
+                // Пустые ряды сверху и снизу — отступ, под который тоже ложится фон
+                // столбцов: столбец «Сегодня» идёт сплошной полосой через все строки.
+                style={{ ...dayGrid, gridTemplateRows: `minmax(0.125rem,1fr) repeat(${lanes}, 1.5rem) minmax(0.125rem,1fr)` }}
+              >
+                {cols.map((_, i) => (
+                  <span
+                    key={colKeys[i]}
+                    aria-hidden
+                    className={`${
+                      i === todayIdx
+                        ? 'bg-haul-500/[0.14]'
+                        : weekend[i]
+                          ? 'bg-white/[0.035]'
+                          : 'bg-white/[0.012]'
+                    }`}
+                    style={{ gridColumn: i + 1, gridRow: '1 / -1' }}
+                  />
+                ))}
+                {segs.map((s, n) => {
+                  const phase = phaseOf(s.load)
+                  const span = s.end - s.start + 1
+                  const text = city(s.load.dest)
                   return (
-                    <span
-                      key={key}
+                    <Link
+                      key={s.load.id}
+                      href={`/loads/${s.load.id}`}
+                      aria-label={`${s.load.route} · ${usd.format(s.load.rate)}`}
                       onMouseEnter={(e) => {
                         cancelClose()
                         const box = e.currentTarget.getBoundingClientRect()
@@ -245,84 +274,89 @@ export function FleetHeatmap({ rows, today, days = 14 }: { rows: HeatRow[]; toda
                           top: box.top,
                           bottom: box.bottom,
                           label: r.sub ? `${r.label} · ${r.sub}` : r.label,
-                          day: key,
-                          loads: loads ?? [],
+                          load: s.load,
                         })
                       }}
                       onMouseLeave={scheduleClose}
-                      className={cellCls}
+                      className={`heat-bar relative z-[1] mx-px flex min-w-0 items-center gap-1 overflow-hidden border px-1.5 text-[11px] font-medium leading-none transition-[filter] hover:brightness-125 ${
+                        BAR[phase]
+                      } ${s.cutStart ? 'rounded-l-none border-l-0' : 'rounded-l-md'} ${
+                        s.cutEnd ? 'rounded-r-none border-r-0' : 'rounded-r-md'
+                      }`}
+                      style={{
+                        gridColumn: `${s.start + 1} / ${s.end + 2}`,
+                        gridRow: s.lane + 2,
+                        animationDelay: `${Math.min(rowIdx * 40 + n * 60, 600)}ms`,
+                      }}
                     >
-                      <TripMark role={role} />
-                    </span>
+                      {!s.cutStart && <span className="size-1.5 shrink-0 rounded-full bg-current opacity-80" />}
+                      {span >= 2 && <span className="truncate">{text}</span>}
+                    </Link>
                   )
                 })}
               </div>
-              {/* Здесь стояли полоса загрузки и процент отработанных дней. Из «43%» не
-                  следует ни одного действия: он не говорит ни где трак, ни когда он
-                  освободится, — а именно это нужно, чтобы искать ему груз. На их месте
-                  два факта: место и срок. Скрыты на телефоне, как и полоса до них. */}
-              <span className="ml-2 hidden w-32 shrink-0 truncate text-sm text-t2 sm:block lg:w-44">
-                {r.place ?? '—'}
-              </span>
+
+              {wide && (
+                <>
+                  <span className="min-w-0 self-stretch truncate border-t border-white/[0.06] py-2 text-sm leading-6 text-t2">
+                    {r.place ?? '—'}
+                  </span>
+                  <span
+                    className={`self-stretch truncate border-t border-white/[0.06] py-2 text-right text-sm font-semibold leading-6 ${whenCls(r.when?.tone)}`}
+                    title={d.idle ? t(locale, 'trucks.heatmap.freeDaysHint') : undefined}
+                  >
+                    {whenText(d)}
+                  </span>
+                </>
+              )}
               <span
-                className={`ml-2 hidden w-24 shrink-0 truncate text-right text-sm font-semibold sm:block ${
-                  r.when?.tone === 'busy'
-                    ? 'text-good-400'
-                    : r.when?.tone === 'off'
-                      ? 'text-t3'
-                      : 'text-warn-400'
-                }`}
+                className={`nums self-stretch border-t border-white/[0.06] py-2 text-right text-sm leading-6 ${
+                  d.rate > 0 ? 'text-t1' : 'text-t3'
+                } ${wide ? '' : 'row-span-2'}`}
               >
-                {r.when?.text ?? ''}
+                {d.rate > 0 ? usd.format(d.rate) : '—'}
               </span>
-              <span className="nums w-14 shrink-0 text-right text-xs text-t2 sm:w-16 sm:text-sm">
-                {earned > 0 ? usd.format(earned) : '—'}
-              </span>
+              {/* Узкая плитка: где трак и когда свободен — строкой под полосами. */}
+              {!wide && (
+                <span className="-mt-1.5 flex min-w-0 items-baseline gap-2 pb-2 text-xs">
+                  <span className="min-w-0 truncate text-t2" title={r.place ?? undefined}>{r.place ?? '—'}</span>
+                  <span
+                    className={`ml-auto shrink-0 font-semibold ${whenCls(r.when?.tone)}`}
+                    title={d.idle ? t(locale, 'trucks.heatmap.freeDaysHint') : undefined}
+                  >
+                    {whenText(d)}
+                  </span>
+                </span>
+              )}
             </div>
           )
         })}
-        {/* Date axis: the month sits in the left gutter (under the truck names); each
-            cube gets its own day-of-month number so a cell reads as a real date. */}
-        {/* Геометрия оси обязана повторять геометрию строк символ в символ, иначе
-            числа разъезжаются с клетками, над которыми они стоят. */}
-        <div className="mt-1 flex items-center gap-1.5">
-          <span className="w-20 shrink-0 truncate text-xs font-medium capitalize text-t3 sm:w-28">
-            {monthLabel}
-          </span>
-          <div className="flex min-w-0 flex-1 gap-1">
-            {cols.map((c, i) => (
-              <span
-                key={i}
-                className={`nums min-w-0 max-w-7 flex-1 text-center text-2xs font-semibold leading-none ${
-                  weekend[i] ? 'text-haul-300' : 'font-normal text-t3'
-                }`}
-              >
-                {c.getDate()}
-              </span>
-            ))}
-          </div>
-          <span className="ml-2 hidden w-32 shrink-0 sm:block lg:w-44" />
-          <span className="ml-2 hidden w-24 shrink-0 sm:block" />
-          <span className="w-14 shrink-0 sm:w-16" />
-        </div>
       </div>
 
-      {/* One shared hover card, fixed to the viewport so the panel's overflow can't clip
-          it. Positioned above the cell; the pointer-events let a load link be clicked. */}
+      {/* Легенда — теми же полосами, что в сетке. */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-t2">
+        {(['done', 'moving', 'planned'] as Phase[]).map((p) => (
+          <span key={p} className="flex items-center gap-1.5">
+            <span className={`h-2.5 w-5 rounded-sm border ${BAR[p]}`} />
+            {t(locale, PHASE_KEY[p])}
+          </span>
+        ))}
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-3 rounded-sm bg-haul-500/30" />
+          {t(locale, 'trucks.heatmap.today')}
+        </span>
+      </div>
+
+      {/* Карточка рейса при наведении. В <body> через портал: у панели backdrop-filter,
+          и position:fixed внутри неё считался бы от панели, а не от окна. */}
       {hover &&
         createPortal(
-          // Portaled to <body>, NOT left in the panel. The panel has backdrop-blur, and
-          // a backdrop-filter makes its element the containing block for position:fixed
-          // descendants — so a fixed card "anchored to the viewport" was actually
-          // anchored to the panel, and the cell's viewport coords flung it to the
-          // bottom-right. In the body it has no transformed ancestor, so fixed means
-          // fixed. x is clamped to the viewport and the card flips below the cell when
-          // there isn't room above — it always lands next to the square, never off-edge.
           (() => {
-            const CARD_W = 240
-            const CARD_H = 120
+            const CARD_W = 260
+            const CARD_H = 110
             const left = Math.min(Math.max(hover.x, CARD_W / 2 + 8), window.innerWidth - CARD_W / 2 - 8)
             const above = hover.top > CARD_H
+            const phase = phaseOf(hover.load)
             return (
               <div
                 className={`pointer-events-none fixed z-[60] -translate-x-1/2 ${
@@ -330,53 +364,22 @@ export function FleetHeatmap({ rows, today, days = 14 }: { rows: HeatRow[]; toda
                 }`}
                 style={{ left, top: above ? hover.top : hover.bottom }}
               >
-                <div
+                <Link
+                  href={`/loads/${hover.load.id}`}
                   onMouseEnter={cancelClose}
                   onMouseLeave={scheduleClose}
-                  className="pointer-events-auto min-w-[180px] max-w-[240px] rounded-lg border border-white/12 bg-ink-900 p-2.5 shadow-2xl"
+                  className="pointer-events-auto block w-[260px] rounded-lg border border-white/12 bg-ink-900 p-2.5 shadow-2xl transition-colors hover:border-haul-400/50"
                 >
-            <div className="mb-1 flex items-baseline justify-between gap-2">
-              <span className="text-base font-semibold text-t2">{hover.label}</span>
-              <span className="nums text-2xs text-t3">{prettyDay(hover.day)}</span>
-            </div>
-            {hover.loads.length === 0 ? (
-              <p className="text-xs text-t3">{t(locale, 'trucks.heatmap.idleDay')}</p>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {hover.loads.map((l) => {
-                  // What this hovered day is for this load: its pickup, its delivery, or
-                  // a day driven in between — the label the user asked for.
-                  const role: TripRole = l.isPickup ? 'pickup' : l.isDelivery ? 'delivery' : 'transit'
-                  const roleKey =
-                    role === 'pickup'
-                      ? 'trucks.heatmap.pickup'
-                      : role === 'delivery'
-                        ? 'trucks.heatmap.delivery'
-                        : 'trucks.heatmap.transit'
-                  return (
-                    <Link
-                      key={l.id}
-                      href={`/loads/${l.id}`}
-                      className="group flex items-center justify-between gap-2 rounded-md bg-white/[0.04] px-2 py-1.5 transition-colors hover:bg-haul-500/15"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-xs font-medium text-t1 group-hover:text-white">
-                          {l.route}
-                        </span>
-                        <span className="flex items-center gap-1 text-2xs text-t3">
-                          <TripMark role={role} />
-                          <span className="font-semibold text-good-300">{t(locale, roleKey)}</span>
-                          <span className="text-t3">·</span>
-                          {statusLabel(locale, l.status)}
-                        </span>
-                      </span>
-                      <span className="nums shrink-0 text-xs font-semibold text-t1">{usd.format(l.rate)}</span>
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
-                </div>
+                  <span className="block truncate text-2xs text-t3">{hover.label}</span>
+                  <span className="mt-0.5 block truncate text-sm font-medium text-t1">{hover.load.route}</span>
+                  <span className="mt-1.5 flex items-center justify-between gap-2 text-xs">
+                    <span className="flex items-center gap-1.5 text-t2">
+                      <span className={`h-2 w-4 rounded-sm border ${BAR[phase]}`} />
+                      {statusLabel(locale, hover.load.status)}
+                    </span>
+                    <span className="nums font-semibold text-t1">{usd.format(hover.load.rate)}</span>
+                  </span>
+                </Link>
               </div>
             )
           })(),
@@ -386,3 +389,14 @@ export function FleetHeatmap({ rows, today, days = 14 }: { rows: HeatRow[]; toda
   )
 }
 
+function Chip({ label, value, tone, hint }: { label: string; value: string; tone?: string; hint?: string }) {
+  return (
+    <span
+      title={hint}
+      className="panel-inset inline-flex items-baseline gap-1.5 rounded-full border border-white/10 px-3 py-1 text-xs text-t2"
+    >
+      {label}
+      <span className={`nums text-sm font-semibold ${tone ?? 'text-t1'}`}>{value}</span>
+    </span>
+  )
+}

@@ -998,6 +998,42 @@
   }
 }
 
+/* «Загрузка парка»: полоса рейса вырастает слева направо, как едет трак; у рейса,
+   что едет сейчас, по полосе бежит блик. Оба движения выключаются вместе с
+   «меньше движения». */
+@keyframes heat-bar-in {
+  from {
+    opacity: 0;
+    transform: scaleX(0.2);
+  }
+}
+@keyframes heat-live {
+  from {
+    background-position: -120% 0;
+  }
+  to {
+    background-position: 220% 0;
+  }
+}
+.heat-bar {
+  transform-origin: left center;
+  animation: heat-bar-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.heat-live {
+  background-image: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.22) 50%, transparent 70%);
+  background-size: 60% 100%;
+  background-repeat: no-repeat;
+  animation:
+    heat-bar-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards,
+    heat-live 2.8s ease-in-out 0.6s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .heat-bar,
+  .heat-live {
+    animation: none;
+  }
+}
+
 /* Плитка «Мини» на телефоне — треть ширины, около 110px. Крупное число плитки
    (класс nums у Stat) там рвалось посередине: «$81,7 / 98». На шаг мельче — и влезает. */
 @media (max-width: 1023px) {
