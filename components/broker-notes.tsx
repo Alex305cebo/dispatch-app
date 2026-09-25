@@ -71,12 +71,17 @@ export function BrokerNotes({
   notes,
   readAt,
   hasRc,
+  embedded = false,
 }: {
   loadId: number
   notes: string | null
   readAt: string | null
   /** Is a rate con attached? Enables the "разобрать рейткон" AI button. */
   hasRc: boolean
+  /** Внутри шапки груза, а не своей плиткой (владелец 25.09.2026: шапка и «Важное от
+   *  брокера» — одна плитка). Без своей панели: раздел под чертой, а жёлтая рамка —
+   *  только пока не прочитано. */
+  embedded?: boolean
 }) {
   const locale = useLocale()
   const TAGS = tagsFor(locale)
@@ -158,9 +163,12 @@ export function BrokerNotes({
   const textarea =
     'w-full rounded-lg border border-white/10 bg-ink-950/70 px-3 py-2 text-base leading-relaxed text-white outline-none focus:border-haul-500'
 
+  // Своя рамка — только отдельной плиткой; в шапке груза раздел отделён чертой.
+  const shell = embedded ? 'mt-4 border-t border-white/[0.07] pt-3' : 'panel p-4'
+
   if (editing) {
     return (
-      <section className="panel p-4">
+      <section className={shell}>
         <h2 className="mb-2 text-base leading-6 font-semibold text-t1">
           {t(locale, 'brokerNotes.editHeading')}
         </h2>
@@ -193,7 +201,7 @@ export function BrokerNotes({
   // No notes yet — offer to parse the RC (if attached) or add them by hand.
   if (!notes) {
     return (
-      <div className="panel flex flex-wrap items-center gap-3 p-4">
+      <div className={`${shell} flex flex-wrap items-center gap-3`}>
         {hasRc && (
           <Button variant="primary" disabled={pending} onClick={parse}>
             {pending ? t(locale, 'brokerNotes.parsing') : t(locale, 'brokerNotes.parseRc')}
@@ -232,16 +240,24 @@ export function BrokerNotes({
       open={unread}
       // Условия брокера — справочный текст, не тревога: панель нейтральная. Жёлтым
       // подсвечивается только непрочитанное, и только пока не нажали «Прочитано».
-      className={`group overflow-hidden rounded-xl border transition-colors ${
-        unread ? 'border-warn-400/40 bg-warn-400/[0.06]' : 'border-white/10 bg-ink-900'
+      className={`group overflow-hidden transition-colors ${
+        unread
+          ? `rounded-xl border border-warn-400/40 bg-warn-400/[0.06] ${embedded ? 'mt-4' : ''}`
+          : embedded
+            ? 'mt-4 border-t border-white/[0.07]'
+            : 'rounded-xl border border-white/10 bg-ink-900'
       }`}
     >
-      <summary className="flex cursor-pointer list-none items-center gap-2 p-3.5">
-        {unread && (
+      <summary
+        className={`flex cursor-pointer list-none items-center gap-2 ${embedded && !unread ? 'pt-3 pb-0.5' : 'p-3.5'}`}
+      >
+        {unread ? (
           <span className="relative flex size-4 shrink-0 items-center justify-center" aria-hidden>
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-warn-400/50" />
             <TriangleAlert size={14} strokeWidth={2.2} className="relative text-warn-300" />
           </span>
+        ) : (
+          embedded && <TriangleAlert size={14} strokeWidth={2.2} className="shrink-0 text-t3" aria-hidden />
         )}
         <span
           className={`shrink-0 text-base font-semibold ${
@@ -251,7 +267,8 @@ export function BrokerNotes({
           {t(locale, 'brokerNotes.heading')}
         </span>
         <span className="min-w-0 flex-1 truncate text-sm text-t3 group-open:hidden">{preview}</span>
-        <span className="shrink-0 text-xs text-t3">
+        {/* На телефоне дата прочтения не влезает рядом с «Развернуть» — там она внутри. */}
+        <span className={`shrink-0 text-xs text-t3 ${unread ? '' : 'max-sm:hidden'}`}>
           {unread ? t(locale, 'brokerNotes.new') : t(locale, 'brokerNotes.readOn').replace('{date}', usDate(todayEt(new Date(readAt))))}
         </span>
         {/* Explicit fold/unfold hint — this being a <details> (click to toggle) isn't
@@ -264,7 +281,7 @@ export function BrokerNotes({
         </span>
       </summary>
 
-      <div className="px-3.5 pb-3.5">
+      <div className={embedded && !unread ? 'pt-2' : 'px-3.5 pb-3.5'}>
         {structured ? (
           <ul className="flex flex-col gap-2">
             {sortedLines.map((l, i) => {
@@ -292,7 +309,7 @@ export function BrokerNotes({
           <p className="whitespace-pre-wrap text-base leading-relaxed text-t1">{shown}</p>
         )}
 
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
           <button
             disabled={translating}
             onClick={toggleTranslate}

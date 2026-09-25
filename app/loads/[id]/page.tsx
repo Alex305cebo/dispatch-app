@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
 import { tileGrid } from '@/lib/tiles'
-import { LOAD_DETAIL_TILES } from '@/lib/tiles-core'
+import { LOAD_DETAIL_TILES, migrateLoadPapers } from '@/lib/tiles-core'
 import { Fragment, Suspense, type ReactNode } from 'react'
 import { notFound } from 'next/navigation'
 import { currentLoadForTruck, getLoad, laneAvgRpmFor, listDocs, listLoads, truckForLoad } from '@/lib/loads'
@@ -29,14 +29,13 @@ import { TruckForm } from '@/components/truck-form'
 import { DocList, DocUpload } from '@/components/docs'
 import { InvoiceBox } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
-import { DocButton } from '@/components/doc-button'
 import { BackButton } from '@/components/back-button'
 import { PairBar } from '@/components/pair-bar'
 import { DetentionTile } from '@/components/detention-tile'
 import { detentionTerms, getSetting } from '@/lib/settings'
 import { headers } from 'next/headers'
 import { DriverLinkButton } from '@/components/driver-link-button'
-import { Send } from 'lucide-react'
+import { Building2, Mail, Phone, RotateCw, Send } from 'lucide-react'
 import { tgConnected } from '@/lib/telegram'
 import { stopWindows } from '@/lib/detention'
 import { BackhaulList } from '@/components/backhaul-list'
@@ -200,8 +199,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       ? [
           <Link
             href={`/brokers?q=${encodeURIComponent(load.brokerMc ?? load.brokerName)}`}
-            className="font-medium text-t1 hover:underline"
+            className="inline-flex items-center gap-1.5 font-semibold text-t1 hover:underline"
           >
+            <Building2 size={14} className="shrink-0 text-t3" aria-hidden />
             {load.brokerName}
           </Link>,
         ]
@@ -209,14 +209,16 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     ...(load.brokerMc ? [<span className="nums">MC {load.brokerMc}</span>] : []),
     ...(load.brokerPhone
       ? [
-          <a href={`tel:${load.brokerPhone}`} className="nums text-haul-400 hover:underline">
+          <a href={`tel:${load.brokerPhone}`} className="nums inline-flex items-center gap-1 text-haul-400 hover:underline">
+            <Phone size={13} className="shrink-0" aria-hidden />
             {load.brokerPhone}
           </a>,
         ]
       : []),
     ...(load.brokerEmail
       ? [
-          <a href={`mailto:${load.brokerEmail}`} className="break-all text-haul-400 hover:underline">
+          <a href={`mailto:${load.brokerEmail}`} className="inline-flex min-w-0 items-center gap-1 break-all text-haul-400 hover:underline">
+            <Mail size={13} className="shrink-0" aria-hidden />
             {load.brokerEmail}
           </a>,
         ]
@@ -279,7 +281,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           занимали три ряда и уводили ставку и кнопки за край экрана. Имя ведёт в
           справочник — там его история и оценка. */}
       {brokerFacts.length > 0 && (
-        <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-t2">
+        <p className="mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 border-t border-white/[0.07] pt-3 text-sm text-t2">
           {brokerFacts.map((part, k) => (
             <Fragment key={k}>
               {k > 0 && <span className="text-t3">·</span>}
@@ -288,6 +290,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           ))}
         </p>
       )}
+      {/* «Важное от брокера» — в той же плитке, что и сам брокер (владелец 25.09.2026:
+          «должна быть одна плитка»). Непрочитанное по-прежнему в жёлтой рамке. */}
+      <BrokerNotes
+        embedded
+        loadId={load.id}
+        notes={load.brokerNotes}
+        readAt={load.notesReadAt}
+        hasRc={!!rateConDoc}
+      />
     </section>
   ))
 
@@ -364,22 +375,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           className="mt-4"
         />
       )}
-    </section>
-  ))
-
-  // Бумаги груза одной сеткой: rate con, BOL, POD — три кнопки одного размера,
-  // на телефоне 2×2 (четвёртая клетка — «Повторить груз»), на широком экране
-  // в один ряд.
-  add('papers', (
-    <section className="panel h-full p-4">
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+      {/* Действия с грузом — в той же плитке, что и статус (владелец 25.09.2026: «должна
+          быть одна плитка»). BOL и POD здесь не повторяются: их открывают и загружают
+          плашки прямо на полосе статуса. */}
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/[0.07] pt-3">
         {rateConDoc ? (
           <RateConButton docId={rateConDoc.id} />
         ) : (
-          <span className="col-span-2 text-xs text-t3 sm:col-auto">{t(locale, 'loadDetail.noRateCon')}</span>
+          <span className="text-xs text-t3">{t(locale, 'loadDetail.noRateCon')}</span>
         )}
-        <DocButton label="BOL" kind="bol" docId={bolDoc?.id ?? null} loadId={load.id} />
-        <DocButton label="POD" kind="pod" docId={podDoc?.id ?? null} loadId={load.id} />
         {/* Чат водителя в Telegram одним нажатием: BOL/POD и фото водитель шлёт туда, а
             «В груз» у сообщения кладёт файл сюда. Только если Telegram подключён. */}
         {tgUserId != null && (
@@ -395,9 +399,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             заново каждую неделю — вместе с перепечатыванием почты брокера и миль. */}
         <Link
           href={`/loads/new?repeat=${load.id}`}
-          className="inline-flex items-center justify-center rounded-xl border border-white/12 px-3 py-2 text-sm font-medium text-t2 transition-colors hover:border-haul-500/50 hover:text-haul-300 sm:ml-auto"
+          className="ml-auto inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/12 px-3 py-2 text-sm font-medium text-t2 transition-colors hover:border-haul-500/50 hover:text-haul-300"
         >
-          ⟳ {t(locale, 'loads.repeat')}
+          <RotateCw size={14} aria-hidden />
+          {t(locale, 'loads.repeat')}
         </Link>
       </div>
     </section>
@@ -426,8 +431,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     </section>
   ))
 
-  // Важное от брокера — обязательное к прочтению.
-  add('notes', <BrokerNotes loadId={load.id} notes={load.brokerNotes} readAt={load.notesReadAt} hasRc={!!rateConDoc} />)
 
   // Карта грузится отдельно от страницы: её сборка ждёт чужой маршрутизатор и
   // геокодер, и раньше эти секунды держали весь документ.
@@ -627,7 +630,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     </details>
   ))
 
-  const grid = await tileGrid('load-detail', LOAD_DETAIL_TILES, locale)
+  const grid = await tileGrid('load-detail', LOAD_DETAIL_TILES, locale, migrateLoadPapers)
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
