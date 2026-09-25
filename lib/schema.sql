@@ -170,6 +170,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
 
 -- Строка на вошедшее устройство; удалить строку = разлогинить устройство.
+-- token — SHA-256 токена из куки (64 hex), не сам токен: выгрузка базы не должна
+-- давать входа (lib/auth-core.ts, hashSessionToken).
 CREATE TABLE IF NOT EXISTS sessions (
   token      VARCHAR(128) NOT NULL PRIMARY KEY,
   user_id    INT NOT NULL,
@@ -178,6 +180,17 @@ CREATE TABLE IF NOT EXISTS sessions (
   KEY sessions_user (user_id),
   KEY sessions_expires (expires_at),
   CONSTRAINT sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
+
+-- Замок на подбор пароля и даты рождения: строка на (вид, email), попытки в текущем
+-- окне. Живёт в базе, потому что процессов приложения несколько (lib/auth.ts,
+-- takeAttempt). kind: 'login' | 'reset'.
+CREATE TABLE IF NOT EXISTS auth_throttle (
+  kind      VARCHAR(16) NOT NULL,
+  email     VARCHAR(320) NOT NULL,
+  fails     INT NOT NULL,
+  window_at DATETIME(6) NOT NULL,
+  PRIMARY KEY (kind, email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
 
 -- Последний снимок трака из ELD, по номеру юнита (= trucks.number).
@@ -506,5 +519,5 @@ ALTER TABLE dat_lanes ADD UNIQUE KEY IF NOT EXISTS dat_lanes_src_day (company_id
 ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_kind_check;
 ALTER TABLE documents ADD CONSTRAINT documents_kind_check CHECK (kind IN ('ratecon', 'bol', 'seal', 'pod', 'driverinfo', 'invoice', 'insurance', 'registration', 'repair', 'photo', 'other'));
 
-INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-23')
+INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-25')
 ON DUPLICATE KEY UPDATE value = VALUES(value);

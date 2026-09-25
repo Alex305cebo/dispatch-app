@@ -4,52 +4,11 @@
 // one implementation covers both password hashing and session verification.
 
 import { sql } from './db.ts'
+import { hashSessionToken, THROTTLE, throttleEmail, attemptAllowed, type ThrottleKind } from './auth-core.ts'
 
-const PBKDF2_ITERATIONS = 100_000
-
-function toHex(bytes: Uint8Array): string {
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-}
-
-function fromHex(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2)
-  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16)
-  return bytes
-}
-
-async function pbkdf2(password: string, salt: Uint8Array): Promise<Uint8Array> {
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, [
-    'deriveBits',
-  ])
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt: salt as BufferSource, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
-    key,
-    256,
-  )
-  return new Uint8Array(bits)
-}
-
-/** "salt:hash", both hex — stored in users.password_hash. */
-export async function hashPassword(password: string): Promise<string> {
-  const salt = crypto.getRandomValues(new Uint8Array(16))
-  const hash = await pbkdf2(password, salt)
-  return `${toHex(salt)}:${toHex(hash)}`
-}
-
-export async function verifyPassword(password: string, stored: string): Promise<boolean> {
-  const [saltHex, hashHex] = stored.split(':')
-  if (!saltHex || !hashHex) return false
-  const hash = await pbkdf2(password, fromHex(saltHex))
-  const hex = toHex(hash)
-  if (hex.length !== hashHex.length) return false
-  // Constant-time compare — a timing difference on early mismatch is a real side
-  // channel for a hash comparison, cheap enough to close.
-  let diff = 0
-  for (let i = 0; i < hex.length; i++) diff |= hex.charCodeAt(i) ^ hashHex.charCodeAt(i)
-  return diff === 0
-}
+// Хеширование паролей переехало в auth-core.ts (там его проверяет тест); отсюда —
+// как раньше, чтобы вызывающим ничего не менять.
+export { hashPassword, verifyPassword, needsRehash } from './auth-core.ts'
 
 /** Код восстановления: 12 знаков, без похожих друг на друга символов (0/O, 1/I/L),
  * группами по четыре — такие диктуют по телефону и переписывают с бумажки без
@@ -87,18 +46,22 @@ export async function createSession(userId: number): Promise<string> {
   // only needs to resist guessing, not memorability.
   const token = crypto.randomUUID() + crypto.randomUUID()
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000).toISOString()
-  await sql`INSERT INTO sessions (token, user_id, expires_at) VALUES (${token}, ${userId}, ${new Date(expiresAt)})`
+  // В базу — хеш, в куку — сам токен (почему — auth-core.ts, hashSessionToken).
+  await sql`INSERT INTO sessions (token, user_id, expires_at)
+            VALUES (${await hashSessionToken(token)}, ${userId}, ${new Date(expiresAt)})`
   return token
 }
 
 /** Session lookup used by middleware on every request — a disabled user or an
- * expired/deleted session both come back null, no separate check needed. */
+ * expired/deleted session both come back null, no separate check needed.
+ * Ищется хеш куки: строки, записанные до хеширования (токен как есть), больше ни с
+ * чем не совпадают — все один раз входят заново, и утёкшие токены мертвы. */
 export async function sessionUser(token: string | undefined | null): Promise<SessionUser | null> {
   if (!token) return null
   const rows = (await sql`
     SELECT u.id, u.name, u.email, u.role, u.is_demo FROM sessions s
     JOIN users u ON u.id = s.user_id
-    WHERE s.token = ${token} AND s.expires_at > NOW(6) AND u.disabled_at IS NULL AND u.pending_since IS NULL`) as
+    WHERE s.token = ${await hashSessionToken(token)} AND s.expires_at > NOW(6) AND u.disabled_at IS NULL AND u.pending_since IS NULL`) as
     | { id: number; name: string; email: string; role: 'admin' | 'dispatcher'; is_demo: boolean }[]
   const row = rows[0]
   if (!row) return null
@@ -107,5 +70,40 @@ export async function sessionUser(token: string | undefined | null): Promise<Ses
 
 export async function destroySession(token: string | undefined | null): Promise<void> {
   if (!token) return
-  await sql`DELETE FROM sessions WHERE token = ${token}`
+  await sql`DELETE FROM sessions WHERE token = ${await hashSessionToken(token)}`
+}
+
+/**
+ * Засчитать попытку входа или сброса по email — ДО проверки пароля. false — замок
+ * закрыт, пароль даже не проверяем.
+ *
+ * Счётчик в базе (auth_throttle), а не в памяти: процессов приложения несколько, и
+ * у каждого была своя Map — лимит мягчал во столько же раз, а перезапуск его
+ * обнулял. Два запроса, каждый атомарен сам по себе:
+ * 1. окно истекло — строка удаляется, счёт с нуля;
+ * 2. +1 к попыткам (строки нет — появится с 1), и RETURNING отдаёт номер ЭТОЙ
+ *    попытки. Отдельный SELECT после не годится: сотня одновременных запросов
+ *    сначала все прибавляют, потом все читают 100 — проверено, так не проходил
+ *    никто, включая законные первые пять. window_at стоит ПЕРВЫМ: MariaDB выполняет
+ *    присваивания слева направо, а условию нужно прежнее fails. Для входа окно
+ *    сдвигается на каждую пропущенную попытку, отказанные его не продлевают; для
+ *    сброса окно считается от первой попытки. Выше max+1 счёт не растёт.
+ */
+export async function takeAttempt(kind: ThrottleKind, email: string): Promise<boolean> {
+  const rule = THROTTLE[kind]
+  const key = throttleEmail(email)
+  await sql`DELETE FROM auth_throttle
+            WHERE kind = ${kind} AND email = ${key} AND window_at <= NOW(6) - INTERVAL ${rule.windowSec} SECOND`
+  const rows = (await sql`
+    INSERT INTO auth_throttle (kind, email, fails, window_at) VALUES (${kind}, ${key}, 1, NOW(6))
+    ON DUPLICATE KEY UPDATE
+      window_at = IF(${rule.sliding} AND fails < ${rule.max}, NOW(6), window_at),
+      fails = IF(fails > ${rule.max}, fails, fails + 1)
+    RETURNING fails`) as { fails: number }[]
+  return attemptAllowed(kind, Number(rows[0]?.fails))
+}
+
+/** Удачный вход или сброс — счётчик с нуля. */
+export async function clearAttempts(kind: ThrottleKind, email: string): Promise<void> {
+  await sql`DELETE FROM auth_throttle WHERE kind = ${kind} AND email = ${throttleEmail(email)}`
 }
