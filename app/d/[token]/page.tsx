@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
-import { cookies } from 'next/headers'
-import { truckByDriverToken } from '@/lib/driver-link'
+import { cookies, headers } from 'next/headers'
+import { clientIp, truckForDriverRequest } from '@/lib/driver-link'
 import { listDocs, listLoads } from '@/lib/loads'
 import { listLoadEvents } from '@/lib/load-events'
 import { activeLoadsByTruck, nextLoadsByTruck } from '@/lib/map'
@@ -25,8 +25,10 @@ export const dynamic = 'force-dynamic'
 
 export default async function Page({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
-  const truck = await truckByDriverToken(token)
-  if (!truck) notFound()
+  // Слишком много промахов с этого адреса — та же «не найдено», что и на неверный
+  // токен: перебору не нужно знать, что его заметили.
+  const truck = await truckForDriverRequest(token, clientIp(await headers()))
+  if (!truck || truck === 'limited') notFound()
   const jar = await cookies()
   const locale = resolveLocale(jar.get('driver_locale')?.value ?? 'en')
   const [loads, company, meta] = await Promise.all([listLoads(truck.companyId, { truckId: truck.id }), getCompany(), getTruckMeta(truck.id)])

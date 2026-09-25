@@ -4,6 +4,8 @@ import { bumpGeminiUsage } from '@/lib/gemini-usage'
 import { geminiKey, aiModelPref } from '@/lib/keys'
 import { aiFailKind, aiFailMessage, worstFail, type AiFail } from '@/lib/ai-error'
 import { getLocale } from '@/lib/i18n-server'
+import { getCurrentUser } from '@/lib/session'
+import { t } from '@/lib/i18n'
 
 export const dynamic = 'force-dynamic'
 // Vision on a multi-page scan can take up to ~90s (that's what the UI promises) —
@@ -12,11 +14,17 @@ export const dynamic = 'force-dynamic'
 // now, not Vercel Hobby, so there's no platform ceiling forcing 60 here.
 export const maxDuration = 120
 
-// Sits behind the PIN-gate middleware (same-origin fetch carries the cookie), so
-// only a signed-in dispatcher can spend the Gemini quota.
+// Sits behind the auth middleware (same-origin fetch carries the cookie) — но одного
+// middleware мало: с включённым открытым доступом он пропускает и без входа, а демо —
+// настоящий вход, открытый всем. Ключ Gemini у компании один и платный, поэтому здесь
+// своя проверка: читать документы может только вошедший и не в демо.
 type Body = { text?: string; pdfBase64?: string; mime?: string }
 
 export async function POST(req: NextRequest) {
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: t(await getLocale(), 'actions.signInRequired') }, { status: 401 })
+  if (user.isDemo) return NextResponse.json({ error: t(await getLocale(), 'actions.demoAiOff') }, { status: 403 })
+
   const key = await geminiKey()
   if (!key) return NextResponse.json({ error: 'no_key' }, { status: 503 })
 

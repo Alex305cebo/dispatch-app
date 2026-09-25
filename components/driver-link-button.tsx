@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { Check, Copy, Smartphone } from 'lucide-react'
+import { useState, useTransition } from 'react'
+import { Check, Copy, RefreshCw, Smartphone } from 'lucide-react'
+import { newDriverLink } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
@@ -17,12 +18,15 @@ import { agoText } from '@/lib/fmt'
  * языках, английский понимают все, и сама страница откроется у них по-английски.
  */
 export function DriverLinkButton({
-  url,
+  url: pageUrl,
+  truckId,
   driverPhone,
   seenAt,
   embedded = false,
 }: {
   url: string
+  /** Есть — рядом кнопка «Новая ссылка» (прежние перестают открываться). */
+  truckId?: number
   driverPhone: string | null
   seenAt: string | null
   /** Внутри блока «Водитель» — без своей рамки, там она уже есть у панели. */
@@ -30,7 +34,28 @@ export function DriverLinkButton({
 }) {
   const locale = useLocale()
   const [copied, setCopied] = useState(false)
+  // Новая ссылка видна сразу, не дожидаясь, пока страница перерисуется с сервера.
+  const [renewedUrl, setRenewedUrl] = useState<string | null>(null)
+  const [renewing, startRenew] = useTransition()
+  const url = renewedUrl ?? pageUrl
   const fresh = !seenAt
+
+  // Ссылка сама не меняется никогда (водитель открывает её каждый день) — только
+  // так, руками, если она утекла или водитель ушёл. Старая перестаёт открываться сразу,
+  // поэтому сначала спрашиваем.
+  function renew() {
+    if (truckId == null || !window.confirm(t(locale, 'driver.link.renewConfirm'))) return
+    startRenew(async () => {
+      const res = await newDriverLink(truckId)
+      if ('error' in res) {
+        notify('error', res.error)
+        return
+      }
+      setRenewedUrl(res.url)
+      setCopied(false)
+      notify('ok', t(locale, 'driver.link.renewed'), res.url)
+    })
+  }
 
   const text = `Hi! This is your load page: ${url}\nOpen it on your phone and save it. Tap "Arrived", "Loaded", "Delivered" and send BOL/POD photos there — no need to call. Works without any app.`
   // Telegram и SMS. Больше ничего: водители компании сидят в Telegram.
@@ -115,6 +140,17 @@ export function DriverLinkButton({
         >
           {t(locale, 'driver.link.preview')}
         </a>
+        {truckId != null && (
+          <button
+            type="button"
+            onClick={renew}
+            disabled={renewing}
+            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm text-t3 hover:text-t1 disabled:opacity-40"
+          >
+            <RefreshCw size={12} strokeWidth={2.2} className={renewing ? 'animate-spin' : ''} />
+            {t(locale, 'driver.link.renew')}
+          </button>
+        )}
       </div>
     </div>
   )

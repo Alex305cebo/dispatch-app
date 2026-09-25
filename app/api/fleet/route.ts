@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { sql } from '@/lib/db'
+import { secretMatches } from '@/lib/secret-compare'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,7 +21,7 @@ type Incoming = {
 
 export async function POST(req: NextRequest) {
   const secret = process.env.FLEET_INGEST_TOKEN
-  if (!secret || req.headers.get('x-fleet-token') !== secret) {
+  if (!secretMatches(req.headers.get('x-fleet-token'), secret)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 

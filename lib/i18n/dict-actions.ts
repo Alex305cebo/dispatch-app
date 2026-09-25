@@ -80,6 +80,24 @@ export const actionsDict = {
     ro: 'Demo-ul e doar pentru vizualizare. Autentifică-te în contul tău ca să salvezi.',
     kk: 'Демо — тек қарауға. Сақтау үшін өз аккаунтыңызға кіріңіз.',
   },
+  // Открытый доступ (админка) пускает без входа смотреть — но не менять парк.
+  'actions.signInRequired': {
+    ru: 'Без входа можно только смотреть — войдите в свой аккаунт.',
+    en: 'Without signing in you can only look — sign in to your account.',
+    es: 'Sin iniciar sesión solo puedes mirar: entra en tu cuenta.',
+    uk: 'Без входу можна лише дивитися — увійдіть у свій акаунт.',
+    ro: 'Fără autentificare poți doar să te uiți — autentifică-te în contul tău.',
+    kk: 'Кірмей тек қарауға болады — өз аккаунтыңызға кіріңіз.',
+  },
+  // Демо открыто всем, а ключ Gemini у компании один и платный.
+  'actions.demoAiOff': {
+    ru: 'В демо чтение документов ИИ выключено — войдите в свой аккаунт.',
+    en: 'AI document reading is off in the demo — sign in to your account.',
+    es: 'En la demo la lectura de documentos con IA está desactivada: entra en tu cuenta.',
+    uk: 'У демо читання документів ШІ вимкнено — увійдіть у свій акаунт.',
+    ro: 'În demo citirea documentelor cu AI e oprită — autentifică-te în contul tău.',
+    kk: 'Демода құжаттарды ЖИ арқылы оқу өшірулі — өз аккаунтыңызға кіріңіз.',
+  },
   'actions.needNameAndMcDot': { ru: 'Нужны минимум название и MC/DOT.', en: 'Need at least a name and MC/DOT.', es: 'Hacen falta al menos el nombre y el MC/DOT.', uk: 'Потрібні щонайменше назва і MC/DOT.', ro: 'E nevoie cel puțin de nume și MC/DOT.', kk: 'Кемінде атауы мен MC/DOT керек.' },
   'actions.truckNotFound': { ru: 'Трак не найден.', en: 'Truck not found.', es: 'Camión no encontrado.', uk: 'Трак не знайдено.', ro: 'Camionul nu a fost găsit.', kk: 'Тракт табылмады.' },
   'actions.rateconNotFound': { ru: 'Рейткон не найден.', en: 'Rate con not found.', es: 'Rate con no encontrado.', uk: 'Рейткон не знайдено.', ro: 'Rate con negăsit.', kk: 'Рейткон табылмады.' },

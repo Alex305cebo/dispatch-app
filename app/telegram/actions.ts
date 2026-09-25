@@ -21,6 +21,7 @@ import { autoInvoiceIfReady } from '@/lib/invoice'
 import { sql } from '@/lib/db'
 import { demoReadOnly, getCurrentUser, verifyMyPassword, type CurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
+import { deleteSetting, getSetting, setSetting } from '@/lib/settings'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 
@@ -373,15 +374,29 @@ async function attachRateCon(
   }
 }
 
+/** Сколько отправка открыта после пароля. Окно у клиента то же (tg-chat.tsx UNLOCK_MS);
+ * здесь на полминуты длиннее — клиент начинает отсчёт уже ПОСЛЕ ответа сервера, и
+ * последнее сообщение перед концом его окна не должно упираться в наше. */
+const TG_UNLOCK_MS = 2 * 60 * 1000 + 30_000
+const tgUnlockKey = (userId: number) => `tg_send_unlock:${userId}`
+
 /** Gate for sending a Telegram message — the dispatcher confirms with their OWN login
- * password. The client re-checks this once per unlock window (2 min), not per message. */
+ * password. The client re-checks this once per unlock window (2 min), not per message.
+ *
+ * Окно раньше жило только в sessionStorage браузера: tgSendMessage пароль не
+ * спрашивал, и прямой вызов действия отправлял водителю что угодно без него. Теперь
+ * срок окна записан на сервере по пользователю, и отправка его проверяет. */
 export async function verifyTgSendPassword(password: string): Promise<{ ok: true } | { error: string }> {
   const check = await verifyMyPassword(password)
   if ('error' in check) return { error: check.error }
+  await setSetting(tgUnlockKey(check.user.id), String(Date.now() + TG_UNLOCK_MS))
   return { ok: true }
 }
 
-export async function tgSendMessage(chatId: string, text: string): Promise<{ error: string } | void> {
+export async function tgSendMessage(
+  chatId: string,
+  text: string,
+): Promise<{ error: string; locked?: true } | void> {
   const locale = await getLocale()
   if (!text.trim()) return { error: t(locale, 'telegram.actions.emptyMessage') }
   let user: CurrentUser
@@ -389,6 +404,11 @@ export async function tgSendMessage(chatId: string, text: string): Promise<{ err
     user = await requireTgUser()
   } catch (e) {
     return { error: msg(e) }
+  }
+  const until = Number(await getSetting(tgUnlockKey(user.id)))
+  if (!(until > Date.now())) {
+    await deleteSetting(tgUnlockKey(user.id)).catch(() => {})
+    return { error: t(locale, 'telegram.actions.sendLocked'), locked: true }
   }
   try {
     await tgSend(user.id, chatId, text.trim())

@@ -9,7 +9,9 @@ import { t, type Locale } from './i18n.ts'
 
 export type AiResult =
   | { ok: true; fields: RateConFields; model: string }
-  | { ok: false; reason: 'no_key' | 'failed'; detail?: string }
+  /** 'off' — чтение закрыто для этого входа (демо, без входа): detail — готовая фраза
+   * человеку, повторять запрос бессмысленно. */
+  | { ok: false; reason: 'no_key' | 'failed' | 'off'; detail?: string }
 
 export async function aiParseRateCon(
   input: {
@@ -29,6 +31,7 @@ export async function aiParseRateCon(
       | { ok: true; fields: AiFields; model: string }
       | { error: string }
     if ('ok' in data) return { ok: true, fields: aiToFields(data.fields, data.model, locale), model: data.model }
+    if (res.status === 401 || res.status === 403) return { ok: false, reason: 'off', detail: data.error }
     return { ok: false, reason: data.error === 'no_key' ? 'no_key' : 'failed', detail: data.error }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)

@@ -149,7 +149,7 @@ export function TruckRcDrop({
       // One automatic retry before bothering the dispatcher — a slow scan is usually
       // just slow, not a real failure, and this clears most of them silently.
       let ai = await aiParseRateCon(aiInput, locale)
-      if (!ai.ok) {
+      if (!ai.ok && ai.reason !== 'off') {
         setStage(t(locale, 'rcDrop.stageRetrying'))
         await new Promise((r) => setTimeout(r, 1500))
         ai = await aiParseRateCon(aiInput, locale)
@@ -158,7 +158,9 @@ export function TruckRcDrop({
         throw new Error(
           ai.reason === 'no_key'
             ? t(locale, 'newLoad.aiUnavailable')
-            : t(locale, 'newLoad.notRecognized').replace(
+            : ai.reason === 'off' && ai.detail
+              ? ai.detail
+              : t(locale, 'newLoad.notRecognized').replace(
                 '{detail}',
                 ai.detail ?? t(locale, 'newLoad.aiUnavailableShort'),
               ),

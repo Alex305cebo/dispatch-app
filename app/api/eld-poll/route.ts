@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { secretMatches } from '@/lib/secret-compare'
 import { fleetSnapshot, liveShareSnapshot } from '@/lib/eld'
 import { backfillBrokerMc } from '@/lib/mc-backfill'
 import { samsaraSnapshot } from '@/lib/eld-samsara'
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET
   const given =
     req.headers.get('x-cron-secret') ?? new URL(req.url).searchParams.get('secret')
-  if (!secret || given !== secret) {
+  if (!secretMatches(given, secret)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
   // Заодно дозаполняем брокерам MC. Живёт здесь, а не в своём расписании, потому что
