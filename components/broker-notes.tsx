@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 import {
   Banknote,
   Bookmark,
+  ChevronDown,
   Clock,
   FileText,
   HardHat,
@@ -95,19 +96,47 @@ export function BrokerNotes({
   const [translating, setTranslating] = useState(false)
 
   const unread = !readAt
-  // Auto-open shows the full note once, then folds itself away after 10s so it
-  // doesn't just sit there blocking the page — the amber glow (CSS, while folded)
-  // keeps it impossible to miss until "Прочитано" is actually clicked. Direct DOM
-  // mutation (not React state) because <details> already owns its own open/close
-  // from the user clicking <summary> — mirroring that in state would fight it.
+  // Непрочитанное открывается само, но долго не висит (владелец 25.09.2026): сворачивается
+  // через 6 секунд ПОСЛЕ ТОГО, КАК ПОЯВИЛОСЬ НА ЭКРАНЕ (не с загрузки страницы — ниже
+  // первого экрана его бы свернуло, пока до него не докрутили), и сразу, как только его
+  // прокрутили выше экрана. Жёлтая рамка остаётся, пока не нажали «Прочитано».
+  // Открытие меняем прямо в DOM, а не состоянием: <details> сам ведёт open/close по
+  // нажатию на <summary>, и копия в React с ним бы спорила.
   const detailsRef = useRef<HTMLDetailsElement>(null)
+  const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    if (!unread) return
-    const t = setTimeout(() => {
-      if (detailsRef.current) detailsRef.current.open = false
-    }, 10_000)
-    return () => clearTimeout(t)
+    const el = detailsRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+    let seen = false
+    const fold = () => {
+      if (!el.open) return
+      const above = el.getBoundingClientRect().bottom <= 0
+      const before = el.offsetHeight
+      el.open = false
+      // Блок выше экрана стал короче — страница под пальцем не должна прыгать вверх.
+      // Chrome и Firefox держат место сами (overflow-anchor), Safari — нет.
+      if (above && !CSS.supports('overflow-anchor', 'auto')) window.scrollBy(0, el.offsetHeight - before)
+    }
+    const io = new IntersectionObserver(([e]) => {
+      if (!e) return
+      if (e.isIntersecting) {
+        if (!seen && unread && el.open) autoTimer.current = setTimeout(fold, 6_000)
+        seen = true
+      } else if (seen && e.boundingClientRect.bottom <= (e.rootBounds?.top ?? 0)) {
+        fold()
+      }
+    })
+    io.observe(el)
+    return () => {
+      io.disconnect()
+      if (autoTimer.current) clearTimeout(autoTimer.current)
+    }
   }, [unread])
+  // Нажал сам — дальше решает он: таймер больше не свернёт у него из-под руки.
+  const stopAuto = () => {
+    if (autoTimer.current) clearTimeout(autoTimer.current)
+    autoTimer.current = null
+  }
 
   function toggleTranslate() {
     if (ru) {
@@ -240,48 +269,62 @@ export function BrokerNotes({
       open={unread}
       // Условия брокера — справочный текст, не тревога: панель нейтральная. Жёлтым
       // подсвечивается только непрочитанное, и только пока не нажали «Прочитано».
-      className={`group overflow-hidden transition-colors ${
-        unread
-          ? `rounded-xl border border-warn-400/40 bg-warn-400/[0.06] ${embedded ? 'mt-4' : ''}`
-          : embedded
-            ? 'mt-4 border-t border-white/[0.07]'
-            : 'rounded-xl border border-white/10 bg-ink-900'
+      className={`group overflow-hidden rounded-xl border transition-colors ${embedded ? 'mt-4' : ''} ${
+        unread ? 'border-warn-400/45 bg-warn-400/[0.05]' : 'border-white/10 bg-white/[0.025]'
       }`}
     >
+      {/* Шапка блока — полоса со своей заливкой и кнопкой справа: видно, что это
+          заголовок и что по нему открывают и закрывают (владелец 25.09.2026). */}
       <summary
-        className={`flex cursor-pointer list-none items-center gap-2 ${embedded && !unread ? 'pt-3 pb-0.5' : 'p-3.5'}`}
+        onClick={stopAuto}
+        className={`flex cursor-pointer list-none items-center gap-3 px-3.5 py-2.5 transition-colors select-none group-open:border-b [&::-webkit-details-marker]:hidden ${
+          unread
+            ? 'bg-warn-400/[0.10] group-open:border-warn-400/25 hover:bg-warn-400/[0.16]'
+            : 'bg-white/[0.04] group-open:border-white/[0.08] hover:bg-white/[0.08]'
+        }`}
       >
-        {unread ? (
-          <span className="relative flex size-4 shrink-0 items-center justify-center" aria-hidden>
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-warn-400/50" />
-            <TriangleAlert size={14} strokeWidth={2.2} className="relative text-warn-300" />
-          </span>
-        ) : (
-          embedded && <TriangleAlert size={14} strokeWidth={2.2} className="shrink-0 text-t3" aria-hidden />
-        )}
         <span
-          className={`shrink-0 text-base font-semibold ${
-            unread ? 'text-warn-300' : 'text-t1'
+          className={`relative flex size-8 shrink-0 items-center justify-center rounded-lg ${
+            unread ? 'bg-warn-400/20 text-warn-300' : 'bg-white/[0.07] text-t2'
+          }`}
+          aria-hidden
+        >
+          {unread && <span className="absolute inset-0 rounded-lg bg-warn-400/30 motion-safe:animate-ping" />}
+          <TriangleAlert size={16} strokeWidth={2.2} className="relative" />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="flex items-center gap-2">
+            {/* Заголовок не режется: сжимается строка текста под ним. */}
+            <span className={`text-base font-semibold whitespace-nowrap ${unread ? 'text-warn-300' : 'text-t1'}`}>
+              {t(locale, 'brokerNotes.heading')}
+            </span>
+            {unread && (
+              <span className="shrink-0 rounded-full bg-warn-400 px-1.5 py-px text-2xs font-bold uppercase tracking-wide text-ink-950">
+                {t(locale, 'brokerNotes.new')}
+              </span>
+            )}
+          </span>
+          {/* Свёрнуто — когда прочитано и первая строка текста, чтобы было видно, о чём там. */}
+          <span className="truncate text-sm text-t3 group-open:hidden">
+            {!unread && `${t(locale, 'brokerNotes.readOn').replace('{date}', usDate(todayEt(new Date(readAt))))} · `}
+            {preview}
+          </span>
+        </span>
+        <span
+          className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${
+            unread
+              ? 'border-warn-400/45 text-warn-300 group-hover:bg-warn-400/15'
+              : 'border-white/15 text-t2 group-hover:bg-white/[0.08]'
           }`}
         >
-          {t(locale, 'brokerNotes.heading')}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-sm text-t3 group-open:hidden">{preview}</span>
-        {/* На телефоне дата прочтения не влезает рядом с «Развернуть» — там она внутри. */}
-        <span className={`shrink-0 text-xs text-t3 ${unread ? '' : 'max-sm:hidden'}`}>
-          {unread ? t(locale, 'brokerNotes.new') : t(locale, 'brokerNotes.readOn').replace('{date}', usDate(todayEt(new Date(readAt))))}
-        </span>
-        {/* Explicit fold/unfold hint — this being a <details> (click to toggle) isn't
-            obvious on its own, especially now that unread notes open by default. */}
-        <span className="hidden shrink-0 items-center gap-1 text-xs text-t3 group-open:flex">
-          {t(locale, 'brokerNotes.collapse')} <span className="text-t3 transition-transform rotate-90">▸</span>
-        </span>
-        <span className="flex shrink-0 items-center gap-1 text-xs text-t3 group-open:hidden">
-          {t(locale, 'brokerNotes.expand')} <span className="text-t3 transition-transform">▸</span>
+          {/* На телефоне — только стрелка: подпись отнимала место у заголовка. */}
+          <span className="group-open:hidden max-sm:hidden">{t(locale, 'brokerNotes.expand')}</span>
+          <span className="hidden sm:group-open:inline">{t(locale, 'brokerNotes.collapse')}</span>
+          <ChevronDown size={14} strokeWidth={2.5} className="transition-transform duration-200 group-open:rotate-180" />
         </span>
       </summary>
 
-      <div className={embedded && !unread ? 'pt-2' : 'px-3.5 pb-3.5'}>
+      <div className="px-3.5 py-3">
         {structured ? (
           <ul className="flex flex-col gap-2">
             {sortedLines.map((l, i) => {
