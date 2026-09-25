@@ -229,3 +229,48 @@ export function stopRole(
   }
   return null
 }
+
+/** «3.5mi NE from Flagstaff, AZ» → город отдельно, удаление отдельно: в строке
+ * истории город — главное, а «3.5 mi NE» мелкой припиской. Строка без «from»
+ * (ELD прислал просто город или адрес) остаётся как есть. */
+export function splitPlace(place: string | null | undefined): { city: string; near: string | null } | null {
+  const s = place?.trim()
+  if (!s) return null
+  // Приставку с фактическим штатом («NV · …», lib/place.ts) сохраняем: она и есть
+  // поправка к городу вендора.
+  const m = /^([A-Z]{2}\s·\s)?([\d.]+)\s*mi\s+([NSEW]{1,3})\s+from\s+(.+)$/.exec(s)
+  if (!m) return { city: s, near: null }
+  return { city: `${m[1] ?? ''}${m[4]!.trim()}`, near: `${m[2]} mi ${m[3]}` }
+}
+
+// Время суток и границы дней — по ET, как везде в TMS (правило проекта). Раньше лента
+// считала сутки и часы в поясе того, кто рисует: сервер в UTC рисовал одно, браузер
+// диспетчера в New York — другое, и React ругался #418 на каждой карточке трака.
+const ET = 'America/New_York'
+const etParts = new Intl.DateTimeFormat('en-CA', {
+  timeZone: ET,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  hourCycle: 'h23',
+})
+
+/** День yyyy-mm-dd по ET для момента `ms`. */
+export function etDay(ms: number): string {
+  const p = Object.fromEntries(etParts.formatToParts(ms).map((x) => [x.type, x.value]))
+  return `${p.year}-${p.month}-${p.day}`
+}
+
+/** Полночь по ET дня, в который попадает `ms`. ET — это UTC−4 летом и UTC−5 зимой,
+ * так что полночь — 04:00 или 05:00 UTC; берём ту, что даёт этот же день в 0 часов. */
+export function startOfDayEt(ms: number): number {
+  const day = etDay(ms)
+  const [y, m, d] = day.split('-').map(Number) as [number, number, number]
+  for (const h of [4, 5]) {
+    const guess = Date.UTC(y, m - 1, d, h)
+    const p = Object.fromEntries(etParts.formatToParts(guess).map((x) => [x.type, x.value]))
+    if (p.hour === '00' && etDay(guess) === day) return guess
+  }
+  return Date.UTC(y, m - 1, d, 5)
+}
