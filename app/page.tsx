@@ -36,7 +36,7 @@ import { getLocale } from '@/lib/i18n-server'
 import { fixPlace, placeCity } from '@/lib/place'
 import { t as tr, type Locale } from '@/lib/i18n'
 import { can } from '@/lib/capabilities-server'
-import { usd, usd2, driveTime, shortName, weekStart } from '@/lib/fmt'
+import { usd, usd2, driveTime, shortName, weekStart, usDate } from '@/lib/fmt'
 import { StatusBadge } from '@/components/status'
 import { NeedsLoad } from '@/components/needs-load'
 import { NoBreakWords } from '@/components/ui'
@@ -362,7 +362,12 @@ export default async function Page() {
                     tone: 'off' as const,
                   }
                 : cur
-                  ? { text: tr(locale, 'trucks.heatmap.onLoad'), tone: 'busy' as const }
+                  ? {
+                      text: cur.deliveryDate
+                        ? `${tr(locale, 'trucks.heatmap.until')} ${usDate(cur.deliveryDate.slice(0, 10))}`
+                        : tr(locale, 'trucks.heatmap.onLoad'),
+                      tone: 'busy' as const,
+                    }
                   : { text: tr(locale, 'trucks.heatmap.free'), tone: 'free' as const },
             }
           })}
