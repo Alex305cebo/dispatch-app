@@ -13,6 +13,7 @@
 // экран.
 
 import { useRef, useTransition } from 'react'
+import { Check, Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { DocLink } from '@/components/doc-link'
 import { uploadDocument } from '@/app/actions'
@@ -87,7 +88,7 @@ export function LoadPapers({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
       {REQUIRED.map((kind) => {
         const doc = firstOf(kind)
         const label = docKindLabel(kind, locale)
@@ -97,8 +98,9 @@ export function LoadPapers({
               key={kind}
               docId={doc.id}
               title={t(locale, 'papers.open').replace('{doc}', label)}
-              className={`${chip} bg-good-500/15 text-good-400 hover:bg-good-500/25`}
+              className={`${chip} bg-good-500/12 text-good-400 ring-1 ring-good-500/25 ring-inset hover:bg-good-500/22`}
             >
+              <Check size={12} strokeWidth={3} aria-hidden />
               {label}
             </DocLink>
           )
@@ -113,7 +115,8 @@ export function LoadPapers({
                 : 'border-white/15 text-t3 hover:border-white/30 hover:text-t2'
             } ${pending ? 'opacity-50' : ''}`}
           >
-            + {label}
+            <Plus size={12} strokeWidth={3} aria-hidden />
+            {label}
             <input
               ref={(el) => {
                 inputs.current[kind] = el

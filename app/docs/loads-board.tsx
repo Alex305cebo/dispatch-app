@@ -14,8 +14,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { Download } from 'lucide-react'
-import { Collapse } from '@/components/collapse'
+import { ChevronDown, Download, Landmark, Search } from 'lucide-react'
 import { DocLink } from '@/components/doc-link'
 import { LoadPapers, missingPapers, papersComplete, type LoadPaper } from '@/components/load-papers'
 import { useLocale } from '@/components/locale-provider'
@@ -100,11 +99,11 @@ const OPEN: PayGroup[] = ['problems', 'toSubmit', 'awaitingFunding', 'atRisk']
 const BATCH: PayGroup[] = ['toSubmit', 'awaitingFunding', 'funded', 'atRisk']
 
 const input =
-  'w-full rounded-lg border border-white/10 bg-ink-900/80 px-2.5 py-1.5 text-base text-white outline-none focus:border-haul-500 max-md:min-h-11'
+  'min-h-10 w-full rounded-xl border border-white/10 bg-ink-900/60 px-3 py-1.5 text-base text-t1 outline-none transition-colors placeholder:text-t3 focus:border-haul-500 max-md:min-h-11'
 const btn =
-  'inline-flex min-h-9 items-center rounded-lg border border-white/15 px-3 text-sm font-semibold text-t1 transition-colors hover:border-white/35 hover:text-white disabled:opacity-50 max-md:min-h-11'
+  'inline-flex min-h-9 items-center rounded-lg border border-white/12 bg-white/[0.04] px-3 text-sm font-semibold text-t1 transition-colors hover:border-white/30 hover:bg-white/[0.08] disabled:opacity-50 max-md:min-h-10'
 const primary =
-  'inline-flex min-h-9 items-center rounded-lg bg-haul-500 px-3 text-sm font-semibold text-white transition-colors hover:bg-haul-400 disabled:opacity-50 max-md:min-h-11'
+  'inline-flex min-h-9 items-center rounded-lg bg-haul-500 px-3 text-sm font-semibold text-white shadow-[0_6px_16px_-8px_rgba(124,108,255,0.9)] transition-colors hover:bg-haul-400 disabled:opacity-50 max-md:min-h-10'
 
 const fill = (s: string, vars: Record<string, string | number>) =>
   Object.entries(vars).reduce((acc, [k, v]) => acc.replace(`{${k}}`, String(v)), s)
@@ -114,6 +113,7 @@ export function LoadsBoard({
   settings,
   today,
   initialQuery = '',
+  initialStage = '',
   money = true,
 }: {
   rows: PayRow[]
@@ -121,6 +121,8 @@ export function LoadsBoard({
   today: string
   /** Пришли по ссылке с груза (lib/payments.ts financesHref) — сразу найден и раскрыт. */
   initialQuery?: string
+  /** Этап, с которого открыть список (ссылка с плитки-числа над ним). */
+  initialStage?: string
   /** Есть право «Финансы»: суммы, этапы факторинга и действия с деньгами. Без него
    * остаются те же грузы и их бумаги, разложенные по тому, всё ли собрано. */
   money?: boolean
@@ -133,6 +135,7 @@ export function LoadsBoard({
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [form, setForm] = useState<Form | null>(null)
   const [editSettings, setEditSettings] = useState(false)
+  const [stage, setStage] = useState(initialStage || 'all')
   const factor = settings.name
 
   const brokers = useMemo(() => [...new Set(rows.map((r) => r.broker).filter((b): b is string => !!b))].sort(), [rows])
@@ -151,11 +154,12 @@ export function LoadsBoard({
 
   // Группы списка. С правом «Финансы» — этапы денег, как и было. Без него делить по
   // этапам факторинга нечего, и груз важен другим: собраны бумаги или нет.
-  type Section = { key: string; title: string; tone: 'plain' | 'good' | 'warn' | 'bad'; group: PayGroup; rows: PayRow[]; defaultOpen: boolean }
+  type Section = { key: string; title: string; short: string; tone: 'plain' | 'good' | 'warn' | 'bad'; group: PayGroup; rows: PayRow[]; defaultOpen: boolean }
   const sections: Section[] = money
     ? PAY_GROUPS.map((g) => ({
         key: g,
         title: fill(t(locale, GROUP_KEY[g]), { factor }),
+        short: t(locale, `docs.stage.${g}` as MsgKey),
         tone: GROUP_TONE[g],
         group: g,
         rows: byGroup.get(g) ?? [],
@@ -165,6 +169,7 @@ export function LoadsBoard({
         {
           key: 'missing',
           title: t(locale, 'papers.group.missing'),
+          short: t(locale, 'docs.stage.missing'),
           tone: 'warn' as const,
           group: 'toSubmit' as PayGroup,
           rows: shown.filter((r) => r.group !== 'inWork' && !papersComplete(r.papers)),
@@ -173,6 +178,7 @@ export function LoadsBoard({
         {
           key: 'inWork',
           title: t(locale, 'papers.group.inWork'),
+          short: t(locale, 'docs.stage.inWork'),
           tone: 'plain' as const,
           group: 'inWork' as PayGroup,
           rows: shown.filter((r) => r.group === 'inWork'),
@@ -181,6 +187,7 @@ export function LoadsBoard({
         {
           key: 'ready',
           title: t(locale, 'papers.group.ready'),
+          short: t(locale, 'docs.stage.ready'),
           tone: 'good' as const,
           group: 'done' as PayGroup,
           rows: shown.filter((r) => r.group !== 'inWork' && papersComplete(r.papers)),
@@ -232,73 +239,105 @@ export function LoadsBoard({
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
-  return (
-    <div className="flex flex-col gap-3">
-      {/* Факторинг и его условия — одна строка, правится на месте. */}
-      {money && (
-      <div className="panel flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5 text-sm text-t2">
-        {!editSettings ? (
-          <>
-            <span>
-              <b className="text-t1">{factor}</b> ·{' '}
-              {settings.recourse
-                ? fill(t(locale, 'payments.settings.recourseOn'), { n: settings.recourseDays })
-                : t(locale, 'payments.settings.recourseOff')}{' '}
-              · {t(locale, 'payments.settings.fee')}
-            </span>
-            <button type="button" onClick={() => setEditSettings(true)} className="text-haul-400 hover:underline max-md:min-h-9">
-              {t(locale, 'payments.settings.edit')}
-            </button>
-          </>
-        ) : (
-          <SettingsForm
-            initial={settings}
-            locale={locale}
-            pending={pending}
-            onCancel={() => setEditSettings(false)}
-            onSave={(s) => run(() => saveFactoringSettings(s), () => setEditSettings(false))}
-          />
-        )}
-      </div>
-      )}
+  // Полоса этапов над списком: «Все» и по пилюле на каждую непустую группу. Пилюля
+  // сужает список до одной группы — длинный экран из семи групп читается по одной.
+  const visible = sections.filter((sec) => sec.rows.length > 0)
+  const active = stage !== 'all' && visible.some((sec) => sec.key === stage) ? stage : 'all'
+  const listed = active === 'all' ? visible : visible.filter((sec) => sec.key === active)
 
+  return (
+    <div id="board" className="@container flex scroll-mt-4 flex-col gap-3">
       {/* Поиск и фильтры — для всех групп сразу; CSV выгружает то, что видно. */}
-      {/* Списки — sm:w-auto, а не w-auto: без префикса w-full из input шёл в CSS позже и
-          побеждал, и каждый список растягивался на всю строку. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t(locale, money ? 'payments.filter.search' : 'papers.filter.search')}
-          className={`${input} min-w-0 flex-1 sm:max-w-xs`}
-        />
-        <select value={broker} onChange={(e) => setBroker(e.target.value)} className={`${input} sm:w-auto sm:max-w-60`}>
-          <option value="">{t(locale, 'payments.filter.allBrokers')}</option>
-          {brokers.map((b) => (
-            <option key={b} value={b}>
-              {b}
-            </option>
-          ))}
-        </select>
-        <select value={truck} onChange={(e) => setTruck(e.target.value)} className={`${input} sm:w-auto sm:max-w-60`}>
-          <option value="">{t(locale, 'payments.filter.allTrucks')}</option>
-          {trucks.map((tr) => (
-            <option key={tr} value={tr}>
-              {tr}
-            </option>
-          ))}
-        </select>
+      <div className="panel flex flex-col gap-3 p-3">
+        <div className={`grid gap-2 @2xl:flex @2xl:items-center ${money ? 'grid-cols-[1fr_1fr_auto]' : 'grid-cols-2'}`}>
+          <label className="relative col-span-full min-w-0 @2xl:flex-1">
+            <Search size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-t3" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t(locale, money ? 'payments.filter.search' : 'papers.filter.search')}
+              className={`${input} pl-9`}
+            />
+          </label>
+          <select value={broker} onChange={(e) => setBroker(e.target.value)} className={`${input} min-w-0 @2xl:w-48`}>
+            <option value="">{t(locale, 'payments.filter.allBrokers')}</option>
+            {brokers.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+          <select value={truck} onChange={(e) => setTruck(e.target.value)} className={`${input} min-w-0 @2xl:w-48`}>
+            <option value="">{t(locale, 'payments.filter.allTrucks')}</option>
+            {trucks.map((tr) => (
+              <option key={tr} value={tr}>
+                {tr}
+              </option>
+            ))}
+          </select>
+          {money && (
+            <button type="button" onClick={exportCsv} className={`${btn} justify-center gap-1.5`}>
+              <Download size={14} strokeWidth={2.5} />
+              CSV
+            </button>
+          )}
+        </div>
+
+        {visible.length > 1 && (
+          <div role="tablist" className="-mx-3 flex gap-1.5 overflow-x-auto px-3 [scrollbar-width:none]">
+            <StagePill
+              label={t(locale, 'docs.stage.all')}
+              count={shown.length}
+              active={active === 'all'}
+              onClick={() => setStage('all')}
+            />
+            {visible.map((sec) => (
+              <StagePill
+                key={sec.key}
+                label={sec.short}
+                count={sec.rows.length}
+                tone={sec.tone}
+                active={active === sec.key}
+                onClick={() => setStage(active === sec.key ? 'all' : sec.key)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Факторинг и его условия — одна тихая строка, правится на месте. */}
         {money && (
-          <button type="button" onClick={exportCsv} className={`${btn} ml-auto gap-1.5`}>
-            <Download size={13} strokeWidth={2.5} />
-            CSV
-          </button>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-2 border-t border-white/6 pt-2.5 text-sm text-t3">
+            {!editSettings ? (
+              <>
+                <Landmark size={14} className="shrink-0" />
+                <span className="min-w-0">
+                  {t(locale, 'docs.factoring')}: <b className="font-semibold text-t1">{factor}</b> ·{' '}
+                  {settings.recourse
+                    ? fill(t(locale, 'payments.settings.recourseOn'), { n: settings.recourseDays })
+                    : t(locale, 'payments.settings.recourseOff')}{' '}
+                  · {t(locale, 'payments.settings.fee')}
+                </span>
+                <button type="button" onClick={() => setEditSettings(true)} className="font-medium text-haul-400 hover:underline max-md:min-h-9">
+                  {t(locale, 'payments.settings.edit')}
+                </button>
+              </>
+            ) : (
+              <SettingsForm
+                initial={settings}
+                locale={locale}
+                pending={pending}
+                onCancel={() => setEditSettings(false)}
+                onSave={(s) => run(() => saveFactoringSettings(s), () => setEditSettings(false))}
+              />
+            )}
+          </div>
         )}
       </div>
 
       {/* Выбранные грузы — одним действием: брокер или факторинг проводит их пакетом. */}
       {money && selRows.length > 0 && (
-        <div className="sticky top-2 z-10 rounded-xl border border-haul-500/40 bg-ink-900/95 px-3.5 py-2.5 shadow-lg backdrop-blur">
+        <div className="panel sticky top-2 z-10 border-haul-500/40 px-3.5 py-2.5">
           <div className="flex flex-wrap items-center gap-2 text-base">
             <span className="font-semibold">
               {fill(t(locale, 'payments.batch.selected'), {
@@ -322,7 +361,7 @@ export function LoadsBoard({
               </button>
             )}
             {!selGroup && <span className="text-warn-400">{t(locale, 'payments.batch.mixed')}</span>}
-            <button type="button" className="text-t3 hover:text-white max-md:min-h-9" onClick={() => setSelected(new Set())}>
+            <button type="button" className="ml-auto text-t3 hover:text-t1 max-md:min-h-9" onClick={() => setSelected(new Set())}>
               {t(locale, 'payments.batch.clear')} ×
             </button>
           </div>
@@ -343,29 +382,41 @@ export function LoadsBoard({
       )}
 
       {shown.length === 0 && (
-        <p className="panel p-4 text-center text-base text-t3">
+        <p className="panel p-6 text-center text-base text-t3">
           {rows.length ? t(locale, 'payments.nothingFound') : t(locale, 'payments.empty')}
         </p>
       )}
 
-      {sections.map((sec) => {
+      {listed.map((sec) => {
         const list = sec.rows
-        if (!list.length) return null
         const g = sec.group
+        const batch = money && BATCH.includes(g)
         return (
-          <Collapse
-            key={sec.key}
-            title={sec.title}
-            count={list.length}
-            amount={money ? usd.format(list.reduce((s, r) => s + r.rate, 0)) : undefined}
-            tone={sec.tone}
-            defaultOpen={sec.defaultOpen}
+          <details
+            key={`${sec.key}:${active}`}
+            open={active !== 'all' || sec.defaultOpen}
+            className="group/sec panel overflow-hidden"
           >
-            <div className="flex flex-col gap-2">
+            <summary className="flex cursor-pointer list-none items-center gap-2.5 px-4 py-3 transition-colors hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden">
+              <span aria-hidden className={`size-2 shrink-0 rounded-full ${DOT[sec.tone]}`} />
+              <span className={`min-w-0 flex-1 truncate text-md font-semibold ${sec.tone === 'plain' ? 'text-t1' : TEXT[sec.tone]}`}>
+                {sec.title}
+              </span>
+              <span className="nums shrink-0 rounded-full bg-white/8 px-2 py-0.5 text-xs font-bold text-t2">{list.length}</span>
+              {money && <span className="nums shrink-0 text-md font-bold text-t1">{usd.format(list.reduce((s, r) => s + r.rate, 0))}</span>}
+              <ChevronDown size={16} className="shrink-0 text-t3 transition-transform duration-200 group-open/sec:rotate-180" />
+            </summary>
+            <ul className="divide-y divide-white/6 border-t border-white/8">
               {list.map((r) => (
-                <div key={r.id} id={`pay-${r.id}`} className="panel scroll-mt-20 p-3.5">
+                <li
+                  key={r.id}
+                  id={`pay-${r.id}`}
+                  className={`relative scroll-mt-20 px-3 py-3.5 transition-colors @xl:px-4 hover:bg-white/[0.025] ${
+                    selected.has(r.id) ? 'bg-haul-500/[0.07]' : ''
+                  }`}
+                >
                   <div className="flex items-start gap-3">
-                    {money && BATCH.includes(g) && (
+                    {batch && (
                       <input
                         type="checkbox"
                         aria-label={r.route}
@@ -374,46 +425,94 @@ export function LoadsBoard({
                         className="mt-1 size-4 shrink-0 accent-haul-500 max-md:size-5"
                       />
                     )}
-                    <Link href={`/loads/${r.id}`} className="min-w-0 flex-1">
-                      <div className="text-md font-medium">{r.route}</div>
-                      <div className="mt-0.5 flex flex-wrap gap-x-2 text-sm text-t2">
-                        {r.ref && <span className="nums">#{r.ref}</span>}
-                        <span>{r.truck}</span>
-                        {r.broker && <span>· {r.broker}</span>}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start gap-3">
+                        <Link href={`/loads/${r.id}`} className="min-w-0 flex-1 hover:[&_.route]:text-haul-300">
+                          <div className="route text-md font-semibold text-t1 transition-colors">{r.route}</div>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-sm text-t3">
+                            {r.ref && <span className="nums text-t2">#{r.ref}</span>}
+                            {r.ref && <span aria-hidden>·</span>}
+                            <span>{r.truck}</span>
+                            {r.broker && (
+                              <>
+                                <span aria-hidden>·</span>
+                                <span>{r.broker}</span>
+                              </>
+                            )}
+                          </div>
+                          {money && <StageLine row={r} group={g} settings={settings} today={today} locale={locale} />}
+                        </Link>
+                        {money && <span className="nums shrink-0 text-lg font-bold text-t1">{usd.format(r.rate)}</span>}
                       </div>
-                      {money && <StageLine row={r} group={g} settings={settings} today={today} locale={locale} />}
-                    </Link>
-                    {money && <span className="nums shrink-0 text-lg font-bold">{usd.format(r.rate)}</span>}
-                  </div>
-                  {/* Бумаги груза — в той же строке: открыть или догрузить на месте. */}
-                  <div className="mt-2">
-                    <LoadPapers loadId={r.id} papers={r.papers} urgent={g !== 'inWork'} />
-                  </div>
-                  {money && (
-                    <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-2.5">
-                      <RowActions row={r} group={g} factor={factor} locale={locale} pending={pending} setForm={setForm} run={run} />
+                      {/* Бумаги слева, действия с деньгами справа — одной строкой на
+                          широкой плитке, двумя на узкой. */}
+                      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5">
+                        <LoadPapers loadId={r.id} papers={r.papers} urgent={g !== 'inWork'} />
+                        {money && (
+                          // Узкая плитка: главное действие во всю ширину, остальные парой под
+                          // ним — три кнопки в столбик занимали на телефоне пол-экрана.
+                          <div className="grid w-full grid-cols-2 items-center gap-2 [&>*]:justify-center [&>*:first-child]:col-span-2 @xl:flex @xl:w-auto @xl:flex-wrap @xl:[&>*:first-child]:col-span-1 @3xl:justify-end">
+                            <RowActions row={r} group={g} factor={factor} locale={locale} pending={pending} setForm={setForm} run={run} />
+                          </div>
+                        )}
+                      </div>
+                      {money && form && (('id' in form && form.id === r.id) || ('ids' in form && form.ids.length === 1 && form.ids[0] === r.id)) && (
+                        <ActionForm
+                          key={JSON.stringify(form)}
+                          form={form}
+                          rows={rows}
+                          factor={factor}
+                          today={today}
+                          locale={locale}
+                          pending={pending}
+                          onCancel={() => setForm(null)}
+                          run={run}
+                        />
+                      )}
                     </div>
-                  )}
-                  {money && form && (('id' in form && form.id === r.id) || ('ids' in form && form.ids.length === 1 && form.ids[0] === r.id)) && (
-                    <ActionForm
-                      key={JSON.stringify(form)}
-                      form={form}
-                      rows={rows}
-                      factor={factor}
-                      today={today}
-                      locale={locale}
-                      pending={pending}
-                      onCancel={() => setForm(null)}
-                      run={run}
-                    />
-                  )}
-                </div>
+                  </div>
+                </li>
               ))}
-            </div>
-          </Collapse>
+            </ul>
+          </details>
         )
       })}
     </div>
+  )
+}
+
+const DOT = { plain: 'bg-t3', good: 'bg-good-400', warn: 'bg-warn-400', bad: 'bg-bad-400' } as const
+const TEXT = { good: 'text-good-400', warn: 'text-warn-400', bad: 'text-bad-400' } as const
+
+function StagePill({
+  label,
+  count,
+  tone = 'plain',
+  active,
+  onClick,
+}: {
+  label: string
+  count: number
+  tone?: 'plain' | 'good' | 'warn' | 'bad'
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={`inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors ${
+        active
+          ? 'border-haul-400/50 bg-haul-500/20 text-t1'
+          : 'border-white/8 bg-white/[0.03] text-t2 hover:border-white/16 hover:text-t1'
+      }`}
+    >
+      {tone !== 'plain' && <span aria-hidden className={`size-1.5 rounded-full ${DOT[tone]}`} />}
+      {label}
+      <span className={`nums text-xs font-bold ${active ? 'text-t1' : 'text-t3'}`}>{count}</span>
+    </button>
   )
 }
 

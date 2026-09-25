@@ -27,7 +27,8 @@ import { t, type Locale } from '@/lib/i18n'
 import { getSetting } from '@/lib/settings'
 import { RateConButton } from '@/components/ratecon-button'
 import { Info } from '@/components/info'
-import { CircleCheckBig, Wallet } from 'lucide-react'
+import { CircleCheckBig, Hourglass, Send, TriangleAlert, Wallet } from 'lucide-react'
+import { Stat as StageStat } from '@/components/stat'
 import { Collapse } from '@/components/collapse'
 import { Empty } from '@/components/empty'
 /** Закрытые грузы видны столько дней — дальше они в «Оплачено». */
@@ -41,11 +42,14 @@ export async function loadsTabTiles({
   companyId,
   locale,
   query,
+  stage = '',
   money,
 }: {
   companyId: 'default' | 'demo'
   locale: Locale
   query: string
+  /** Этап, до которого сразу сужен список (?stage= — ссылка с плитки-числа). */
+  stage?: string
   /** Есть право «Финансы» — со суммами и факторингом; иначе только бумаги. */
   money: boolean
 }): Promise<{ id: string; node: ReactNode }[]> {
@@ -118,30 +122,74 @@ export async function loadsTabTiles({
   const tiles: { id: string; node: ReactNode }[] = []
   if (money) {
     const toSubmit = sum(['toSubmit'])
+    const count = (groups: PayGroup[]) =>
+      t(locale, 'docs.stage.loads').replace('{n}', String(rows.filter((r) => groups.includes(r.group)).length))
+    // Каждое число ведёт к своим грузам: плитка — это и есть фильтр списка ниже.
     tiles.push(
       {
         id: 'pay-to-submit',
-        node: <Stat label={t(locale, 'payments.stat.toSubmit')} value={usd.format(toSubmit)} tone={toSubmit ? 'warn' : undefined} />,
-      },
-      { id: 'pay-awaiting', node: <Stat label={t(locale, 'payments.stat.awaiting')} value={usd.format(sum(['awaitingFunding']))} /> },
-      {
-        id: 'pay-funded',
         node: (
-          <Stat
-            label={t(locale, 'payments.stat.fundedMonth')}
-            value={usd.format(inMonth)}
-            info={`${t(locale, 'payments.stat.feesMonth')}: ${usd2.format(feesMonth)}`}
+          <StageStat
+            surface="panel"
+            label={t(locale, 'payments.stat.toSubmit')}
+            value={usd.format(toSubmit)}
+            sub={count(['toSubmit'])}
+            icon={<Send size={13} strokeWidth={2.5} />}
+            accent="warn"
+            hero={toSubmit > 0}
+            href="/docs?stage=toSubmit#board"
           />
         ),
       },
-      { id: 'pay-risk', node: <Stat label={t(locale, 'payments.stat.risk')} value={usd.format(risk)} tone={risk ? 'bad' : undefined} /> },
+      {
+        id: 'pay-awaiting',
+        node: (
+          <StageStat
+            surface="panel"
+            label={t(locale, 'payments.stat.awaiting')}
+            value={usd.format(sum(['awaitingFunding']))}
+            sub={count(['awaitingFunding'])}
+            icon={<Hourglass size={13} strokeWidth={2.5} />}
+            href="/docs?stage=awaitingFunding#board"
+          />
+        ),
+      },
+      {
+        id: 'pay-funded',
+        node: (
+          <StageStat
+            surface="panel"
+            label={t(locale, 'payments.stat.fundedMonth')}
+            value={usd.format(inMonth)}
+            sub={`${t(locale, 'payments.stat.feesMonth')}: ${usd2.format(feesMonth)}`}
+            icon={<CircleCheckBig size={13} strokeWidth={2.5} />}
+            accent="good"
+            tone={inMonth > 0 ? 'good' : undefined}
+          />
+        ),
+      },
+      {
+        id: 'pay-risk',
+        node: (
+          <StageStat
+            surface="panel"
+            label={t(locale, 'payments.stat.risk')}
+            value={usd.format(risk)}
+            sub={count(['problems', 'atRisk'])}
+            icon={<TriangleAlert size={13} strokeWidth={2.5} />}
+            accent="bad"
+            tone={risk ? 'bad' : undefined}
+            href={risk ? `/docs?stage=${rows.some((r) => r.group === 'problems') ? 'problems' : 'atRisk'}#board` : undefined}
+          />
+        ),
+      },
     )
   }
   tiles.push({
     id: 'loads',
     node: (
       <div>
-        <LoadsBoard rows={rows} settings={settings} today={today} initialQuery={query} money={money} />
+        <LoadsBoard key={stage} rows={rows} settings={settings} today={today} initialQuery={query} initialStage={stage} money={money} />
       </div>
     ),
   })

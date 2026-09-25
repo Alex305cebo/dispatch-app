@@ -18,9 +18,10 @@ import Link from 'next/link'
 import { listDocsForLibrary, listTrashedDocs, listTrucks, rateConByLoad } from '@/lib/loads'
 import { DocLibrary, DocTrash, DocUpload } from '@/components/docs'
 import { ByDispatcher, ByDriver, ByWeek, loadsTabTiles, Paid, Unpaid } from './finance-tabs'
-import { Tab } from '@/components/tab-link'
+import { FileText, Package, ScanText, Trash2, Truck, Wallet } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Info } from '@/components/info'
-import { CountTile } from '@/components/count-tile'
+import { Stat } from '@/components/stat'
 import { companyScope, getCurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
 import { getLocale } from '@/lib/i18n-server'
@@ -46,8 +47,8 @@ const SUBTITLE: Record<Tabs, MsgKey> = {
   drivers: 'finances.tabDesc.drivers',
 }
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string }> }) {
-  const { tab: tabParam, q } = await searchParams
+export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; stage?: string }> }) {
+  const { tab: tabParam, q, stage } = await searchParams
   const user = await getCurrentUser()
   const canFinances = await can(user, 'finances')
   // «По диспетчерам» — своё право (по умолчанию включено): заработок ВСЕХ диспетчеров.
@@ -57,37 +58,62 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
 
   const tab = pickTab(tabParam, canFinances, canReport)
 
+  const sections: { key: string; href: string; label: string; icon: ReactNode; active: boolean }[] = [
+    { key: 'loads', href: '/docs', label: t(locale, 'docs.tab.loads'), icon: <Package size={16} />, active: tab === 'loads' },
+    { key: 'fleet', href: '/docs?tab=fleet', label: t(locale, 'docs.tab.fleet'), icon: <Truck size={16} />, active: tab === 'fleet' },
+    ...(canFinances
+      ? [{ key: 'money', href: '/docs?tab=unpaid', label: t(locale, 'docs.tab.money'), icon: <Wallet size={16} />, active: isMoney(tab) }]
+      : []),
+    { key: 'trash', href: '/docs?tab=trash', label: t(locale, 'docs.tab.trash'), icon: <Trash2 size={16} />, active: tab === 'trash' },
+  ]
+
   return (
-    <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <header className="mb-5">
-        <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
-          {t(locale, 'docs.title')}
-          <Info side="bottom" text={t(locale, 'docs.info')} />
-        </h1>
-        <p className="text-base text-t2">{t(locale, SUBTITLE[tab])}</p>
+    <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-8">
+      {/* Шапка: слева что это за раздел и что на вкладке, справа — главное действие.
+          С бумаги начинается груз, поэтому «Распознать Rate Con» — кнопка шапки, а не
+          плитка, которая съедала полстроки над числами. */}
+      <header className="mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+            {t(locale, 'docs.title')}
+            <Info side="bottom" text={t(locale, 'docs.info')} />
+          </h1>
+          <p className="mt-0.5 text-base text-t2">{t(locale, SUBTITLE[tab])}</p>
+        </div>
+        <Link
+          href="/loads/new"
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-haul-500 px-4 text-base font-semibold text-white shadow-[0_8px_24px_-10px_rgba(124,108,255,0.8)] transition-colors hover:bg-haul-400 max-sm:w-full max-sm:justify-center"
+        >
+          <ScanText size={17} strokeWidth={2.25} />
+          {t(locale, 'docs.recognize.btn')}
+        </Link>
       </header>
 
-      {/* Четыре входа: груз, трак, деньги, корзина. Денежные отчёты разворачиваются
-          вторым рядом — одним рядом из восьми вкладок раздел читать нельзя. */}
-      <div className="mb-4 flex flex-wrap gap-1.5 border-b border-white/8">
-        <Tab href="/docs" active={tab === 'loads'}>
-          {t(locale, 'docs.tab.loads')}
-        </Tab>
-        <Tab href="/docs?tab=fleet" active={tab === 'fleet'}>
-          {t(locale, 'docs.tab.fleet')}
-        </Tab>
-        {canFinances && (
-          <Tab href="/docs?tab=unpaid" active={isMoney(tab)}>
-            {t(locale, 'docs.tab.money')}
-          </Tab>
-        )}
-        <Tab href="/docs?tab=trash" active={tab === 'trash'}>
-          {t(locale, 'docs.tab.trash')}
-        </Tab>
-      </div>
+      {/* Разделы — одним переключателем-сегментом: груз, трак, деньги, корзина.
+          На телефоне четыре равные ячейки со значком над словом — влезают в ширину. */}
+      <nav
+        aria-label={t(locale, 'docs.title')}
+        className="panel mb-4 grid auto-cols-fr grid-flow-col gap-1 p-1 sm:inline-grid"
+      >
+        {sections.map((s) => (
+          <Link
+            key={s.key}
+            href={s.href}
+            aria-current={s.active ? 'page' : undefined}
+            className={`flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 text-base font-medium transition-colors max-sm:flex-col max-sm:gap-0.5 max-sm:px-1 max-sm:py-1.5 max-sm:text-sm ${
+              s.active
+                ? 'bg-haul-500 text-white shadow-[0_6px_18px_-8px_rgba(124,108,255,0.9)]'
+                : 'text-t2 hover:bg-white/6 hover:text-t1'
+            }`}
+          >
+            {s.icon}
+            {s.label}
+          </Link>
+        ))}
+      </nav>
 
       {isMoney(tab) && (
-        <div className="mb-5 flex flex-wrap gap-1.5">
+        <div className="-mx-4 mb-5 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
           <Chip href="/docs?tab=unpaid" active={tab === 'unpaid'} label={t(locale, 'finances.tab.unpaid')} />
           <Chip href="/docs?tab=paid" active={tab === 'paid'} label={t(locale, 'finances.tab.paid')} />
           <Chip href="/docs?tab=weeks" active={tab === 'weeks'} label={t(locale, 'finances.tab.weeks')} />
@@ -99,7 +125,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       )}
 
       {tab === 'loads' ? (
-        <Loads companyId={companyId} locale={locale} query={q ?? ''} money={canFinances} />
+        <Loads companyId={companyId} locale={locale} query={q ?? ''} stage={stage ?? ''} money={canFinances} />
       ) : tab === 'fleet' ? (
         <Fleet companyId={companyId} locale={locale} />
       ) : tab === 'trash' ? (
@@ -127,8 +153,11 @@ function Chip({ href, active, label }: { href: string; active: boolean; label: s
   return (
     <Link
       href={href}
-      className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-        active ? 'bg-haul-500 text-white' : 'bg-white/6 text-t2 hover:bg-white/10 hover:text-t1'
+      aria-current={active ? 'page' : undefined}
+      className={`shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+        active
+          ? 'border-haul-400/50 bg-haul-500/20 text-t1'
+          : 'border-white/8 bg-white/4 text-t2 hover:border-white/16 hover:text-t1'
       }`}
     >
       {label}
@@ -140,35 +169,16 @@ async function Loads({
   companyId,
   locale,
   query,
+  stage,
   money,
 }: {
   companyId: 'default' | 'demo'
   locale: Locale
   query: string
+  stage: string
   money: boolean
 }) {
-  const widgets: Widget[] = [
-    {
-      id: 'recognize',
-      // Распознавание рейт-кона — быстрый путь: с бумаги начинается груз.
-      node: (
-        <Link
-          href="/loads/new"
-          className="flex h-full items-center gap-3 rounded-2xl border border-haul-500/30 bg-haul-500/10 px-4 py-3 transition-colors hover:bg-haul-500/15"
-        >
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-haul-500/20 text-xl">
-            ⚡
-          </span>
-          <span className="min-w-0">
-            <span className="block text-md font-semibold text-haul-300">{t(locale, 'docs.recognize.title')}</span>
-            <span className="block text-sm text-t2">{t(locale, 'docs.recognize.sub')}</span>
-          </span>
-          <span className="ml-auto shrink-0 text-t3">→</span>
-        </Link>
-      ),
-    },
-    ...(await loadsTabTiles({ companyId, locale, query, money })),
-  ]
+  const widgets: Widget[] = await loadsTabTiles({ companyId, locale, query, stage, money })
   const grid = await tileGrid('docs', DOCS_TILES, locale)
 
   return (
@@ -187,10 +197,22 @@ async function Fleet({ companyId, locale }: { companyId: 'default' | 'demo'; loc
   // Сколько бумаг и по скольким тракам — своими маленькими плитками: в шапке
   // библиотеки этих чисел не было вовсе, а спрашивают их первыми.
   const widgets: Widget[] = [
-    { id: 'docs-count', node: <CountTile value={fleetRows.length} label={t(locale, 'docs.tiles.papers')} /> },
+    {
+      id: 'docs-count',
+      node: (
+        <Stat surface="panel" label={t(locale, 'docs.tiles.papers')} value={String(fleetRows.length)} icon={<FileText size={13} strokeWidth={2.5} />} />
+      ),
+    },
     {
       id: 'docs-trucks',
-      node: <CountTile value={new Set(fleetRows.map((r) => r.groupTruckId).filter((id) => id != null)).size} label={t(locale, 'docs.tiles.trucks')} />,
+      node: (
+        <Stat
+          surface="panel"
+          label={t(locale, 'docs.tiles.trucks')}
+          value={String(new Set(fleetRows.map((r) => r.groupTruckId).filter((id) => id != null)).size)}
+          icon={<Truck size={13} strokeWidth={2.5} />}
+        />
+      ),
     },
     {
       id: 'upload',
