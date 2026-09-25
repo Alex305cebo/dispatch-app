@@ -244,7 +244,7 @@ export async function resetWithRecovery(
   // Свой замок, строже входного: дата рождения — слабый секрет, и без счётчика её
   // можно перебрать за вечер. Пять попыток на email в сутки.
   await ensureSchema()
-  if (!(await takeAttempt('reset', mail))) return { error: t(locale, 'login.error.tooManyTries') }
+  if (!(await takeAttempt('reset', mail))) return { error: t(locale, 'login.error.tooManyResetTries') }
   const rows = (await sql`
     SELECT id, name, recovery_hash, pending_since FROM users
     WHERE email = ${mail} AND is_demo = FALSE AND disabled_at IS NULL`) as {
