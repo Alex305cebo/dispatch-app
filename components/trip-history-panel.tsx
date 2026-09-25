@@ -66,19 +66,22 @@ export function TripHistoryPanel({
     })
   }
 
-  const current = windows.find((w) => w.hours === hours) ?? windows[0]!
-
   return (
-    <details className="panel mt-4 p-4" open={initialLegs.length > 0}>
-      <summary className="flex flex-wrap items-center gap-1.5 text-base leading-6 font-semibold text-t1">
-        {t(locale, 'trucks.detail.tripHistory')} · {t(locale, current.key)}
-        <Info text={t(locale, 'trucks.detail.tripHistoryInfo')} />
+    <details className="panel @container mt-4 p-4" open={initialLegs.length > 0}>
+      <summary className="flex flex-wrap items-center gap-x-2 gap-y-2 text-base leading-6 font-semibold text-t1">
+        <span className="flex items-center gap-1.5">
+          {t(locale, 'trucks.detail.tripHistory')}
+          <Info text={t(locale, 'trucks.detail.tripHistoryInfo')} />
+        </span>
         <SmallRefreshButton />
-        <span className="ml-auto flex gap-1 normal-case">
+        {/* Окно истории — переключатель-сегмент: какое выбрано, видно сразу, без
+            дубля в заголовке. */}
+        <span className="panel-inset ml-auto flex rounded-lg border border-white/10 p-0.5 normal-case" role="group">
           {windows.map((w) => (
             <button
               key={w.hours}
               type="button"
+              aria-pressed={w.hours === hours}
               // The switch lives inside <summary>, which toggles the panel on click —
               // without this a tap on "7 дней" would also collapse the section it just
               // filled.
@@ -87,8 +90,8 @@ export function TripHistoryPanel({
                 pick(w.hours)
               }}
               disabled={pending}
-              className={`rounded-full px-2 py-0.5 text-2xs font-medium transition-colors disabled:opacity-50 ${
-                w.hours === hours ? 'bg-haul-500/15 text-haul-400' : 'text-t3 hover:text-t2'
+              className={`min-h-8 rounded-md px-3 text-xs font-medium transition-colors disabled:opacity-50 ${
+                w.hours === hours ? 'bg-haul-500/30 text-t1' : 'text-t3 hover:text-t1'
               }`}
             >
               {t(locale, w.key)}

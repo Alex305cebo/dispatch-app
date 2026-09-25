@@ -5,6 +5,9 @@ import {
   dayTotals,
   daySpans,
   segmentTrail,
+  splitPlace,
+  startOfDayEt,
+  etDay,
   startOfDay,
   stopRole,
   summarize,
@@ -172,4 +175,30 @@ test('тот же город, но не в те дни — обычная сто
   assert.equal(stopRole('2.0mi N from Bakersfield, CA', at, stops), null)
   assert.equal(stopRole('Fresno, CA', new Date(2026, 7, 20, 9, 0, 0).toISOString(), stops), null)
   assert.equal(stopRole(null, at, stops), null)
+})
+
+test('splitPlace: город отдельно от удаления, приставка штата сохраняется', () => {
+  assert.deepEqual(splitPlace('3.5mi NE from Flagstaff, AZ'), { city: 'Flagstaff, AZ', near: '3.5 mi NE' })
+  assert.deepEqual(splitPlace('NV · 98.0mi ENE from Mammoth lakes, CA'), {
+    city: 'NV · Mammoth lakes, CA',
+    near: '98.0 mi ENE',
+  })
+  assert.deepEqual(splitPlace('Dallas, TX'), { city: 'Dallas, TX', near: null })
+  assert.equal(splitPlace('  '), null)
+})
+
+test('полночь по ET: летом 04:00 UTC, зимой 05:00 UTC, в любом поясе процесса', () => {
+  const saved = process.env.TZ ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  for (const zone of ['UTC', 'America/Los_Angeles', 'Asia/Almaty']) {
+    process.env.TZ = zone
+    try {
+      assert.equal(new Date(startOfDayEt(Date.parse('2026-09-25T20:00:00Z'))).toISOString(), '2026-09-25T04:00:00.000Z')
+      // 02:00 UTC 25-го — в New York ещё 24-е.
+      assert.equal(new Date(startOfDayEt(Date.parse('2026-09-25T02:00:00Z'))).toISOString(), '2026-09-24T04:00:00.000Z')
+      assert.equal(new Date(startOfDayEt(Date.parse('2026-12-10T12:00:00Z'))).toISOString(), '2026-12-10T05:00:00.000Z')
+      assert.equal(etDay(Date.parse('2026-09-25T02:00:00Z')), '2026-09-24')
+    } finally {
+      process.env.TZ = saved
+    }
+  }
 })
