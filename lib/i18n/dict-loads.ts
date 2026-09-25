@@ -444,11 +444,11 @@ export const loadsDict = {
 
   // app/loads/[id]/page.tsx
   'loadDetail.sourceRc': {
-    ru: 'Заведён из рейт-кона',
-    en: 'Created from the rate con',
-    es: 'Creada desde el rate con',
-    uk: 'Заведений із рейт-кона',
-    ro: 'Creată din rate con',
+    ru: 'Заведён из Rate Con',
+    en: 'Created from the Rate Con',
+    es: 'Creada desde el Rate Con',
+    uk: 'Заведений із Rate Con',
+    ro: 'Creată din Rate Con',
     kk: 'Рейт-коннан құрылды',
   },
   'loadDetail.sourceQr': {
@@ -1408,12 +1408,12 @@ export const loadsDict = {
     kk: 'Rate confirmation ашу',
   },
   'rateconButton.openLabel': {
-    ru: 'Открыть rate con',
-    en: 'Open rate con',
-    es: 'Abrir el rate con',
-    uk: 'Відкрити rate con',
-    ro: 'Deschide rate con-ul',
-    kk: 'Rate con ашу',
+    ru: 'Открыть Rate Con',
+    en: 'Open Rate Con',
+    es: 'Abrir el Rate Con',
+    uk: 'Відкрити Rate Con',
+    ro: 'Deschide Rate Con-ul',
+    kk: 'Rate Con ашу',
   },
 
   // components/orphan-ratecons.tsx
@@ -1959,8 +1959,8 @@ export const loadsDict = {
     kk: 'Рейткон оқылуда…',
   },
   'brokerNotes.parseRc': {
-    ru: '✨ Разобрать рейткон (ИИ)',
-    en: '✨ Parse rate con (AI)',
+    ru: '✨ Разобрать Rate Con (ИИ)',
+    en: '✨ Parse Rate Con (AI)',
     es: '✨ Analizar el rate con (IA)',
     uk: '✨ Розібрати рейткон (ШІ)',
     ro: '✨ Analizează rate con-ul (IA)',
@@ -2034,8 +2034,8 @@ export const loadsDict = {
   'brokerNotes.expand': { ru: 'Развернуть', en: 'Expand', es: 'Expandir', uk: 'Розгорнути', ro: 'Extinde', kk: 'Жаю' },
   'brokerNotes.acknowledge': { ru: 'Прочитано', en: 'Read', es: 'Leído', uk: 'Прочитано', ro: 'Citit', kk: 'Оқылды' },
   'brokerNotes.updateFromRc': {
-    ru: 'обновить из рейткона',
-    en: 'update from rate con',
+    ru: 'Обновить из Rate Con',
+    en: 'Update from Rate Con',
     es: 'actualizar desde el rate con',
     uk: 'оновити з рейткона',
     ro: 'actualizează din rate con',

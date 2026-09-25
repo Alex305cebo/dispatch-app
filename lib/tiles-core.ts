@@ -222,18 +222,21 @@ export function migrateTruckDriverCard(saved: TilePlacement[]): TilePlacement[] 
     .map((p) => (p.id === 'hero' ? { id: 'hero', size: 'l' as const } : p))
 }
 
-/** Карточка груза: сохранённый порядок с отдельной плиткой кнопок («Открыть Rate Con»,
- *  «Чат Telegram», «Повторить груз») → без неё, статус во всю строку.
+/** Карточка груза: плитки, влитые в соседние 25.09.2026 (владелец: «должна быть одна
+ *  плитка»). Кнопки груза («Открыть Rate Con», «Чат Telegram», «Повторить груз») — в
+ *  плитке статуса, «Важное от брокера» — в шапке груза рядом с самим брокером.
  *
- *  Кнопки переехали в плитку статуса 25.09.2026 (владелец: «должна быть одна плитка»).
- *  Статус остаётся на своём месте и забирает строку: теперь в нём и полоса, и кнопки,
- *  а в половине строки рядом встала бы чужая плитка, растянутая на его высоту. Как и
- *  migrateTruckDriverCard, срабатывает один раз — пока старый ключ лежит в раскладке. */
+ *  Старые ключи уходят, хозяева остаются на своих местах. Статус при этом забирает
+ *  строку: в нём теперь и полоса, и кнопки, а в половине строки рядом встала бы чужая
+ *  плитка, растянутая на его высоту. Как и migrateTruckDriverCard, срабатывает один
+ *  раз — пока старый ключ лежит в сохранённой раскладке. */
+const LOAD_MERGED = new Set(['papers', 'notes'])
 export function migrateLoadPapers(saved: TilePlacement[]): TilePlacement[] {
-  if (!saved.some((p) => p.id === 'papers')) return saved
+  if (!saved.some((p) => LOAD_MERGED.has(p.id))) return saved
+  const hadPapers = saved.some((p) => p.id === 'papers')
   return saved
-    .filter((p) => p.id !== 'papers')
-    .map((p) => (p.id === 'status' ? { id: 'status', size: 'l' as const } : p))
+    .filter((p) => !LOAD_MERGED.has(p.id))
+    .map((p) => (hadPapers && p.id === 'status' ? { id: 'status', size: 'l' as const } : p))
 }
 
 /** Раскладки остальных разделов по умолчанию — тот порядок, в котором блоки стояли до
@@ -341,7 +344,6 @@ export const LOAD_DETAIL_TILES: TilePlacement[] = [
   // несколькими точками подписи налезали друг на друга.
   { id: 'status', size: 'l' },
   { id: 'rate', size: 'l' },
-  { id: 'notes', size: 'l' },
   { id: 'map', size: 'l' },
   { id: 'driver', size: 'l' },
   { id: 'queued', size: 'l' },

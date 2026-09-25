@@ -200,4 +200,13 @@ test('migrateLoadPapers: кнопки груза влиты в статус, с�
   assert.ok(!merged.some((p) => p.id === 'papers'))
   const fresh = parseLayout('[{"id":"status","size":"w"}]')
   assert.equal(migrateLoadPapers(fresh), fresh)
+  // «Важное от брокера» ушло в шапку: ключ выпадает, шапка на своём месте и размере.
+  const notes = applyLayout(
+    migrateLoadPapers(parseLayout('[{"id":"notes","size":"l"},{"id":"hero","size":"w"},{"id":"status","size":"w"}]')),
+    LOAD_DETAIL_TILES,
+  )
+  assert.deepEqual(notes.slice(0, 2), [
+    { id: 'hero', size: 'w' },
+    { id: 'status', size: 'w' },
+  ])
 })

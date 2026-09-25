@@ -35,7 +35,7 @@ import { DetentionTile } from '@/components/detention-tile'
 import { detentionTerms, getSetting } from '@/lib/settings'
 import { headers } from 'next/headers'
 import { DriverLinkButton } from '@/components/driver-link-button'
-import { RotateCw, Send } from 'lucide-react'
+import { Building2, Mail, Phone, RotateCw, Send } from 'lucide-react'
 import { tgConnected } from '@/lib/telegram'
 import { stopWindows } from '@/lib/detention'
 import { BackhaulList } from '@/components/backhaul-list'
@@ -199,8 +199,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       ? [
           <Link
             href={`/brokers?q=${encodeURIComponent(load.brokerMc ?? load.brokerName)}`}
-            className="font-medium text-t1 hover:underline"
+            className="inline-flex items-center gap-1.5 font-semibold text-t1 hover:underline"
           >
+            <Building2 size={14} className="shrink-0 text-t3" aria-hidden />
             {load.brokerName}
           </Link>,
         ]
@@ -208,14 +209,16 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     ...(load.brokerMc ? [<span className="nums">MC {load.brokerMc}</span>] : []),
     ...(load.brokerPhone
       ? [
-          <a href={`tel:${load.brokerPhone}`} className="nums text-haul-400 hover:underline">
+          <a href={`tel:${load.brokerPhone}`} className="nums inline-flex items-center gap-1 text-haul-400 hover:underline">
+            <Phone size={13} className="shrink-0" aria-hidden />
             {load.brokerPhone}
           </a>,
         ]
       : []),
     ...(load.brokerEmail
       ? [
-          <a href={`mailto:${load.brokerEmail}`} className="break-all text-haul-400 hover:underline">
+          <a href={`mailto:${load.brokerEmail}`} className="inline-flex min-w-0 items-center gap-1 break-all text-haul-400 hover:underline">
+            <Mail size={13} className="shrink-0" aria-hidden />
             {load.brokerEmail}
           </a>,
         ]
@@ -278,7 +281,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           занимали три ряда и уводили ставку и кнопки за край экрана. Имя ведёт в
           справочник — там его история и оценка. */}
       {brokerFacts.length > 0 && (
-        <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-t2">
+        <p className="mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 border-t border-white/[0.07] pt-3 text-sm text-t2">
           {brokerFacts.map((part, k) => (
             <Fragment key={k}>
               {k > 0 && <span className="text-t3">·</span>}
@@ -287,6 +290,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           ))}
         </p>
       )}
+      {/* «Важное от брокера» — в той же плитке, что и сам брокер (владелец 25.09.2026:
+          «должна быть одна плитка»). Непрочитанное по-прежнему в жёлтой рамке. */}
+      <BrokerNotes
+        embedded
+        loadId={load.id}
+        notes={load.brokerNotes}
+        readAt={load.notesReadAt}
+        hasRc={!!rateConDoc}
+      />
     </section>
   ))
 
@@ -419,8 +431,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     </section>
   ))
 
-  // Важное от брокера — обязательное к прочтению.
-  add('notes', <BrokerNotes loadId={load.id} notes={load.brokerNotes} readAt={load.notesReadAt} hasRc={!!rateConDoc} />)
 
   // Карта грузится отдельно от страницы: её сборка ждёт чужой маршрутизатор и
   // геокодер, и раньше эти секунды держали весь документ.
