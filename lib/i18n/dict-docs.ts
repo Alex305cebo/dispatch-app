@@ -32,7 +32,7 @@ export const docsDict = {
   },
   // Вкладки раздела: груз, трак, деньги, корзина.
   'docs.tab.loads': { ru: 'Грузы', en: 'Loads', es: 'Cargas', uk: 'Вантажі', ro: 'Curse', kk: 'Жүктер' },
-  'docs.tab.fleet': { ru: 'Траки и водители', en: 'Trucks & drivers', es: 'Camiones y conductores', uk: 'Траки і водії', ro: 'Camioane și șoferi', kk: 'Тракттар мен жүргізушілер' },
+  'docs.tab.fleet': { ru: 'Траки', en: 'Trucks', es: 'Camiones', uk: 'Траки', ro: 'Camioane', kk: 'Тракттар' },
   'docs.tab.money': { ru: 'Деньги', en: 'Money', es: 'Dinero', uk: 'Гроші', ro: 'Bani', kk: 'Ақша' },
   'docs.tab.trash': { ru: 'Корзина', en: 'Trash', es: 'Papelera', uk: 'Кошик', ro: 'Coș de gunoi', kk: 'Себет' },
   'docs.sub.loads': {
@@ -59,6 +59,21 @@ export const docsDict = {
     ro: 'Documente șterse: restaurează-le sau șterge-le definitiv.',
     kk: 'Жойылған қағаздар: қайтару немесе біржола өшіру.',
   },
+  // Новая страница (25.09.2026): кнопка в шапке и короткие имена этапов для полосы
+  // фильтра — длинные заголовки групп в пилюлю не влезают.
+  'docs.recognize.btn': { ru: 'Распознать Rate Con', en: 'Read a Rate Con', es: 'Leer un Rate Con', uk: 'Розпізнати Rate Con', ro: 'Citește un Rate Con', kk: 'Rate Con тану' },
+  'docs.stage.all': { ru: 'Все', en: 'All', es: 'Todas', uk: 'Усі', ro: 'Toate', kk: 'Барлығы' },
+  'docs.stage.problems': { ru: 'Проблемы', en: 'Problems', es: 'Problemas', uk: 'Проблеми', ro: 'Probleme', kk: 'Мәселелер' },
+  'docs.stage.toSubmit': { ru: 'Отправить', en: 'To send', es: 'Por enviar', uk: 'Надіслати', ro: 'De trimis', kk: 'Жіберу' },
+  'docs.stage.awaitingFunding': { ru: 'Ждём аванс', en: 'Awaiting funding', es: 'Esperando anticipo', uk: 'Чекаємо аванс', ro: 'Așteptăm avansul', kk: 'Аванс күтеміз' },
+  'docs.stage.atRisk': { ru: 'Риск', en: 'At risk', es: 'En riesgo', uk: 'Ризик', ro: 'Risc', kk: 'Қауіп' },
+  'docs.stage.funded': { ru: 'Ждём брокера', en: 'Awaiting broker', es: 'Esperando al bróker', uk: 'Чекаємо брокера', ro: 'Așteptăm brokerul', kk: 'Брокерді күтеміз' },
+  'docs.stage.inWork': { ru: 'В пути', en: 'In transit', es: 'En ruta', uk: 'В дорозі', ro: 'În cursă', kk: 'Жолда' },
+  'docs.stage.done': { ru: 'Закрыто', en: 'Closed', es: 'Cerrados', uk: 'Закрито', ro: 'Închise', kk: 'Жабылды' },
+  'docs.stage.missing': { ru: 'Не хватает', en: 'Missing', es: 'Faltan', uk: 'Бракує', ro: 'Lipsesc', kk: 'Жетіспейді' },
+  'docs.stage.ready': { ru: 'Собрано', en: 'Collected', es: 'Reunidos', uk: 'Зібрано', ro: 'Adunate', kk: 'Жиналды' },
+  'docs.stage.loads': { ru: 'грузов: {n}', en: 'loads: {n}', es: 'cargas: {n}', uk: 'вантажів: {n}', ro: 'curse: {n}', kk: 'жүк: {n}' },
+  'docs.factoring': { ru: 'Факторинг', en: 'Factoring', es: 'Factoring', uk: 'Факторинг', ro: 'Factoring', kk: 'Факторинг' },
   'docs.library.search': {
     ru: 'Поиск по имени, траку, водителю',
     en: 'Search by name, truck, driver',

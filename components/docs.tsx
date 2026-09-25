@@ -4,7 +4,7 @@ import { safeUploadFile } from '@/lib/upload-name'
 import { DocLink } from '@/components/doc-link'
 import { DELETE_WORD } from '@/lib/delete-word'
 
-import { FileX2, FolderOpen, Trash2 } from 'lucide-react'
+import { ChevronRight, FileX2, FolderOpen, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/button'
 import { Empty } from '@/components/empty'
 // Upload + list + library for documents. Server pages fetch the metadata and pass
@@ -583,13 +583,17 @@ export function DocLibrary({
   ]
 
   return (
-    <>
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={t(locale, 'docs.library.search')}
-        className="mb-3 w-full rounded-xl border border-white/10 bg-ink-900/60 px-3 py-2 text-base text-t1 outline-none focus:border-haul-500 max-md:min-h-11"
-      />
+    <div className="@container">
+      <label className="relative mb-3 block">
+        <Search size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-t3" />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t(locale, 'docs.library.search')}
+          className="min-h-10 w-full rounded-xl border border-white/10 bg-ink-900/60 py-2 pr-3 pl-9 text-base text-t1 outline-none transition-colors placeholder:text-t3 focus:border-haul-500 max-md:min-h-11"
+        />
+      </label>
 
       {/* Kind filter */}
       <div className="mb-3 flex flex-wrap gap-1.5">
@@ -597,8 +601,10 @@ export function DocLibrary({
           <button
             key={k}
             onClick={() => setKind(k)}
-            className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-              kind === k ? 'bg-haul-500 text-white' : 'bg-white/6 text-t2 hover:bg-white/10 hover:text-t1'
+            className={`min-h-8 rounded-full border px-3 text-sm font-medium transition-colors ${
+              kind === k
+                ? 'border-haul-400/50 bg-haul-500/20 text-t1'
+                : 'border-white/8 bg-white/[0.03] text-t2 hover:border-white/16 hover:text-t1'
             }`}
           >
             {k === 'all' ? t(locale, 'docs.library.all') : docKindLabel(k, locale)}
@@ -609,7 +615,9 @@ export function DocLibrary({
       {groups.length === 0 ? (
         <Empty compact icon={FolderOpen} title={t(locale, 'docs.library.empty')} />
       ) : (
-        <div className="flex flex-col gap-2">
+        // Широкая плитка — траки в две колонки: у каждого по две-три бумаги, и
+        // одна колонка во всю ширину оставляла справа полэкрана пустоты.
+        <div className="grid items-start gap-2 @3xl:grid-cols-2">
           {groups.map((g) => {
             const key = String(g.id)
             const open = !closed.has(key)
@@ -625,8 +633,8 @@ export function DocLibrary({
                   }
                   className="flex w-full items-center gap-3 bg-white/[0.03] px-3 py-2.5 text-left transition-colors hover:bg-white/[0.06]"
                 >
-                  <span className="text-t3">{open ? '▾' : '▸'}</span>
-                  <span className="text-md font-semibold">{g.label}</span>
+                  <ChevronRight size={14} strokeWidth={2.5} className={`shrink-0 text-t3 transition-transform ${open ? 'rotate-90' : ''}`} />
+                  <span className="nums text-md font-semibold">{g.label}</span>
                   {g.sub && <span className="truncate text-sm text-t3">{g.sub}</span>}
                   <span className="ml-auto shrink-0 rounded-full bg-white/8 px-2 py-0.5 text-xs text-t2">
                     {g.rows.length}
@@ -660,7 +668,7 @@ export function DocLibrary({
         </div>
       )}
       {del && <DeleteDialog doc={del} onClose={() => setDel(null)} />}
-    </>
+    </div>
   )
 }
 
