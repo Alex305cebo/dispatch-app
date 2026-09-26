@@ -66,13 +66,14 @@ export async function listDocsForLibrary(companyId: CompanyId): Promise<DocLibRo
            d.uploaded_at, d.deleted_at,
            COALESCE(d.truck_id, l.truck_id) AS group_truck_id,
            tt.number AS truck_number, tt.driver_name,
-           l.origin, l.destination
+           l.origin, l.destination, l.reference_id AS load_ref,
+           DATE_FORMAT(l.pickup_date, '%Y-%m-%d') AS load_date
     FROM documents d
     LEFT JOIN loads  l  ON l.id = d.load_id
     LEFT JOIN trucks tt ON tt.id = COALESCE(d.truck_id, l.truck_id)
     WHERE d.company_id = ${companyId} AND d.deleted_at IS NULL
     ORDER BY d.uploaded_at DESC
-    LIMIT 500`
+    LIMIT 5000`
   return rows.map(rowToDocLibRow)
 }
 
@@ -83,7 +84,8 @@ export async function listTrashedDocs(companyId: CompanyId): Promise<DocLibRow[]
            d.uploaded_at, d.deleted_at,
            COALESCE(d.truck_id, l.truck_id) AS group_truck_id,
            tt.number AS truck_number, tt.driver_name,
-           l.origin, l.destination
+           l.origin, l.destination, l.reference_id AS load_ref,
+           DATE_FORMAT(l.pickup_date, '%Y-%m-%d') AS load_date
     FROM documents d
     LEFT JOIN loads  l  ON l.id = d.load_id
     LEFT JOIN trucks tt ON tt.id = COALESCE(d.truck_id, l.truck_id)
@@ -111,6 +113,8 @@ function rowToDocLibRow(r: any): DocLibRow {
     driverName: r.driver_name,
     origin: r.origin,
     destination: r.destination,
+    loadRef: r.load_ref ?? null,
+    loadDate: r.load_date ?? null,
   }
 }
 
