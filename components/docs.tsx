@@ -4,7 +4,7 @@ import { safeUploadFile } from '@/lib/upload-name'
 import { DocLink } from '@/components/doc-link'
 import { DELETE_WORD } from '@/lib/delete-word'
 
-import { ChevronRight, FileX2, FolderOpen, Search, Trash2 } from 'lucide-react'
+import { Check, ChevronRight, FileX2, FolderOpen, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/button'
 import { Empty } from '@/components/empty'
 // Upload + list + library for documents. Server pages fetch the metadata and pass
@@ -344,6 +344,7 @@ function DocRow({
   onDelete,
   attachTargets,
   dense,
+  inLoad,
 }: {
   doc: DocMeta
   showLinks?: boolean
@@ -357,6 +358,8 @@ function DocRow({
    * документов у трака бывает по два десятка — карточка в три строки превращала
    * список в бесконечную ленту, где не видно и десяти файлов подряд. */
   dense?: boolean
+  /** Строка внутри своего груза: маршрут уже написан над ней, имя — просто тип. */
+  inLoad?: boolean
 }) {
   const locale = useLocale()
   // Имя по смыслу, а не по файлу: брокеры шлют «RateConfirmation_9497205.pdf», и в
@@ -365,7 +368,7 @@ function DocRow({
   // рядом. Сам файл не переименовывается, скачается под своим именем.
   const a = from ?? doc.origin ?? null
   const b = to ?? doc.destination ?? null
-  const name = a || b ? `${docKindLabel(doc.kind, locale)} · ${a ?? '—'} → ${b ?? '—'}` : doc.title
+  const name = inLoad ? docKindLabel(doc.kind, locale) : a || b ? `${docKindLabel(doc.kind, locale)} · ${a ?? '—'} → ${b ?? '—'}` : doc.title
   // items-start, and the size/date moved UNDER the filename rather than beside it. In
   // the truck page's half-width column the old single row gave the filename whatever
   // was left after a type pill, a size, a date and a delete button — measured at
@@ -563,7 +566,7 @@ export function DocLibrary({
     if (kind !== 'all' && r.kind !== kind) return false
     if (!q) return true
     const tr = r.groupTruckId != null ? byTruck.get(r.groupTruckId) : undefined
-    return [r.title, docKindLabel(r.kind, locale), tr?.label, tr?.driver, r.origin, r.destination]
+    return [r.title, docKindLabel(r.kind, locale), tr?.label, tr?.driver, r.origin, r.destination, r.loadRef]
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(q))
   })
@@ -572,7 +575,10 @@ export function DocLibrary({
   const groups: Group[] = []
   for (const truck of trucks) {
     const rs = shown.filter((r) => r.groupTruckId === truck.id)
-    if (rs.length) groups.push({ id: truck.id, label: truck.label, sub: truck.driver, rows: rs })
+    // Трак без бумаг тоже в списке, пока не ищут и не фильтруют по типу: иначе
+    // водитель без страховки в системе просто пропадал со страницы, и не видно,
+    // у кого бумаг не хватает. Загрузить можно прямо в его карточке.
+    if (rs.length || (!q && kind === 'all')) groups.push({ id: truck.id, label: truck.label, sub: truck.driver, rows: rs })
   }
   const orphan = shown.filter((r) => r.groupTruckId == null)
   if (orphan.length) groups.push({ id: null, label: t(locale, 'docs.upload.noTruck'), sub: '', rows: orphan })
@@ -615,9 +621,9 @@ export function DocLibrary({
       {groups.length === 0 ? (
         <Empty compact icon={FolderOpen} title={t(locale, 'docs.library.empty')} />
       ) : (
-        // Широкая плитка — траки в две колонки: у каждого по две-три бумаги, и
-        // одна колонка во всю ширину оставляла справа полэкрана пустоты.
-        <div className="grid items-start gap-2 @3xl:grid-cols-2">
+        // Одна колонка: внутри водителя — строки грузов с маршрутом и значками
+        // бумаг, им нужна вся ширина.
+        <div className="flex flex-col gap-2">
           {groups.map((g) => {
             const key = String(g.id)
             const open = !closed.has(key)
@@ -635,33 +641,29 @@ export function DocLibrary({
                 >
                   <ChevronRight size={14} strokeWidth={2.5} className={`shrink-0 text-t3 transition-transform ${open ? 'rotate-90' : ''}`} />
                   <span className="nums text-md font-semibold">{g.label}</span>
-                  {g.sub && <span className="truncate text-sm text-t3">{g.sub}</span>}
-                  <span className="ml-auto shrink-0 rounded-full bg-white/8 px-2 py-0.5 text-xs text-t2">
+                  {g.sub && <span className="truncate text-sm text-t2">{g.sub}</span>}
+                  {g.rows.length > 0 && (
+                    <span className="ml-auto hidden shrink-0 text-xs text-t3 @md:inline">
+                      {t(locale, 'docs.library.summary')
+                        .replace('{loads}', String(new Set(g.rows.map((r) => r.loadId).filter((id) => id != null)).size))
+                        .replace('{own}', String(g.rows.filter((r) => r.loadId == null).length))}
+                    </span>
+                  )}
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${g.rows.length ? '' : 'ml-auto'} ${
+                      g.rows.length ? 'bg-white/8 text-t2' : 'bg-warn-400/15 text-warn-400'
+                    }`}
+                  >
                     {g.rows.length}
                   </span>
                 </button>
-                {open && (
-                  <ul className="flex flex-col gap-0.5 p-1.5">
-                    {/* Первые три — остальное за одной строкой «ещё N». У трака
-                        бывает по два десятка бумаг, и разворачивать их все сразу
-                        значит хоронить следующий трак под ними. */}
-                    <ShowMore
-                      limit={3}
-                      label={t(locale, 'docs.library.more')}
-                      items={g.rows.map((r) => (
-                        <DocRow
-                          key={r.id}
-                          doc={r}
-                          dense
-                          showLinks
-                          from={r.origin}
-                          to={r.destination}
-                          onDelete={setDel}
-                        />
-                      ))}
-                    />
-                  </ul>
+                {open && g.rows.length === 0 && g.id != null && (
+                  <div className="flex flex-col gap-2 p-3">
+                    <span className="text-sm text-t3">{t(locale, 'docs.library.noPapers')}</span>
+                    <DocUpload truckId={g.id} />
+                  </div>
                 )}
+                {open && g.rows.length > 0 && <DriverPapers rows={g.rows} searching={!!q} onDelete={setDel} />}
               </div>
             )
           })}
@@ -669,6 +671,134 @@ export function DocLibrary({
       )}
       {del && <DeleteDialog doc={del} onClose={() => setDel(null)} />}
     </div>
+  )
+}
+
+const SHORT: Partial<Record<DocKind, string>> = { ratecon: 'RC', bol: 'BOL', pod: 'POD' }
+const NEEDED: DocKind[] = ['ratecon', 'bol', 'pod']
+
+/** Бумаги одного водителя по порядку: сначала его собственные (страховка,
+ *  регистрация, чеки), потом грузы — каждый строкой «маршрут · номер · дата» со
+ *  значками RC / BOL / POD, по нажатию раскрываются сами файлы. Раньше всё шло
+ *  одним списком имён файлов, и было не понять, какая бумага какого груза. */
+function DriverPapers({
+  rows,
+  searching,
+  onDelete,
+}: {
+  rows: DocLibRow[]
+  searching: boolean
+  onDelete: (d: DocMeta) => void
+}) {
+  const locale = useLocale()
+  const own = rows.filter((r) => r.loadId == null)
+  const byLoad = new Map<number, DocLibRow[]>()
+  for (const r of rows) {
+    if (r.loadId == null) continue
+    const list = byLoad.get(r.loadId)
+    if (list) list.push(r)
+    else byLoad.set(r.loadId, [r])
+  }
+  // Свежие грузы сверху: по дню погрузки, без него — по последней загруженной бумаге.
+  const key = (docs: DocLibRow[]) => docs[0]!.loadDate ?? docs.map((d) => d.uploadedAt.slice(0, 10)).sort().at(-1)!
+  const loads = [...byLoad.entries()].sort((a, b) => key(b[1]).localeCompare(key(a[1])))
+
+  return (
+    <div className="flex flex-col gap-3 p-3">
+      {own.length > 0 && (
+        <section>
+          <h4 className="mb-1 px-1 text-2xs font-semibold tracking-wide text-t3 uppercase">
+            {t(locale, 'docs.library.own')} · {own.length}
+          </h4>
+          <ul className="flex flex-col gap-0.5">
+            <ShowMore
+              limit={3}
+              label={t(locale, 'docs.library.more')}
+              items={own.map((r) => <DocRow key={r.id} doc={r} dense onDelete={onDelete} />)}
+            />
+          </ul>
+        </section>
+      )}
+      {loads.length > 0 && (
+        <section>
+          <h4 className="mb-1.5 px-1 text-2xs font-semibold tracking-wide text-t3 uppercase">
+            {t(locale, 'docs.library.loads')} · {loads.length}
+          </h4>
+          <div className="flex flex-col gap-1.5">
+            <ShowMore
+              limit={searching ? 50 : 4}
+              label={t(locale, 'docs.library.moreLoads')}
+              items={loads.map(([loadId, docs]) => (
+                <LoadPapersRow key={loadId} loadId={loadId} docs={docs} open={searching} onDelete={onDelete} />
+              ))}
+            />
+          </div>
+        </section>
+      )}
+    </div>
+  )
+}
+
+function LoadPapersRow({
+  loadId,
+  docs,
+  open,
+  onDelete,
+}: {
+  loadId: number
+  docs: DocLibRow[]
+  open: boolean
+  onDelete: (d: DocMeta) => void
+}) {
+  const locale = useLocale()
+  const d0 = docs[0]!
+  const kinds = new Set(docs.map((d) => d.kind))
+  const extra = docs.filter((d) => !NEEDED.includes(d.kind)).length
+  return (
+    <details open={open} className="group/load overflow-hidden rounded-xl border border-white/8 bg-white/[0.02]">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2 transition-colors hover:bg-white/[0.04] [&::-webkit-details-marker]:hidden">
+        <ChevronRight size={14} strokeWidth={2.5} className="shrink-0 text-t3 transition-transform group-open/load:rotate-90" />
+        <div className="min-w-0 flex-1 basis-40">
+          <div className="truncate text-base font-semibold text-t1">
+            {d0.origin ?? '—'} → {d0.destination ?? '—'}
+          </div>
+          <div className="nums truncate text-xs text-t3">
+            {[d0.loadRef ? `#${d0.loadRef}` : null, d0.loadDate ? usDate(d0.loadDate) : null, t(locale, 'docs.library.files').replace('{n}', String(docs.length))]
+              .filter(Boolean)
+              .join(' · ')}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          {NEEDED.map((k) => (
+            <span
+              key={k}
+              title={docKindLabel(k, locale)}
+              className={`inline-flex h-6 items-center gap-0.5 rounded-md px-1.5 text-2xs font-bold ${
+                kinds.has(k)
+                  ? 'bg-good-500/12 text-good-400 ring-1 ring-good-500/25 ring-inset'
+                  : 'border border-dashed border-white/15 text-t3'
+              }`}
+            >
+              {kinds.has(k) && <Check size={10} strokeWidth={3.5} aria-hidden />}
+              {SHORT[k]}
+            </span>
+          ))}
+          {extra > 0 && <span className="nums rounded-md bg-white/6 px-1.5 py-1 text-2xs font-bold text-t2">+{extra}</span>}
+          <a
+            href={`/loads/${loadId}`}
+            onClick={(e) => e.stopPropagation()}
+            className="ml-1 rounded-md px-1.5 py-1 text-xs font-medium text-haul-400 hover:bg-haul-500/10"
+          >
+            {t(locale, 'docs.row.load')} →
+          </a>
+        </div>
+      </summary>
+      <ul className="flex flex-col gap-0.5 border-t border-white/6 p-1.5">
+        {docs.map((d) => (
+          <DocRow key={d.id} doc={d} dense inLoad onDelete={onDelete} />
+        ))}
+      </ul>
+    </details>
   )
 }
 

@@ -72,6 +72,9 @@ export type DocLibRow = DocMeta & {
   driverName: string | null
   origin: string | null
   destination: string | null
+  /** Номер груза у брокера и день погрузки — подпись груза в библиотеке. */
+  loadRef?: string | null
+  loadDate?: string | null
 }
 
 export function fmtSize(bytes: number): string {
