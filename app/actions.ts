@@ -2953,7 +2953,7 @@ export async function quoteBoardLane(label: string, miles: number, loadId?: numb
   return res
 }
 
-/** Котировка Warp по паре «City, ST» → строка dat_lanes (source='warp', как ночной скрипт). */
+/** Котировка Warp по паре «City, ST» → строка dat_lanes; запись — lib/rate-check.ts, здесь слова ошибок. */
 async function saveWarpLane(
   companyId: 'default' | 'demo',
   fromCity: string,
@@ -2961,31 +2961,15 @@ async function saveWarpLane(
   miles: number,
   locale: Awaited<ReturnType<typeof getLocale>>,
 ): Promise<{ rpm: number } | { error: string }> {
-  const { stateFromPlace } = await import('@/lib/dat-market-core')
+  const { recordWarpLane } = await import('@/lib/rate-check')
   const { WARP_MIN_MILES } = await import('@/lib/rpm-bench-core')
-  const from = stateFromPlace(fromCity)
-  const to = stateFromPlace(toCity)
-  if (!from || !to || !(miles > 0)) return { error: t(locale, 'plan.quote.noRoute') }
-  // Короче этого цена Warp — минимальная подача: делить её на мили нельзя, и такие строки
-  // в ставку по маршруту всё равно не идут (lib/dat-lanes.ts).
-  if (miles < WARP_MIN_MILES) return { error: t(locale, 'plan.quote.tooShort').replace('{n}', String(WARP_MIN_MILES)) }
-  const { warpQuote, zipOfCity } = await import('@/lib/warp-quote')
-  const [oz, dz] = await Promise.all([zipOfCity(fromCity), zipOfCity(toCity)])
-  if (!oz) return { error: t(locale, 'plan.quote.noZip').replace('{city}', fromCity) }
-  if (!dz) return { error: t(locale, 'plan.quote.noZip').replace('{city}', toCity) }
-  let price: number
-  try {
-    price = await warpQuote(oz, dz)
-  } catch (e) {
-    return { error: t(locale, 'plan.quote.fail').replace('{e}', e instanceof Error ? e.message : String(e)) }
-  }
-  const rate = Math.round(price)
-  const m = Math.round(miles)
-  await sql`
-    INSERT INTO dat_lanes (company_id, source, origin, dest, origin_state, dest_state, equipment, miles, spot_rate, spot_rpm, seen_on, seen_at)
-    VALUES (${companyId}, 'warp', ${fromCity.slice(0, 120)}, ${toCity.slice(0, 120)}, ${from}, ${to}, 'VAN', ${m}, ${rate}, ${rate / m}, CURDATE(), NOW(6))
-    ON DUPLICATE KEY UPDATE miles = VALUES(miles), spot_rate = VALUES(spot_rate), spot_rpm = VALUES(spot_rpm), seen_at = NOW(6)`
-  return { rpm: rate / m }
+  const res = await recordWarpLane(companyId, fromCity, toCity, miles)
+  if ('rpm' in res) return res
+  if (res.error === 'noRoute') return { error: t(locale, 'plan.quote.noRoute') }
+  if (res.error === 'tooShort') return { error: t(locale, 'plan.quote.tooShort').replace('{n}', String(WARP_MIN_MILES)) }
+  if (res.error === 'noZipFrom') return { error: t(locale, 'plan.quote.noZip').replace('{city}', fromCity) }
+  if (res.error === 'noZipTo') return { error: t(locale, 'plan.quote.noZip').replace('{city}', toCity) }
+  return { error: t(locale, 'plan.quote.fail').replace('{e}', res.detail ?? '—') }
 }
 
 /**

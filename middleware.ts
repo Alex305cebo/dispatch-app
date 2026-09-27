@@ -30,6 +30,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next({ request: { headers } })
   }
 
+  // Проверка ставки для бота Telegram: сессии у сервера бота нет, он приходит с ключом в
+  // x-rate-key, а сам ключ сверяет обработчик (app/api/rate-check). Без ключа — обычный
+  // путь ниже: расширение и страницы TMS идут под своим входом.
+  if (req.nextUrl.pathname === '/api/rate-check' && req.headers.has('x-rate-key') && !isAction) {
+    return NextResponse.next({ request: { headers } })
+  }
+
   // Публичной карты трака /track/[id] больше нет (закрыта 09/14/26): номера траков
   // идут подряд, и перебором без входа открывалось, где сейчас каждый трак парка.
 
