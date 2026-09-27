@@ -8,7 +8,7 @@
 import { sql } from '@/lib/db'
 import { brokerCutFromLoads, laneRpmTables } from '@/lib/dat-lanes'
 import { datCached } from '@/lib/dat-market'
-import { datEquipment, heatLevel, ltMedian, ltOf, regionOf, regionStates, stateFromPlace, type DatSnapshot } from '@/lib/dat-market-core'
+import { datEquipment, heatLevel, ltMedian, ltOf, regionLabel, regionOf, regionStates, stateFromPlace, type DatSnapshot } from '@/lib/dat-market-core'
 import { WARP_MIN_MILES } from '@/lib/rpm-bench-core'
 import { warpQuote, zipOfCity } from '@/lib/warp-quote'
 import { usDate } from '@/lib/fmt'
@@ -32,8 +32,6 @@ export type RateCheckInput = {
 }
 
 type Company = 'default' | 'demo'
-
-const regionTitle = (code: string) => code.charAt(0) + code.slice(1).toLowerCase()
 
 function side(snap: DatSnapshot | null, state: string | null): RateSide | null {
   if (!snap || !state) return null
@@ -187,8 +185,8 @@ export async function rateCheck(input: RateCheckInput, opts: { market: Company; 
     live,
     cut,
     broker: input.broker,
-    dat: o ? { region: regionTitle(o.code), rpm: o.rpm, date: snap ? usDate(todayEt(new Date(snap.at))) : null } : null,
-    destDat: d && snap ? { region: regionTitle(d.code), rpm: d.rpm, states: regionStates(snap, d.states).best.map((r) => r.code) } : null,
+    dat: o && snap ? { region: regionLabel(snap, o), rpm: o.rpm, date: snap ? usDate(todayEt(new Date(snap.at))) : null } : null,
+    destDat: d && snap ? { region: regionLabel(snap, d), rpm: d.rpm, states: regionStates(snap, d.states).best.map((r) => r.code) } : null,
     origin: side(snap, from),
     dest: side(snap, to),
     history,

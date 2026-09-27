@@ -180,13 +180,23 @@ export function laneMarket(
 }
 
 /**
+ * Как назвать регион DAT диспетчеру: кодами его горячих штатов («GA, SC, VA»), а не
+ * именем региона — «Southeast» диспетчер на карте не найдёт (владелец, 27.09.2026).
+ * Нет данных по штатам — все штаты региона.
+ */
+export function regionLabel(snap: DatSnapshot, region: DatRegion): string {
+  const hot = regionStates(snap, region.states).best.map((r) => r.code)
+  return (hot.length ? hot : region.states.map((s) => (s === 'KA' ? 'KS' : s))).join(', ')
+}
+
+/**
  * Ставка DAT по региону погрузки — ориентир для груза, у которого своей рыночной ставки
  * нет. Регион доставки сюда не подставляется: сравнивают с ценой грузов, выходящих из
  * региона погрузки. Код региона DAT пишет капсом (NORTH) — людям показываем «North».
  */
 export function originRate(snap: DatSnapshot, origin: string | null): { rpm: number; region: string } | null {
   const region = laneMarket(snap, origin, null).origin?.region
-  return region ? { rpm: region.rpm, region: region.code.charAt(0) + region.code.slice(1).toLowerCase() } : null
+  return region ? { rpm: region.rpm, region: regionLabel(snap, region) } : null
 }
 
 /** Ставка груза против рынка: разница в процентах и цвет. ±10% — ещё «в рынке». */
