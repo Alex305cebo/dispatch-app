@@ -98,9 +98,9 @@ test('ориентир рынка — регион погрузки, регио�
   assert.equal(laneMarket(snap(), 'Anchorage, AK', 'Honolulu, HI').rpm, null)
 })
 
-test('груз без своей рыночной ставки: ставка DAT по региону погрузки', () => {
-  assert.deepEqual(originRate(snap(), 'Wapakoneta, OH'), { rpm: 3.1, region: 'North' })
-  assert.deepEqual(originRate(snap(), 'Wichita, KS'), { rpm: 3.1, region: 'North' })
+test('груз без своей рыночной ставки: ставка DAT по региону погрузки, регион — горячими штатами', () => {
+  assert.deepEqual(originRate(snap(), 'Wapakoneta, OH'), { rpm: 3.1, region: 'OH, KS' })
+  assert.deepEqual(originRate(snap(), 'Wichita, KS'), { rpm: 3.1, region: 'OH, KS' })
   // Регион доставки не подставляется — ориентир только погрузка
   assert.equal(originRate(snap(), 'Anchorage, AK'), null)
   assert.equal(originRate(snap(), null), null)

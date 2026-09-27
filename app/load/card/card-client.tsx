@@ -138,9 +138,9 @@ function MarketSide({ label, side, locale }: { label: string; side: CardMarketSi
   const heat = heatText(side.heat, locale)
   return (
     <div className={TILE}>
-      {/* Коды регионов DAT приходят капсом — NORTH, SOUTHEAST; в плитке читается «North». */}
+      {/* Вместо имени региона DAT — его горячие штаты кодами: «Southeast» диспетчер не знает. */}
       <div className={TILE_LABEL}>
-        {label.replace('{region}', side.region ? side.region.code.charAt(0) + side.region.code.slice(1).toLowerCase() : side.state)}
+        {label.replace('{region}', side.label ?? side.state)}
       </div>
       <div className={TILE_VALUE}>{side.region ? `${usd2.format(side.region.rpm)}/mi` : '—'}</div>
       {side.ratio !== null && (

@@ -7,7 +7,7 @@
 // и так проверяют по FMCSA (MC, почта, название). Деньги считаются в браузере.
 
 import { companyScope } from '@/lib/session'
-import { datEquipment, datSnapshot, laneMarket, ltHeat, type DatRegion } from '@/lib/dat-market'
+import { datEquipment, datSnapshot, laneMarket, ltHeat, regionLabel, type DatRegion } from '@/lib/dat-market'
 import { backhaulBrokers } from '@/lib/backhaul'
 import type { StateBroker } from '@/lib/state-brokers'
 import { laneAvgRpmFor, listLoads, listTrucks } from '@/lib/loads'
@@ -24,6 +24,8 @@ import { rateCheck, type RateCheck } from '@/lib/rate-check'
 export type CardMarketSide = {
   state: string
   region: DatRegion | null
+  /** Горячие штаты региона кодами — вместо имени региона. */
+  label: string | null
   ratio: number | null
   heat: 'hot' | 'warm' | 'cold' | null
 }
@@ -129,7 +131,7 @@ export async function cardInsights(input: {
   if (snap && eq) {
     const lane = laneMarket(snap, input.origin, input.destination)
     const side = (s: typeof lane.origin): CardMarketSide | null =>
-      s ? { state: s.state, region: s.region, ratio: s.lt?.ratio ?? null, heat: s.lt ? ltHeat(snap, s.lt.ratio) : null } : null
+      s ? { state: s.state, region: s.region, label: s.region ? regionLabel(snap, s.region) : null, ratio: s.lt?.ratio ?? null, heat: s.lt ? ltHeat(snap, s.lt.ratio) : null } : null
     market = {
       equipment: eq,
       rpm: lane.rpm,
