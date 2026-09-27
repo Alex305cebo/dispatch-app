@@ -7,8 +7,9 @@ import { calcLoad } from '@/lib/profit'
 import { EMPTY, type QrLoad } from '@/lib/qr-load'
 import { truckLabel, type TruckRecord } from '@/lib/map'
 import { assignWarnings, type TruckMeta } from '@/lib/maintenance-core'
-import { createLoad, fetchDatSnapshot, fetchRouteMiles } from '@/app/actions'
+import { checkLaneRate, createLoad, fetchDatSnapshot, fetchRouteMiles } from '@/app/actions'
 import { originRate, type DatSnapshot } from '@/lib/dat-market-core'
+import { withRate, type RateCheck } from '@/lib/rate-check-core'
 import { usd, usd2, usDate } from '@/lib/fmt'
 import { todayEt } from '@/lib/payments'
 import { humanError } from '@/lib/msg'
@@ -77,6 +78,34 @@ export function LoadForm({
   }, [load.equipment, truckId])
   const datRate = datSnap ? originRate(datSnap, load.origin) : null
   const dat = datRate && datSnap && { ...datRate, date: usDate(todayEt(new Date(datSnap.at))) }
+
+  // Проверка ставки по направлению (lib/rate-check.ts): сервер — когда меняются города, мили,
+  // прицеп или брокер; сама ставка подставляется тут же, на каждую цифру сервер не нужен.
+  const [rcBase, setRcBase] = useState<RateCheck | null>(null)
+  useEffect(() => {
+    if (!load.origin || !load.destination) return setRcBase(null)
+    let alive = true
+    const id = setTimeout(() => {
+      checkLaneRate({
+        origin: load.origin,
+        dest: load.destination,
+        miles: load.loadedMiles || null,
+        equipment: load.equipment ?? null,
+        broker: load.brokerName ?? null,
+        truckId,
+      }).then(
+        (r) => {
+          if (alive) setRcBase(r)
+        },
+        () => {},
+      )
+    }, 700)
+    return () => {
+      alive = false
+      clearTimeout(id)
+    }
+  }, [load.origin, load.destination, load.loadedMiles, load.equipment, load.brokerName, truckId])
+  const rc = rcBase && withRate(rcBase, load.rate, load.loadedMiles, load.deadheadMiles)
 
   let result: ReturnType<typeof calcLoad> | null = null
   let calcError: string | null = null
@@ -162,6 +191,20 @@ export function LoadForm({
                     .replace('{miles}', Math.round(load.loadedMiles).toLocaleString('en-US'))}`}
                 {' · '}
                 {tr(locale, 'analysis.datRegion').replace('{region}', dat.region).replace('{date}', dat.date)}
+              </p>
+            )}
+            {/* Цель торга — прямо у поля, куда вписывают ставку брокера. */}
+            {rc?.target && (
+              <p className="mt-1 text-sm text-t3">
+                {tr(locale, 'analysis.cutTarget')
+                  .replace('{low}', usd2.format(rc.target.low))
+                  .replace('{high}', usd2.format(rc.target.high))
+                  .replace(/\s*—$/, '')}
+                {rc.target.lowTotal != null &&
+                  rc.target.highTotal != null &&
+                  ` · ${tr(locale, 'rc.totals')
+                    .replace('{low}', usd.format(rc.target.lowTotal))
+                    .replace('{high}', usd.format(rc.target.highTotal))}`}
               </p>
             )}
           </div>
@@ -263,7 +306,15 @@ export function LoadForm({
           </h2>
           {calcError && <p className="text-sm text-bad-400">{calcError}</p>}
           {result && truck && (
-            <Analysis r={result} mpg={truck.mpg} spotRpm={load.spotRpm} dat={dat} targetRpm={metaByTruck[truck.id]?.targetRpm} />
+            <Analysis
+              r={result}
+              mpg={truck.mpg}
+              spotRpm={load.spotRpm}
+              dat={dat}
+              targetRpm={metaByTruck[truck.id]?.targetRpm}
+              rc={rc}
+              brokerName={load.brokerName}
+            />
           )}
         </section>
       </div>

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { rateCheckFrom } from './rate-check-core.ts'
+import { rateCheckFrom, withRate } from './rate-check-core.ts'
 
 const base = {
   cut: { share: 0.83, n: 59 },
@@ -21,14 +21,20 @@ test('ставка в вилке: цель, доля брокера, рынок 
   assert.equal(r.target?.gap, null)
   assert.equal(r.target?.brokerPct, 17)
   assert.equal(r.target?.brokerTake, 0.54)
-  assert.equal(r.target?.lowTotal, 5221)
+  assert.equal(r.target?.lowTotal, 5212) // $2.61 × 1,997 — от вилки в центах, как её видят
   assert.equal(r.dat?.diff, -4)
 })
 
 test('ниже вилки — сколько долларов не хватает за рейс', () => {
   const r = rateCheckFrom({ ...base, rate: 4800, miles: 1997, shipper: 3.15 })
   assert.equal(r.target?.verdict, 'below')
-  assert.equal(r.target?.gap, 421) // 3.15 × 0.83 × 1,997 − 4,800
+  assert.equal(r.target?.gap, 412) // $2.61 × 1,997 − $4,800
+})
+
+test('ставка из браузера к проверке без ставки даёт то же, что проверка со ставкой', () => {
+  const full = rateCheckFrom({ ...base, rate: 4800, miles: 1997, shipper: 3.15 })
+  const bare = rateCheckFrom({ ...base, rate: null, miles: null, shipper: 3.15 })
+  assert.deepEqual(withRate(bare, 4800, 1997), full)
 })
 
 test('доля по брокеру важнее общей, если по нему сравнений хватает', () => {

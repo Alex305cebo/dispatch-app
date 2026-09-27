@@ -478,6 +478,39 @@ export async function fetchDatSnapshot(equipment: string | null, truckId: number
 }
 
 /**
+ * Проверка ставки для формы груза и распознанного рейт-кона — без самой ставки: её
+ * подставляет браузер (lib/rate-check-core withRate), чтобы не ходить на сервер на каждую
+ * цифру. Прицеп — из груза, иначе трейлер трака. Если по маршруту за 30 дней ничего не
+ * собрано, Warp спрашиваем сразу (не в демо).
+ */
+export async function checkLaneRate(input: {
+  origin: string | null
+  dest: string | null
+  miles: number | null
+  equipment: string | null
+  broker: string | null
+  truckId?: number | null
+}) {
+  const who = await getCurrentUser()
+  if (!who || !input.origin || !input.dest) return null
+  const { rateCheck } = await import('@/lib/rate-check')
+  const { datEquipment } = await import('@/lib/dat-market')
+  const { truckTrailerNumbers } = await import('@/lib/maintenance')
+  const trailer = input.truckId ? (await truckTrailerNumbers(await companyScope())).get(Number(input.truckId)) : null
+  return rateCheck(
+    {
+      origin: String(input.origin).slice(0, 120),
+      dest: String(input.dest).slice(0, 120),
+      miles: Number(input.miles) > 0 ? Number(input.miles) : null,
+      rate: null,
+      equipment: datEquipment(input.equipment) ?? datEquipment(trailer) ?? 'VAN',
+      broker: input.broker ? String(input.broker).slice(0, 120) : null,
+    },
+    { market: 'default', live: !who.isDemo },
+  ).catch(() => null)
+}
+
+/**
  * Записать актуальную цену дизеля EIA в траки — один (truckId) или весь парк (null).
  * Кнопка в форме трака только подставляла цену в поле, и её ещё надо было сохранить;
  * здесь — сразу в базу, чтобы расчёты по всему парку не жили на цене полугодовой

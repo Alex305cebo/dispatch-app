@@ -9,6 +9,8 @@ import { t } from '@/lib/i18n'
 import { useState } from 'react'
 import { quoteBoardLane } from '@/app/actions'
 import { notify } from '@/lib/notify'
+import { HEAT_LEVEL_KEY } from '@/lib/dat-market-core'
+import type { RateCheck } from '@/lib/rate-check-core'
 
 /** The rate, divided up. Segment colours are deliberately NOT the accent violet —
  * that means "action" everywhere else — and are ordered biggest-cost-first so the
@@ -85,6 +87,118 @@ function RateSplit({ r, locale }: { r: Breakdown; locale: ReturnType<typeof useL
   )
 }
 
+/**
+ * Проверка ставки (lib/rate-check.ts) словами: цель торга с долей брокера, рынок DAT на
+ * погрузке, куда трак попадёт после выгрузки, своя история. Одна на все места TMS —
+ * карточка груза, форма, распознанный рейт-кон; бот и расширение пишут то же самое.
+ */
+export function RateLines({ rc, brokerName }: { rc: RateCheck; brokerName?: string | null }) {
+  const locale = useLocale()
+  const tg = rc.target
+  const rpm = rc.rpm
+  const vsDat = rc.dat && rpm ? rpm - rc.dat.rpm : null
+  // Ставки ещё нет (форма, пока её не вписали) — вердикта нет, и тире в конце не нужно.
+  const head = tg ? t(locale, 'analysis.cutTarget').replace('{low}', usd2.format(tg.low)).replace('{high}', usd2.format(tg.high)) : ''
+  const sub = tg
+    ? [
+        tg.lowTotal != null && tg.highTotal != null
+          ? t(locale, 'rc.totals').replace('{low}', usd.format(tg.lowTotal)).replace('{high}', usd.format(tg.highTotal))
+          : null,
+        tg.wk != null && Math.abs(tg.wk) >= 0.02
+          ? t(locale, 'rc.week').replace('{v}', `${tg.wk > 0 ? '+' : '−'}${Math.round(Math.abs(tg.wk) * 100)}`)
+          : null,
+        tg.live ? t(locale, 'rc.live') : null,
+      ].filter(Boolean)
+    : []
+  return (
+    <>
+      {tg && (
+        <p className="mt-1.5 text-base leading-relaxed text-t2">
+          {tg.verdict ? head : head.replace(/\s*—$/, '')}{' '}
+          {tg.verdict && (
+            <span className={`font-semibold ${tg.verdict === 'below' ? 'text-warn-400' : 'text-good-400'}`}>
+              {tg.verdict === 'inside'
+                ? t(locale, 'analysis.cutOk')
+                : t(locale, tg.verdict === 'below' ? 'analysis.cutBelow' : 'rc.above').replace('{usd}', usd.format(tg.gap ?? 0))}
+            </span>
+          )}
+          <span className="block text-sm text-t3">
+            {t(locale, tg.broker && brokerName ? 'analysis.cutFromBroker' : 'analysis.cutFrom')
+              .replace('{shipper}', usd2.format(tg.shipper))
+              .replace('{n}', String(tg.n))
+              .replace('{broker}', brokerName ?? '')}
+            {' · '}
+            {t(locale, 'rc.brokerTake').replace('{take}', usd2.format(tg.brokerTake)).replace('{pct}', String(tg.brokerPct))}
+          </span>
+          {sub.length > 0 && <span className="block text-sm text-t3">{sub.join(' · ')}</span>}
+        </p>
+      )}
+
+      {rc.dat && (
+        <p className="mt-1.5 text-base leading-relaxed text-t2">
+          {t(locale, 'analysis.datMarket')} <span className="nums text-t1">{usd2.format(rc.dat.rpm)}</span>/mi
+          {vsDat !== null && (
+            <>
+              {vsDat >= 0 ? t(locale, 'analysis.aboveMarketBy') : t(locale, 'analysis.belowMarketBy')}
+              <span className={`nums ${vsDat >= 0 ? 'text-good-400/80' : 'text-amber-400/90'}`}>{usd2.format(Math.abs(vsDat))}</span>
+              /mi{vsDat < 0 ? t(locale, 'analysis.roomToNegotiate') : '.'}
+            </>
+          )}
+          <span className="block text-sm text-t3">
+            {t(locale, 'analysis.datRegion').replace('{region}', rc.dat.region).replace('{date}', rc.dat.date ?? '')}
+          </span>
+        </p>
+      )}
+
+      {rc.dest && (
+        <p className="mt-1.5 text-base leading-relaxed text-t2">
+          {t(locale, 'rc.after').replace('{state}', rc.dest.state)}{' '}
+          {[
+            rc.destDat
+              ? t(locale, 'rc.afterRegion').replace('{region}', rc.destDat.region).replace('{rpm}', usd2.format(rc.destDat.rpm))
+              : null,
+            t(locale, 'rc.afterHeat')
+              .replace('{heat}', t(locale, HEAT_LEVEL_KEY[rc.dest.heat]))
+              .replace('{ratio}', rc.dest.ratio.toFixed(1)),
+          ]
+            .filter(Boolean)
+            .join(', ')}
+        </p>
+      )}
+
+      {rc.history && (
+        <p className="mt-1.5 text-sm leading-relaxed text-t3">
+          {t(locale, 'rc.history').replace('{rpm}', usd2.format(rc.history.rpm)).replace('{n}', String(rc.history.n))}
+        </p>
+      )}
+    </>
+  )
+}
+
+/** Значок у груза в списке: ставка против цели торга. Нет цели — значка нет. */
+export function RateBadge({ rc }: { rc: Pick<RateCheck, 'rpm' | 'target'> | null | undefined }) {
+  const locale = useLocale()
+  const tg = rc?.target
+  if (!tg?.verdict || !rc?.rpm) return null
+  const cls =
+    tg.verdict === 'below' ? 'border-warn-400/30 bg-warn-500/10 text-warn-400' : 'border-good-400/30 bg-good-500/10 text-good-400'
+  return (
+    <span
+      className={`nums inline-flex items-center rounded-md border px-1.5 py-0.5 text-2xs font-semibold ${cls}`}
+      title={t(locale, 'rc.badgeTitle')
+        .replace('{low}', usd2.format(tg.low))
+        .replace('{high}', usd2.format(tg.high))
+        .replace('{rpm}', usd2.format(rc.rpm))}
+    >
+      {tg.verdict === 'inside'
+        ? t(locale, 'rc.badgeInside')
+        : tg.verdict === 'above'
+          ? t(locale, 'rc.badgeAbove')
+          : t(locale, 'rc.badgeBelow').replace('{usd}', usd.format(tg.gap ?? 0))}
+    </span>
+  )
+}
+
 export function Analysis({
   r,
   mpg,
@@ -93,6 +207,8 @@ export function Analysis({
   targetRpm,
   cut,
   quote,
+  rc,
+  brokerName,
 }: {
   r: Breakdown
   mpg: number
@@ -106,6 +222,10 @@ export function Analysis({
   cut?: { low: number; high: number; shipper: number; n: number; broker?: string | null } | null
   /** Котировок по маршруту нет — кнопка «Узнать цену Warp» (app/actions.ts quoteBoardLane). */
   quote?: { label: string; miles: number; loadId: number } | null
+  /** Проверка ставки целиком (lib/rate-check.ts) — заменяет cut и dat развёрнутыми строками. */
+  rc?: RateCheck | null
+  /** Имя брокера груза — для подписи «доля по его грузам». */
+  brokerName?: string | null
 }) {
   const locale = useLocale()
   const [quoting, setQuoting] = useState(false)
@@ -132,9 +252,13 @@ export function Analysis({
   const notConfigured = r.totalCost === 0
   // Рыночная ставка, вписанная в груз, всегда главнее. Нет её — ставка DAT по региону
   // погрузки, с подписью, откуда цифра и какого она дня.
-  const fromDat = spotRpm && spotRpm > 0 ? null : (dat ?? null)
-  const spot = fromDat ? fromDat.rpm : spotRpm
-  const vsSpot = spot && spot > 0 ? r.loadedRpm - spot : null
+  const ownSpot = !!(spotRpm && spotRpm > 0)
+  const fromDat = ownSpot || rc ? null : (dat ?? null)
+  const spot = ownSpot ? spotRpm : (fromDat?.rpm ?? rc?.dat?.rpm ?? null)
+  // С проверкой ставки строку рынка DAT пишет RateLines; здесь — только вписанная в груз.
+  const vsSpot = spot && spot > 0 && (!rc || ownSpot) ? r.loadedRpm - spot : null
+  const rcView = rc && ownSpot ? { ...rc, dat: null } : rc
+  const hasTarget = !!(rc?.target ?? cut)
 
   return (
     <>
@@ -167,7 +291,9 @@ export function Analysis({
 
       {/* Цель торга по маршруту: сколько из цены грузоотправителя обычно доходит до трака.
           Цифра рынка чужая (Warp), доля — по нашим рейт-конам; и то, и другое подписано. */}
-      {cut && (
+      {rcView && <RateLines rc={rcView} brokerName={brokerName} />}
+
+      {!rc && cut && (
         <p className="mt-1.5 text-base leading-relaxed text-t2">
           {t(locale, 'analysis.cutTarget').replace('{low}', usd2.format(cut.low)).replace('{high}', usd2.format(cut.high))}{' '}
           <span className={`font-semibold ${r.loadedRpm >= cut.low ? 'text-good-400' : 'text-warn-400'}`}>
@@ -185,7 +311,7 @@ export function Analysis({
       )}
 
       {/* Цели торга нет — котировки по маршруту ещё не собраны: спросить Warp сейчас. */}
-      {!cut && quote && (
+      {!hasTarget && quote && (
         <p className="mt-1.5 text-base leading-relaxed text-t2">
           <button
             type="button"

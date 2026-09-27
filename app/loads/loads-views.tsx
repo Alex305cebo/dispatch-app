@@ -38,6 +38,7 @@ import { DeadheadFlag } from '@/components/deadhead-flag'
 import { PriorityChip } from '@/components/priority-picker'
 import { LoadsToolbar, useLoadsFilter, type LoadMetrics, activeRank } from '@/components/loads-toolbar'
 import { RateConButton } from '@/components/ratecon-button'
+import { RateBadge } from '@/components/analysis'
 import { DeleteButton } from '@/components/delete-button'
 import { DriverAvatar } from '@/components/driver-avatar'
 import { deleteLoad } from '@/app/actions'
@@ -333,11 +334,14 @@ export function LoadsViews({
  * региону погрузки (правило карточки груза). Нет рынка, миль или ставки — метки нет. */
 function MarketBadge({ load, locale }: { load: LoadRecord; locale: Locale }) {
   const m = useContext(MetricsContext)[load.id]
-  if (!m?.market || !(load.loadedMiles > 0) || !(load.rate > 0)) return null
+  // Рядом — ставка против цели торга по маршруту («в цели» / «−$412 до цели»).
+  const target = <RateBadge rc={m?.rc} />
+  if (!m?.market || !(load.loadedMiles > 0) || !(load.rate > 0)) return target
   const rpm = load.rate / load.loadedMiles
   const v = marketVerdict(rpm, m.market)
   const source = m.marketAt ? t(locale, 'loads.dash.marketDat').replace('{date}', m.marketAt) : t(locale, 'loads.dash.marketSpot')
   return (
+    <>
     <span
       title={`${usd2.format(rpm)} vs ${usd2.format(m.market)}/mi · ${source}`}
       className={`nums shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-xs font-semibold ${
@@ -346,6 +350,8 @@ function MarketBadge({ load, locale }: { load: LoadRecord; locale: Locale }) {
     >
       {t(locale, 'loads.dash.vsMarket').replace('{pct}', pctText(v.diff))}
     </span>
+    {target}
+    </>
   )
 }
 
@@ -434,7 +440,7 @@ function StatusBoard({
                       )}
                     </span>
                   </div>
-                  <div className="mt-1 flex empty:hidden">
+                  <div className="mt-1 flex flex-wrap gap-1 empty:hidden">
                     <MarketBadge load={load} locale={locale} />
                   </div>
                 </div>

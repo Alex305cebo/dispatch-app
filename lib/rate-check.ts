@@ -92,6 +92,45 @@ export async function recordWarpLane(
   return { rpm: rate / m }
 }
 
+/**
+ * Цель торга для списка грузов разом: котировки и доли — одним заходом на весь список,
+ * Warp не спрашиваем. Цель — по котировкам за последние 30 дней, поэтому сравнивать с ней
+ * имеет смысл только открытые грузы; какие — решает вызывающий.
+ */
+export async function laneTargets(
+  loads: { id: number; origin: string | null; destination: string | null; rate: number; loadedMiles: number; brokerName: string | null; equipment: string }[],
+  market: Company,
+): Promise<Map<number, Pick<RateCheck, 'rpm' | 'target'>>> {
+  const out = new Map<number, Pick<RateCheck, 'rpm' | 'target'>>()
+  if (!loads.length) return out
+  const [warp, cut] = await Promise.all([
+    laneRpmTables(market, 'warp').catch(() => ({}) as Awaited<ReturnType<typeof laneRpmTables>>),
+    brokerCutFromLoads(market).catch(() => null),
+  ])
+  if (!cut) return out
+  for (const l of loads) {
+    const from = stateFromPlace(l.origin)
+    const to = stateFromPlace(l.destination)
+    const lane = from && to ? warp[datEquipment(l.equipment) ?? 'VAN']?.lane[`${from}>${to}`] : undefined
+    if (!lane) continue
+    const r = rateCheckFrom({
+      rate: l.rate,
+      miles: l.loadedMiles,
+      shipper: lane.rpm,
+      wk: lane.wk,
+      cut,
+      broker: l.brokerName,
+      dat: null,
+      destDat: null,
+      origin: null,
+      dest: null,
+      history: null,
+    })
+    if (r.target) out.set(l.id, { rpm: r.rpm, target: r.target })
+  }
+  return out
+}
+
 /** «Fresno, CA 93722» → «Fresno, CA»: для котировки и подписи нужен город со штатом. */
 function cityOnly(place: string | null): string | null {
   const m = /^(.*?,\s*[A-Za-z]{2})\b/.exec((place ?? '').trim())

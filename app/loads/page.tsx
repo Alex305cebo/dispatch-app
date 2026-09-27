@@ -12,6 +12,7 @@ import { calcLoad } from '@/lib/profit'
 import { truckPhotoFlags, truckTrailerNumbers } from '@/lib/maintenance'
 import { datCached, datEquipment, loadMarketRpm, type DatEquipment } from '@/lib/dat-market'
 import { companyScope } from '@/lib/session'
+import { laneTargets } from '@/lib/rate-check'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { driveTime, usd, usDate } from '@/lib/fmt'
@@ -63,9 +64,19 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
   // Рынок у каждого груза — по правилу карточки груза: вписанная ставка, иначе DAT по
   // региону погрузки; серия — по трейлеру трака, иначе Van. Суточный снимок только из кэша.
   const seriesOf = (truckId: number | null): DatEquipment => datEquipment(truckId == null ? null : trailers.get(truckId)) ?? 'VAN'
-  const snaps = new Map(
-    await Promise.all([...new Set(loads.map((l) => seriesOf(l.truckId)))].map(async (eq) => [eq, await datCached(eq)] as const)),
-  )
+  // Цель торга — только у открытых грузов: она по котировкам последних 30 дней, и
+  // сравнивать с ней рейс трёхмесячной давности значит мерить старую ставку новой ценой.
+  const [snaps, targets] = await Promise.all([
+    Promise.all([...new Set(loads.map((l) => seriesOf(l.truckId)))].map(async (eq) => [eq, await datCached(eq)] as const)).then(
+      (e) => new Map(e),
+    ),
+    laneTargets(
+      loads
+        .filter((l) => l.status === 'quoted' || l.status === 'booked' || l.status === 'in_transit')
+        .map((l) => ({ ...l, equipment: seriesOf(l.truckId) })),
+      'default',
+    ).catch(() => new Map<number, never>()),
+  ])
   const rateCons = new Map<number, number>()
   const podIds = new Set<number>()
   for (const doc of docs) {
@@ -99,6 +110,7 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
       lateMin: null,
       market,
       marketAt: market && snap && !(load.spotRpm && load.spotRpm > 0) ? usDate(todayEt(new Date(snap.at))) : null,
+      rc: targets.get(load.id) ?? null,
     }
   }
 

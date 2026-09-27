@@ -36,6 +36,7 @@ import { Button } from '@/components/button'
 import { Stat } from '@/components/stat'
 import { Info } from '@/components/info'
 import { Analysis } from '@/components/analysis'
+import { withRate } from '@/lib/rate-check-core'
 import { BackhaulList } from '@/components/backhaul-list'
 import { BrokerChecklist } from '@/components/broker-checklist'
 import { notify } from '@/lib/notify'
@@ -490,7 +491,13 @@ export function CardClient() {
             <Info text={t(locale, 'loadDetail.rateInfo')} />
           </h2>
           {breakdown && insights?.truck ? (
-            <Analysis r={breakdown} mpg={insights.truck.mpg} spotRpm={marketRpm} />
+            <Analysis
+              r={breakdown}
+              mpg={insights.truck.mpg}
+              spotRpm={marketRpm}
+              rc={insights.rc && withRate(insights.rc, load.rate, miles, load.deadheadMiles)}
+              brokerName={load.brokerName}
+            />
           ) : load.rate ? (
             <div className="nums text-5xl font-bold tracking-tight text-white">{usd.format(load.rate)}</div>
           ) : (

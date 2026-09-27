@@ -15,7 +15,9 @@ import { extractPdf, looksScanned } from '@/lib/pdf-text'
 import { formatDriverInfo, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
 import { rcWarnings, type RcWarning } from '@/lib/rc-warnings'
-import { createLoadFromRc, setLoadPartial, undoRcUpload, uploadDocument, type RcCreateResult } from '@/app/actions'
+import { checkLaneRate, createLoadFromRc, setLoadPartial, undoRcUpload, uploadDocument, type RcCreateResult } from '@/app/actions'
+import { withRate, type RateCheck } from '@/lib/rate-check-core'
+import { RateLines } from '@/components/analysis'
 import { docKindFromText } from '@/lib/caption-kind'
 import { staleBuildMessage } from '@/components/build-watch'
 import { notify } from '@/lib/notify'
@@ -36,6 +38,8 @@ type Result = {
   missing?: 'rate' | 'driverinfo' | null
   /** Порожний пробег до пикапа по дороге — предупреждение больше 150 миль. */
   deadhead?: RcCreateResult['deadhead']
+  /** Проверка ставки груза (lib/rate-check.ts) — приходит чуть позже самого груза. */
+  rc?: RateCheck | null
 }
 
 const WTONE = {
@@ -195,6 +199,21 @@ export function TruckRcDrop({
         deadhead: made.deadhead,
       })
       notify('ok', t(locale, made.merged ? 'rcDrop.mergedToast' : 'rcDrop.createdToast'), file.name)
+      // Проверка ставки — следом, чтобы груз и предупреждения не ждали Warp.
+      const q = toQrLoad(ai.fields)
+      void checkLaneRate({
+        origin: q.origin,
+        dest: q.destination,
+        miles: q.loadedMiles || null,
+        equipment: q.equipment ?? null,
+        broker: q.brokerName ?? null,
+        truckId,
+      }).then(
+        (rc) =>
+          rc &&
+          setRes((r) => (r && r.loadId === made.loadId ? { ...r, rc: withRate(rc, q.rate, q.loadedMiles, q.deadheadMiles) } : r)),
+        () => {},
+      )
     } catch (e) {
       // Устаревшая после деплоя вкладка отвечает «unexpected response» — человеку
       // это ни о чём; говорим, что делать (см. components/build-watch.tsx).
@@ -282,6 +301,11 @@ export function TruckRcDrop({
                 .replace('{to}', res.deadhead.toLabel ?? '—')}
               {res.deadhead.estimated ? ` ${t(locale, 'rcDrop.deadheadRough')}` : ''}
             </p>
+          </div>
+        )}
+        {res.rc && (res.rc.target || res.rc.dat) && (
+          <div className="rounded-lg border border-white/8 bg-white/[0.02] px-3 pb-2">
+            <RateLines rc={res.rc} brokerName={res.fields.brokerName?.value ?? null} />
           </div>
         )}
         {/* Трак уже везёт груз, а этот — новый (не второй файл того же): спросить,

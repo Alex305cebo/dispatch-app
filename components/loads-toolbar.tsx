@@ -13,6 +13,7 @@
 // уже загруженным грузам, ни одного нового запроса.
 
 import type { LoadStop } from '@/lib/stops'
+import type { RateCheck } from '@/lib/rate-check-core'
 import { stopOrder } from '@/lib/loads-dashboard'
 import { useMemo, useState } from 'react'
 import { Download, Search, X } from 'lucide-react'
@@ -71,6 +72,8 @@ export type LoadMetrics = {
   market: number | null
   /** Дата снимка DAT (MM/DD/YY), когда рынок взят из DAT; null — рынок вписан в груз. */
   marketAt: string | null
+  /** Ставка против цели торга по маршруту (lib/rate-check.ts laneTargets) — у открытых грузов. */
+  rc?: Pick<RateCheck, 'rpm' | 'target'> | null
 }
 
 /** 0 — в пути, 1 — забукирован, 2 — всё остальное. */

@@ -77,49 +77,72 @@ export function rateCheckFrom(p: {
   dest: RateSide | null
   history: { rpm: number; n: number } | null
 }): RateCheck {
-  const miles = p.miles && p.miles > 0 ? p.miles : null
-  const rate = p.rate && p.rate > 0 ? p.rate : null
-  const rpm = rate && miles ? rate / miles : null
-  const dh = p.deadhead && p.deadhead > 0 ? p.deadhead : 0
-  const allInRpm = rate && miles && dh ? rate / (miles + dh) : null
-
-  let target: RateCheck['target'] = null
   const band = p.shipper && p.cut ? targetBand(p.shipper, p.cut, p.broker) : null
-  if (band && p.shipper) {
-    const verdict = rpm ? vsTarget(rpm, band) : null
-    const gap =
-      rpm && miles && verdict === 'below'
-        ? Math.round((band.low - rpm) * miles)
-        : rpm && miles && verdict === 'above'
-          ? Math.round((rpm - band.high) * miles)
-          : null
-    target = {
-      low: round2(band.low),
-      high: round2(band.high),
-      lowTotal: miles ? Math.round(band.low * miles) : null,
-      highTotal: miles ? Math.round(band.high * miles) : null,
-      shipper: round2(p.shipper),
-      brokerTake: round2(p.shipper - band.low),
-      brokerPct: Math.round((1 - band.low / p.shipper) * 100),
-      n: band.n,
-      broker: band.broker,
-      verdict,
-      gap,
-      wk: p.wk ?? null,
-      live: !!p.live,
-    }
-  }
-
-  return {
-    miles,
-    rate,
-    rpm: rpm ? round2(rpm) : null,
-    allInRpm: allInRpm ? round2(allInRpm) : null,
-    target,
-    dat: p.dat ? { ...p.dat, diff: rpm ? Math.round(((rpm - p.dat.rpm) / p.dat.rpm) * 100) : null } : null,
+  // Вилка — в центах, как её видит диспетчер; всё за рейс считается уже от неё, чтобы
+  // «$2.61 × 1,997 mi» у него на калькуляторе сходилось с тем, что написано.
+  const low = band ? round2(band.low) : 0
+  const base: RateCheck = {
+    miles: null,
+    rate: null,
+    rpm: null,
+    allInRpm: null,
+    target:
+      band && p.shipper
+        ? {
+            low,
+            high: round2(band.high),
+            lowTotal: null,
+            highTotal: null,
+            shipper: round2(p.shipper),
+            brokerTake: round2(p.shipper - low),
+            brokerPct: Math.round((1 - low / p.shipper) * 100),
+            n: band.n,
+            broker: band.broker,
+            verdict: null,
+            gap: null,
+            wk: p.wk ?? null,
+            live: !!p.live,
+          }
+        : null,
+    dat: p.dat ? { ...p.dat, diff: null } : null,
     destDat: p.destDat,
     origin: p.origin,
     dest: p.dest,
     history: p.history && p.history.n > 0 ? { rpm: round2(p.history.rpm), n: p.history.n } : null,
+  }
+  return withRate(base, p.rate, p.miles, p.deadhead)
+}
+
+/**
+ * Ставка и мили к готовой проверке: вердикт, недобор за рейс и сравнение с рынком
+ * пересчитываются, остальное как было. Отдельно — для страницы груза из бота: ставка
+ * там живёт только в браузере, на сервер уходят одни города.
+ */
+export function withRate(rc: RateCheck, rate: number | null, miles: number | null, deadhead?: number | null): RateCheck {
+  const m = miles && miles > 0 ? miles : null
+  const r = rate && rate > 0 ? rate : null
+  const rpm = r && m ? r / m : null
+  const dh = deadhead && deadhead > 0 ? deadhead : 0
+  const tg = rc.target
+  const verdict = tg && rpm ? vsTarget(rpm, tg) : null
+  return {
+    ...rc,
+    miles: m,
+    rate: r,
+    rpm: rpm ? round2(rpm) : null,
+    allInRpm: r && m && dh ? round2(r / (m + dh)) : null,
+    target: tg && {
+      ...tg,
+      lowTotal: m ? Math.round(tg.low * m) : null,
+      highTotal: m ? Math.round(tg.high * m) : null,
+      verdict,
+      gap:
+        rpm && m && verdict === 'below'
+          ? Math.round((tg.low - rpm) * m)
+          : rpm && m && verdict === 'above'
+            ? Math.round((rpm - tg.high) * m)
+            : null,
+    },
+    dat: rc.dat && { ...rc.dat, diff: rpm ? Math.round(((rpm - rc.dat.rpm) / rc.dat.rpm) * 100) : null },
   }
 }

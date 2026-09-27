@@ -19,6 +19,7 @@ import { idleFleet } from '@/lib/idle-fleet'
 import { activeAlert, type WeatherAlert } from '@/lib/weather'
 import { fuelPlan, type FuelPlan } from '@/lib/fuel-plan'
 import type { TruckSettings } from '@/lib/profit'
+import { rateCheck, type RateCheck } from '@/lib/rate-check'
 
 export type CardMarketSide = {
   state: string
@@ -64,6 +65,8 @@ export type CardInsights = {
   /** Настройки первого трака — чтобы деньги по статьям считались вашими цифрами. */
   truck: TruckSettings | null
   pickup: LatLng | null
+  /** Проверка ставки без самой ставки: цель торга и рынок; ставку подставляет браузер (withRate). */
+  rc: RateCheck | null
 }
 
 const settingsOf = (t: TruckSettings): TruckSettings => ({
@@ -100,7 +103,7 @@ export async function cardInsights(input: {
   const companyId = await companyScope()
   const eq = datEquipment(input.equipment)
 
-  const [snap, laneRpm, backhaul, brokerGrade, trucks, loads, fleet, pickup, drop] = await Promise.all([
+  const [snap, laneRpm, backhaul, brokerGrade, trucks, loads, fleet, pickup, drop, rc] = await Promise.all([
     eq ? safe(datSnapshot(eq, { force: input.force }), null) : Promise.resolve(null),
     safe(laneAvgRpmFor(companyId, input.origin, input.destination, 0), null),
     // Третий аргумент — груз, который не считать в истории. У груза из ссылки
@@ -112,6 +115,14 @@ export async function cardInsights(input: {
     safe(fleetStatusByUnit(), new Map()),
     input.origin ? safe(cityCoords(input.origin), null) : Promise.resolve(null),
     input.destination ? safe(cityCoords(input.destination), null) : Promise.resolve(null),
+    // Котировку Warp бот уже взял, пока разбирал рейт-кон, — здесь только из собранного.
+    safe(
+      rateCheck(
+        { origin: input.origin, dest: input.destination, miles: null, rate: null, equipment: input.equipment, broker: input.brokerName },
+        { market: 'default', live: false },
+      ),
+      null,
+    ),
   ])
 
   let market: CardMarket | null = null
@@ -192,6 +203,7 @@ export async function cardInsights(input: {
     weather: { origin: wxOrigin, dest: wxDest },
     truck: trucks[0] ? settingsOf(trucks[0]) : null,
     pickup,
+    rc,
   }
 }
 

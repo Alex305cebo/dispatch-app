@@ -58,9 +58,8 @@ import { DEADHEAD_FLAG_MI } from '@/lib/load-status'
 import { loadsMissingPod } from '@/lib/loads'
 import { CopyPlace } from '@/components/copy-place'
 import { placeCity } from '@/lib/place'
-import { datCached, datEquipment, originRate } from '@/lib/dat-market'
-import { laneTarget } from '@/lib/dat-lanes'
-import { stateOfCity } from '@/lib/toll-spend'
+import { datEquipment } from '@/lib/dat-market'
+import { rateCheck } from '@/lib/rate-check'
 import { lateStop } from '@/lib/loads-dashboard'
 import { listCharges } from '@/lib/charges'
 import { LoadCharges } from '@/components/load-charges'
@@ -135,18 +134,23 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   // Рядом — рынок DAT, если своей рыночной ставки у груза нет (почти всегда): серия по
   // трейлеру трака, иначе Van. Только из кэша — страница DAT не ждёт.
   // Цель торга по этому направлению: цена грузоотправителя минус доля брокера (lib/broker-cut.ts).
-  const [missingPod, datSnap, cutTarget] = await Promise.all([
+  // Проверка ставки — та же, что в боте и расширении (lib/rate-check.ts). Warp здесь не
+  // спрашиваем: открытие страницы не должно тратить суточный лимит, для этого есть кнопка.
+  const [missingPod, rc] = await Promise.all([
     loadsMissingPod(companyId, truckLoads.filter((l) => l.id !== load.id)),
-    load.spotRpm ? null : datCached(datEquipment(truckMeta?.trailerNumber) ?? 'VAN'),
-    laneTarget(
-      companyId,
-      datEquipment(truckMeta?.trailerNumber) ?? 'VAN',
-      stateOfCity(load.origin),
-      stateOfCity(load.destination),
-      load.brokerName,
+    rateCheck(
+      {
+        origin: load.origin,
+        dest: load.destination,
+        miles: load.loadedMiles,
+        rate: load.rate,
+        deadhead: load.deadheadMiles,
+        equipment: truckMeta?.trailerNumber,
+        broker: load.brokerName,
+      },
+      { market: 'default', live: false },
     ).catch(() => null),
   ])
-  const datRate = datSnap ? originRate(datSnap, load.origin) : null
   // Кнопка «Чат Telegram» — только у того, чей Telegram подключён (демо — никогда).
   const me = await getCurrentUser()
   const tgUserId = me && !me.isDemo && (await tgConnected(me.id).catch(() => false)) ? me.id : null
@@ -419,12 +423,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         r={r}
         mpg={truck.mpg}
         spotRpm={load.spotRpm}
-        dat={datRate && datSnap && { ...datRate, date: usDate(todayEt(new Date(datSnap.at))) }}
         targetRpm={truckMeta?.targetRpm}
-        cut={cutTarget}
+        // Своя история по маршруту уже есть в шапке груза (laneAvgRpm) — здесь не повторяем.
+        rc={rc && { ...rc, history: null }}
+        brokerName={load.brokerName}
         // Warp котирует только Van; в демо — нет.
         quote={
-          !cutTarget && !me?.isDemo && (datEquipment(truckMeta?.trailerNumber) ?? 'VAN') === 'VAN' && load.loadedMiles > 0
+          !rc?.target && !me?.isDemo && (datEquipment(truckMeta?.trailerNumber) ?? 'VAN') === 'VAN' && load.loadedMiles > 0
             ? { label: `${load.origin} → ${load.destination}`, miles: load.loadedMiles, loadId: load.id }
             : null
         }
