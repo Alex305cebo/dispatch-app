@@ -51,10 +51,13 @@ const WTONE = {
 export function TruckRcDrop({
   truckId,
   currentLoad = null,
+  files,
 }: {
   truckId: number
   /** Груз, который трак везёт сейчас: новый рейт-кон может быть партиалом к нему. */
   currentLoad?: { id: number; route: string } | null
+  /** Файлы, уже выбранные кнопкой в шапке трака (components/truck-rc-button.tsx), — разбор сразу. */
+  files?: File[]
 }) {
   const locale = useLocale()
   const [partialMarked, setPartialMarked] = useState(false)
@@ -82,6 +85,14 @@ export function TruckRcDrop({
     const id = setInterval(() => setElapsed((s) => s + 1), 1000)
     return () => clearInterval(id)
   }, [busy])
+
+  const started = useRef(false)
+  useEffect(() => {
+    if (started.current || !files?.length) return
+    started.current = true
+    void handle(files)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- один раз, с файлами из кнопки
+  }, [])
 
   /** Брокеры (TQL и не только) присылают рейт-кон и Driver Info ОТДЕЛЬНЫМИ файлами.
    * Сюда можно бросить оба сразу: рейт-кон создаёт груз, лист водителя ложится к

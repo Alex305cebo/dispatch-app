@@ -700,6 +700,14 @@ export const trucksDict = {
     ro: 'Cursă nouă dintr-un rate con',
     kk: 'Rate con-нан жаңа жүк',
   },
+  'trucks.detail.createFromRc': {
+    ru: 'Создать груз из Rate Con',
+    en: 'Create load from Rate Con',
+    es: 'Crear carga desde Rate Con',
+    uk: 'Створити вантаж з Rate Con',
+    ro: 'Creează cursă din Rate Con',
+    kk: 'Rate Con-нан жүк жасау',
+  },
   'trucks.detail.newLoadFromRcInfo': {
     ru: 'Перетащи сюда PDF или фото rate confirmation — ИИ распознает его, сразу создаст груз на этот трак, прикрепит документ и покажет, что проверить (detention, lumper, team, низкая ставка, брокер и т.д.). Без ручного заполнения форм.',
     en: 'Drop a PDF or photo of the rate confirmation here — AI reads it, creates a load for this truck right away, attaches the document, and flags what to double-check (detention, lumper, team, a low rate, the broker, etc.). No manual form-filling.',
@@ -1888,12 +1896,12 @@ export const trucksDict = {
     kk: 'Тракт VIN',
   },
   'trucks.driverCard.copyForBroker': {
-    ru: 'Скопировать для брокера',
-    en: 'Copy for broker',
-    es: 'Copiar para el bróker',
-    uk: 'Скопіювати для брокера',
-    ro: 'Copiază pentru broker',
-    kk: 'Брокер үшін көшіру',
+    ru: 'Copy Driver Info',
+    en: 'Copy Driver Info',
+    es: 'Copy Driver Info',
+    uk: 'Copy Driver Info',
+    ro: 'Copy Driver Info',
+    kk: 'Copy Driver Info',
   },
   'trucks.driverCard.copied': {
     ru: 'Данные водителя скопированы',

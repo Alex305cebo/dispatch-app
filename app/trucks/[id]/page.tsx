@@ -26,7 +26,8 @@ import { StatusBadge, statusLabel } from '@/components/status'
 import { TruckForm } from '@/components/truck-form'
 import { FuelPriceButton } from '@/components/fuel-price-button'
 import { TruckCare } from '@/components/truck-care'
-import { DriverActions, DriverPhoto } from '@/components/driver-card'
+import { DriverActions, DriverPhoto, HEAD_BTN } from '@/components/driver-card'
+import { TruckRcButton } from '@/components/truck-rc-button'
 import { TruckRcDrop } from '@/components/truck-rc-drop'
 import { OrphanRateCons } from '@/components/orphan-ratecons'
 import { DocList, DocUpload } from '@/components/docs'
@@ -333,6 +334,15 @@ export default async function Page({
                 dispatcherPhone: dispatcherPhone ?? '',
               }}
               locale={locale}
+            />
+            <TruckRcButton
+              truckId={truck.id}
+              className={HEAD_BTN}
+              currentLoad={
+                activeLoad
+                  ? { id: activeLoad.id, route: `${activeLoad.origin ?? '—'} → ${activeLoad.destination ?? '—'}` }
+                  : null
+              }
             />
           </div>
         </div>

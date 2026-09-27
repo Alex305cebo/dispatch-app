@@ -18,7 +18,7 @@ import { infoBlock } from '@/components/driver-directory'
 import { t, type Locale } from '@/lib/i18n'
 
 /** Кнопка шапки трака — тот же вид, что у телефона рядом: h-8 с рамкой и иконкой. */
-const HEAD_BTN =
+export const HEAD_BTN =
   'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-base font-medium text-t1 transition-colors hover:border-white/30 hover:bg-white/[0.08] max-md:h-10'
 
 /** Фото водителя; нажатие — загрузить новое. */
