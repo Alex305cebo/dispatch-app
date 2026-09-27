@@ -8,7 +8,7 @@
 import { sql } from '@/lib/db'
 import { brokerCutFromLoads, laneRpmTables } from '@/lib/dat-lanes'
 import { datCached } from '@/lib/dat-market'
-import { datEquipment, heatLevel, ltMedian, ltOf, regionOf, stateFromPlace, type DatSnapshot } from '@/lib/dat-market-core'
+import { datEquipment, heatLevel, ltMedian, ltOf, regionOf, regionStates, stateFromPlace, type DatSnapshot } from '@/lib/dat-market-core'
 import { WARP_MIN_MILES } from '@/lib/rpm-bench-core'
 import { warpQuote, zipOfCity } from '@/lib/warp-quote'
 import { usDate } from '@/lib/fmt'
@@ -187,7 +187,7 @@ export async function rateCheck(input: RateCheckInput, opts: { market: Company; 
     cut,
     broker: input.broker,
     dat: o ? { region: regionTitle(o.code), rpm: o.rpm, date: snap ? usDate(todayEt(new Date(snap.at))) : null } : null,
-    destDat: d ? { region: regionTitle(d.code), rpm: d.rpm } : null,
+    destDat: d && snap ? { region: regionTitle(d.code), rpm: d.rpm, states: regionStates(snap, d.states).best.map((r) => r.code) } : null,
     origin: side(snap, from),
     dest: side(snap, to),
     history,
