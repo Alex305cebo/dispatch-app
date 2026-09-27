@@ -65,8 +65,23 @@ export async function POST(req: NextRequest) {
     deadhead: num(body.deadhead),
   }
   if (!input.origin || !input.dest) return NextResponse.json({ error: 'origin and dest required' }, { status: 400 })
+  // В рейт-конах миль часто нет вовсе — без них нет ни ставки за милю, ни «ниже цели на $X».
+  // Считаем по дороге (тот же маршрутизатор, что у кнопки «Мили по карте»); индекс, если
+  // пришёл, точнее названия города. milesByRoute — подпись «по дороге» у бота.
+  let milesByRoute = false
+  if (!input.miles) {
+    const { routeMiles } = await import('@/lib/geo-routing')
+    const r = await routeMiles(input.origin, input.dest, 'ru', {
+      origin: input.originZip ? `${input.origin} ${input.originZip}` : null,
+      destination: input.destZip ? `${input.dest} ${input.destZip}` : null,
+    }).catch(() => null)
+    if (r && 'miles' in r && r.miles > 0 && !r.estimated) {
+      input.miles = r.miles
+      milesByRoute = true
+    }
+  }
   try {
-    return NextResponse.json(await rateCheck(input, { market, live }))
+    return NextResponse.json({ ...(await rateCheck(input, { market, live })), milesByRoute })
   } catch {
     return NextResponse.json({ error: 'failed' }, { status: 500 })
   }
