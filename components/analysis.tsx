@@ -155,7 +155,7 @@ export function RateLines({ rc, brokerName }: { rc: RateCheck; brokerName?: stri
           {t(locale, 'rc.after').replace('{state}', rc.dest.state)}{' '}
           {[
             rc.destDat
-              ? rc.destDat.states?.length
+              ? rc.destDat.states?.length && !rc.next
                 ? t(locale, 'rc.afterStates')
                     .replace('{states}', rc.destDat.states.join(', '))
                     .replace('{rpm}', usd2.format(rc.destDat.rpm))
@@ -167,6 +167,18 @@ export function RateLines({ rc, brokerName }: { rc: RateCheck; brokerName?: stri
           ]
             .filter(Boolean)
             .join(', ')}
+          {/* Куда везти следующий груз оттуда: горячие штаты на день и на 2–3 дня пути. */}
+          {rc.next && (
+            <span className="block text-sm text-t3">
+              {t(locale, 'rc.nextBest')}{' '}
+              {[
+                rc.next.day.length ? t(locale, 'rc.nextDay').replace('{s}', rc.next.day.map((s) => s.state).join(', ')) : null,
+                rc.next.long.length ? t(locale, 'rc.nextLong').replace('{s}', rc.next.long.map((s) => s.state).join(', ')) : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          )}
         </p>
       )}
 

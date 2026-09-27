@@ -14,6 +14,7 @@ import { warpQuote, zipOfCity } from '@/lib/warp-quote'
 import { usDate } from '@/lib/fmt'
 import { todayEt } from '@/lib/payments'
 import { rateCheckFrom, type RateCheck, type RateSide } from '@/lib/rate-check-core'
+import { NEXT_DAY_MILES, NEXT_LONG_MILES, nextStates } from '@/lib/route-plan-core'
 
 export type { RateCheck } from '@/lib/rate-check-core'
 
@@ -191,5 +192,6 @@ export async function rateCheck(input: RateCheckInput, opts: { market: Company; 
     origin: side(snap, from),
     dest: side(snap, to),
     history,
+    next: snap && to ? { day: nextStates(snap, to, NEXT_DAY_MILES), long: nextStates(snap, to, NEXT_LONG_MILES) } : null,
   })
 }

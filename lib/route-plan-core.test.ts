@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { parseLt, parseRegions, type DatSnapshot } from './dat-market-core.ts'
-import { bestWorst, dayTone, parseBoardLoads, rankLanes, roadMiles, scoreLane, waitDays, type Lane, type PlanOptions } from './route-plan-core.ts'
+import { bestWorst, dayTone, nextStates, parseBoardLoads, rankLanes, roadMiles, scoreLane, waitDays, type Lane, type PlanOptions } from './route-plan-core.ts'
 import type { TruckSettings } from './profit.ts'
 
 // Регионы DAT Van (форма живого ответа 09/14/26) и грузы на трак по нескольким штатам.
@@ -177,4 +177,14 @@ test('профиль водителя: стоп-лист вырезан, дом�
   const soon = rankLanes(snap, { state: 'IL' }, { ...opts, homeState: 'MT', preferHome: true })
   assert.equal(soon[0]!.state, 'MT')
   assert.equal(soon.length, home.length)
+})
+
+test('после выгрузки: самые горячие штаты на день пути и на 2–3 дня, сам штат не предлагается', () => {
+  // Из Огайо: Пенсильвания (311 mi) и Иллинойс (396) — ближе дня пути, в «на день» не идут.
+  assert.deepEqual(nextStates(snap, 'OH', [400, 700]).map((s) => [s.state, s.miles]), [['GA', 616]])
+  // На 2–3 дня — по горячести: MN 9.1 → KS 7.2 → TX 7.0; Калифорния (8.9) дальше 1700.
+  assert.deepEqual(nextStates(snap, 'OH', [700, 1700]).map((s) => s.state), ['MN', 'KS', 'TX'])
+  // Самый горячий рядом — первым, с уровнем рынка; сам штат выгрузки не предлагается.
+  const near = nextStates(snap, 'OH', [0, 400])
+  assert.deepEqual(near.map((s) => [s.state, s.heat]), [['PA', 'veryHot'], ['IL', 'warm']])
 })

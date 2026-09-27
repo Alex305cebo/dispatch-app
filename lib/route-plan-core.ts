@@ -15,7 +15,7 @@
 
 import { calcLoad, type Breakdown, type TruckSettings } from './profit.ts'
 import { US_STATES } from './us-states.ts'
-import { ltHeat, ltMedian, ltOf, regionOf, type DatHeat, type DatSnapshot } from './dat-market-core.ts'
+import { heatLevel, ltHeat, ltMedian, ltOf, regionOf, type DatHeat, type DatSnapshot, type HeatLevel } from './dat-market-core.ts'
 
 /** Вес следующего плеча: его ставка и простой — оценка по рынку, а не рейт-кон. */
 export const NEXT_WEIGHT = 0.5
@@ -199,6 +199,32 @@ export function rankLanes(snap: DatSnapshot, origin: PlanOrigin, opts: PlanOptio
   // водитель всё равно туда поедет, вопрос только — с грузом или порожним.
   if (opts.preferHome) out.sort((a, b) => Number(b.home) - Number(a.home))
   return out
+}
+
+export type NextState = { state: string; miles: number; ratio: number; heat: HeatLevel }
+
+/** Рейс на день и на 2–3 дня, мили — как их называет диспетчер (решение 27.09.2026). */
+export const NEXT_DAY_MILES = [400, 700] as const
+export const NEXT_LONG_MILES = [700, 1700] as const
+
+/**
+ * Куда лучше везти следующий груз из штата выгрузки: самые горячие штаты (больше грузов на
+ * трак, DAT) на расстоянии [min, max] миль, при равной горячести — ближе. Для строки
+ * «После выгрузки лучше: на день … · на 2–3 дня …» в проверке ставки (бот, карточка груза,
+ * расширение). ponytail: мили по прямой × 1.17 от точек штатов, как у rankLanes.
+ */
+export function nextStates(snap: DatSnapshot, from: string, [min, max]: readonly [number, number], n = 3): NextState[] {
+  const a = POINT.get(from)
+  if (!a) return []
+  const median = ltMedian(snap)
+  const rows: NextState[] = []
+  for (const [code, , lat, lng] of US_STATES) {
+    const lt = code === from || !regionOf(snap, code) ? null : ltOf(snap, code)
+    if (!lt) continue
+    const miles = Math.round(roadMiles(a.ll, [lat, lng]))
+    if (miles >= min && miles <= max) rows.push({ state: code, miles, ratio: lt.ratio, heat: heatLevel(median, lt.ratio) })
+  }
+  return rows.sort((x, y) => y.ratio - x.ratio || x.miles - y.miles).slice(0, n)
 }
 
 /**

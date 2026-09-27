@@ -14,6 +14,7 @@
 
 import { targetBand, vsTarget, type BrokerCut } from './broker-cut.ts'
 import type { HeatLevel } from './dat-market-core.ts'
+import type { NextState } from './route-plan-core.ts'
 
 export type RateSide = { state: string; ratio: number; heat: HeatLevel }
 
@@ -57,6 +58,8 @@ export type RateCheck = {
   dest: RateSide | null
   /** Наши грузы по этим штатам за полгода — своя история, не рынок. */
   history: { rpm: number; n: number } | null
+  /** Куда лучше везти следующий груз из штата выгрузки: на день (400–700 mi) и на 2–3 дня. */
+  next: { day: NextState[]; long: NextState[] } | null
 }
 
 const round2 = (v: number) => Math.round(v * 100) / 100
@@ -76,6 +79,7 @@ export function rateCheckFrom(p: {
   origin: RateSide | null
   dest: RateSide | null
   history: { rpm: number; n: number } | null
+  next?: RateCheck['next']
 }): RateCheck {
   const band = p.shipper && p.cut ? targetBand(p.shipper, p.cut, p.broker) : null
   // Вилка — в центах, как её видит диспетчер; всё за рейс считается уже от неё, чтобы
@@ -109,6 +113,7 @@ export function rateCheckFrom(p: {
     origin: p.origin,
     dest: p.dest,
     history: p.history && p.history.n > 0 ? { rpm: round2(p.history.rpm), n: p.history.n } : null,
+    next: p.next && (p.next.day.length || p.next.long.length) ? p.next : null,
   }
   return withRate(base, p.rate, p.miles, p.deadhead)
 }
