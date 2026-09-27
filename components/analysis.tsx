@@ -155,7 +155,11 @@ export function RateLines({ rc, brokerName }: { rc: RateCheck; brokerName?: stri
           {t(locale, 'rc.after').replace('{state}', rc.dest.state)}{' '}
           {[
             rc.destDat
-              ? t(locale, 'rc.afterRegion').replace('{region}', rc.destDat.region).replace('{rpm}', usd2.format(rc.destDat.rpm))
+              ? rc.destDat.states?.length
+                ? t(locale, 'rc.afterStates')
+                    .replace('{states}', rc.destDat.states.join(', '))
+                    .replace('{rpm}', usd2.format(rc.destDat.rpm))
+                : t(locale, 'rc.afterRegion').replace('{region}', rc.destDat.region).replace('{rpm}', usd2.format(rc.destDat.rpm))
               : null,
             t(locale, 'rc.afterHeat')
               .replace('{heat}', t(locale, HEAT_LEVEL_KEY[rc.dest.heat]))

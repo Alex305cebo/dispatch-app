@@ -50,8 +50,8 @@ export type RateCheck = {
   } | null
   /** Рынок DAT по региону погрузки и ставка против него, %. */
   dat: { region: string; rpm: number; diff: number | null; date: string | null } | null
-  /** Регион выгрузки: чем платит следующий рейс оттуда. */
-  destDat: { region: string; rpm: number } | null
+  /** Регион выгрузки: чем платит следующий рейс оттуда; states — его горячие штаты (DAT /lt), куда дальше. */
+  destDat: { region: string; rpm: number; states?: string[] } | null
   /** Сколько грузов на трак в штате погрузки и выгрузки (DAT) — легко ли там найти груз. */
   origin: RateSide | null
   dest: RateSide | null
@@ -72,7 +72,7 @@ export function rateCheckFrom(p: {
   cut: BrokerCut | null
   broker?: string | null
   dat: { region: string; rpm: number; date: string | null } | null
-  destDat: { region: string; rpm: number } | null
+  destDat: { region: string; rpm: number; states?: string[] } | null
   origin: RateSide | null
   dest: RateSide | null
   history: { rpm: number; n: number } | null
