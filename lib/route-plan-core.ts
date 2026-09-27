@@ -217,10 +217,14 @@ export function nextStates(snap: DatSnapshot, from: string, [min, max]: readonly
   const a = POINT.get(from)
   if (!a) return []
   const median = ltMedian(snap)
+  // Мелкие рынки не предлагаем: у Мэна и Вермонта «грузов на трак» выше, чем у Пенсильвании,
+  // потому что траков там единицы, а самих грузов — сотни против двенадцати тысяч.
+  const volumes = Object.values(snap.lt).map((x) => x.loads).filter((v) => v > 0).sort((x, y) => x - y)
+  const minLoads = volumes.length ? volumes[Math.floor(volumes.length / 2)]! / 2 : 0
   const rows: NextState[] = []
   for (const [code, , lat, lng] of US_STATES) {
     const lt = code === from || !regionOf(snap, code) ? null : ltOf(snap, code)
-    if (!lt) continue
+    if (!lt || lt.loads < minLoads) continue
     const miles = Math.round(roadMiles(a.ll, [lat, lng]))
     if (miles >= min && miles <= max) rows.push({ state: code, miles, ratio: lt.ratio, heat: heatLevel(median, lt.ratio) })
   }
