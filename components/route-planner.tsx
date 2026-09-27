@@ -24,7 +24,7 @@ import { benchmarkRpm, type Benchmark, type RpmBench, type RpmSource } from '@/l
 import { targetBand, vsTarget } from '@/lib/broker-cut'
 import { usd, usd2, usDate } from '@/lib/fmt'
 import { US_STATES } from '@/lib/us-states'
-import { heatLevel, HEAT_LEVEL_ICON, HEAT_LEVEL_KEY, ltHeat, ltMedian, ltOf, regionOf, regionStates, stateFromPlace, type DatEquipment, type DatHeat, type DatSnapshot, type DatWeek } from '@/lib/dat-market-core'
+import { heatLevel, HEAT_LEVEL_ICON, HEAT_LEVEL_KEY, ltHeat, ltMedian, ltOf, regionLabel, regionOf, regionStates, stateFromPlace, type DatEquipment, type DatHeat, type DatSnapshot, type DatWeek } from '@/lib/dat-market-core'
 import type { TruckSettings } from '@/lib/profit'
 import {
   NEXT_LEG_MILES,
@@ -78,8 +78,11 @@ const input =
   'w-full rounded-xl border border-white/10 bg-ink-950/70 px-3 py-2 text-md text-white outline-none focus:border-haul-500 max-md:min-h-11'
 
 /** Регион DAT по-человечески: NORTHEAST → Northeast. */
-const regionTitle = (code: string) => code.charAt(0) + code.slice(1).toLowerCase()
-const regionName = (snap: DatSnapshot, state: string) => regionTitle(regionOf(snap, state)?.code ?? '')
+// Регион DAT называем его горячими штатами («GA, SC, VA»): «Southeast» диспетчер не знает (27.09.2026).
+const regionName = (snap: DatSnapshot, state: string) => {
+  const r = regionOf(snap, state)
+  return r ? regionLabel(snap, r) : ''
+}
 
 /**
  * Ставка направления, $/mi: по самому маршруту, если она измерена на настоящем рейсе
@@ -555,7 +558,7 @@ export function RoutePlanner({
               '{list}',
               [...snap.regions]
                 .sort((a, b) => b.rpm - a.rpm)
-                .map((r) => `${regionTitle(r.code)} ${usd2.format(r.rpm)}`)
+                .map((r) => `${regionLabel(snap, r)} ${usd2.format(r.rpm)}`)
                 .join(' · '),
             )}
           </p>
@@ -742,7 +745,6 @@ function MarketDetails({
               return (
                 <div key={r.code} className="min-w-0">
                   <div className="panel-inset px-2 py-1.5 sm:px-2.5">
-                    <div className="truncate text-xs text-t3">{r.code.charAt(0) + r.code.slice(1).toLowerCase()}</div>
                     <div className="nums text-xl font-bold leading-tight sm:text-xl">
                       {usd2.format(r.rpm)}
                       <span className="text-xs font-medium text-t3">/mi</span>
