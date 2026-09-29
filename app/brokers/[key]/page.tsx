@@ -17,6 +17,7 @@ import { Stat } from '@/components/stat'
 import { ShowMore } from '@/components/collapse'
 import { BrokerNote } from '@/components/facility-note'
 import { BrokerTools } from './broker-tools'
+import { Rpm } from '@/components/rpm'
 
 export const dynamic = 'force-dynamic'
 
@@ -211,6 +212,7 @@ export default async function BrokerPage({ params }: { params: Promise<{ key: st
                         {l.referenceId ? ` · ${l.referenceId}` : ''}
                       </Link>
                       <span className="nums font-semibold text-t1">{usd.format(Number(l.rate) || 0)}</span>
+                      <Rpm rate={Number(l.rate) || 0} miles={l.loadedMiles + l.deadheadMiles} className="text-sm text-t3" />
                       {u ? (
                         <Link
                           href={financesHref({ id: l.id, referenceId: l.referenceId })}

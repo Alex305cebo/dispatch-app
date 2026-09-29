@@ -15,6 +15,7 @@ import { BrokerTools } from '@/app/brokers/[key]/broker-tools'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 import { driveTime, usd, usd2 } from '@/lib/fmt'
+import { Rpm } from '@/components/rpm'
 
 export type DetailLoad = {
   id: number
@@ -23,6 +24,8 @@ export type DetailLoad = {
   route: string
   ref: string | null
   rate: number
+  /** Мили груза (гружёные + порожние) — для Rate per mile рядом со ставкой. */
+  miles: number
   /** Подпись статуса на языке страницы — считается на сервере. */
   statusText: string
   /** Сколько дней ждём денег по этому счёту; null — оплачен или не выставлен. */
@@ -65,7 +68,7 @@ export type FacilityDetail = {
   directions: string | null
   note: string | null
   brokers: { key: string; name: string; n: number }[]
-  loads: { id: number; date: string; route: string; rate: number }[]
+  loads: { id: number; date: string; route: string; rate: number; miles: number }[]
 }
 
 const h3 = 'mb-1.5 text-sm font-semibold text-t1'
@@ -235,6 +238,7 @@ export function BrokerDetails({ brokerKey, mc, checked, payDays, owed, oldest, d
                       {l.ref ? ` · ${l.ref}` : ''}
                     </Link>
                     <span className="nums font-semibold text-t1">{usd.format(l.rate)}</span>
+                    <Rpm rate={l.rate} miles={l.miles} className="text-sm text-t3" />
                     {l.waiting != null && l.moneyHref ? (
                       <Link href={l.moneyHref} className={`nums text-sm hover:underline ${l.waiting > 30 ? 'text-warn-400' : 'text-t3'}`}>
                         {t(locale, 'brokers.waitingDays').replace('{n}', String(l.waiting))} →
@@ -345,6 +349,7 @@ export function FacilityDetails({ facilityKey, visits, dwell, d }: { facilityKey
                   <span className="nums w-[70px] shrink-0 text-t3">{l.date}</span>
                   <span className="min-w-0 flex-1 truncate text-t1">{l.route}</span>
                   <span className="nums text-t2">{usd.format(l.rate)}</span>
+                  <Rpm rate={l.rate} miles={l.miles} className="text-sm text-t3" />
                 </Link>
               ))}
             />

@@ -18,7 +18,7 @@ export async function backhaulBrokers(
   if (!state) return null
   const inState = `(?i),\\s*${state}\\b`
   const rows = (await sql`
-    SELECT id, origin, destination, rate, broker_name, broker_mc, broker_phone, broker_email,
+    SELECT id, origin, destination, rate, loaded_miles + deadhead_miles AS miles, broker_name, broker_mc, broker_phone, broker_email,
            COALESCE(CAST(pickup_date AS CHAR), CAST(created_at AS CHAR)) AS day
     FROM loads
     WHERE company_id = ${companyId}

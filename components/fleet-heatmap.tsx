@@ -12,6 +12,7 @@
 // Сколько дней показывать и как раскладывать строку, решает ширина САМОЙ плитки
 // (ResizeObserver), а не экрана: плитку можно сделать маленькой и на компьютере.
 
+import { rpmText } from '@/components/rpm'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -97,9 +98,10 @@ export function FleetHeatmap({ rows, today }: { rows: HeatRow[]; today: string }
     const segs = heatSegments(r.working, colKeys)
     // Рейт — по дню погрузки: рейс, что пересекает край окна, не считается дважды.
     const rate = segs.reduce((s, x) => s + (x.cutStart ? 0 : x.load.rate), 0)
+    const miles = segs.reduce((s, x) => s + (x.cutStart ? 0 : (x.load.miles ?? 0)), 0)
     const busyDays = pastKeys.filter((k) => r.working.has(k)).length
     const idle = r.when?.tone === 'free' ? idleDays(r.working, today) : null
-    return { r, segs, rate, busyDays, idle, lanes: Math.max(1, ...segs.map((s) => s.lane + 1)) }
+    return { r, segs, rate, miles, busyDays, idle, lanes: Math.max(1, ...segs.map((s) => s.lane + 1)) }
   })
   const count = (tone: 'busy' | 'free' | 'off') => rows.filter((r) => r.when?.tone === tone).length
   const util = pastKeys.length
@@ -315,6 +317,7 @@ export function FleetHeatmap({ rows, today }: { rows: HeatRow[]; today: string }
                 } ${wide ? '' : 'row-span-2'}`}
               >
                 {d.rate > 0 ? usd.format(d.rate) : '—'}
+                {rpmText(d.rate, d.miles) && <span className="block text-2xs leading-4 text-t3">{rpmText(d.rate, d.miles)}</span>}
               </span>
               {/* Узкая плитка: где трак и когда свободен — строкой под полосами. */}
               {!wide && (
@@ -377,7 +380,12 @@ export function FleetHeatmap({ rows, today }: { rows: HeatRow[]; today: string }
                       <span className={`h-2 w-4 rounded-sm border ${BAR[phase]}`} />
                       {statusLabel(locale, hover.load.status)}
                     </span>
-                    <span className="nums font-semibold text-t1">{usd.format(hover.load.rate)}</span>
+                    <span className="nums font-semibold text-t1">
+                      {usd.format(hover.load.rate)}
+                      {rpmText(hover.load.rate, hover.load.miles ?? 0) && (
+                        <span className="font-normal text-t3"> · {rpmText(hover.load.rate, hover.load.miles ?? 0)}</span>
+                      )}
+                    </span>
                   </span>
                 </Link>
               </div>

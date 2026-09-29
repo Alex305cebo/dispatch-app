@@ -4,6 +4,7 @@ import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { listLoads } from '@/lib/loads'
+import { Rpm } from '@/components/rpm'
 import { allStopEvents } from '@/lib/load-events'
 import { detentionTerms, getSettings } from '@/lib/settings'
 import { avgDwell, facilityIndex, facilityNoteKey } from '@/lib/facilities'
@@ -150,6 +151,7 @@ export default async function FacilityPage({ params }: { params: Promise<{ key: 
                     {l.origin ?? '—'} → {l.destination ?? '—'}
                   </span>
                   <span className="nums text-t2">{usd.format(Number(l.rate) || 0)}</span>
+                  <Rpm rate={Number(l.rate) || 0} miles={l.loadedMiles + l.deadheadMiles} className="text-sm text-t3" />
                 </Link>
               ))}
             />

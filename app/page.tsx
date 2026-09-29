@@ -36,7 +36,8 @@ import { getLocale } from '@/lib/i18n-server'
 import { fixPlace, placeCity } from '@/lib/place'
 import { t as tr, type Locale } from '@/lib/i18n'
 import { can } from '@/lib/capabilities-server'
-import { usd, usd2, driveTime, shortName, weekStart, usDate } from '@/lib/fmt'
+import { usd, usd2, driveTime, shortName, weekBounds, loadWeekAnchorMs, usDate } from '@/lib/fmt'
+import { Rpm } from '@/components/rpm'
 import { StatusBadge } from '@/components/status'
 import { NeedsLoad } from '@/components/needs-load'
 import { NoBreakWords } from '@/components/ui'
@@ -136,13 +137,19 @@ export default async function Page() {
   )
   const freeTrucks = trucks.filter((t) => !busyTruckIds.has(t.id) && !t.unavailable).length
 
-  // Per-truck gross (rate) booked this calendar week (Mon–Mon) — replaces the useless
-  // HOS % in the fleet list now that HOS isn't wired up.
-  const weekBegin = weekStart()
-  const weekGrossByTruck = new Map<number, number>()
+  // Гросс и мили каждого трака за расчётную неделю (пятница–пятница) — по дате
+  // погрузки, как на «Траках» и в «Деньги → Водители»: раньше здесь считалось по дате
+  // внесения груза, и один трак на двух экранах показывал разные суммы.
+  const { start: weekBegin, end: weekEnd } = weekBounds()
+  const weekByTruck = new Map<number, { gross: number; miles: number }>()
   for (const l of live) {
-    if (l.truckId == null || new Date(l.createdAt).getTime() < weekBegin) continue
-    weekGrossByTruck.set(l.truckId, (weekGrossByTruck.get(l.truckId) ?? 0) + l.rate)
+    if (l.truckId == null) continue
+    const ms = loadWeekAnchorMs(l.pickupDate, l.createdAt)
+    if (ms < weekBegin || ms >= weekEnd) continue
+    const w = weekByTruck.get(l.truckId) ?? { gross: 0, miles: 0 }
+    w.gross += l.rate
+    w.miles += l.loadedMiles + l.deadheadMiles
+    weekByTruck.set(l.truckId, w)
   }
 
   // Ждём оплаты: everything invoiced-but-unpaid, plus delivered loads with no
@@ -404,7 +411,7 @@ export default async function Page() {
       <div className="stagger grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {trucks.map((t) => {
           const fs = t.number ? byUnit.get(t.number) : undefined
-          const week = weekGrossByTruck.get(t.id) ?? 0
+          const { gross: week, miles: weekMiles } = weekByTruck.get(t.id) ?? { gross: 0, miles: 0 }
           // Where it's headed is known for free right here; how far is a routing call,
           // so the destination paints instantly and only the mileage streams in.
           const cur = currentByTruck.get(t.id)
@@ -501,6 +508,7 @@ export default async function Page() {
                     {usd.format(week)}
                   </div>
                   <div className="flex items-center justify-end gap-1 text-xs text-t3 font-medium">
+                    <Rpm rate={week} miles={weekMiles} className="text-t2" />
                     {tr(locale, 'overview.perWeek')}
                     <Info text={tr(locale, 'overview.perWeekInfo')} />
                   </div>

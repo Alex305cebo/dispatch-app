@@ -17,7 +17,8 @@ import { DOCS_FLEET_TILES, DOCS_TILES } from '@/lib/tiles-core'
 import Link from 'next/link'
 import { listDocsForLibrary, listTrashedDocs, listTrucks, rateConByLoad } from '@/lib/loads'
 import { DocLibrary, DocTrash, DocUpload } from '@/components/docs'
-import { ByDispatcher, ByDriver, ByWeek, loadsTabTiles, Paid, Unpaid } from './finance-tabs'
+import { ByDispatcher, ByWeek, loadsTabTiles, Paid, Unpaid } from './finance-tabs'
+import { ByDriver } from './drivers-tab'
 import { FileText, Package, ScanText, Trash2, Truck, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Info } from '@/components/info'
@@ -47,8 +48,8 @@ const SUBTITLE: Record<Tabs, MsgKey> = {
   drivers: 'finances.tabDesc.drivers',
 }
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; stage?: string }> }) {
-  const { tab: tabParam, q, stage } = await searchParams
+export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; stage?: string; week?: string }> }) {
+  const { tab: tabParam, q, stage, week } = await searchParams
   const user = await getCurrentUser()
   const canFinances = await can(user, 'finances')
   // «По диспетчерам» — своё право (по умолчанию включено): заработок ВСЕХ диспетчеров.
@@ -131,7 +132,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       ) : tab === 'trash' ? (
         <Trash companyId={companyId} />
       ) : (
-        <Money tab={tab} companyId={companyId} locale={locale} />
+        <Money tab={tab} companyId={companyId} locale={locale} week={week} />
       )}
     </main>
   )
@@ -250,7 +251,7 @@ async function Trash({ companyId }: { companyId: 'default' | 'demo' }) {
   )
 }
 
-async function Money({ tab, companyId, locale }: { tab: MoneyTab; companyId: 'default' | 'demo'; locale: Locale }) {
+async function Money({ tab, companyId, locale, week }: { tab: MoneyTab; companyId: 'default' | 'demo'; locale: Locale; week?: string }) {
   const rateCons = await rateConByLoad(companyId)
   switch (tab) {
     case 'unpaid':
@@ -262,6 +263,6 @@ async function Money({ tab, companyId, locale }: { tab: MoneyTab; companyId: 'de
     case 'dispatchers':
       return <ByDispatcher companyId={companyId} locale={locale} />
     case 'drivers':
-      return <ByDriver companyId={companyId} locale={locale} />
+      return <ByDriver companyId={companyId} locale={locale} week={week} />
   }
 }

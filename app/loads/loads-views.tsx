@@ -19,6 +19,7 @@ import { Button } from '@/components/button'
 import { ShowMore } from '@/components/collapse'
 import { Empty } from '@/components/empty'
 import { NoBreakWords } from '@/components/ui'
+import { Rpm } from '@/components/rpm'
 import {
   STATUSES,
   truckLabel,
@@ -438,6 +439,7 @@ function StatusBoard({
                           {Math.round(load.loadedMiles).toLocaleString('en-US')} mi
                         </span>
                       )}
+                      <Rpm rate={load.rate} miles={load.loadedMiles + load.deadheadMiles} className="ml-1.5 text-2xs font-medium text-t2" />
                     </span>
                   </div>
                   <div className="mt-1 flex flex-wrap gap-1 empty:hidden">
@@ -659,6 +661,7 @@ function Calendar({
                           {city(b.load.origin)} → {city(b.load.destination)}
                         </span>
                         <span className="nums ml-auto shrink-0 font-semibold text-t1">{usd.format(b.load.rate)}</span>
+                        <Rpm rate={b.load.rate} miles={b.load.loadedMiles + b.load.deadheadMiles} className="shrink-0 text-xs text-t3" />
                       </Link>
                     ))}
                   </div>

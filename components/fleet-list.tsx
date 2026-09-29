@@ -15,6 +15,7 @@ import { t } from '@/lib/i18n'
 import { usd, usDate } from '@/lib/fmt'
 import { CopyPlace } from '@/components/copy-place'
 import { NoBreakWords } from '@/components/ui'
+import { Rpm } from '@/components/rpm'
 
 export type TrackingRow = {
   id: number
@@ -67,6 +68,8 @@ const fuelClass = (v: number) => (v <= 15 ? 'text-bad-400' : v <= 30 ? 'text-war
 export type TruckMoney = {
   /** Гросс по грузам этой недели. */
   week: number
+  /** Мили тех же грузов (гружёные + порожние) — из них Rate per mile недели. */
+  miles: number
   /** Сколько грузов у трака всего — по нему видно новичка и рабочую лошадь. */
   loads: number
   /** Ближайший к истечению документ, если он уже жёлтый или красный. */
@@ -302,6 +305,7 @@ ${r.weather.event} · ${t(locale, 'wx.source')}`}
                       {money[r.id]!.week > 0 ? usd.format(money[r.id]!.week) : '—'}
                     </span>
                     <span className="text-xs font-medium text-t3">{t(locale, 'tracking.weekShort')}</span>
+                    <Rpm rate={money[r.id]!.week} miles={money[r.id]!.miles} className="text-xs text-t2" />
                   </span>
                 )}
               </span>

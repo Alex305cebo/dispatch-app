@@ -7,6 +7,8 @@ export type StateLoadRow = {
   origin: string | null
   destination: string | null
   rate: number
+  /** Все мили груза (груженые + порожние) — для Rate per mile в строке. */
+  miles?: number | null
   broker_name: string | null
   broker_mc: string | null
   broker_phone: string | null
@@ -15,7 +17,7 @@ export type StateLoadRow = {
   day: string
 }
 
-export type StateLoad = { id: number; day: string; route: string; rate: number; pickup: boolean; delivery: boolean }
+export type StateLoad = { id: number; day: string; route: string; rate: number; miles: number; pickup: boolean; delivery: boolean }
 
 export type StateBroker = {
   key: string
@@ -68,6 +70,7 @@ export function stateBrokers(
       day: r.day.slice(0, 10),
       route: `${r.origin ?? '—'} → ${r.destination ?? '—'}`,
       rate: Number(r.rate) || 0,
+      miles: Number(r.miles) || 0,
       pickup,
       delivery,
     })

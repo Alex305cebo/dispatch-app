@@ -310,12 +310,12 @@ export const trucksDict = {
     kk: 'апт. гросс',
   },
   'trucks.page.weekGrossInfo': {
-    ru: 'Сумма ставок (гросс) по всему парку за грузы, которые едут на этой неделе — по дате погрузки, понедельник–понедельник. Не по дате внесения груза.',
-    en: 'Sum of rates (gross) across the fleet for loads running THIS week — by pickup date, Monday to Monday. Not by when the load was entered.',
-    es: 'Suma de tarifas (bruto) de toda la flota por las cargas que ruedan esta semana — por fecha de carga, de lunes a lunes. No por la fecha en que se metió la carga.',
-    uk: 'Сума ставок (гросс) по всьому парку за вантажі, що їдуть цього тижня — за датою завантаження, понеділок–понеділок. Не за датою внесення вантажу.',
-    ro: 'Suma tarifelor (brut) pe toată flota pentru cursele care merg săptămâna asta — după data încărcării, de luni până luni. Nu după data introducerii cursei.',
-    kk: 'Осы аптада жүретін жүктер бойынша бүкіл парктің мөлшерлемелер сомасы (гросс) — тиеу күні бойынша, дүйсенбіден дүйсенбіге. Жүк енгізілген күн бойынша емес.',
+    ru: 'Сумма ставок (гросс) по всему парку за грузы этой расчётной недели — по дате погрузки, пятница–пятница, не по дате внесения. Рядом Rate per mile парка: гросс ÷ все мили.',
+    en: 'Sum of rates (gross) across the fleet for loads in THIS pay week — by pickup date, Friday to Friday, not by when the load was entered. Next to it, the fleet rate per mile: gross ÷ all miles.',
+    es: 'Suma de tarifas (bruto) de toda la flota por las cargas de esta semana de pago — por fecha de carga, de viernes a viernes, no por la fecha en que se metió. Al lado, el rate per mile de la flota: bruto ÷ todas las millas.',
+    uk: 'Сума ставок (гросс) по всьому парку за вантажі цього розрахункового тижня — за датою завантаження, пʼятниця–пʼятниця, не за датою внесення. Поруч Rate per mile парку: гросс ÷ усі милі.',
+    ro: 'Suma tarifelor (brut) pe toată flota pentru cursele din această săptămână de plată — după data încărcării, vineri–vineri, nu după data introducerii. Alături, rate per mile al flotei: brut ÷ toate milele.',
+    kk: 'Осы есеп аптасындағы жүктер бойынша бүкіл парктің мөлшерлемелер сомасы (гросс) — тиеу күні бойынша, жұмадан жұмаға, енгізілген күн бойынша емес. Қасында парктің Rate per mile: гросс ÷ барлық миль.',
   },
   'trucks.card.available': { ru: 'Свободен', en: 'Available', es: 'Libre', uk: 'Вільний', ro: 'Liber', kk: 'Бос' },
   'trucks.card.noData': {

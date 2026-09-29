@@ -18,6 +18,7 @@ import { ChevronDown, Download, Landmark, Search } from 'lucide-react'
 import { DocLink } from '@/components/doc-link'
 import { LoadPapers, missingPapers, papersComplete, type LoadPaper } from '@/components/load-papers'
 import { useLocale } from '@/components/locale-provider'
+import { Rpm } from '@/components/rpm'
 import { notify } from '@/lib/notify'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
 import { usd, usd2, usDate } from '@/lib/fmt'
@@ -63,6 +64,8 @@ export type PayRow = {
   papers: LoadPaper[]
   invoiceNumber: string | null
   feeDefault: number
+  /** Все мили груза (груженые + порожние) — для Rate per mile рядом с суммой. */
+  miles: number
 }
 
 type Form =
@@ -442,7 +445,12 @@ export function LoadsBoard({
                           </div>
                           {money && <StageLine row={r} group={g} settings={settings} today={today} locale={locale} />}
                         </Link>
-                        {money && <span className="nums shrink-0 text-lg font-bold text-t1">{usd.format(r.rate)}</span>}
+                        {money && (
+                          <span className="flex shrink-0 flex-col items-end leading-tight">
+                            <span className="nums text-lg font-bold text-t1">{usd.format(r.rate)}</span>
+                            <Rpm rate={r.rate} miles={r.miles} className="text-xs text-t3" />
+                          </span>
+                        )}
                       </div>
                       {/* Бумаги слева, действия с деньгами справа — одной строкой на
                           широкой плитке, двумя на узкой. */}
