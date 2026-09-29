@@ -19,8 +19,8 @@ import { listDocsForLibrary, listTrashedDocs, listTrucks, rateConByLoad } from '
 import { DocLibrary, DocTrash, DocUpload } from '@/components/docs'
 import { ByDispatcher, ByWeek, loadsTabTiles, Paid, Unpaid } from './finance-tabs'
 import { ByDriver } from './drivers-tab'
+import { ChipNav, SectionNav, type NavItem } from './tab-nav'
 import { FileText, Package, ScanText, Trash2, Truck, Wallet } from 'lucide-react'
-import type { ReactNode } from 'react'
 import { Info } from '@/components/info'
 import { Stat } from '@/components/stat'
 import { companyScope, getCurrentUser } from '@/lib/session'
@@ -57,15 +57,28 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   const companyId = await companyScope()
   const locale = await getLocale()
 
-  const tab = pickTab(tabParam, canFinances, canReport)
+  const tab = pickTab(tabParam, canFinances, canReport, Boolean(q || stage))
 
-  const sections: { key: string; href: string; label: string; icon: ReactNode; active: boolean }[] = [
-    { key: 'loads', href: '/docs', label: t(locale, 'docs.tab.loads'), icon: <Package size={16} />, active: tab === 'loads' },
-    { key: 'fleet', href: '/docs?tab=fleet', label: t(locale, 'docs.tab.fleet'), icon: <Truck size={16} />, active: tab === 'fleet' },
+  // Деньги — первым разделом и главным экраном (владелец, 29.09.2026: «этот раздел
+  // должен быть первым», «это должно быть главным» — про неделю водителей).
+  const sections: NavItem[] = [
     ...(canFinances
-      ? [{ key: 'money', href: '/docs?tab=unpaid', label: t(locale, 'docs.tab.money'), icon: <Wallet size={16} />, active: isMoney(tab) }]
+      ? [{ key: 'money', href: '/docs?tab=drivers', label: t(locale, 'docs.tab.money'), icon: <Wallet size={16} />, active: isMoney(tab) }]
       : []),
+    { key: 'loads', href: '/docs?tab=loads', label: t(locale, 'docs.tab.loads'), icon: <Package size={16} />, active: tab === 'loads' },
+    { key: 'fleet', href: '/docs?tab=fleet', label: t(locale, 'docs.tab.fleet'), icon: <Truck size={16} />, active: tab === 'fleet' },
     { key: 'trash', href: '/docs?tab=trash', label: t(locale, 'docs.tab.trash'), icon: <Trash2 size={16} />, active: tab === 'trash' },
+  ]
+  // Вкладки денег: сначала работа недели (водители, недели, диспетчеры), потом кто
+  // сколько должен и что уже пришло.
+  const moneyTabs: NavItem[] = [
+    { key: 'drivers', href: '/docs?tab=drivers', label: t(locale, 'finances.tab.drivers'), active: tab === 'drivers' },
+    { key: 'weeks', href: '/docs?tab=weeks', label: t(locale, 'finances.tab.weeks'), active: tab === 'weeks' },
+    ...(canReport
+      ? [{ key: 'dispatchers', href: '/docs?tab=dispatchers', label: t(locale, 'finances.tab.dispatchers'), active: tab === 'dispatchers' }]
+      : []),
+    { key: 'unpaid', href: '/docs?tab=unpaid', label: t(locale, 'finances.tab.unpaid'), active: tab === 'unpaid' },
+    { key: 'paid', href: '/docs?tab=paid', label: t(locale, 'finances.tab.paid'), active: tab === 'paid' },
   ]
 
   return (
@@ -90,40 +103,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         </Link>
       </header>
 
-      {/* Разделы — одним переключателем-сегментом: груз, трак, деньги, корзина.
+      {/* Разделы — одним переключателем-сегментом: деньги, груз, трак, корзина.
           На телефоне четыре равные ячейки со значком над словом — влезают в ширину. */}
-      <nav
-        aria-label={t(locale, 'docs.title')}
-        className="panel mb-4 grid auto-cols-fr grid-flow-col gap-1 p-1 sm:inline-grid"
-      >
-        {sections.map((s) => (
-          <Link
-            key={s.key}
-            href={s.href}
-            aria-current={s.active ? 'page' : undefined}
-            className={`flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 text-base font-medium transition-colors max-sm:flex-col max-sm:gap-0.5 max-sm:px-1 max-sm:py-1.5 max-sm:text-sm ${
-              s.active
-                ? 'bg-haul-500 text-white shadow-[0_6px_18px_-8px_rgba(124,108,255,0.9)]'
-                : 'text-t2 hover:bg-white/6 hover:text-t1'
-            }`}
-          >
-            {s.icon}
-            {s.label}
-          </Link>
-        ))}
-      </nav>
+      <SectionNav items={sections} label={t(locale, 'docs.title')} />
 
-      {isMoney(tab) && (
-        <div className="-mx-4 mb-5 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
-          <Chip href="/docs?tab=unpaid" active={tab === 'unpaid'} label={t(locale, 'finances.tab.unpaid')} />
-          <Chip href="/docs?tab=paid" active={tab === 'paid'} label={t(locale, 'finances.tab.paid')} />
-          <Chip href="/docs?tab=weeks" active={tab === 'weeks'} label={t(locale, 'finances.tab.weeks')} />
-          {canReport && (
-            <Chip href="/docs?tab=dispatchers" active={tab === 'dispatchers'} label={t(locale, 'finances.tab.dispatchers')} />
-          )}
-          <Chip href="/docs?tab=drivers" active={tab === 'drivers'} label={t(locale, 'finances.tab.drivers')} />
-        </div>
-      )}
+      {isMoney(tab) && <ChipNav items={moneyTabs} className="mb-5" />}
 
       {tab === 'loads' ? (
         <Loads companyId={companyId} locale={locale} query={q ?? ''} stage={stage ?? ''} money={canFinances} />
@@ -140,30 +124,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
 
 /** Адрес → вкладка, с оглядкой на права. Старые ссылки (/docs?tab=trash и все
  * /invoices?tab=…) ведут туда же, куда вели: их вкладки никуда не делись. */
-function pickTab(param: string | undefined, canFinances: boolean, canReport: boolean): Tabs {
-  const tab = param === 'library' ? 'loads' : (param ?? 'loads')
+function pickTab(param: string | undefined, canFinances: boolean, canReport: boolean, loadsQuery: boolean): Tabs {
+  // Без вкладки в адресе открываются деньги — неделя водителей; ссылки на поиск и
+  // этап груза (/docs?q=…, /docs?stage=…) по-прежнему ведут к грузам.
+  const tab = param === 'library' ? 'loads' : (param ?? (canFinances && !loadsQuery ? 'drivers' : 'loads'))
   if (tab === 'fleet' || tab === 'trash') return tab
   if (isMoney(tab)) {
     if (!canFinances) return 'loads'
-    return tab === 'dispatchers' && !canReport ? 'unpaid' : tab
+    return tab === 'dispatchers' && !canReport ? 'drivers' : tab
   }
   return 'loads'
-}
-
-function Chip({ href, active, label }: { href: string; active: boolean; label: string }) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? 'page' : undefined}
-      className={`shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
-        active
-          ? 'border-haul-400/50 bg-haul-500/20 text-t1'
-          : 'border-white/8 bg-white/4 text-t2 hover:border-white/16 hover:text-t1'
-      }`}
-    >
-      {label}
-    </Link>
-  )
 }
 
 async function Loads({
@@ -259,9 +229,9 @@ async function Money({ tab, companyId, locale, week }: { tab: MoneyTab; companyI
     case 'paid':
       return <Paid companyId={companyId} rateCons={rateCons} locale={locale} />
     case 'weeks':
-      return <ByWeek companyId={companyId} rateCons={rateCons} locale={locale} />
+      return <ByWeek companyId={companyId} locale={locale} />
     case 'dispatchers':
-      return <ByDispatcher companyId={companyId} locale={locale} />
+      return <ByDispatcher companyId={companyId} locale={locale} week={week} />
     case 'drivers':
       return <ByDriver companyId={companyId} locale={locale} week={week} />
   }
