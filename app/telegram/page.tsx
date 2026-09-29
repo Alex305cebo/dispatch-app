@@ -6,8 +6,10 @@ import { t, type Locale } from '@/lib/i18n'
 import {
   tgAccountInfo,
   tgChatTruckMap,
+  isDeadTgSession,
   tgConnected,
   tgDialogs,
+  tgNeedsRelogin,
   tgMessages,
   tgShownChats,
   type TgDialog,
@@ -115,7 +117,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     return (
       <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
         <h1 className="mb-5 text-xl font-bold tracking-tight">Telegram</h1>
-        <TgSetup />
+        <TgSetup relogin={await tgNeedsRelogin(user.id)} />
       </main>
     )
   }
@@ -136,6 +138,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
       tgAccountInfo(user.id),
     ])
   } catch (e) {
+    // Ключ убит (406 AUTH_KEY_DUPLICATED и т.п.) — withClient уже стёр мёртвую сессию;
+    // вместо сырого кода ошибки сразу короткий повторный вход.
+    if (isDeadTgSession(e)) {
+      return (
+        <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
+          <h1 className="mb-5 text-xl font-bold tracking-tight">Telegram</h1>
+          <TgSetup relogin />
+        </main>
+      )
+    }
     error = e instanceof Error ? e.message : String(e)
   }
 

@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import {
   confirmLogin,
   disconnectTelegram,
+  tgStoredApp,
   setTgChatTruck,
   setTgShownChats,
   startLogin,
@@ -49,11 +50,15 @@ export async function tgStartLogin(
   } catch (e) {
     return { error: msg(e) }
   }
-  const id = Number(apiId.trim())
+  // Повторный вход (сессия сброшена) — поля api_id/api_hash не показываются, берём
+  // сохранённые.
+  const stored = !apiId.trim() && !apiHash.trim() ? await tgStoredApp(user.id) : null
+  const id = stored?.apiId ?? Number(apiId.trim())
+  const hash = stored?.apiHash ?? apiHash.trim()
   const locale = await getLocale()
-  if (!id || !apiHash.trim() || !phone.trim()) return { error: t(locale, 'telegram.actions.needCreds') }
+  if (!id || !hash || !phone.trim()) return { error: t(locale, 'telegram.actions.needCreds') }
   try {
-    return await startLogin(user.id, id, apiHash.trim(), phone.trim())
+    return await startLogin(user.id, id, hash, phone.trim())
   } catch (e) {
     return { error: `${t(locale, 'telegram.actions.codeSendFailed')}: ${msg(e)}` }
   }
