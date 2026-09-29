@@ -52,12 +52,12 @@ export const financesDict = {
     kk: 'Төленген жүктер және әрқайсысы не әкелгені.',
   },
   'finances.tabDesc.dispatchers': {
-    ru: 'Кто из диспетчеров сколько заработал по неделям, в разбивке по своим водителям.',
-    en: 'How much each dispatcher earned by week, broken down by their drivers.',
-    es: 'Cuánto ganó cada despachador por semanas, desglosado por sus conductores.',
-    uk: 'Хто з диспетчерів скільки заробив по тижнях, у розбивці за своїми водіями.',
-    ro: 'Cât a câștigat fiecare dispecer pe săptămâni, defalcat pe șoferii lui.',
-    kk: 'Қай диспетчер апта сайын қанша тапқан, өз жүргізушілері бойынша бөліп.',
+    ru: 'Неделя каждого диспетчера: его водители, грузы, гросс, мили и Rate per mile.',
+    en: "Each dispatcher's week: their drivers, loads, gross, miles and rate per mile.",
+    es: 'La semana de cada despachador: sus choferes, cargas, bruto, millas y rate per mile.',
+    uk: 'Тиждень кожного диспетчера: його водії, вантажі, гросс, милі та Rate per mile.',
+    ro: 'Săptămâna fiecărui dispecer: șoferii, cursele, brutul, milele și rate per mile.',
+    kk: 'Әр диспетчердің аптасы: жүргізушілері, жүктері, гросс, миль және Rate per mile.',
   },
   'finances.tabDesc.drivers': {
     ru: 'Неделя каждого водителя: грузы, гросс, мили и Rate per mile.',
@@ -71,12 +71,12 @@ export const financesDict = {
 
   'finances.tab.weeks': { ru: 'Недели', en: 'Weeks', es: 'Semanas', uk: 'Тижні', ro: 'Săptămâni', kk: 'Апталар' },
   'finances.tabDesc.weeks': {
-    ru: 'Сколько парк привёз за неделю — гросс по ставкам из рейт-конов, по тракам и грузам.',
-    en: 'What the fleet brought in each week — gross from the rate cons, by truck and by load.',
-    es: 'Lo que la flota generó cada semana: bruto según los rate con, por camión y por carga.',
-    uk: 'Скільки парк привіз за тиждень — грос за ставками з рейт-конів, по траках і вантажах.',
-    ro: 'Cât a adus flota pe săptămână — brut din rate con-uri, pe camion și pe cursă.',
-    kk: 'Парк аптасына қанша әкелді — rate con бойынша жалпы сома, трак және жүк бойынша.',
+    ru: 'Гросс, мили и Rate per mile всего парка по неделям — какая неделя была сильнее.',
+    en: 'Fleet gross, miles and rate per mile by week — which week was stronger.',
+    es: 'Bruto, millas y rate per mile de la flota por semana: qué semana fue mejor.',
+    uk: 'Гросс, милі та Rate per mile всього парку по тижнях — який тиждень був сильніший.',
+    ro: 'Brutul, milele și rate per mile ale flotei pe săptămâni — care săptămână a fost mai bună.',
+    kk: 'Бүкіл парктің апта бойынша гроссы, милі және Rate per mile — қай апта күштірек болды.',
   },
   'finances.noTruck': {
     ru: 'Без трака',

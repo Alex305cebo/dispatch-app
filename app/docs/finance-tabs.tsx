@@ -1,6 +1,7 @@
 // Денежные вкладки раздела «Документы»: оплата·факторинг, недели, диспетчеры,
-// водители, не оплачено, оплачено. Раньше это была вся страница /invoices; после
-// слияния с файлами страница одна (app/docs/page.tsx), а эти вкладки — её часть.
+// не оплачено, оплачено (водители — в drivers-tab.tsx, общий вид — в money-ui.tsx).
+// Раньше это была вся страница /invoices; после слияния с файлами страница одна
+// (app/docs/page.tsx), а эти вкладки — её часть.
 // Правила этапов — lib/payments.ts, запись — app/docs/payment-actions.ts.
 
 import Link from 'next/link'
@@ -12,26 +13,49 @@ import {
   listReceivables,
   listTrucks,
   listUninvoicedDelivered,
-  type LoadWithDispatcher,
   type Receivable,
 } from '@/lib/loads'
 import { sql } from '@/lib/db'
-import { daysBetween, defaultFee, factoringDoneDay, financesHref, payGroup, todayEt, type PayGroup } from '@/lib/payments'
+import {
+  daysBetween,
+  defaultFee,
+  factoringDoneDay,
+  financesHref,
+  isIsoDay,
+  payGroup,
+  todayEt,
+  type PayGroup,
+} from '@/lib/payments'
 import { factoringSettings, paymentsByLoad } from '@/lib/payments-server'
 import { LoadsBoard, type PayRow } from './loads-board'
 import type { LoadPaper } from '@/components/load-papers'
-import { calcLoad, type Breakdown } from '@/lib/profit'
 import { usd, usd2, loadWeekAnchorMs, weekAnchorOf, weekLabel, weekStart, usDate } from '@/lib/fmt'
 import { truckLabel, type LoadRecord, type TruckRecord } from '@/lib/map'
 import { t, type Locale } from '@/lib/i18n'
 import { getSetting } from '@/lib/settings'
 import { RateConButton } from '@/components/ratecon-button'
 import { Info } from '@/components/info'
-import { CircleCheckBig, Hourglass, Send, TriangleAlert, Wallet } from 'lucide-react'
+import { CircleCheckBig, Download, Hourglass, Send, TriangleAlert, Wallet } from 'lucide-react'
 import { Stat as StageStat } from '@/components/stat'
-import { Rpm, rpmText } from '@/components/rpm'
-import { Collapse } from '@/components/collapse'
+import { rpmText } from '@/components/rpm'
 import { Empty } from '@/components/empty'
+import {
+  Cell,
+  Figure,
+  Group,
+  LOAD_ROW,
+  LoadLine,
+  NameCell,
+  ROW5,
+  RowDetails,
+  Summary,
+  TableHead,
+  WeekChips,
+  pickWeeks,
+  rpmOf,
+  rpmTone,
+  weekDay,
+} from './money-ui'
 /** Закрытые грузы видны столько дней — дальше они в «Оплачено». */
 const DONE_DAYS = 45
 
@@ -198,6 +222,25 @@ export async function loadsTabTiles({
   return tiles
 }
 
+/** Строка груза в «Не оплачено» и «Оплачено»: сколько дней и какой срок. */
+type MoneyLine = {
+  load: LoadRecord
+  /** Цифра второй колонки: дней с выставления счёта (или со сдачи груза) — либо дата оплаты. */
+  second: string
+  secondSub?: string
+  late?: boolean
+  /** Груз сдан, а счёт не выставлен: главное действие — собрать инвойс. */
+  noInvoice?: boolean
+}
+
+type LineGroup = { key: string; title: string; tone: 'plain' | 'good' | 'warn' | 'bad'; rows: MoneyLine[]; extra?: string }
+
+const sumRate = (rows: { load: LoadRecord }[]) => rows.reduce((s, r) => s + r.load.rate, 0)
+const milesOf = (load: LoadRecord) => load.loadedMiles + load.deadheadMiles
+
+/** «Не оплачено»: кто и сколько ещё должен. Итог сверху, ниже одна таблица, где грузы
+ *  разложены по тому, насколько поздно деньги: сначала то, что надо делать сегодня
+ *  (счёт не выставлен, просрочено), потом спокойные корзины по возрасту счёта. */
 export async function Unpaid({
   companyId,
   rateCons,
@@ -207,203 +250,76 @@ export async function Unpaid({
   rateCons: Map<number, number>
   locale: Locale
 }) {
+  const today = todayEt()
   const [rec, uninvoiced] = await Promise.all([listReceivables(companyId), listUninvoicedDelivered(companyId)])
-  const total = rec.reduce((s, r) => s + r.load.rate, 0)
-  const uninvoicedTotal = uninvoiced.reduce((s, l) => s + l.rate, 0)
-  const overdue = rec.filter((r) => r.overdue)
-  const buckets = {
-    '0-30': rec.filter((r) => r.bucket === '0-30'),
-    '31-45': rec.filter((r) => r.bucket === '31-45'),
-    '45+': rec.filter((r) => r.bucket === '45+'),
-  }
+  const days = (n: number) => String(n)
+  const fromRec = (r: Receivable): MoneyLine => ({
+    load: r.load,
+    second: days(r.daysOut),
+    secondSub: `Net ${r.load.paymentTermsDays}`,
+    late: r.overdue,
+  })
+  const noInvoice: MoneyLine[] = uninvoiced.map((load) => ({
+    load,
+    second: isIsoDay(load.deliveryDate) ? days(Math.max(0, daysBetween(load.deliveryDate, today))) : '—',
+    secondSub: t(locale, 'money.noInvoice'),
+    noInvoice: true,
+  }))
+  const groups: LineGroup[] = [
+    { key: 'noInvoice', title: t(locale, 'finances.uninvoiced.heading'), tone: 'warn' as const, rows: noInvoice },
+    { key: 'overdue', title: t(locale, 'finances.group.overdue'), tone: 'bad' as const, rows: rec.filter((r) => r.overdue).map(fromRec) },
+    ...AGING.map((g) => ({
+      key: g.bucket,
+      title: t(locale, g.labelKey),
+      tone: g.tone,
+      rows: rec.filter((r) => !r.overdue && r.bucket === g.bucket).map(fromRec),
+    })),
+  ].filter((g) => g.rows.length > 0)
+
+  const all = groups.flatMap((g) => g.rows)
+  const overdueSum = sumRate(groups.find((g) => g.key === 'overdue')?.rows ?? [])
+  const noInvoiceSum = sumRate(noInvoice)
 
   return (
-    <>
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat
-          label={t(locale, 'finances.stat.waitingTotal')}
-          value={usd.format(total + uninvoicedTotal)}
-          info={
-            uninvoicedTotal > 0
-              ? t(locale, 'finances.stat.waitingInfo').replace('{amt}', usd.format(uninvoicedTotal))
-              : undefined
-          }
+    <div className="@container flex flex-col gap-3">
+      <Summary title={t(locale, 'money.waiting.title')}>
+        <Figure label={t(locale, 'finances.stat.waitingTotal')} value={usd.format(sumRate(all))} accent />
+        <Figure
+          label={t(locale, 'finances.group.overdue')}
+          value={usd.format(overdueSum)}
+          tone={overdueSum > 0 ? 'text-bad-400' : 'text-t1'}
         />
-        <Stat
-          label={t(locale, 'finances.stat.bucket030')}
-          value={usd.format(buckets['0-30'].reduce((s, r) => s + r.load.rate, 0))}
+        <Figure
+          label={t(locale, 'money.fig.noInvoice')}
+          value={usd.format(noInvoiceSum)}
+          tone={noInvoiceSum > 0 ? 'text-warn-400' : 'text-t1'}
         />
-        <Stat
-          label={t(locale, 'finances.stat.bucket3145')}
-          value={usd.format(buckets['31-45'].reduce((s, r) => s + r.load.rate, 0))}
-          tone={buckets['31-45'].length ? 'warn' : undefined}
-        />
-        <Stat
-          label={t(locale, 'finances.stat.bucket45plus')}
-          value={usd.format(buckets['45+'].reduce((s, r) => s + r.load.rate, 0))}
-          tone={buckets['45+'].length || overdue.length ? 'bad' : undefined}
-        />
-      </div>
+        <Figure label={t(locale, 'finances.stat.loadsCount')} value={String(all.length)} />
+      </Summary>
 
-      {/* Delivered but never invoiced — these used to just vanish: not in this list
-          (no invoiced_at yet), not visible anywhere else either. */}
-      {uninvoiced.length > 0 && (
-        <div className="mb-5">
-          <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
-            {t(locale, 'finances.uninvoiced.heading')} · {usd.format(uninvoicedTotal)}
-            <Info text={t(locale, 'finances.uninvoiced.info')} />
-          </h2>
-          <div className="flex flex-col gap-2">
-            {uninvoiced.map((load) => (
-              <div key={load.id} className="panel p-4 border-warn-400/20">
-                <div className="flex items-center gap-4">
-                  <Link href={`/loads/${load.id}`} className="min-w-0 flex-1">
-                    <div className="text-md font-medium leading-5">
-                      {load.origin ?? '—'} → {load.destination ?? '—'}
-                    </div>
-                    <div className="mt-0.5 text-sm text-t2">
-                      {load.brokerMc ? `MC ${load.brokerMc} · ` : ''}
-                      {t(locale, 'finances.uninvoiced.cta')}
-                    </div>
-                  </Link>
-                  <span className="flex shrink-0 flex-col items-end leading-tight">
-                    <span className="nums text-lg font-bold">{usd.format(load.rate)}</span>
-                    <Rpm rate={load.rate} miles={load.loadedMiles + load.deadheadMiles} className="text-xs text-t3" />
-                  </span>
-                  {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
-                </div>
-                {/* Статус меняется прямо здесь: платёж пришёл по квик-пею или через
-                    факторинг раньше инвойса — не ходить за этим на страницу груза. */}
-                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
-                  <Link
-                    href={financesHref(load)}
-                    className="inline-flex min-h-9 items-center rounded-lg bg-haul-500 px-3 text-sm font-semibold text-white hover:bg-haul-400 max-md:min-h-11"
-                  >
-                    {t(locale, 'payments.tab')} →
-                  </Link>
-                  <Link
-                    href={`/loads/${load.id}`}
-                    className="rounded-lg border border-white/15 px-3 py-1.5 text-sm font-semibold text-t1 hover:border-white/35 hover:text-white"
-                  >
-                    {t(locale, 'finances.card.buildInvoice')}
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {rec.length === 0 ? (
-        uninvoiced.length === 0 && <Empty icon={CircleCheckBig} title={t(locale, 'finances.unpaid.empty')} />
+      {all.length === 0 ? (
+        <Empty icon={CircleCheckBig} title={t(locale, 'finances.unpaid.empty')} />
       ) : (
-        /* Was one flat column of every outstanding invoice — fine at eight rows, a
-           scrolling wall at eighty, with the overdue ones buried somewhere inside it.
-           Now grouped by how late the money is: overdue opens by default because it
-           is the only group that needs acting on today; the healthy buckets stay
-           collapsed but still state their count and total in the header. */
-        <div className="flex flex-col gap-2">
-          {AGING_GROUPS.map((g) => {
-            const rows = g.pick(rec, overdue)
-            if (rows.length === 0) return null
-            return (
-              <Collapse
-                key={g.key}
-                title={t(locale, g.labelKey)}
-                count={rows.length}
-                amount={usd.format(rows.reduce((s, r) => s + r.load.rate, 0))}
-                tone={g.tone}
-                defaultOpen={g.open}
-              >
-                <div className="flex flex-col gap-2">{rows.map((r) => renderReceivable(r))}</div>
-              </Collapse>
-            )
-          })}
-        </div>
+        <LinesTable
+          groups={groups}
+          secondLabel={t(locale, 'money.col.days')}
+          rateCons={rateCons}
+          locale={locale}
+          openAll={all.length <= 15}
+        />
       )}
-    </>
+    </div>
   )
-
-  function renderReceivable(r: Receivable) {
-    return (
-      <div key={r.load.id} className={`panel p-4 ${r.overdue ? 'border-bad-500/30' : ''}`}>
-        <div className="flex items-start gap-3">
-          <Link href={`/loads/${r.load.id}`} className="min-w-0 flex-1">
-            <div className="text-md font-medium">
-              {r.load.origin ?? '—'} → {r.load.destination ?? '—'}
-            </div>
-            <div className="mt-0.5 text-sm text-t2">
-              {r.load.invoiceNumber} · {r.load.brokerMc ? `MC ${r.load.brokerMc} · ` : ''}
-              <span className={r.overdue ? 'text-bad-400' : 'text-t2'}>
-                {t(locale, 'finances.unpaid.daysOut')
-                  .replace('{d}', String(r.daysOut))
-                  .replace('{n}', String(r.load.paymentTermsDays))}
-                {r.overdue ? t(locale, 'finances.unpaid.overdue') : ''}
-              </span>
-            </div>
-          </Link>
-          <span className="flex shrink-0 flex-col items-end leading-tight">
-            <span className="nums text-lg font-bold">{usd.format(r.load.rate)}</span>
-            <Rpm rate={r.load.rate} miles={r.load.loadedMiles + r.load.deadheadMiles} className="text-xs text-t3" />
-          </span>
-          {rateCons.get(r.load.id) && <RateConButton docId={rateCons.get(r.load.id)!} compact />}
-        </div>
-        {/* Кнопки статуса — своей строкой под карточкой: на телефоне рядом с суммой
-            им не хватало места, и «Оплачено» приходилось искать. */}
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
-          <Link
-                    href={financesHref(r.load)}
-                    className="inline-flex min-h-9 items-center rounded-lg bg-haul-500 px-3 text-sm font-semibold text-white hover:bg-haul-400 max-md:min-h-11"
-                  >
-                    {t(locale, 'payments.tab')} →
-                  </Link>
-          <Link
-            href={`/loads/${r.load.id}`}
-            className="inline-flex min-h-9 items-center rounded-lg border border-white/15 px-3 text-sm font-semibold text-t1 hover:border-white/35 hover:text-white max-md:min-h-11"
-          >
-            {t(locale, 'finances.card.openLoad')}
-          </Link>
-        </div>
-      </div>
-    )
-  }
 }
 
-/** Aging groups for the unpaid tab, in the order a dispatcher works them: what is
- * already late first, then the healthy buckets by age. `overdue` is deliberately its
- * own group rather than a tint inside the buckets — a 20-day-old invoice past its
- * terms and a 20-day-old invoice inside them call for different actions. */
-const AGING_GROUPS = [
-  {
-    key: 'overdue',
-    labelKey: 'finances.group.overdue' as const,
-    tone: 'bad' as const,
-    open: true,
-    pick: (_rec: Receivable[], overdue: Receivable[]) => overdue,
-  },
-  {
-    key: '0-30',
-    labelKey: 'finances.stat.bucket030' as const,
-    tone: 'plain' as const,
-    open: false,
-    pick: (rec: Receivable[]) => rec.filter((r) => !r.overdue && r.bucket === '0-30'),
-  },
-  {
-    key: '31-45',
-    labelKey: 'finances.stat.bucket3145' as const,
-    tone: 'warn' as const,
-    open: false,
-    pick: (rec: Receivable[]) => rec.filter((r) => !r.overdue && r.bucket === '31-45'),
-  },
-  {
-    key: '45+',
-    labelKey: 'finances.stat.bucket45plus' as const,
-    tone: 'bad' as const,
-    open: true,
-    pick: (rec: Receivable[]) => rec.filter((r) => !r.overdue && r.bucket === '45+'),
-  },
+/** Корзины по возрасту счёта — после «Просрочено», по порядку. */
+const AGING = [
+  { bucket: '0-30' as const, labelKey: 'finances.stat.bucket030' as const, tone: 'plain' as const },
+  { bucket: '31-45' as const, labelKey: 'finances.stat.bucket3145' as const, tone: 'warn' as const },
+  { bucket: '45+' as const, labelKey: 'finances.stat.bucket45plus' as const, tone: 'bad' as const },
 ]
 
+/** «Оплачено»: сколько денег пришло. Итог сверху, ниже таблица по месяцам оплаты. */
 export async function Paid({
   companyId,
   rateCons,
@@ -413,108 +329,142 @@ export async function Paid({
   rateCons: Map<number, number>
   locale: Locale
 }) {
-  // One listTrucks, not one getTruck per load. truckForLoad() inside a .map() was a
-  // query per paid row — and getTruck is not cached, so ten loads on the same truck were
-  // ten identical queries. The tab grows without bound as paid loads pile up, which is
-  // the one direction this list only ever moves. Both sibling tabs below already do it
-  // this way; this one was the outlier.
-  const [loads, allTrucks] = await Promise.all([listPaidLoads(companyId), listTrucks(companyId)])
-  const byTruckId = new Map<number, TruckRecord>(allTrucks.map((tr) => [tr.id, tr]))
-  // Same fallback truckForLoad() had: a load with no truck (or a dangling truck_id)
-  // still needs SOME cost model to price against, and the first truck is what the rest
-  // of the app uses for that.
-  const trucks = loads.map((l) => (l.truckId !== null ? byTruckId.get(l.truckId) : undefined) ?? allTrucks[0]!)
-  // Old/incomplete loads can be missing miles or transit days — calcLoad throws on
-  // those rather than guess, so a paid row without clean economics just shows the
-  // rate with no breakdown instead of taking the whole tab down.
-  const rows = loads.map((load, i) => {
-    let r: Breakdown | null = null
-    try {
-      r = calcLoad(load, trucks[i])
-    } catch {
-      r = null
-    }
-    return { load, r }
+  const loads = await listPaidLoads(companyId)
+  const month = todayEt().slice(0, 7)
+  const paidDay = (load: LoadRecord) => (load.paidAt ? todayEt(new Date(load.paidAt)) : null)
+  const lines: MoneyLine[] = loads.map((load) => {
+    const day = paidDay(load)
+    return { load, second: day ? usDate(day) : '—' }
   })
+  const gross = sumRate(lines)
+  const miles = loads.reduce((s, l) => s + milesOf(l), 0)
+  const avg = rpmOf(gross, miles)
+  const thisMonth = sumRate(lines.filter((x) => paidDay(x.load)?.startsWith(month)))
 
-  const totalGross = rows.reduce((s, x) => s + x.load.rate, 0)
-  const totalMiles = rows.reduce((s, x) => s + (x.r?.totalMiles ?? 0), 0)
-  const avgRpm = totalMiles > 0 ? rows.reduce((s, x) => s + (x.r ? x.r.gross : 0), 0) / totalMiles : 0
+  const groups: LineGroup[] = groupByMonth(lines, locale).map((g, i) => ({
+    key: g.key,
+    title: g.title,
+    tone: i === 0 ? ('good' as const) : ('plain' as const),
+    rows: g.rows,
+    extra: rpmText(g.gross, g.rows.reduce((s, r) => s + milesOf(r.load), 0)) ?? undefined,
+  }))
 
   return (
-    <>
-      <div className="mb-5 grid grid-cols-3 gap-3">
-        <Stat label={t(locale, 'finances.stat.paidTotal')} value={usd.format(totalGross)} />
-        <Stat label={t(locale, 'finances.stat.loadsCount')} value={String(rows.length)} />
-        <Stat label={t(locale, 'finances.stat.avgRpm')} value={totalMiles > 0 ? `$${avgRpm.toFixed(2)}/mi` : '—'} />
-      </div>
+    <div className="@container flex flex-col gap-3">
+      <Summary title={t(locale, 'money.paid.title')}>
+        <Figure label={t(locale, 'finances.stat.paidTotal')} value={usd.format(gross)} />
+        <Figure
+          label={t(locale, 'money.fig.thisMonth')}
+          value={usd.format(thisMonth)}
+          tone={thisMonth > 0 ? 'text-good-400' : 'text-t1'}
+        />
+        <Figure label={t(locale, 'finances.stat.avgRpm')} value={avg != null ? usd2.format(avg) : '—'} accent />
+        <Figure label={t(locale, 'finances.stat.loadsCount')} value={String(lines.length)} />
+      </Summary>
 
-      {rows.length === 0 ? (
+      {lines.length === 0 ? (
         <Empty icon={Wallet} title={t(locale, 'finances.paid.empty')} />
       ) : (
-        /* Grouped by the month the money landed, newest month open. Paid loads only
-           accumulate — this list is 25 rows on a demo fleet and will be hundreds on a
-           real one, at which point a single flat column stops being a record you can
-           read and becomes one you have to scroll past. The month header carries its
-           own total, which is the figure anyone actually opens this tab for. */
-        <div className="flex flex-col gap-2">
-          {groupByMonth(rows, locale).map((g, i) => (
-            <Collapse
-              key={g.key}
-              title={g.title}
-              count={g.rows.length}
-              amount={usd.format(g.gross)}
-              tone={i === 0 ? 'good' : 'plain'}
-              defaultOpen={i === 0}
-            >
-              <div className="flex flex-col gap-2">
-                {g.rows.map(({ load, r }) => (
-                  /* Маршрут — первой строкой на всю ширину, сумма и RC ниже, «Снять
-                     отметку» — в «Ещё»: в одной строке с суммой и кнопками на телефоне
-                     от маршрута оставалось одно многоточие. */
-                  <div key={load.id} className="panel p-4">
-                    <Link href={`/loads/${load.id}`} className="block min-w-0">
-                      <div className="text-md font-medium">
-                        {load.origin ?? '—'} → {load.destination ?? '—'}
-                      </div>
-                      <div className="mt-0.5 text-sm text-t2">
-                        {load.invoiceNumber} · {load.paidAt ? usDate(todayEt(new Date(load.paidAt))) : '—'}
-                        {r ? (
-                          <>
-                            {' '}
-                            · {r.allInRpm.toFixed(2)} $/mi · {r.totalMiles} mi
-                          </>
-                        ) : null}
-                      </div>
-                    </Link>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className="nums mr-auto text-lg font-bold">
-                        {usd.format(load.rate)}{' '}
-                        <Rpm rate={load.rate} miles={load.loadedMiles + load.deadheadMiles} className="text-sm font-medium text-t3" />
-                      </span>
-                      {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
-                      <Link
-                        href={financesHref(load)}
-                        className="inline-flex min-h-9 items-center rounded-lg border border-white/10 px-3 text-sm font-semibold text-t2 hover:border-white/25 hover:text-white max-md:min-h-11"
-                      >
-                        {t(locale, 'payments.tab')}
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Collapse>
-          ))}
-        </div>
+        <LinesTable
+          groups={groups}
+          secondLabel={t(locale, 'money.col.paidOn')}
+          rateCons={rateCons}
+          locale={locale}
+          openFirst
+        />
       )}
-    </>
+    </div>
   )
 }
 
-/** Paid rows bucketed by payment month, newest first. Rows with no paidAt (legacy
- * data marked paid before the timestamp existed) fall into their own trailing group
- * rather than being dropped or dumped into whatever month happens to be first. */
-function groupByMonth<T extends { load: { paidAt: string | null } }>(rows: T[], locale: Locale) {
+/** Таблица грузов с деньгами: группы строк, в строке — груз, вторая колонка, сумма,
+ *  $/mi и кнопки (Rate Con и куда идти дальше). */
+function LinesTable({
+  groups,
+  secondLabel,
+  rateCons,
+  locale,
+  openAll,
+  openFirst,
+}: {
+  groups: LineGroup[]
+  secondLabel: string
+  rateCons: Map<number, number>
+  locale: Locale
+  openAll?: boolean
+  openFirst?: boolean
+}) {
+  return (
+    <section className="panel overflow-hidden">
+      <TableHead
+        grid={LOAD_ROW}
+        cols={[t(locale, 'money.col.load'), secondLabel, t(locale, 'money.col.amount'), 'Rate per mile', '']}
+      />
+      {groups.map((g, i) => (
+        <Group
+          key={g.key}
+          title={g.title}
+          count={g.rows.length}
+          amount={usd.format(sumRate(g.rows))}
+          extra={g.extra}
+          tone={g.tone}
+          // Спокойные корзины длинного списка свёрнуты — открыто то, где надо действовать.
+          open={openFirst ? i === 0 : Boolean(openAll) || g.tone !== 'plain'}
+        >
+          {g.rows.map((row) => (
+            <LineRow key={row.load.id} row={row} secondLabel={secondLabel} rc={rateCons.get(row.load.id)} locale={locale} />
+          ))}
+        </Group>
+      ))}
+    </section>
+  )
+}
+
+function LineRow({ row, secondLabel, rc, locale }: { row: MoneyLine; secondLabel: string; rc?: number; locale: Locale }) {
+  const { load } = row
+  const rate = rpmOf(load.rate, milesOf(load))
+  const who = [load.invoiceNumber || (load.referenceId ? `#${load.referenceId}` : null), load.brokerName].filter(Boolean).join(' · ')
+  return (
+    <li className={`grid grid-cols-3 gap-x-3 gap-y-2 px-4 py-3 @3xl:items-center ${LOAD_ROW}`}>
+      <Link href={`/loads/${load.id}`} className="group/ln col-span-3 min-w-0 @3xl:col-span-1">
+        <div className="truncate text-md font-medium text-t1 group-hover/ln:underline">
+          {load.origin ?? '—'} → {load.destination ?? '—'}
+        </div>
+        {who && <div className="truncate text-sm text-t3">{who}</div>}
+      </Link>
+      <Cell
+        label={secondLabel}
+        value={row.second}
+        sub={row.secondSub}
+        tone={row.late ? 'text-bad-400' : row.noInvoice ? 'text-warn-400' : 'text-t1'}
+      />
+      <Cell label={t(locale, 'money.col.amount')} value={usd.format(load.rate)} strong />
+      <Cell label="Rate per mile" value={rate != null ? usd2.format(rate) : '—'} />
+      <div className="col-span-3 flex items-center gap-2 @3xl:col-span-1 @3xl:justify-end">
+        {rc && <RateConButton docId={rc} compact />}
+        {row.noInvoice ? (
+          <Link
+            href={`/loads/${load.id}`}
+            className="inline-flex min-h-9 items-center rounded-lg bg-haul-500 px-3 text-sm font-semibold whitespace-nowrap text-white transition-colors hover:bg-haul-400 max-md:min-h-10"
+          >
+            {t(locale, 'finances.card.buildInvoice')}
+          </Link>
+        ) : (
+          <Link
+            href={financesHref(load)}
+            className="inline-flex min-h-9 items-center rounded-lg border border-white/12 px-3 text-sm font-medium text-t2 transition-colors hover:border-white/30 hover:text-t1 max-md:min-h-10"
+          >
+            {t(locale, 'money.pay')}
+          </Link>
+        )}
+      </div>
+    </li>
+  )
+}
+
+/** Строки по месяцу оплаты, свежий месяц первым. Без даты оплаты (старые записи,
+ *  отмеченные до того, как дату начали хранить) — своей группой в конце. */
+function groupByMonth<T extends { load: { paidAt: string | null; rate: number } }>(rows: T[], locale: Locale) {
   const fmt = new Intl.DateTimeFormat(locale === 'ru' ? 'ru-RU' : 'en-US', {
     month: 'long',
     year: 'numeric',
@@ -526,328 +476,346 @@ function groupByMonth<T extends { load: { paidAt: string | null } }>(rows: T[], 
     const month = row.load.paidAt ? todayEt(new Date(row.load.paidAt)).slice(0, 7) : null
     const key = month ?? 'zzz-unknown'
     const title = month ? fmt.format(new Date(`${month}-15T12:00:00Z`)) : '—'
-    if (!groups.has(key)) groups.set(key, { key, title, rows: [], gross: 0 })
+    if (!groups.has(key)) groups.set(key, { key, title: title.charAt(0).toUpperCase() + title.slice(1), rows: [], gross: 0 })
     const g = groups.get(key)!
     g.rows.push(row)
-    g.gross += (row as unknown as { load: { rate: number } }).load.rate
+    g.gross += row.load.rate
   }
   return [...groups.values()].sort((a, b) => b.key.localeCompare(a.key))
 }
 
-type DriverBucket = {
-  truckId: number
-  label: string
-  loads: LoadWithDispatcher[]
-  gross: number
-  net: number
-  miles: number
-}
-type DispatcherBucket = { key: string; name: string; drivers: Map<number, DriverBucket>; gross: number; net: number }
-type WeekBucket = { weekStartMs: number; dispatchers: Map<string, DispatcherBucket>; gross: number; net: number }
+type Part = { key: string; label: string; loads: number; gross: number; miles: number }
+type DispatcherRow = { key: string; name: string; drivers: Map<number, Part>; gross: number; miles: number; loads: number }
 
-/** Weekly settlement view: every load, grouped by the calendar week it was booked
- * in, then by which dispatcher created it, then by that dispatcher's driver/truck —
- * "who earned what, with which driver, which week" in one place. Dispatcher is
- * whoever was actually signed in when the load was created (auto, not assigned by
- * hand) — loads from before this was tracked land under "Без диспетчера". */
-export async function ByDispatcher({ companyId, locale }: { companyId: 'default' | 'demo'; locale: Locale }) {
+/** «По диспетчерам»: неделя каждого диспетчера — как «Водители», только строка —
+ *  диспетчер, а раскрывается она его водителями. Диспетчер груза — тот, кто его завёл;
+ *  неделя — по дню погрузки (раньше — по дню ввода, и цифры не сходились с «Водителями»). */
+export async function ByDispatcher({
+  companyId,
+  locale,
+  week: weekParam,
+}: {
+  companyId: 'default' | 'demo'
+  locale: Locale
+  week?: string
+}) {
   const [loads, trucks, openAccess] = await Promise.all([
     listLoadsByDispatcher(companyId),
     listTrucks(companyId),
     getSetting('open_access'),
   ])
-  const byTruckId = new Map<number, TruckRecord>(trucks.map((t) => [t.id, t]))
-  const fallback = trucks[0]
+  const byTruckId = new Map<number, TruckRecord>(trucks.map((tr) => [tr.id, tr]))
 
-  const weeks = new Map<number, WeekBucket>()
+  const weeks = new Map<number, Map<string, DispatcherRow>>()
   for (const load of loads) {
-    const truck = (load.truckId !== null ? byTruckId.get(load.truckId) : undefined) ?? fallback
-    if (!truck) continue // no truck configured at all — nothing sensible to cost against
-    let r: Breakdown | null = null
-    try {
-      r = calcLoad(load, truck)
-    } catch {
-      r = null
+    const weekMs = weekAnchorOf(loadWeekAnchorMs(load.pickupDate, load.createdAt))
+    let rows = weeks.get(weekMs)
+    if (!rows) weeks.set(weekMs, (rows = new Map()))
+    const key = load.dispatcherId != null ? String(load.dispatcherId) : 'none'
+    let d = rows.get(key)
+    if (!d) {
+      d = { key, name: load.dispatcherName ?? t(locale, 'finances.dispatcher.none'), drivers: new Map(), gross: 0, miles: 0, loads: 0 }
+      rows.set(key, d)
     }
-    const gross = load.rate
-    const net = r?.net ?? 0
-    // Straight from the load, not r.totalMiles — calcLoad can throw for reasons that
-    // have nothing to do with mileage (e.g. transitDays <= 0), which would silently
-    // zero out this driver's mile total while the row right below it still shows the
-    // load's real miles. Raw miles don't need calcLoad to be valid.
-    const miles = load.loadedMiles + load.deadheadMiles
-
-    const weekMs = weekAnchorOf(new Date(load.createdAt).getTime())
-    let week = weeks.get(weekMs)
-    if (!week) {
-      week = { weekStartMs: weekMs, dispatchers: new Map(), gross: 0, net: 0 }
-      weeks.set(weekMs, week)
+    const truck = load.truckId !== null ? byTruckId.get(load.truckId) : undefined
+    const tKey = truck?.id ?? 0
+    let part = d.drivers.get(tKey)
+    if (!part) {
+      part = { key: String(tKey), label: truck ? truckLabel(truck) : t(locale, 'finances.noTruck'), loads: 0, gross: 0, miles: 0 }
+      d.drivers.set(tKey, part)
     }
-    const dKey = load.dispatcherId != null ? String(load.dispatcherId) : 'none'
-    let disp = week.dispatchers.get(dKey)
-    if (!disp) {
-      disp = {
-        key: dKey,
-        name: load.dispatcherName ?? t(locale, 'finances.dispatcher.none'),
-        drivers: new Map(),
-        gross: 0,
-        net: 0,
-      }
-      week.dispatchers.set(dKey, disp)
-    }
-    let drv = disp.drivers.get(truck.id)
-    if (!drv) {
-      drv = { truckId: truck.id, label: truckLabel(truck), loads: [], gross: 0, net: 0, miles: 0 }
-      disp.drivers.set(truck.id, drv)
-    }
-
-    drv.loads.push(load)
-    drv.gross += gross
-    drv.net += net
-    drv.miles += miles
-    disp.gross += gross
-    disp.net += net
-    week.gross += gross
-    week.net += net
+    const miles = milesOf(load)
+    part.loads += 1
+    part.gross += load.rate
+    part.miles += miles
+    d.loads += 1
+    d.gross += load.rate
+    d.miles += miles
   }
 
-  const sortedWeeks = [...weeks.values()].sort((a, b) => b.weekStartMs - a.weekStartMs)
-  const thisWeek = weekStart()
+  const current = weekStart()
+  const { list: weekList, chosen } = pickWeeks(weeks.keys(), current, weekParam)
+  const rows = [...(weeks.get(chosen)?.values() ?? [])].sort((a, b) => b.gross - a.gross)
+  const total = rows.reduce(
+    (s, r) => ({ gross: s.gross + r.gross, miles: s.miles + r.miles, loads: s.loads + r.loads }),
+    { gross: 0, miles: 0, loads: 0 },
+  )
+  const fleetRpm = rpmOf(total.gross, total.miles)
 
-  // Open access bypasses login entirely (app/admin's own toggle) — while it's on,
-  // getCurrentUser() returns null for everyone, so every load created during that
-  // window gets no dispatcher at all. Without this, the whole report would just
-  // silently go quiet with no clue why.
+  // Open access пускает без входа — пока он включён, у новых грузов нет диспетчера,
+  // и отчёт молча пустел бы без объяснения.
   const openAccessWarning = openAccess === '1' && (
-    <p className="mb-3 rounded-lg border border-warn-400/25 bg-warn-400/[0.06] px-3 py-2 text-sm leading-relaxed text-warn-300">
+    <p className="rounded-lg border border-warn-400/25 bg-warn-400/[0.06] px-3 py-2 text-sm leading-relaxed text-warn-300">
       {t(locale, 'finances.openAccessWarning')}
     </p>
   )
 
-  if (sortedWeeks.length === 0) {
-    return (
-      <>
-        {openAccessWarning}
-        <p className="panel p-6 text-base text-t2">{t(locale, 'finances.noLoads')}</p>
-      </>
-    )
-  }
-
   return (
-    <div className="flex flex-col gap-3">
+    <div className="@container flex flex-col gap-3">
       {openAccessWarning}
-      {/* Период расчёта назван прямо: под ним суммы к выплате. */}
-      <p className="text-xs text-t3">{t(locale, 'finances.payWeekNote')}</p>
-      {sortedWeeks.map((week) => (
-        <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
-          <summary className="flex cursor-pointer list-none flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
-            <span className="text-lg font-semibold capitalize">{weekLabel(week.weekStartMs, locale)}</span>
-            <span className="nums text-xl font-semibold">{usd.format(week.gross)}</span>
-          </summary>
+      <WeekChips
+        tab="dispatchers"
+        weeks={weekList}
+        chosen={chosen}
+        current={current}
+        currentLabel={t(locale, 'drivers.week.current')}
+        locale={locale}
+      />
+      <Summary
+        title={<span className="capitalize">{weekLabel(chosen, locale)}</span>}
+        note={
+          <>
+            {t(locale, 'finances.payWeekNote')}
+            <Info text={t(locale, 'money.dispatchers.info')} />
+          </>
+        }
+      >
+        <Figure label={t(locale, 'drivers.col.gross')} value={usd.format(total.gross)} />
+        <Figure label={t(locale, 'drivers.col.miles')} value={Math.round(total.miles).toLocaleString('en-US')} />
+        <Figure label={t(locale, 'drivers.fleetRpm')} value={fleetRpm != null ? usd2.format(fleetRpm) : '—'} accent />
+        <Figure label={t(locale, 'drivers.col.loads')} value={String(total.loads)} />
+      </Summary>
 
-          <div className="mt-3 flex flex-col gap-2.5">
-            {[...week.dispatchers.values()]
-              .sort((a, b) => b.gross - a.gross)
-              .map((disp) => (
-                <div key={disp.key} className="rounded-xl border border-white/8 p-3">
-                  <div className="flex items-center justify-between gap-3 text-base font-semibold text-haul-300">
-                    <span>{disp.name}</span>
-                    <span className="nums shrink-0 text-sm font-normal text-t2">
-                      {usd.format(disp.gross)}
-                    </span>
-                  </div>
-
-                  <div className="mt-2 flex flex-col gap-2">
-                    {[...disp.drivers.values()]
-                      .sort((a, b) => b.gross - a.gross)
-                      .map((drv) => (
-                        <div key={drv.truckId} className="rounded-lg border border-white/6 bg-white/[0.015] p-2.5">
-                          <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-medium">
-                            <span>{drv.label}</span>
-                            <span className="nums shrink-0 text-xs font-normal text-t2">
-                              {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(drv.loads.length))} ·{' '}
-                              {usd.format(drv.gross)} · {Math.round(drv.miles)} mi
-                              {rpmText(drv.gross, drv.miles) && (
-                                <b className="font-semibold text-haul-300"> · {rpmText(drv.gross, drv.miles)}</b>
-                              )}
-                            </span>
-                          </div>
-                          <ul className="mt-1.5 flex flex-col gap-1">
-                            {drv.loads.map((load) => (
-                              <li key={load.id}>
-                                <Link
-                                  href={`/loads/${load.id}`}
-                                  className="flex items-start justify-between gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-sm leading-4 text-t2 transition-colors hover:bg-white/5 hover:text-t1"
-                                >
-                                  <span className="min-w-0">
-                                    {load.referenceId ? `#${load.referenceId} · ` : ''}
-                                    {load.origin ?? '—'} → {load.destination ?? '—'}
-                                  </span>
-                                  <span className="nums shrink-0">
-                                    {Math.round(load.loadedMiles + load.deadheadMiles)} mi · {usd.format(load.rate)}
-                                    {rpmText(load.rate, load.loadedMiles + load.deadheadMiles) &&
-                                      ` · ${rpmText(load.rate, load.loadedMiles + load.deadheadMiles)}`}
-                                  </span>
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              ))}
-          </div>
-        </details>
-      ))}
+      {rows.length === 0 ? (
+        <p className="panel p-6 text-center text-base text-t3">{t(locale, 'drivers.empty')}</p>
+      ) : (
+        <section className="panel overflow-hidden">
+          <TableHead
+            grid={ROW5}
+            cols={[
+              t(locale, 'money.col.dispatcher'),
+              t(locale, 'drivers.col.loads'),
+              t(locale, 'drivers.col.gross'),
+              t(locale, 'drivers.col.miles'),
+              'Rate per mile',
+            ]}
+          />
+          <ul className="divide-y divide-white/6">
+            {rows.map((d) => {
+              const rate = rpmOf(d.gross, d.miles)
+              return (
+                <li key={d.key}>
+                  <RowDetails
+                    grid={ROW5}
+                    head={
+                      <>
+                        <NameCell
+                          title={d.name}
+                          under={
+                            <div className="text-xs text-t3">
+                              {t(locale, 'money.drivers').replace('{n}', String(d.drivers.size))}
+                            </div>
+                          }
+                        />
+                        <Cell label={t(locale, 'drivers.col.loads')} value={String(d.loads)} className="@max-3xl:order-4" />
+                        <Cell label={t(locale, 'drivers.col.gross')} value={usd.format(d.gross)} strong className="@max-3xl:order-1" />
+                        <Cell
+                          label={t(locale, 'drivers.col.miles')}
+                          value={Math.round(d.miles).toLocaleString('en-US')}
+                          className="@max-3xl:order-3"
+                        />
+                        <Cell
+                          label="Rate per mile"
+                          value={rate != null ? usd2.format(rate) : '—'}
+                          big
+                          tone={rpmTone(rate, fleetRpm)}
+                          className="@max-3xl:order-2"
+                        />
+                      </>
+                    }
+                  >
+                    <PartLines parts={[...d.drivers.values()]} week={chosen} locale={locale} />
+                  </RowDetails>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
     </div>
   )
 }
 
-type GrossWeek = {
-  weekStartMs: number
-  trucks: Map<number, { label: string; loads: LoadRecord[]; gross: number; miles: number }>
-  gross: number
-  miles: number
-  count: number
+/** Раскрытая строка недели или диспетчера: по строке на водителя — со ссылкой на его
+ *  неделю в «Водителях», где видны уже сами грузы. */
+function PartLines({ parts, week, locale }: { parts: Part[]; week: number; locale: Locale }) {
+  return (
+    <ul className="flex flex-col gap-0.5">
+      {parts
+        .sort((a, b) => b.gross - a.gross)
+        .map((p) => (
+          <li key={p.key}>
+            <LoadLine
+              href={`/docs?tab=drivers&week=${weekDay(week)}`}
+              route={p.label}
+              meta={` · ${t(locale, 'finances.loadsCountSuffix').replace('{n}', String(p.loads))}`}
+              miles={p.miles}
+              amount={usd.format(p.gross)}
+              rpm={rpmOf(p.gross, p.miles)}
+            />
+          </li>
+        ))}
+    </ul>
+  )
 }
 
-/** Гросс по неделям — то, что владелец смотрит первым: сколько парк привёз за неделю
- * (ставки из рейт-конов, без вычетов) и из чего это сложилось — по тракам и грузам.
- * Неделя — с пятницы по пятницу, как и зарплата; груз ложится в неделю пикапа. */
-export async function ByWeek({
-  companyId,
-  rateCons,
-  locale,
-}: {
-  companyId: 'default' | 'demo'
-  rateCons: Map<number, number>
-  locale: Locale
-}) {
+type GrossWeek = { ms: number; trucks: Map<number, Part>; gross: number; miles: number; loads: number }
+
+/** Недель в итоге «В среднем» и «RPM за N нед.». */
+const AVG_WEEKS = 8
+
+/** «Недели»: сколько парк привёз за каждую неделю — гросс, мили, RPM. Итог сверху
+ *  сравнивает эту неделю с прошлой и со средней; строка недели раскрывается тракaми. */
+export async function ByWeek({ companyId, locale }: { companyId: 'default' | 'demo'; locale: Locale }) {
   const [loads, trucks] = await Promise.all([listLoads(companyId), listTrucks(companyId)])
-  const byTruckId = new Map<number, TruckRecord>(trucks.map((t) => [t.id, t]))
+  const byTruckId = new Map<number, TruckRecord>(trucks.map((tr) => [tr.id, tr]))
   const committed = loads.filter((l) => l.status !== 'quoted' && l.status !== 'cancelled')
 
   const weeks = new Map<number, GrossWeek>()
   for (const load of committed) {
     // Пикап — день, а не момент: new Date('yyyy-mm-dd') — полночь UTC, по восточному это ещё вчера.
-    const weekMs = weekAnchorOf(loadWeekAnchorMs(load.pickupDate, load.createdAt))
-    let week = weeks.get(weekMs)
-    if (!week) {
-      week = { weekStartMs: weekMs, trucks: new Map(), gross: 0, miles: 0, count: 0 }
-      weeks.set(weekMs, week)
-    }
+    const ms = weekAnchorOf(loadWeekAnchorMs(load.pickupDate, load.createdAt))
+    let week = weeks.get(ms)
+    if (!week) weeks.set(ms, (week = { ms, trucks: new Map(), gross: 0, miles: 0, loads: 0 }))
     const truck = load.truckId !== null ? byTruckId.get(load.truckId) : undefined
     const key = truck?.id ?? 0
-    let row = week.trucks.get(key)
-    if (!row) {
-      row = { label: truck ? truckLabel(truck) : t(locale, 'finances.noTruck'), loads: [], gross: 0, miles: 0 }
-      week.trucks.set(key, row)
+    let part = week.trucks.get(key)
+    if (!part) {
+      part = { key: String(key), label: truck ? truckLabel(truck) : t(locale, 'finances.noTruck'), loads: 0, gross: 0, miles: 0 }
+      week.trucks.set(key, part)
     }
-    const miles = load.loadedMiles + load.deadheadMiles
-    row.loads.push(load)
-    row.gross += load.rate
-    row.miles += miles
+    const miles = milesOf(load)
+    part.loads += 1
+    part.gross += load.rate
+    part.miles += miles
     week.gross += load.rate
     week.miles += miles
-    week.count += 1
+    week.loads += 1
   }
 
-  const sortedWeeks = [...weeks.values()].sort((a, b) => b.weekStartMs - a.weekStartMs)
-  const thisWeek = weekStart()
-  if (sortedWeeks.length === 0) {
+  const sorted = [...weeks.values()].sort((a, b) => b.ms - a.ms)
+  if (sorted.length === 0) {
     return <p className="panel p-6 text-base text-t2">{t(locale, 'finances.noLoads')}</p>
   }
 
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-xs text-t3">{t(locale, 'finances.payWeekNote')}</p>
-      {sortedWeeks.map((week) => (
-        <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
-          {/* Дата и итог — первый уровень, грузы/мили/RPM — второй. На телефоне в
-              столбик: одна строка «дата + сумма + мили + CSV» ломалась на три. */}
-          <summary className="flex cursor-pointer list-none flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
-            <span className="text-lg font-semibold capitalize">{weekLabel(week.weekStartMs, locale)}</span>
-            <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 sm:justify-end">
-              <span className="nums text-xl font-semibold">{usd.format(week.gross)}</span>
-              <span className="nums text-sm text-t3">
-                {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(week.count))} · {Math.round(week.miles)} mi
-                {week.miles > 0 && ` · ${usd2.format(week.gross / week.miles)}/mi`}
-              </span>
-            </span>
-          </summary>
+  const current = weekStart()
+  // Прошлая пятница — через середину прошлой недели: в неделе перевода часов 7×24 ч
+  // от полуночи пятницы — это не полночь пятницы.
+  const previous = weekAnchorOf(current - 3 * 86_400_000)
+  const thisW = weeks.get(current)
+  const lastW = weeks.get(previous)
+  const recent = sorted.filter((w) => w.ms <= current).slice(0, AVG_WEEKS)
+  const recentGross = recent.reduce((s, w) => s + w.gross, 0)
+  const recentMiles = recent.reduce((s, w) => s + w.miles, 0)
+  const avgRpm = rpmOf(recentGross, recentMiles)
+  const maxGross = Math.max(1, ...sorted.map((w) => w.gross))
 
-          <div className="mt-3 flex flex-col gap-2">
-            {/* Неделя одним файлом для бухгалтера: грузы, мили, ставки, счета, зарплата. */}
-            <a
-              href={`/api/export/week?start=${week.weekStartMs}`}
-              className="inline-flex min-h-9 items-center self-end rounded-md border border-white/12 px-2.5 text-xs font-medium text-t2 hover:border-white/30 hover:text-white max-md:min-h-11"
-            >
-              CSV
-            </a>
-            {[...week.trucks.values()]
-              .sort((a, b) => b.gross - a.gross)
-              .map((row) => (
-                <div key={row.label} className="rounded-lg border border-white/6 bg-white/[0.015] p-2.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-medium">
-                    <span className="text-haul-300">{row.label}</span>
-                    <span className="nums shrink-0 text-xs font-normal text-t2">
-                      {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(row.loads.length))} ·{' '}
-                      {Math.round(row.miles)} mi ·{' '}
-                      <span className="font-semibold text-t1">{usd.format(row.gross)}</span>
-                      {row.miles > 0 && (
-                        <>
-                          {' · '}
-                          <span className="font-semibold text-haul-300">{usd2.format(row.gross / row.miles)}/mi</span>
-                        </>
-                      )}
-                    </span>
-                  </div>
-                  <ul className="mt-1.5 flex flex-col gap-1">
-                    {row.loads.map((load) => (
-                      <li key={load.id} className="flex items-center gap-2">
-                        <Link
-                          href={`/loads/${load.id}`}
-                          className="flex min-w-0 flex-1 items-start justify-between gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-sm leading-4 text-t2 transition-colors hover:bg-white/5 hover:text-t1"
-                        >
-                          <span className="min-w-0">
-                            {load.referenceId ? `#${load.referenceId} · ` : ''}
-                            {load.origin ?? '—'} → {load.destination ?? '—'}
-                            {load.brokerName ? ` · ${load.brokerName}` : ''}
-                          </span>
-                          <span className="nums shrink-0">
-                            {Math.round(load.loadedMiles + load.deadheadMiles)} mi · {usd.format(load.rate)}
-                            {load.loadedMiles + load.deadheadMiles > 0 &&
-                              ` · ${usd2.format(load.rate / (load.loadedMiles + load.deadheadMiles))}/mi`}
-                          </span>
-                        </Link>
-                        {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-          </div>
-        </details>
-      ))}
-    </div>
-  )
-}
-
-export function Stat({ label, value, tone, info }: { label: string; value: string; tone?: 'warn' | 'bad'; info?: string }) {
   return (
-    // h-full: в сетке плиток соседки в ряду тянутся до общей высоты, и плитка
-    // пониже иначе висела бы с дырой под собой.
-    <div className="panel flex h-full flex-col justify-center px-4 py-3">
-      <div
-        className={`nums text-lg font-bold ${tone === 'bad' ? 'text-bad-400' : tone === 'warn' ? 'text-warn-400' : ''}`}
+    <div className="@container flex flex-col gap-3">
+      <Summary
+        title={t(locale, 'money.weeks.title')}
+        note={
+          <>
+            {t(locale, 'finances.payWeekNote')}
+            <Info text={t(locale, 'drivers.rpmInfo')} />
+          </>
+        }
       >
-        {value}
-      </div>
-      <div className="mt-0.5 flex items-center gap-1 text-xs text-t2 font-medium">
-        {label}
-        {info && <Info text={info} />}
-      </div>
+        <Figure
+          label={t(locale, 'drivers.week.current')}
+          value={usd.format(thisW?.gross ?? 0)}
+          sub={thisW ? (rpmText(thisW.gross, thisW.miles) ?? undefined) : undefined}
+        />
+        <Figure
+          label={t(locale, 'money.fig.lastWeek')}
+          value={usd.format(lastW?.gross ?? 0)}
+          sub={lastW ? (rpmText(lastW.gross, lastW.miles) ?? undefined) : undefined}
+        />
+        <Figure label={t(locale, 'money.fig.avgWeek')} value={usd.format(recent.length ? recentGross / recent.length : 0)} />
+        <Figure
+          label={t(locale, 'money.fig.rpmWeeks').replace('{n}', String(recent.length))}
+          value={avgRpm != null ? usd2.format(avgRpm) : '—'}
+          accent
+        />
+      </Summary>
+
+      <section className="panel overflow-hidden">
+        <TableHead
+          grid={ROW5}
+          cols={[
+            t(locale, 'money.col.week'),
+            t(locale, 'drivers.col.loads'),
+            t(locale, 'drivers.col.gross'),
+            t(locale, 'drivers.col.miles'),
+            'Rate per mile',
+          ]}
+        />
+        <ul className="divide-y divide-white/6">
+          {sorted.map((w) => {
+              const rate = rpmOf(w.gross, w.miles)
+              return (
+                <li key={w.ms}>
+                  <RowDetails
+                    grid={ROW5}
+                    open={w.ms === current}
+                    head={
+                      <>
+                        <NameCell
+                          title={<span className="capitalize">{weekLabel(w.ms, locale)}</span>}
+                          // Длина полоски — гросс недели против самой сильной: видно, какая неделя провалилась.
+                          under={
+                            <div className="mt-1.5 flex items-center gap-2">
+                              <div className="h-1.5 w-full max-w-48 overflow-hidden rounded-full bg-white/8">
+                                <div
+                                  className={`h-full rounded-full ${w.ms === current ? 'bg-haul-400' : 'bg-white/35'}`}
+                                  style={{ width: `${Math.max(3, (w.gross / maxGross) * 100)}%` }}
+                                />
+                              </div>
+                              {w.ms === current && (
+                                <span className="shrink-0 text-xs font-medium text-haul-300">{t(locale, 'drivers.week.current')}</span>
+                              )}
+                            </div>
+                          }
+                        />
+                        <Cell label={t(locale, 'drivers.col.loads')} value={String(w.loads)} className="@max-3xl:order-4" />
+                        <Cell label={t(locale, 'drivers.col.gross')} value={usd.format(w.gross)} strong className="@max-3xl:order-1" />
+                        <Cell
+                          label={t(locale, 'drivers.col.miles')}
+                          value={Math.round(w.miles).toLocaleString('en-US')}
+                          className="@max-3xl:order-3"
+                        />
+                        <Cell
+                          label="Rate per mile"
+                          value={rate != null ? usd2.format(rate) : '—'}
+                          big
+                          tone={rpmTone(rate, avgRpm)}
+                          className="@max-3xl:order-2"
+                        />
+                      </>
+                    }
+                  >
+                    <PartLines parts={[...w.trucks.values()]} week={w.ms} locale={locale} />
+                    <div className="mt-1.5 flex flex-wrap gap-2 px-2 pb-1">
+                      <Link
+                        href={`/docs?tab=drivers&week=${weekDay(w.ms)}`}
+                        className="inline-flex min-h-9 items-center rounded-lg border border-white/12 px-3 text-sm font-medium text-t2 transition-colors hover:border-white/30 hover:text-t1"
+                      >
+                        {t(locale, 'money.weeks.open')} →
+                      </Link>
+                      <a
+                        href={`/api/export/week?start=${w.ms}`}
+                        className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/12 px-3 text-sm font-medium text-t2 transition-colors hover:border-white/30 hover:text-t1"
+                      >
+                        <Download size={14} strokeWidth={2.5} />
+                        {t(locale, 'drivers.csv')}
+                      </a>
+                    </div>
+                  </RowDetails>
+                </li>
+              )
+            })}
+        </ul>
+      </section>
     </div>
   )
 }
