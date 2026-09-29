@@ -45,6 +45,38 @@ export async function tgConnected(uid: number): Promise<boolean> {
   return (await creds(uid)) !== null
 }
 
+/** Ключ сессии убит на стороне Telegram — этой строкой больше не войти, только заново
+ * по коду. AUTH_KEY_DUPLICATED (406): одну и ту же сессию открыли в двух местах сразу
+ * (сайт + локальный npm run dev на прод-базе) — Telegram аннулирует её навсегда.
+ * SESSION_REVOKED / AUTH_KEY_UNREGISTERED — «Завершить другие сеансы» в телефоне. */
+export function isDeadTgSession(e: unknown): boolean {
+  return /AUTH_KEY_DUPLICATED|SESSION_REVOKED|AUTH_KEY_UNREGISTERED/.test(String(e))
+}
+
+/** Сессия пропала, а api_id/api_hash остались — значит, нужен только повторный вход
+ * (телефон → код), без повторного похода на my.telegram.org. */
+export async function tgNeedsRelogin(uid: number): Promise<boolean> {
+  const [id, hash, session] = await Promise.all([
+    getSetting(k('tg_api_id', uid)),
+    getSetting(k('tg_api_hash', uid)),
+    getSetting(k('tg_session', uid)),
+  ])
+  return !!id && !!hash && !session
+}
+
+/** Сохранённые api_id/api_hash — повторный вход берёт их, а не просит ввести снова. */
+export async function tgStoredApp(uid: number): Promise<{ apiId: number; apiHash: string } | null> {
+  const [id, hash] = await Promise.all([getSetting(k('tg_api_id', uid)), getSetting(k('tg_api_hash', uid))])
+  return id && hash ? { apiId: Number(id), apiHash: hash } : null
+}
+
+/** Локальный next dev смотрит в ПРОД-базу (.env.local) и взял бы ту же сессию, что и
+ * сайт, — два соединения одним ключом, и Telegram убивает сессию (AUTH_KEY_DUPLICATED,
+ * 09/29/26). Поэтому вне production Telegram не подключаем; TG_IN_DEV=1 — осознанно. */
+function devBlocked(): boolean {
+  return process.env.NODE_ENV !== 'production' && process.env.TG_IN_DEV !== '1'
+}
+
 /** Drops this user's stored session so /telegram shows the connect form again — for
  * switching which Telegram account they've hooked up (wrong account connected). */
 export async function disconnectTelegram(uid: number): Promise<void> {
@@ -129,6 +161,8 @@ export async function setTgChatTruck(uid: number, chatId: string, truckId: numbe
 // takes real time; done concurrently they queued up and started timing each other
 // out on Telegram's end (seen live: a burst of "Error: TIMEOUT" in prod).
 const clients = new Map<number, TelegramClient>()
+// Какой строкой сессии открыт клиент — чтобы при «ключ убит» стереть именно её.
+const sessionOf = new WeakMap<TelegramClient, string>()
 const connecting = new Map<number, Promise<TelegramClient>>()
 
 async function withClient<T>(uid: number, fn: (c: TelegramClient) => Promise<T>): Promise<T> {
@@ -152,10 +186,19 @@ async function withClient<T>(uid: number, fn: (c: TelegramClient) => Promise<T>)
     // Процессов у приложения несколько: переподключение прошло в одном, а другой
     // держал старый клиент и отдавал 401 на каждый заход до перезапуска (09/23/26).
     // Сброс — следующий вызов возьмёт свежий ключ из базы.
-    if (/AUTH_KEY_DUPLICATED|SESSION_REVOKED|AUTH_KEY_UNREGISTERED/.test(String(e)) && clients.get(uid) === c) {
+    if (isDeadTgSession(e) && clients.get(uid) === c) {
       await c.disconnect().catch(() => {})
       clients.delete(uid)
       dialogsCache.delete(uid)
+      // Этот ключ Telegram уже аннулировал — повтор с ним даёт ту же ошибку вечно.
+      // Стираем ТОЛЬКО строку сессии и только если в базе всё ещё она (другой процесс
+      // мог уже войти заново и записать свежую). api_id/api_hash и настройки чатов
+      // остаются — страница покажет короткий повторный вход: телефон → код.
+      const used = sessionOf.get(c)
+      if (used && (await getSetting(k('tg_session', uid))) === used) {
+        await deleteSetting(k('tg_session', uid))
+        console.warn('[tg] session invalidated by Telegram, cleared for relogin — uid', uid, String(e))
+      }
     }
     throw e
   }
@@ -181,11 +224,13 @@ async function cachedDialogs(uid: number, client: TelegramClient) {
 
 function connectClient(uid: number): Promise<TelegramClient> {
   return (async () => {
+    if (devBlocked()) throw new Error(t(await getLocale(), 'telegram.lib.devBlocked'))
     const c = await creds(uid)
     if (!c) throw new Error(t(await getLocale(), 'telegram.lib.notConnected'))
     const tc = new TelegramClient(new StringSession(c.session), c.apiId, c.apiHash, {
       connectionRetries: 3,
     })
+    sessionOf.set(tc, c.session)
     await tc.connect()
     clients.set(uid, tc)
     return tc
@@ -207,6 +252,9 @@ export async function startLogin(
   apiHash: string,
   phone: string,
 ): Promise<{ token: string; deliveryHint: string }> {
+  // Вход из локальной копии записал бы новую сессию в прод-базу, и сайт с dev снова
+  // держали бы один ключ вдвоём.
+  if (devBlocked()) throw new Error(t(await getLocale(), 'telegram.lib.devBlocked'))
   const client = new TelegramClient(new StringSession(''), apiId, apiHash, {
     connectionRetries: 3,
   })

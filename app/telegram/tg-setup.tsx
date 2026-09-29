@@ -13,7 +13,8 @@ import { t } from '@/lib/i18n'
 const input =
   'w-full rounded-xl border border-white/8 bg-ink-900/80 px-3 py-2.5 text-lg text-white outline-none transition-all placeholder:text-t3 focus:border-haul-500 focus:ring-4 focus:ring-haul-500/15'
 
-export function TgSetup() {
+/** relogin: api_id/api_hash уже сохранены, пропала только сессия — просим один телефон. */
+export function TgSetup({ relogin = false }: { relogin?: boolean }) {
   const locale = useLocale()
   const [pending, start] = useTransition()
   const [step, setStep] = useState<'creds' | 'code' | '2fa'>('creds')
@@ -52,12 +53,28 @@ export function TgSetup() {
 
   return (
     <div className="panel mx-auto max-w-sm p-4">
-      <h2 className="text-md font-semibold">{t(locale, 'telegram.setup.title')}</h2>
-      <p className="mt-1 text-sm leading-snug text-t2">
-        {t(locale, 'telegram.setup.introPre')} <b>{t(locale, 'telegram.setup.introBold')}</b> {t(locale, 'telegram.setup.introPost')}
-      </p>
+      <h2 className="text-md font-semibold">
+        {t(locale, relogin ? 'telegram.setup.reloginTitle' : 'telegram.setup.title')}
+      </h2>
+      {relogin ? (
+        <p className="mt-1 text-sm leading-snug text-t2">{t(locale, 'telegram.setup.reloginText')}</p>
+      ) : (
+        <p className="mt-1 text-sm leading-snug text-t2">
+          {t(locale, 'telegram.setup.introPre')} <b>{t(locale, 'telegram.setup.introBold')}</b> {t(locale, 'telegram.setup.introPost')}
+        </p>
+      )}
 
-      {step === 'creds' && (
+      {step === 'creds' && relogin && (
+        <div className="mt-3 flex flex-col gap-2">
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t(locale, 'telegram.setup.phonePlaceholder')} className={input} inputMode="tel" autoFocus />
+          <Button variant="primary" className="mt-1" disabled={pending || !phone}
+            onClick={sendCode}>
+            {pending ? t(locale, 'telegram.setup.sendingCode') : t(locale, 'telegram.setup.getCode')}
+          </Button>
+        </div>
+      )}
+
+      {step === 'creds' && !relogin && (
         <div className="mt-3 flex flex-col gap-2">
           {/* Пошагово и с успокоением: страница входа Telegram называется
               «Delete Account or Manage Apps», и люди боялись, что вход удалит
