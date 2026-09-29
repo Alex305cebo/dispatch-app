@@ -174,12 +174,12 @@ export const overviewDict = {
   'overview.noEldData': { ru: 'Нет данных с ELD', en: 'No data from ELD', es: 'Sin datos del ELD', uk: 'Немає даних з ELD', ro: 'Fără date de la ELD', kk: 'ELD дерегі жоқ' },
   'overview.perWeek': { ru: 'за неделю', en: 'per week', es: 'por semana', uk: 'за тиждень', ro: 'pe săptămână', kk: 'аптасына' },
   'overview.perWeekInfo': {
-    ru: 'Ставки (гросс) активных грузов этого трака за текущую календарную неделю — с понедельника.',
-    en: "This truck's gross rate from active loads for the current calendar week — since Monday.",
-    es: 'Tarifas (bruto) de las cargas activas de este camión en la semana actual — desde el lunes.',
-    uk: 'Ставки (гросс) активних вантажів цього трака за поточний календарний тиждень — з понеділка.',
-    ro: 'Tarifele (brut) ale curselor active ale acestui camion în săptămâna curentă — de luni.',
-    kk: 'Осы тракттың ағымдағы күнтізбелік аптадағы белсенді жүктерінің мөлшерлемесі (жалпы) — дүйсенбіден бастап.',
+    ru: 'Гросс этого трака за расчётную неделю (пятница–пятница) — по дате погрузки. Рядом Rate per mile: гросс ÷ все мили (гружёные + порожние).',
+    en: "This truck's gross for the pay week (Friday to Friday), by pickup date. Next to it, rate per mile: gross ÷ all miles (loaded + deadhead).",
+    es: 'Bruto de este camión en la semana de pago (viernes a viernes), por fecha de carga. Al lado, rate per mile: bruto ÷ todas las millas (cargadas + en vacío).',
+    uk: 'Гросс цього трака за розрахунковий тиждень (пʼятниця–пʼятниця) — за датою завантаження. Поруч Rate per mile: гросс ÷ усі милі (гружені + порожні).',
+    ro: 'Brutul acestui camion în săptămâna de plată (vineri–vineri), după data încărcării. Alături, rate per mile: brut ÷ toate milele (încărcate + goale).',
+    kk: 'Осы тракттың есеп аптасындағы (жұма–жұма) гроссы — тиеу күні бойынша. Қасында Rate per mile: гросс ÷ барлық миль (жүкті + бос).',
   },
   'overview.toDelivery': { ru: 'До выгрузки · ', en: 'To delivery · ', es: 'Hasta la descarga · ', uk: 'До вивантаження · ', ro: 'Până la descărcare · ', kk: 'Түсіруге дейін · ' },
 

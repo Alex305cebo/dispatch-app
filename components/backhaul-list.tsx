@@ -5,6 +5,7 @@ import { Info } from '@/components/info'
 import { usd, usDate } from '@/lib/fmt'
 import { t, type Locale } from '@/lib/i18n'
 import type { StateBroker } from '@/lib/state-brokers'
+import { rpmText } from '@/components/rpm'
 
 /** «Прошлые грузы в TN — спроси брокера о новых» — на странице груза, пока трак едет
  * на выгрузку или только что освободился. Брокер с телефоном одним нажатием и наши
@@ -67,6 +68,7 @@ export function BackhaulList({ state, brokers, locale }: { state: string; broker
                 <li key={l.id}>
                   <Link href={`/loads/${l.id}`} className="block rounded px-1 text-xs leading-[18px] text-t3 hover:bg-white/5 hover:text-t1">
                     <span className="nums">{usDate(l.day)}</span> · {l.route} · <span className="nums">{usd.format(l.rate)}</span>
+                    {rpmText(l.rate, l.miles) && <span className="nums"> · {rpmText(l.rate, l.miles)}</span>}
                     <span className="text-t3">
                       {' · '}
                       {[l.pickup && t(locale, 'backhaul.rolePickup'), l.delivery && t(locale, 'backhaul.roleDelivery')].filter(Boolean).join(' + ')}

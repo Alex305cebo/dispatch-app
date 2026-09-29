@@ -60,13 +60,14 @@ export const financesDict = {
     kk: 'Қай диспетчер апта сайын қанша тапқан, өз жүргізушілері бойынша бөліп.',
   },
   'finances.tabDesc.drivers': {
-    ru: 'Зарплата водителей по неделям: грузы, мили и ставка по каждому — итог к выплате.',
-    en: 'Driver pay by week: loads, miles, and rate for each — the total due.',
-    es: 'Pago de conductores por semanas: cargas, millas y tarifa de cada uno — el total a pagar.',
-    uk: 'Зарплата водіїв по тижнях: вантажі, милі та ставка по кожному — підсумок до виплати.',
-    ro: 'Plata șoferilor pe săptămâni: curse, mile și tarif pentru fiecare — totalul de plată.',
-    kk: 'Жүргізушілер жалақысы апта бойынша: жүктер, миль және әрқайсысының мөлшерлемесі — төленетін қорытынды.',
+    ru: 'Неделя каждого водителя: грузы, гросс, мили и Rate per mile.',
+    en: "Each driver's week: loads, gross, miles and rate per mile.",
+    es: 'La semana de cada conductor: cargas, bruto, millas y tarifa por milla.',
+    uk: 'Тиждень кожного водія: вантажі, гросс, милі та Rate per mile.',
+    ro: 'Săptămâna fiecărui șofer: curse, brut, mile și tarif pe milă.',
+    kk: 'Әр жүргізушінің аптасы: жүктер, гросс, миль және Rate per mile.',
   },
+
 
   'finances.tab.weeks': { ru: 'Недели', en: 'Weeks', es: 'Semanas', uk: 'Тижні', ro: 'Săptămâni', kk: 'Апталар' },
   'finances.tabDesc.weeks': {

@@ -177,6 +177,7 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
             route: `${l.origin ?? '—'} → ${l.destination ?? '—'}`,
             ref: l.referenceId,
             rate: Number(l.rate) || 0,
+            miles: l.loadedMiles + l.deadheadMiles,
             statusText: t(locale, `status.${l.status}` as MsgKey),
             waiting: u?.days ?? null,
             moneyHref: u ? financesHref({ id: l.id, referenceId: l.referenceId }) : null,
@@ -222,6 +223,7 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
             date: usDate(when(l)),
             route: `${l.origin ?? '—'} → ${l.destination ?? '—'}`,
             rate: Number(l.rate) || 0,
+            miles: l.loadedMiles + l.deadheadMiles,
           })),
         },
       }

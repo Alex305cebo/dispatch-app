@@ -22,6 +22,8 @@ import { getLocale } from '@/lib/i18n-server'
 import { placeCity } from '@/lib/place'
 import { t, type Locale } from '@/lib/i18n'
 import { Info } from '@/components/info'
+import { Rpm } from '@/components/rpm'
+import type { TruckMoney } from '@/components/fleet-list'
 import { tileGrid } from '@/lib/tiles'
 import { driverTileId, migrateDriversTile, trucksTiles } from '@/lib/tiles-core'
 
@@ -107,30 +109,35 @@ export default async function Page() {
       // watches — not net. Scoped to this calendar week (Mon–Mon).
       // This week's gross = loads the truck actually RAN this week (pickup date,
       // Monday→Monday), not loads entered this week. The whole point of the fix.
-      const weekGross = live
-        .filter((l) => {
-          const ms = loadWeekAnchorMs(l.pickupDate, l.createdAt)
-          return ms >= weekBegin && ms < weekEnd
-        })
-        .reduce((s, l) => s + l.rate, 0)
+      const weekLoads = live.filter((l) => {
+        const ms = loadWeekAnchorMs(l.pickupDate, l.createdAt)
+        return ms >= weekBegin && ms < weekEnd
+      })
+      const weekGross = weekLoads.reduce((s, l) => s + l.rate, 0)
+      // Мили тех же грузов — из них Rate per mile недели рядом с гроссом.
+      const weekMiles = weekLoads.reduce((s, l) => s + l.loadedMiles + l.deadheadMiles, 0)
       // Utilisation grid days for this truck (shared helper — same shape on the dashboard).
       const working = buildWorkingDays(live)
-      return { truck: t, count: live.length, current, weekGross, working }
+      return { truck: t, count: live.length, current, weekGross, weekMiles, working }
     }),
   )
 
   // id трака → деньги и бумаги. Плоский объект, а не Map: так он без потерь
   // переезжает с сервера в браузер вместе с остальными пропсами списка.
-  const moneyByTruck: Record<number, { week: number; loads: number; docWarn: string | null }> = {}
-  for (const { truck, count, weekGross } of perTruck) {
+  const moneyByTruck: Record<number, TruckMoney> = {}
+  for (const { truck, count, weekGross, weekMiles } of perTruck) {
     const meta = metas.get(truck.id) ?? null
     const worst = expiries(meta, locale).find((e) => e.tone !== 'good')
     moneyByTruck[truck.id] = {
       week: weekGross,
+      miles: weekMiles,
       loads: count,
       docWarn: worst ? worst.label : null,
     }
   }
+
+  const fleetWeekGross = perTruck.reduce((sum, x) => sum + x.weekGross, 0)
+  const fleetWeekMiles = perTruck.reduce((sum, x) => sum + x.weekMiles, 0)
 
   // «С грузом» и «свободно» считает и показывает панель над картой — здесь остались
   // только те, кого нельзя грузить: этого числа в плитках нет.
@@ -199,7 +206,8 @@ export default async function Page() {
               node: (
                 <div className="panel flex h-full flex-col justify-center px-3 py-2.5">
                   <div className="nums truncate text-xl leading-tight text-t1">
-                    {usd.format(perTruck.reduce((sum, x) => sum + x.weekGross, 0))}
+                    {usd.format(fleetWeekGross)}
+                    <Rpm rate={fleetWeekGross} miles={fleetWeekMiles} className="ml-1.5 text-sm text-t2" />
                   </div>
                   <div className="mt-0.5 flex items-center gap-1 truncate text-xs text-t3">
                     {t(locale, 'trucks.page.weekGross')}

@@ -20,6 +20,8 @@ export type HeatDayLoad = {
   /** Куда везёт — подпись на полосе рейса. */
   dest: string | null
   rate: number
+  /** Все мили груза — для Rate per mile в подсказке и итоге строки. */
+  miles?: number
   status: LoadStatus
   isPickup: boolean
   isDelivery: boolean
@@ -69,6 +71,7 @@ export function buildWorkingDays(loads: LoadRecord[]): Map<string, HeatDayLoad[]
         route,
         dest: l.destination ?? null,
         rate: l.rate,
+        miles: l.loadedMiles + l.deadheadMiles,
         status: l.status,
         isPickup: idx === 0,
         isDelivery: idx === span.length - 1,

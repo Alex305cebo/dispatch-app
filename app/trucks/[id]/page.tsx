@@ -54,6 +54,7 @@ import { CopyPlace } from '@/components/copy-place'
 import { TruckPhoto } from '@/components/truck-photo'
 import { DateMore } from '@/components/date-more'
 import { MissingPodBanner } from '@/components/missing-pod-banner'
+import { Rpm } from '@/components/rpm'
 import { PrevLoad } from '@/components/prev-load'
 import { StalePartialBanner } from '@/components/stale-partial-banner'
 import { DeadheadFlag } from '@/components/deadhead-flag'
@@ -500,6 +501,11 @@ export default async function Page({
               </HeadField>
               <HeadField label={t(locale, 'trucks.detail.rate')}>
                 <span className="nums text-xl font-semibold">{usd.format(activeLoad.rate)}</span>
+                <Rpm
+                  rate={activeLoad.rate}
+                  miles={activeLoad.loadedMiles + activeLoad.deadheadMiles}
+                  className="ml-1.5 text-sm text-t2"
+                />
               </HeadField>
             </dl>
             {partials.map((p) => (
@@ -518,6 +524,7 @@ export default async function Page({
                 {p.referenceId && <span className="nums text-sm text-t3">#{p.referenceId}</span>}
                 {p.brokerName && <span className="truncate text-sm text-t3">· {p.brokerName}</span>}
                 <span className="nums ml-auto font-medium text-t2">{usd.format(p.rate)}</span>
+                <Rpm rate={p.rate} miles={p.loadedMiles + p.deadheadMiles} className="text-sm text-t3" />
               </Link>
             ))}
           </>
@@ -595,6 +602,7 @@ export default async function Page({
                 <span className="nums text-sm text-t3">#{nextLoad.referenceId}</span>
               )}
               <span className="nums ml-auto font-medium text-t2">{usd.format(nextLoad.rate)}</span>
+              <Rpm rate={nextLoad.rate} miles={nextLoad.loadedMiles + nextLoad.deadheadMiles} className="text-sm text-t3" />
             </Link>
           )}
           {nextLoad && (

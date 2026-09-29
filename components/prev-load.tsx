@@ -13,6 +13,7 @@
 import Link from 'next/link'
 import { History } from 'lucide-react'
 import type { LoadRecord } from '@/lib/map'
+import { Rpm } from '@/components/rpm'
 import { usd, usDate } from '@/lib/fmt'
 import { Info } from '@/components/info'
 import { t, type Locale } from '@/lib/i18n'
@@ -47,7 +48,9 @@ export function PrevLoad({
           <span className="min-w-0 font-medium text-t1 group-hover:underline">
             {load.origin ?? '—'} → {load.destination ?? '—'}
           </span>
-          <span className="nums ml-auto shrink-0 font-semibold text-t2">{usd.format(load.rate)}</span>
+          <span className="nums ml-auto shrink-0 font-semibold text-t2">
+            {usd.format(load.rate)} <Rpm rate={load.rate} miles={load.loadedMiles + load.deadheadMiles} className="text-sm font-normal text-t3" />
+          </span>
         </span>
         {(load.deliveryDate || load.referenceId) && (
           <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-t3">

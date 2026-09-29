@@ -29,6 +29,7 @@ import { RateConButton } from '@/components/ratecon-button'
 import { Info } from '@/components/info'
 import { CircleCheckBig, Hourglass, Send, TriangleAlert, Wallet } from 'lucide-react'
 import { Stat as StageStat } from '@/components/stat'
+import { Rpm, rpmText } from '@/components/rpm'
 import { Collapse } from '@/components/collapse'
 import { Empty } from '@/components/empty'
 /** Закрытые грузы видны столько дней — дальше они в «Оплачено». */
@@ -102,6 +103,7 @@ export async function loadsTabTiles({
       papers: papersOf.get(load.id) ?? [],
       invoiceNumber: load.invoiceNumber,
       feeDefault: defaultFee(load.rate, truck?.factoringPercent),
+      miles: load.loadedMiles + load.deadheadMiles,
     })
   }
 
@@ -264,7 +266,10 @@ export async function Unpaid({
                       {t(locale, 'finances.uninvoiced.cta')}
                     </div>
                   </Link>
-                  <span className="nums shrink-0 text-lg font-bold">{usd.format(load.rate)}</span>
+                  <span className="flex shrink-0 flex-col items-end leading-tight">
+                    <span className="nums text-lg font-bold">{usd.format(load.rate)}</span>
+                    <Rpm rate={load.rate} miles={load.loadedMiles + load.deadheadMiles} className="text-xs text-t3" />
+                  </span>
                   {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
                 </div>
                 {/* Статус меняется прямо здесь: платёж пришёл по квик-пею или через
@@ -337,7 +342,10 @@ export async function Unpaid({
               </span>
             </div>
           </Link>
-          <span className="nums shrink-0 text-lg font-bold">{usd.format(r.load.rate)}</span>
+          <span className="flex shrink-0 flex-col items-end leading-tight">
+            <span className="nums text-lg font-bold">{usd.format(r.load.rate)}</span>
+            <Rpm rate={r.load.rate} miles={r.load.loadedMiles + r.load.deadheadMiles} className="text-xs text-t3" />
+          </span>
           {rateCons.get(r.load.id) && <RateConButton docId={rateCons.get(r.load.id)!} compact />}
         </div>
         {/* Кнопки статуса — своей строкой под карточкой: на телефоне рядом с суммой
@@ -480,7 +488,10 @@ export async function Paid({
                       </div>
                     </Link>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className="nums mr-auto text-lg font-bold">{usd.format(load.rate)}</span>
+                      <span className="nums mr-auto text-lg font-bold">
+                        {usd.format(load.rate)}{' '}
+                        <Rpm rate={load.rate} miles={load.loadedMiles + load.deadheadMiles} className="text-sm font-medium text-t3" />
+                      </span>
                       {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
                       <Link
                         href={financesHref(load)}
@@ -656,6 +667,9 @@ export async function ByDispatcher({ companyId, locale }: { companyId: 'default'
                             <span className="nums shrink-0 text-xs font-normal text-t2">
                               {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(drv.loads.length))} ·{' '}
                               {usd.format(drv.gross)} · {Math.round(drv.miles)} mi
+                              {rpmText(drv.gross, drv.miles) && (
+                                <b className="font-semibold text-haul-300"> · {rpmText(drv.gross, drv.miles)}</b>
+                              )}
                             </span>
                           </div>
                           <ul className="mt-1.5 flex flex-col gap-1">
@@ -671,6 +685,8 @@ export async function ByDispatcher({ companyId, locale }: { companyId: 'default'
                                   </span>
                                   <span className="nums shrink-0">
                                     {Math.round(load.loadedMiles + load.deadheadMiles)} mi · {usd.format(load.rate)}
+                                    {rpmText(load.rate, load.loadedMiles + load.deadheadMiles) &&
+                                      ` · ${rpmText(load.rate, load.loadedMiles + load.deadheadMiles)}`}
                                   </span>
                                 </Link>
                               </li>
@@ -779,6 +795,12 @@ export async function ByWeek({
                       {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(row.loads.length))} ·{' '}
                       {Math.round(row.miles)} mi ·{' '}
                       <span className="font-semibold text-t1">{usd.format(row.gross)}</span>
+                      {row.miles > 0 && (
+                        <>
+                          {' · '}
+                          <span className="font-semibold text-haul-300">{usd2.format(row.gross / row.miles)}/mi</span>
+                        </>
+                      )}
                     </span>
                   </div>
                   <ul className="mt-1.5 flex flex-col gap-1">
@@ -795,120 +817,11 @@ export async function ByWeek({
                           </span>
                           <span className="nums shrink-0">
                             {Math.round(load.loadedMiles + load.deadheadMiles)} mi · {usd.format(load.rate)}
+                            {load.loadedMiles + load.deadheadMiles > 0 &&
+                              ` · ${usd2.format(load.rate / (load.loadedMiles + load.deadheadMiles))}/mi`}
                           </span>
                         </Link>
                         {rateCons.get(load.id) && <RateConButton docId={rateCons.get(load.id)!} compact />}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-          </div>
-        </details>
-      ))}
-    </div>
-  )
-}
-
-type DriverWeek = {
-  weekStartMs: number
-  trucks: Map<
-    number,
-    { label: string; loads: { load: LoadRecord; pay: number | null; miles: number }[]; pay: number; miles: number }
-  >
-  pay: number
-}
-
-/** Driver settlements — EZLoads-style недельная ведомость: every committed load,
- * grouped by week → driver/truck, with THAT load's driver pay from calcLoad (the
- * same cpm/percent settings the truck's economics already hold). No new pay math:
- * the settlement shows exactly the driver line every profit breakdown charges. */
-export async function ByDriver({ companyId, locale }: { companyId: 'default' | 'demo'; locale: Locale }) {
-  const [loads, trucks] = await Promise.all([listLoads(companyId), listTrucks(companyId)])
-  const byTruckId = new Map<number, TruckRecord>(trucks.map((t) => [t.id, t]))
-  const fallback = trucks[0]
-  // Committed work only — a dead quote or a cancelled load never owes driver pay.
-  const committed = loads.filter((l) => l.status !== 'quoted' && l.status !== 'cancelled')
-
-  const weeks = new Map<number, DriverWeek>()
-  for (const load of committed) {
-    const truck = (load.truckId !== null ? byTruckId.get(load.truckId) : undefined) ?? fallback
-    if (!truck) continue
-    let pay: number | null = null
-    try {
-      pay = calcLoad(load, truck).driver
-    } catch {
-      pay = null // legacy rows with broken economics — listed, just without a pay figure
-    }
-    const miles = load.loadedMiles + load.deadheadMiles
-
-    const weekMs = weekAnchorOf(new Date(load.createdAt).getTime())
-    let week = weeks.get(weekMs)
-    if (!week) {
-      week = { weekStartMs: weekMs, trucks: new Map(), pay: 0 }
-      weeks.set(weekMs, week)
-    }
-    let drv = week.trucks.get(truck.id)
-    if (!drv) {
-      drv = { label: truckLabel(truck), loads: [], pay: 0, miles: 0 }
-      week.trucks.set(truck.id, drv)
-    }
-    drv.loads.push({ load, pay, miles })
-    drv.pay += pay ?? 0
-    drv.miles += miles
-    week.pay += pay ?? 0
-  }
-
-  const sortedWeeks = [...weeks.values()].sort((a, b) => b.weekStartMs - a.weekStartMs)
-  const thisWeek = weekStart()
-
-  if (sortedWeeks.length === 0) {
-    return <p className="panel p-6 text-base text-t2">{t(locale, 'finances.driver.noCommitted')}</p>
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      {/* Период расчёта назван прямо: под ним суммы к выплате. */}
-      <p className="text-xs text-t3">{t(locale, 'finances.payWeekNote')}</p>
-      {sortedWeeks.map((week) => (
-        <details key={week.weekStartMs} className="panel p-4" open={week.weekStartMs === thisWeek}>
-          {/* «К выплате» белым и крупно: зелёный читался как уже проведённая выплата. */}
-          <summary className="flex cursor-pointer list-none flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
-            <span className="text-lg font-semibold capitalize">{weekLabel(week.weekStartMs, locale)}</span>
-            <span className="flex items-baseline gap-x-2">
-              <span className="text-sm text-t3">{t(locale, 'finances.payDue')}</span>
-              <span className="nums text-xl font-semibold">{usd.format(week.pay)}</span>
-            </span>
-          </summary>
-
-          <div className="mt-3 flex flex-col gap-2.5">
-            {[...week.trucks.values()]
-              .sort((a, b) => b.pay - a.pay)
-              .map((drv) => (
-                <div key={drv.label} className="rounded-xl border border-white/8 p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-base font-semibold">
-                    <span className="text-haul-300">{drv.label}</span>
-                    <span className="nums text-sm font-normal text-t2">
-                      {t(locale, 'finances.loadsCountSuffix').replace('{n}', String(drv.loads.length))} ·{' '}
-                      {Math.round(drv.miles)} mi · {t(locale, 'finances.payDue')}{' '}
-                      <span className="font-semibold text-good-400">{usd.format(drv.pay)}</span>
-                    </span>
-                  </div>
-                  <ul className="mt-1.5 flex flex-col gap-1">
-                    {drv.loads.map(({ load, pay, miles }) => (
-                      <li key={load.id}>
-                        <Link
-                          href={`/loads/${load.id}`}
-                          className="flex items-start justify-between gap-x-3 gap-y-0.5 rounded-md px-2 py-1.5 text-sm leading-4 text-t2 transition-colors hover:bg-white/5 hover:text-t1"
-                        >
-                          <span className="min-w-0">
-                            {load.referenceId ? `#${load.referenceId} · ` : ''}
-                            {load.origin ?? '—'} → {load.destination ?? '—'}
-                          </span>
-                          <span className="nums shrink-0">
-                            {Math.round(miles)} mi · {pay !== null ? usd.format(pay) : '—'}
-                          </span>
-                        </Link>
                       </li>
                     ))}
                   </ul>
