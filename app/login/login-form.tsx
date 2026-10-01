@@ -39,6 +39,7 @@ export function LoginForm({
   showDemo,
   demoUrl,
   googleClientId,
+  ownWorkspace,
   askLocale,
   initialLocale,
 }: {
@@ -57,6 +58,9 @@ export function LoginForm({
   /** Client ID Google для этой установки. Пусто — кнопки «Войти через Google» нет,
    * вход только паролем. */
   googleClientId: string
+  /** Сайт продукта (dispatch4you.pro): новый человек через Google получает свой кабинет
+   * (app/login/google-actions.ts) — под кнопкой об этом одна строка. */
+  ownWorkspace: boolean
   /** No locale cookie yet — greet with the language choice before anything else. */
   askLocale: boolean
   initialLocale: Locale
@@ -456,6 +460,7 @@ export function LoginForm({
               onWait={() => switchMode('sent')}
               onError={setError}
             />
+            {ownWorkspace && !bootstrap && <p className="mt-2 text-center text-sm leading-snug text-t3">{t(locale, 'login.google.ownWorkspace')}</p>}
           </>
         )}
 

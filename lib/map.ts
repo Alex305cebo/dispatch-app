@@ -7,6 +7,7 @@ import type { Load, TruckSettings } from './profit.ts'
 import { t, type Locale } from './i18n.ts'
 import { normalizeApptTime, shortName } from './fmt.ts'
 import type { LoadStop, StopDirection } from './stops.ts'
+import type { CompanyId } from './company.ts'
 
 export type LoadStatus = 'quoted' | 'booked' | 'in_transit' | 'delivered' | 'paid' | 'cancelled'
 
@@ -51,7 +52,7 @@ export type LoadRecord = Load & {
   /** 'default' = the real fleet, 'demo' = the public sandbox (lib/demo.ts) — carried
    * along so anything holding a LoadRecord (e.g. buildInvoicePacket) can stamp the
    * same scope on documents it creates, without a second parameter everywhere. */
-  companyId: 'default' | 'demo'
+  companyId: CompanyId
   /** Pre-rendered "Driver Information" text (lib/ratecon.ts formatDriverInfo) — set
    * once when the load is sourced from a rate con, null for manual entries. */
   driverInfo: string | null
@@ -353,7 +354,7 @@ export function rowToLoad(r: LoadRow): LoadRecord {
     paidAt: r.paid_at ? new Date(r.paid_at).toISOString() : null,
     paymentTermsDays: r.payment_terms_days ?? 30,
     dispatcherId: r.dispatcher_id ?? null,
-    companyId: r.company_id === 'demo' ? 'demo' : 'default',
+    companyId: r.company_id || 'default',
     driverInfo: r.driver_info ?? null,
     stops: typeof r.stops === 'string' ? (JSON.parse(r.stops) as LoadStop[]) : (r.stops ?? null),
     directions: typeof r.directions === 'string' ? (JSON.parse(r.directions) as StopDirection[]) : (r.directions ?? null),

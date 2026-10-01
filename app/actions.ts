@@ -48,6 +48,7 @@ import { can } from '@/lib/capabilities-server'
 import type { CapabilityKey } from '@/lib/capabilities'
 import { t } from '@/lib/i18n'
 import { getLocale } from '@/lib/i18n-server'
+import { isOwnerCompany, seesFleetGps, type CompanyId } from '@/lib/company'
 
 /**
  * Запись — только с настоящего входа. Демо — общая витрина (lib/session.ts
@@ -72,6 +73,7 @@ async function aiGuard(): Promise<{ error: string } | null> {
   const user = await getCurrentUser()
   if (!user) return { error: t(await getLocale(), 'actions.signInRequired') }
   if (user.isDemo) return { error: t(await getLocale(), 'actions.demoAiOff') }
+  if (user.isWorkspace) return { error: t(await getLocale(), 'actions.workspaceAiOff') }
   return null
 }
 
@@ -633,6 +635,8 @@ export async function refreshFleetStatus(): Promise<{
   // «без изменений» и просто перечитывают базу — вендор видит один опрос, сколько бы
   // карт ни было открыто.
   const MIN_POLL_MS = 20_000
+  // GPS — машины владельца; свой кабинет диспетчера их не опрашивает.
+  if ((await getCurrentUser())?.isWorkspace) return { updated: 0, errors: [] }
   const lastPoll = await getSetting('fleet_poll_at')
   if (lastPoll && Date.now() - Number(lastPoll) < MIN_POLL_MS) return { updated: 0, errors: [] }
   await setSetting('fleet_poll_at', String(Date.now()))
@@ -673,6 +677,7 @@ export async function autoRefreshFleet(): Promise<boolean> {
   // режиме открытого доступа карта без входа тоже должна оставаться живой.
   const ro = await demoReadOnly()
   if (ro) return false
+  if ((await getCurrentUser())?.isWorkspace) return false
   const THROTTLE_MS = 3 * 60 * 1000
   const last = await getSetting('fleet_auto_refresh_at')
   if (last && Date.now() - new Date(last).getTime() < THROTTLE_MS) return false
@@ -701,7 +706,8 @@ async function autoAdvanceLoadStatuses(): Promise<void> {
     FROM loads l
     JOIN trucks t ON t.id = l.truck_id
     JOIN fleet_status f ON f.unit = t.number
-    WHERE l.status IN ('booked', 'in_transit') AND f.lat IS NOT NULL AND f.lng IS NOT NULL`) as {
+    WHERE l.status IN ('booked', 'in_transit') AND f.lat IS NOT NULL AND f.lng IS NOT NULL
+      AND t.company_id IN ('default', 'demo')`) as {
     id: number
     status: 'booked' | 'in_transit'
     origin: string | null
@@ -768,7 +774,7 @@ async function assertCan(key: CapabilityKey): Promise<{ error: string } | null> 
 /** Настройки на всю компанию (ключи GPS) — только администратор. */
 async function assertAdmin(): Promise<{ error: string } | null> {
   const user = await getCurrentUser()
-  if (!user || user.role !== 'admin') return { error: t(await getLocale(), 'actions.noAccess') }
+  if (!user || user.role !== 'admin' || user.isWorkspace) return { error: t(await getLocale(), 'actions.noAccess') }
   return null
 }
 
@@ -850,7 +856,7 @@ export type NewLoad = QrLoad & { source: 'manual' | 'qr'; truckId: number }
  * fixes it by hand same as always).
  */
 async function fillDeadhead(
-  companyId: 'default' | 'demo',
+  companyId: CompanyId,
   truckId: number,
   deadheadMiles: number,
   origin: string | null,
@@ -886,7 +892,7 @@ export type DeadheadCheck = {
  * GPS, и у груза, заведённого наперёд, порожний выходил «от середины текущего рейса».
  */
 async function deadheadCheck(
-  companyId: 'default' | 'demo',
+  companyId: CompanyId,
   truckId: number,
   excludeLoadId: number | null,
   pickupAddress: string | null,
@@ -945,7 +951,7 @@ async function deadheadCheck(
   if (!from) {
     const rows = (await sql`
       SELECT fs.lat, fs.lng, fs.location FROM trucks t
-      LEFT JOIN fleet_status fs ON fs.unit = t.number
+      LEFT JOIN fleet_status fs ON fs.unit = t.number AND t.company_id IN ('default', 'demo')
       WHERE t.id = ${truckId} AND t.company_id = ${companyId}`) as {
       lat: number | null
       lng: number | null
@@ -1943,7 +1949,7 @@ export async function attachDocumentToLoad(docId: number, loadId: number): Promi
  * session's deletes have no audit value for the real business, and the DEMO
  * companyId check here is what keeps "Демо" out of it entirely. */
 async function auditDelete(
-  companyId: 'default' | 'demo',
+  companyId: CompanyId,
   who: string,
   action: string,
   target: string,
@@ -1951,7 +1957,8 @@ async function auditDelete(
   fromLoc: string | null,
   toLoc: string | null,
 ): Promise<void> {
-  if (companyId === 'demo') return
+  // Журнал удалений — владельца установки; у витрины и своих кабинетов его нет.
+  if (!isOwnerCompany(companyId)) return
   const h = await headers()
   const ip = (h.get('x-forwarded-for') ?? '').split(',')[0]!.trim() || null
   const { ipCity } = await import('@/lib/geo-routing')
@@ -2705,7 +2712,7 @@ export async function truckTripHistory(
     number: string | null
   }[]
   const unit = rows[0]?.number
-  if (!unit) return { legs: [] }
+  if (!unit || !seesFleetGps(companyId)) return { legs: [] }
   const { tripHistory } = await import('@/lib/eld')
   return { legs: await tripHistory(unit, hours) }
 }
@@ -2828,7 +2835,9 @@ export async function checkTolls(input: {
   // Цена мили — у ТОГО трака, которым поедут. Разные машины в парке жгут
   // по-разному, и на тысяче миль разница в расходе решает, стоит ли крюк.
   const { getTruck, defaultTruck } = await import('@/lib/loads')
-  const truck = (truckId ? await getTruck(companyId, truckId) : null) ?? (await defaultTruck(companyId))
+  const truck = (truckId ? await getTruck(companyId, truckId) : null) ?? (await defaultTruck(companyId).catch(() => null))
+  // Новый кабинет без единого трака: считать цену мили не с чего.
+  if (!truck) return { error: t(locale, 'actions.truckNotFound') }
   const costPerMile = truck.fuelPricePerGallon / (truck.mpg || 6.5) + truck.maintenanceCostPerMile
 
   const options = rankOptions(
@@ -2940,6 +2949,7 @@ export async function readBoardScreenshot(
   const who = await getCurrentUser()
   if (!who) return { error: t(locale, 'actions.signInRequired') }
   if (who.isDemo) return { error: t(locale, 'plan.boardDemo') }
+  if (who.isWorkspace) return { error: t(locale, 'actions.workspaceAiOff') }
   // Список DAT не влезает в один экран — до четырёх скриншотов за раз.
   const files = fd
     .getAll('file')
@@ -2988,7 +2998,7 @@ export async function quoteBoardLane(label: string, miles: number, loadId?: numb
 
 /** Котировка Warp по паре «City, ST» → строка dat_lanes; запись — lib/rate-check.ts, здесь слова ошибок. */
 async function saveWarpLane(
-  companyId: 'default' | 'demo',
+  companyId: CompanyId,
   fromCity: string,
   toCity: string,
   miles: number,
@@ -3063,7 +3073,7 @@ export async function addTruckFromEld(unit: string): Promise<{ error: string } |
   const locale = await getLocale()
   const companyId = await companyScope()
   const number = unit.trim()
-  if (!number || number.startsWith('DEMO-')) return { error: t(locale, 'actions.truckNotFound') }
+  if (!number || number.startsWith('DEMO-') || !isOwnerCompany(companyId)) return { error: t(locale, 'actions.truckNotFound') }
   try {
     const dup = await sql`SELECT id FROM trucks WHERE company_id = ${companyId} AND number = ${number}`
     if (dup[0]) return { id: (dup[0] as { id: number }).id }

@@ -18,6 +18,7 @@ import { expiries, truckMetas } from '@/lib/maintenance'
 import { sql } from '@/lib/db'
 import { usd, shortName, weekBounds, loadWeekAnchorMs, usDate } from '@/lib/fmt'
 import { companyScope } from '@/lib/session'
+import { seesFleetGps } from '@/lib/company'
 import { getLocale } from '@/lib/i18n-server'
 import { placeCity } from '@/lib/place'
 import { t, type Locale } from '@/lib/i18n'
@@ -62,7 +63,7 @@ export default async function Page() {
     listTrucks(companyId),
     getCompany(),
     truckMetas(companyId),
-    sql`SELECT unit, drive_status, location, odometer, fuel, driver_name FROM fleet_status`,
+    seesFleetGps(companyId) ? sql`SELECT unit, drive_status, location, odometer, fuel, driver_name FROM fleet_status` : Promise.resolve([]),
     // Свой номер диспетчера — в блок «Driver Info» для брокера.
     user ? getSetting(dispatcherPhoneKey(user.id)) : Promise.resolve(null),
     // Кто закреплён за каждым траком. Раньше в блоке для брокера у ВСЕХ водителей
@@ -311,11 +312,14 @@ export default async function Page() {
           // Под карточками: подключение ELD — раз в жизни трака.
           after={
             <>
-              <EldLinks
-                count={shareCount + (samsaraOn ? 1 : 0)}
-                eldOn={!!process.env.ELD_USERNAME}
-                canEdit={user?.role === 'admin' && !user.isDemo}
-              />
+              {/* ELD — машины владельца; в своём кабинете диспетчера блока нет. */}
+              {!user?.isWorkspace && (
+                <EldLinks
+                  count={shareCount + (samsaraOn ? 1 : 0)}
+                  eldOn={!!process.env.ELD_USERNAME}
+                  canEdit={user?.role === 'admin' && !user.isDemo}
+                />
+              )}
             </>
           }
         />

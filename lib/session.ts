@@ -6,6 +6,7 @@ import { sql } from './db.ts'
 import { verifyPassword } from './auth.ts'
 import { t, type Locale } from './i18n.ts'
 import { DELETE_WORD } from './delete-word.ts'
+import { DEMO_COMPANY_ID, isOwnerCompany, isWorkspace, OWNER_COMPANY, type CompanyId } from './company.ts'
 
 export type CurrentUser = {
   id: number
@@ -13,8 +14,10 @@ export type CurrentUser = {
   /** Под каким входом сидим — показывается в меню аккаунта. */
   email: string
   role: 'admin' | 'dispatcher'
-  companyId: 'default' | 'demo'
+  companyId: CompanyId
   isDemo: boolean
+  /** Свой кабинет диспетчера (lib/company.ts): не компания владельца и не витрина. */
+  isWorkspace: boolean
 }
 
 /**
@@ -64,7 +67,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const id = h.get('x-user-id')
   if (!id) return null
   const role = h.get('x-user-role')
-  const companyId = h.get('x-company-id') === 'demo' ? 'demo' : 'default'
+  const companyId = h.get('x-company-id') || OWNER_COMPANY
   // middleware encodeURIComponent's the name so a non-Latin1 name (Cyrillic — the
   // norm here) doesn't crash Headers.set.
   const rawName = h.get('x-user-name')
@@ -74,7 +77,8 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     email: decodeURIComponent(h.get('x-user-email') ?? ''),
     role: role === 'admin' ? 'admin' : 'dispatcher',
     companyId,
-    isDemo: companyId === 'demo',
+    isDemo: companyId === DEMO_COMPANY_ID,
+    isWorkspace: isWorkspace(companyId),
   }
 }
 
@@ -84,8 +88,8 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
  * with no session and must keep behaving exactly as before: only an actual signed-in
  * demo session ever sees 'demo' data.
  */
-export async function companyScope(): Promise<'default' | 'demo'> {
-  return (await getCurrentUser())?.companyId ?? 'default'
+export async function companyScope(): Promise<CompanyId> {
+  return (await getCurrentUser())?.companyId ?? OWNER_COMPANY
 }
 
 /**
@@ -111,6 +115,8 @@ export async function demoReadOnly(): Promise<{ error: string } | null> {
  * own gate has already confirmed role === 'admin'. Never trust this alone. */
 export async function requireAdmin(): Promise<CurrentUser> {
   const user = await getCurrentUser()
-  if (!user || user.role !== 'admin') throw new Error('Admin access required')
+  // Админка — установки целиком (люди, ключи, журнал входов), поэтому только у
+  // компании владельца. Свой кабинет её не получает, даже если роль когда-то станет admin.
+  if (!user || user.role !== 'admin' || !isOwnerCompany(user.companyId)) throw new Error('Admin access required')
   return user
 }

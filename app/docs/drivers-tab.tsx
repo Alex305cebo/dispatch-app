@@ -34,6 +34,7 @@ import {
   rpmOf as rpm,
   rpmTone,
 } from './money-ui'
+import type { CompanyId } from '@/lib/company'
 
 type LoadLineData = { load: LoadRecord; miles: number }
 type DriverRow = {
@@ -53,7 +54,7 @@ export async function ByDriver({
   locale,
   week: weekParam,
 }: {
-  companyId: 'default' | 'demo'
+  companyId: CompanyId
   locale: Locale
   /** ?week=yyyy-mm-dd — пятница выбранной недели; нет — текущая. */
   week?: string

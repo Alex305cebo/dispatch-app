@@ -45,7 +45,7 @@ export type TilePerson = { id: number; name: string }
 export const tilePeople = cache(async (): Promise<TilePerson[]> => {
   const rows = (await sql`
     SELECT id, name FROM users
-    WHERE role = 'dispatcher' AND is_demo = FALSE AND disabled_at IS NULL AND pending_since IS NULL
+    WHERE role = 'dispatcher' AND is_demo = FALSE AND company_id = 'default' AND disabled_at IS NULL AND pending_since IS NULL
     ORDER BY name`) as { id: number; name: string }[]
   return rows.map((r) => ({ id: Number(r.id), name: r.name }))
 })

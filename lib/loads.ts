@@ -9,12 +9,12 @@ import {
   type TruckRow,
 } from './map.ts'
 import type { DocMeta, DocLibRow } from './docs.ts'
+import type { CompanyId } from './company.ts'
 
 // Every function below takes companyId ('default' = the real fleet, 'demo' = the
 // public sandbox — lib/demo.ts) and filters by it directly, rather than trusting
 // callers to only ever pass already-scoped ids. That's what keeps the public demo
 // account from ever seeing or touching real company data, and vice versa.
-type CompanyId = 'default' | 'demo'
 
 /** Document metadata (the bytea itself only leaves the DB via /api/docs/[id]). */
 export async function listDocs(

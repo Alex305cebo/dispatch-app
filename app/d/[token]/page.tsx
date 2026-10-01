@@ -31,7 +31,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
   if (!truck || truck === 'limited') notFound()
   const jar = await cookies()
   const locale = resolveLocale(jar.get('driver_locale')?.value ?? 'en')
-  const [loads, company, meta] = await Promise.all([listLoads(truck.companyId, { truckId: truck.id }), getCompany(), getTruckMeta(truck.id)])
+  const [loads, company, meta] = await Promise.all([listLoads(truck.companyId, { truckId: truck.id }), getCompany(truck.companyId), getTruckMeta(truck.id)])
   // «Как заехать» с прошлого раза и заметка о складе — водителю, если у этого груза
   // своих указаний нет (lib/facilities.ts). Считается по всем грузам компании.
   const inheritDirections = async <T extends { address: string | null; name: string | null; city: string | null; directions?: string | null }>(stops: T[]): Promise<T[]> => {
@@ -39,7 +39,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
     const [all, events] = await Promise.all([listLoads(truck.companyId), allStopEvents(truck.companyId)])
     const index = facilityIndex(all, events)
     const keys = stops.map((s) => facilityKey(s)).filter((k): k is string => !!k)
-    const notes = await getSettings(keys.map(facilityNoteKey))
+    const notes = await getSettings(keys.map(facilityNoteKey), truck.companyId)
     return stops.map((s) => {
       if (s.directions) return s
       const key = facilityKey(s)

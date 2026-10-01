@@ -29,6 +29,7 @@ import { agoText, driveTime, etaAt, usDate } from '@/lib/fmt'
 import { tripEta } from '@/lib/trip-eta'
 import { t as tr, type Locale } from '@/lib/i18n'
 import { companyScope } from '@/lib/session'
+import { seesFleetGps } from '@/lib/company'
 
 type FS = {
   unit: string
@@ -69,7 +70,7 @@ export async function FleetBoard({
   const [trucks, loads, rowsRaw, phoneRowsRaw] = await Promise.all([
     listTrucks(companyId),
     listLoads(companyId),
-    sql`SELECT * FROM fleet_status`,
+    seesFleetGps(companyId) ? sql`SELECT * FROM fleet_status` : Promise.resolve([]),
     // Прицеп берём здесь же: запрос к truck_meta всё равно уже идёт, а номер
     // прицепа нужен подписи трака (truckLabel) — отдельного захода он не стоит.
     sql`SELECT truck_id, driver_phone, trailer_number FROM truck_meta`,

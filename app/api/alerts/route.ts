@@ -33,7 +33,7 @@ export async function GET() {
     fleetExpiryAlerts(companyId, locale),
     sql`SELECT t.id, t.number, fs.drive_status, fs.updated_at
         FROM trucks t JOIN fleet_status fs ON fs.unit = t.number
-        WHERE t.company_id = ${companyId} AND t.unavailable IS NULL`.then(
+        WHERE t.company_id = ${companyId} AND t.company_id IN ('default', 'demo') AND t.unavailable IS NULL`.then(
       (r) => r as unknown as { id: number; number: string; drive_status: string | null; updated_at: string }[],
     ),
     can(user, 'finances').then((ok) => (ok ? listReceivables(companyId) : [])),

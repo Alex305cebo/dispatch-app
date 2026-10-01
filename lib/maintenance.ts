@@ -16,10 +16,10 @@ import {
   type TruckTodo,
 } from './maintenance-core'
 import type { Locale } from './i18n.ts'
+import { seesFleetGps, type CompanyId } from './company.ts'
 
 export * from './maintenance-core'
 
-type CompanyId = 'default' | 'demo'
 
 // neon returns DATE columns as JS Date objects — String(date) is a long words form
 // ("Fri Aug 07 2026…") whose slice(0,10) is garbage. Go through ISO to get YYYY-MM-DD.
@@ -200,7 +200,13 @@ export async function listTodos(truckId: number): Promise<TruckTodo[]> {
 // TEXT unit id from the ELD), not truck_id, and demo trucks are seeded with numbers
 // that can never collide with a real unit (lib/demo.ts) — so a demo truck simply never
 // finds a match here, same as any truck with no ELD connected.
+//
+// Совпадение номеров между кабинетами — другое дело: трак «101» в своём кабинете
+// диспетчера не должен находить машину владельца с тем же номером. Поэтому кабинет
+// получает пустую карту позиций (lib/company.ts, seesFleetGps).
 export async function fleetStatusByUnit(): Promise<Map<string, FleetStatus>> {
+  const { companyScope } = await import('./session.ts')
+  if (!seesFleetGps(await companyScope())) return new Map()
   const rows = await sql`SELECT * FROM fleet_status`
   return new Map(
     rows.map((r: any) => [

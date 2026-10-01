@@ -18,6 +18,7 @@ import { usdaReeferCached } from '@/lib/usda-truck'
 import { usDate } from '@/lib/fmt'
 import { todayEt } from '@/lib/payments'
 import type { PlanSnaps, PlanTruck } from '@/components/route-planner'
+import { isWorkspace, seesFleetGps, type CompanyId } from '@/lib/company'
 
 type FS = { unit: string; location: string | null; lat: number | null; lng: number | null }
 type Meta = {
@@ -29,7 +30,6 @@ type Meta = {
   avoid_states: string | null
 }
 
-type CompanyId = 'default' | 'demo'
 
 export type PlanData = { trucks: PlanTruck[]; snaps: PlanSnaps }
 
@@ -45,7 +45,7 @@ export async function loadPlanData(
   const [trucks, loads, rowsRaw, metaRaw, datSnaps] = await Promise.all([
     pre.trucks ?? listTrucks(companyId),
     pre.loads ?? listLoads(companyId),
-    sql`SELECT unit, location, lat, lng FROM fleet_status`,
+    seesFleetGps(companyId) ? sql`SELECT unit, location, lat, lng FROM fleet_status` : Promise.resolve([]),
     sql`SELECT truck_id, trailer_number, home_state, home_from, home_to, avoid_states FROM truck_meta`,
     // Только кэш: раздел не ждёт живого ответа DAT.
     Promise.all((['VAN', 'REEFER', 'FLATBED'] as const).map(async (eq) => [eq, await datCached(eq)] as const)),
@@ -53,10 +53,13 @@ export async function loadPlanData(
 
   // Ставки по самому маршруту (lib/rpm-bench-core.ts): DAT RateView с доски, для
   // рефрижератора — недельный отчёт USDA. Наши Rate Con'ы сюда не идут: это не рынок.
+  // Свой кабинет диспетчера смотрит на общий рынок установки: цифры рынка не секрет,
+  // а своих котировок у нового кабинета нет.
+  const market = isWorkspace(companyId) ? 'default' : companyId
   const [datTables, warpTables, cut, usda] = await Promise.all([
-    laneRpmTables(companyId, 'dat').catch((): Record<string, RpmTable> => ({})),
-    laneRpmTables(companyId, 'warp').catch((): Record<string, RpmTable> => ({})),
-    brokerCutFromLoads(companyId).catch(() => null),
+    laneRpmTables(market, 'dat').catch((): Record<string, RpmTable> => ({})),
+    laneRpmTables(market, 'warp').catch((): Record<string, RpmTable> => ({})),
+    brokerCutFromLoads(market).catch(() => null),
     usdaReeferCached(),
   ])
 

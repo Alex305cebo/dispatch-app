@@ -1,5 +1,6 @@
 import { sql } from '@/lib/db'
 import type { StopEv } from '@/lib/stops'
+import type { CompanyId } from '@/lib/company'
 
 export type LoadEventKind = 'arrived_pickup' | 'loaded' | 'arrived_delivery' | 'delivered' | 'note' | 'photo'
 
@@ -21,7 +22,7 @@ export type LoadEvent = {
  * это и есть доказательство детеншена, которое раньше никто не записывал.
  */
 export async function addLoadEvent(
-  companyId: 'default' | 'demo',
+  companyId: CompanyId,
   loadId: number | null,
   truckId: number | null,
   kind: LoadEventKind,
@@ -31,7 +32,7 @@ export async function addLoadEvent(
   await sql`INSERT INTO load_events (company_id, load_id, truck_id, kind, note, stop_seq) VALUES (${companyId}, ${loadId}, ${truckId}, ${kind}, ${note}, ${stopSeq})`
 }
 
-export async function listLoadEvents(companyId: 'default' | 'demo', loadId: number): Promise<LoadEvent[]> {
+export async function listLoadEvents(companyId: CompanyId, loadId: number): Promise<LoadEvent[]> {
   const rows = (await sql`
     SELECT id, load_id, truck_id, kind, note, at, stop_seq FROM load_events
     WHERE company_id = ${companyId} AND load_id = ${loadId}
@@ -57,7 +58,7 @@ export async function listLoadEvents(companyId: 'default' | 'demo', loadId: numb
 
 /** Отметки «приехал / загрузился / выгрузился» по ВСЕМ грузам компании — для справочника
  * складов (lib/facilities.ts): стоянки у склада считаются по ним. Заметки и фото не нужны. */
-export async function allStopEvents(companyId: 'default' | 'demo'): Promise<Map<number, StopEv[]>> {
+export async function allStopEvents(companyId: CompanyId): Promise<Map<number, StopEv[]>> {
   const rows = (await sql`
     SELECT load_id, kind, at, stop_seq FROM load_events
     WHERE company_id = ${companyId} AND load_id IS NOT NULL
@@ -74,7 +75,7 @@ export async function allStopEvents(companyId: 'default' | 'demo'): Promise<Map<
 
 /** Последние сообщения водителей за сутки — для уведомлений диспетчеру. */
 export async function recentDriverNotes(
-  companyId: 'default' | 'demo',
+  companyId: CompanyId,
 ): Promise<(LoadEvent & { truckNumber: string | null })[]> {
   const rows = (await sql`
     SELECT e.id, e.load_id, e.truck_id, e.kind, e.note, e.at, t.number
@@ -102,7 +103,7 @@ export async function recentDriverNotes(
 }
 
 /** Убрать ошибочную отметку. Возвращает груз, чтобы вызывающий обновил страницу. */
-export async function deleteLoadEvent(companyId: 'default' | 'demo', id: number): Promise<number | null> {
+export async function deleteLoadEvent(companyId: CompanyId, id: number): Promise<number | null> {
   const rows =
     (await sql`DELETE FROM load_events WHERE id = ${id} AND company_id = ${companyId} RETURNING load_id`) as {
       load_id: number | null
@@ -113,7 +114,7 @@ export async function deleteLoadEvent(companyId: 'default' | 'demo', id: number)
 /** Поправить время отметки: от него считается детеншен, и нажатая на час раньше
  * кнопка «Приехал» завышает сумму в письме брокеру. */
 export async function updateLoadEventAt(
-  companyId: 'default' | 'demo',
+  companyId: CompanyId,
   id: number,
   atIso: string,
 ): Promise<number | null> {

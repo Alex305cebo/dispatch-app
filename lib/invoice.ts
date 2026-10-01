@@ -16,6 +16,7 @@ import type { LoadRecord } from './map.ts'
 import { t, type Locale } from './i18n.ts'
 import { listCharges } from './charges.ts'
 import { chargeLabel, chargesTotal, type LoadCharge } from './charges-core.ts'
+import type { CompanyId } from './company.ts'
 
 export type Company = {
   name: string
@@ -29,19 +30,17 @@ export type Company = {
 
 /** One query, not seven — and cache()d, because the root layout reads the company
  * name on every page render. Was 7 separate HTTPS round trips to Neon per page. */
-export const getCompany = cache(async function getCompany(): Promise<Company> {
+export const getCompany = cache(async function getCompany(company?: CompanyId): Promise<Company> {
   // Демо — общая витрина: реквизиты настоящей компании (название, владелец, MC, почта)
   // гостю не показываются. Вне запроса (фоновые задачи) сессии нет — это не демо.
-  if ((await companyScope().catch(() => 'default')) === 'demo') return DEMO_COMPANY
-  const s = await getSettings([
-    'co_name',
-    'co_owner',
-    'co_mcdot',
-    'co_address',
-    'co_email',
-    'co_phone',
-    'co_remit_to',
-  ])
+  // company — явно там, где сессии нет, а компания известна (страница водителя): иначе
+  // водитель чужого кабинета увидел бы реквизиты владельца.
+  company ??= await companyScope().catch(() => 'default')
+  if (company === 'demo') return DEMO_COMPANY
+  const s = await getSettings(
+    ['co_name', 'co_owner', 'co_mcdot', 'co_address', 'co_email', 'co_phone', 'co_remit_to'],
+    company,
+  )
   return {
     name: s.get('co_name') ?? '',
     owner: s.get('co_owner') ?? '',
@@ -208,7 +207,7 @@ export async function buildInvoicePacket(
  * on someone remembering a manual button. Silent no-op if company info or the rate
  * con isn't ready yet — buildInvoicePacket's own gates just don't fire, and the load
  * stays visible in the AR page's "не выставлен" bucket until they are. */
-export async function autoInvoiceIfReady(companyId: 'default' | 'demo', loadId: number): Promise<void> {
+export async function autoInvoiceIfReady(companyId: CompanyId, loadId: number): Promise<void> {
   const load = await getLoad(companyId, loadId)
   if (!load || load.invoicedAt) return
   // Мультистоп: POD промежуточной выгрузки — не конец рейса. Пока не закрыта КАЖДАЯ

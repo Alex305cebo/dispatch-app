@@ -10,13 +10,14 @@ import { t, type Locale } from '@/lib/i18n'
 import type { LoadRecord } from '@/lib/map'
 import { FacilityNote } from '@/components/facility-note'
 import { Info } from '@/components/info'
+import type { CompanyId } from '@/lib/company'
 
 /**
  * «Мы здесь уже были»: под каждой остановкой груза — сколько раз возили на этот склад,
  * сколько там стояли, был ли детеншн, «как заехать» с прошлого раза и заметка. Считается
  * по всем грузам компании (lib/facilities.ts), поэтому живёт в своей Suspense-границе.
  */
-export async function FacilityHints({ companyId, load, locale }: { companyId: 'default' | 'demo'; load: LoadRecord; locale: Locale }) {
+export async function FacilityHints({ companyId, load, locale }: { companyId: CompanyId; load: LoadRecord; locale: Locale }) {
   const [loads, events, terms] = await Promise.all([listLoads(companyId), allStopEvents(companyId), detentionTerms()])
   const hints = facilitiesForLoad(facilityIndex(loads, events, terms.free), load)
   if (!hints.length) return null

@@ -82,7 +82,7 @@ export default async function Page() {
   // by typing the URL. Hiding the button would not have changed that; the gate has to
   // live here. Same shape as /admin, deliberately — one pattern for one rule.
   const user = await getCurrentUser()
-  if (!user || user.role !== 'admin') redirect('/')
+  if (!user || user.role !== 'admin' || user.isWorkspace) redirect('/')
 
   const locale = await getLocale()
   const [loginsRaw, auditsRaw, gemini] = await Promise.all([

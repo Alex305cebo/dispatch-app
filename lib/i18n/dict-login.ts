@@ -103,6 +103,14 @@ export const loginDict = {
     kk: 'Құпиялылық шарттарымен келісемін: компания деректері — жүктер, құжаттар, адамдар — тек оның қызметкерлеріне қолжетімді және үшінші тұлғаларға берілмейді.',
   },
   'login.google.or': { ru: 'или', en: 'or', es: 'o', uk: 'або', ro: 'sau', kk: 'немесе' },
+  'login.google.ownWorkspace': {
+    ru: 'Впервые здесь? Войдите через Google — получите свою бесплатную TMS. Ваши траки и грузы видите только вы.',
+    en: 'New here? Sign in with Google to get your own free TMS. Only you see your trucks and loads.',
+    es: '¿Primera vez? Entra con Google y obtén tu propio TMS gratis. Solo tú ves tus camiones y cargas.',
+    uk: 'Вперше тут? Увійдіть через Google — отримаєте свою безкоштовну TMS. Ваші траки й вантажі бачите лише ви.',
+    ro: 'Prima dată aici? Intră cu Google și primești propriul TMS gratuit. Doar tu îți vezi camioanele și încărcăturile.',
+    kk: 'Мұнда алғаш рет пе? Google арқылы кіріп, өз тегін TMS-іңізді алыңыз. Көліктеріңіз бен жүктеріңізді тек сіз көресіз.',
+  },
   'login.google.loading': { ru: 'Загружаю кнопку Google…', en: 'Loading the Google button…', es: 'Cargando el botón de Google…', uk: 'Завантажую кнопку Google…', ro: 'Se încarcă butonul Google…', kk: 'Google түймесі жүктелуде…' },
   'login.sent.title': { ru: 'Заявка отправлена', en: 'Request sent', es: 'Solicitud enviada', uk: 'Заявку надіслано', ro: 'Cerere trimisă', kk: 'Өтінім жіберілді' },
   'login.sent.text': {

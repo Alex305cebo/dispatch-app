@@ -13,6 +13,17 @@ export const adminDict = {
   },
 
   'admin.usersHeading': { ru: 'Пользователи и права', en: 'Users and permissions', es: 'Usuarios y permisos', uk: 'Користувачі і права', ro: 'Utilizatori și permisiuni', kk: 'Пайдаланушылар және құқықтар' },
+  'admin.workspaces.heading': { ru: 'Кабинеты', en: 'Workspaces', es: 'Espacios', uk: 'Кабінети', ro: 'Spații', kk: 'Кабинеттер' },
+  'admin.workspaces.info': {
+    ru: 'Свои TMS диспетчеров с dispatch4you.pro: вошёл через Google — получил пустой кабинет. Ваших данных они не видят, вы не видите их грузы. «Отключить» закрывает вход.',
+    en: 'Dispatchers\' own TMS from dispatch4you.pro: sign in with Google and get an empty workspace. They don\'t see your data, and you don\'t see their loads. "Disable" blocks the sign-in.',
+    es: 'TMS propios de despachadores desde dispatch4you.pro: entran con Google y reciben un espacio vacío. No ven tus datos y tú no ves sus cargas. «Desactivar» bloquea el acceso.',
+    uk: 'Власні TMS диспетчерів з dispatch4you.pro: увійшов через Google — отримав порожній кабінет. Ваших даних вони не бачать, ви не бачите їхніх вантажів. «Вимкнути» закриває вхід.',
+    ro: 'TMS-uri proprii ale dispecerilor de pe dispatch4you.pro: intră cu Google și primesc un spațiu gol. Nu îți văd datele, iar tu nu le vezi încărcăturile. „Dezactivează” blochează accesul.',
+    kk: 'dispatch4you.pro диспетчерлерінің өз TMS-і: Google арқылы кірді — бос кабинет алды. Олар сіздің деректеріңізді көрмейді, сіз олардың жүктерін көрмейсіз. «Өшіру» кіруді жабады.',
+  },
+  'admin.workspaces.empty': { ru: 'Пока никто не завёл свой кабинет.', en: 'No one has created a workspace yet.', es: 'Nadie ha creado un espacio todavía.', uk: 'Поки ніхто не створив свій кабінет.', ro: 'Nimeni nu și-a creat încă un spațiu.', kk: 'Әзірге ешкім өз кабинетін ашпады.' },
+  'admin.workspaces.counts': { ru: 'траков {trucks}, грузов {loads}', en: '{trucks} trucks, {loads} loads', es: '{trucks} camiones, {loads} cargas', uk: 'траків {trucks}, вантажів {loads}', ro: '{trucks} camioane, {loads} încărcături', kk: 'көлік {trucks}, жүк {loads}' },
   'admin.usersInfo': {
     ru: 'Кто может войти в приложение. У каждого диспетчера под «Права диспетчера» — переключатели доступа к функциям (отчёты, Telegram, финансы и т.д.). Отключить пользователя — сразу гасит все его текущие входы.',
     en: 'Who can sign in to the app. Each dispatcher has "Dispatcher permissions" toggles for feature access (reports, Telegram, finances, etc). Disabling a user immediately kills all of their active sessions.',
