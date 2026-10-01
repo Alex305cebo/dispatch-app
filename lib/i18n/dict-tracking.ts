@@ -175,6 +175,7 @@ export const trackingDict = {
 
   // components/fleet-map.tsx
   'tracking.openArrow': { ru: 'Открыть', en: 'Open', es: 'Abrir', uk: 'Відкрити', ro: 'Deschide', kk: 'Ашу' },
+  'tracking.opening': { ru: 'Открываю…', en: 'Opening…', es: 'Abriendo…', uk: 'Відкриваю…', ro: 'Se deschide…', kk: 'Ашылуда…' },
   'tracking.noCoordsPanel': {
     ru: 'Координат пока нет — подключи отслеживание траков в разделе «Трекинг».',
     en: 'No coordinates yet — connect truck tracking in the Tracking section.',
