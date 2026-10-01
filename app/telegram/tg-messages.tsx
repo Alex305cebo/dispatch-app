@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from 'react'
 import { TgImage } from './tg-image'
-import { TgAttachButton } from './tg-attach-button'
+import { TgAttachButton, type TgAttachCtx } from './tg-attach-button'
 import { tgPollMessages } from './actions'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale } from '@/lib/i18n'
@@ -34,7 +34,15 @@ function when(iso: string | null, locale: Locale): string {
 
 const POLL_MS = 15_000
 
-export function TgMessages({ chatId, phone, initial }: { chatId: string; phone: string | null; initial: TgMsg[] }) {
+export function TgMessages({
+  chatId,
+  initial,
+  attach,
+}: {
+  chatId: string
+  initial: TgMsg[]
+  attach: TgAttachCtx
+}) {
   const locale = useLocale()
   const [list, setList] = useState(initial)
 
@@ -72,7 +80,7 @@ export function TgMessages({ chatId, phone, initial }: { chatId: string; phone: 
           {m.media === 'image' && (
             <>
               <TgImage src={`/api/tg-media/${chatId}/${m.id}`} />
-              <TgAttachButton chatId={chatId} msgId={m.id} phone={phone} />
+              <TgAttachButton chatId={chatId} msgId={m.id} {...attach} />
             </>
           )}
           {m.media === 'pdf' && (
@@ -104,7 +112,7 @@ export function TgMessages({ chatId, phone, initial }: { chatId: string; phone: 
                   </span>
                 </span>
               </a>
-              <TgAttachButton chatId={chatId} msgId={m.id} phone={phone} />
+              <TgAttachButton chatId={chatId} msgId={m.id} {...attach} />
             </>
           )}
           {m.media === 'other' && !m.text && (
