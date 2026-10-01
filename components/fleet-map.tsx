@@ -437,8 +437,10 @@ function popupHtml(m: MapMarker, openLabel: string, driverTimeLabel: string): st
   // and the visible click target.
   // «Открыть →» — как кнопка, с фоном и по центру: на телефоне это единственная
   // подсказка, что плашка нажимается.
+  // Вид, наведение, нажатие и «Открываю…» — классы .fm-open в globals.css: инлайн-стиль
+  // не умеет :hover/:active, и нажатие на кнопку раньше ничем не отвечало.
   const open = m.href
-    ? `<div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:6px;padding:4px 8px;border-radius:7px;background:rgba(155,142,255,.16);color:${DEST};font-weight:700;font-size:12px">${esc(openLabel)} <span style="font-size:13px">→</span></div>`
+    ? `<div class="fm-open"><span class="fm-open-label">${esc(openLabel)}</span><span class="fm-open-arrow">→</span></div>`
     : ''
   return `<div style="font:500 11px/1.4 system-ui,sans-serif;min-width:120px">
     <div style="font-weight:700;font-size:12.5px;letter-spacing:.01em">${esc(m.label)}</div>
@@ -1077,7 +1079,26 @@ export function FleetMap({
         })
         if (m.href) {
           const href = m.href
-          const go = () => routerRef.current.push(href)
+          // Карточка трака рисуется на сервере — до её появления проходит секунда-две, и
+          // без отклика казалось, что нажатие не сработало. Сразу после нажатия кнопка
+          // плашки крутит значок «Открываю…», а плашка не закрывается, пока идёт переход.
+          // Через 10 с без перехода (сеть упала) кнопка возвращается в обычный вид.
+          let navigating = false
+          const go = () => {
+            if (navigating) return
+            navigating = true
+            const btn = marker.getTooltip()?.getElement()?.querySelector<HTMLElement>('.fm-open')
+            const label = btn?.querySelector<HTMLElement>('.fm-open-label')
+            const was = label?.textContent ?? ''
+            btn?.classList.add('is-loading')
+            if (label) label.textContent = t(locale, 'tracking.opening')
+            setTimeout(() => {
+              navigating = false
+              btn?.classList.remove('is-loading')
+              if (label) label.textContent = was
+            }, 10_000)
+            routerRef.current.push(href)
+          }
           // Clicking the marker itself only focuses the map and opens the plaque —
           // it must NOT jump straight to the card. Only the plaque's own "Открыть →"
           // link (wired below, on tooltipopen) navigates. Also opens the tooltip
@@ -1112,7 +1133,7 @@ export function FleetMap({
           // только тапом по карте мимо пина (см. map.on('click') ниже).
           const coarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
           const scheduleClose = () => {
-            if (coarse) return
+            if (coarse || navigating) return
             closeT = setTimeout(() => marker.closeTooltip(), 160)
           }
           const keepOpen = () => {

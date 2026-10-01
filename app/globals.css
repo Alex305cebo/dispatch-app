@@ -543,6 +543,62 @@
     white-space: normal;
   }
 }
+/* «Открыть →» на плашке точки карты (popupHtml в components/fleet-map.tsx): кнопка
+   отвечает на наведение и нажатие, а пока открывается карточка — крутит значок. */
+.fleet-map .fm-open {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: rgba(155, 142, 255, 0.16);
+  color: #9b8eff;
+  font-weight: 700;
+  font-size: 12px;
+  transition:
+    background-color 0.15s,
+    transform 0.1s;
+}
+.fleet-map .leaflet-tooltip:hover .fm-open {
+  background: rgba(155, 142, 255, 0.3);
+}
+.fleet-map .leaflet-tooltip:active .fm-open {
+  transform: scale(0.96);
+  background: rgba(155, 142, 255, 0.4);
+}
+.fleet-map .fm-open-arrow {
+  font-size: 13px;
+  transition: transform 0.15s;
+}
+.fleet-map .leaflet-tooltip:hover .fm-open-arrow {
+  transform: translateX(3px);
+}
+.fleet-map .fm-open.is-loading {
+  background: rgba(155, 142, 255, 0.3);
+  cursor: progress;
+}
+.fleet-map .fm-open.is-loading .fm-open-arrow {
+  width: 12px;
+  height: 12px;
+  font-size: 0;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  transform: none;
+  animation: fm-open-spin 0.7s linear infinite;
+}
+@keyframes fm-open-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fleet-map .fm-open.is-loading .fm-open-arrow {
+    animation-duration: 2s;
+  }
+}
 .fleet-map .leaflet-tooltip-top:before {
   border-top-color: var(--color-ink-900);
 }
