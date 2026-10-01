@@ -31,6 +31,9 @@ export const capabilitiesFor = cache(async function capabilitiesFor(
 /** The gate: admins always pass; a dispatcher passes per their effective capability. */
 export async function can(user: CurrentUser | null, key: CapabilityKey): Promise<boolean> {
   if (!user) return false
+  // Telegram в TMS — личный аккаунт сотрудника компании владельца, привязанный к его
+  // тракам. Свой кабинет диспетчера (lib/company.ts) его не получает, кто бы что ни включил.
+  if (key === 'telegram' && user.isWorkspace) return false
   if (user.role === 'admin') return true
   return (await capabilitiesFor(user.id))[key] ?? false
 }

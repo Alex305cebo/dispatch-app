@@ -27,6 +27,7 @@ import { companyScope, getCurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
 import { getLocale } from '@/lib/i18n-server'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
+import type { CompanyId } from '@/lib/company'
 
 export const dynamic = 'force-dynamic'
 
@@ -143,7 +144,7 @@ async function Loads({
   stage,
   money,
 }: {
-  companyId: 'default' | 'demo'
+  companyId: CompanyId
   locale: Locale
   query: string
   stage: string
@@ -158,7 +159,7 @@ async function Loads({
 }
 
 /** Бумаги по тракам и водителям: страховка, регистрация, чеки, фото и бумаги их грузов. */
-async function Fleet({ companyId, locale }: { companyId: 'default' | 'demo'; locale: Locale }) {
+async function Fleet({ companyId, locale }: { companyId: CompanyId; locale: Locale }) {
   const [rows, trucks] = await Promise.all([listDocsForLibrary(companyId), listTrucks(companyId)])
   const groups = trucks.map((tr) => ({ id: tr.id, label: tr.number ?? tr.name, driver: tr.driverName ?? '' }))
   // Все бумаги водителя под его траком — и свои (страховка, регистрация), и бумаги
@@ -212,7 +213,7 @@ async function Fleet({ companyId, locale }: { companyId: 'default' | 'demo'; loc
   )
 }
 
-async function Trash({ companyId }: { companyId: 'default' | 'demo' }) {
+async function Trash({ companyId }: { companyId: CompanyId }) {
   const trash = await listTrashedDocs(companyId)
   return (
     <div className="panel p-4">
@@ -221,7 +222,7 @@ async function Trash({ companyId }: { companyId: 'default' | 'demo' }) {
   )
 }
 
-async function Money({ tab, companyId, locale, week }: { tab: MoneyTab; companyId: 'default' | 'demo'; locale: Locale; week?: string }) {
+async function Money({ tab, companyId, locale, week }: { tab: MoneyTab; companyId: CompanyId; locale: Locale; week?: string }) {
   const rateCons = await rateConByLoad(companyId)
   switch (tab) {
     case 'unpaid':

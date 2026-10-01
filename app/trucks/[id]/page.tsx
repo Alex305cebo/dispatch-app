@@ -17,6 +17,7 @@ import { activeLoadsByTruck, currentLoadsByTruck, nextLoadsByTruck, prevLoadFor,
 import { calcLoad } from '@/lib/profit'
 import { fleetStatusByUnit, getTruckMeta, listMaintenance, listTodos, oilStatus } from '@/lib/maintenance'
 import { tripHistory } from '@/lib/eld'
+import { seesFleetGps } from '@/lib/company'
 import { loadMapData, statusTone } from '@/lib/load-map'
 import { usd, usd2, weekBounds, loadWeekAnchorMs, usDate } from '@/lib/fmt'
 import { zoneFor } from '@/lib/tz'
@@ -93,7 +94,7 @@ export default async function Page({
     // Кого вообще можно поставить: живые сотрудники, без демо-аккаунта и без
     // отключённых — предлагать закрепить машину за уволенным незачем.
     sql`SELECT id, name, role FROM users
-        WHERE is_demo = FALSE AND disabled_at IS NULL AND pending_since IS NULL
+        WHERE is_demo = FALSE AND company_id = ${companyId} AND disabled_at IS NULL AND pending_since IS NULL
         ORDER BY role, name`,
   ])
   const dispatcherId = (dispatcherRow as { dispatcher_id: number | null }[])[0]?.dispatcher_id ?? null
@@ -119,7 +120,7 @@ export default async function Page({
     fleetStatusByUnit(),
     listDocs(companyId, { truckId: truck.id }),
     rateConByLoad(companyId),
-    truck.number ? tripHistory(truck.number, historyWindow.hours) : Promise.resolve([]),
+    truck.number && seesFleetGps(companyId) ? tripHistory(truck.number, historyWindow.hours) : Promise.resolve([]),
     getCompany(),
     // Номер того, кто закреплён за траком, а не того, кто открыл страницу:
     // траки распределены между диспетчерами, и брокеру нужен человек по машине.

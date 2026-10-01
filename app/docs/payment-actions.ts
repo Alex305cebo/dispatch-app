@@ -14,11 +14,12 @@ import { getLocale } from '@/lib/i18n-server'
 import { setSetting } from '@/lib/settings'
 import { FACTORING_KEY, factoringSettings, paymentFor } from '@/lib/payments-server'
 import { defaultFee, isIsoDay, moneyIn, PAY_VIA, previousStage, type FactoringSettings, type PayVia } from '@/lib/payments'
+import type { CompanyId } from '@/lib/company'
 
 type Fail = { error: string }
 type Done = { ok: true; count: number }
 
-async function guard(): Promise<Fail | { companyId: 'default' | 'demo'; userId: number }> {
+async function guard(): Promise<Fail | { companyId: CompanyId; userId: number }> {
   const ro = await demoReadOnly()
   if (ro) return ro
   const user = await getCurrentUser()

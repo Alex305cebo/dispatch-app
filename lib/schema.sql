@@ -519,5 +519,10 @@ ALTER TABLE dat_lanes ADD UNIQUE KEY IF NOT EXISTS dat_lanes_src_day (company_id
 ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_kind_check;
 ALTER TABLE documents ADD CONSTRAINT documents_kind_check CHECK (kind IN ('ratecon', 'bol', 'seal', 'pod', 'driverinfo', 'invoice', 'insurance', 'registration', 'repair', 'photo', 'other'));
 
-INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-09-25')
+-- Свои кабинеты (10/01/26): диспетчер с dispatch4you.pro входит через Google и
+-- получает отдельную компанию со своим id. 'default' — компания владельца, 'demo' —
+-- витрина (её по-прежнему узнаём по is_demo). Все прежние строки остаются 'default'.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id VARCHAR(64) NOT NULL DEFAULT 'default';
+
+INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-10-01')
 ON DUPLICATE KEY UPDATE value = VALUES(value);

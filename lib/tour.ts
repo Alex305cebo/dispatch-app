@@ -70,7 +70,8 @@ export const tourSteps = cache(async function tourSteps(
   if (!user) return null
   // Диспетчеру — нет: настраивать ему нечего, а экраны он и так знает от того,
   // кто его завёл. Админу и гостю демо — да.
-  if (user.role !== 'admin' && !user.isDemo) return null
+  // Свой кабинет диспетчера — тоже да: он пришёл с курсов и видит TMS впервые.
+  if (user.role !== 'admin' && !user.isDemo && !user.isWorkspace) return null
 
   const label = (s: Def, done: boolean): TourStep => ({
     key: s.key,
@@ -83,7 +84,7 @@ export const tourSteps = cache(async function tourSteps(
   })
 
   // Демо: админских шагов нет (в админку гостя не пускает), ничего не «сделано».
-  if (user.isDemo) return STEPS.filter((s) => !s.admin).map((s) => label(s, false))
+  if (user.isDemo || user.isWorkspace) return STEPS.filter((s) => !s.admin).map((s) => label(s, false))
 
   const conf = await getSettings(['co_mcdot', `tour_done:${user.id}`])
   if (conf.get(`tour_done:${user.id}`) === '1') return null
@@ -96,7 +97,7 @@ export const tourSteps = cache(async function tourSteps(
     // trucks.id <> 1 — посеянная заглушка «Трак не настроен» лежит в схеме под
     // первым номером и есть в любой установке; настоящий трак получает следующий.
     sql`SELECT
-          (SELECT count(*) FROM users  WHERE is_demo = FALSE)                     AS users,
+          (SELECT count(*) FROM users  WHERE is_demo = FALSE AND company_id = 'default') AS users,
           (SELECT count(*) FROM trucks WHERE company_id = 'default' AND id <> 1)  AS trucks,
           (SELECT count(*) FROM loads  WHERE company_id = 'default')              AS loads`,
   ])

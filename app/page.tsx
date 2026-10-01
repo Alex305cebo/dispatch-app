@@ -28,6 +28,7 @@ import {
 import { currentLoadsByTruck, truckLabel, type TruckRecord } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { sql } from '@/lib/db'
+import { seesFleetGps } from '@/lib/company'
 import { deliveryInfo } from '@/lib/geo-routing'
 import { fleetExpiryAlerts, truckPhotoFlags, truckProfiles, truckTrailerNumbers } from '@/lib/maintenance'
 import { homeUntil } from '@/lib/maintenance-core'
@@ -89,7 +90,7 @@ export default async function Page() {
     await Promise.all([
       listLoads(companyId),
       listTrucks(companyId),
-      sql`SELECT unit, drive_status, location, lat, lng, fuel FROM fleet_status`,
+      seesFleetGps(companyId) ? sql`SELECT unit, drive_status, location, lat, lng, fuel FROM fleet_status` : Promise.resolve([]),
       // Без локали функция подставляла 'en' по умолчанию, и подписи о сроках
       // документов на главной были английскими при русском интерфейсе.
       fleetExpiryAlerts(companyId, locale),

@@ -56,6 +56,7 @@ import {
   rpmTone,
   weekDay,
 } from './money-ui'
+import type { CompanyId } from '@/lib/company'
 /** Закрытые грузы видны столько дней — дальше они в «Оплачено». */
 const DONE_DAYS = 45
 
@@ -70,7 +71,7 @@ export async function loadsTabTiles({
   stage = '',
   money,
 }: {
-  companyId: 'default' | 'demo'
+  companyId: CompanyId
   locale: Locale
   query: string
   /** Этап, до которого сразу сужен список (?stage= — ссылка с плитки-числа). */
@@ -246,7 +247,7 @@ export async function Unpaid({
   rateCons,
   locale,
 }: {
-  companyId: 'default' | 'demo'
+  companyId: CompanyId
   rateCons: Map<number, number>
   locale: Locale
 }) {
@@ -325,7 +326,7 @@ export async function Paid({
   rateCons,
   locale,
 }: {
-  companyId: 'default' | 'demo'
+  companyId: CompanyId
   rateCons: Map<number, number>
   locale: Locale
 }) {
@@ -495,7 +496,7 @@ export async function ByDispatcher({
   locale,
   week: weekParam,
 }: {
-  companyId: 'default' | 'demo'
+  companyId: CompanyId
   locale: Locale
   week?: string
 }) {
@@ -666,7 +667,7 @@ const AVG_WEEKS = 8
 
 /** «Недели»: сколько парк привёз за каждую неделю — гросс, мили, RPM. Итог сверху
  *  сравнивает эту неделю с прошлой и со средней; строка недели раскрывается тракaми. */
-export async function ByWeek({ companyId, locale }: { companyId: 'default' | 'demo'; locale: Locale }) {
+export async function ByWeek({ companyId, locale }: { companyId: CompanyId; locale: Locale }) {
   const [loads, trucks] = await Promise.all([listLoads(companyId), listTrucks(companyId)])
   const byTruckId = new Map<number, TruckRecord>(trucks.map((tr) => [tr.id, tr]))
   const committed = loads.filter((l) => l.status !== 'quoted' && l.status !== 'cancelled')

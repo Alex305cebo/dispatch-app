@@ -73,7 +73,8 @@ export default async function LoginPage() {
     : new Map<string, string>()
   // На сайте продукта (dispatch4you.pro) — название продукта, а не перевозчика из базы.
   const hdrs = await headers()
-  const companyName = isProductHost(hdrs.get('x-forwarded-host') ?? hdrs.get('host')) ? PRODUCT_NAME : (conf.get('co_name') ?? '')
+  const productHost = isProductHost(hdrs.get('x-forwarded-host') ?? hdrs.get('host'))
+  const companyName = productHost ? PRODUCT_NAME : (conf.get('co_name') ?? '')
   // Демо ДО входа — первое, что должен иметь возможность сделать человек, который
   // приложение ещё не купил. Два разных источника:
   //
@@ -98,6 +99,7 @@ export default async function LoginPage() {
       companyName={companyName}
       showDemo={showDemo}
       googleClientId={googleClientId()}
+      ownWorkspace={productHost}
       demoUrl={demoUrl}
       needsSchema={!installed}
       // Отдельного экрана «выберите язык» нет — лишний шаг; сменить можно флагами.

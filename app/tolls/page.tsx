@@ -33,7 +33,7 @@ export default async function TollsPage() {
   const [key, usage, , cityRows, trucks, loadChoices, tollRows] = await Promise.all([
     hereKey(),
     hereUsage(),
-    defaultTruck(companyId),
+    defaultTruck(companyId).catch(() => null),
     // Города собственных грузов — они и есть самые вероятные подсказки: парк
     // ездит по одним и тем же направлениям, а мелких городков вроде
     // «Auburndale, FL» ни в одном общем справочнике нет.

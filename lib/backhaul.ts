@@ -2,6 +2,7 @@ import { sql } from '@/lib/db'
 import { stateOfCity } from '@/lib/toll-spend'
 import { listOurBrokers } from '@/lib/brokers'
 import { stateBrokers, type StateBroker, type StateLoadRow } from '@/lib/state-brokers'
+import type { CompanyId } from '@/lib/company'
 
 /**
  * «Прошлые грузы в штате выгрузки — спроси брокера о новых». Пока трак едет на
@@ -10,7 +11,7 @@ import { stateBrokers, type StateBroker, type StateLoadRow } from '@/lib/state-b
  * штате. Группировка — lib/state-brokers.ts; по своей истории, без внешних сервисов.
  */
 export async function backhaulBrokers(
-  companyId: 'default' | 'demo',
+  companyId: CompanyId,
   destination: string | null,
   excludeLoadId: number,
 ): Promise<{ state: string; brokers: StateBroker[] } | null> {

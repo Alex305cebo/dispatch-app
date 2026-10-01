@@ -1,13 +1,14 @@
 import { sql } from '@/lib/db'
 import { rpmTableFrom, WARP_MIN_MILES, type RpmRow, type RpmTable } from '@/lib/rpm-bench-core'
 import { brokerCuts, targetBand, type BrokerCut } from '@/lib/broker-cut'
+import type { CompanyId } from '@/lib/company'
 
 /**
  * Ставки по направлениям одного источника — по штату погрузки И доставки: «TX>GA» и «в GA»,
  * по сериям. Для «Куда отправить трак»: напротив штата назначения — настоящая цифра, не
  * формула. Источники не смешиваем: у каждого своя подпись в строке направления.
  */
-export async function laneRpmTables(companyId: 'default' | 'demo', source: 'dat' | 'warp'): Promise<Record<string, RpmTable>> {
+export async function laneRpmTables(companyId: CompanyId, source: 'dat' | 'warp'): Promise<Record<string, RpmTable>> {
   const rows = (await sql`
     SELECT equipment, origin_state AS f, dest_state AS t, SUM(spot_rate) AS rate, SUM(miles) AS miles, COUNT(*) AS n,
       SUM(CASE WHEN seen_on >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) THEN spot_rate ELSE 0 END) AS rate7,
@@ -56,7 +57,7 @@ export async function laneRpmTables(companyId: 'default' | 'demo', source: 'dat'
  * иначе груз считался бы столько раз, сколько дней собиралась ставка. Вместе с общей —
  * доля по каждому брокеру, у которого сравнений хватает (lib/broker-cut.ts brokerCuts).
  */
-export async function brokerCutFromLoads(companyId: 'default' | 'demo'): Promise<BrokerCut> {
+export async function brokerCutFromLoads(companyId: CompanyId): Promise<BrokerCut> {
   const rows = (await sql`
     SELECT l.rate / l.loaded_miles AS ours, AVG(d.spot_rpm) AS shipper, l.broker_name AS broker
     FROM loads l
@@ -76,7 +77,7 @@ export async function brokerCutFromLoads(companyId: 'default' | 'demo'): Promise
  * хватает, иначе общая. Нет котировок по направлению — null, и карточка груза про цель молчит.
  */
 export async function laneTarget(
-  companyId: 'default' | 'demo',
+  companyId: CompanyId,
   equipment: string,
   from: string | null,
   to: string | null,

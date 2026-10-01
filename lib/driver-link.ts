@@ -3,6 +3,7 @@ import { sql } from '@/lib/db'
 import { deleteSetting, getSetting, setSetting } from '@/lib/settings'
 import { DRIVER_CODE_LEN, isDriverToken, shortToken, unitSlug } from './driver-token'
 import { failLimiter, type FailLimiter } from './fail-limit'
+import type { CompanyId } from '@/lib/company'
 
 /**
  * Ссылка для водителя — страница /d/<token> без логина и без приложения: его
@@ -67,7 +68,7 @@ export async function truckForDriverRequest(token: string, ip: string): Promise<
 
 export type DriverTruck = {
   id: number
-  companyId: 'default' | 'demo'
+  companyId: CompanyId
   number: string | null
   driverName: string | null
 }
@@ -80,7 +81,7 @@ export async function truckByDriverToken(token: string): Promise<DriverTruck | n
   if (!id) return null
   const rows = (await sql`SELECT id, company_id, number, driver_name FROM trucks WHERE id = ${Number(id)}`) as {
     id: number
-    company_id: 'default' | 'demo'
+    company_id: CompanyId
     number: string | null
     driver_name: string | null
   }[]

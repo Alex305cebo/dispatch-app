@@ -1,8 +1,9 @@
 import { sql } from './db.ts'
 import type { ChargeKind, LoadCharge } from './charges-core.ts'
+import type { CompanyId } from './company.ts'
 
 /** Начисления груза, старые первыми — в счёт и на карточку. */
-export async function listCharges(companyId: 'default' | 'demo', loadId: number): Promise<LoadCharge[]> {
+export async function listCharges(companyId: CompanyId, loadId: number): Promise<LoadCharge[]> {
   const rows = (await sql`
     SELECT id, kind, amount, note, created_at FROM load_charges
     WHERE company_id = ${companyId} AND load_id = ${loadId} ORDER BY created_at ASC, id ASC`) as {

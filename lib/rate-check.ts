@@ -15,6 +15,7 @@ import { usDate } from '@/lib/fmt'
 import { todayEt } from '@/lib/payments'
 import { rateCheckFrom, type RateCheck, type RateSide } from '@/lib/rate-check-core'
 import { NEXT_DAY_MILES, NEXT_LONG_MILES, nextStates } from '@/lib/route-plan-core'
+import type { CompanyId } from '@/lib/company'
 
 export type { RateCheck } from '@/lib/rate-check-core'
 
@@ -31,7 +32,7 @@ export type RateCheckInput = {
   deadhead?: number | null
 }
 
-type Company = 'default' | 'demo'
+type Company = CompanyId
 
 function side(snap: DatSnapshot | null, state: string | null): RateSide | null {
   if (!snap || !state) return null

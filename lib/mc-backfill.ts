@@ -15,6 +15,7 @@ import { getSetting, setSetting } from './settings'
 import { chooseCompany, compact, nameFromDomain, searchTerms, type Candidate } from './broker-match.ts'
 import { TOP_BROKERS } from './brokers-top.ts'
 import { saferSearch, saferSnapshot } from './safer.ts'
+import type { CompanyId } from './company.ts'
 
 /** Что вышло с этим именем в прошлый раз. Нужно, чтобы не долбить реестр одним и тем
  * же именем каждые пять минут: у брокера может не быть MC вовсе, и это нормальный
@@ -67,7 +68,7 @@ export type BackfillResult = {
  * сколько ещё осталось — по этому числу вызывающий решает, звать ли ещё раз.
  */
 export async function backfillBrokerMc(
-  companyId: 'default' | 'demo',
+  companyId: CompanyId,
   limit = 4,
 ): Promise<BackfillResult> {
   // Сначала выкидываем свой номер отовсюду, где он записан как брокерский: иначе
@@ -227,7 +228,7 @@ export async function backfillBrokerMc(
 }
 
 /** Сколько брокеров ещё без MC и ждут подбора — чтобы интерфейс знал, звать ли ещё. */
-export async function brokersMissingMc(companyId: 'default' | 'demo'): Promise<number> {
+export async function brokersMissingMc(companyId: CompanyId): Promise<number> {
   const rows = (await sql`
     SELECT count(*) AS n FROM (
       SELECT lower(trim(broker_name)) AS "key"

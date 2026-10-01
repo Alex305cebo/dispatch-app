@@ -5,6 +5,7 @@
 
 import { sql } from './db.ts'
 import { hashSessionToken, THROTTLE, throttleEmail, attemptAllowed, type ThrottleKind } from './auth-core.ts'
+import { userCompany, type CompanyId } from './company.ts'
 
 // Хеширование паролей переехало в auth-core.ts (там его проверяет тест); отсюда —
 // как раньше, чтобы вызывающим ничего не менять.
@@ -35,10 +36,11 @@ export type SessionUser = {
   name: string
   email: string
   role: 'admin' | 'dispatcher'
-  /** 'demo' for the seeded public sandbox account, 'default' for every real user —
-   * every trucks/loads/documents query is filtered by this so demo data can never
-   * mix with real company data. */
-  companyId: 'default' | 'demo'
+  /** 'demo' for the seeded public sandbox account, 'default' for the owner's company,
+   * anything else — a self-signed-up dispatcher's own workspace (lib/company.ts).
+   * Every trucks/loads/documents query is filtered by this so no company's data can
+   * ever mix with another's. */
+  companyId: CompanyId
 }
 
 export async function createSession(userId: number): Promise<string> {
@@ -58,14 +60,28 @@ export async function createSession(userId: number): Promise<string> {
  * чем не совпадают — все один раз входят заново, и утёкшие токены мертвы. */
 export async function sessionUser(token: string | undefined | null): Promise<SessionUser | null> {
   if (!token) return null
-  const rows = (await sql`
-    SELECT u.id, u.name, u.email, u.role, u.is_demo FROM sessions s
-    JOIN users u ON u.id = s.user_id
-    WHERE s.token = ${await hashSessionToken(token)} AND s.expires_at > NOW(6) AND u.disabled_at IS NULL AND u.pending_since IS NULL`) as
-    | { id: number; name: string; email: string; role: 'admin' | 'dispatcher'; is_demo: boolean }[]
+  const hash = await hashSessionToken(token)
+  type Row = { id: number; name: string; email: string; role: 'admin' | 'dispatcher'; is_demo: boolean; company_id: string | null }
+  const lookup = async () =>
+    (await sql`
+      SELECT u.id, u.name, u.email, u.role, u.is_demo, u.company_id FROM sessions s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.token = ${hash} AND s.expires_at > NOW(6) AND u.disabled_at IS NULL AND u.pending_since IS NULL`) as Row[]
+  let rows: Row[]
+  try {
+    rows = await lookup()
+  } catch (e) {
+    // Новая колонка users.company_id приезжает с кодом, а схему дотягивает только
+    // экран входа (ensureSchema) — куда вошедший человек не заходит. Без этого первый
+    // же запрос после выкладки падал бы у всех. Дотягиваем здесь и пробуем ещё раз.
+    if ((e as { code?: string }).code !== 'ER_BAD_FIELD_ERROR') throw e
+    const { ensureSchema } = await import('./install.ts')
+    await ensureSchema()
+    rows = await lookup()
+  }
   const row = rows[0]
   if (!row) return null
-  return { id: row.id, name: row.name, email: row.email, role: row.role, companyId: row.is_demo ? 'demo' : 'default' }
+  return { id: row.id, name: row.name, email: row.email, role: row.role, companyId: userCompany(row) }
 }
 
 export async function destroySession(token: string | undefined | null): Promise<void> {

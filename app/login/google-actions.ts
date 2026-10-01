@@ -4,7 +4,9 @@ import { cookies, headers } from 'next/headers'
 import { sql } from '@/lib/db'
 import { createSession, SESSION_COOKIE, SESSION_DAYS } from '@/lib/auth'
 import { googleClientId, verifyGoogleToken } from '@/lib/google-auth'
-import { applySchema, schemaInstalled } from '@/lib/install'
+import { applySchema, ensureSchema, schemaInstalled } from '@/lib/install'
+import { isProductHost } from '@/lib/brand'
+import { newWorkspaceId } from '@/lib/company'
 import { setSetting } from '@/lib/settings'
 import { t } from '@/lib/i18n'
 import { getLoginLocale } from '@/lib/i18n-server'
@@ -50,7 +52,11 @@ export type GoogleResult = { error: string } | { ok: true } | { wait: true }
  *   администратор подтверждает в «Люди». Иначе любой, у кого есть почта Google,
  *   заходил бы в чужую компанию;
  * • не совпал и база пуста → это первый запуск, человек становится
- *   администратором. Название компании после этого спросит сама админка.
+ *   администратором. Название компании после этого спросит сама админка;
+ * • не совпал, а вход на dispatch4you.pro (сайт продукта) → человеку сразу
+ *   заводится СВОЙ кабинет (lib/company.ts): пустая TMS со своим id, где он видит
+ *   только своё. В чужую компанию так попасть нельзя — кабинет новый и ничей, поэтому
+ *   подтверждение администратора здесь не нужно (решение владельца 10/01/26).
  *
  * Пароль такому аккаунту не заводится (password_hash пустой, verifyPassword его
  * всегда отвергает): вход только через Google, и красть нечего.
@@ -70,6 +76,10 @@ export async function signInWithGoogle(idToken: string): Promise<GoogleResult> {
       console.error('applySchema failed', e)
       return { error: t(locale, 'login.error.schemaFailed') }
     }
+  } else {
+    // Колонка users.company_id нужна ниже; вход через Google мог прийти раньше, чем
+    // кто-нибудь открыл экран входа после выкладки.
+    await ensureSchema()
   }
 
   const rows = (await sql`
@@ -93,6 +103,21 @@ export async function signInWithGoogle(idToken: string): Promise<GoogleResult> {
 
   const anyUser = await sql`SELECT 1 FROM users WHERE is_demo = FALSE LIMIT 1`
   const first = anyUser.length === 0
+
+  const h = await headers()
+  if (!first && isProductHost(h.get('x-forwarded-host') ?? h.get('host'))) {
+    // Роль — диспетчер: Админка (люди, ключи, журнал) принадлежит установке, а в
+    // своём кабинете ему и так доступно всё, что нужно для работы с грузами.
+    const made = (await sql`
+      INSERT INTO users (name, email, password_hash, role, company_id)
+      VALUES (${g.name}, ${g.email}, '', 'dispatcher', ${newWorkspaceId()})
+      RETURNING id`) as { id: number }[]
+    const uid = made[0]!.id
+    await setSetting(`consent:${uid}`, new Date().toISOString())
+    await startSession(uid)
+    await logAudit(g.name)
+    return { ok: true }
+  }
 
   const created = (await sql`
     INSERT INTO users (name, email, password_hash, role, pending_since)

@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: t(await getLocale(), 'actions.signInRequired') }, { status: 401 })
   if (user.isDemo) return NextResponse.json({ error: t(await getLocale(), 'actions.demoAiOff') }, { status: 403 })
+  if (user.isWorkspace) return NextResponse.json({ error: t(await getLocale(), 'actions.workspaceAiOff') }, { status: 403 })
 
   const key = await geminiKey()
   if (!key) return NextResponse.json({ error: 'no_key' }, { status: 503 })

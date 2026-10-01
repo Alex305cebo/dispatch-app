@@ -37,7 +37,12 @@ export async function geminiKeySource(): Promise<'settings' | 'env' | null> {
 
 /** Google AI key — rate-con parsing and document classification. '' when unset, which
  * every call site already handles by degrading instead of throwing. */
-export function geminiKey(): Promise<string> {
+export async function geminiKey(): Promise<string> {
+  // Ключ Gemini — владельца установки, и дневная квота у него одна. Свой кабинет
+  // диспетчера (lib/company.ts) его не тратит: для кабинета ключа как будто нет, и
+  // каждое место, читающее документы, уже умеет работать без него.
+  const { getCurrentUser } = await import('./session.ts')
+  if ((await getCurrentUser().catch(() => null))?.isWorkspace) return ''
   return keyFrom('gemini_api_key', process.env.GEMINI_API_KEY)
 }
 

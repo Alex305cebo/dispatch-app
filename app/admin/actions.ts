@@ -11,13 +11,14 @@ import { CAPABILITIES, type CapabilityKey } from '@/lib/capabilities'
 import { capabilitiesFor, setUserCapability } from '@/lib/capabilities-server'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
+import { todayEt } from '@/lib/payments'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CAP_KEYS = new Set(CAPABILITIES.map((c) => c.key))
 
 async function assertAdmin() {
   const user = await getCurrentUser()
-  if (!user || user.role !== 'admin') throw new Error(t(await getLocale(), 'admin.err.adminOnly'))
+  if (!user || user.role !== 'admin' || user.isWorkspace) throw new Error(t(await getLocale(), 'admin.err.adminOnly'))
 }
 
 export type AdminUser = {
@@ -63,7 +64,7 @@ export async function listUsers(): Promise<AdminUser[]> {
   // manages, so it must never show up for a real admin to edit or get confused by.
   const rows = (await sql`
     SELECT id, name, email, role, created_at, disabled_at, pending_since FROM users
-    WHERE is_demo = FALSE
+    WHERE is_demo = FALSE AND company_id = 'default'
     ORDER BY (pending_since IS NOT NULL) DESC, created_at ASC`) as {
     id: number
     name: string
@@ -115,6 +116,50 @@ export async function listUsers(): Promise<AdminUser[]> {
  * Записать личный номер диспетчера. Пустая строка — стереть: номер, которого нет,
  * лучше пустой строки в блоке для брокера.
  */
+export type Workspace = {
+  userId: number
+  name: string
+  email: string
+  /** YYYY-MM-DD по ET. */
+  createdAt: string
+  disabledAt: string | null
+  trucks: number
+  loads: number
+}
+
+/** Свои кабинеты диспетчеров (lib/company.ts) — кто завёл и сколько в нём работы.
+ * Данные кабинета владелец здесь не видит и не правит: только кто и что включён. */
+export async function listWorkspaces(): Promise<Workspace[]> {
+  await assertAdmin()
+  const rows = (await sql`
+    SELECT u.id, u.name, u.email, u.created_at, u.disabled_at,
+           (SELECT count(*) FROM trucks t WHERE t.company_id = u.company_id) AS trucks,
+           (SELECT count(*) FROM loads l WHERE l.company_id = u.company_id) AS loads
+    FROM users u
+    WHERE u.is_demo = FALSE AND u.company_id <> 'default'
+    ORDER BY u.created_at DESC
+    LIMIT 500`) as {
+    id: number
+    name: string
+    email: string
+    created_at: string | Date
+    disabled_at: string | Date | null
+    trucks: number
+    loads: number
+  }[]
+  return rows.map((r) => ({
+    userId: Number(r.id),
+    name: r.name,
+    email: r.email,
+    // День заведения — по ET и уже строкой YYYY-MM-DD: между сервером и браузером
+    // только ISO-днём, иначе гидрация расходится.
+    createdAt: todayEt(new Date(r.created_at)),
+    disabledAt: r.disabled_at ? new Date(r.disabled_at).toISOString() : null,
+    trucks: Number(r.trucks),
+    loads: Number(r.loads),
+  }))
+}
+
 export async function setUserPhone(
   userId: number,
   phone: string,
@@ -168,7 +213,7 @@ export async function setTruckDispatcher(
   if (ro) return ro
   const companyId = await companyScope()
   if (userId !== null) {
-    const ok = (await sql`SELECT 1 FROM users WHERE id = ${userId} AND is_demo = FALSE`) as unknown[]
+    const ok = (await sql`SELECT 1 FROM users WHERE id = ${userId} AND is_demo = FALSE AND company_id = 'default'`) as unknown[]
     if (ok.length === 0) return { error: t(await getLocale(), 'admin.assign.noUser') }
   }
   await sql`UPDATE trucks SET dispatcher_id = ${userId}
