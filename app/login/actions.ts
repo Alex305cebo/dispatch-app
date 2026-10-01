@@ -16,6 +16,8 @@ import {
 } from '@/lib/auth'
 import { applySchema, ensureSchema, schemaInstalled } from '@/lib/install'
 import { setSetting } from '@/lib/settings'
+import { isProductHost } from '@/lib/brand'
+import { newWorkspaceId } from '@/lib/company'
 import { t } from '@/lib/i18n'
 import { getLoginLocale } from '@/lib/i18n-server'
 
@@ -46,6 +48,13 @@ async function logAudit(who: string) {
   } catch {
     // ignore — audit is nice-to-have, not a gate
   }
+}
+
+/** Сайт продукта (dispatch4you.pro): здесь новый человек получает свой кабинет
+ * (lib/company.ts), а не заявку в компанию владельца. */
+async function onProductHost(): Promise<boolean> {
+  const h = await headers()
+  return isProductHost(h.get('x-forwarded-host') ?? h.get('host'))
 }
 
 async function startSession(userId: number, remember: boolean) {
@@ -158,7 +167,7 @@ export async function registerRequest(
   password: string,
   birthday: string,
   consent: boolean,
-): Promise<{ error: string } | void> {
+): Promise<{ error: string } | { entered: true } | void> {
   const locale = await getLoginLocale()
   if (!name.trim()) return { error: t(locale, 'login.error.enterName') }
   if (!EMAIL_RE.test(email.trim())) return { error: t(locale, 'login.error.badEmail') }
@@ -170,12 +179,21 @@ export async function registerRequest(
   const existing = await sql`SELECT 1 FROM users WHERE is_demo = FALSE LIMIT 1`
   if (existing.length === 0) return { error: t(locale, 'login.error.useSetup') }
 
+  // На dispatch4you.pro — не заявка, а свой кабинет сразу: он новый и ничей, поэтому
+  // подтверждать нечего (так же, как вход через Google, app/login/google-actions.ts).
+  await ensureSchema()
+  const own = await onProductHost()
   let userId: number
   try {
-    const rows = await sql`
-      INSERT INTO users (name, email, password_hash, role, pending_since)
-      VALUES (${name.trim()}, ${email.trim().toLowerCase()}, ${await hashPassword(password)}, 'dispatcher', NOW(6))
-      RETURNING id`
+    const rows = own
+      ? await sql`
+          INSERT INTO users (name, email, password_hash, role, company_id)
+          VALUES (${name.trim()}, ${email.trim().toLowerCase()}, ${await hashPassword(password)}, 'dispatcher', ${newWorkspaceId()})
+          RETURNING id`
+      : await sql`
+          INSERT INTO users (name, email, password_hash, role, pending_since)
+          VALUES (${name.trim()}, ${email.trim().toLowerCase()}, ${await hashPassword(password)}, 'dispatcher', NOW(6))
+          RETURNING id`
     userId = (rows[0] as { id: number }).id
   } catch (e) {
     return {
@@ -184,6 +202,11 @@ export async function registerRequest(
   }
   await saveBirthday(userId, birthday)
   await setSetting(`consent:${userId}`, new Date().toISOString())
+  if (own) {
+    await startSession(userId, true)
+    await logAudit(name.trim())
+    return { entered: true }
+  }
 }
 
 export async function signIn(
@@ -198,12 +221,13 @@ export async function signIn(
   await ensureSchema()
   if (!(await takeAttempt('login', email))) return { error: t(locale, 'login.error.tooManyTries') }
   const rows = (await sql`
-    SELECT id, name, password_hash, pending_since FROM users
+    SELECT id, name, password_hash, pending_since, company_id FROM users
     WHERE email = ${email.trim().toLowerCase()} AND disabled_at IS NULL`) as {
     id: number
     name: string
     password_hash: string
     pending_since: string | null
+    company_id: string
   }[]
   const user = rows[0]
   // Same generic error either way — confirming "no such email" to a stranger is a
@@ -223,7 +247,14 @@ export async function signIn(
   }
   // Пароль верный, но заявку ещё не подтвердили. Об этом — прямо: человек сделал
   // всё правильно, и «неверный пароль» здесь было бы ложью.
-  if (user.pending_since) return { error: t(locale, 'login.error.pending') }
+  if (user.pending_since) {
+    // Заявку, оставленную до появления кабинетов (или на другом адресе), на сайте
+    // продукта превращаем в свой кабинет: в компанию владельца человек так не попадает,
+    // а ждать подтверждения пустого кабинета незачем.
+    if (!(await onProductHost()) || user.company_id !== 'default') return { error: t(locale, 'login.error.pending') }
+    await sql`UPDATE users SET company_id = ${newWorkspaceId()}, pending_since = NULL
+              WHERE id = ${user.id} AND pending_since IS NOT NULL AND company_id = 'default'`
+  }
   await startSession(user.id, remember)
   await logAudit(user.name)
 }

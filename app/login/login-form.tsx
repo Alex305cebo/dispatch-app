@@ -129,7 +129,8 @@ export function LoginForm({
       }
       if (mode === 'register') {
         const res = await registerRequest(name, email, password, birthday, consent)
-        if (res?.error) setError(res.error)
+        if (res && 'error' in res) setError(res.error)
+        else if (res && 'entered' in res) enter()
         else switchMode('sent')
         return
       }
