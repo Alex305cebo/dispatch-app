@@ -14,7 +14,7 @@ import {
   tgMessages,
   type TgMsg,
 } from '@/lib/telegram'
-import { intakeDriverMedia, resolveTruckForChat } from '@/lib/tg-intake'
+import { intakeDriverMedia } from '@/lib/tg-intake'
 import { activeLoadForTruck } from '@/lib/loads'
 import { createLoadFromRc } from '@/app/actions'
 import { classifyDocument, type DocClass } from '@/lib/ai-doc'
@@ -135,8 +135,7 @@ export async function setMyChatTruck(chatId: string, truckId: number | null): Pr
 }
 
 /** Manual "file this to the driver's load" for one chat attachment — covers what
- * auto-intake deliberately skips (rate cons, anything not pod/bol), routed by the
- * open chat's truck link/phone match within MY account. */
+ * auto-intake deliberately skips (rate cons, anything not pod/bol, group chats). */
 /**
  * Файл из чата — в дело.
  *
@@ -158,57 +157,60 @@ export async function setMyChatTruck(chatId: string, truckId: number | null): Pr
  */
 export type TgFileTarget = number | 'new' | 'truck'
 
-/** Трак для выбора «к какому траку этот чат». */
-export type TruckChoice = { id: number; label: string }
-
 /**
- * Чат не привязан и телефон ни с одним паспортом не совпал — вместо голой ошибки
- * отдаём список траков, и кнопка тут же спрашивает «к какому траку этот чат».
- * Раньше каждое нажатие давало одну и ту же ошибку, а привязка пряталась внизу
- * страницы в настройках чатов.
+ * Куда класть файл — решает диспетчер, а не привязка чата.
+ *
+ * Раньше кнопка брала трак из привязки чата, и общий чат (например «RATE CONS MAYA»,
+ * однажды привязанный к траку) отправлял любой Rate Con этому одному траку. Теперь
+ * водитель (трак) приходит с кнопки явно: в личном чате водителя он подставлен
+ * страницей, в остальных чатах его выбирают из списка. Без водителя — ничего не
+ * подшивается.
  */
-async function truckChoices(): Promise<TruckChoice[]> {
+export type TgAttachOpts = {
+  truckId: number
+  kind?: DocClass | 'auto'
+  target?: TgFileTarget
+  /** Личный чат без привязки: запомнить выбранного водителя за этим чатом. */
+  remember?: boolean
+}
+
+async function realTruck(truckId: number): Promise<{ truckId: number; number: string | null } | undefined> {
   const rows = (await sql`
-    SELECT id, number, driver_name FROM trucks WHERE company_id = 'default' ORDER BY number IS NULL, number`) as {
+    SELECT id, number FROM trucks WHERE id = ${truckId} AND company_id = 'default'`) as {
     id: number
     number: string | null
-    driver_name: string | null
   }[]
-  return rows.map((r) => ({ id: r.id, label: [r.number, r.driver_name].filter(Boolean).join(' · ') || `#${r.id}` }))
+  return rows[0] ? { truckId: rows[0].id, number: rows[0].number } : undefined
 }
-export type TgAttachOpts = { kind?: DocClass | 'auto'; target?: TgFileTarget }
 
-/** Грузы этого трака для выбора «куда». Список короткий и свежий сверху: бумагу
- * подшивают либо к тому, что везут, либо к тому, что взяли пару дней назад. */
-export async function tgFileTargets(
-  chatId: string,
-  driverPhone: string | null,
-): Promise<
-  { truck: string; loads: { id: number; route: string; status: string }[] } | { error: string; trucks?: TruckChoice[] }
-> {
-  let user: CurrentUser
+export type TgLoadChoice = { id: number; route: string; status: string; pickup: string | null }
+
+/** Грузы водителя для выбора «к какому грузу»: сначала тот, что везут, потом
+ * взятые наперёд, дальше свежие по дате заведения. */
+export async function tgFileTargets(truckId: number): Promise<{ loads: TgLoadChoice[] } | { error: string }> {
   try {
-    user = await requireTgUser()
+    await requireTgUser()
   } catch (e) {
     return { error: msg(e) }
   }
-  const truck = await resolveTruckForChat(user.id, chatId, driverPhone)
-  if (!truck) return { error: t(await getLocale(), 'telegram.actions.noTruckLinked'), trucks: await truckChoices() }
+  const truck = await realTruck(truckId)
+  if (!truck) return { error: t(await getLocale(), 'telegram.actions.pickDriver') }
   const rows = (await sql`
-    SELECT id, origin, destination, status FROM loads
+    SELECT id, origin, destination, status, DATE_FORMAT(pickup_date, '%m/%d/%y') AS pickup FROM loads
     WHERE company_id = 'default' AND truck_id = ${truck.truckId} AND status <> 'cancelled'
-    ORDER BY created_at DESC LIMIT 8`) as {
+    ORDER BY (status = 'in_transit') DESC, (status = 'booked') DESC, created_at DESC LIMIT 10`) as {
     id: number
     origin: string | null
     destination: string | null
     status: string
+    pickup: string | null
   }[]
   return {
-    truck: truck.number ?? '',
     loads: rows.map((r) => ({
       id: r.id,
       route: `${r.origin ?? '—'} → ${r.destination ?? '—'}`,
       status: r.status,
+      pickup: r.pickup,
     })),
   }
 }
@@ -216,12 +218,8 @@ export async function tgFileTargets(
 export async function tgAttachToLoad(
   chatId: string,
   msgId: number,
-  driverPhone: string | null,
-  /** Ручной выбор диспетчера. Без него всё решается само, как и раньше. */
-  opts?: TgAttachOpts,
-): Promise<
-  { ok: true; loadId: number | null; loadRoute: string; created?: boolean } | { error: string; trucks?: TruckChoice[] }
-> {
+  opts: TgAttachOpts,
+): Promise<{ ok: true; loadId: number | null; loadRoute: string; created?: boolean } | { error: string }> {
   const ro = await demoReadOnly()
   if (ro) return ro
   let user: CurrentUser
@@ -231,8 +229,12 @@ export async function tgAttachToLoad(
     return { error: msg(e) }
   }
   const locale = await getLocale()
-  const truck = await resolveTruckForChat(user.id, chatId, driverPhone)
-  if (!truck) return { error: t(locale, 'telegram.actions.noTruckLinked'), trucks: await truckChoices() }
+  const truck = await realTruck(opts.truckId)
+  if (!truck) return { error: t(locale, 'telegram.actions.pickDriver') }
+  if (opts.remember) {
+    await setTgChatTruck(user.id, chatId, truck.truckId)
+    revalidatePath('/telegram')
+  }
 
   const media = await tgMedia(user.id, chatId, msgId).catch(() => null)
   if (!media) return { error: t(locale, 'telegram.actions.downloadFailed') }
@@ -240,7 +242,7 @@ export async function tgAttachToLoad(
   const ext = media.mime.includes('pdf') ? 'pdf' : 'jpg'
   // Тип: либо назвал диспетчер, либо определяем сами. Названный вручную не
   // перепроверяется — человек видит бумагу, а ИИ её угадывает.
-  const chosen = opts?.kind && opts.kind !== 'auto' ? opts.kind : null
+  const chosen = opts.kind && opts.kind !== 'auto' ? opts.kind : null
   const guessed =
     chosen ??
     (media.mime.startsWith('image/') || media.mime === 'application/pdf'
@@ -266,7 +268,7 @@ export async function tgAttachToLoad(
 
   // Telegram is real-accounts-only (never the public demo sandbox) — see the REAL
   // constant + comment in lib/tg-intake.ts.
-  const target = opts?.target
+  const target = opts.target
 
   // «В файлы трака» — когда груза для этой бумаги ещё нет или он тут ни при чём
   // (страховка, чек за ремонт). Документ виден на карточке трака.

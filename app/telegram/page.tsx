@@ -22,7 +22,7 @@ import { TgSendBox } from './tg-chat'
 import { TgMessages } from './tg-messages'
 import { TgCheckButton } from './tg-check-button'
 import { TgDisconnectButton } from './tg-disconnect-button'
-import { TgAttachButton } from './tg-attach-button'
+import type { TgDriver } from './tg-attach-button'
 import { TgImage } from './tg-image'
 import { TgChatSettings } from './tg-chat-settings'
 import { TgAddChat } from './tg-add-chat'
@@ -185,6 +185,19 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   const open = chatId ? allDialogs.find((d) => d.id === chatId) : undefined
   const truckChatMissing = !!wantTruck && !open && !error
 
+  // Кому прикреплять файлы из открытого чата. Водитель подставлен только в его ЛИЧНОМ
+  // чате (один на один, привязан вручную или по телефону из паспорта трака). В общих
+  // чатах — группы вроде «RATE CONS MAYA», даже привязанные когда-то к траку, — водителя
+  // выбирают руками: иначе любой Rate Con оттуда молча уезжал одному траку.
+  const truckIdOf = (d: (typeof allDialogs)[number]) =>
+    chatTruck[d.id] ?? (d.phone ? phones.get(onlyDigits(d.phone).slice(-10))?.truckId : undefined)
+  const openTruckId = open?.isUser ? truckIdOf(open) : undefined
+  const openTruck = openTruckId ? trucks.find((tr) => tr.id === openTruckId) : undefined
+  const withChat = new Set(allDialogs.filter((d) => d.isUser).map(truckIdOf).filter(Boolean))
+  const drivers: TgDriver[] = trucks
+    .map((tr) => ({ truckId: tr.id, number: tr.number ?? null, driver: tr.driver ?? null, hasChat: withChat.has(tr.id) }))
+    .sort((a, b) => Number(b.hasChat) - Number(a.hasChat))
+
   // Счётчики над перепиской — своими маленькими плитками. Непрочитанные считаем по
   // показанным чатам: остальные в списке и не видны.
   const unread = dialogs.reduce((n, d) => n + d.unread, 0)
@@ -259,7 +272,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
                     <span className="text-md font-semibold">{open.name}</span>
                     {open.phone && <span className="text-sm text-t3">+{open.phone}</span>}
                   </div>
-                  <TgMessages chatId={open.id} phone={open.phone} initial={msgs ?? []} />
+                  <TgMessages
+                    chatId={open.id}
+                    initial={msgs ?? []}
+                    attach={{
+                      driver: openTruck
+                        ? { truckId: openTruck.id, number: openTruck.number ?? null, driver: openTruck.driver ?? null, hasChat: true }
+                        : null,
+                      personal: open.isUser,
+                      drivers,
+                    }}
+                  />
                   <TgSendBox chatId={open.id} />
                 </>
               )}
