@@ -19,6 +19,8 @@ export const navDict = {
   // «Толлы» — то самое слово, которым это и называют вслух в диспетчерской, и оно
   // втрое короче. Полное название осталось заголовком самого раздела.
   'nav.tolls': { ru: 'Толлы', en: 'Tolls', es: 'Peajes', uk: 'Толи', ro: 'Taxe', kk: 'Жолақы' },
+  // Раздел рейсов Amazon Relay (10/03/26). Название сервиса не переводится.
+  'nav.amazon': { ru: 'Amazon', en: 'Amazon', es: 'Amazon', uk: 'Amazon', ro: 'Amazon', kk: 'Amazon' },
   'nav.telegram': { ru: 'Telegram', en: 'Telegram', es: 'Telegram', uk: 'Telegram', ro: 'Telegram', kk: 'Telegram' },
   'nav.journal': { ru: 'Журнал', en: 'Log', es: 'Registro', uk: 'Журнал', ro: 'Jurnal', kk: 'Журнал' },
   'nav.soon': { ru: 'скоро', en: 'soon', es: 'pronto', uk: 'скоро', ro: 'în curând', kk: 'жақында' },

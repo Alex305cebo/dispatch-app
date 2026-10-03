@@ -118,7 +118,9 @@ export default async function Page() {
               ? t(locale, 'admin.logins.deletedTodo').replace('{target}', target)
               : r.action === 'delete_maintenance'
                 ? t(locale, 'admin.logins.deletedMaintenance').replace('{target}', target)
-                : t(locale, 'admin.logins.trashedDoc').replace('{doc}', docLabel).replace('{target}', target)
+                : r.action === 'delete_amazon_trip'
+                  ? t(locale, 'amazon.journalDeleted').replace('{target}', target)
+                  : t(locale, 'admin.logins.trashedDoc').replace('{doc}', docLabel).replace('{target}', target)
       // For a load the route is already in the title; for a doc show it as detail.
       const detail = r.action === 'delete_load' || r.action === 'delete_todo' || r.action === 'delete_maintenance' ? '' : route
       return {
