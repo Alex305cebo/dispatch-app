@@ -71,7 +71,9 @@ export function LocaleQuick() {
         aria-expanded={!!pos}
         className="nav-icon-btn flex size-9 items-center justify-center rounded-full border border-white/10 hover:border-white/25"
       >
-        <LocaleFlag code={locale} className="h-3.5 w-5 rounded-[2px]" />
+        {/* Код языка буквами, а не флагом: мелкий флаг на кружке читался тёмным пятном
+            и выбивался из линейных значков ряда. Флаги — в самом списке. */}
+        <span className="text-sm font-semibold tracking-wide">{LOCALES.find((l) => l.code === locale)?.short}</span>
       </button>
       {pos && (
         <div
