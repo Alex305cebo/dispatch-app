@@ -8,7 +8,8 @@
 import { useEffect, useState } from 'react'
 import { t, type Locale } from '@/lib/i18n'
 
-export function ThemePicker({ locale, className = '' }: { locale: Locale; className?: string }) {
+/** compact — только значки ☀️/🌙 (подпись в title): на форме входа встаёт в строку с флагами. */
+export function ThemePicker({ locale, className = '', compact = false }: { locale: Locale; className?: string; compact?: boolean }) {
   const [theme, setTheme] = useState<'dark' | 'light'>('light')
 
   useEffect(() => {
@@ -35,17 +36,19 @@ export function ThemePicker({ locale, className = '' }: { locale: Locale; classN
       type="button"
       onClick={() => pick(value)}
       aria-pressed={theme === value}
-      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold transition-colors ${
+      title={t(locale, key)}
+      aria-label={compact ? t(locale, key) : undefined}
+      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold transition-colors ${compact ? 'h-7 w-8' : 'px-2.5 py-1.5'} ${
         theme === value ? 'bg-haul-500 text-[#fff] shadow-sm' : 'text-t2 hover:text-t1'
       }`}
     >
       <span aria-hidden>{icon}</span>
-      {t(locale, key)}
+      {!compact && t(locale, key)}
     </button>
   )
 
   return (
-    <div role="group" aria-label={t(locale, 'theme.pick')} className={`flex gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1 ${className}`}>
+    <div role="group" aria-label={t(locale, 'theme.pick')} className={`flex gap-0.5 border border-white/10 bg-white/[0.03] ${compact ? 'shrink-0 rounded-lg p-0.5' : 'rounded-xl p-1'} ${className}`}>
       {opt('light', '☀️', 'theme.lightShort')}
       {opt('dark', '🌙', 'theme.darkShort')}
     </div>

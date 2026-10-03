@@ -241,7 +241,7 @@ export function LoginForm({
     // Лицо TMS: мягкая подсветка фона (фиолет сверху, зелень снизу) и карточка с тенью —
     // первое, что видит каждый новый человек, и чаще всего по дороге в демо.
     <main
-      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-ink-950 px-4 py-8"
+      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-ink-950 px-3 py-2"
       style={{
         backgroundImage:
           'radial-gradient(60rem 30rem at 50% -10%, rgb(124 106 255 / 0.22), transparent 70%), radial-gradient(40rem 24rem at 90% 110%, rgb(34 197 94 / 0.12), transparent 70%)',
@@ -249,9 +249,9 @@ export function LoginForm({
     >
       <form
         onSubmit={submit}
-        className="panel my-auto w-full max-w-sm p-6 shadow-[0_24px_70px_-20px_rgb(0_0_0/0.45)] ring-1 ring-haul-500/10 sm:p-7"
+        className="panel my-auto w-full max-w-sm p-4 shadow-[0_24px_70px_-20px_rgb(0_0_0/0.45)] ring-1 ring-haul-500/10 sm:p-7"
       >
-        <div className="mb-5 flex items-center gap-2.5">
+        <div className="mb-3 flex items-center gap-2.5">
           <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-haul-500 to-good-500 text-xl font-bold text-[#fff] shadow-lg shadow-haul-500/30">
             D
           </div>
@@ -267,50 +267,49 @@ export function LoginForm({
           // названием: внизу формы на телефоне он уходил за экран (владелец 03.10.2026).
           <a
             href={demoUrl || '/demo'}
-            className="group mb-4 flex items-center gap-3 rounded-2xl border border-haul-500/40 bg-gradient-to-br from-haul-500/20 via-haul-500/10 to-good-500/15 p-3.5 text-left shadow-[0_10px_30px_-12px_rgb(124_106_255/0.55)] transition-all hover:-translate-y-0.5 hover:border-haul-400/70 hover:shadow-[0_16px_36px_-12px_rgb(124_106_255/0.7)]"
+            className="group mb-3 flex items-center gap-3 rounded-2xl border border-haul-500/40 bg-gradient-to-br from-haul-500/20 via-haul-500/10 to-good-500/15 px-3 py-2.5 text-left shadow-[0_10px_30px_-12px_rgb(124_106_255/0.55)] transition-all hover:-translate-y-0.5 hover:border-haul-400/70 hover:shadow-[0_16px_36px_-12px_rgb(124_106_255/0.7)]"
           >
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-haul-500 to-good-500 text-[#fff] shadow-md shadow-haul-500/40">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-haul-500 to-good-500 text-[#fff] shadow-md shadow-haul-500/40">
               <svg viewBox="0 0 24 24" className="ml-0.5 size-5" fill="currentColor" aria-hidden>
                 <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
               </svg>
             </span>
             <span className="min-w-0 flex-1">
-              <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-lg font-bold whitespace-nowrap text-white">
+              <span className="flex items-center gap-1.5 overflow-hidden text-lg font-bold whitespace-nowrap text-white">
                 {t(locale, 'login.demoTitle')}
                 <span className="rounded-full bg-good-500/20 px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide whitespace-nowrap text-good-500">
                   {t(locale, 'login.demoBadge')}
                 </span>
               </span>
-              <span className="mt-0.5 block text-sm leading-snug text-t2">{t(locale, 'login.demoSub')}</span>
+              <span className="mt-0.5 block truncate text-sm leading-snug text-t2">{t(locale, 'login.demoSub')}</span>
             </span>
             <span className="text-[20px] text-haul-300 transition-transform group-hover:translate-x-1" aria-hidden>
               →
             </span>
           </a>
         )}
-        {/* Языки флагами — сразу видно, на каких языках приложение; текущий подсвечен. */}
-        <div role="group" aria-label="Language" className="mb-2 grid grid-cols-6 gap-1">
-          {LOCALES.map((l) => (
-            <button
-              key={l.code}
-              type="button"
-              onClick={() => chooseLocale(l.code)}
-              title={l.native}
-              aria-label={l.native}
-              aria-pressed={locale === l.code}
-              className={`flex flex-col items-center gap-1 rounded-lg border px-1 py-1.5 text-2xs font-bold transition-colors ${
-                locale === l.code
-                  ? 'border-haul-500 bg-haul-500/15 text-haul-300'
-                  : 'border-white/8 text-t3 hover:border-white/25 hover:text-t1'
-              }`}
-            >
-              <LocaleFlag code={l.code} className="h-4 w-6" />
-              {l.short}
-            </button>
-          ))}
+        {/* Языки флагами и тема — одной строкой: вся форма входа должна влезать в
+            экран телефона без прокрутки (владелец 03.10.2026). Подпись языка — в title. */}
+        <div className="mb-3 flex items-center gap-1.5">
+          <div role="group" aria-label="Language" className="grid flex-1 grid-cols-6 gap-1">
+            {LOCALES.map((l) => (
+              <button
+                key={l.code}
+                type="button"
+                onClick={() => chooseLocale(l.code)}
+                title={l.native}
+                aria-label={l.native}
+                aria-pressed={locale === l.code}
+                className={`flex h-8 items-center justify-center rounded-lg border transition-colors ${
+                  locale === l.code ? 'border-haul-500 bg-haul-500/15' : 'border-white/8 hover:border-white/25'
+                }`}
+              >
+                <LocaleFlag code={l.code} className="h-3.5 w-5" />
+              </button>
+            ))}
+          </div>
+          <ThemePicker locale={locale} compact />
         </div>
-        {/* Тема — сразу под языком: оформление выбирают до входа. */}
-        <ThemePicker locale={locale} className="mb-4" />
 
         {bootstrap && (
           <p className="mb-3 rounded-lg border border-haul-500/25 bg-haul-500/[0.07] px-3 py-2 text-sm leading-relaxed text-haul-300">
@@ -326,6 +325,25 @@ export function LoginForm({
           <p className="mb-3 rounded-lg border border-haul-500/25 bg-haul-500/[0.07] px-3 py-2 text-sm leading-relaxed text-haul-300">
             {t(locale, 'login.forgot_subtitle')}
           </p>
+        )}
+
+        {/* Google — над полями почты: один клик вместо формы (владелец 03.10.2026:
+            «подними выше»). Под ним «или» и обычный вход. */}
+        {(bootstrap || mode === 'signin') && googleClientId && (
+          <>
+            <GoogleButton
+              clientId={googleClientId}
+              locale={locale}
+              onWait={() => switchMode('sent')}
+              onError={setError}
+            />
+            {ownWorkspace && !bootstrap && <p className="mt-1.5 text-center text-xs leading-snug text-t3 [@media(max-height:600px)]:hidden">{t(locale, 'login.google.ownWorkspace')}</p>}
+            <div className="my-2.5 flex items-center gap-3 text-xs text-t3 font-medium">
+              <span className="h-px flex-1 bg-white/10" />
+              {t(locale, 'login.google.or')}
+              <span className="h-px flex-1 bg-white/10" />
+            </div>
+          </>
         )}
 
         {/* Компания — первым полем: на первом запуске отвечают на вопрос «что ставим»,
@@ -430,7 +448,10 @@ export function LoginForm({
 
         {!bootstrap && mode === 'signin' && (
           <>
-            <label className="mt-3 flex cursor-pointer items-center gap-2.5 select-none">
+            <label
+              className="mt-2.5 flex cursor-pointer items-center gap-2.5 select-none"
+              title={remember ? t(locale, 'login.remember_on') : t(locale, 'login.remember_off')}
+            >
               <input
                 type="checkbox"
                 checked={remember}
@@ -439,16 +460,13 @@ export function LoginForm({
               />
               <span className="text-base text-t2">{t(locale, 'login.remember')}</span>
             </label>
-            <p className="mt-1 text-xs leading-relaxed text-t3">
-              {remember ? t(locale, 'login.remember_on') : t(locale, 'login.remember_off')}
-            </p>
           </>
         )}
 
         {/* loading, not just disabled: the old button only greyed out while the
             request was in flight, which looks identical to "you haven't filled the
             form in yet". The spinner says the click landed. */}
-        <Button type="submit" variant="primary" size="lg" block className="mt-4" loading={pending} disabled={!canSubmit}>
+        <Button type="submit" variant="primary" size="lg" block className="mt-3" loading={pending} disabled={!canSubmit}>
           {submitLabel}
         </Button>
 
@@ -473,23 +491,6 @@ export function LoginForm({
               </button>
             )}
           </div>
-        )}
-
-        {(bootstrap || mode === 'signin') && googleClientId && (
-          <>
-            <div className="mt-4 flex items-center gap-3 text-xs text-t3 font-medium">
-              <span className="h-px flex-1 bg-white/10" />
-              {t(locale, 'login.google.or')}
-              <span className="h-px flex-1 bg-white/10" />
-            </div>
-            <GoogleButton
-              clientId={googleClientId}
-              locale={locale}
-              onWait={() => switchMode('sent')}
-              onError={setError}
-            />
-            {ownWorkspace && !bootstrap && <p className="mt-2 text-center text-sm leading-snug text-t3">{t(locale, 'login.google.ownWorkspace')}</p>}
-          </>
         )}
 
       </form>
