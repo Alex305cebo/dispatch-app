@@ -261,6 +261,33 @@ export function LoginForm({
           </div>
         </div>
 
+        {!bootstrap && mode === 'signin' && (demoUrl || showDemo) && (
+          // Демо — самая частая дорога с этой страницы, поэтому не серая кнопка, а
+          // заметный блок: что внутри и что регистрации нет. Стоит ПЕРВЫМ, сразу под
+          // названием: внизу формы на телефоне он уходил за экран (владелец 03.10.2026).
+          <a
+            href={demoUrl || '/demo'}
+            className="group mb-4 flex items-center gap-3 rounded-2xl border border-haul-500/40 bg-gradient-to-br from-haul-500/20 via-haul-500/10 to-good-500/15 p-3.5 text-left shadow-[0_10px_30px_-12px_rgb(124_106_255/0.55)] transition-all hover:-translate-y-0.5 hover:border-haul-400/70 hover:shadow-[0_16px_36px_-12px_rgb(124_106_255/0.7)]"
+          >
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-haul-500 to-good-500 text-[#fff] shadow-md shadow-haul-500/40">
+              <svg viewBox="0 0 24 24" className="ml-0.5 size-5" fill="currentColor" aria-hidden>
+                <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
+              </svg>
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-lg font-bold whitespace-nowrap text-white">
+                {t(locale, 'login.demoTitle')}
+                <span className="rounded-full bg-good-500/20 px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide whitespace-nowrap text-good-500">
+                  {t(locale, 'login.demoBadge')}
+                </span>
+              </span>
+              <span className="mt-0.5 block text-sm leading-snug text-t2">{t(locale, 'login.demoSub')}</span>
+            </span>
+            <span className="text-[20px] text-haul-300 transition-transform group-hover:translate-x-1" aria-hidden>
+              →
+            </span>
+          </a>
+        )}
         {/* Языки флагами — сразу видно, на каких языках приложение; текущий подсвечен. */}
         <div role="group" aria-label="Language" className="mb-2 grid grid-cols-6 gap-1">
           {LOCALES.map((l) => (
@@ -465,32 +492,6 @@ export function LoginForm({
           </>
         )}
 
-        {!bootstrap && mode === 'signin' && (demoUrl || showDemo) && (
-          // Демо — самая частая дорога с этой страницы, поэтому не серая кнопка, а
-          // заметный блок: что внутри и что регистрации нет. Ведёт туда же, что и раньше.
-          <a
-            href={demoUrl || '/demo'}
-            className="group mt-4 flex items-center gap-3 rounded-2xl border border-haul-500/40 bg-gradient-to-br from-haul-500/20 via-haul-500/10 to-good-500/15 p-3.5 text-left shadow-[0_10px_30px_-12px_rgb(124_106_255/0.55)] transition-all hover:-translate-y-0.5 hover:border-haul-400/70 hover:shadow-[0_16px_36px_-12px_rgb(124_106_255/0.7)]"
-          >
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-haul-500 to-good-500 text-[#fff] shadow-md shadow-haul-500/40">
-              <svg viewBox="0 0 24 24" className="ml-0.5 size-5" fill="currentColor" aria-hidden>
-                <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
-              </svg>
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-lg font-bold whitespace-nowrap text-white">
-                {t(locale, 'login.demoTitle')}
-                <span className="rounded-full bg-good-500/20 px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide whitespace-nowrap text-good-500">
-                  {t(locale, 'login.demoBadge')}
-                </span>
-              </span>
-              <span className="mt-0.5 block text-sm leading-snug text-t2">{t(locale, 'login.demoSub')}</span>
-            </span>
-            <span className="text-[20px] text-haul-300 transition-transform group-hover:translate-x-1" aria-hidden>
-              →
-            </span>
-          </a>
-        )}
       </form>
     </main>
   )
