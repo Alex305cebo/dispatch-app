@@ -15,6 +15,7 @@ import { getLocale } from '@/lib/i18n-server'
 import { t, type Locale } from '@/lib/i18n'
 import { AmazonAdd } from './trip-form'
 import { TripRow } from './trip-row'
+import { AmazonLessons } from './lessons'
 
 export const dynamic = 'force-dynamic'
 
@@ -169,6 +170,8 @@ export default async function AmazonPage() {
         </div>
       ),
     },
+    // Уроки — для учеников: всегда в разделе, а не где-то на сайте курсов.
+    { id: 'am-lessons', node: <div><AmazonLessons locale={locale} /></div> },
   ]
   const grid = await tileGrid('amazon', AMAZON_TILES, locale)
 
@@ -177,6 +180,13 @@ export default async function AmazonPage() {
       <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
         {t(locale, 'amazon.title')}
         <Info text={t(locale, 'amazon.info')} />
+        {/* Ссылка к урокам сверху: плитку уроков можно утащить вниз, а найти её надо сразу. */}
+        <a
+          href="#amazon-lessons"
+          className="ml-auto inline-flex min-h-9 items-center rounded-lg border border-white/12 px-2.5 text-sm font-semibold text-haul-300 hover:border-haul-500/50 max-md:min-h-11"
+        >
+          📚 {t(locale, 'amazon.lessonsShort')}
+        </a>
       </h1>
       <p className="mb-5 text-base text-t2">{t(locale, 'amazon.subtitle')}</p>
       <WidgetGrid {...grid} widgets={widgets} />

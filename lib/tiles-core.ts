@@ -281,6 +281,7 @@ export const AMAZON_TILES: TilePlacement[] = [
   { id: 'am-add', size: 'l' },
   { id: 'am-board', size: 'l' },
   { id: 'am-trucks', size: 'l' },
+  { id: 'am-lessons', size: 'l' },
 ]
 
 export const DOCS_TILES: TilePlacement[] = [

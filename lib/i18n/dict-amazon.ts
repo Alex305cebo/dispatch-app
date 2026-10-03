@@ -117,5 +117,18 @@ export const amazonDict = {
     en: 'Assign a truck to a trip and it shows up here',
     uk: 'Призначте рейсу трак — він зʼявиться тут',
   },
+  'amazon.lessons': { ru: 'Уроки Amazon Relay', en: 'Amazon Relay lessons', uk: 'Уроки Amazon Relay' },
+  'amazon.lessonsShort': { ru: 'Уроки', en: 'Lessons', uk: 'Уроки' },
+  'amazon.lessonsHint': {
+    ru: 'Курс Dispatch4you: 4 урока и 4 видео. Открываются на сайте курсов по вашему входу',
+    en: 'Dispatch4you course: 4 lessons and 4 videos. They open on the course site with your course login',
+    uk: 'Курс Dispatch4you: 4 уроки і 4 відео. Відкриваються на сайті курсів за вашим входом',
+  },
+  'amazon.lesson1': { ru: 'Что это и как начать', en: 'What it is and how to start', uk: 'Що це і як почати' },
+  'amazon.lesson2': { ru: 'Грузы, бронирование и поездка', en: 'Loads, booking and the run', uk: 'Вантажі, бронювання і поїздка' },
+  'amazon.lesson3': { ru: 'Проблемные ситуации', en: 'When things go wrong', uk: 'Проблемні ситуації' },
+  'amazon.lesson4': { ru: 'Деньги, рейтинг и неделя диспетчера', en: 'Money, rating and the dispatcher week', uk: 'Гроші, рейтинг і тиждень диспетчера' },
+  'amazon.lessonRead': { ru: 'Урок', en: 'Lesson', uk: 'Урок' },
+  'amazon.lessonVideo': { ru: 'Видео', en: 'Video', uk: 'Відео' },
   'amazon.trailerAmazon': { ru: 'трейлер Amazon', en: 'Amazon trailer', uk: 'трейлер Amazon' },
 } as const
