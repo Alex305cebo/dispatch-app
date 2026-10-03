@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { Notifier } from '@/components/notifier'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { LocaleQuick } from '@/components/locale-quick'
 import { autoRefreshFleet } from '@/app/actions'
 import { UserPanel } from '@/components/user-panel'
 import type { CurrentUser } from '@/lib/session'
@@ -404,12 +405,15 @@ export function Nav({
             onExpandDock={expandDock}
             showTelegram={showTelegram}
             tilesEnabled={tilesEnabled}
-            themeControl={<ThemeToggle />}
             journalControl={
               user.role === 'admin' ? <JournalLink pathname={pathname} locale={locale} /> : undefined
             }
           />
         )}
+        {/* Язык и тема — на виду, рядом с колокольчиком, а не в меню аватара
+            (владелец 03.10.2026). На телефоне ряд — верхняя панель. */}
+        <LocaleQuick />
+        <ThemeToggle />
         <Notifier collapsed={false} />
         {/* Сюда components/tour.tsx подселяет кнопку «Как это работает» — она
             принадлежит ряду аккаунта, а не плавает над страницей. */}

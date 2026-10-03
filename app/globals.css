@@ -980,11 +980,15 @@
   }
   /* Таблетка с именем, колокольчик и «?» — в один ряд. Имя при нужде обрезается,
      а не уводит кнопки на строку ниже. */
+  /* Сверху ряд круглых кнопок (язык, тема, колокольчик, «?»), под ним — таблетка
+     с именем во всю ширину: в 12rem пять кнопок и имя в одну строку не влезают,
+     имя сжималось до одной буквы (03.10.2026, язык и тема вынесены из меню). */
   .nav-account-row {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
   }
   .nav-account-row > .relative:has(> .nav-avatar-btn) {
-    flex: 0 1 auto;
+    order: 99;
+    flex: 1 0 100%;
     min-width: 0;
   }
   .nav-account-row .nav-avatar-btn {
@@ -998,6 +1002,9 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+  }
+  .nav-collapsed .nav-account-row > .relative:has(> .nav-avatar-btn) {
+    flex: none;
   }
   /* Folded: logo over the (still-visible) chevron, so the unfold affordance stays. */
   .nav-collapsed .nav-brand-row {
