@@ -31,6 +31,7 @@ export type TilePage =
   | 'docs-fleet'
   | 'brokers'
   | 'tolls'
+  | 'amazon'
   | 'telegram'
   | 'invoices'
   | 'load-detail'
@@ -46,6 +47,7 @@ export const TILE_PATHS: Record<TilePage, string> = {
   'docs-fleet': '/docs',
   brokers: '/brokers',
   tolls: '/tolls',
+  amazon: '/amazon',
   telegram: '/telegram',
   invoices: '/invoices',
   'load-detail': '/loads/[id]',
@@ -270,6 +272,17 @@ export const TOLLS_TILES: TilePlacement[] = [
  *  водителях» лежат разные блоки, и общий порядок для них означал бы, что плитка
  *  одной вкладки толкает плитку другой. Денежные отчёты и корзина — по одному блоку,
  *  двигать там нечего, поэтому сетки у них нет. */
+// Раздел «Amazon» (10/03/26): счётчики сверху, рейс вставкой, рейсы по дням, траки.
+export const AMAZON_TILES: TilePlacement[] = [
+  { id: 'am-today', size: 's' },
+  { id: 'am-transit', size: 's' },
+  { id: 'am-week', size: 's' },
+  { id: 'am-rpm', size: 's' },
+  { id: 'am-add', size: 'l' },
+  { id: 'am-board', size: 'l' },
+  { id: 'am-trucks', size: 'l' },
+]
+
 export const DOCS_TILES: TilePlacement[] = [
   // «Распознать Rate Con» с 25.09.2026 — кнопка в шапке раздела, не плитка.
   // Денежные числа есть только у того, кому открыты «Финансы»; без права их нет.

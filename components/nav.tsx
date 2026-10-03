@@ -33,6 +33,8 @@ const icons: Record<string, string> = {
   shield: 'M12 3l7 3v6c0 4-3 7-7 8-4-1-7-4-7-8V6z M9 12l2 2 4-4',
   // Шлагбаум: стойка и поднятая стрела — узнаваемый знак платной дороги.
   toll: 'M5 21V8 M3 8h4 M7 11l14-4 M7 14l14-4',
+  // Коробка с «улыбкой» снизу — узнаваемо как Amazon без логотипа.
+  amazon: 'M3 7l9-4 9 4v6 M3 7v6 M3 7l9 4 9-4 M12 11v4 M5 17c4 3 10 3 14 0 M17 16l2 1-1 2',
 }
 
 function Icon({ d }: { d: string }) {
@@ -112,6 +114,8 @@ const ITEMS: Item[] = [
   { href: '/docs', labelKey: 'nav.docs', icon: 'docs', primary: true, also: ['/invoices'] },
   // «Рынок» — один раздел (пользователь, 16.09.2026; переименован 18–19.09.2026, когда
   // сюда переехало «Куда отправить трак»): вкладки внутри, адреса прежние.
+  // «Amazon» — рейсы Amazon Relay (10/03/26): свой раздел, не фильтр грузов.
+  { href: '/amazon', labelKey: 'nav.amazon', icon: 'amazon' },
   { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield', also: ['/facilities'] },
   { href: '/tolls', labelKey: 'nav.tolls', icon: 'toll' },
   { href: '/telegram', labelKey: 'nav.telegram', icon: 'chat' },

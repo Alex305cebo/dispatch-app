@@ -524,5 +524,33 @@ ALTER TABLE documents ADD CONSTRAINT documents_kind_check CHECK (kind IN ('ratec
 -- витрина (её по-прежнему узнаём по is_demo). Все прежние строки остаются 'default'.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id VARCHAR(64) NOT NULL DEFAULT 'default';
 
-INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-10-01')
+-- Раздел «Amazon» (10/03/26): рейсы Amazon Relay. Отдельно от loads: у рейса Amazon
+-- нет брокера, Rate Con и инвойса, зато есть VRID, тур и трейлер Amazon. Остановки —
+-- JSON [{code, city, date, time, tz}] (lib/amazon-relay.ts); raw_text — вставленный
+-- текст из Relay, чтобы при улучшении разбора перечитать старые рейсы.
+CREATE TABLE IF NOT EXISTS amazon_trips (
+  id             INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  company_id     VARCHAR(64) NOT NULL DEFAULT 'default',
+  truck_id       INT,
+  dispatcher_id  INT,
+  status         VARCHAR(16) NOT NULL DEFAULT 'booked',
+  vrid           VARCHAR(40),
+  tour_id        VARCHAR(40),
+  stops          JSON,
+  start_date     DATE,
+  rate           DOUBLE,
+  miles          DOUBLE,
+  trailer_no     VARCHAR(40),
+  trailer_owner  VARCHAR(8),
+  load_kind      VARCHAR(8),
+  notes          TEXT,
+  raw_text       MEDIUMTEXT,
+  created_at     DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  KEY amazon_trips_company (company_id, start_date),
+  KEY amazon_trips_truck (truck_id),
+  CONSTRAINT amazon_trips_status_check CHECK (status IN ('booked', 'in_transit', 'delivered', 'cancelled')),
+  CONSTRAINT amazon_trips_truck_fkey FOREIGN KEY (truck_id) REFERENCES trucks (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
+
+INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-10-03')
 ON DUPLICATE KEY UPDATE value = VALUES(value);
