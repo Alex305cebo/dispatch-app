@@ -2,14 +2,28 @@ import type { Locale } from '@/lib/i18n'
 
 // Флаг языка рисунком. Эмодзи-флаги Windows не рисует (показывает «US», «RU»), поэтому
 // простые SVG 3:2: полосы и главный знак, без мелких деталей — на 20–24 px их не видно.
-// ponytail: US без звёзд, KZ без орнамента — на таком размере читаются только цвета.
+// ponytail: KZ без орнамента — на таком размере читаются только цвета.
 const FLAGS: Record<Locale, React.ReactNode> = {
+  // Английский — флаг США, упрощённый (владелец, 10/03/26): 13 тонких полос на 20 px
+  // сливались в тёмное пятно, а белые полосы шли из фона bg-white, который в светлой
+  // теме перекрашен (--color-white). Теперь 7 крупных полос, белое рисуем сами, в синем
+  // поле — несколько белых звёзд-точек, чтобы флаг узнавался.
   en: (
     <>
-      {Array.from({ length: 7 }, (_, i) => (
-        <rect key={i} y={(i * 40) / 13} width="30" height={20 / 13} fill="#b22234" />
-      ))}
-      <rect width="13" height={(20 / 13) * 7} fill="#3c3b6e" />
+      <rect width="30" height="20" fill="#fff" />
+      <rect y="0.0" width="30" height="2.857" fill="#b22234" />
+      <rect y="5.714" width="30" height="2.857" fill="#b22234" />
+      <rect y="11.429" width="30" height="2.857" fill="#b22234" />
+      <rect y="17.143" width="30" height="2.857" fill="#b22234" />
+      <rect width="13" height="11.429" fill="#3c3b6e" />
+      <circle cx="2.4" cy="2.4" r="1" fill="#fff" />
+      <circle cx="6.5" cy="2.4" r="1" fill="#fff" />
+      <circle cx="10.6" cy="2.4" r="1" fill="#fff" />
+      <circle cx="4.45" cy="5.7" r="1" fill="#fff" />
+      <circle cx="8.55" cy="5.7" r="1" fill="#fff" />
+      <circle cx="2.4" cy="9.0" r="1" fill="#fff" />
+      <circle cx="6.5" cy="9.0" r="1" fill="#fff" />
+      <circle cx="10.6" cy="9.0" r="1" fill="#fff" />
     </>
   ),
   ru: (
@@ -48,7 +62,7 @@ const FLAGS: Record<Locale, React.ReactNode> = {
 
 export function LocaleFlag({ code, className = 'h-4 w-6' }: { code: Locale; className?: string }) {
   return (
-    <svg viewBox="0 0 30 20" className={`shrink-0 overflow-hidden rounded-[3px] bg-white ring-1 ring-black/10 ${className}`} aria-hidden>
+    <svg viewBox="0 0 30 20" className={`shrink-0 overflow-hidden rounded-[3px] ring-1 ring-black/10 ${className}`} aria-hidden>
       {FLAGS[code]}
     </svg>
   )
