@@ -985,6 +985,10 @@
      имя сжималось до одной буквы (03.10.2026, язык и тема вынесены из меню). */
   .nav-account-row {
     flex-wrap: wrap;
+    /* Кнопки ровной строкой во всю ширину рельса, без переноса: при gap 0.5rem
+       четыре кружка не влезали и «?» уезжал на вторую строку (03.10.2026). */
+    justify-content: space-between;
+    column-gap: 0.25rem;
   }
   .nav-account-row > .relative:has(> .nav-avatar-btn) {
     order: 99;
