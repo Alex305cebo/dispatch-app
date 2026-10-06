@@ -350,6 +350,39 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   add('status', (
     <section className="panel h-full p-4">
       <StatusPicker
+        // Действия с грузом — в шапке плитки статуса (владелец 25.09.2026: «должна быть
+        // одна плитка»; 10/06/26: «компактнее»). BOL и POD здесь не повторяются: их
+        // открывают и загружают плашки прямо на полосе статуса.
+        actions={
+          <>
+            {rateConDoc ? (
+              <RateConButton docId={rateConDoc.id} small />
+            ) : (
+              <span className="px-1 text-xs text-t3">{t(locale, 'loadDetail.noRateCon')}</span>
+            )}
+            {/* Чат водителя в Telegram одним нажатием: BOL/POD и фото водитель шлёт туда,
+                а «В груз» у сообщения кладёт файл сюда. Только если Telegram подключён. */}
+            {tgUserId != null && (
+              <Link
+                href={`/telegram?truck=${truck.id}`}
+                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-sky-400/35 bg-sky-500/10 px-2.5 text-xs font-semibold text-sky-300 transition-colors hover:bg-sky-500/20"
+              >
+                <Send size={13} aria-hidden />
+                {t(locale, 'loadDetail.tgChat')}
+              </Link>
+            )}
+            {/* Тот же брокер, то же направление, новые даты: регулярный рейс заводился
+                заново каждую неделю — вместе с почтой брокера и милями. */}
+            <Link
+              href={`/loads/new?repeat=${load.id}`}
+              title={t(locale, 'loads.repeat')}
+              className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 text-xs font-semibold text-t2 transition-colors hover:border-haul-500/50 hover:text-haul-300"
+            >
+              <RotateCw size={13} aria-hidden />
+              {t(locale, 'loads.repeat')}
+            </Link>
+          </>
+        }
         id={load.id}
         truckId={truck.id}
         title={`${load.origin ?? '—'} → ${load.destination ?? '—'}`}
@@ -380,36 +413,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           className="mt-4"
         />
       )}
-      {/* Действия с грузом — в той же плитке, что и статус (владелец 25.09.2026: «должна
-          быть одна плитка»). BOL и POD здесь не повторяются: их открывают и загружают
-          плашки прямо на полосе статуса. */}
-      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/[0.07] pt-3">
-        {rateConDoc ? (
-          <RateConButton docId={rateConDoc.id} />
-        ) : (
-          <span className="text-xs text-t3">{t(locale, 'loadDetail.noRateCon')}</span>
-        )}
-        {/* Чат водителя в Telegram одним нажатием: BOL/POD и фото водитель шлёт туда, а
-            «В груз» у сообщения кладёт файл сюда. Только если Telegram подключён. */}
-        {tgUserId != null && (
-          <Link
-            href={`/telegram?truck=${truck.id}`}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-sky-400/35 bg-sky-500/10 px-3 py-2 text-sm font-semibold text-sky-300 transition-colors hover:bg-sky-500/20"
-          >
-            <Send size={14} aria-hidden />
-            {t(locale, 'loadDetail.tgChat')}
-          </Link>
-        )}
-        {/* Тот же брокер, то же направление, новые даты. Регулярный рейс заводился
-            заново каждую неделю — вместе с перепечатыванием почты брокера и миль. */}
-        <Link
-          href={`/loads/new?repeat=${load.id}`}
-          className="ml-auto inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/12 px-3 py-2 text-sm font-medium text-t2 transition-colors hover:border-haul-500/50 hover:text-haul-300"
-        >
-          <RotateCw size={14} aria-hidden />
-          {t(locale, 'loads.repeat')}
-        </Link>
-      </div>
     </section>
   ))
 
