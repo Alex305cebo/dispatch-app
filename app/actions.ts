@@ -2282,6 +2282,39 @@ export async function parseRcForNotes(loadId: number): Promise<{ error: string }
   const load = toQrLoad(fields)
   const driverInfo = formatDriverInfo(fields)
 
+  // Груз, заведённый с пустым маршрутом (рейт-кон картинками, а текст был только на
+  // листе подписи — 10/06/26): кнопка перечитывает файл целиком и дописывает маршрут,
+  // ставку и мили, но только пустые — правленное диспетчером не трогаем.
+  const cur = (await sql`
+    SELECT origin, destination, rate, loaded_miles, miles_estimated
+    FROM loads WHERE id = ${loadId} AND company_id = ${companyId}`)[0] as {
+    origin: string | null
+    destination: string | null
+    rate: number
+    loaded_miles: number
+    miles_estimated: number | boolean
+  }
+  const origin = cur.origin?.trim() ? cur.origin : load.origin
+  const destination = cur.destination?.trim() ? cur.destination : load.destination
+  let miles = Number(cur.loaded_miles)
+  let milesEstimated = !!cur.miles_estimated
+  if (milesEstimated || !(miles > 1)) {
+    if (load.loadedMiles > 0) {
+      miles = load.loadedMiles
+      milesEstimated = false
+    } else if (origin && destination && (!cur.origin?.trim() || !cur.destination?.trim())) {
+      const { routeMiles } = await import('@/lib/geo-routing')
+      const r = await routeMiles(origin, destination, locale, {
+        origin: load.pickupAddress,
+        destination: load.deliveryAddress,
+      })
+      if ('miles' in r && r.miles > 0) {
+        miles = r.miles
+        milesEstimated = !!r.estimated
+      }
+    }
+  }
+
   try {
     // COALESCE у реквизитов брокера, а не присваивание: у груза, заведённого с DAT по
     // QR, брокер приходит одним названием без MC и почты, и рейт-кон — единственное
@@ -2300,6 +2333,9 @@ export async function parseRcForNotes(loadId: number): Promise<{ error: string }
       reference_id = COALESCE(reference_id, ${load.referenceId}),
       pay_via = COALESCE(pay_via, ${load.payVia}),
       driver_info = ${driverInfo},
+      origin = ${origin}, destination = ${destination},
+      rate = CASE WHEN rate > 0 THEN rate ELSE ${load.rate} END,
+      loaded_miles = ${miles}, miles_estimated = ${milesEstimated},
       stops = COALESCE(${fields.stops && fields.stops.length > 2 ? JSON.stringify(await fillStopCitiesFromZip(fields.stops)) : null}, stops),
       directions = COALESCE(${directionsOf(fields.stops) ? JSON.stringify(directionsOf(fields.stops)) : null}, directions)
       WHERE id = ${loadId} AND company_id = ${companyId}`

@@ -19,6 +19,8 @@ export type PdfContent = {
    * address the driver actually needs.
    */
   items: PdfItem[]
+  /** Страниц без слоя текста — картинка внутри PDF. */
+  imagePages: number
 }
 
 export async function extractPdf(file: File): Promise<PdfContent> {
@@ -34,6 +36,7 @@ export async function extractPdf(file: File): Promise<PdfContent> {
 
   const pages: string[] = []
   const items: PdfItem[] = []
+  let imagePages = 0
 
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i)
@@ -66,13 +69,25 @@ export async function extractPdf(file: File): Promise<PdfContent> {
       )
       .filter(Boolean)
 
-    pages.push(lines.join('\n'))
+    const pageText = lines.join('\n')
+    if (looksScanned(pageText)) imagePages++
+    pages.push(pageText)
   }
 
-  return { text: pages.join('\n'), items }
+  return { text: pages.join('\n'), items, imagePages }
 }
 
 /** Scanned rate cons have no text layer — say so instead of failing silently. */
 export function looksScanned(text: string): boolean {
   return text.replace(/\s/g, '').length < 40
+}
+
+/**
+ * Читать файл целиком (ИИ смотрит на страницы), а не только его текст. Не только когда
+ * текста нет вовсе: бывает склейка, где сам Rate Con — картинки, а текст есть лишь на
+ * приложенной странице (аудит подписи Highway у Fetch Freight, 10/06/26). По тексту
+ * такой груз выходил пустым — маршрута, ставки и миль в тексте просто нет.
+ */
+export function needsFileRead(c: Pick<PdfContent, 'text' | 'imagePages'>): boolean {
+  return looksScanned(c.text) || c.imagePages > 0
 }

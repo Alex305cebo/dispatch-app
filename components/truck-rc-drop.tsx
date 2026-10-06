@@ -11,7 +11,7 @@ import { Button } from '@/components/button'
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { motion } from 'motion/react'
 import Link from 'next/link'
-import { extractPdf, looksScanned } from '@/lib/pdf-text'
+import { extractPdf, needsFileRead } from '@/lib/pdf-text'
 import { formatDriverInfo, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
 import { rcWarnings, type RcWarning } from '@/lib/rc-warnings'
@@ -108,14 +108,17 @@ export function TruckRcDrop({
     setRes(null)
     try {
       const texts = new Map<File, string>()
+      const fileReads = new Set<File>()
       const companions: File[] = []
       const rcs: File[] = []
       for (const f of list) {
         const isPdf = f.name.toLowerCase().endsWith('.pdf') || f.type === 'application/pdf'
         const isImage = f.type.startsWith('image/')
         if (!isPdf && !isImage) throw new Error(t(locale, 'newLoad.needPdfOrPhoto'))
-        const txt = isPdf ? (await extractPdf(f)).text : ''
+        const pdf = isPdf ? await extractPdf(f) : null
+        const txt = pdf?.text ?? ''
         texts.set(f, txt)
+        if (!pdf || needsFileRead(pdf)) fileReads.add(f)
         if (txt && docKindFromText(txt) === 'driverinfo') companions.push(f)
         else rcs.push(f)
       }
@@ -145,7 +148,7 @@ export function TruckRcDrop({
       const mime = isImage ? file.type : 'application/pdf'
       const base64 = await fileToBase64(file)
       const text = texts.get(file) ?? ''
-      const hasText = isPdf && !looksScanned(text)
+      const hasText = isPdf && !fileReads.has(file)
 
       // 2) save the RC as a document on this truck
       setStage(t(locale, 'rcDrop.stageSaving'))
