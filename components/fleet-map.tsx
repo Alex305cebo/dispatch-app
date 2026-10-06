@@ -1249,8 +1249,8 @@ export function FleetMap({
         expanded
           ? // Окно поверх страницы: карточка карты становится модальным окном с полями,
             // чтобы было видно затемнение вокруг и куда нажать для выхода.
-            'fleet-map panel @container fixed inset-2 z-[1500] overflow-hidden sm:inset-4 lg:inset-8'
-          : 'fleet-map panel @container relative z-0 overflow-hidden'
+            'fleet-map group/map panel @container fixed inset-2 z-[1500] overflow-hidden sm:inset-4 lg:inset-8'
+          : 'fleet-map group/map panel @container relative z-0 overflow-hidden'
       }
       style={expanded ? undefined : { height }}
     >
@@ -1296,7 +1296,10 @@ export function FleetMap({
           )}
         </div>
       )}
-      <div className="absolute right-2 top-2 z-[1000] flex items-center gap-1">
+      {/* Кнопки — только под мышью (владелец 10/06/26: «плашки скрывались, если не
+          наведена мышка»): не закрывают карту и мили. Без мыши (телефон, планшет)
+          видны всегда — навести там нечем; с клавиатуры показываются по фокусу. */}
+      <div className="absolute right-2 top-2 z-[1000] flex items-center gap-1 transition-opacity duration-200 [@media(hover:hover)]:opacity-0 group-hover/map:opacity-100 focus-within:opacity-100 motion-reduce:transition-none">
         {markers.some((m) => m.kind === 'truck') && (
           <button
             type="button"
