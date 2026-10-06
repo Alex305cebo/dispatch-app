@@ -8,6 +8,7 @@ import { sql } from './db.ts'
 import { cacheCell, haversineMiles, simplifyPath } from './geo.ts'
 import { t, type Locale } from './i18n.ts'
 import { stateOf } from './us-state.ts'
+import { zipState } from './zip-state.ts'
 
 /**
  * Внешний запрос с ЖЁСТКИМ сроком ответа.
@@ -212,9 +213,21 @@ export async function cityCoordsBest(
   // Раньше опорой был город: при опечатке он не находился вовсе, а найденный по
   // индексу верный адрес отбраковывался как «слишком далеко от города».
   const zip = address ? extractZip(address) : null
-  const zipPt = zip ? await geocodeZip(zip) : null
+  // Штат, где точка обязана лежать: по индексу (он однозначен), иначе по «, ST» города.
+  // 10/06/26 «Lacombe, LA» встал под Омахой: точку по индексу и по адресу со штатом
+  // не сверял никто, и неверная опора отбраковывала верные адреса как «далеко».
+  const st = zipState(zip) ?? /,\s*([A-Za-z]{2})\s*$/.exec((city ?? '').trim())?.[1]?.toUpperCase() ?? null
+  const inState = (p: LatLng | null): p is LatLng => {
+    if (!p) return false
+    if (!st) return true
+    const at = stateOf(p.lat, p.lng)
+    return at === null || at === st
+  }
+  const zipRaw = zip ? await geocodeZip(zip) : null
+  const zipPt = inState(zipRaw) ? zipRaw : null
   const cityPt = zipPt ?? (city ? await cityGeocodeChecked(city) : null)
-  const trust = (p: LatLng | null): p is LatLng => !!p && (!cityPt || haversineMiles(p, cityPt) <= MAX_ADDR_DRIFT_MI)
+  const trust = (p: LatLng | null): p is LatLng =>
+    inState(p) && (!cityPt || haversineMiles(p, cityPt) <= MAX_ADDR_DRIFT_MI)
 
   if (address) {
     // Best first: Mapbox (rooftop-accurate, free tier) when a token is configured.
