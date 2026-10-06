@@ -14,7 +14,7 @@ import { Button } from '@/components/button'
 import { useRef, useState } from 'react'
 import type { TruckRecord } from '@/lib/map'
 import type { TruckMeta } from '@/lib/maintenance-core'
-import { extractPdf, looksScanned } from '@/lib/pdf-text'
+import { extractPdf, needsFileRead } from '@/lib/pdf-text'
 import { missingFields, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import type { QrLoad } from '@/lib/qr-load'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
@@ -68,11 +68,14 @@ export function NewLoadClient({
       // Nothing shows until the AI answers — text PDFs still extract their text
       // first (cheaper to send than the raw file), scans/photos send the file itself.
       let text = ''
+      let fileRead = true
       if (isPdf) {
-        text = (await extractPdf(file)).text
+        const pdf = await extractPdf(file)
         if (reqId.current !== my) return
+        text = pdf.text
+        fileRead = needsFileRead(pdf)
       }
-      const hasText = isPdf && !looksScanned(text)
+      const hasText = isPdf && !fileRead
 
       // Save the RC as a document — attached to the load on save.
       setDocId(undefined)
