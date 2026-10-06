@@ -28,7 +28,18 @@ const PIPELINE: LoadStatus[] = ['quoted', 'booked', 'in_transit', 'delivered']
 //  chip — стеклянная плашка со значком в шапке;
 //  halo / glow / ping — свечение и мягкая пульсация текущего кружка;
 //  from / to — концы переливающейся линии между шагами (цвет прошлого шага → этого).
-type Tone = { dot: string; text: string; chip: string; halo: string; glow: string; ping: string; from: string; to: string }
+//  next — следующий шаг: пунктирная обводка его цвета, видно, куда груз идёт дальше.
+type Tone = {
+  dot: string
+  text: string
+  chip: string
+  halo: string
+  glow: string
+  ping: string
+  from: string
+  to: string
+  next: string
+}
 const STEP_TONE: Record<LoadStatus, Tone> = {
   quoted: {
     dot: 'bg-white/60 text-ink-950',
@@ -39,6 +50,7 @@ const STEP_TONE: Record<LoadStatus, Tone> = {
     ping: 'bg-white/25',
     from: 'from-white/45',
     to: 'to-white/45',
+    next: 'border border-dashed border-white/35 text-t2',
   },
   booked: {
     dot: 'bg-cyan-400 text-ink-950',
@@ -49,6 +61,7 @@ const STEP_TONE: Record<LoadStatus, Tone> = {
     ping: 'bg-cyan-400/35',
     from: 'from-cyan-400',
     to: 'to-cyan-400',
+    next: 'border border-dashed border-cyan-400/60 text-cyan-300',
   },
   in_transit: {
     dot: 'bg-amber-400 text-ink-950',
@@ -59,6 +72,7 @@ const STEP_TONE: Record<LoadStatus, Tone> = {
     ping: 'bg-amber-400/35',
     from: 'from-amber-400',
     to: 'to-amber-400',
+    next: 'border border-dashed border-amber-400/60 text-amber-300',
   },
   delivered: {
     dot: 'bg-fuchsia-400 text-ink-950',
@@ -69,6 +83,7 @@ const STEP_TONE: Record<LoadStatus, Tone> = {
     ping: 'bg-fuchsia-400/35',
     from: 'from-fuchsia-400',
     to: 'to-fuchsia-400',
+    next: 'border border-dashed border-fuchsia-400/60 text-fuchsia-300',
   },
   paid: {
     dot: 'bg-good-400 text-ink-950',
@@ -79,6 +94,7 @@ const STEP_TONE: Record<LoadStatus, Tone> = {
     ping: 'bg-good-400/35',
     from: 'from-good-400',
     to: 'to-good-400',
+    next: 'border border-dashed border-good-400/60 text-good-400',
   },
   cancelled: {
     dot: 'bg-bad-500 text-white',
@@ -89,20 +105,21 @@ const STEP_TONE: Record<LoadStatus, Tone> = {
     ping: 'bg-bad-500/30',
     from: 'from-bad-500',
     to: 'to-bad-500',
+    next: 'border border-dashed border-bad-400/60 text-bad-400',
   },
 }
 
 // Ширина шага считается от ширины САМОЙ плитки (@container), а не экрана: плитку можно
 // сделать узкой, и тогда «sm:» на широком мониторе растягивал бы её за край.
-const STEP_W = 'flex w-[64px] shrink-0 flex-col items-center gap-1.5 @2xl:w-[88px]'
-// Линия между кружками: по центру кружка size-9 (18 px), толщиной 4 px.
-const LINE = 'mt-4 h-1 min-w-3 flex-1 rounded-full'
+const STEP_W = 'flex w-[60px] shrink-0 flex-col items-center gap-1 @2xl:w-[80px]'
+// Линия между кружками: по центру кружка size-8 (16 px), толщиной 3 px.
+const LINE = 'mt-[14.5px] h-[3px] min-w-3 flex-1 rounded-full'
 const LINE_OFF = 'bg-white/[0.08] shadow-[inset_0_1px_1px_rgba(0,0,0,0.25)]'
 const NODE =
-  'relative flex size-9 shrink-0 items-center justify-center rounded-full transition-all duration-200 disabled:cursor-default'
+  'relative flex size-8 shrink-0 items-center justify-center rounded-full transition-all duration-200 disabled:cursor-default'
 const HOLLOW =
   'bg-white/[0.06] text-t3 ring-1 ring-white/[0.12] backdrop-blur-sm hover:scale-110 hover:bg-white/[0.12] hover:text-t2'
-const LABEL = 'w-full truncate text-center text-xs'
+const LABEL = 'w-full truncate text-center text-xs leading-tight'
 
 /** Кружок шага: пройден — галочка, текущий — светится и мягко пульсирует, впереди — стекло. */
 function Node({
@@ -112,17 +129,21 @@ function Node({
   ...rest
 }: {
   tone: Tone
-  state: 'done' | 'current' | 'todo'
+  state: 'done' | 'current' | 'todo' | 'next'
   icon: (typeof STATUS_ICON)[LoadStatus]
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const look =
-    state === 'todo' ? HOLLOW : `${tone.dot} ${state === 'current' ? `ring-4 ${tone.halo} ${tone.glow}` : ''}`
+    state === 'todo'
+      ? HOLLOW
+      : state === 'next'
+        ? `${HOLLOW} ring-0 ${tone.next}`
+        : `${tone.dot} ${state === 'current' ? `ring-[3px] ${tone.halo} ${tone.glow}` : ''}`
   return (
     <button type="button" aria-current={state === 'current' ? 'step' : undefined} className={`${NODE} ${look}`} {...rest}>
       {state === 'current' && (
         <span aria-hidden className={`absolute inset-0 -z-10 rounded-full motion-safe:animate-ping ${tone.ping}`} />
       )}
-      {state === 'done' ? <Check size={16} strokeWidth={3} /> : <Icon size={15} strokeWidth={2.25} />}
+      {state === 'done' ? <Check size={14} strokeWidth={3} /> : <Icon size={14} strokeWidth={2.25} />}
     </button>
   )
 }
@@ -233,7 +254,10 @@ export function StatusPicker({
   stops = [],
   truckId = null,
   title = '',
+  actions = null,
 }: {
+  /** Кнопки груза (Rate Con, чат Telegram, повторить) — в шапке плитки, справа. */
+  actions?: React.ReactNode
   id: number
   current: LoadStatus
   /** Трак груза — куда вернуться после удаления ошибочного груза. */
@@ -384,50 +408,74 @@ export function StatusPicker({
 
   const head = STEP_TONE[shown]
   const HeadIcon = STATUS_ICON[shown]
-  // Тихие действия справа в шапке: редкие и необратимые по духу, в ряд обычных шагов
-  // им нельзя.
+  // Редкие и необратимые по духу действия — значками без подписей: на компьютере
+  // проявляются под мышью (как кнопки карты), на телефоне видны всегда.
   const quiet =
-    'inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-t3 transition-colors hover:bg-bad-500/10 hover:text-bad-400'
+    'inline-flex size-8 items-center justify-center rounded-lg text-t3 transition-colors hover:bg-bad-500/10 hover:text-bad-400 max-md:size-10'
+  const step = shown === 'paid' ? PIPELINE.length : Math.max(0, currentIdx + 1)
 
   return (
-    <div aria-busy={pending} className="@container">
-      {/* Шапка: где груз сейчас — крупно, со значком в стеклянной плашке того же цвета,
-          что и кружок на полосе. Раньше текущий шаг узнавался только по обводке кружка. */}
-      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-        {/* grow, а не flex-1: у flex-1 основа 0, и в узкой плитке действия справа
+    <div aria-busy={pending} className="group/status @container">
+      {/* Шапка одной строкой (владелец 10/06/26: «компактнее и интереснее»): слева где
+          груз сейчас — значок в стеклянной плашке и название, справа кнопки груза. Раньше
+          кнопки занимали отдельный ряд под чертой. */}
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+        {/* grow, а не flex-1: у flex-1 основа 0, и в узкой плитке кнопки справа
             сжимали название статуса в ноль вместо того, чтобы уйти строкой ниже. */}
-        <div className="flex min-w-0 grow items-center gap-3">
-          <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors ${head.chip}`}>
-            <HeadIcon size={18} strokeWidth={2.25} />
+        <div className="flex min-w-0 grow items-center gap-2.5">
+          <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl transition-colors ${head.chip}`}>
+            <HeadIcon size={17} strokeWidth={2.25} />
           </span>
-          <div className="min-w-0">
-            <p className="text-2xs font-medium uppercase tracking-wider text-t3">{t(locale, 'loadStatus.caption')}</p>
-            <p className={`truncate text-lg font-semibold leading-tight ${head.text}`}>{statusLabel(locale, shown)}</p>
+          <div className="min-w-0 leading-tight">
+            <p className="text-2xs font-medium uppercase tracking-wider text-t3">
+              {t(locale, 'loadStatus.caption')}
+              {!cancelled && (
+                <span className="nums ml-1.5 normal-case tracking-normal text-t3/80">
+                  {step}/{PIPELINE.length}
+                </span>
+              )}
+            </p>
+            <p className={`truncate text-md font-semibold ${head.text}`}>{statusLabel(locale, shown)}</p>
           </div>
         </div>
-        <div className="ml-auto flex items-center gap-1">
-          {/* Заведён по ошибке — удалить совсем, с тем же подтверждением, что в списке
-              грузов. После удаления — на карточку трака: этого груза больше нет. */}
-          <DeleteButton
-            action={deleteLoad}
-            id={id}
-            title={title || `#${id}`}
-            note={t(locale, 'loads.page.deleteNote')}
-            className={quiet}
-            label={
-              <>
-                <Trash2 size={13} strokeWidth={2.25} />
-                {t(locale, 'loadStatus.deleteWrong')}
-              </>
-            }
-            onDone={() => router.push(truckId ? `/trucks/${truckId}` : '/loads')}
-          />
-          {!cancelled && (
-            <button type="button" onClick={() => go('cancelled')} className={quiet}>
-              <Ban size={13} strokeWidth={2.25} />
-              {t(locale, 'loadStatus.cancel')}
-            </button>
-          )}
+        {/* Узкая плитка (телефон): удалить/отменить — в строке с названием, а кнопки
+            груза — отдельным рядом из трёх равных кнопок (на самой узкой значок над словом). Широкая —
+            всё в одну строку справа. */}
+        {actions && (
+          <div className="order-2 grid w-full grid-cols-3 gap-1.5 @2xl:order-none @2xl:ml-auto @2xl:flex @2xl:w-auto @2xl:items-center @max-2xl:*:h-9 @max-2xl:*:justify-center @max-md:*:h-auto @max-md:*:min-h-12 @max-md:*:flex-col @max-md:*:gap-1 @max-md:*:px-1.5 @max-md:*:py-2 @max-md:*:text-center @max-md:*:leading-tight">
+            {actions}
+          </div>
+        )}
+        <div className="order-1 flex items-center @2xl:order-none">
+          <span className="flex items-center transition-opacity duration-200 [@media(hover:hover)]:opacity-0 group-hover/status:opacity-100 focus-within:opacity-100 motion-reduce:transition-none">
+            {/* Заведён по ошибке — удалить совсем, с тем же подтверждением, что в списке
+                грузов. После удаления — на карточку трака: этого груза больше нет. */}
+            <DeleteButton
+              action={deleteLoad}
+              id={id}
+              title={title || `#${id}`}
+              note={t(locale, 'loads.page.deleteNote')}
+              className={quiet}
+              label={
+                <>
+                  <Trash2 size={15} strokeWidth={2.25} aria-hidden />
+                  <span className="sr-only">{t(locale, 'loadStatus.deleteWrong')}</span>
+                </>
+              }
+              onDone={() => router.push(truckId ? `/trucks/${truckId}` : '/loads')}
+            />
+            {!cancelled && (
+              <button
+                type="button"
+                onClick={() => go('cancelled')}
+                className={quiet}
+                title={t(locale, 'loadStatus.cancel')}
+                aria-label={t(locale, 'loadStatus.cancel')}
+              >
+                <Ban size={15} strokeWidth={2.25} aria-hidden />
+              </button>
+            )}
+          </span>
         </div>
       </div>
 
@@ -521,7 +569,7 @@ export function StatusPicker({
               <div className={STEP_W}>
                 <Node
                   tone={tone}
-                  state={done ? 'done' : isCurrent ? 'current' : 'todo'}
+                  state={done ? 'done' : isCurrent ? 'current' : i === currentIdx + 1 && !cancelled ? 'next' : 'todo'}
                   icon={STATUS_ICON[s]}
                   onClick={() => (s === shown ? same(s) : go(s))}
                   title={statusLabel(locale, s)}

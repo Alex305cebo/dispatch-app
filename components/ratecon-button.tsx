@@ -24,10 +24,13 @@ import { t } from '@/lib/i18n'
 export function RateConButton({
   docId,
   compact,
+  small,
 }: {
   docId: number
   /** Icon-only pill for list rows; full label for the load page. */
   compact?: boolean
+  /** Невысокая кнопка со словами — в шапке плитки статуса груза. */
+  small?: boolean
 }) {
   const locale = useLocale()
   const [open, setOpen] = useState(false)
@@ -39,7 +42,9 @@ export function RateConButton({
       title={t(locale, 'rateconButton.openTitle')}
       aria-label={t(locale, 'rateconButton.openTitle')}
       className={
-        compact
+        small
+          ? 'inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 text-xs font-semibold text-t1 transition-colors hover:border-haul-500 hover:text-haul-400'
+          : compact
           ? 'flex min-h-9 shrink-0 items-center gap-1 rounded-lg border border-white/10 px-2.5 text-xs font-semibold max-md:min-h-11 text-t2 transition-colors hover:border-haul-500 hover:text-haul-400'
           : 'inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-base font-semibold text-t1 transition-colors hover:border-haul-500 hover:text-haul-400'
       }
@@ -51,13 +56,13 @@ export function RateConButton({
         strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className={compact ? 'size-3.5' : 'size-4'}
+        className={compact || small ? 'size-3.5' : 'size-4'}
         aria-hidden
       >
         <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
         <path d="M14 3v5h5" />
       </svg>
-      {compact ? 'RC' : t(locale, 'rateconButton.openLabel')}
+      {compact ? 'RC' : small ? 'Rate Con' : t(locale, 'rateconButton.openLabel')}
     </button>
     {open && <DocModal docId={docId} onClose={() => setOpen(false)} />}
     </>

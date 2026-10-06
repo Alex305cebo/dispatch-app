@@ -1249,8 +1249,8 @@ export function FleetMap({
         expanded
           ? // Окно поверх страницы: карточка карты становится модальным окном с полями,
             // чтобы было видно затемнение вокруг и куда нажать для выхода.
-            'fleet-map panel fixed inset-2 z-[1500] overflow-hidden sm:inset-4 lg:inset-8'
-          : 'fleet-map panel relative z-0 overflow-hidden'
+            'fleet-map group/map panel @container fixed inset-2 z-[1500] overflow-hidden sm:inset-4 lg:inset-8'
+          : 'fleet-map group/map panel @container relative z-0 overflow-hidden'
       }
       style={expanded ? undefined : { height }}
     >
@@ -1276,25 +1276,30 @@ export function FleetMap({
       {/* На телефоне бейдж по центру наезжал на кнопки справа (от «1 821 mi»
           оставалась одна «1») — там он спускается под ряд кнопок. */}
       {/* На телефоне — одной строкой в правом нижнем углу, чтобы не закрывать
-          середину карты; на широком экране — сверху по центру, как было. */}
+          середину карты; сверху по центру — только когда сама КАРТА широкая. По ширине
+          экрана нельзя: на карточке трака карта уже экрана, и кнопки «Рынок · Вид
+          карты» закрывали мили (10/06/26). Средняя карта — бейдж слева, у кнопок зума. */}
       {distanceMi != null && distanceMi > 0 && (
-        <div className="pointer-events-none absolute bottom-2.5 right-2.5 z-[1000] rounded-full border border-white/15 bg-ink-950/85 px-3 py-1 text-center backdrop-blur sm:bottom-auto sm:left-1/2 sm:right-auto sm:top-2.5 sm:-translate-x-1/2 sm:px-3.5 sm:py-1.5">
-          <span className="nums text-md font-bold leading-none text-white sm:text-xl">
+        <div className="pointer-events-none absolute bottom-2.5 right-2.5 z-[1000] rounded-full border border-white/15 bg-ink-950/85 px-3 py-1 text-center backdrop-blur @min-[600px]:bottom-auto @min-[600px]:left-14 @min-[600px]:right-auto @min-[600px]:top-2.5 @min-[600px]:px-3.5 @min-[600px]:py-1.5 @min-[960px]:left-1/2 @min-[960px]:-translate-x-1/2">
+          <span className="nums text-md font-bold leading-none text-white @min-[600px]:text-xl">
             {Math.round(distanceMi).toLocaleString('en-US')}
           </span>
-          <span className="ml-1 text-xs font-medium text-t2 sm:text-sm">mi</span>
+          <span className="ml-1 text-xs font-medium text-t2 @min-[600px]:text-sm">mi</span>
           {/* Сколько уже позади — на телефоне в той же строке, на широком экране
               второй строкой. Строку готовит страница — карта не знает ни статуса
               груза, ни его миль. */}
           {subNote && (
             <>
-              <span className="nums text-xs font-medium text-t2 sm:hidden"> · {subNote}</span>
-              <div className="nums mt-0.5 hidden text-2xs font-medium leading-tight text-t2 sm:block">{subNote}</div>
+              <span className="nums text-xs font-medium text-t2 @min-[600px]:hidden"> · {subNote}</span>
+              <div className="nums mt-0.5 hidden text-2xs font-medium leading-tight text-t2 @min-[600px]:block">{subNote}</div>
             </>
           )}
         </div>
       )}
-      <div className="absolute right-2 top-2 z-[1000] flex items-center gap-1">
+      {/* Кнопки — только под мышью (владелец 10/06/26: «плашки скрывались, если не
+          наведена мышка»): не закрывают карту и мили. Без мыши (телефон, планшет)
+          видны всегда — навести там нечем; с клавиатуры показываются по фокусу. */}
+      <div className="absolute right-2 top-2 z-[1000] flex items-center gap-1 transition-opacity duration-200 [@media(hover:hover)]:opacity-0 group-hover/map:opacity-100 focus-within:opacity-100 motion-reduce:transition-none">
         {markers.some((m) => m.kind === 'truck') && (
           <button
             type="button"
