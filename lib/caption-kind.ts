@@ -85,3 +85,20 @@ export function docKindFromText(text: string): DocClass | null {
   if (DRIVERINFO_TEXT.test(t)) return 'driverinfo'
   return RATECON_TEXT.test(t) ? 'ratecon' : null
 }
+
+const BOL_HEADING = /\bbill[\s._-]*of[\s._-]*lading\b|\bstraight[\s._-]*bill\b/i
+/** Ставка рейса: $2,200 / $2200.00 / $ 950. MONEY_TEXT не видит «$2,200» (одна цифра
+ * до запятой), поэтому здесь своя, попроще. */
+const RATE_MONEY = /\$\s?\d{1,3}(?:,\d{3})+|\$\s?\d{3,}/
+
+/** Накладная (BOL), положенная вместо рейт-кона. В ней те же адреса и номер груза,
+ * но нет ни ставки, ни окон пикапа/доставки, а её «Ship/Due Date» ИИ принимает за
+ * даты рейса — так груз 2595 получил ставку $0 и чужие даты. Узнаём по шапке
+ * (первые строки) и отсутствию денег: рейт-кон упоминает BOL в своих условиях,
+ * но не в заголовке и никогда без ставки. */
+export function isBolNotRatecon(text: string): boolean {
+  const t = (text ?? '').trim()
+  if (t.length < 40) return false
+  if (!BOL_HEADING.test(t.slice(0, 300))) return false
+  return !RATE_MONEY.test(t) && !MONEY_TEXT.test(t) && !RATECON_TEXT.test(t.slice(0, 300))
+}

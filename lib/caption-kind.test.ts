@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { captionKind, docKindFromText } from './caption-kind.ts'
+import { captionKind, docKindFromText, isBolNotRatecon } from './caption-kind.ts'
 
 // A text PDF names itself in its own heading, so this saves the vision call entirely —
 // which is what actually matters on a free tier metered in requests per day.
@@ -129,4 +129,19 @@ test('накладная с номером пломбы в подписи пло
 test('пломба не выигрывает у рейт-кона и слов, где seal внутри', () => {
   assert.equal(captionKind('Rate con, seal 4471.pdf'), 'ratecon')
   for (const s of ['sealed bid', 'Sealand 4471']) assert.equal(captionKind(s), null, s)
+})
+
+test('BOL put in place of a rate con is caught by its heading', () => {
+  // Груз 2595: шапка «STRAIGHT BILL OF LADING - SHORT FORM», Ship/Due Date, без ставки.
+  const bol =
+    'STRAIGHT BILL OF LADING - SHORT FORM\nShip Date: 10/2/2026 Due Date: 10/5/2026\n' +
+    'Ship From: Zayo WPB West Palm Beach FL Ship To: Zayo Temple PA\nLoad# 570269895 22 pallets 15571 lbs'
+  assert.equal(isBolNotRatecon(bol), true)
+  // Рейт-кон, который в условиях просит вернуть подписанный BOL, — не BOL.
+  const rc =
+    'Carrier Rate Confirmation\nLoad 570269895 Line Haul - FLAT RATE $2,200.00\n' +
+    'Return the signed bill of lading with your invoice.'
+  assert.equal(isBolNotRatecon(rc), false)
+  // BOL в шапке, но со ставкой — значит рейт-кон со вшитым BOL, решает ИИ.
+  assert.equal(isBolNotRatecon(bol + '\nCarrier pay: $2,200.00'), false)
 })

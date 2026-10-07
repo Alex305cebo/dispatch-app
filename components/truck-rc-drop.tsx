@@ -18,7 +18,7 @@ import { rcWarnings, type RcWarning } from '@/lib/rc-warnings'
 import { checkLaneRate, createLoadFromRc, setLoadPartial, undoRcUpload, uploadDocument, type RcCreateResult } from '@/app/actions'
 import { withRate, type RateCheck } from '@/lib/rate-check-core'
 import { RateLines } from '@/components/analysis'
-import { docKindFromText } from '@/lib/caption-kind'
+import { docKindFromText, isBolNotRatecon } from '@/lib/caption-kind'
 import { staleBuildMessage } from '@/components/build-watch'
 import { notify } from '@/lib/notify'
 import { BrokerCheckPanel } from '@/components/broker-check'
@@ -111,6 +111,7 @@ export function TruckRcDrop({
       const fileReads = new Set<File>()
       const companions: File[] = []
       const rcs: File[] = []
+      const bols: File[] = []
       for (const f of list) {
         const isPdf = f.name.toLowerCase().endsWith('.pdf') || f.type === 'application/pdf'
         const isImage = f.type.startsWith('image/')
@@ -119,7 +120,8 @@ export function TruckRcDrop({
         const txt = pdf?.text ?? ''
         texts.set(f, txt)
         if (!pdf || needsFileRead(pdf)) fileReads.add(f)
-        if (txt && docKindFromText(txt) === 'driverinfo') companions.push(f)
+        if (txt && isBolNotRatecon(txt)) bols.push(f)
+        else if (txt && docKindFromText(txt) === 'driverinfo') companions.push(f)
         else rcs.push(f)
       }
 
@@ -138,10 +140,17 @@ export function TruckRcDrop({
       // есть всё, кроме ставки (TQL присылает их отдельно), и груз без ставки лучше,
       // чем груз, которого нет: ставка впишется из рейт-кона позже, предупреждение
       // «ставка не распозналась» об этом скажет. Остальные файлы ложатся к этому грузу.
+      // BOL вместо рейт-кона груз не создаёт: в нём нет ставки и окон, а «Ship/Due
+      // Date» ИИ выдал бы за даты рейса. Накладная ложится к траку как BOL.
       const ordered = [...rcs, ...companions]
+      if (!ordered.length) {
+        for (const f of bols) await fileDoc(f, 'bol')
+        throw new Error(t(locale, 'rcDrop.isBol'))
+      }
       const file = ordered[0]!
       const sourceKind = companions.includes(file) ? 'driverinfo' : 'ratecon'
-      const rest = ordered.slice(1)
+      const rest = [...ordered.slice(1), ...bols]
+      const kindOf = (f: File) => (bols.includes(f) ? 'bol' : companions.includes(f) ? 'driverinfo' : 'ratecon')
 
       const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
       const isImage = file.type.startsWith('image/')
@@ -198,7 +207,7 @@ export function TruckRcDrop({
         if ('elsewhereLoadId' in made && made.elsewhereLoadId) setElsewhere(made.elsewhereLoadId)
         throw new Error(made.error)
       }
-      for (const f of rest) await fileDoc(f, companions.includes(f) ? 'driverinfo' : 'ratecon', made.loadId)
+      for (const f of rest) await fileDoc(f, kindOf(f), made.loadId)
       if (rest.length) notify('ok', t(locale, 'rcDrop.companionSaved'), rest.map((f) => f.name).join(', '))
 
       setRes({
