@@ -15,6 +15,7 @@ import { useRef, useState } from 'react'
 import type { TruckRecord } from '@/lib/map'
 import type { TruckMeta } from '@/lib/maintenance-core'
 import { extractPdf, needsFileRead } from '@/lib/pdf-text'
+import { isBolNotRatecon } from '@/lib/caption-kind'
 import { missingFields, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import type { QrLoad } from '@/lib/qr-load'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
@@ -74,6 +75,9 @@ export function NewLoadClient({
         if (reqId.current !== my) return
         text = pdf.text
         fileRead = needsFileRead(pdf)
+        // BOL вместо рейт-кона: ставки и окон в нём нет, «Ship/Due Date» стали бы
+        // датами рейса. Не читаем и не сохраняем как рейт-кон.
+        if (isBolNotRatecon(text)) throw new Error(t(locale, 'rcDrop.isBol'))
       }
       const hasText = isPdf && !fileRead
 
