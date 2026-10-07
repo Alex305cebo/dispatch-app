@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useOptimistic, useTransition } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { useOptimistic, useState, useTransition } from 'react'
+import { ChevronDown, ChevronUp, GripVertical } from 'lucide-react'
 import { arrivedAt, isDone, mergeStops, stopKey, stopsFrom, stopTitle, type StopEv } from '@/lib/stops'
 import { whenText } from '@/lib/loads-dashboard'
 import type { LoadRecord } from '@/lib/map'
@@ -27,8 +27,8 @@ type StopState = 'none' | 'arrived' | 'done'
  * висел отдельной плашкой, и порядок точек — сначала выгрузка первого груза, потом
  * погрузка второго в том же городе — не читался ниоткуда.
  *
- * Порядок диспетчер поправляет стрелками (сохраняется на трак, по нему же лента в
- * приложении водителя), статус точки — маленьким списком справа (app/actions.ts
+ * Порядок диспетчер поправляет перетаскиванием строки или стрелками (сохраняется на
+ * трак, по нему же лента в приложении водителя и дорога на карте), статус точки — маленьким списком справа (app/actions.ts
  * setStopState: те же отметки, что у водителя, и тот же статус груза).
  */
 export function TaskStops({
@@ -57,6 +57,9 @@ export function TaskStops({
   // Новый порядок и новый статус видны сразу; сервер перерисует страницу и подтвердит.
   const [keys, setKeys] = useOptimistic(order)
   const [over, setOver] = useOptimistic<Record<string, StopState>, [string, StopState]>({}, (s, [k, v]) => ({ ...s, [k]: v }))
+  // Перетаскивание мышью: какую строку тащат и над какой она сейчас.
+  const [drag, setDrag] = useState<number | null>(null)
+  const [dropAt, setDropAt] = useState<number | null>(null)
   if (loads.length === 0) return null
   const stopsOf = new Map(loads.map((l) => [l.id, stopsFrom(l)]))
   const merged = mergeStops(loads, keys)
@@ -71,18 +74,18 @@ export function TaskStops({
   const left = merged.filter((m) => stateOf(m) !== 'done').length
   const next = merged.find((m) => stateOf(m) !== 'done')
 
-  const move = (i: number, dir: -1 | 1) => {
-    if (truckId == null) return
+  const moveTo = (i: number, j: number) => {
+    if (truckId == null || i === j) return
     const list = merged.map(stopKey)
-    const j = i + dir
     if (j < 0 || j >= list.length) return
-    ;[list[i], list[j]] = [list[j]!, list[i]!]
+    list.splice(j, 0, ...list.splice(i, 1))
     start(async () => {
       setKeys(list)
       const res = await saveTaskOrder(truckId, list)
       if (res?.error) notify('error', res.error)
     })
   }
+  const move = (i: number, dir: -1 | 1) => moveTo(i, i + dir)
   const setState = (m: (typeof merged)[number], v: StopState) =>
     start(async () => {
       setOver([stopKey(m), v])
@@ -142,10 +145,37 @@ export function TaskStops({
           return (
             <li
               key={stopKey(m)}
+              draggable={truckId != null && !pending}
+              onDragStart={(e) => {
+                setDrag(i)
+                e.dataTransfer.effectAllowed = 'move'
+              }}
+              onDragOver={(e) => {
+                if (drag == null) return
+                e.preventDefault()
+                if (dropAt !== i) setDropAt(i)
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                if (drag != null) moveTo(drag, i)
+                setDrag(null)
+                setDropAt(null)
+              }}
+              onDragEnd={() => {
+                setDrag(null)
+                setDropAt(null)
+              }}
               className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-2.5 py-1.5 text-base ${
                 isNow ? 'bg-haul-500/[0.10] ring-1 ring-haul-400/30' : isPast ? 'bg-white/[0.02] text-t3' : 'bg-white/[0.04]'
-              } ${focusLoadId != null && m.loadId !== focusLoadId ? 'opacity-55' : ''}`}
+              } ${focusLoadId != null && m.loadId !== focusLoadId ? 'opacity-55' : ''} ${
+                drag === i ? 'opacity-40' : ''
+              } ${drag != null && dropAt === i && drag !== i ? 'outline-2 outline-dashed outline-haul-400/70' : ''} ${
+                truckId != null ? 'md:cursor-grab md:active:cursor-grabbing' : ''
+              }`}
             >
+              {truckId != null && (
+                <GripVertical size={14} className="-ml-1 shrink-0 text-t3 max-md:hidden" aria-hidden />
+              )}
               <span className={`nums w-4 shrink-0 text-sm ${isPast ? 'text-good-400' : 'text-t3'}`}>
                 {isPast ? '✓' : i + 1}
               </span>

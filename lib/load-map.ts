@@ -6,7 +6,7 @@
 import { truckShortLabel, type LoadRecord, type TruckRecord } from './map'
 import type { FleetStatus } from './maintenance-core'
 import { cityCoordsBest, routeToPoint, routeVia } from './geo-routing'
-import { isDone, stopTitle, stopsFrom, type StopEv } from './stops.ts'
+import { isDone, mergeStops, stopTitle, stopsFrom, type LoadStop, type StopEv } from './stops.ts'
 import { liveTrail, trailLabels } from './eld'
 import { trailSegments } from './geo'
 import { tripEta } from './trip-eta'
@@ -92,6 +92,11 @@ export async function loadMapData(
   locale: Locale,
   /** Отметки водителя: по ним видно, какая остановка следующая (lib/stops.ts). */
   events: StopEv[] = [],
+  /** Партиалы: все грузы в трейлере (текущий и соседи), отметки по каждому и ручной
+   * порядок задания трака. Дорога идёт через остановки ВСЕХ грузов одной цепочкой в
+   * этом порядке — раньше каждый груз рисовался своей линией, и две линии ложились
+   * поверх друг друга: трак → выгрузка первого, пикап партиала → его выгрузка. */
+  trip?: { loads: LoadRecord[]; events: Record<number, StopEv[]>; order?: string[] | null },
 ): Promise<LoadMapData> {
   const markers: MapMarker[] = []
   const routes: MapRoute[] = []
@@ -107,45 +112,6 @@ export async function loadMapData(
     detention: null,
   }
 
-  // Остановки по порядку и их точки: адрес из рейт-кона точнее города, за ним
-  // индекс, за ним город (cityCoordsBest). ПОСЛЕДОВАТЕЛЬНО — у бесплатного
-  // Nominatim правило «один запрос в секунду».
-  const stops = load ? stopsFrom(load) : []
-  type Pt = { lat: number; lng: number }
-  const pts: (Pt | null)[] = []
-  for (const st of stops) pts.push(await cityCoordsBest(st.address, st.city))
-  const multi = stops.length > 2
-  const markerAt = (i: number): MapMarker | null => {
-    const st = stops[i]
-    const p = pts[i]
-    if (!st || !p || !load) return null
-    const isPickup = st.role === 'pickup'
-    // Две точки — подписи как всегда; три и больше — «Выгрузка 1 · Omaha, NE» и
-    // название склада во второй строке.
-    const label = multi
-      ? `${stopTitle(st, stops, locale)} · ${st.city ?? ''}`
-      : isPickup
-        ? `${t(locale, 'tracking.pickupPrefix')}${st.city}`
-        : `Delivery · ${st.city}`
-    const sub = multi
-      ? [st.name, usDate(st.date) || null, apptText(st.time, locale)].filter(Boolean).join('\n')
-      : isPickup
-        ? [usDate(st.date) || null, apptText(st.time, locale)].filter(Boolean).join('\n')
-        : load.origin
-          ? `${t(locale, 'tracking.fromPrefix')}${load.origin}`
-          : ''
-    const dir = st.directions ? `⚠ ${t(locale, 'loads.dash.hasDirections')}` : ''
-    return {
-      lat: p.lat,
-      lng: p.lng,
-      label,
-      sub: [sub, dir].filter(Boolean).join('\n') || undefined,
-      kind: isPickup ? 'pickup' : 'dest',
-      href: `/loads/${load.id}`,
-    }
-  }
-  const known = pts.filter((p): p is Pt => !!p)
-
   const lat = fs?.lat ?? null
   const lng = fs?.lng ?? null
   // A FINISHED load is history: the truck has long since moved on — usually onto another
@@ -155,6 +121,71 @@ export async function loadMapData(
   // currently being run, draw the load's OWN route through its stops and no live truck.
   const isActive = load == null || load.status === 'booked' || load.status === 'in_transit'
   const noGps = lat == null || lng == null
+
+  // Остановки по порядку: у одного груза — его собственные; у груза с партиалами —
+  // общая лента задания (lib/stops.ts mergeStops, с ручным порядком диспетчера), та
+  // же, что в «Задании по порядку» рядом и у водителя.
+  const group = load && isActive && trip && trip.loads.length > 1 ? trip.loads : load ? [load] : []
+  const together = group.length > 1
+  const ownOf = new Map(group.map((l) => [l.id, stopsFrom(l)]))
+  type Entry = { st: LoadStop; load: LoadRecord; own: LoadStop[]; evs: StopEv[] }
+  const entry = (l: LoadRecord, st: LoadStop): Entry => ({
+    st,
+    load: l,
+    own: ownOf.get(l.id) ?? [],
+    evs: l.id === load?.id ? events : (trip?.events[l.id] ?? []),
+  })
+  const stops: Entry[] = together
+    ? mergeStops(group, trip?.order).flatMap((m) => {
+        const l = group.find((x) => x.id === m.loadId)
+        return l ? [entry(l, m)] : []
+      })
+    : load
+      ? (ownOf.get(load.id) ?? []).map((st) => entry(load, st))
+      : []
+
+  // Точки остановок: адрес из рейт-кона точнее города, за ним индекс, за ним город
+  // (cityCoordsBest). ПОСЛЕДОВАТЕЛЬНО — у бесплатного Nominatim правило «один запрос
+  // в секунду».
+  type Pt = { lat: number; lng: number }
+  const pts: (Pt | null)[] = []
+  for (const { st } of stops) pts.push(await cityCoordsBest(st.address, st.city))
+  const multi = together || stops.length > 2
+  const markerAt = (i: number): MapMarker | null => {
+    const e = stops[i]
+    const p = pts[i]
+    if (!e || !p) return null
+    const { st, own } = e
+    const isPickup = st.role === 'pickup'
+    // Две точки — подписи как всегда; три и больше — «Выгрузка 1 · Omaha, NE» и
+    // название склада во второй строке. Несколько грузов — ещё номер точки в общем
+    // задании (тот же, что в списке рядом) и чей это груз.
+    const label = multi
+      ? `${together ? `${i + 1}. ` : ''}${stopTitle(st, own, locale)} · ${st.city ?? ''}`
+      : isPickup
+        ? `${t(locale, 'tracking.pickupPrefix')}${st.city}`
+        : `Delivery · ${st.city}`
+    const whose = together
+      ? [e.load.referenceId ? `#${e.load.referenceId}` : `#${e.load.id}`, e.load.brokerName].filter(Boolean).join(' · ')
+      : null
+    const sub = multi
+      ? [whose, st.name, usDate(st.date) || null, apptText(st.time, locale)].filter(Boolean).join('\n')
+      : isPickup
+        ? [usDate(st.date) || null, apptText(st.time, locale)].filter(Boolean).join('\n')
+        : e.load.origin
+          ? `${t(locale, 'tracking.fromPrefix')}${e.load.origin}`
+          : ''
+    const dir = st.directions ? `⚠ ${t(locale, 'loads.dash.hasDirections')}` : ''
+    return {
+      lat: p.lat,
+      lng: p.lng,
+      label,
+      sub: [sub, dir].filter(Boolean).join('\n') || undefined,
+      kind: isPickup ? 'pickup' : 'dest',
+      href: `/loads/${e.load.id}`,
+    }
+  }
+  const known = pts.filter((p): p is Pt => !!p)
 
   if (load && (!isActive || noGps)) {
     stops.forEach((_, i) => {
@@ -166,7 +197,7 @@ export async function loadMapData(
       const last = known[known.length - 1]!
       const leg = await routeVia(known)
       routes.push({ from: [first.lat, first.lng], to: [last.lat, last.lng], coords: leg?.coords })
-      miles = leg?.miles ?? (load.loadedMiles > 0 ? load.loadedMiles : null)
+      miles = leg?.miles ?? (!together && load.loadedMiles > 0 ? load.loadedMiles : null)
     }
     // Где трак сейчас — просто точкой, без дороги от него к этому грузу.
     if (!noGps)
@@ -228,11 +259,17 @@ export async function loadMapData(
   }
 
   // Что впереди: непройденные остановки по отметкам. Груз «в пути» без отметок
-  // (статус поставил GPS или диспетчер) — первый пикап уже позади. Дорога: трак →
+  // (статус поставил GPS или диспетчер) — его первый пикап уже позади. Дорога: трак →
   // следующая точка → остальные по порядку, никогда не прямая к последней.
-  let ahead = stops.map((st, i) => ({ st, p: pts[i] ?? null, i })).filter(({ st }) => !isDone(st, events, stops))
-  const firstPickup = stops.find((st) => st.role === 'pickup')
-  if (load?.status === 'in_transit' && ahead[0] && ahead[0].st.seq === firstPickup?.seq) ahead = ahead.slice(1)
+  const open = stops
+    .map((e, i) => ({ ...e, p: pts[i] ?? null, i }))
+    .filter((e) => !isDone(e.st, e.evs, e.own))
+  const ahead = open.filter((e) => {
+    if (e.load.status !== 'in_transit') return true
+    const firstPickup = e.own.find((st) => st.role === 'pickup')
+    const firstLeft = open.find((x) => x.load.id === e.load.id)
+    return !(firstLeft === e && e.st.seq === firstPickup?.seq)
+  })
   const next = ahead[0] ?? null
   const aheadPts = ahead.filter((a) => a.p).map((a) => a.p!)
   const legToNext = next?.p ? await routeToPoint({ lat, lng }, next.p) : null
@@ -242,6 +279,9 @@ export async function loadMapData(
   // до ближайшей — отрезок от трака, до дальних — он же плюс путь через
   // предыдущие точки по порядку. Спрашивают это про пикап и выгрузку чаще всего.
   const withPts = ahead.filter((a) => a.p)
+  // Путь до последней точки ЭТОГО груза: с партиалами она не обязательно последняя
+  // в задании, а срок выгрузки у каждого груза свой.
+  let ownEnd: { min: number; p: Pt } | null = null
   for (const a of ahead) {
     const m = markerAt(a.i)
     if (!m) continue
@@ -251,6 +291,7 @@ export async function loadMapData(
       if (k === 0 || via) {
         const mi = Math.round(legToNext.miles + (via?.miles ?? 0))
         const min = legToNext.etaMin + (via?.etaMin ?? 0)
+        if (a.load.id === load?.id) ownEnd = { min, p: a.p! }
         const to = a.st.role === 'pickup' ? 'tracking.toPickupSuffix' : 'tracking.toDelivery'
         // Осталось миль от трака сейчас и ETA — с отдыхом водителя, в поясе точки.
         const arrive = new Date(Date.now() + tripEta(min, Date.now(), null, null, null).realMin * 60_000)
@@ -267,13 +308,15 @@ export async function loadMapData(
     const routeEtaMin = legToNext.etaMin + (legRest?.etaMin ?? 0)
     etaMin = routeEtaMin
     const finalPt = aheadPts[aheadPts.length - 1]!
-    // Честный срок: за рулём + ночёвки, против даты и времени последней выгрузки в её поясе.
+    // Честный срок: за рулём + ночёвки, против даты и времени последней выгрузки в её
+    // поясе. С партиалами — до последней точки этого груза, а не всего задания.
+    const end = together ? ownEnd : { min: routeEtaMin, p: finalPt }
     const eta = tripEta(
-      routeEtaMin,
+      end?.min ?? routeEtaMin,
       Date.now(),
-      load.deliveryDate,
+      end ? load.deliveryDate : null,
       load.deliveryTime,
-      zoneFor(finalPt.lat, finalPt.lng),
+      zoneFor((end?.p ?? finalPt).lat, (end?.p ?? finalPt).lng),
     )
     live.realEtaMin = eta.realMin
     live.slackMin = eta.slackMin
@@ -289,11 +332,14 @@ export async function loadMapData(
   // Простой: стоит — но не у одной из остановок, там стоять положено.
   if (trail?.idleAt && load) {
     const min = Math.round((Date.now() - trail.idleAt.getTime()) / 60_000)
-    const near = stops.map((st, i) => ({ st, p: pts[i] })).find(({ p }) => p && haversineMiles({ lat, lng }, p) < 5)
-    if (near) {
-      // Стоит у склада: это детеншен, а не простой. Считаем с момента остановки.
+    const near = stops
+      .map((e, i) => ({ e, st: e.st, p: pts[i] }))
+      .find(({ p }) => p && haversineMiles({ lat, lng }, p) < 5)
+    // Стоит у склада: это детеншен, а не простой. Считаем с момента остановки. У склада
+    // соседнего груза в трейлере — тоже не простой, но детеншен не этого груза.
+    if (near?.e.load.id === load.id)
       live.detention = { at: near.st.role, seq: near.st.seq, sinceIso: trail.idleAt.toISOString(), min }
-    } else live.idleMin = min
+    else if (!near) live.idleMin = min
   }
 
   // Уход с маршрута — только когда груз уже везётся: расстояние до плановой линии
