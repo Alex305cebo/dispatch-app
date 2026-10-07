@@ -11,9 +11,7 @@ import { usd, usd2 } from '@/lib/fmt'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
-import { Fragment } from 'react'
-import { usDate } from '@/lib/fmt'
-import { stopsFrom, stopTitle, stopsLabel, type LoadStop } from '@/lib/stops'
+import { stopTitle, stopsLabel, type LoadStop } from '@/lib/stops'
 
 export type LoadDetails = {
   id: number
@@ -43,7 +41,7 @@ export type LoadDetails = {
   /** Наш собственный средний $/милю по этому направлению — подпорка на месте
    * биржевого спот-рейта, которого у нас нет ни от одного бесплатного источника. */
   laneAvgRpm?: number | null
-  /** Остановки по порядку (lib/stops.ts stopsFrom) — «Сроки» рисуются по ним. */
+  /** Остановки по порядку (lib/stops.ts stopsFrom) — для формы правки; в просмотре их рисует плитка «Точки» (LoadStops). */
   stops?: LoadStop[]
   /** Едет в одном трейлере с другим грузом. */
   partial?: boolean
@@ -51,22 +49,6 @@ export type LoadDetails = {
 
 export function LoadEditNumbers({ load }: { load: LoadDetails }) {
   const locale = useLocale()
-  const stops = load.stops?.length
-    ? load.stops
-    : stopsFrom(
-        {
-          stops: null,
-          origin: load.origin ?? null,
-          destination: load.destination ?? null,
-          pickupAddress: load.pickupAddress,
-          deliveryAddress: load.deliveryAddress,
-          pickupDate: load.pickupDate,
-          deliveryDate: load.deliveryDate,
-          pickupTime: load.pickupTime ?? null,
-          deliveryTime: load.deliveryTime ?? null,
-        },
-        { pickup: load.pickupName, delivery: load.deliveryName },
-      )
   const [editing, setEditing] = useState(false)
   const [pending, start] = useTransition()
 
@@ -183,11 +165,15 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
   if (!editing) {
     return (
       <>
-        {/* Четыре смысловых блока вместо одной перемешанной сетки: раньше «Ставка»
+        {/* Три смысловых блока вместо одной перемешанной сетки: раньше «Ставка»
             соседствовала с милями, телефон с пикапом, и глаз собирал ответ по всей
             карточке. Теперь деньги — к деньгам, брокер — к брокеру. Пустые поля
-            рисуются прочерком: «в рейт-коне нет MC» видно, а не спрятано. */}
-        <div className="grid gap-3 text-base sm:grid-cols-2">
+            рисуются прочерком: «в рейт-коне нет MC» видно, а не спрятано.
+            Сроков и адресов здесь нет: они в плитке точек вверху карточки (владелец
+            10/07/26: «дублируют инфу»). Ширину берём от плитки, а не от экрана —
+            её размер меняют. */}
+        <div className="@container">
+        <div className="grid gap-3 text-base @xl:grid-cols-2 @4xl:grid-cols-3">
           <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
             <div className="mb-2 text-base font-semibold text-t2">
               {t(locale, 'loadEdit.groupMoney')}
@@ -229,7 +215,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
             </dl>
           </div>
 
-          <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
+          <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3 @xl:col-span-2 @4xl:col-span-1">
             <div className="mb-2 text-base font-semibold text-t2">
               {t(locale, 'loadEdit.groupBroker')}
             </div>
@@ -248,34 +234,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
               />
             </dl>
           </div>
-
-          <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
-            <div className="mb-2 text-base font-semibold text-t2">
-              {t(locale, 'loadEdit.groupDates')}
-              {stops.length > 2 && (
-                <span className="ml-1.5 normal-case text-t3">· {stopsLabel(stops, locale)}</span>
-              )}
-            </div>
-            <dl className="grid gap-y-2">
-              {/* Окно из рейт-кона («8/14/2026 09:00-13:00») информативнее голой
-                  даты — диспетчеру нужен именно интервал. Полный адрес — прямо под
-                  окном: раньше за ним ходили в сам документ или на карту. Остановок
-                  может быть три и больше — по строке на каждую. */}
-              {load.partial && <Row label={t(locale, 'loadEdit.partial')} value={t(locale, 'loadEdit.yes')} />}
-              {stops.map((s) => (
-                <Fragment key={s.seq}>
-                  <Row label={stopTitle(s, stops, locale)} value={s.time || usDate(s.date) || '—'} />
-                  {s.address && <Addr text={s.address} name={s.name} city={s.city} />}
-                  {s.directions && (
-                    <div className="rounded-lg border border-warn-400/35 bg-warn-500/10 px-2.5 py-1.5 text-sm leading-snug text-t1">
-                      <span className="font-semibold text-warn-400">⚠ {t(locale, 'loadEdit.directions')}: </span>
-                      {s.directions}
-                    </div>
-                  )}
-                </Fragment>
-              ))}
-            </dl>
-          </div>
+        </div>
         </div>
         <button
           onClick={() => setEditing(true)}
@@ -458,28 +417,6 @@ function Field({
         className={input}
       />
     </label>
-  )
-}
-
-/** Адрес точки — своей строкой под окном: инлайном с датой он не читался.
- * Название склада жирнее адреса: у ворот водитель ищет вывеску, а не номер дома.
- * Нажатие открывает точку в Google Maps в новой вкладке: запрос — название плюс
- * адрес плюс город, так карта попадает в нужные ворота, а не в центр индекса. */
-function Addr({ text, name, city }: { text: string; name?: string | null; city?: string | null }) {
-  const q = [name, text, /[A-Za-z]{2,},\s*[A-Z]{2}\b/.test(text) ? null : city].filter(Boolean).join(', ')
-  return (
-    <div className="-mt-1 border-b border-white/[0.06] pb-1.5 pl-3 text-sm leading-snug text-t3">
-      <a
-        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-block underline-offset-2 hover:text-white hover:underline"
-        title="Google Maps"
-      >
-        📍 {name && <span className="font-semibold text-t1">{name} · </span>}
-        {text}
-      </a>
-    </div>
   )
 }
 
