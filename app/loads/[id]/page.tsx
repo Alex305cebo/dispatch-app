@@ -342,7 +342,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   // всей странице.
   add('stops', (
     <section className="panel h-full p-4">
-      <LoadStops stops={stops} locale={locale} />
+      <LoadStops stops={stops} locale={locale} partial={load.partial} />
       {/* Откуда трак пришёл на этот пикап. */}
       <PrevLoad load={prevLoad} locale={locale} className="mt-3" />
     </section>

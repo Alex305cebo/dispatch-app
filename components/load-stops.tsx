@@ -14,7 +14,7 @@
 // — одна и та же строчка дважды).
 
 import { Copy, Navigation } from 'lucide-react'
-import { stopTitle, type LoadStop } from '@/lib/stops'
+import { stopTitle, stopsLabel, type LoadStop } from '@/lib/stops'
 import { whenText } from '@/lib/loads-dashboard'
 import { notify } from '@/lib/notify'
 import { t, type Locale } from '@/lib/i18n'
@@ -36,18 +36,39 @@ function extraCity(stop: LoadStop): string | null {
   return town && stop.address.toLowerCase().includes(town) ? null : stop.city
 }
 
-export function LoadStops({ stops, locale, className = '' }: { stops: LoadStop[]; locale: Locale; className?: string }) {
+export function LoadStops({
+  stops,
+  locale,
+  partial = false,
+  className = '',
+}: {
+  stops: LoadStop[]
+  locale: Locale
+  /** Партиал — подписью над точками: раньше эта пометка жила только в «Сроках» внизу. */
+  partial?: boolean
+  className?: string
+}) {
   // Груз, заведённый руками двумя городами, здесь молчит: города уже стоят
   // заголовком, и блок повторил бы их пустыми рамками. Появилось хоть у одной точки
   // что-то сверх города — показываем ВСЕ точки, чтобы рейс читался по порядку.
   const worth = stops.some((s) => s.name || s.address || s.date || s.time || s.refs.length > 0)
-  if (!worth) return null
+  const tags = [partial && t(locale, 'loadEdit.partial'), stops.length > 2 && stopsLabel(stops, locale)].filter(
+    (x): x is string => !!x,
+  )
+  if (!worth && tags.length === 0) return null
 
   return (
-    <div className={`grid gap-2 ${stops.length > 1 ? 'sm:grid-cols-2' : ''} ${className}`}>
-      {stops.map((s) => (
-        <Stop key={s.seq} stop={s} stops={stops} locale={locale} />
-      ))}
+    <div className={className}>
+      {tags.length > 0 && (
+        <p className="mb-2 text-xs font-semibold tracking-wide text-t3 uppercase">{tags.join(' · ')}</p>
+      )}
+      {worth && (
+        <div className={`grid gap-2 ${stops.length > 1 ? 'sm:grid-cols-2' : ''}`}>
+          {stops.map((s) => (
+            <Stop key={s.seq} stop={s} stops={stops} locale={locale} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -113,8 +134,10 @@ function Stop({ stop, stops, locale }: { stop: LoadStop; stops: LoadStop[]; loca
         </div>
       )}
       {stop.directions && (
-        <p className="mt-1.5 text-xs leading-snug break-words text-t3">
-          <span className="text-t3">{t(locale, 'loadEdit.directions')}: </span>
+        // Как заехать — заметно: водителя с этим и звонят. Жёлтая рамка пришла из
+        // «Сроков», которые раньше дублировали эту плитку внизу карточки.
+        <p className="mt-1.5 rounded-lg border border-warn-400/35 bg-warn-500/10 px-2.5 py-1.5 text-sm leading-snug break-words text-t1">
+          <span className="font-semibold text-warn-400">⚠ {t(locale, 'loadEdit.directions')}: </span>
           {stop.directions}
         </p>
       )}
