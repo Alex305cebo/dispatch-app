@@ -224,7 +224,14 @@ export default async function Page({
   const taskLoads = activeLoad ? [activeLoad, ...partials] : partials
   const taskEvents: Record<number, StopEv[]> = activeLoad ? { [activeLoad.id]: driverEvents } : {}
   for (const p of partials) taskEvents[p.id] = await listLoadEvents(companyId, p.id)
-  const mapData = await loadMapData(activeLoad, truck, fs, locale, driverEvents)
+  // Ручной порядок остановок (стрелки в задании) — и для списка, и для дороги на карте.
+  const taskOrder = taskLoads.length > 1 ? parseTaskOrder(await getSetting(taskOrderKey(truck.id))) : null
+  // Партиалы — одной дорогой через остановки всех грузов в порядке задания.
+  const mapData = await loadMapData(activeLoad ?? taskLoads[0] ?? null, truck, fs, locale, driverEvents, {
+    loads: taskLoads,
+    events: taskEvents,
+    order: taskOrder,
+  })
   // Успевает ли трак на следующий пикап (lib/queue-fit-core.ts): путь до выгрузки + разгрузка
   // + Deadhead против закрытия окна пикапа. Одних дат мало: «выгрузка и пикап в один день»
   // выглядело нормой даже через полстраны.
@@ -237,13 +244,8 @@ export default async function Page({
         pickupEndMs: nextPickupStop ? stopDeadlineMs(nextPickupStop) : null,
       })
     : null
-  // Партиалы — теми же пинами и линиями, без второго трака (fs не передаём).
-  for (const p of partials) {
-    const extra = await loadMapData(p, truck, undefined, locale)
-    mapData.markers.push(...extra.markers)
-    mapData.routes.push(...extra.routes)
-  }
   const { markers: mapMarkers, routes: mapRoutes, miles: routeMiles } = mapData
+  const mapShowsTask = taskLoads.length > 1 && mapMarkers.length > 0
   const windows = activeLoad ? stopWindows(driverEvents, activeStops).filter((w) => w.min >= 30) : []
   const terms = windows.length ? await detentionTerms() : null
 
@@ -572,18 +574,19 @@ export default async function Page({
   // Длинные части задания: точки по порядку, следующий груз, предупреждение о
   // стыковке. Своей плиткой — в колонке шапки они делали её то длиннее соседней, то
   // короче, и пустота переезжала туда-сюда.
-  if (activeLoad && (taskLoads.length > 1 || activeStops.length > 2 || nextLoad))
+  if (activeLoad && ((taskLoads.length > 1 ? !mapShowsTask : activeStops.length > 2) || nextLoad))
     add('task', (
       <section className="panel h-full p-4 sm:p-5">
           {/* Порядок точек нужен, только когда их больше двух: у обычного рейса
               «откуда → куда» в строке выше и есть всё задание. */}
-          {(taskLoads.length > 1 || activeStops.length > 2) && (
+          {/* Партиалы — список остановок под картой, рядом с дорогой, которую он задаёт. */}
+          {(taskLoads.length > 1 ? !mapShowsTask : activeStops.length > 2) && (
             <TaskStops
               loads={taskLoads}
               events={taskEvents}
               locale={locale}
               truckId={truck.id}
-              order={parseTaskOrder(await getSetting(taskOrderKey(truck.id)))}
+              order={taskLoads.length > 1 ? taskOrder : parseTaskOrder(await getSetting(taskOrderKey(truck.id)))}
               className="mt-3"
             />
           )}
@@ -772,6 +775,12 @@ export default async function Page({
           height="clamp(320px, 46vh, 600px)"
           distanceMi={routeMiles}
         />
+        {/* Два груза в трейлере: остановки обоих одним списком прямо под картой —
+            порядок меняется перетаскиванием или стрелками, и дорога с милями над
+            списком перестраивается по нему. */}
+        {mapShowsTask && (
+          <TaskStops loads={taskLoads} events={taskEvents} locale={locale} truckId={truck.id} order={taskOrder} className="mt-4" />
+        )}
       </section>
     ))
 

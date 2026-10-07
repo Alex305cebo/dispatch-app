@@ -157,6 +157,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const taskLoads = mates.length ? [load, ...mates] : []
   const taskEvents: Record<number, StopEv[]> = { [load.id]: driverEvents }
   for (const m of mates) taskEvents[m.id] = await listLoadEvents(companyId, m.id)
+  const taskOrder = taskLoads.length > 1 ? parseTaskOrder(await getSetting(taskOrderKey(truck.id))) : null
   const queuedBehind = truckCurrent && truckCurrent.id !== load.id && !load.partial ? truckCurrent : null
   // Что этот трак вёз ДО этого груза — строкой в шапке, для проверки Deadhead
   // (components/prev-load.tsx). Только у назначенного груза: у груза без трака
@@ -408,7 +409,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           events={taskEvents}
           locale={locale}
           truckId={truck.id}
-          order={parseTaskOrder(await getSetting(taskOrderKey(truck.id)))}
+          order={taskOrder}
           focusLoadId={load.id}
           className="mt-4"
         />
@@ -445,7 +446,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   // геокодер, и раньше эти секунды держали весь документ.
   add('map', (
     <Suspense fallback={<MapSkeleton />}>
-      <LoadMapSection load={load} truck={truck} fs={fs} locale={locale} driverMarked={!!stop} events={driverEvents} />
+      <LoadMapSection
+        load={load}
+        truck={truck}
+        fs={fs}
+        locale={locale}
+        driverMarked={!!stop}
+        events={driverEvents}
+        trip={taskLoads.length > 1 ? { loads: taskLoads, events: taskEvents, order: taskOrder } : undefined}
+      />
     </Suspense>
   ))
 
@@ -692,6 +701,7 @@ async function LoadMapSection({
   locale,
   driverMarked,
   events,
+  trip,
 }: {
   load: Awaited<ReturnType<typeof getLoad>>
   truck: Parameters<typeof loadMapData>[1]
@@ -700,6 +710,8 @@ async function LoadMapSection({
   /** Водитель отмечает шаги сам — стоянка уже показана над картой, GPS-плитка не нужна. */
   driverMarked: boolean
   events: Awaited<ReturnType<typeof listLoadEvents>>
+  /** Партиалы в том же трейлере — дорога через остановки всех грузов. */
+  trip?: Parameters<typeof loadMapData>[5]
 }) {
   if (!load) return null
   const { rate: detentionRate, free: detentionFree } = await detentionTerms()
@@ -709,7 +721,7 @@ async function LoadMapSection({
     miles: routeMiles,
     etaMin,
     live,
-  } = await loadMapData(load, truck, fs, locale, events)
+  } = await loadMapData(load, truck, fs, locale, events, trip)
   if (mapMarkers.length === 0) return null
   // План заправок по плановой линии маршрута (не по следу): цены EIA по регионам.
   // Только пока груз везётся или забукирован — доставленному он ни к чему.
