@@ -7,7 +7,6 @@ import { Button } from '@/components/button'
 
 import { useState, useTransition } from 'react'
 import { brokerContactsFromHistory, findBrokerByName, runBrokerCheck, updateLoadDetails } from '@/app/actions'
-import { usd, usd2 } from '@/lib/fmt'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
@@ -162,87 +161,16 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
     })
   }
 
+  // Цифры груза в просмотре рисует сама карточка груза (app/loads/[id]/page.tsx,
+  // владелец 10/07/26: «одна карточка со всей инфой»). Здесь — только правка.
   if (!editing) {
     return (
-      <>
-        {/* Три смысловых блока вместо одной перемешанной сетки: раньше «Ставка»
-            соседствовала с милями, телефон с пикапом, и глаз собирал ответ по всей
-            карточке. Теперь деньги — к деньгам, брокер — к брокеру. Пустые поля
-            рисуются прочерком: «в рейт-коне нет MC» видно, а не спрятано.
-            Сроков и адресов здесь нет: они в плитке точек вверху карточки (владелец
-            10/07/26: «дублируют инфу»). Ширину берём от плитки, а не от экрана —
-            её размер меняют. */}
-        <div className="@container">
-        <div className="grid gap-3 text-base @xl:grid-cols-2 @4xl:grid-cols-3">
-          <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
-            <div className="mb-2 text-base font-semibold text-t2">
-              {t(locale, 'loadEdit.groupMoney')}
-            </div>
-            <dl className="grid gap-y-2">
-              <Row label={t(locale, 'loadEdit.rate')} value={usd.format(load.rate)} />
-              {/* Ставку за милю раньше считали в голове — а это первая цифра,
-                  по которой решают, хорош ли груз. */}
-              <Row
-                label={t(locale, 'loadEdit.perMile')}
-                value={load.loadedMiles > 0 ? `${usd2.format(load.rate / load.loadedMiles)}/mi` : '—'}
-              />
-              <Row
-                label={t(locale, 'loadEdit.spotRate')}
-                value={load.spotRpm ? `${usd2.format(load.spotRpm)}/mi` : '—'}
-                // Биржевого фида у нас нет, и вечный прочерк ни о чём не говорит. Вместо
-                // него — единственная честная опора: сколько мы сами брали на этом
-                // направлении раньше.
-                hint={
-                  load.spotRpm
-                    ? undefined
-                    : load.laneAvgRpm
-                      ? `${t(locale, 'loadEdit.ourLaneAvg')} ${usd2.format(load.laneAvgRpm)}/mi`
-                      : t(locale, 'loadEdit.noMarketData')
-                }
-              />
-            </dl>
-          </div>
-
-          <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3">
-            <div className="mb-2 text-base font-semibold text-t2">
-              {t(locale, 'loadEdit.groupTrip')}
-            </div>
-            <dl className="grid gap-y-2">
-              <Row label={t(locale, 'loadEdit.loadedMiles')} value={`${load.loadedMiles} mi`} />
-              <Row label={t(locale, 'loadEdit.deadheadMiles')} value={`${load.deadheadMiles} mi`} />
-              <Row label={t(locale, 'loadEdit.transitDays')} value={String(load.transitDays)} />
-              {load.truckLocation && <Row label={t(locale, 'loadEdit.truckWasAt')} value={load.truckLocation} />}
-            </dl>
-          </div>
-
-          <div className="rounded-xl border border-white/6 bg-white/[0.02] p-3 @xl:col-span-2 @4xl:col-span-1">
-            <div className="mb-2 text-base font-semibold text-t2">
-              {t(locale, 'loadEdit.groupBroker')}
-            </div>
-            <dl className="grid gap-y-2">
-              <Row label={t(locale, 'loadEdit.brokerName')} value={load.brokerName ?? '—'} />
-              <Row label={t(locale, 'loadEdit.brokerMc')} value={load.brokerMc ?? '—'} />
-              <Row
-                label={t(locale, 'loadEdit.phone')}
-                value={load.brokerPhone ?? '—'}
-                href={load.brokerPhone ? `tel:${load.brokerPhone}` : undefined}
-              />
-              <Row
-                label={t(locale, 'loadEdit.invoiceTo')}
-                value={load.brokerEmail ?? '—'}
-                href={load.brokerEmail ? `mailto:${load.brokerEmail}` : undefined}
-              />
-            </dl>
-          </div>
-        </div>
-        </div>
-        <button
-          onClick={() => setEditing(true)}
-          className="mt-3 rounded-lg border border-white/10 px-3 py-1.5 text-sm font-medium text-t2 transition-colors hover:border-white/25 hover:text-white"
-        >
-          {t(locale, 'loadEdit.edit')}
-        </button>
-      </>
+      <button
+        onClick={() => setEditing(true)}
+        className="rounded-lg border border-white/10 px-3 py-1.5 text-sm font-medium text-t2 transition-colors hover:border-white/25 hover:text-white"
+      >
+        {t(locale, 'loadEdit.edit')}
+      </button>
     )
   }
 
@@ -417,34 +345,5 @@ function Field({
         className={input}
       />
     </label>
-  )
-}
-
-function Row({
-  label,
-  value,
-  href,
-  hint,
-}: {
-  label: string
-  value: string
-  href?: string
-  /** Приписка под значением — чем заменить прочерк, когда самого значения нет. */
-  hint?: string
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-white/[0.06] pb-1.5">
-      <dt className="shrink-0 text-t2">{label}</dt>
-      <dd className="nums min-w-0 text-right font-medium [overflow-wrap:anywhere]">
-        {href ? (
-          <a href={href} className="text-haul-400 hover:underline">
-            {value}
-          </a>
-        ) : (
-          value
-        )}
-        {hint && <span className="ml-1.5 text-xs font-normal text-t3">{hint}</span>}
-      </dd>
-    </div>
   )
 }

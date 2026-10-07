@@ -210,3 +210,15 @@ test('migrateLoadPapers: кнопки груза влиты в статус, с�
     { id: 'status', size: 'w' },
   ])
 })
+
+test('migrateLoadPapers: «Точки» и «Подробности» влиты в шапку, шапка во всю строку', () => {
+  const merged = applyLayout(
+    migrateLoadPapers(parseLayout('[{"id":"hero","size":"w"},{"id":"stops","size":"w"},{"id":"status","size":"l"},{"id":"details","size":"l"}]')),
+    LOAD_DETAIL_TILES,
+  )
+  assert.deepEqual(merged.slice(0, 2), [
+    { id: 'hero', size: 'l' },
+    { id: 'status', size: 'l' },
+  ])
+  assert.ok(!merged.some((p) => p.id === 'stops' || p.id === 'details'))
+})

@@ -231,14 +231,24 @@ export function migrateTruckDriverCard(saved: TilePlacement[]): TilePlacement[] 
  *  Старые ключи уходят, хозяева остаются на своих местах. Статус при этом забирает
  *  строку: в нём теперь и полоса, и кнопки, а в половине строки рядом встала бы чужая
  *  плитка, растянутая на его высоту. Как и migrateTruckDriverCard, срабатывает один
- *  раз — пока старый ключ лежит в сохранённой раскладке. */
-const LOAD_MERGED = new Set(['papers', 'notes'])
+ *  раз — пока старый ключ лежит в сохранённой раскладке.
+ *
+ *  10/07/26 туда же ушли «Точки» и «Подробности» (владелец: «одна карточка со всей
+ *  инфой по грузу»): шапка теперь и есть карточка груза и забирает всю строку. */
+const LOAD_MERGED = new Set(['papers', 'notes', 'stops', 'details'])
 export function migrateLoadPapers(saved: TilePlacement[]): TilePlacement[] {
   if (!saved.some((p) => LOAD_MERGED.has(p.id))) return saved
   const hadPapers = saved.some((p) => p.id === 'papers')
+  const hadFacts = saved.some((p) => p.id === 'stops' || p.id === 'details')
   return saved
     .filter((p) => !LOAD_MERGED.has(p.id))
-    .map((p) => (hadPapers && p.id === 'status' ? { id: 'status', size: 'l' as const } : p))
+    .map((p) =>
+      hadPapers && p.id === 'status'
+        ? { id: 'status', size: 'l' as const }
+        : hadFacts && p.id === 'hero'
+          ? { id: 'hero', size: 'l' as const }
+          : p,
+    )
 }
 
 /** Раскладки остальных разделов по умолчанию — тот порядок, в котором блоки стояли до
@@ -350,9 +360,9 @@ export const TELEGRAM_TILES: TilePlacement[] = [
 export const LOAD_DETAIL_TILES: TilePlacement[] = [
   // Шапка разобрана: заголовок с брокером, предупреждения, адреса, полоса статуса,
   // бумаги и разбор ставки — каждое своей плиткой.
-  { id: 'hero', size: 'w' },
+  // Шапка — это и есть карточка груза: точки, ставка, мили, груз, брокер (10/07/26).
+  { id: 'hero', size: 'l' },
   { id: 'warnings', size: 'w' },
-  { id: 'stops', size: 'w' },
   // Во всю строку: полоса статуса раскладывает до пяти подписанных шагов, и в
   // половинной плитке «Загрузка» и «В пути» сходились вплотную, а у груза с
   // несколькими точками подписи налезали друг на друга.
@@ -365,7 +375,6 @@ export const LOAD_DETAIL_TILES: TilePlacement[] = [
   { id: 'slow-payer', size: 'l' },
   { id: 'driver-info', size: 'l' },
   { id: 'facility-hints', size: 'l' },
-  { id: 'details', size: 'l' },
   { id: 'backhaul', size: 'l' },
   { id: 'docs', size: 'l' },
   { id: 'invoice', size: 'l' },
