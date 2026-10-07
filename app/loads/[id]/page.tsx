@@ -980,6 +980,9 @@ async function LoadMapSection({
         height="clamp(300px, 42vh, 540px)"
         distanceMi={routeMiles}
         subNote={
+          // С партиалом дорога идёт через точки чужого груза — «пройдено %» от миль
+          // этого груза врёт (1135 mi впереди при 52% пройденного), поэтому не пишем.
+          !trip &&
           load.status === 'in_transit' &&
           routeMiles != null &&
           load.loadedMiles > 0 &&

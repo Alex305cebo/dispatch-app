@@ -13,6 +13,7 @@ import { tripEta } from './trip-eta'
 import { distToPathMiles, haversineMiles } from './geo'
 import { driveTime, etaAt, usDate } from './fmt'
 import { zoneFor } from './tz'
+import { GEOFENCE_MI } from './load-status'
 import { t, type Locale } from './i18n.ts'
 import type { MapMarker, MapRoute } from '@/components/fleet-map'
 
@@ -268,7 +269,11 @@ export async function loadMapData(
     if (e.load.status !== 'in_transit') return true
     const firstPickup = e.own.find((st) => st.role === 'pickup')
     const firstLeft = open.find((x) => x.load.id === e.load.id)
-    return !(firstLeft === e && e.st.seq === firstPickup?.seq)
+    if (!(firstLeft === e && e.st.seq === firstPickup?.seq)) return true
+    // GPS сам ставит «в пути» при въезде в зону погрузки, без отметки водителя, —
+    // а трак в этот момент ещё грузится. Пока он у пикапа, точка впереди: иначе у
+    // партиала пропадал пикап второго груза (трак у Noel, MO, дорога уходила мимо).
+    return e.p != null && haversineMiles({ lat, lng }, e.p) <= GEOFENCE_MI
   })
   const next = ahead[0] ?? null
   const aheadPts = ahead.filter((a) => a.p).map((a) => a.p!)

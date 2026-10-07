@@ -66,7 +66,15 @@ export function TaskStops({
     if (over[k]) return over[k]
     const evs = events[m.loadId] ?? []
     const own = stopsOf.get(m.loadId) ?? []
-    return isDone(m, evs, own) ? 'done' : arrivedAt(m, evs, own) ? 'arrived' : 'none'
+    if (isDone(m, evs, own)) return 'done'
+    if (arrivedAt(m, evs, own)) return 'arrived'
+    // Груз «в пути» без отметок водителя (статус поставил GPS, уехав от пикапа, или
+    // диспетчер) — его первая погрузка уже позади. Так же считает карта (lib/load-map.ts),
+    // иначе список звал «текущим» пикап, от которого трак ушёл два дня назад.
+    const l = loads.find((x) => x.id === m.loadId)
+    const firstPickup = own.find((st) => st.role === 'pickup')
+    if (l?.status === 'in_transit' && evs.length === 0 && m.role === 'pickup' && m.seq === firstPickup?.seq) return 'done'
+    return 'none'
   }
   const left = merged.filter((m) => stateOf(m) !== 'done').length
   const next = merged.find((m) => stateOf(m) !== 'done')
@@ -163,7 +171,7 @@ export function TaskStops({
                 setDropAt(null)
               }}
               className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-2.5 py-1.5 text-base ${
-                isNow ? 'bg-haul-500/[0.10] ring-1 ring-haul-400/30' : isPast ? 'bg-white/[0.02] text-t3' : 'bg-white/[0.04]'
+                isNow ? 'bg-haul-500/[0.10] ring-1 ring-haul-400/30' : isPast ? 'bg-white/[0.02]' : 'bg-white/[0.04]'
               } ${
                 drag === i ? 'opacity-40' : ''
               } ${drag != null && dropAt === i && drag !== i ? 'outline-2 outline-dashed outline-haul-400/70' : ''} ${
