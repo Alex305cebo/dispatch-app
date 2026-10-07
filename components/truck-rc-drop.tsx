@@ -163,7 +163,7 @@ export function TruckRcDrop({
       // recognizer that ever creates a load here; no regex fallback (a wrong guess
       // shouldn't get to auto-create a load, only a checked one should).
       setStage(hasText ? t(locale, 'rcDrop.stageRecognizing') : t(locale, 'rcDrop.stageRecognizingScan'))
-      const aiInput = hasText ? { text } : { pdfBase64: base64, mime }
+      const aiInput = hasText ? { text } : { pdfBase64: base64, mime, text: text || undefined }
       // One automatic retry before bothering the dispatcher — a slow scan is usually
       // just slow, not a real failure, and this clears most of them silently.
       let ai = await aiParseRateCon(aiInput, locale)

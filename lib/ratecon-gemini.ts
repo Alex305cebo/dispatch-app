@@ -81,6 +81,13 @@ export async function geminiExtract(input: {
   const parts: unknown[] = [{ text: AI_PROMPT }]
   if (input.pdfBase64) {
     parts.push({ inlineData: { mimeType: input.mime ?? 'application/pdf', data: input.pdfBase64 } })
+    // Текстовый слой, если он есть, — следом (как в app/api/ratecon/route.ts).
+    if (input.text?.trim())
+      parts.push({
+        text:
+          'TEXT LAYER of the same document (only the pages that have selectable text; the file above is the full document):\n' +
+          input.text.slice(0, 60_000),
+      })
   } else if (input.text?.trim()) {
     parts.push({ text: 'DOCUMENT TEXT:\n' + input.text.slice(0, 60_000) })
   } else {

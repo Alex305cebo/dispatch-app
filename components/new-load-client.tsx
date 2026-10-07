@@ -89,7 +89,7 @@ export function NewLoadClient({
       setAi('loading')
       const input = hasText
         ? { text }
-        : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf' }
+        : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf', text: text || undefined }
       // One automatic retry before bothering the dispatcher — a slow scan is usually
       // just slow, not a real failure.
       let res = await aiParseRateCon(input, locale)

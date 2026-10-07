@@ -20,6 +20,9 @@ export const maxDuration = 120
 // своя проверка: читать документы может только вошедший и не в демо.
 type Body = { text?: string; pdfBase64?: string; mime?: string }
 
+const TEXT_LAYER_NOTE =
+  'TEXT LAYER of the same document (only the pages that have selectable text; the file above is the full document):\n'
+
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: t(await getLocale(), 'actions.signInRequired') }, { status: 401 })
@@ -40,6 +43,10 @@ export async function POST(req: NextRequest) {
   if (body.pdfBase64) {
     // Scans and photos: the model reads the document itself — this IS the OCR.
     parts.push({ inlineData: { mimeType: body.mime ?? 'application/pdf', data: body.pdfBase64 } })
+    // Файл со страницами-картинками, но с текстом на других (lib/pdf-text.ts
+    // needsFileRead): текстовый слой — следом, чтобы цифры с текстовых страниц
+    // (ставка, номер груза) модель брала точно, а не со снимка.
+    if (body.text?.trim()) parts.push({ text: TEXT_LAYER_NOTE + body.text.slice(0, 60_000) })
   } else if (body.text?.trim()) {
     // Text PDFs: send extracted text — far cheaper against the free-tier quota.
     parts.push({ text: 'DOCUMENT TEXT:\n' + body.text.slice(0, 60_000) })
