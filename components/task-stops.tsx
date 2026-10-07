@@ -37,7 +37,6 @@ export function TaskStops({
   locale,
   truckId = null,
   order = null,
-  focusLoadId = null,
   className = '',
 }: {
   /** Грузы в одном трейлере: текущий и партиалы. */
@@ -49,8 +48,6 @@ export function TaskStops({
   truckId?: number | null
   /** Сохранённый ручной порядок (settings task_order:<truck>). */
   order?: string[] | null
-  /** Страница груза: его строки яркие, строки соседнего груза в трейлере приглушены. */
-  focusLoadId?: number | null
   className?: string
 }) {
   const [pending, start] = useTransition()
@@ -167,7 +164,7 @@ export function TaskStops({
               }}
               className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-2.5 py-1.5 text-base ${
                 isNow ? 'bg-haul-500/[0.10] ring-1 ring-haul-400/30' : isPast ? 'bg-white/[0.02] text-t3' : 'bg-white/[0.04]'
-              } ${focusLoadId != null && m.loadId !== focusLoadId ? 'opacity-55' : ''} ${
+              } ${
                 drag === i ? 'opacity-40' : ''
               } ${drag != null && dropAt === i && drag !== i ? 'outline-2 outline-dashed outline-haul-400/70' : ''} ${
                 truckId != null ? 'md:cursor-grab md:active:cursor-grabbing' : ''

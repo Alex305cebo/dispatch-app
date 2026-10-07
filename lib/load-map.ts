@@ -282,6 +282,15 @@ export async function loadMapData(
   // Путь до последней точки ЭТОГО груза: с партиалами она не обязательно последняя
   // в задании, а срок выгрузки у каждого груза свой.
   let ownEnd: { min: number; p: Pt } | null = null
+  // Пройденные точки тоже на карте — все остановки задания видны всегда (владелец
+  // 07.10.2026: «все остановки должны быть активны на карте»). Дорога по-прежнему
+  // идёт только через то, что впереди.
+  const aheadIdx = new Set(ahead.map((a) => a.i))
+  stops.forEach((_, i) => {
+    if (aheadIdx.has(i)) return
+    const m = markerAt(i)
+    if (m) markers.push(m)
+  })
   for (const a of ahead) {
     const m = markerAt(a.i)
     if (!m) continue

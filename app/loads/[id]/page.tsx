@@ -459,7 +459,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           locale={locale}
           truckId={truck.id}
           order={taskOrder}
-          focusLoadId={load.id}
           className="mt-4"
         />
       )}
