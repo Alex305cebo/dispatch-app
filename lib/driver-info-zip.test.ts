@@ -103,3 +103,11 @@ test('название склада перед адресом не затира�
     'Pick up Address:\n\nWoodmark\n\n400 E Orangethorpe Ave, Anaheim, CA 92801\n\n____\nTime: 05:00\n',
   )
 })
+
+test('cargoFacts: груз и вес из текста водителю', async () => {
+  const { cargoFacts } = await import('./driver-info-zip.ts')
+  const text = 'Rate: $2,200.00\nCommodity: Telecommunications Equip\nWeight: 15,571 lbs\n'
+  assert.deepEqual(cargoFacts(text), { commodity: 'Telecommunications Equip', weight: '15,571 lbs' })
+  assert.deepEqual(cargoFacts('Weight: —'), { commodity: null, weight: null })
+  assert.deepEqual(cargoFacts(null), { commodity: null, weight: null })
+})

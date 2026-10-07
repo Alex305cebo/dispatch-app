@@ -16,7 +16,7 @@ import { financesHref, payBadge, todayEt } from '@/lib/payments'
 import { paymentFor } from '@/lib/payments-server'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
-import { driveTime, usd, usDate } from '@/lib/fmt'
+import { driveTime, usd, usd2, usDate } from '@/lib/fmt'
 import { loadMapData } from '@/lib/load-map'
 import { FleetMap } from '@/components/fleet-map'
 import { LocalTime } from '@/components/local-time'
@@ -45,7 +45,7 @@ import { fuelPlan } from '@/lib/fuel-plan'
 import { listLoadEvents } from '@/lib/load-events'
 import { DriverTimeline } from '@/components/driver-timeline'
 import { DriverInfoCard } from '@/components/driver-info-card'
-import { withAddresses, stopNames } from '@/lib/driver-info-zip'
+import { cargoFacts, withAddresses, stopNames } from '@/lib/driver-info-zip'
 import { arrivedAt, isDone, parseTaskOrder, stopsFrom, taskOrderKey, viaLabel, type StopEv } from '@/lib/stops'
 import { TaskStops } from '@/components/task-stops'
 import { LoadStops } from '@/components/load-stops'
@@ -232,6 +232,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     ...(load.payVia ? [<span>{load.payVia}</span>] : []),
   ]
 
+  // Цифры карточки груза. «Что везём» и вес — из текста водителю: своих колонок
+  // под них нет. Нет значения — плитки нет, прочерки только шумят.
+  const cargo = cargoFacts(load.driverInfo)
+  const loadFacts: { label: string; value: string }[] = [
+    { label: t(locale, 'loadEdit.rate'), value: usd.format(load.rate) },
+    { label: t(locale, 'loadEdit.perMile'), value: load.loadedMiles > 0 ? `${usd2.format(load.rate / load.loadedMiles)}/mi` : '—' },
+    { label: t(locale, 'loadEdit.loadedMiles'), value: `${load.loadedMiles} mi` },
+    { label: t(locale, 'loadEdit.deadheadMiles'), value: `${load.deadheadMiles} mi` },
+    ...(cargo.commodity ? [{ label: t(locale, 'import.label.commodity'), value: cargo.commodity }] : []),
+    ...(cargo.weight ? [{ label: t(locale, 'import.label.weight'), value: cargo.weight }] : []),
+  ]
+
   // Блоки карточки — плитки: порядок и размер задаёт диспетчер, общий для всей
   // компании. Условные блоки просто не попадают в список — своё место в
   // сохранённой раскладке они при этом не теряют (см. lib/tiles-core.ts).
@@ -243,7 +255,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   // карточки: заголовок, предупреждения, адреса, полоса статуса, бумаги и разбор
   // ставки — всё вместе, и двигать внутри было нечего.
   add('hero', (
-    <section className="panel h-full p-4">
+    <section className="panel @container h-full p-4">
       {/* Заголовок и флаг «следить» — в одной строке: на широком экране ряд из
           четырёх кнопок приоритета стоял отдельной полосой и отодвигал вниз всё,
           ради чего страницу открывают. На телефоне он переносится под заголовок. */}
@@ -269,7 +281,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             {load.referenceId && (
               <>
                 {` · ${t(locale, 'import.label.referenceId')} `}
-                <span className="whitespace-nowrap">{load.referenceId}</span>
+                <span className="nums font-semibold whitespace-nowrap text-t1">{load.referenceId}</span>
               </>
             )}
           </p>
@@ -280,6 +292,21 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </div>
         )}
       </div>
+
+      {/* Одна карточка со всем, что по грузу нужно быстро (владелец 10/07/26): точки
+          с адресом, окном и навигатором, ставка, мили, что везём и вес, брокер.
+          Раньше это было три плитки — шапка, «Точки» и «Подробности» внизу, — и
+          адреса со сроками стояли в двух из них. Рейт-кон приносит склад, улицу,
+          окно и номера PU/PO — диспетчер, которому звонит склад, находит их здесь. */}
+      <LoadStops stops={stops} locale={locale} partial={load.partial} className="mt-3" />
+      <dl className="mt-3 grid grid-cols-2 gap-2 @lg:grid-cols-3 @4xl:grid-cols-6">
+        {loadFacts.map((f) => (
+          <div key={f.label} className="panel-inset min-w-0 px-3 py-2">
+            <dt className="text-2xs font-semibold tracking-wide text-t3 uppercase">{f.label}</dt>
+            <dd className="nums mt-0.5 text-base font-semibold break-words text-t1">{f.value}</dd>
+          </div>
+        ))}
+      </dl>
 
       {/* Брокер груза — тоже в шапке. Кому звонить и на какую почту слать бумаги,
           лежало только в форме «Подробности» внизу страницы, а звонят по нему с
@@ -305,6 +332,40 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         readAt={load.notesReadAt}
         hasRc={!!rateConDoc}
       />
+      {/* Откуда трак пришёл на этот пикап. */}
+      <PrevLoad load={prevLoad} locale={locale} className="mt-3" />
+      <div className="mt-3">
+        <LoadEditNumbers
+          load={{
+            id: load.id,
+            rate: load.rate,
+            loadedMiles: load.loadedMiles,
+            deadheadMiles: load.deadheadMiles,
+            transitDays: load.transitDays,
+            spotRpm: load.spotRpm,
+            brokerName: load.brokerName,
+            brokerMc: load.brokerMc,
+            brokerPhone: load.brokerPhone,
+            brokerEmail: load.brokerEmail,
+            truckLocation: load.truckLocation,
+            pickupAddress: load.pickupAddress,
+            deliveryAddress: load.deliveryAddress,
+            origin: load.origin,
+            destination: load.destination,
+            ...(() => {
+              const n = stopNames(load.driverInfo)
+              return { pickupName: n.pickup, deliveryName: n.delivery }
+            })(),
+            pickupDate: load.pickupDate,
+            deliveryDate: load.deliveryDate,
+            pickupTime: load.pickupTime,
+            deliveryTime: load.deliveryTime,
+            laneAvgRpm,
+            stops: stops,
+            partial: load.partial,
+          }}
+        />
+      </div>
     </section>
   ))
 
@@ -335,18 +396,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <DeadheadFlag miles={load.deadheadMiles} okMiles={load.deadheadOkMiles} loadId={load.id} locale={locale} banner />
       </section>
     ))
-
-  // Где, когда и под какими номерами. Рейт-кон приносит склад, улицу, окно и номера
-  // PU/PO, но в шапке стояли только два города: адрес лежал внизу в «Подробностях»,
-  // номер пикапа — в тексте водителю. Диспетчер, которому звонит склад, искал их по
-  // всей странице.
-  add('stops', (
-    <section className="panel h-full p-4">
-      <LoadStops stops={stops} locale={locale} partial={load.partial} />
-      {/* Откуда трак пришёл на этот пикап. */}
-      <PrevLoad load={prevLoad} locale={locale} className="mt-3" />
-    </section>
-  ))
 
   add('status', (
     <section className="panel h-full p-4">
@@ -545,44 +594,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <FacilityHints companyId={companyId} load={load} locale={locale} />
       </Suspense>
     ))
-
-  add('details', (
-    <section className="panel p-5">
-      <h2 className="mb-4 text-base leading-6 font-semibold text-t1">
-        {t(locale, 'loadDetail.detailsHeading')}
-      </h2>
-      <LoadEditNumbers
-        load={{
-          id: load.id,
-          rate: load.rate,
-          loadedMiles: load.loadedMiles,
-          deadheadMiles: load.deadheadMiles,
-          transitDays: load.transitDays,
-          spotRpm: load.spotRpm,
-          brokerName: load.brokerName,
-          brokerMc: load.brokerMc,
-          brokerPhone: load.brokerPhone,
-          brokerEmail: load.brokerEmail,
-          truckLocation: load.truckLocation,
-          pickupAddress: load.pickupAddress,
-          deliveryAddress: load.deliveryAddress,
-          origin: load.origin,
-          destination: load.destination,
-          ...(() => {
-            const n = stopNames(load.driverInfo)
-            return { pickupName: n.pickup, deliveryName: n.delivery }
-          })(),
-          pickupDate: load.pickupDate,
-          deliveryDate: load.deliveryDate,
-          pickupTime: load.pickupTime,
-          deliveryTime: load.deliveryTime,
-          laneAvgRpm,
-          stops: stops,
-          partial: load.partial,
-        }}
-      />
-    </section>
-  ))
 
   if (showBackhaul)
     add('backhaul', <BackhaulList state={backhaul.state} brokers={backhaul.brokers} locale={locale} />)

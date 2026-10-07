@@ -135,3 +135,13 @@ export function stopNames(text: string | null | undefined): {
 export function hasStreets(text: string | null | undefined): boolean {
   return (text ?? '').split('\n').some((l) => HAS_STREET.test(l))
 }
+
+/** Что везём и сколько весит — строками «Commodity:» и «Weight:» из текста водителю.
+ *  Отдельных колонок под них в базе нет, а на карточке груза это спрашивают первым. */
+export function cargoFacts(text: string | null | undefined): { commodity: string | null; weight: string | null } {
+  const pick = (re: RegExp) => {
+    const v = re.exec(text ?? '')?.[1]?.trim()
+    return v && v !== '—' ? v : null
+  }
+  return { commodity: pick(/^\s*commodity\s*:[ \t]*(.+)$/im), weight: pick(/^\s*weight\s*:[ \t]*(.+)$/im) }
+}
