@@ -21,6 +21,7 @@ import { FleetList, type TrackingRow, type TruckMoney } from '@/components/fleet
 import { RefreshFleetButton } from '@/components/refresh-fleet-button'
 import { Segmented } from '@/components/segmented'
 import { Stat } from '@/components/stat'
+import { Cells } from '@/components/mini-charts'
 import type { DirectoryCompany } from '@/components/driver-directory'
 import { useLocale } from '@/components/locale-provider'
 import { t, type MsgKey } from '@/lib/i18n'
@@ -310,25 +311,6 @@ export function FleetPanel({
   if (after) add('eld', <div>{after}</div>)
 
   return <WidgetGrid {...grid} widgets={widgets} />
-}
-
-/** Клетка на каждый трак парка, горят занятые: «сколько из скольких» видно, не читая
- *  цифру. Парк больше двух дюжин — сплошная полоса: клетки стали бы точками. */
-function Cells({ total, lit }: { total: number; lit: number }) {
-  if (!total) return null
-  if (total > 24)
-    return (
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10" aria-hidden>
-        <div className="h-full rounded-full bg-good-400" style={{ width: `${(lit / total) * 100}%` }} />
-      </div>
-    )
-  return (
-    <div className="mt-3 flex h-2 gap-[3px]" aria-hidden>
-      {Array.from({ length: total }, (_, i) => (
-        <span key={i} className={`flex-1 rounded-[2px] ${i < lit ? 'bg-good-400' : 'bg-white/10'}`} />
-      ))}
-    </div>
-  )
 }
 
 /** Столбик на свободный трак — сколько дней он стоит, самый долгий первым. Красный —

@@ -94,18 +94,28 @@ export const amazonDict = {
   'amazon.rpmSource': { ru: 'по оплате Relay', en: 'from Relay pay', uk: 'за оплатою Relay' },
 
   'amazon.tileToday': { ru: 'Рейсов сегодня', en: 'Trips today', uk: 'Рейсів сьогодні' },
+  'amazon.tileTodayInfo': {
+    ru: 'Рейсы, которые начинаются сегодня. Клетка — рейс: зелёная — доставлен, жёлтая — в пути, пустая — ещё не выехал',
+    en: 'Trips starting today. One cell per trip: green — delivered, amber — in transit, empty — not rolling yet',
+    uk: 'Рейси, що починаються сьогодні. Клітинка — рейс: зелена — доставлено, жовта — в дорозі, порожня — ще не виїхав',
+  },
   'amazon.tileTransit': { ru: 'В пути', en: 'In transit', uk: 'В дорозі' },
+  'amazon.tileTransitInfo': {
+    ru: 'Рейсы, которые едут сейчас. Клетка — трак с рейсом Amazon на доске, жёлтые — те, что в пути',
+    en: 'Trips rolling right now. One cell per truck with an Amazon trip on the board; amber ones are in transit',
+    uk: 'Рейси, що їдуть зараз. Клітинка — трак із рейсом Amazon на дошці, жовті — ті, що в дорозі',
+  },
   'amazon.tileWeek': { ru: 'Оплата недели', en: 'Week pay', uk: 'Оплата тижня' },
   'amazon.tileWeekInfo': {
-    ru: 'Сумма оплаты Relay по рейсам этой недели (с пятницы), кроме отменённых',
-    en: 'Relay pay for this week’s trips (from Friday), cancelled ones excluded',
-    uk: 'Сума оплати Relay за рейси цього тижня (з пʼятниці), крім скасованих',
+    ru: 'Сумма оплаты Relay по рейсам этой недели (с пятницы), кроме отменённых. Столбик — день, ярче — сегодня',
+    en: 'Relay pay for this week’s trips (from Friday), cancelled ones excluded. One bar per day, today is brighter',
+    uk: 'Сума оплати Relay за рейси цього тижня (з пʼятниці), крім скасованих. Стовпчик — день, яскравіше — сьогодні',
   },
   'amazon.tileRpm': { ru: 'RPM недели', en: 'Week RPM', uk: 'RPM тижня' },
   'amazon.tileRpmInfo': {
-    ru: 'Оплата Relay за неделю, делённая на мили этих рейсов. Только рейсы, где мили указаны',
-    en: 'Week Relay pay divided by those trips’ miles. Only trips with miles filled in',
-    uk: 'Оплата Relay за тиждень, поділена на милі цих рейсів. Лише рейси з милями',
+    ru: 'Оплата Relay за неделю, делённая на мили этих рейсов. Только рейсы, где мили указаны. Столбик — день, ярче — сегодня',
+    en: 'Week Relay pay divided by those trips’ miles. Only trips with miles filled in. One bar per day, today is brighter',
+    uk: 'Оплата Relay за тиждень, поділена на милі цих рейсів. Лише рейси з милями. Стовпчик — день, яскравіше — сьогодні',
   },
 
   'amazon.trucksTitle': { ru: 'Траки на Amazon', en: 'Trucks on Amazon', uk: 'Траки на Amazon' },

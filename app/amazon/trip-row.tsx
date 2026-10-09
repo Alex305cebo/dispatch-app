@@ -89,17 +89,20 @@ export function TripRow({ trip, trucks }: { trip: AmazonTrip; trucks: TruckOptio
         </span>
       </div>
 
-      {/* Маршрут: склады по порядку, у каждого — время, как напечатано в Relay. */}
+      {/* Маршрут: склады по порядку, у каждого — время, как напечатано в Relay. Дата —
+          только у остановки другого дня: день рейса и так стоит заголовком над ним
+          («Сегодня», «Завтра»), и одна и та же дата у каждого склада была лишней цифрой. */}
       <ol className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
         {trip.stops.map((s, i) => (
           <li key={i} className="flex items-center gap-1.5">
             {i > 0 && <span className="text-t3">→</span>}
             <span className="font-mono font-semibold text-t1">{s.code ?? s.city}</span>
             {s.code && s.city && <span className="text-t3">{s.city}</span>}
-            {(s.date || s.time) && (
+            {((s.date && s.date !== trip.startDate) || s.time) && (
               <span className="nums text-t2">
-                {s.date ? usDate(s.date) : ''} {s.time ?? ''}
-                {s.tz ? ` ${s.tz}` : ''}
+                {s.date && s.date !== trip.startDate ? `${usDate(s.date)} ` : ''}
+                {s.time ?? ''}
+                {s.time && s.tz ? ` ${s.tz}` : ''}
               </span>
             )}
           </li>
