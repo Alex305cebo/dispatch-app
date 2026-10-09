@@ -1,6 +1,6 @@
 'use client'
 
-import { safeUploadFile } from '@/lib/upload-name'
+import { sendDocument } from '@/lib/send-document'
 import { Button } from '@/components/button'
 // New-load page: a compact "scan rate con" bar on top of the manual form. Drop a
 // PDF/фото → распознавание (Gemini) → заполненная форма ниже. Без скана форма
@@ -19,7 +19,6 @@ import { isBolNotRatecon } from '@/lib/caption-kind'
 import { missingFields, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import type { QrLoad } from '@/lib/qr-load'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
-import { uploadDocument } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { LoadForm } from '@/components/load-form'
 import { RcEvidence } from '@/components/rc-evidence'
@@ -83,10 +82,7 @@ export function NewLoadClient({
 
       // Save the RC as a document — attached to the load on save.
       setDocId(undefined)
-      const fd = new FormData()
-      fd.append('file', safeUploadFile(file))
-      fd.append('kind', 'ratecon')
-      void uploadDocument(fd).then((r) => {
+      void sendDocument(file, { kind: 'ratecon' }, locale).then((r) => {
         if (reqId.current === my && 'id' in r) setDocId(r.id)
       })
 

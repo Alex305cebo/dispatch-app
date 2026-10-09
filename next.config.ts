@@ -35,8 +35,13 @@ const config: NextConfig = {
     serverActions: {
       // Document upload goes through a server action; default cap is 1MB and a
       // scanned rate con or a photo is bigger. Hard cap enforced again in the action.
-      bodySizeLimit: '10mb',
+      // 12 МБ, а не 10: запасной путь lib/send-document.ts шлёт файл до 8 МБ строкой
+      // base64, а это на треть больше.
+      bodySizeLimit: '12mb',
     },
+    // Тело запроса, который прошёл через middleware.ts, Next обрезает по этому пределу
+    // (по умолчанию 10 МБ) — держим его не меньше bodySizeLimit.
+    middlewareClientMaxBodySize: '12mb',
   },
   // Старые адреса денег. До 10/09/26 деньги были вкладками «Документов» (/docs?tab=unpaid…),
   // а ещё раньше — страницей /invoices. Перевод здесь, а не в самой странице: redirect() из

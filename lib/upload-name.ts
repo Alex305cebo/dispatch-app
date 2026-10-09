@@ -20,3 +20,34 @@ export function safeUploadFile(file: File): File {
   const name = safeUploadName(file.name)
   return name === file.name ? file : new File([file], name, { type: file.type, lastModified: file.lastModified })
 }
+
+/**
+ * Файл, прочитанный в память в момент выбора, под безопасным именем. null — файл пустой
+ * или браузер не смог его прочитать: облачный файл (OneDrive, Google Диск) не скачан,
+ * файл перенесли или удалили после выбора, фото из галереи телефона уже недоступно.
+ *
+ * Зачем копия в памяти. До 10/09/26 браузер дочитывал файл с диска только во время
+ * отправки, и если в этот момент прочитать не мог, на сервер уходила пустая часть —
+ * диспетчер видел «Файл не выбран.», хотя файл выбирал. Теперь непрочитанный файл
+ * виден сразу и своими словами, а прочитанный уже не зависит от диска.
+ */
+export async function readUploadFile(file: File): Promise<File | null> {
+  try {
+    const bytes = await file.arrayBuffer()
+    if (bytes.byteLength === 0) return null
+    return new File([bytes], safeUploadName(file.name), {
+      type: file.type,
+      lastModified: file.lastModified,
+    })
+  } catch {
+    return null
+  }
+}
+
+/** Байты строкой base64 — запасной путь, когда файл частью формы до сервера не доехал. */
+export function bytesToBase64(bytes: ArrayBuffer): string {
+  const view = new Uint8Array(bytes)
+  let s = ''
+  for (let i = 0; i < view.length; i += 0x8000) s += String.fromCharCode(...view.subarray(i, i + 0x8000))
+  return btoa(s)
+}

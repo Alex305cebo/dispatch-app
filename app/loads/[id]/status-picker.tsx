@@ -1,12 +1,12 @@
 'use client'
 
-import { safeUploadFile } from '@/lib/upload-name'
+import { sendDocument } from '@/lib/send-document'
 import { DocLink } from '@/components/doc-link'
 
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react'
 import { Ban, Check, FileCheck2, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { addLoadEventManual, deleteLoad, setStatus, unmarkStop, uploadDocument } from '@/app/actions'
+import { addLoadEventManual, deleteLoad, setStatus, unmarkStop } from '@/app/actions'
 import { DeleteButton } from '@/components/delete-button'
 import { type LoadStatus } from '@/lib/map'
 import { notify } from '@/lib/notify'
@@ -192,13 +192,8 @@ function DocChip({
       let saved = 0
       let firstError: string | null = null
       for (const file of list) {
-        const fd = new FormData()
-        fd.append('file', safeUploadFile(file))
-        fd.append('kind', kind)
-        fd.append('loadId', String(loadId))
-        if (seq != null) fd.append('stopSeq', String(seq))
-        const res = await uploadDocument(fd)
-        if (res && 'error' in res) firstError ??= res.error
+        const res = await sendDocument(file, { kind, loadId, stopSeq: seq }, locale)
+        if ('error' in res) firstError ??= list.length > 1 ? `${file.name}: ${res.error}` : res.error
         else saved++
       }
       if (saved) {
