@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 import { EldLinks } from '@/components/eld-links'
 import { EldNewTrucks } from '@/components/eld-new-trucks'
 import { BoardSkeleton, FleetBoard } from './fleet-board'
-import { listLoads, listTrucks } from '@/lib/loads'
+import { listLoads, listTrucks, loadPapers } from '@/lib/loads'
 import { currentLoadsByTruck } from '@/lib/map'
 import { FleetHeatmap } from '@/components/fleet-heatmap'
 import type { DirectoryCompany } from '@/components/driver-directory'
@@ -56,7 +56,7 @@ export default async function Page() {
   // вместе с картой. Одно чтение настройки, оно и так кэшируется.
   // Всё одной волной: раньше две настройки читались по очереди ДО основной пачки —
   // два лишних круга в базу перед каждым открытием «Траков».
-  const [shareRaw, samsaraOn, allLoads, trucks, company, metas, fleetRaw, dispatcherPhone, dispRows] = await Promise.all([
+  const [shareRaw, samsaraOn, allLoads, trucks, company, metas, fleetRaw, dispatcherPhone, dispRows, papers] = await Promise.all([
     getSetting('eld_share_tokens'),
     import('@/lib/eld-samsara').then(async (m) => (await m.samsaraToken()) !== ''),
     // Все грузы компании одним запросом (тот же, что берёт «Доска парка» ниже, —
@@ -76,6 +76,9 @@ export default async function Page() {
         JOIN users u ON u.id = t.dispatcher_id
         LEFT JOIN settings s ON s.key = 'disp_phone:' || u.id
         WHERE t.company_id = ${companyId}`,
+    // Rate Con каждого груза — кнопка RC в карточке рейса «Загрузки парка». Тот же
+    // cache(), что у «Доски парка» ниже: второго запроса в базу нет.
+    loadPapers(companyId),
   ])
   const shareCount = shareRaw ? (JSON.parse(shareRaw) as string[]).length : 0
   const dispByTruck = new Map(
@@ -153,6 +156,15 @@ export default async function Page() {
       idle: truck.unavailable || current ? null : idleDays(working, today),
     }
   }
+  // Rate Con только тех грузов, что лежат в сетке «Загрузки парка», а не всей компании:
+  // объект целиком уезжает в браузер.
+  const heatRateCons: Record<number, number> = {}
+  for (const { working } of perTruck)
+    for (const day of working.values())
+      for (const l of day) {
+        const rc = papers.rateCons.get(l.id)
+        if (rc != null) heatRateCons[l.id] = rc
+      }
 
   // Блок брокеру в строке трака: компания и тот, кто открыл страницу. Свой номер и
   // реквизиты правятся в меню аккаунта — на странице их больше нет отдельными плитками.
@@ -209,6 +221,7 @@ export default async function Page() {
             <FleetHeatmap
               heading={false}
               today={today}
+              rateCons={heatRateCons}
               rows={perTruck.map(({ truck, working, current }) => {
                 const fs = truck.number ? byUnit.get(truck.number) : undefined
                 return {
