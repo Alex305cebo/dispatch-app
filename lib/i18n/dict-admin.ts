@@ -219,7 +219,6 @@ export const adminDict = {
     ro: 'Cine a intrat și când, de pe ce dispozitiv și de unde — plus ștergerile de documente. Versiunea completă, la link.',
     kk: 'Кім қашан кірді, қандай құрылғыдан және қайдан — плюс құжаттарды жою. Толық нұсқасы — сілтемеде.',
   },
-  'admin.journalOpen': { ru: 'Открыть →', en: 'Open →', es: 'Abrir →', uk: 'Відкрити →', ro: 'Deschide →', kk: 'Ашу →' },
 
   // Capability labels/descriptions (lib/capabilities.ts → capabilityMeta())
   'admin.cap.dispatcherReport.label': { ru: 'Отчёт «По диспетчерам»', en: '"By dispatcher" report', es: 'Informe «Por despachador»', uk: 'Звіт «За диспетчерами»', ro: 'Raportul „După dispecer”', kk: '«Диспетчерлер бойынша» есебі' },

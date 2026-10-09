@@ -14,6 +14,8 @@ import { financesHref } from '@/lib/payments'
 import { pctText } from '@/lib/dat-market-core'
 import { usd, usd2, usDate } from '@/lib/fmt'
 import { Stat } from '@/components/stat'
+import { BackButton } from '@/components/back-button'
+import { PageHeader } from '@/components/page-header'
 import { ShowMore } from '@/components/collapse'
 import { BrokerNote } from '@/components/facility-note'
 import { BrokerTools } from './broker-tools'
@@ -82,14 +84,19 @@ export default async function BrokerPage({ params }: { params: Promise<{ key: st
 
   return (
     <main className="page">
-      <Link href="/brokers" className="text-sm text-t3 hover:text-white">
-        ← {t(locale, 'nav.brokers')}
-      </Link>
-      <h1 className="mt-2 break-words text-xl font-bold tracking-tight">{name}</h1>
-      <p className="nums text-base text-t2">
-        {b.mc ? `MC ${b.mc}` : t(locale, 'brokers.noMc')}
-        {b.payVia && ` · ${t(locale, 'brokers.payVia').replace('{name}', b.payVia)}`}
-      </p>
+      {/* Назад и шапка — как у всех страниц (план «Порядок в TMS», 10/09/26). */}
+      <BackButton href="/brokers" label={t(locale, 'nav.brokers')} />
+      <div className="mt-3">
+        <PageHeader
+          title={<span className="min-w-0 break-words">{name}</span>}
+          subtitle={
+            <>
+              <span className="nums">{b.mc ? `MC ${b.mc}` : t(locale, 'brokers.noMc')}</span>
+              {b.payVia && ` · ${t(locale, 'brokers.payVia').replace('{name}', b.payVia)}`}
+            </>
+          }
+        />
+      </div>
       <BrokerTools
         broker={{
           key: b.key,

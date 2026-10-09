@@ -1,7 +1,6 @@
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/button'
 import { PageHeader } from '@/components/page-header'
-import { FuelPriceButton } from '@/components/fuel-price-button'
 import { Suspense } from 'react'
 import { EldLinks } from '@/components/eld-links'
 import { EldNewTrucks } from '@/components/eld-new-trucks'
@@ -184,13 +183,12 @@ export default async function Page() {
             )}
           </>
         }
+        // Одна главная кнопка (план «Порядок в TMS»). «Обновить цену дизеля» — в строке
+        // над списком траков, рядом с «Обновить» GPS.
         actions={
-          <>
-            {trucks.length > 0 && <FuelPriceButton truckId={null} locale={locale} size="md" />}
-            <Button href="/trucks/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
-              {t(locale, 'trucks.page.addTruck')}
-            </Button>
-          </>
+          <Button href="/trucks/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
+            {t(locale, 'trucks.page.addTruck')}
+          </Button>
         }
       />
 

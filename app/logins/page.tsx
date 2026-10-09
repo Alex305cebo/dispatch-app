@@ -3,6 +3,8 @@ import { sql } from '@/lib/db'
 import { docKindLabel, type DocKind } from '@/lib/docs'
 import { getGeminiUsage } from '@/lib/gemini-usage'
 import { Info } from '@/components/info'
+import { PageHeader } from '@/components/page-header'
+import { BackButton } from '@/components/back-button'
 import { Name } from '@/components/name'
 import { getCurrentUser } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
@@ -137,12 +139,15 @@ export default async function Page() {
   const numLocale = locale === 'ru' ? 'ru-RU' : 'en-US'
 
   return (
-    <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <div className="mb-4">
-        <h1 className="text-xl font-bold tracking-tight">{t(locale, 'admin.logins.title')}</h1>
-        <p className="text-base text-t2">
-          {t(locale, 'admin.logins.subtitle').replace('{n}', String(events.length))}
-        </p>
+    // Ширина и шапка — общие для всех страниц (план «Порядок в TMS», 10/09/26). Журнал
+    // открывают из админки — туда и стрелка назад.
+    <main className="page">
+      <BackButton href="/admin" label={t(locale, 'admin.title')} />
+      <div className="mt-3">
+        <PageHeader
+          title={t(locale, 'admin.logins.title')}
+          subtitle={t(locale, 'admin.logins.subtitle').replace('{n}', String(events.length))}
+        />
       </div>
 
       {/* Gemini token spend — our running counter (Google AI Studio has the full total). */}

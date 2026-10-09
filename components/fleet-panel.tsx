@@ -19,6 +19,7 @@ import { useRoutePlan, type PlanSnaps, type PlanTruck } from '@/components/route
 import { ltStates, type DatEquipment, type DatSnapshot } from '@/lib/dat-market-core'
 import { FleetList, type TrackingRow, type TruckMoney } from '@/components/fleet-list'
 import { RefreshFleetButton } from '@/components/refresh-fleet-button'
+import { FuelPriceButton } from '@/components/fuel-price-button'
 import { Segmented } from '@/components/segmented'
 import { Stat } from '@/components/stat'
 import { Cells } from '@/components/mini-charts'
@@ -280,6 +281,10 @@ export function FleetPanel({
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-t3">
           <span className="truncate">{updatedText}</span>
           <RefreshFleetButton staleMinutes={staleMinutes} />
+          {/* Цена дизеля всему парку — тоже «обновить данные парка», как GPS рядом. До
+              10/09/26 стояла в шапке «Траков» второй кнопкой; по плану «Порядок в TMS»
+              в шапке одна главная — «＋ Трак». */}
+          {rows.length > 0 && <FuelPriceButton truckId={null} locale={locale} />}
         </div>
       </div>
 
