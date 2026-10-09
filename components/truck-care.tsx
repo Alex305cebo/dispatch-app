@@ -1,6 +1,6 @@
 'use client'
 
-import { safeUploadFile } from '@/lib/upload-name'
+import { sendDocument } from '@/lib/send-document'
 import { DocLink } from '@/components/doc-link'
 
 import { Button } from '@/components/button'
@@ -18,7 +18,6 @@ import {
   deleteTodo,
   saveTruckMeta,
   toggleTodo,
-  uploadDocument,
   type MaintenanceInput,
   type TruckMetaInput,
 } from '@/app/actions'
@@ -194,14 +193,9 @@ export function TruckCare({
    * row can open its own receipt instead of just filing it under the truck. */
   function attachReceipt(file: File | undefined, recordTitle: string, maintenanceId: number) {
     if (!file) return
-    const fd = new FormData()
-    fd.append('file', safeUploadFile(file))
-    fd.append('kind', 'repair')
-    fd.append('truckId', String(truckId))
-    fd.append('maintenanceId', String(maintenanceId))
-    fd.append('title', `${recordTitle}${t(locale, 'trucks.care.receiptSuffix')}`)
+    const title = `${recordTitle}${t(locale, 'trucks.care.receiptSuffix')}`
     start(async () => {
-      const res = await uploadDocument(fd)
+      const res = await sendDocument(file, { kind: 'repair', truckId, maintenanceId, title }, locale)
       if ('error' in res) notify('error', res.error)
       else {
         notify('ok', t(locale, 'trucks.care.docAdded'))

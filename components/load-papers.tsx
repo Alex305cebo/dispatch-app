@@ -16,8 +16,7 @@ import { useRef, useTransition } from 'react'
 import { Check, Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { DocLink } from '@/components/doc-link'
-import { uploadDocument } from '@/app/actions'
-import { safeUploadFile } from '@/lib/upload-name'
+import { sendDocument } from '@/lib/send-document'
 import { docKindLabel, type DocKind } from '@/lib/docs'
 import { notify } from '@/lib/notify'
 import { staleBuildMessage } from '@/components/build-watch'
@@ -65,12 +64,8 @@ export function LoadPapers({
     start(async () => {
       let saved = 0
       for (const file of files) {
-        const fd = new FormData()
-        fd.append('file', safeUploadFile(file))
-        fd.append('kind', kind)
-        fd.append('loadId', String(loadId))
         try {
-          const res = await uploadDocument(fd)
+          const res = await sendDocument(file, { kind, loadId }, locale)
           if ('error' in res) notify('error', `${file.name}: ${res.error}`)
           else saved++
         } catch (e) {

@@ -135,6 +135,14 @@ export const actionsDict = {
     kk: 'Рейтконда жүріс көрсетілмеген, оны қалалар бойынша есептеу де болмады. Жүкті қолмен құрып, мильді жазыңыз.',
   },
   'actions.noFileSelected': { ru: 'Файл не выбран.', en: 'No file selected.', es: 'No se eligió ningún archivo.', uk: 'Файл не вибрано.', ro: 'Niciun fișier ales.', kk: 'Файл таңдалмаған.' },
+  'actions.fileUnreadable': {
+    ru: 'Файл пустой или не читается. Сохрани его на компьютер или телефон и выбери заново.',
+    en: "The file is empty or can't be read. Save it to your computer or phone and pick it again.",
+    es: 'El archivo está vacío o no se puede leer. Guárdalo en tu computadora o teléfono y elígelo de nuevo.',
+    uk: 'Файл порожній або не читається. Збережіть його на комп’ютер чи телефон і виберіть знову.',
+    ro: 'Fișierul e gol sau nu poate fi citit. Salvează-l pe computer sau telefon și alege-l din nou.',
+    kk: 'Файл бос немесе оқылмайды. Оны компьютерге не телефонға сақтап, қайта таңдаңыз.',
+  },
   'actions.fileOver8mb': {
     ru: 'Файл больше 8 МБ — сожми или пришли меньше.',
     en: 'File is over 8 MB — compress it or send a smaller one.',

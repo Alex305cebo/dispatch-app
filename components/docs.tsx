@@ -1,6 +1,6 @@
 'use client'
 
-import { safeUploadFile } from '@/lib/upload-name'
+import { sendDocument } from '@/lib/send-document'
 import { DocLink } from '@/components/doc-link'
 import { DELETE_WORD } from '@/lib/delete-word'
 
@@ -19,7 +19,6 @@ import {
   purgeDocument,
   restoreDocument,
   setDocumentKind,
-  uploadDocument,
 } from '@/app/actions'
 import { DeleteButton } from '@/components/delete-button'
 import { RateConButton } from '@/components/ratecon-button'
@@ -66,14 +65,8 @@ export function DocUpload({
     start(async () => {
       let saved = 0
       for (const file of files) {
-        const fd = new FormData()
-        fd.append('file', safeUploadFile(file))
-        fd.append('kind', as)
-        if (truckId) fd.append('truckId', String(truckId))
-        if (loadId) fd.append('loadId', String(loadId))
-        if (!truckId && pickTruck) fd.append('truckId', pickTruck)
         try {
-          const res = await uploadDocument(fd)
+          const res = await sendDocument(file, { kind: as, truckId: truckId || pickTruck, loadId }, locale)
           if ('error' in res) notify('error', `${file.name}: ${res.error}`)
           else saved++
         } catch (e) {

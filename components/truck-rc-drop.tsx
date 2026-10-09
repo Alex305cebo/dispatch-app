@@ -1,6 +1,6 @@
 'use client'
 
-import { safeUploadFile } from '@/lib/upload-name'
+import { sendDocument } from '@/lib/send-document'
 import { DocLink } from '@/components/doc-link'
 
 import { Button } from '@/components/button'
@@ -15,7 +15,7 @@ import { extractPdf, needsFileRead } from '@/lib/pdf-text'
 import { formatDriverInfo, toQrLoad, type RateConFields } from '@/lib/ratecon'
 import { aiParseRateCon, fileToBase64 } from '@/lib/ratecon-ai'
 import { rcWarnings, type RcWarning } from '@/lib/rc-warnings'
-import { checkLaneRate, createLoadFromRc, setLoadPartial, undoRcUpload, uploadDocument, type RcCreateResult } from '@/app/actions'
+import { checkLaneRate, createLoadFromRc, setLoadPartial, undoRcUpload, type RcCreateResult } from '@/app/actions'
 import { withRate, type RateCheck } from '@/lib/rate-check-core'
 import { RateLines } from '@/components/analysis'
 import { docKindFromText, isBolNotRatecon } from '@/lib/caption-kind'
@@ -126,12 +126,7 @@ export function TruckRcDrop({
       }
 
       async function fileDoc(f: File, kind: string, loadId?: number) {
-        const fd = new FormData()
-        fd.append('file', safeUploadFile(f))
-        fd.append('kind', kind)
-        fd.append('truckId', String(truckId))
-        if (loadId) fd.append('loadId', String(loadId))
-        const up = await uploadDocument(fd)
+        const up = await sendDocument(f, { kind, truckId, loadId }, locale)
         if ('error' in up) throw new Error(up.error)
         return up.id
       }
@@ -161,11 +156,7 @@ export function TruckRcDrop({
 
       // 2) save the RC as a document on this truck
       setStage(t(locale, 'rcDrop.stageSaving'))
-      const fd = new FormData()
-      fd.append('file', safeUploadFile(file))
-      fd.append('kind', sourceKind)
-      fd.append('truckId', String(truckId))
-      const up = await uploadDocument(fd)
+      const up = await sendDocument(file, { kind: sourceKind, truckId }, locale)
       const docId = 'id' in up ? up.id : undefined
 
       // 3) AI read (text for text-PDF, the file itself for scans/photos) — the only

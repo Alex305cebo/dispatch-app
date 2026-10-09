@@ -1,6 +1,6 @@
 'use client'
 
-import { safeUploadFile } from '@/lib/upload-name'
+import { sendDocument } from '@/lib/send-document'
 import { DocLink } from '@/components/doc-link'
 
 // A big BOL / POD button next to "Open rate con": opens the document when it exists,
@@ -10,7 +10,6 @@ import { DocLink } from '@/components/doc-link'
 
 import { useRef, useTransition } from 'react'
 import { Plus } from 'lucide-react'
-import { uploadDocument } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
@@ -65,12 +64,8 @@ export function DocButton({
       let saved = 0
       let firstError: string | null = null
       for (const file of list) {
-        const fd = new FormData()
-        fd.append('file', safeUploadFile(file))
-        fd.append('kind', kind)
-        fd.append('loadId', String(loadId))
-        const res = await uploadDocument(fd)
-        if (res && 'error' in res) firstError ??= res.error
+        const res = await sendDocument(file, { kind, loadId }, locale)
+        if ('error' in res) firstError ??= list.length > 1 ? `${file.name}: ${res.error}` : res.error
         else saved++
       }
       if (saved)

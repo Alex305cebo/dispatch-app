@@ -1692,12 +1692,22 @@ export async function classifyDoc(file: File): Promise<DocClass | null> {
  * FormData: file, kind, title?, truckId?, loadId?, maintenanceId?. Returns the new
  * id so the RC import can attach the document to the load it creates a moment later.
  */
-export async function uploadDocument(fd: FormData): Promise<{ id: number } | { error: string }> {
+export async function uploadDocument(
+  fd: FormData,
+): Promise<{ id: number } | { error: string; noFile?: true }> {
   const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
-  const file = fd.get('file')
-  if (!(file instanceof File) || file.size === 0) return { error: t(locale, 'actions.noFileSelected') }
+  let file = fd.get('file')
+  // Запасной путь lib/send-document.ts: файл, не доехавший частью формы, приходит
+  // повторно строкой base64. noFile в ответе — сигнал браузеру сделать этот повтор.
+  const b64 = fd.get('fileB64')
+  if ((!(file instanceof File) || file.size === 0) && typeof b64 === 'string' && b64) {
+    const name = String(fd.get('fileName') || 'document')
+    console.warn(`uploadDocument: файл пришёл только строкой (${name}, ${b64.length} симв.)`)
+    file = new File([Buffer.from(b64, 'base64')], name, { type: String(fd.get('fileType') || '') })
+  }
+  if (!(file instanceof File) || file.size === 0) return { error: t(locale, 'actions.noFileSelected'), noFile: true }
   if (file.size > MAX_DOC_BYTES) return { error: t(locale, 'actions.fileOver8mb') }
 
   const kind = String(fd.get('kind') || 'other')
