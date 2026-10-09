@@ -13,6 +13,8 @@ import { listOurBrokers } from '@/lib/brokers'
 import { brokerKeyOf, prettyCompany } from '@/lib/broker-key'
 import { driveTime, usd, usDate } from '@/lib/fmt'
 import { Stat } from '@/components/stat'
+import { BackButton } from '@/components/back-button'
+import { PageHeader } from '@/components/page-header'
 import { ShowMore } from '@/components/collapse'
 import { FacilityNote } from '@/components/facility-note'
 
@@ -67,25 +69,30 @@ export default async function FacilityPage({ params }: { params: Promise<{ key: 
 
   return (
     <main className="page">
-      <Link href="/brokers?view=facilities" className="text-sm text-t3 hover:text-white">
-        ← {t(locale, 'nav.brokers')}
-      </Link>
-      <h1 className="mt-2 break-words text-xl font-bold tracking-tight">{title}</h1>
-      {where && (
-        <p className="text-base text-t2">
-          {where} ·{' '}
-          <a
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-haul-400 hover:underline"
-          >
-            {t(locale, 'facilities.card.map')}
-          </a>
-        </p>
-      )}
+      {/* Назад и шапка — как у всех страниц (план «Порядок в TMS», 10/09/26). */}
+      <BackButton href="/brokers?view=facilities" label={t(locale, 'nav.brokers')} />
+      <div className="mt-3">
+        <PageHeader
+          title={<span className="min-w-0 break-words">{title}</span>}
+          subtitle={
+            where && (
+              <>
+                {where} ·{' '}
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-haul-400 hover:underline"
+                >
+                  {t(locale, 'facilities.card.map')}
+                </a>
+              </>
+            )
+          }
+        />
+      </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
         <Stat
           label={t(locale, 'facilities.card.visits')}
           value={t(locale, 'facilities.card.times').replace('{n}', String(f.visits))}

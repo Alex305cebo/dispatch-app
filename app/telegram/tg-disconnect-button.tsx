@@ -22,8 +22,9 @@ export function TgDisconnectButton() {
     )
   }
 
+  // span, а не div: с 10/09/26 кнопка стоит в строке подписи под заголовком (это <p>).
   return (
-    <div className="flex shrink-0 items-center gap-2 text-sm">
+    <span className="inline-flex shrink-0 flex-wrap items-center gap-2 text-sm">
       <span className="text-t3">{t(locale, 'telegram.disconnect.confirmText')}</span>
       <button
         disabled={pending}
@@ -40,6 +41,6 @@ export function TgDisconnectButton() {
       <button onClick={() => setConfirming(false)} className="text-t3 hover:text-t1">
         {t(locale, 'telegram.disconnect.cancel')}
       </button>
-    </div>
+    </span>
   )
 }

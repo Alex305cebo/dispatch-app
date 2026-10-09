@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Link2, MessageCircle, MessagesSquare, MailWarning } from 'lucide-react'
 import { getCurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
 import { getLocale } from '@/lib/i18n-server'
@@ -27,7 +28,8 @@ import { TgImage } from './tg-image'
 import { TgChatSettings } from './tg-chat-settings'
 import { TgAddChat } from './tg-add-chat'
 import { PageHeader } from '@/components/page-header'
-import { CountTile } from '@/components/count-tile'
+import { Stat } from '@/components/stat'
+import { Cells } from '@/components/mini-charts'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
 import { tileGrid } from '@/lib/tiles'
 import { TELEGRAM_TILES } from '@/lib/tiles-core'
@@ -54,6 +56,18 @@ function when(iso: string | null, locale: Locale): string {
   return today ? d.toLocaleTimeString(dl, { hour: '2-digit', minute: '2-digit' }) : usDate(d)
 }
 
+/** Пока Telegram не подключён — та же ширина и та же шапка, что у всех разделов (план
+ *  «Порядок в TMS», 10/09/26). Раньше эти экраны были уже и с мелким заголовком, и
+ *  «Telegram» прыгал влево-вправо при переходе из меню. */
+function Shell({ locale, subtitle, children }: { locale: Locale; subtitle?: string; children: React.ReactNode }) {
+  return (
+    <main className="page">
+      <PageHeader title="Telegram" info={t(locale, 'telegram.page.tooltip')} subtitle={subtitle} />
+      {children}
+    </main>
+  )
+}
+
 export default async function Page({ searchParams }: { searchParams: Promise<{ chat?: string; truck?: string }> }) {
   const user = await getCurrentUser()
   const locale = await getLocale()
@@ -62,8 +76,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   // can't be attached to anyone. Ask them to log in properly.
   if (!user) {
     return (
-      <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-        <h1 className="mb-5 text-xl font-bold tracking-tight">Telegram</h1>
+      <Shell locale={locale} subtitle={t(locale, 'telegram.help.what')}>
         <div className="panel p-4">
           <p className="text-base text-t2">{t(locale, 'telegram.page.needLogin')}</p>
           <a
@@ -73,7 +86,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
             {t(locale, 'telegram.help.login')}
           </a>
         </div>
-      </main>
+      </Shell>
     )
   }
 
@@ -82,16 +95,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   // не подключается вовсе (это чужой, общий аккаунт) — там предлагаем войти в свой.
   if (!(await can(user, 'telegram'))) {
     return (
-      <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-        <h1 className="mb-5 text-xl font-bold tracking-tight">Telegram</h1>
+      // Что это за раздел — строкой под заголовком, как у всех; в карточке — только почему
+      // он закрыт и что сделать.
+      <Shell locale={locale} subtitle={t(locale, 'telegram.help.what')}>
         <section className="panel p-4 sm:p-5">
           <h2 className="text-base font-semibold leading-6 text-t1">
             {t(locale, user.isDemo ? 'telegram.help.demoTitle' : 'telegram.help.noAccessTitle')}
           </h2>
-          <p className="mt-1 text-base leading-relaxed text-t2">{t(locale, 'telegram.help.what')}</p>
           {user.isDemo ? (
             <>
-              <p className="mt-3 text-base leading-relaxed text-t2">{t(locale, 'telegram.help.demoText')}</p>
+              <p className="mt-1 text-base leading-relaxed text-t2">{t(locale, 'telegram.help.demoText')}</p>
               <a
                 href="/login"
                 className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-haul-500 px-4 text-base font-semibold text-white hover:bg-haul-400"
@@ -100,14 +113,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
               </a>
             </>
           ) : (
-            <ol className="mt-3 flex list-decimal flex-col gap-1.5 pl-5 text-base leading-relaxed text-t1">
+            <ol className="mt-2 flex list-decimal flex-col gap-1.5 pl-5 text-base leading-relaxed text-t1">
               <li>{t(locale, 'telegram.help.step1')}</li>
               <li>{t(locale, 'telegram.help.step2')}</li>
               <li>{t(locale, 'telegram.help.step3')}</li>
             </ol>
           )}
         </section>
-      </main>
+      </Shell>
     )
   }
 
@@ -115,10 +128,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   // not admin-only.
   if (!(await tgConnected(user.id))) {
     return (
-      <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-        <h1 className="mb-5 text-xl font-bold tracking-tight">Telegram</h1>
+      <Shell locale={locale} subtitle={t(locale, 'telegram.help.what')}>
         <TgSetup relogin={await tgNeedsRelogin(user.id)} />
-      </main>
+      </Shell>
     )
   }
 
@@ -142,10 +154,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     // вместо сырого кода ошибки сразу короткий повторный вход.
     if (isDeadTgSession(e)) {
       return (
-        <main className="mx-auto max-w-4xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-          <h1 className="mb-5 text-xl font-bold tracking-tight">Telegram</h1>
+        <Shell locale={locale} subtitle={t(locale, 'telegram.help.what')}>
           <TgSetup relogin />
-        </main>
+        </Shell>
       )
     }
     error = e instanceof Error ? e.message : String(e)
@@ -202,14 +213,44 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   // показанным чатам: остальные в списке и не видны.
   const unread = dialogs.reduce((n, d) => n + d.unread, 0)
   const linked = dialogs.filter((d) => truckByChat.get(d.id)).length
+  // Плитки — как на «Грузах», «Траках» и «Amazon»: подпись, значок, число, под ним
+  // клетки — чат списка на клетку: где ждут ответа, какие привязаны к траку.
+  const icon = { size: 15, strokeWidth: 2.5 }
+  const waiting = dialogs.filter((d) => d.unread > 0).length
   const widgets: Widget[] = [
-    { id: 'chats', node: <CountTile value={dialogs.length} label={t(locale, 'telegram.tiles.chats')} /> },
+    {
+      id: 'chats',
+      node: <Stat compact surface="panel" accent="haul" icon={<MessageCircle {...icon} />} label={t(locale, 'telegram.tiles.chats')} value={String(dialogs.length)} />,
+    },
     {
       id: 'unread',
-      node: <CountTile value={unread} label={t(locale, 'telegram.tiles.unread')} tone={unread > 0 ? 'warn' : undefined} />,
+      node: (
+        <Stat
+          compact
+          surface="panel"
+          accent={unread > 0 ? 'warn' : 'haul'}
+          icon={<MailWarning {...icon} />}
+          label={t(locale, 'telegram.tiles.unread')}
+          value={String(unread)}
+        >
+          <Cells total={dialogs.length} lit={waiting} tone="warn" />
+        </Stat>
+      ),
     },
-    { id: 'linked', node: <CountTile value={linked} label={t(locale, 'telegram.tiles.linked')} /> },
-    { id: 'all-chats', node: <CountTile value={allDialogs.length} label={t(locale, 'telegram.tiles.allChats')} /> },
+    {
+      id: 'linked',
+      node: (
+        <Stat compact surface="panel" accent="good" icon={<Link2 {...icon} />} label={t(locale, 'telegram.tiles.linked')} value={String(linked)}>
+          <Cells total={dialogs.length} lit={linked} tone="good" />
+        </Stat>
+      ),
+    },
+    {
+      id: 'all-chats',
+      node: (
+        <Stat compact surface="panel" accent="haul" icon={<MessagesSquare {...icon} />} label={t(locale, 'telegram.tiles.allChats')} value={String(allDialogs.length)} />
+      ),
+    },
     {
       id: 'chat',
       // Список чатов и открытая переписка — ОДНА плитка: делить их нельзя, слева
@@ -314,14 +355,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
             {t(locale, 'telegram.page.yourAccount')}
             {account?.phone ? ` · +${account.phone}` : ''}
             {account?.name ? ` · ${account.name}` : ''}
-          </>
-        }
-        actions={
-          <>
-            <TgCheckButton />
+            {/* «Не тот аккаунт?» — про этот аккаунт, поэтому рядом с ним, а не второй
+                кнопкой справа: там одна главная — «Проверить сейчас» (план «Порядок в TMS»). */}
+            {' · '}
             <TgDisconnectButton />
           </>
         }
+        actions={<TgCheckButton />}
       />
 
       {/* Ошибка — первой: сломанное подключение важнее любых настроек. */}

@@ -52,7 +52,9 @@ export function TgSetup({ relogin = false }: { relogin?: boolean }) {
     })
 
   return (
-    <div className="panel mx-auto max-w-sm p-4">
+    // Слева под шапкой, как содержимое других разделов, а не узкой карточкой посередине
+    // (план «Порядок в TMS», 10/09/26); шире — длинные шаги не тянутся в столбик.
+    <div className="panel max-w-xl p-4">
       <h2 className="text-md font-semibold">
         {t(locale, relogin ? 'telegram.setup.reloginTitle' : 'telegram.setup.title')}
       </h2>

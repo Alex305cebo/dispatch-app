@@ -1,6 +1,8 @@
 'use client'
 
+import { RefreshCw } from 'lucide-react'
 import { useTransition } from 'react'
+import { Button } from '@/components/button'
 import { tgCheckNow } from './actions'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
@@ -11,8 +13,12 @@ export function TgCheckButton() {
   const [pending, start] = useTransition()
 
   return (
-    <button
-      disabled={pending}
+    // Главная кнопка шапки «Telegram» — того же вида, что у других разделов.
+    <Button
+      type="button"
+      variant="secondary"
+      loading={pending}
+      icon={<RefreshCw size={14} strokeWidth={2.25} />}
       onClick={() =>
         start(async () => {
           const res = await tgCheckNow()
@@ -27,9 +33,8 @@ export function TgCheckButton() {
           }
         })
       }
-      className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-sm text-t2 transition-colors hover:border-white/25 hover:text-white disabled:opacity-40"
     >
       {pending ? t(locale, 'telegram.check.checking') : t(locale, 'telegram.check.checkNow')}
-    </button>
+    </Button>
   )
 }

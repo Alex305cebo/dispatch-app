@@ -1,9 +1,11 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { ScrollText } from 'lucide-react'
 import { getCurrentUser } from '@/lib/session'
 import { getCompany } from '@/lib/invoice'
 import { CompanyForm } from '@/components/invoice-actions'
 import { Info } from '@/components/info'
+import { PageHeader } from '@/components/page-header'
+import { Button } from '@/components/button'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { getDemoConfig, getKeyStatus, getOpenAccess, listFleetForAssign, listRecentErrors, listUsers, listWorkspaces } from './actions'
@@ -34,17 +36,17 @@ export default async function AdminPage() {
   ])
 
   return (
-    <main className="mx-auto max-w-3xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">{t(locale, 'admin.title')}</h1>
-          <p className="text-base text-t2">{t(locale, 'admin.subtitle')}</p>
-        </div>
-        <Link href="/logins" className="rounded-lg border border-white/10 px-3 py-1.5 text-sm font-medium text-t1 hover:border-white/25">
-          {t(locale, 'admin.journalHeading')} {t(locale, 'admin.journalOpen')}
-        </Link>
-      </div>
-
+    // Ширина и шапка — общие для всех страниц (план «Порядок в TMS», 10/09/26).
+    <main className="page">
+      <PageHeader
+        title={t(locale, 'admin.title')}
+        subtitle={t(locale, 'admin.subtitle')}
+        actions={
+          <Button href="/logins" variant="secondary" icon={<ScrollText size={14} aria-hidden />}>
+            {t(locale, 'admin.journalHeading')}
+          </Button>
+        }
+      />
       {/* Порядок — по частоте: пользователей и права трогают каждую неделю, реквизиты
           и ключи — при настройке, доступ/демо — раз в жизни, сбои — когда что-то
           сломалось. Ссылка на журнал — в шапке, отдельной пустой секции она не стоит. */}

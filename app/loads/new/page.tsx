@@ -3,6 +3,7 @@ import { fleetStatusByUnit, truckMetas } from '@/lib/maintenance'
 import { cityOf } from '@/lib/maintenance-core'
 import { NewLoadClient } from '@/components/new-load-client'
 import { BackButton } from '@/components/back-button'
+import { PageHeader } from '@/components/page-header'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
@@ -58,16 +59,19 @@ export default async function Page({
     trucks.some((t) => t.id === truckParam) ? truckParam : (src?.truckId ?? undefined)
   const locale = await getLocale()
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
+    // Ширина и шапка — общие для всех страниц (план «Порядок в TMS», 10/09/26).
+    <main className="page">
       <BackButton href="/loads" label={t(locale, 'loads.page.title')} />
-      <h1 className="mb-1 mt-3 text-xl font-bold tracking-tight">
-        {t(locale, repeat ? 'loads.new.repeatTitle' : 'loads.new.title')}
-      </h1>
-      <p className="mb-6 text-base text-t2">
-        {repeat
-          ? t(locale, 'loads.new.repeatSubtitle').replace('{broker}', src?.brokerName ?? '—')
-          : t(locale, 'loads.new.subtitle')}
-      </p>
+      <div className="mt-3">
+        <PageHeader
+          title={t(locale, repeat ? 'loads.new.repeatTitle' : 'loads.new.title')}
+          subtitle={
+            repeat
+              ? t(locale, 'loads.new.repeatSubtitle').replace('{broker}', src?.brokerName ?? '—')
+              : t(locale, 'loads.new.subtitle')
+          }
+        />
+      </div>
       <NewLoadClient
         trucks={trucks}
         placeByTruck={placeByTruck}
