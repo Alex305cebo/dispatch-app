@@ -24,6 +24,8 @@ import { useLocale } from '@/components/locale-provider'
 import { t, type Locale } from '@/lib/i18n'
 import { daySpan, heatSegments, idleDays, type HeatDayLoad, type HeatRow } from '@/lib/heatmap'
 import { shiftDay } from '@/lib/loads-dashboard'
+import { RateConButton } from '@/components/ratecon-button'
+import { DocModal } from '@/components/doc-modal'
 
 type Hover = { x: number; top: number; bottom: number; label: string; load: HeatDayLoad }
 
@@ -53,14 +55,20 @@ export function FleetHeatmap({
   rows,
   today,
   heading = true,
+  rateCons,
 }: {
   rows: HeatRow[]
   today: string
   /** Своё название над сеткой. Вкладкой «Загрузка парка» на «Траках» его уже назвала
    *  сама вкладка — там вместо названия в шапке стоит сводка. */
   heading?: boolean
+  /** id груза → id его Rate Con (lib/loads.ts loadPapers): кнопка RC в карточке рейса. */
+  rateCons?: Record<number, number>
 }) {
   const locale = useLocale()
+  // Открытый Rate Con. Окно — здесь, а не в карточке рейса: карточка закрывается, как
+  // только мышь с неё ушла, и окно пропало бы вместе с ней.
+  const [doc, setDoc] = useState<number | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   // 0 до первого замера: сервер и первый кадр в браузере рисуют одинаково (широко).
   const [width, setWidth] = useState(0)
@@ -372,7 +380,9 @@ export function FleetHeatmap({
       {hover &&
         createPortal(
           (() => {
-            const CARD_W = 260
+            const rc = rateCons?.[hover.load.id]
+            // С кнопкой RC карточка шире: маршрут не должен обрезаться сильнее, чем без неё.
+            const CARD_W = rc != null ? 304 : 260
             const CARD_H = 110
             const left = Math.min(Math.max(hover.x, CARD_W / 2 + 8), window.innerWidth - CARD_W / 2 - 8)
             const above = hover.top > CARD_H
@@ -384,32 +394,50 @@ export function FleetHeatmap({
                 }`}
                 style={{ left, top: above ? hover.top : hover.bottom }}
               >
-                <Link
-                  href={`/loads/${hover.load.id}`}
+                <div
                   onMouseEnter={cancelClose}
                   onMouseLeave={scheduleClose}
-                  className="pointer-events-auto block w-[260px] rounded-lg border border-white/12 bg-ink-900 p-2.5 shadow-2xl transition-colors hover:border-haul-400/50"
+                  className="pointer-events-auto flex rounded-lg border border-white/12 bg-ink-900 shadow-2xl transition-colors hover:border-haul-400/50"
+                  style={{ width: CARD_W }}
                 >
-                  <span className="block truncate text-2xs text-t3">{hover.label}</span>
-                  <span className="mt-0.5 block truncate text-sm font-medium text-t1">{hover.load.route}</span>
-                  <span className="mt-1.5 flex items-center justify-between gap-2 text-xs">
-                    <span className="flex items-center gap-1.5 text-t2">
-                      <span className={`h-2 w-4 rounded-sm border ${BAR[phase]}`} />
-                      {statusLabel(locale, hover.load.status)}
+                  <Link href={`/loads/${hover.load.id}`} className="block min-w-0 flex-1 p-2.5">
+                    <span className="block truncate text-2xs text-t3">{hover.label}</span>
+                    <span className="mt-0.5 block truncate text-sm font-medium text-t1">{hover.load.route}</span>
+                    <span className="mt-1.5 flex items-center justify-between gap-2 text-xs">
+                      <span className="flex items-center gap-1.5 text-t2">
+                        <span className={`h-2 w-4 rounded-sm border ${BAR[phase]}`} />
+                        {statusLabel(locale, hover.load.status)}
+                      </span>
+                      <span className="nums font-semibold text-t1">
+                        {usd.format(hover.load.rate)}
+                        {rpmText(hover.load.rate, hover.load.miles ?? 0) && (
+                          <span className="font-normal text-t3"> · {rpmText(hover.load.rate, hover.load.miles ?? 0)}</span>
+                        )}
+                      </span>
                     </span>
-                    <span className="nums font-semibold text-t1">
-                      {usd.format(hover.load.rate)}
-                      {rpmText(hover.load.rate, hover.load.miles ?? 0) && (
-                        <span className="font-normal text-t3"> · {rpmText(hover.load.rate, hover.load.miles ?? 0)}</span>
-                      )}
+                  </Link>
+                  {/* Rate Con — тут же, не открывая груз: кнопка RC везде, где виден груз
+                      (владелец, 10/09/26). Рядом со ссылкой, а не внутри: кнопка в ссылке —
+                      недопустимый HTML. */}
+                  {rc != null && (
+                    <span className="flex shrink-0 items-center border-l border-white/[0.08] px-2">
+                      <RateConButton
+                        docId={rc}
+                        compact
+                        onOpen={() => {
+                          setHover(null)
+                          setDoc(rc)
+                        }}
+                      />
                     </span>
-                  </span>
-                </Link>
+                  )}
+                </div>
               </div>
             )
           })(),
           document.body,
         )}
+      {doc != null && <DocModal docId={doc} onClose={() => setDoc(null)} />}
     </div>
   )
 }

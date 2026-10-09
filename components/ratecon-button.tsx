@@ -25,12 +25,16 @@ export function RateConButton({
   docId,
   compact,
   small,
+  onOpen,
 }: {
   docId: number
   /** Icon-only pill for list rows; full label for the load page. */
   compact?: boolean
   /** Невысокая кнопка со словами — в шапке плитки статуса груза. */
   small?: boolean
+  /** Окно документа держит вызывающий: кнопка во всплывающей карточке «Загрузки
+   *  парка», которая сама закрывается, — окно внутри неё закрылось бы вместе с ней. */
+  onOpen?: () => void
 }) {
   const locale = useLocale()
   const [open, setOpen] = useState(false)
@@ -38,7 +42,7 @@ export function RateConButton({
     <>
     <button
       type="button"
-      onClick={() => setOpen(true)}
+      onClick={() => (onOpen ? onOpen() : setOpen(true))}
       title={t(locale, 'rateconButton.openTitle')}
       aria-label={t(locale, 'rateconButton.openTitle')}
       className={
