@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
 import { tileGrid } from '@/lib/tiles'
-import { LOAD_DETAIL_TILES, migrateLoadPapers } from '@/lib/tiles-core'
+import { LOAD_DETAIL_TILES, migrateLoadCard } from '@/lib/tiles-core'
 import { Fragment, Suspense, type ReactNode } from 'react'
 import { notFound } from 'next/navigation'
 import { currentLoadForTruck, getLoad, laneAvgRpmFor, listDocs, listLoads, truckForLoad } from '@/lib/loads'
@@ -16,13 +16,13 @@ import { financesHref, payBadge, todayEt } from '@/lib/payments'
 import { paymentFor } from '@/lib/payments-server'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
-import { driveTime, usd, usd2, usDate } from '@/lib/fmt'
+import { driveTime, usd, usDate } from '@/lib/fmt'
 import { loadMapData } from '@/lib/load-map'
 import { FleetMap } from '@/components/fleet-map'
 import { LocalTime } from '@/components/local-time'
 import { zoneFor } from '@/lib/tz'
 import { RefreshFleetButton } from '@/components/refresh-fleet-button'
-import { Analysis } from '@/components/analysis'
+import { LoadMoney } from '@/components/load-money'
 import { LoadEditNumbers } from '@/components/load-edit-numbers'
 import { BrokerNotes } from '@/components/broker-notes'
 import { TruckForm } from '@/components/truck-form'
@@ -234,17 +234,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     ...(load.payVia ? [<span>{load.payVia}</span>] : []),
   ]
 
-  // Цифры карточки груза. «Что везём» и вес — из текста водителю: своих колонок
-  // под них нет. Нет значения — плитки нет, прочерки только шумят.
+  // «Что везём» и вес — из текста водителю: своих колонок под них нет.
   const cargo = cargoFacts(load.driverInfo)
-  const loadFacts: { label: string; value: string }[] = [
-    { label: t(locale, 'loadEdit.rate'), value: usd.format(load.rate) },
-    { label: t(locale, 'loadEdit.perMile'), value: load.loadedMiles > 0 ? `${usd2.format(load.rate / load.loadedMiles)}/mi` : '—' },
-    { label: t(locale, 'loadEdit.loadedMiles'), value: `${load.loadedMiles} mi` },
-    { label: t(locale, 'loadEdit.deadheadMiles'), value: `${load.deadheadMiles} mi` },
-    ...(cargo.commodity ? [{ label: t(locale, 'import.label.commodity'), value: cargo.commodity }] : []),
-    ...(cargo.weight ? [{ label: t(locale, 'import.label.weight'), value: cargo.weight }] : []),
-  ]
 
   // Блоки карточки — плитки: порядок и размер задаёт диспетчер, общий для всей
   // компании. Условные блоки просто не попадают в список — своё место в
@@ -301,14 +292,42 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           адреса со сроками стояли в двух из них. Рейт-кон приносит склад, улицу,
           окно и номера PU/PO — диспетчер, которому звонит склад, находит их здесь. */}
       <LoadStops stops={stops} locale={locale} partial={load.partial} className="mt-3" />
-      <dl className="mt-3 grid grid-cols-2 gap-2 @lg:grid-cols-3 @4xl:grid-cols-6">
-        {loadFacts.map((f) => (
-          <div key={f.label} className="panel-inset min-w-0 px-3 py-2">
-            <dt className="text-2xs font-semibold tracking-wide text-t3 uppercase">{f.label}</dt>
-            <dd className="nums mt-0.5 text-base font-semibold break-words text-t1">{f.value}</dd>
-          </div>
-        ))}
-      </dl>
+      {/* Ставка, мили и расходы — здесь же, в шапке: отдельная плитка «Ставка за груз»
+          повторяла ставку и $/mi (план «Порядок в TMS»). Цифры — шкалой и полосами. */}
+      <LoadMoney
+        r={r}
+        mpg={truck.mpg}
+        targetRpm={truckMeta?.targetRpm}
+        spotRpm={load.spotRpm}
+        rc={rc}
+        brokerName={load.brokerName}
+        // Warp котирует только Van; в демо — нет.
+        quote={
+          !rc?.target && !me?.isDemo && (datEquipment(truckMeta?.trailerNumber) ?? 'VAN') === 'VAN' && load.loadedMiles > 0
+            ? { label: `${load.origin} → ${load.destination}`, miles: load.loadedMiles, loadId: load.id }
+            : null
+        }
+        cargo={cargo}
+        // Экономика трака, из которой считается каждая строка расходов, — внизу раскрытой части.
+        truckCosts={
+          <TruckForm
+            id={truck.id}
+            initial={{
+              number: truck.number ?? '',
+              driverName: truck.driverName ?? '',
+              mpg: truck.mpg,
+              fuelPricePerGallon: truck.fuelPricePerGallon,
+              driverPay: truck.driverPay,
+              truckPaymentPerDay: truck.truckPaymentPerDay,
+              insurancePerDay: truck.insurancePerDay,
+              eldPermitsPerDay: truck.eldPermitsPerDay,
+              maintenanceCostPerMile: truck.maintenanceCostPerMile,
+              factoringPercent: truck.factoringPercent,
+              dispatchPercent: truck.dispatchPercent,
+            }}
+          />
+        }
+      />
 
       {/* Брокер груза — тоже в шапке. Кому звонить и на какую почту слать бумаги,
           лежало только в форме «Подробности» внизу страницы, а звонят по нему с
@@ -375,7 +394,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const deadheadBanner =
     load.deadheadMiles > DEADHEAD_FLAG_MI &&
     !(load.deadheadOkMiles != null && load.deadheadOkMiles === Math.round(load.deadheadMiles))
-  if (late || assign.length > 0 || missingPod.length > 0 || deadheadBanner)
+  // Мили оценены приблизительно (в рейт-коне город с опечаткой, точный адрес не нашёлся) —
+  // пробег вписать руками, иначе $/милю и зарплата врут. Медленный плательщик — сказать до
+  // того, как груз взят и повезён. Обе плашки раньше стояли своими плитками внизу.
+  const slowPayer = brokerGrade?.payGrade === 'slow' && load.status !== 'paid' && load.status !== 'cancelled'
+  if (late || assign.length > 0 || missingPod.length > 0 || deadheadBanner || load.milesEstimated || slowPayer)
     add('warnings', (
       <section className="panel flex h-full flex-col gap-3 p-4">
         {late && (
@@ -392,6 +415,24 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             {assign.map((w) => (
               <p key={w}>⚠ {w}</p>
             ))}
+          </div>
+        )}
+        {load.milesEstimated && (
+          <div className="rounded-xl border border-warn-400/35 bg-warn-500/[0.08] px-4 py-3 text-base">
+            <span className="font-semibold text-warn-400">{t(locale, 'loadDetail.milesEstimated')}</span>{' '}
+            <span className="text-t2">{t(locale, 'loadDetail.milesEstimatedHint')}</span>
+          </div>
+        )}
+        {slowPayer && brokerGrade && (
+          <div className="rounded-xl border border-bad-500/30 bg-bad-500/[0.08] px-4 py-3 text-base">
+            <span className="font-semibold text-bad-400">{t(locale, 'brokers.grade.slowWarn')}</span>{' '}
+            <span className="text-t2">
+              {t(locale, 'brokers.grade.info')
+                .replace('{n}', String(brokerGrade.paidCount))
+                .replace('{late}', String(brokerGrade.lateCount))}
+              {brokerGrade.payDays != null &&
+                ` · ${t(locale, 'brokers.paysIn').replace('{n}', String(brokerGrade.payDays))}`}
+            </span>
           </div>
         )}
         <MissingPodBanner loads={missingPod} rateCons={rateCons} locale={locale} />
@@ -467,31 +508,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     </section>
   ))
 
-  add('rate', (
-    <section className="panel h-full p-4">
-      <h2 className="mb-4 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
-        {t(locale, 'loadDetail.rateHeading')}
-        <Info text={t(locale, 'loadDetail.rateInfo')} />
-      </h2>
-      <Analysis
-        r={r}
-        mpg={truck.mpg}
-        spotRpm={load.spotRpm}
-        targetRpm={truckMeta?.targetRpm}
-        // Своя история по маршруту уже есть в шапке груза (laneAvgRpm) — здесь не повторяем.
-        rc={rc && { ...rc, history: null }}
-        brokerName={load.brokerName}
-        // Warp котирует только Van; в демо — нет.
-        quote={
-          !rc?.target && !me?.isDemo && (datEquipment(truckMeta?.trailerNumber) ?? 'VAN') === 'VAN' && load.loadedMiles > 0
-            ? { label: `${load.origin} → ${load.destination}`, miles: load.loadedMiles, loadId: load.id }
-            : null
-        }
-      />
-    </section>
-  ))
-
-
   // Карта грузится отдельно от страницы: её сборка ждёт чужой маршрутизатор и
   // геокодер, и раньше эти секунды держали весь документ.
   add('map', (
@@ -548,31 +564,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (queuedBehind)
     add('queued', <QueuedLoadHint locale={locale} current={queuedBehind} next={load} nextId={load.id} />)
 
-  // Мили оценены приблизительно: в рейт-коне город с опечаткой, точный адрес не
-  // нашёлся. Пробег надо вписать руками — иначе $/милю и зарплата врут.
-  if (load.milesEstimated)
-    add('miles-estimated', (
-      <div className="rounded-xl border border-warn-400/35 bg-warn-500/[0.08] px-4 py-3 text-base">
-        <span className="font-semibold text-warn-400">{t(locale, 'loadDetail.milesEstimated')}</span>{' '}
-        <span className="text-t2">{t(locale, 'loadDetail.milesEstimatedHint')}</span>
-      </div>
-    ))
-
-  // Медленный плательщик — сказать до того, как груз взят и повезён.
-  if (brokerGrade?.payGrade === 'slow' && load.status !== 'paid' && load.status !== 'cancelled')
-    add('slow-payer', (
-      <div className="rounded-xl border border-bad-500/30 bg-bad-500/[0.08] px-4 py-3 text-base">
-        <span className="font-semibold text-bad-400">{t(locale, 'brokers.grade.slowWarn')}</span>{' '}
-        <span className="text-t2">
-          {t(locale, 'brokers.grade.info')
-            .replace('{n}', String(brokerGrade.paidCount))
-            .replace('{late}', String(brokerGrade.lateCount))}
-          {brokerGrade.payDays != null &&
-            ` · ${t(locale, 'brokers.paysIn').replace('{n}', String(brokerGrade.payDays))}`}
-        </span>
-      </div>
-    ))
-
   // Текст водителю: адреса складов подставляются полные, если груз их знает.
   if (load.driverInfo)
     add('driver-info', (
@@ -597,10 +588,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     ))
 
   if (showBackhaul)
-    add('backhaul', <BackhaulList state={backhaul.state} brokers={backhaul.brokers} locale={locale} />)
+    add('backhaul', <BackhaulList state={backhaul.state} brokers={backhaul.brokers} locale={locale} collapsible />)
 
   add('docs', (
-    <section className="panel p-5">
+    <section className="panel h-full p-5">
       <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
         {t(locale, 'loadDetail.docsHeading')}
         <Info text={t(locale, 'loadDetail.docsInfo')} />
@@ -611,7 +602,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   ))
 
   add('invoice', (
-    <section className="panel p-5">
+    <section className="panel h-full p-5">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
           {t(locale, 'loadDetail.invoiceHeading')}
@@ -637,36 +628,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     </section>
   ))
 
-  // Экономика трака, из которой считается каждая строка расходов выше.
-  add('truck-costs', (
-    <details className="group">
-      <summary className="panel flex cursor-pointer list-none items-center gap-1.5 p-4 text-base font-semibold text-t2 transition-colors hover:text-white">
-        <span className="text-t3 transition-transform group-open:rotate-90">▸</span>
-        {t(locale, 'loadDetail.truckCostsHeading')}
-        <Info text={t(locale, 'loadDetail.truckCostsInfo')} />
-      </summary>
-      <div className="mt-2">
-        <TruckForm
-          id={truck.id}
-          initial={{
-            number: truck.number ?? '',
-            driverName: truck.driverName ?? '',
-            mpg: truck.mpg,
-            fuelPricePerGallon: truck.fuelPricePerGallon,
-            driverPay: truck.driverPay,
-            truckPaymentPerDay: truck.truckPaymentPerDay,
-            insurancePerDay: truck.insurancePerDay,
-            eldPermitsPerDay: truck.eldPermitsPerDay,
-            maintenanceCostPerMile: truck.maintenanceCostPerMile,
-            factoringPercent: truck.factoringPercent,
-            dispatchPercent: truck.dispatchPercent,
-          }}
-        />
-      </div>
-    </details>
-  ))
-
-  const grid = await tileGrid('load-detail', LOAD_DETAIL_TILES, locale, migrateLoadPapers)
+  const grid = await tileGrid('load-detail', LOAD_DETAIL_TILES, locale, migrateLoadCard)
 
   return (
     <main className="page">

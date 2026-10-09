@@ -39,7 +39,18 @@ const SLICES = [
  * One shared 100% bar answers it at a glance: costs fill from the left, and whatever
  * green is left on the right IS the profit. A thin margin looks thin.
  */
-function RateSplit({ r, locale }: { r: Breakdown; locale: ReturnType<typeof useLocale> }) {
+export function RateSplit({
+  r,
+  locale,
+  legend = true,
+  className = 'mt-3',
+}: {
+  r: Breakdown
+  locale: ReturnType<typeof useLocale>
+  /** false — одна полоса без подписей (свёрнутая строка «Расходы» в шапке груза). */
+  legend?: boolean
+  className?: string
+}) {
   const parts = SLICES.map((s) => ({ ...s, amount: (r as unknown as Record<string, number>)[s.key] ?? 0 })).filter(
     (s) => s.amount > 0,
   )
@@ -49,7 +60,7 @@ function RateSplit({ r, locale }: { r: Breakdown; locale: ReturnType<typeof useL
   const pct = (v: number) => (r.gross > 0 ? (v / r.gross) * 100 : 0)
 
   return (
-    <div className="mt-3">
+    <div className={className}>
       <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-white/8">
         {parts.map((p) => (
           <div
@@ -65,24 +76,26 @@ function RateSplit({ r, locale }: { r: Breakdown; locale: ReturnType<typeof useL
           title={`${t(locale, 'analysis.netShort')} — ${usd.format(r.net)}`}
         />
       </div>
-      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-        {parts.map((p) => (
-          <span key={p.key} className="flex items-center gap-1 text-2xs text-t3">
-            <span className={`size-1.5 shrink-0 rounded-full ${p.color}`} />
-            {t(locale, p.labelKey)}
-            <span className="nums text-t2">{usd.format(p.amount)}</span>
+      {legend && (
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+          {parts.map((p) => (
+            <span key={p.key} className="flex items-center gap-1 text-2xs text-t3">
+              <span className={`size-1.5 shrink-0 rounded-full ${p.color}`} />
+              {t(locale, p.labelKey)}
+              <span className="nums text-t2">{usd.format(p.amount)}</span>
+            </span>
+          ))}
+          <span className="flex items-center gap-1 text-2xs font-semibold">
+            <span className={`size-1.5 shrink-0 rounded-full ${r.net >= 0 ? 'bg-good-400' : 'bg-bad-500'}`} />
+            <span className={r.net >= 0 ? 'text-good-400' : 'text-bad-400'}>
+              {t(locale, 'analysis.netShort')}
+            </span>
+            <span className={`nums ${r.net >= 0 ? 'text-good-400' : 'text-bad-400'}`}>
+              {usd.format(r.net)} · {r.marginPercent.toFixed(0)}%
+            </span>
           </span>
-        ))}
-        <span className="flex items-center gap-1 text-2xs font-semibold">
-          <span className={`size-1.5 shrink-0 rounded-full ${r.net >= 0 ? 'bg-good-400' : 'bg-bad-500'}`} />
-          <span className={r.net >= 0 ? 'text-good-400' : 'text-bad-400'}>
-            {t(locale, 'analysis.netShort')}
-          </span>
-          <span className={`nums ${r.net >= 0 ? 'text-good-400' : 'text-bad-400'}`}>
-            {usd.format(r.net)} · {r.marginPercent.toFixed(0)}%
-          </span>
-        </span>
-      </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -256,7 +269,6 @@ export function Analysis({
       .catch(() => notify('error', t(locale, 'plan.quote.fail').replace('{e}', '—')))
       .finally(() => setQuoting(false))
   }
-  const good = r.net >= 0
   const target = targetVerdict(r, targetRpm)
   // Свежая установка сеет трак-заглушку со всеми расходами по нулям
   // (lib/schema.sql): без единого трака defaultTruck() бросает исключение, а
@@ -363,166 +375,183 @@ export function Analysis({
           <span className="text-haul-400 transition-transform group-open:rotate-90">▸</span>
           {t(locale, 'analysis.clickToSeeExpenses')}
         </summary>
-        {/* «Чистыми», маржа и полоса расходов — ЗДЕСЬ, а не под ставкой. Диспетчер и
-            бухгалтер путались, какая из двух цифр — цена груза: главная — ставка из
-            рейт-кона, всё с вычетом расходов открывается по желанию. */}
-        {!notConfigured && (
-          <>
-            <p className="mt-3 text-base leading-relaxed text-t2">
-              {t(locale, 'analysis.net')}{' '}
-              <span className={`nums font-semibold ${good ? 'text-good-400' : 'text-bad-400'}`}>
-                {usd.format(r.net)}
-              </span>
-              {t(locale, 'analysis.marginLine').replace('{pct}', r.marginPercent.toFixed(0))}
-              <span className="nums text-t1">{usd.format(r.breakEvenRate)}</span>
-              {t(locale, 'analysis.belowLoss')}
-            </p>
-            <RateSplit r={r} locale={locale} />
-          </>
-        )}
+        <CostDetails r={r} mpg={mpg} spot={spot} />
+      </details>
+    </>
+  )
+}
 
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          {[
-            {
-              label: 'All-in RPM',
-              node: <Money value={r.allInRpm} format={usd2} />,
-              info: t(locale, 'analysis.allInRpmInfo'),
-            },
-            {
-              label: 'Spot rate / mi',
-              node:
-                spot && spot > 0 ? (
-                  <Money value={spot} format={usd2} />
-                ) : (
-                  <span className="text-t3">—</span>
-                ),
-              info: t(locale, 'analysis.spotRateInfo'),
-            },
-            {
-              label: t(locale, 'analysis.netPerDay'),
-              node: <Money value={r.netPerDay} />,
-              info: t(locale, 'analysis.netPerDayInfo'),
-            },
-          ].map((s) => (
-            <div key={s.label} className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5">
-              <div className="nums text-lg font-semibold">{s.node}</div>
-              <div className="flex items-center gap-1 text-xs text-t2 font-medium">
-                {s.label}
-                <Info text={s.info} />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Порожняк. Стоит ПЕРЕД разбором расходов и отдельной строкой, потому что
-            это единственная статья, на которую диспетчер влияет решением взять или не
-            взять груз: топливо и зарплата — следствие, подача — выбор. Складывать её
-            с полосами ниже нельзя, она уже сидит в топливе и зарплате; об этом и
-            сказано подписью. */}
-        {r.deadheadMiles > 0 && (
-          <div className="mt-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5">
-            <span className="text-base text-t1">
-              {t(locale, 'analysis.deadhead')}
-              <Info text={t(locale, 'analysis.deadheadInfo')} />
-            </span>
-            <span className="nums text-base text-t1">
-              {Math.round(r.deadheadMiles)} mi ·{' '}
-              <span className={r.deadheadPercent >= 20 ? 'text-warn-400' : 'text-t2'}>
-                {r.deadheadPercent.toFixed(0)}%
-              </span>{' '}
-              · <span className="text-bad-400">−{usd.format(r.deadheadCost)}</span>
-            </span>
-          </div>
-        )}
-
-        <div className="mt-5 border-t border-white/8 pt-3">
-          <div className="flex items-baseline justify-between pb-2">
-            <span className="text-base text-t1">{t(locale, 'analysis.gross')}</span>
-            <span className="nums text-base font-semibold">{usd.format(r.gross)}</span>
-          </div>
-
-          <CostBar
-            label={t(locale, 'analysis.fuelLabel')
-              .replace('{miles}', String(Math.round(r.totalMiles)))
-              .replace('{mpg}', String(mpg))}
-            amount={r.fuel}
-            gross={r.gross}
-            color="bg-amber-400/80"
-            hint={t(locale, 'analysis.fuelHint')}
-          />
-          <CostBar
-            label={t(locale, 'analysis.driverLabel')}
-            amount={r.driver}
-            gross={r.gross}
-            color="bg-haul-400/80"
-            hint={t(locale, 'analysis.driverHint')}
-          />
-          <CostBar
-            label={t(locale, 'analysis.maintenanceLabel')}
-            amount={r.maintenance}
-            gross={r.gross}
-            color="bg-violet-400/80"
-            hint={t(locale, 'analysis.maintenanceHint')}
-          />
-          {r.tolls > 0 && (
-            <CostBar
-              label={t(locale, 'analysis.tollsLabel')}
-              amount={r.tolls}
-              gross={r.gross}
-              color="bg-orange-400/80"
-              hint={t(locale, 'analysis.tollsHint')}
-            />
-          )}
-          <CostBar
-            label={t(locale, 'analysis.truckPaymentLabel')}
-            amount={r.truckPayment}
-            gross={r.gross}
-            color="bg-white/40"
-            hint={t(locale, 'analysis.truckPaymentHint')}
-          />
-          <CostBar
-            label={t(locale, 'analysis.insuranceLabel')}
-            amount={r.insurance}
-            gross={r.gross}
-            color="bg-white/32"
-            hint={t(locale, 'analysis.insuranceHint')}
-          />
-          <CostBar
-            label={t(locale, 'analysis.eldLabel')}
-            amount={r.eldPermits}
-            gross={r.gross}
-            color="bg-white/24"
-            hint={t(locale, 'analysis.eldHint')}
-          />
-          {r.factoring > 0 && (
-            <CostBar
-              label={t(locale, 'analysis.factoringLabel')}
-              amount={r.factoring}
-              gross={r.gross}
-              color="bg-white/25"
-              hint={t(locale, 'analysis.factoringHint')}
-            />
-          )}
-          {r.dispatch > 0 && (
-            <CostBar
-              label={t(locale, 'analysis.dispatchLabel')}
-              amount={r.dispatch}
-              gross={r.gross}
-              color="bg-white/25"
-              hint={t(locale, 'analysis.dispatchHint')}
-            />
-          )}
-
-          <div className="mt-2 flex items-baseline justify-between border-t border-white/8 pt-2.5">
-            <span className="text-base text-t1">
-              {t(locale, 'analysis.netMarginLine').replace('{pct}', r.marginPercent.toFixed(1))}
-            </span>
-            <span className={`nums text-sm font-bold ${good ? 'text-good-400' : 'text-bad-400'}`}>
+/**
+ * Всё, что считается с вычетом расходов: «чистыми», маржа, полоса расходов, All-in RPM,
+ * цена подачи и строка на каждую статью. Открывается по желанию — в «Ставке за груз»
+ * (Analysis) и в шапке карточки груза (components/load-money.tsx).
+ */
+export function CostDetails({ r, mpg, spot }: { r: Breakdown; mpg: number; spot: number | null | undefined }) {
+  const locale = useLocale()
+  const good = r.net >= 0
+  // См. Analysis: нулевая себестоимость — расходы трака не заданы, «чистыми» врали бы.
+  const notConfigured = r.totalCost === 0
+  return (
+    <>
+      {/* «Чистыми», маржа и полоса расходов — ЗДЕСЬ, а не под ставкой. Диспетчер и
+          бухгалтер путались, какая из двух цифр — цена груза: главная — ставка из
+          рейт-кона, всё с вычетом расходов открывается по желанию. */}
+      {!notConfigured && (
+        <>
+          <p className="mt-3 text-base leading-relaxed text-t2">
+            {t(locale, 'analysis.net')}{' '}
+            <span className={`nums font-semibold ${good ? 'text-good-400' : 'text-bad-400'}`}>
               {usd.format(r.net)}
             </span>
+            {t(locale, 'analysis.marginLine').replace('{pct}', r.marginPercent.toFixed(0))}
+            <span className="nums text-t1">{usd.format(r.breakEvenRate)}</span>
+            {t(locale, 'analysis.belowLoss')}
+          </p>
+          <RateSplit r={r} locale={locale} />
+        </>
+      )}
+
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        {[
+          {
+            label: 'All-in RPM',
+            node: <Money value={r.allInRpm} format={usd2} />,
+            info: t(locale, 'analysis.allInRpmInfo'),
+          },
+          {
+            label: 'Spot rate / mi',
+            node:
+              spot && spot > 0 ? (
+                <Money value={spot} format={usd2} />
+              ) : (
+                <span className="text-t3">—</span>
+              ),
+            info: t(locale, 'analysis.spotRateInfo'),
+          },
+          {
+            label: t(locale, 'analysis.netPerDay'),
+            node: <Money value={r.netPerDay} />,
+            info: t(locale, 'analysis.netPerDayInfo'),
+          },
+        ].map((s) => (
+          <div key={s.label} className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5">
+            <div className="nums text-lg font-semibold">{s.node}</div>
+            <div className="flex items-center gap-1 text-xs text-t2 font-medium">
+              {s.label}
+              <Info text={s.info} />
+            </div>
           </div>
+        ))}
+      </div>
+
+      {/* Порожняк. Стоит ПЕРЕД разбором расходов и отдельной строкой, потому что
+          это единственная статья, на которую диспетчер влияет решением взять или не
+          взять груз: топливо и зарплата — следствие, подача — выбор. Складывать её
+          с полосами ниже нельзя, она уже сидит в топливе и зарплате; об этом и
+          сказано подписью. */}
+      {r.deadheadMiles > 0 && (
+        <div className="mt-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5">
+          <span className="text-base text-t1">
+            {t(locale, 'analysis.deadhead')}
+            <Info text={t(locale, 'analysis.deadheadInfo')} />
+          </span>
+          <span className="nums text-base text-t1">
+            {Math.round(r.deadheadMiles)} mi ·{' '}
+            <span className={r.deadheadPercent >= 20 ? 'text-warn-400' : 'text-t2'}>
+              {r.deadheadPercent.toFixed(0)}%
+            </span>{' '}
+            · <span className="text-bad-400">−{usd.format(r.deadheadCost)}</span>
+          </span>
         </div>
-      </details>
+      )}
+
+      <div className="mt-5 border-t border-white/8 pt-3">
+        <div className="flex items-baseline justify-between pb-2">
+          <span className="text-base text-t1">{t(locale, 'analysis.gross')}</span>
+          <span className="nums text-base font-semibold">{usd.format(r.gross)}</span>
+        </div>
+
+        <CostBar
+          label={t(locale, 'analysis.fuelLabel')
+            .replace('{miles}', String(Math.round(r.totalMiles)))
+            .replace('{mpg}', String(mpg))}
+          amount={r.fuel}
+          gross={r.gross}
+          color="bg-amber-400/80"
+          hint={t(locale, 'analysis.fuelHint')}
+        />
+        <CostBar
+          label={t(locale, 'analysis.driverLabel')}
+          amount={r.driver}
+          gross={r.gross}
+          color="bg-haul-400/80"
+          hint={t(locale, 'analysis.driverHint')}
+        />
+        <CostBar
+          label={t(locale, 'analysis.maintenanceLabel')}
+          amount={r.maintenance}
+          gross={r.gross}
+          color="bg-violet-400/80"
+          hint={t(locale, 'analysis.maintenanceHint')}
+        />
+        {r.tolls > 0 && (
+          <CostBar
+            label={t(locale, 'analysis.tollsLabel')}
+            amount={r.tolls}
+            gross={r.gross}
+            color="bg-orange-400/80"
+            hint={t(locale, 'analysis.tollsHint')}
+          />
+        )}
+        <CostBar
+          label={t(locale, 'analysis.truckPaymentLabel')}
+          amount={r.truckPayment}
+          gross={r.gross}
+          color="bg-white/40"
+          hint={t(locale, 'analysis.truckPaymentHint')}
+        />
+        <CostBar
+          label={t(locale, 'analysis.insuranceLabel')}
+          amount={r.insurance}
+          gross={r.gross}
+          color="bg-white/32"
+          hint={t(locale, 'analysis.insuranceHint')}
+        />
+        <CostBar
+          label={t(locale, 'analysis.eldLabel')}
+          amount={r.eldPermits}
+          gross={r.gross}
+          color="bg-white/24"
+          hint={t(locale, 'analysis.eldHint')}
+        />
+        {r.factoring > 0 && (
+          <CostBar
+            label={t(locale, 'analysis.factoringLabel')}
+            amount={r.factoring}
+            gross={r.gross}
+            color="bg-white/25"
+            hint={t(locale, 'analysis.factoringHint')}
+          />
+        )}
+        {r.dispatch > 0 && (
+          <CostBar
+            label={t(locale, 'analysis.dispatchLabel')}
+            amount={r.dispatch}
+            gross={r.gross}
+            color="bg-white/25"
+            hint={t(locale, 'analysis.dispatchHint')}
+          />
+        )}
+
+        <div className="mt-2 flex items-baseline justify-between border-t border-white/8 pt-2.5">
+          <span className="text-base text-t1">
+            {t(locale, 'analysis.netMarginLine').replace('{pct}', r.marginPercent.toFixed(1))}
+          </span>
+          <span className={`nums text-sm font-bold ${good ? 'text-good-400' : 'text-bad-400'}`}>
+            {usd.format(r.net)}
+          </span>
+        </div>
+      </div>
     </>
   )
 }
