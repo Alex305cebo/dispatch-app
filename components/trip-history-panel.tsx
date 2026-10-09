@@ -26,6 +26,7 @@ export function TripHistoryPanel({
   initialHours,
   initialLegs,
   stops,
+  embedded = false,
 }: {
   truckId: number
   windows: readonly HistoryWindow[]
@@ -35,6 +36,9 @@ export function TripHistoryPanel({
   /** Города и даты погрузок-выгрузок этого трака: по ним стоянка в списке узнаётся
    * как детеншен, а не как обычный простой. Страница знает грузы, ELD — нет. */
   stops: LoadStop[]
+  /** Частью плитки «На карте» (карточка трака, план «Порядок в TMS»): без своей
+   * панели, под картой через черту. */
+  embedded?: boolean
 }) {
   const locale = useLocale()
   const [hours, setHours] = useState(initialHours)
@@ -67,7 +71,7 @@ export function TripHistoryPanel({
   }
 
   return (
-    <details className="panel @container mt-4 p-4" open={initialLegs.length > 0}>
+    <details className={embedded ? '@container' : 'panel @container mt-4 p-4'} open={initialLegs.length > 0}>
       <summary className="flex flex-wrap items-center gap-x-2 gap-y-2 text-base leading-6 font-semibold text-t1">
         <span className="flex items-center gap-1.5">
           {t(locale, 'trucks.detail.tripHistory')}
