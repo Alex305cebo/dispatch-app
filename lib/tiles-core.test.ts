@@ -4,6 +4,8 @@ import {
   applyLayout,
   migrateTruckDriverCard,
   migrateTrucksTiles,
+  migrateLoadCard,
+  migrateLoadOrder,
   migrateLoadPapers,
   migrateLoadsMap,
   LOAD_DETAIL_TILES,
@@ -181,10 +183,9 @@ test('migrateLoadPapers: кнопки груза влиты в статус, с�
     '[{"id":"hero","size":"w"},{"id":"papers","size":"w"},{"id":"status","size":"w"},{"id":"rate","size":"l"}]',
   )
   const merged = applyLayout(migrateLoadPapers(saved), LOAD_DETAIL_TILES)
-  assert.deepEqual(merged.slice(0, 3), [
+  assert.deepEqual(merged.slice(0, 2), [
     { id: 'hero', size: 'w' },
     { id: 'status', size: 'l' },
-    { id: 'rate', size: 'l' },
   ])
   assert.ok(!merged.some((p) => p.id === 'papers'))
   const fresh = parseLayout('[{"id":"status","size":"w"}]')
@@ -210,6 +211,37 @@ test('migrateLoadPapers: «Точки» и «Подробности» влиты
     { id: 'status', size: 'l' },
   ])
   assert.ok(!merged.some((p) => p.id === 'stops' || p.id === 'details'))
+})
+
+test('migrateLoadCard: старая карточка груза уступает новой — Документы и Инвойс рядом под картой', () => {
+  // Раскладка до 10/09/26: отдельные «Ставка», «Мили на глаз», «Медленный брокер»,
+  // «Расходы трака», бумаги и счёт внизу во всю строку.
+  const saved = parseLayout(
+    '[{"id":"hero","size":"l"},{"id":"warnings","size":"w"},{"id":"status","size":"l"},{"id":"rate","size":"l"},{"id":"map","size":"l"},{"id":"driver","size":"l"},{"id":"queued","size":"l"},{"id":"miles-estimated","size":"l"},{"id":"slow-payer","size":"l"},{"id":"driver-info","size":"l"},{"id":"facility-hints","size":"l"},{"id":"backhaul","size":"l"},{"id":"docs","size":"l"},{"id":"invoice","size":"l"},{"id":"truck-costs","size":"l"}]',
+  )
+  const merged = applyLayout(migrateLoadCard(saved), LOAD_DETAIL_TILES)
+  assert.deepEqual(merged, LOAD_DETAIL_TILES)
+  assert.deepEqual(
+    merged.slice(0, 6).map((p) => `${p.id}:${p.size}`),
+    ['hero:l', 'warnings:l', 'status:l', 'map:l', 'docs:w', 'invoice:w'],
+  )
+  // Совсем старая раскладка (кнопки груза ещё отдельной плиткой) — туда же.
+  const older = parseLayout('[{"id":"papers","size":"w"},{"id":"hero","size":"w"},{"id":"rate","size":"l"}]')
+  assert.deepEqual(applyLayout(migrateLoadCard(older), LOAD_DETAIL_TILES), LOAD_DETAIL_TILES)
+})
+
+test('migrateLoadOrder: раскладку, сохранённую уже без старых плиток, не трогает', () => {
+  // Диспетчер поднял карту наверх после переезда — это его выбор.
+  const fresh = parseLayout('[{"id":"map","size":"l"},{"id":"hero","size":"l"},{"id":"docs","size":"l"}]')
+  assert.equal(migrateLoadOrder(fresh), fresh)
+  assert.equal(migrateLoadCard(fresh), fresh)
+  assert.deepEqual(migrateLoadOrder([]), [])
+})
+
+test('карточка груза: в раскладке нет плиток, которые влиты в шапку', () => {
+  const ids = new Set(LOAD_DETAIL_TILES.map((p) => p.id))
+  for (const gone of ['rate', 'truck-costs', 'miles-estimated', 'slow-payer', 'papers', 'notes', 'stops', 'details'])
+    assert.ok(!ids.has(gone), gone)
 })
 
 test('migrateLoadsMap: карта встаёт перед списком, а не под все грузы', () => {

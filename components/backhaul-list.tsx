@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, PhoneCall } from 'lucide-react'
+import { ArrowRight, ChevronRight, PhoneCall } from 'lucide-react'
 import { Empty } from '@/components/empty'
 import { Info } from '@/components/info'
 import { usd, usDate } from '@/lib/fmt'
@@ -10,13 +10,53 @@ import { rpmText } from '@/components/rpm'
 /** «Прошлые грузы в TN — спроси брокера о новых» — на странице груза, пока трак едет
  * на выгрузку или только что освободился. Брокер с телефоном одним нажатием и наши
  * последние грузы с ним в этом штате. */
-export function BackhaulList({ state, brokers, locale }: { state: string; brokers: StateBroker[]; locale: Locale }) {
+export function BackhaulList({
+  state,
+  brokers,
+  locale,
+  collapsible = false,
+}: {
+  state: string
+  brokers: StateBroker[]
+  locale: Locale
+  /** Одной строкой «Прошлые грузы в AZ · 7», список — по нажатию (карточка груза, план
+   *  «Порядок в TMS»): раскрытый он занимал на телефоне полтора экрана. */
+  collapsible?: boolean
+}) {
+  if (collapsible)
+    return (
+      <details className="group/bh panel overflow-hidden p-0">
+        <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1 px-4 py-3 transition-colors hover:bg-white/[0.03] max-md:min-h-11 [&::-webkit-details-marker]:hidden">
+          <ChevronRight size={15} strokeWidth={2.5} className="shrink-0 text-t3 transition-transform group-open/bh:rotate-90" />
+          <h2 className="text-base leading-6 font-semibold text-t1">{t(locale, 'backhaul.summary').replace('{state}', state)}</h2>
+          <span
+            title={t(locale, 'backhaul.summaryCount').replace('{n}', String(brokers.length))}
+            className="nums inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-xs font-bold text-t2"
+          >
+            <PhoneCall size={11} strokeWidth={2.4} aria-hidden />
+            {brokers.length}
+          </span>
+          <Info text={t(locale, 'backhaul.info')} />
+        </summary>
+        <div className="border-t border-white/[0.06] px-4 py-3">
+          <Brokers state={state} brokers={brokers} locale={locale} />
+        </div>
+      </details>
+    )
   return (
     <section className="panel mt-4 p-4">
       <h2 className="mb-2 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
         {t(locale, 'backhaul.heading').replace('{state}', state)}
         <Info text={t(locale, 'backhaul.info')} />
       </h2>
+      <Brokers state={state} brokers={brokers} locale={locale} />
+    </section>
+  )
+}
+
+function Brokers({ state, brokers, locale }: { state: string; brokers: StateBroker[]; locale: Locale }) {
+  return (
+    <>
       {/* Пусто — сказать прямо, почему, и не прятать секцию: иначе её не находят. */}
       {!brokers.length && (
         <Empty
@@ -80,6 +120,6 @@ export function BackhaulList({ state, brokers, locale }: { state: string; broker
           </li>
         ))}
       </ul>
-    </section>
+    </>
   )
 }
