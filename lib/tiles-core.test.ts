@@ -2,6 +2,9 @@ import { strict as assert } from 'node:assert'
 import { test } from 'node:test'
 import {
   applyLayout,
+  BROKERS_TILES,
+  migrateBrokersTiles,
+  migrateTollsTiles,
   migrateTruckCard,
   migrateTruckDriverCard,
   migrateTruckOrder,
@@ -17,6 +20,7 @@ import {
   TILE_PAGES,
   TILE_PATHS,
   tileKey,
+  TOLLS_TILES,
   TRUCK_DETAIL_TILES,
   TRUCKS_TILES,
 } from './tiles-core.ts'
@@ -284,4 +288,32 @@ test('migrateLoadsMap: карта встаёт перед списком, а н�
   // Ничего не сохранено — порядок по умолчанию, карта сразу под цифрами.
   assert.deepEqual(migrateLoadsMap([]), [])
   assert.deepEqual(ids(applyLayout([], LOADS_TILES)), ['week-gross', 'week-rpm', 'utilization', 'next-week', 'map', 'list'])
+})
+
+test('migrateBrokersTiles: «Крупнейшие брокеры» влиты в проверку, цифры над планом ушли', () => {
+  const ids = (l: { id: string; size: string }[]) => l.map((p) => `${p.id}:${p.size}`)
+  // Раскладка до 10/09/26: три числа, план, список, проверка и топ по пол-строки.
+  const saved = parseLayout(
+    '[{"id":"brokers-count","size":"s"},{"id":"facilities-count","size":"s"},{"id":"attention-count","size":"s"},{"id":"plan","size":"l"},{"id":"top","size":"w"},{"id":"directory","size":"l"},{"id":"check","size":"w"}]',
+  )
+  assert.deepEqual(ids(applyLayout(migrateBrokersTiles(saved), BROKERS_TILES)), ['plan:l', 'directory:l', 'check:l'])
+  // Уже без «top» — размер проверки выбирает тот, кто переставляет.
+  const fresh = parseLayout('[{"id":"check","size":"w"},{"id":"plan","size":"l"}]')
+  assert.equal(migrateBrokersTiles(fresh), fresh)
+  assert.deepEqual(ids(applyLayout([], BROKERS_TILES)), ['plan:l', 'directory:l', 'check:l'])
+})
+
+test('migrateTollsTiles: четыре числа толлов → одна полоса месяца на их месте', () => {
+  const ids = (l: { id: string }[]) => l.map((p) => p.id)
+  const saved = parseLayout(
+    '[{"id":"calc","size":"l"},{"id":"toll-share","size":"s"},{"id":"toll-total","size":"s"},{"id":"toll-per-mile","size":"s"},{"id":"toll-loads","size":"s"},{"id":"missing","size":"l"},{"id":"toll-top","size":"w"},{"id":"guide","size":"l"}]',
+  )
+  const merged = applyLayout(migrateTollsTiles(saved), TOLLS_TILES)
+  assert.deepEqual(ids(merged), ['calc', 'toll-month', 'missing', 'toll-top', 'guide'])
+  assert.equal(merged.find((p) => p.id === 'toll-month')?.size, 'l')
+  // Новую раскладку и пустую не трогает.
+  const fresh = parseLayout('[{"id":"toll-month","size":"l"},{"id":"calc","size":"l"}]')
+  assert.equal(migrateTollsTiles(fresh), fresh)
+  assert.deepEqual(migrateTollsTiles([]), [])
+  assert.deepEqual(ids(applyLayout([], TOLLS_TILES)), ['toll-month', 'missing', 'calc', 'toll-top', 'guide'])
 })

@@ -182,6 +182,7 @@ export const tollsDict = {
   'tolls.money.perMile': { ru: 'на милю', en: 'per mile', es: 'por milla', uk: 'на милю', ro: 'pe milă', kk: 'бір мильге' },
   'tolls.money.share': { ru: 'от выручки', en: 'of revenue', es: 'de los ingresos', uk: 'від виручки', ro: 'din venit', kk: 'түсімнен' },
   'tolls.money.loads': { ru: 'рейсов с толлами', en: 'loads with tolls', es: 'cargas con peaje', uk: 'рейсів із толлами', ro: 'curse cu taxe', kk: 'толлы бар рейстер' },
+  'tolls.money.top': { ru: 'Самые дорогие рейсы', en: 'Most expensive loads', es: 'Cargas más caras', uk: 'Найдорожчі рейси', ro: 'Cele mai scumpe curse', kk: 'Ең қымбат рейстер' },
   'tolls.money.missing': { ru: 'Через платные штаты, но толлы не посчитаны: {n}', en: 'Through toll states with no tolls counted: {n}', es: 'Por estados con peaje, pero sin peajes contados: {n}', uk: 'Через платні штати, але толли не пораховано: {n}', ro: 'Prin state cu taxe, dar fără taxe calculate: {n}', kk: 'Ақылы штаттар арқылы, бірақ толлдар есептелмеген: {n}' },
   'tolls.money.missingWhy': {
     ru: 'Пустое поле толлов — это не ноль, а «не считали». Чистая по такому рейсу завышена ровно на неизвестную сумму, и в счёт брокеру эти доллары тоже не попали.',

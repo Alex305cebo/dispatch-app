@@ -270,6 +270,27 @@ function HeatTag({ heat, ratio, median, locale }: { heat: DatHeat | null; ratio:
 }
 
 /**
+ * Грузов на трак в штате — полосой, а не числом с подписью в каждой строке (план
+ * «Порядок в TMS», 10/09/26: «меньше цифр и текста, больше картинок»). Шкала — от нуля
+ * до двух середин по штатам, риска посередине — сама середина; цвет — тот же уровень,
+ * что у слова «горячий/холодный» (heatLevel). Число не пропало: оно в подсказке
+ * полосы и в таблице «Все штаты» ниже.
+ */
+function LtBar({ ratio, median, locale, className = 'w-14' }: { ratio: number; median: number; locale: Locale; className?: string }) {
+  const level = heatLevel(median, ratio)
+  // Совсем пустая полоса читалась бы как «нет данных» — у самого холодного штата хотя бы точка.
+  const pct = median > 0 ? Math.max(4, Math.min(100, (ratio / (2 * median)) * 100)) : 0
+  const fill = level === 'veryHot' || level === 'hot' ? 'bg-good-400' : level === 'veryCold' || level === 'cold' ? 'bg-bad-400' : 'bg-t3'
+  const text = t(locale, 'plan.ltVsMedian').replace('{n}', ratio.toFixed(1)).replace('{m}', median.toFixed(1))
+  return (
+    <span role="img" aria-label={text} title={text} className={`relative inline-block h-1.5 shrink-0 rounded-full bg-white/10 ${className}`}>
+      <span className={`absolute inset-y-0 left-0 rounded-full ${fill}`} style={{ width: `${pct}%` }} />
+      <span aria-hidden className="absolute -inset-y-[3px] left-1/2 w-px -translate-x-1/2 rounded-full bg-t2" />
+    </span>
+  )
+}
+
+/**
  * Миниатюра «какой скриншот присылать»: схема выдачи грузов на доске — откуда, куда,
  * мили и ставка в строке. Нарисована, а не снята с DAT: чужой интерфейс в приложении не
  * показываем, а столбцы на любой доске те же.
@@ -331,6 +352,17 @@ export function RoutePlanner({
   const locale = useLocale()
   const [range, setRange] = useState<'all' | 'day' | 'mid' | 'long'>('all')
   const { truck, origin, series, snap, opts, lanes, from, planOpts } = plan
+  // На телефоне траки — одной строкой с прокруткой (10/09/26): восемь кнопок столбиком
+  // занимали весь первый экран. Выбранный трак (с карты, по ссылке) прокручивается в
+  // середину строки — двигаем только саму строку, страница остаётся на месте.
+  const truckBar = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = truckBar.current
+    const on = el?.querySelector<HTMLElement>('[aria-pressed="true"]')
+    if (!el || !on || el.scrollWidth <= el.clientWidth) return
+    const left = on.getBoundingClientRect().left - el.getBoundingClientRect().left
+    el.scrollLeft += left - (el.clientWidth - on.offsetWidth) / 2
+  }, [truck?.id])
   if (!truck) return null
   const seriesList = Object.keys(snaps) as DatEquipment[]
   // Лучший — самый горячий из дальних; короткий рейс в соседний штат в лучшие не идёт
@@ -390,14 +422,17 @@ export function RoutePlanner({
           пересобирается под него. Списком это было незаметно. */}
       <div className="mt-3">
         <span className={label}>{t(locale, 'plan.truck')}</span>
-        <div className="flex flex-wrap gap-1.5">
+        <div
+          ref={truckBar}
+          className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0"
+        >
           {trucks.map((x) => (
             <button
               key={x.id}
               type="button"
               aria-pressed={x.id === truck.id}
               onClick={() => plan.pickTruck(x.id)}
-              className={`rounded-xl border px-2.5 py-1.5 text-sm font-semibold transition-colors max-md:min-h-10 ${
+              className={`shrink-0 whitespace-nowrap rounded-xl border px-2.5 py-1.5 text-sm font-semibold transition-colors max-md:min-h-10 ${
                 x.id === truck.id
                   ? 'border-haul-500/60 bg-haul-500/15 text-white'
                   : 'border-white/10 bg-white/[0.04] text-t2 hover:border-white/20 hover:text-t1'
@@ -516,28 +551,55 @@ export function RoutePlanner({
               а «Ставка из штата» — ставку своего региона в строке пяти регионов. Раздел
               читали как бесконечную ленту цифр, и первым делом убраны те, что уже есть
               ниже на том же экране (пользователь, 18.09.2026). */}
+          {/* Горячо или холодно — полосой под словом (план «Порядок в TMS», 10/09/26):
+              раньше это была ещё одна строка «🔥 горячий · 8.3 груза на трак». */}
           <div className="mt-3 grid grid-cols-2 gap-2.5">
             <Stat
               accent="good"
               icon={<TrendingUp size={15} strokeWidth={2.5} />}
               label={t(locale, 'plan.best')}
               value={best.name}
-              sub={`${rateLine(best, snap, origin, snap.bench, locale)} · ${ltLine(best, locale)}`}
-            />
+              word
+              sub={rateLine(best, snap, origin, snap.bench, locale)}
+            >
+              {best.ratio != null && (
+                <>
+                  <LtBar ratio={best.ratio} median={best.median} locale={locale} className="mt-2.5 w-full max-w-28" />
+                  <p className="mt-1.5 text-xs font-medium text-t3">{t(locale, HEAT_LEVEL_KEY[heatLevel(best.median, best.ratio)])}</p>
+                </>
+              )}
+            </Stat>
             <Stat
               accent={heat === 'hot' ? 'good' : heat === 'cold' ? 'bad' : 'haul'}
               icon={<Flame size={15} strokeWidth={2.5} />}
               label={t(locale, 'plan.marketIn').replace('{state}', origin)}
               value={lt && snap ? t(locale, HEAT_LEVEL_KEY[heatLevel(ltMedian(snap), lt.ratio)]) : '—'}
-              // Слово без цифры непонятно — рядом грузы на трак и середина по штатам (DAT).
-              sub={lt && snap ? t(locale, 'plan.ltVsMedian').replace('{n}', lt.ratio.toFixed(1)).replace('{m}', ltMedian(snap).toFixed(1)) : undefined}
-            />
+              word
+            >
+              {/* Слово без цифры непонятно — под полосой коротко: грузы на трак и середина
+                  по штатам (DAT), та самая риска на полосе. */}
+              {lt && snap && (
+                <>
+                  <LtBar ratio={lt.ratio} median={ltMedian(snap)} locale={locale} className="mt-2.5 w-full max-w-28" />
+                  <p className="mt-1.5 text-xs font-medium text-t3">
+                    {t(locale, 'plan.ltShort').replace('{n}', lt.ratio.toFixed(1)).replace('{m}', ltMedian(snap).toFixed(1))}
+                  </p>
+                </>
+              )}
+            </Stat>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-t3">
+            <h3 className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-2xs font-semibold uppercase tracking-wide text-t3">
               {t(locale, 'plan.lanesFrom').replace('{state}', stateName(origin))}
               <Info text={t(locale, 'plan.bench.info')} />
+              {/* Что за полоса в строках: один раз здесь, а не «груза на трак» в каждой. */}
+              <span className="ml-1.5 inline-flex items-center gap-1.5 font-medium normal-case tracking-normal">
+                <span aria-hidden className="relative inline-block h-1.5 w-5 rounded-full bg-white/10">
+                  <span className="absolute inset-y-0 left-0 w-3/5 rounded-full bg-t3" />
+                </span>
+                {t(locale, 'plan.ltLegend')}
+              </span>
             </h3>
             {mapHref ? (
               <Button size="sm" variant="ghost" icon={<MapPin size={13} />} href={mapHref}>
@@ -657,11 +719,17 @@ export function RoutePlanner({
           ) : (
             <p className="mt-2 text-base text-t3">{t(locale, 'plan.noRange').replace('{state}', stateName(origin))}</p>
           )}
+          {/* Ловушки — плашками со снежинками, а не строкой «(❄️❄️ очень холодный · 2.0
+              груза на трак)» у каждого штата: цифра — в подсказке плашки. */}
           {traps.length > 0 && (
-            <p className="mt-2 text-sm text-t3">
-              <span className="font-semibold text-bad-400">{t(locale, 'plan.traps')}:</span>{' '}
-              {traps.map((l) => `${l.name} (${ltLine(l, locale)})`).join(', ')}
-            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-sm">
+              <span className="font-semibold text-bad-400">{t(locale, 'plan.traps')}:</span>
+              {traps.map((l) => (
+                <span key={l.state} title={ltLine(l, locale)} className="rounded-full bg-bad-400/10 px-2 py-0.5 text-bad-400">
+                  {l.name} {l.ratio != null && HEAT_LEVEL_ICON[heatLevel(l.median, l.ratio)]}
+                </span>
+              ))}
+            </div>
           )}
 
           {from && planOpts && <BoardCompare snap={snap} from={from} planOpts={planOpts} opts={opts} locale={locale} bench={snap.bench} />}
@@ -903,7 +971,8 @@ function StatesTable({ snaps, series, locale }: { snaps: PlanSnaps; series: DatE
               </th>
             </tr>
           </thead>
-          <tbody className="nums">
+          {/* Моноширинные — только цифры: названия штатов им шрифтом кода читались хуже. */}
+          <tbody>
             {rows.map((r) => (
               <tr key={r.code} className="border-t border-white/[0.06]">
                 <td className="px-2 py-1 text-t1">
@@ -912,17 +981,17 @@ function StatesTable({ snaps, series, locale }: { snaps: PlanSnaps; series: DatE
                 </td>
                 {compare ? (
                   list.map((e) => (
-                    <td key={e} className="px-2 py-1 text-right text-t2">
+                    <td key={e} className="nums px-2 py-1 text-right text-t2">
                       {r.byEq[e] != null ? r.byEq[e]!.toFixed(1) : '—'}
                     </td>
                   ))
                 ) : (
-                  <td className="px-2 py-1 text-right">
+                  <td className="nums px-2 py-1 text-right">
                     <span className="mr-1 text-2xs">{HEAT_LEVEL_ICON[heatLevel(median, r.ratio)]}</span>
                     <span className="text-t1">{r.ratio.toFixed(1)}</span>
                   </td>
                 )}
-                <td className="px-2 py-1 text-right text-t2" title={r.region}>
+                <td className="nums px-2 py-1 text-right text-t2" title={r.region}>
                   {r.rate ? usd2.format(r.rate) : '—'}
                 </td>
               </tr>
@@ -1211,10 +1280,12 @@ function LaneRow({
             <span className="min-w-0 break-words text-base font-semibold">{title ?? lane.name}</span>
             <HeatTag heat={lane.heat} ratio={lane.ratio} median={lane.median} locale={locale} />
           </span>
-          <span className="nums block break-words text-xs text-t3">
-            {lane.miles.toLocaleString('en-US')} mi
-            {board && ` · ${t(locale, 'plan.bench.boardRate').replace('{v}', usd2.format(lane.rpm))}`}
-            {!pickup && lane.ratio != null && ` · ${lane.ratio.toFixed(1)} ${t(locale, 'plan.perTruck')}`}
+          <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-t3">
+            <span className="nums break-words">
+              {lane.miles.toLocaleString('en-US')} mi
+              {board && ` · ${t(locale, 'plan.bench.boardRate').replace('{v}', usd2.format(lane.rpm))}`}
+            </span>
+            {!pickup && lane.ratio != null && <LtBar ratio={lane.ratio} median={lane.median} locale={locale} />}
           </span>
           {reasons && reasons.length > 0 && <span className="block text-xs text-t2">{reasons.join(' · ')}</span>}
         </span>

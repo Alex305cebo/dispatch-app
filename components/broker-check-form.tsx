@@ -3,7 +3,8 @@
 // Проверка брокера в реестре FMCSA по MC или DOT — форма, которая была на старой
 // странице «Брокеры» и пропала при переделке 16.09.2026. Вернулась на «Рынок»
 // 19.09.2026: незнакомый номер можно ввести и в общий поиск, но форму с двумя
-// переключателями видно сразу, а поиск догадаться не помогает.
+// переключателями видно сразу, а поиск догадаться не помогает. Своей рамки нет:
+// карточку «Проверить брокера» вместе с «Крупнейшими брокерами» собирает страница.
 
 import { useState, useTransition } from 'react'
 import { runBrokerCheck } from '@/app/actions'
@@ -44,7 +45,7 @@ export function BrokerCheckForm() {
   }
 
   return (
-    <section className="panel h-full p-4">
+    <div>
       <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
         {t(locale, 'brokers.checkHeading')}
         <Info text={t(locale, 'brokers.checkInfo')} />
@@ -88,6 +89,6 @@ export function BrokerCheckForm() {
       )}
       {state === 'error' && <p className="mt-3 text-sm text-bad-400">{err}</p>}
       {state === 'done' && data && <BrokerChecklist check={data} />}
-    </section>
+    </div>
   )
 }

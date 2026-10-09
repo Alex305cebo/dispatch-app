@@ -1,6 +1,6 @@
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
 import { tileGrid } from '@/lib/tiles'
-import { TOLLS_TILES } from '@/lib/tiles-core'
+import { migrateTollsTiles, TOLLS_TILES } from '@/lib/tiles-core'
 import { PageHeader } from '@/components/page-header'
 import { MarketTabs } from '@/app/brokers/market-tabs'
 import { TollsClient } from './tolls-client'
@@ -9,7 +9,7 @@ import { TollGuide } from './toll-guide'
 import { tollSpend, type TollLoad } from '@/lib/toll-spend'
 import { hereKey } from '@/lib/keys'
 import { hereUsage } from '@/lib/tolls-here'
-import { defaultTruck, listTrucks } from '@/lib/loads'
+import { defaultTruck, listTrucks, loadPapers } from '@/lib/loads'
 import { truckLabel } from '@/lib/map'
 import { tollLoadChoices } from '@/app/actions'
 import { citySuggestions } from '@/lib/city-suggest'
@@ -31,7 +31,7 @@ export const dynamic = 'force-dynamic'
 export default async function TollsPage() {
   const locale = await getLocale()
   const companyId = await companyScope()
-  const [key, usage, , cityRows, trucks, loadChoices, tollRows] = await Promise.all([
+  const [key, usage, , cityRows, trucks, loadChoices, tollRows, { rateCons }] = await Promise.all([
     hereKey(),
     hereUsage(),
     defaultTruck(companyId).catch(() => null),
@@ -46,10 +46,13 @@ export default async function TollsPage() {
     tollLoadChoices(),
     // toll_cost берём сырым, а не через маппер грузов: тот превращает NULL в ноль,
     // а разница между «дорога была бесплатной» и «мы не считали» — весь смысл
-    // нижнего блока.
+    // нижнего блока. Дату — готовой строкой из базы: драйвер отдаёт DATE объектом
+    // Date, и String(дата).slice(0, 10) давал «Sat Oct 10» — ни один рейс не попадал
+    // в 30 дней, и блок «Толлы в деньгах» не показывался никогда (найдено 10/09/26).
     sql`SELECT id, rate, loaded_miles, deadhead_miles, toll_cost, origin, destination,
-               status, pickup_date, created_at
+               status, DATE_FORMAT(COALESCE(pickup_date, created_at), '%Y-%m-%d') AS at
         FROM loads WHERE company_id = ${companyId}`,
+    loadPapers(companyId),
   ])
 
   const SPEND_DAYS = 30
@@ -63,7 +66,7 @@ export default async function TollsPage() {
         origin: (r.origin as string) ?? null,
         destination: (r.destination as string) ?? null,
         status: String(r.status),
-        at: String(r.pickup_date ?? r.created_at ?? '').slice(0, 10) || null,
+        at: typeof r.at === 'string' && r.at ? r.at : null,
       }),
     ),
     SPEND_DAYS,
@@ -90,10 +93,10 @@ export default async function TollsPage() {
     },
     // То, ради чего в раздел заходят второй раз: сколько платные дороги уже стоили
     // парку и что вообще про них нужно знать в США.
-    ...tollMoneyTiles({ spend, days: SPEND_DAYS, locale }),
+    ...tollMoneyTiles({ spend, days: SPEND_DAYS, locale, rateCons }),
     { id: 'guide', node: <div><TollGuide /></div> },
   ]
-  const grid = await tileGrid('tolls', TOLLS_TILES, locale)
+  const grid = await tileGrid('tolls', TOLLS_TILES, locale, migrateTollsTiles)
 
   return (
     <main className="page">

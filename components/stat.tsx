@@ -29,6 +29,7 @@ export function Stat({
   onClick,
   compact,
   surface = 'inset',
+  word,
   children,
 }: {
   label: string
@@ -57,6 +58,9 @@ export function Stat({
   /** Поля и число на шаг мельче: когда плиток на экране много и первый экран телефона
    * иначе занимают одни только четыре числа. Обычные плитки не трогает. */
   compact?: boolean
+  /** Значение — слово («Georgia», «горячий»), а не число: оно и подпись под ним —
+   *  обычным шрифтом и с переносом по словам. Моноширинный — только у цифр. */
+  word?: boolean
   /** Мини-график под цифрой. */
   children?: ReactNode
 }) {
@@ -92,7 +96,7 @@ export function Stat({
       {/* Размер по ширине экрана: на узком крупный шрифт не помещался и число
           обрезалось молча — это хуже, чем то же число на пару пунктов мельче. */}
       <div
-        className={`nums break-all font-bold leading-none tracking-tight ${
+        className={`${word ? 'break-words' : 'nums break-all'} font-bold leading-none tracking-tight ${
           compact ? 'mt-1.5 lg:mt-2' : 'mt-2'
         } ${
           hero
@@ -111,7 +115,7 @@ export function Stat({
 
       {sub && (
         <div
-          className={`nums mt-1 text-xs font-medium ${
+          className={`${word ? '' : 'nums '}mt-1 text-xs font-medium ${
             subTone === 'good' ? 'text-good-400/90' : subTone === 'bad' ? 'text-bad-400/90' : 'text-t3'
           }`}
         >

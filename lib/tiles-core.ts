@@ -267,30 +267,52 @@ export const migrateTruckCard = (saved: TilePlacement[]): TilePlacement[] => mig
 
 /** Раскладки остальных разделов по умолчанию — тот порядок, в котором блоки стояли до
  *  плиток. Все здесь по той же причине, что и TRUCKS_TILES: страницы-серверы не могут
- *  забрать обычное значение из модуля с 'use client'. */
+ *  забрать обычное значение из модуля с 'use client'.
+ *
+ *  «Рынок» по плану «Порядок в TMS» (10/09/26): первым — «Куда отправить трак». Три
+ *  плитки-числа над ним (брокеры, склады, «требуют внимания») убраны: те же числа стоят
+ *  на чипах списка. Проверка по MC/DOT и «Крупнейшие брокеры» (вернулись 19.09.2026) —
+ *  одна карточка «Проверить брокера»: по пол-строки рядом пустая форма тянулась на
+ *  высоту списка брокеров. */
 export const BROKERS_TILES: TilePlacement[] = [
-  { id: 'brokers-count', size: 's' },
-  { id: 'facilities-count', size: 's' },
-  { id: 'attention-count', size: 's' },
   { id: 'plan', size: 'l' },
   { id: 'directory', size: 'l' },
-  // Проверка по MC/DOT и «Крупнейшие брокеры» — вернулись 19.09.2026, рядом в один ряд.
-  { id: 'check', size: 'w' },
-  { id: 'top', size: 'w' },
+  { id: 'check', size: 'l' },
 ]
 
-/** «Толлы». Месячные числа разобраны на четыре маленькие плитки; они условные —
- *  пока ни у одного рейса толлы не посчитаны, считать нечего и плиток нет. */
+/** «Рынок»: сохранённая раскладка с отдельной плиткой «Крупнейшие брокеры» → без неё,
+ *  а «Проверить брокера», куда она вошла, во всю строку. Как migrateTruckDriverCard,
+ *  срабатывает один раз — пока старый ключ лежит в сохранённой раскладке. Старые
+ *  плитки-числа выбрасывает сам applyLayout: их ключей в раскладке больше нет. */
+export function migrateBrokersTiles(saved: TilePlacement[]): TilePlacement[] {
+  if (!saved.some((p) => p.id === 'top')) return saved
+  return saved.filter((p) => p.id !== 'top').map((p) => (p.id === 'check' ? { id: 'check', size: 'l' as const } : p))
+}
+
+/** «Толлы». Месяц в деньгах — одна полоса сверху (сумма, доля выручки шкалой, на милю,
+ *  рейсы); до 10/09/26 это были четыре маленькие плитки-числа. Плитки условные: пока ни
+ *  у одного рейса толлы не посчитаны, считать нечего и плиток нет. */
 export const TOLLS_TILES: TilePlacement[] = [
-  { id: 'toll-total', size: 's' },
-  { id: 'toll-per-mile', size: 's' },
-  { id: 'toll-share', size: 's' },
-  { id: 'toll-loads', size: 's' },
+  { id: 'toll-month', size: 'l' },
   { id: 'missing', size: 'l' },
   { id: 'calc', size: 'l' },
   { id: 'toll-top', size: 'w' },
   { id: 'guide', size: 'l' },
 ]
+
+/** Четыре числа «Толлов» до 10/09/26. */
+const OLD_TOLL_NUMBERS = new Set(['toll-total', 'toll-per-mile', 'toll-share', 'toll-loads'])
+
+/** «Толлы»: сохранённый порядок со старыми четырьмя числами → полоса месяца на месте
+ *  первого из них. Без этого applyLayout выбросил бы старые ключи, а новую плитку
+ *  приписал бы в самый низ, под справочник. */
+export function migrateTollsTiles(saved: TilePlacement[]): TilePlacement[] {
+  const at = saved.findIndex((p) => OLD_TOLL_NUMBERS.has(p.id))
+  if (at < 0 || saved.some((p) => p.id === 'toll-month')) return saved
+  // До `at` старых чисел нет, поэтому первые `at` мест у rest — те же, что у saved.
+  const rest = saved.filter((p) => !OLD_TOLL_NUMBERS.has(p.id))
+  return [...rest.slice(0, at), { id: 'toll-month', size: 'l' }, ...rest.slice(at)]
+}
 
 /** У «Документов» раскладка СВОЯ НА КАЖДУЮ ВКЛАДКУ: на «Грузах» и на «Траках и
  *  водителях» лежат разные блоки, и общий порядок для них означал бы, что плитка
