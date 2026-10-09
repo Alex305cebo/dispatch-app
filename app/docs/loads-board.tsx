@@ -18,6 +18,7 @@ import { ChevronDown, Download, Landmark, Search } from 'lucide-react'
 import { DocLink } from '@/components/doc-link'
 import { LoadPapers, missingPapers, papersComplete, type LoadPaper } from '@/components/load-papers'
 import { useLocale } from '@/components/locale-provider'
+import { CountPill } from '@/components/count-pill'
 import { Rpm } from '@/components/rpm'
 import { notify } from '@/lib/notify'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
@@ -289,14 +290,14 @@ export function LoadsBoard({
 
         {visible.length > 1 && (
           <div role="tablist" className="-mx-3 flex gap-1.5 overflow-x-auto px-3 [scrollbar-width:none]">
-            <StagePill
+            <CountPill
               label={t(locale, 'docs.stage.all')}
               count={shown.length}
               active={active === 'all'}
               onClick={() => setStage('all')}
             />
             {visible.map((sec) => (
-              <StagePill
+              <CountPill
                 key={sec.key}
                 label={sec.short}
                 count={sec.rows.length}
@@ -491,38 +492,6 @@ export function LoadsBoard({
 
 const DOT = { plain: 'bg-t3', good: 'bg-good-400', warn: 'bg-warn-400', bad: 'bg-bad-400' } as const
 const TEXT = { good: 'text-good-400', warn: 'text-warn-400', bad: 'text-bad-400' } as const
-
-function StagePill({
-  label,
-  count,
-  tone = 'plain',
-  active,
-  onClick,
-}: {
-  label: string
-  count: number
-  tone?: 'plain' | 'good' | 'warn' | 'bad'
-  active: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className={`inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors ${
-        active
-          ? 'border-haul-400/50 bg-haul-500/20 text-t1'
-          : 'border-white/8 bg-white/[0.03] text-t2 hover:border-white/16 hover:text-t1'
-      }`}
-    >
-      {tone !== 'plain' && <span aria-hidden className={`size-1.5 rounded-full ${DOT[tone]}`} />}
-      {label}
-      <span className={`nums text-xs font-bold ${active ? 'text-t1' : 'text-t3'}`}>{count}</span>
-    </button>
-  )
-}
 
 /** Одна строка «где деньги сейчас» под маршрутом. */
 function StageLine({
