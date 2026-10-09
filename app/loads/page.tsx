@@ -128,7 +128,7 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
       grid={grid}
       mapPanel={
         <Suspense key="map" fallback={<div className="panel h-64 animate-pulse" />}>
-          <LoadsMapServer loads={loads} trucks={trucks} metrics={metrics} locale={locale} />
+          <LoadsMapServer loads={loads} trucks={trucks} metrics={metrics} rateCons={rateCons} locale={locale} />
         </Suspense>
       }
     />

@@ -12,7 +12,7 @@ import { Button } from '@/components/button'
 import { PairBar } from '@/components/pair-bar'
 import { DriverLinkButton } from '@/components/driver-link-button'
 import { sql } from '@/lib/db'
-import { getTruck, listDocs, listLoads, rateConByLoad } from '@/lib/loads'
+import { getTruck, listDocs, listLoads, loadPapers } from '@/lib/loads'
 import { activeLoadsByTruck, currentLoadsByTruck, nextLoadsByTruck, prevLoadFor, truckLabel, truckShortLabel } from '@/lib/map'
 import { calcLoad } from '@/lib/profit'
 import { fleetStatusByUnit, getTruckMeta, listMaintenance, listTodos, oilStatus } from '@/lib/maintenance'
@@ -112,14 +112,16 @@ export default async function Page({
   // диспетчер копирует брокеру прямо из карточки водителя. Оба запроса кэшированы и
   // идут в общей пачке, отдельного захода в базу это не стоит.
   const user = await getCurrentUser()
-  const [loads, meta, records, todos, fleet, docs, rateCons, history, company, dispatcherPhone, stopEvents] = await Promise.all([
+  const [loads, meta, records, todos, fleet, docs, { rateCons }, history, company, dispatcherPhone, stopEvents] = await Promise.all([
     listLoads(companyId, { truckId: truck.id }),
     getTruckMeta(truck.id),
     listMaintenance(truck.id),
     listTodos(truck.id),
     fleetStatusByUnit(),
     listDocs(companyId, { truckId: truck.id }),
-    rateConByLoad(companyId),
+    // Rate Con каждого груза — тот же источник, что у «Грузов»: рейт-кон из корзины
+    // кнопку не получает.
+    loadPapers(companyId),
     truck.number && seesFleetGps(companyId) ? tripHistory(truck.number, historyWindow.hours) : Promise.resolve([]),
     getCompany(),
     // Номер того, кто закреплён за траком, а не того, кто открыл страницу:
@@ -469,33 +471,44 @@ export default async function Page({
           {t(locale, 'trucks.detail.currentAssignment')}
           <Info text={t(locale, 'trucks.detail.currentAssignmentInfo')} />
         </h2>
-        <MissingPodBanner loads={missingPod} locale={locale} className="mb-3" />
+        <MissingPodBanner loads={missingPod} rateCons={rateCons} locale={locale} className="mb-3" />
         <StalePartialBanner items={stalePartials} locale={locale} />
         {activeLoad ? (
           <>
             {/* Статус — ВПЛОТНУЮ к маршруту. justify-between отбрасывал его к правому
                 краю, и посреди строки зияла пустая полоса в пол-экрана. */}
             {/* Груз — одна карточка-ссылка: маршрут крупно, под ним статус, номер
-                и брокер. Вся карточка нажимается и ведёт на груз. */}
-            <Link
-              href={`/loads/${activeLoad.id}`}
-              className="group block rounded-xl border border-haul-500/30 bg-haul-500/[0.07] px-3.5 py-2.5 transition-colors hover:border-haul-400/60 hover:bg-haul-500/[0.14]"
-            >
-              <span className="flex items-start justify-between gap-3">
-                <span className="min-w-0 text-xl font-semibold leading-6">
-                  {activeLoad.origin ?? '—'} → {activeLoad.destination ?? '—'}
-                  {activeVia && <span className="ml-1.5 text-base font-medium text-t3">· {activeVia}</span>}
+                и брокер. Вся карточка нажимается и ведёт на груз — ссылка-подложка,
+                как у списка грузов ниже: так рядом работает кнопка Rate Con
+                (<button> внутри <a> — невалидная разметка). */}
+            <div className="group relative flex items-center gap-3 rounded-xl border border-haul-500/30 bg-haul-500/[0.07] px-3.5 py-2.5 transition-colors hover:border-haul-400/60 hover:bg-haul-500/[0.14]">
+              <Link
+                href={`/loads/${activeLoad.id}`}
+                aria-label={`${activeLoad.origin ?? '—'} → ${activeLoad.destination ?? '—'}`}
+                className="absolute inset-0 rounded-[inherit]"
+              />
+              <div className="min-w-0 flex-1">
+                <span className="flex items-start justify-between gap-3">
+                  <span className="min-w-0 text-xl font-semibold leading-6">
+                    {activeLoad.origin ?? '—'} → {activeLoad.destination ?? '—'}
+                    {activeVia && <span className="ml-1.5 text-base font-medium text-t3">· {activeVia}</span>}
+                  </span>
+                  <span className="mt-0.5 shrink-0 text-lg text-haul-300 transition-transform group-hover:translate-x-0.5">
+                    ↗
+                  </span>
                 </span>
-                <span className="mt-0.5 shrink-0 text-lg text-haul-300 transition-transform group-hover:translate-x-0.5">
-                  ↗
+                <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-t3">
+                  <StatusBadge status={activeLoad.status} locale={locale} />
+                  {activeLoad.referenceId && <span className="nums">#{activeLoad.referenceId}</span>}
+                  {activeLoad.brokerName && <span className="min-w-0 truncate">{activeLoad.brokerName}</span>}
                 </span>
-              </span>
-              <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-t3">
-                <StatusBadge status={activeLoad.status} locale={locale} />
-                {activeLoad.referenceId && <span className="nums">#{activeLoad.referenceId}</span>}
-                {activeLoad.brokerName && <span className="min-w-0 truncate">{activeLoad.brokerName}</span>}
-              </span>
-            </Link>
+              </div>
+              {rateCons.has(activeLoad.id) && (
+                <span className="relative z-10 shrink-0">
+                  <RateConButton docId={rateCons.get(activeLoad.id)!} compact />
+                </span>
+              )}
+            </div>
             <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
               <HeadField label={t(locale, 'trucks.detail.pickup')}>
                 <span className="nums">{activeLoad.pickupTime || usDate(activeLoad.pickupDate) || '—'}</span>
@@ -513,23 +526,36 @@ export default async function Page({
               </HeadField>
             </dl>
             {partials.map((p) => (
-              <Link
+              <div
                 key={p.id}
-                href={`/loads/${p.id}`}
-                className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-haul-500/30 bg-haul-500/[0.06] px-3 py-2 text-base hover:border-haul-400/60"
+                className="relative mt-3 flex items-center gap-x-2 rounded-xl border border-haul-500/30 bg-haul-500/[0.06] px-3 py-2 text-base hover:border-haul-400/60"
               >
-                <span className="text-base leading-6 font-semibold text-haul-300">
-                  {t(locale, 'trucks.detail.partialLoad')}
-                </span>
-                <span className="font-medium text-t1">
-                  {p.origin ?? '—'} → {p.destination ?? '—'}
-                </span>
-                <span className="nums text-t3">{p.pickupTime || usDate(p.pickupDate)}</span>
-                {p.referenceId && <span className="nums text-sm text-t3">#{p.referenceId}</span>}
-                {p.brokerName && <span className="truncate text-sm text-t3">· {p.brokerName}</span>}
-                <span className="nums ml-auto font-medium text-t2">{usd.format(p.rate)}</span>
-                <Rpm rate={p.rate} miles={p.loadedMiles + p.deadheadMiles} className="text-sm text-t3" />
-              </Link>
+                {/* Ссылка-подложка, как у текущего груза выше: рядом работает кнопка Rate Con,
+                    и она стоит вне переносимой части — на телефоне остаётся справа. */}
+                <Link
+                  href={`/loads/${p.id}`}
+                  aria-label={`${p.origin ?? '—'} → ${p.destination ?? '—'}`}
+                  className="absolute inset-0 rounded-[inherit]"
+                />
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="text-base leading-6 font-semibold text-haul-300">
+                    {t(locale, 'trucks.detail.partialLoad')}
+                  </span>
+                  <span className="font-medium text-t1">
+                    {p.origin ?? '—'} → {p.destination ?? '—'}
+                  </span>
+                  <span className="nums text-t3">{p.pickupTime || usDate(p.pickupDate)}</span>
+                  {p.referenceId && <span className="nums text-sm text-t3">#{p.referenceId}</span>}
+                  {p.brokerName && <span className="truncate text-sm text-t3">· {p.brokerName}</span>}
+                  <span className="nums ml-auto font-medium text-t2">{usd.format(p.rate)}</span>
+                  <Rpm rate={p.rate} miles={p.loadedMiles + p.deadheadMiles} className="text-sm text-t3" />
+                </div>
+                {rateCons.has(p.id) && (
+                  <span className="relative z-10 shrink-0">
+                    <RateConButton docId={rateCons.get(p.id)!} compact />
+                  </span>
+                )}
+              </div>
             ))}
           </>
         ) : (
@@ -563,7 +589,7 @@ export default async function Page({
             </Button>
           </div>
         )}
-        <PrevLoad load={prevLoad} locale={locale} className="mt-3" />
+        <PrevLoad load={prevLoad} rcId={prevLoad ? rateCons.get(prevLoad.id) : undefined} locale={locale} className="mt-3" />
         {/* Страница водителя — заметным блоком, а не значком в углу: пока водитель
             ссылку не открывал, блок подсвечен и зовёт её отправить. */}
         {driverLink && !activeLoad && (
@@ -592,23 +618,34 @@ export default async function Page({
             />
           )}
           {nextLoad && (
-            <Link
-              href={`/loads/${nextLoad.id}`}
-              className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-base hover:border-white/25"
-            >
-              <span className="text-base font-semibold text-t2">
-                {t(locale, 'trucks.detail.nextLoad')}
-              </span>
-              <span className="font-medium text-t1">
-                {nextLoad.origin ?? '—'} → {nextLoad.destination ?? '—'}
-              </span>
-              <span className="nums text-t3">{nextLoad.pickupTime || usDate(nextLoad.pickupDate)}</span>
-              {nextLoad.referenceId && (
-                <span className="nums text-sm text-t3">#{nextLoad.referenceId}</span>
+            <div className="relative mt-3 flex items-center gap-x-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-base hover:border-white/25">
+              {/* Ссылка-подложка: рядом работает кнопка Rate Con (<button> в <a> — невалидно),
+                  вне переносимой части — на телефоне остаётся справа. */}
+              <Link
+                href={`/loads/${nextLoad.id}`}
+                aria-label={`${nextLoad.origin ?? '—'} → ${nextLoad.destination ?? '—'}`}
+                className="absolute inset-0 rounded-[inherit]"
+              />
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-base font-semibold text-t2">
+                  {t(locale, 'trucks.detail.nextLoad')}
+                </span>
+                <span className="font-medium text-t1">
+                  {nextLoad.origin ?? '—'} → {nextLoad.destination ?? '—'}
+                </span>
+                <span className="nums text-t3">{nextLoad.pickupTime || usDate(nextLoad.pickupDate)}</span>
+                {nextLoad.referenceId && (
+                  <span className="nums text-sm text-t3">#{nextLoad.referenceId}</span>
+                )}
+                <span className="nums ml-auto font-medium text-t2">{usd.format(nextLoad.rate)}</span>
+                <Rpm rate={nextLoad.rate} miles={nextLoad.loadedMiles + nextLoad.deadheadMiles} className="text-sm text-t3" />
+              </div>
+              {rateCons.has(nextLoad.id) && (
+                <span className="relative z-10 shrink-0">
+                  <RateConButton docId={rateCons.get(nextLoad.id)!} compact />
+                </span>
               )}
-              <span className="nums ml-auto font-medium text-t2">{usd.format(nextLoad.rate)}</span>
-              <Rpm rate={nextLoad.rate} miles={nextLoad.loadedMiles + nextLoad.deadheadMiles} className="text-sm text-t3" />
-            </Link>
+            </div>
           )}
           {nextLoad && (
             <QueuedLoadHint compact locale={locale} current={activeLoad} next={nextLoad} nextId={nextLoad.id} fit={queueFitNext} />

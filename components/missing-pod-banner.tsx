@@ -9,11 +9,23 @@ import Link from 'next/link'
 import { TriangleAlert } from 'lucide-react'
 import type { LoadRecord } from '@/lib/map'
 import { usDate } from '@/lib/fmt'
+import { RateConButton } from '@/components/ratecon-button'
 import { t, type Locale } from '@/lib/i18n'
 
 const SHOWN = 3
 
-export function MissingPodBanner({ loads, locale, className = '' }: { loads: LoadRecord[]; locale: Locale; className?: string }) {
+export function MissingPodBanner({
+  loads,
+  rateCons,
+  locale,
+  className = '',
+}: {
+  loads: LoadRecord[]
+  /** id груза → id его Rate Con: в рейт-коне обычно написано, куда брокер ждёт POD. */
+  rateCons?: Map<number, number>
+  locale: Locale
+  className?: string
+}) {
   if (!loads.length) return null
   return (
     <div className={`rounded-xl border border-warn-400/40 bg-warn-400/[0.08] px-3 py-2.5 ${className}`}>
@@ -25,10 +37,10 @@ export function MissingPodBanner({ loads, locale, className = '' }: { loads: Loa
       </p>
       <ul className="mt-1.5 space-y-1">
         {loads.slice(0, SHOWN).map((l) => (
-          <li key={l.id}>
+          <li key={l.id} className="flex items-center gap-2">
             <Link
               href={`/loads/${l.id}`}
-              className="group flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg px-1 py-0.5 text-base transition-colors hover:bg-white/[0.04] max-md:min-h-11"
+              className="group flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg px-1 py-0.5 text-base transition-colors hover:bg-white/[0.04] max-md:min-h-11"
             >
               <span className="font-medium text-t1">
                 {l.origin ?? '—'} → {l.destination ?? '—'}
@@ -43,6 +55,7 @@ export function MissingPodBanner({ loads, locale, className = '' }: { loads: Loa
                 {t(locale, 'missingPod.upload')} →
               </span>
             </Link>
+            {rateCons?.get(l.id) && <RateConButton docId={rateCons.get(l.id)!} compact />}
           </li>
         ))}
       </ul>

@@ -14,7 +14,7 @@
 // него — в итоге недели.
 
 import { Download } from 'lucide-react'
-import { listLoads, listTrucks } from '@/lib/loads'
+import { listLoads, listTrucks, loadPapers } from '@/lib/loads'
 import { usd, usd2, loadWeekAnchorMs, weekAnchorOf, weekLabel, weekStart, usDate } from '@/lib/fmt'
 import { truckLabel, type LoadRecord, type TruckRecord } from '@/lib/map'
 import { t, type Locale } from '@/lib/i18n'
@@ -59,7 +59,7 @@ export async function ByDriver({
   /** ?week=yyyy-mm-dd — пятница выбранной недели; нет — текущая. */
   week?: string
 }) {
-  const [loads, trucks] = await Promise.all([listLoads(companyId), listTrucks(companyId)])
+  const [loads, trucks, { rateCons }] = await Promise.all([listLoads(companyId), listTrucks(companyId), loadPapers(companyId)])
   const byTruckId = new Map<number, TruckRecord>(trucks.map((tr) => [tr.id, tr]))
   // Только работа: котировка и отменённый груз ни гросса, ни миль водителю не дают.
   const committed = loads.filter((l) => l.status !== 'quoted' && l.status !== 'cancelled' && l.truckId !== null)
@@ -206,6 +206,7 @@ export async function ByDriver({
                               miles={miles}
                               amount={usd.format(load.rate)}
                               rpm={rpm(load.rate, miles)}
+                              rcId={rateCons.get(load.id)}
                             />
                           </li>
                         ))}

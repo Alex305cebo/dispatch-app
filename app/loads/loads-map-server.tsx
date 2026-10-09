@@ -31,11 +31,14 @@ export async function LoadsMapServer({
   loads,
   trucks,
   metrics,
+  rateCons,
   locale,
 }: {
   loads: LoadRecord[]
   trucks: TruckRecord[]
   metrics: Record<number, LoadMetrics>
+  /** id груза → id его Rate Con (lib/loads.ts loadPapers). */
+  rateCons: Map<number, number>
   locale: Locale
 }) {
   const byTruck = activeLoadsByTruck(loads)
@@ -162,6 +165,7 @@ export async function LoadsMapServer({
         routes,
         seenText,
         nextStop: metrics[load.id]?.nextStop ?? null,
+        rcId: rateCons.get(load.id) ?? null,
       }
     }),
   )

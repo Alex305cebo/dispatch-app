@@ -3,8 +3,9 @@ import { notFound } from 'next/navigation'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
-import { listLoads } from '@/lib/loads'
+import { listLoads, loadPapers } from '@/lib/loads'
 import { Rpm } from '@/components/rpm'
+import { RateConButton } from '@/components/ratecon-button'
 import { allStopEvents } from '@/lib/load-events'
 import { detentionTerms, getSettings } from '@/lib/settings'
 import { avgDwell, facilityIndex, facilityNoteKey } from '@/lib/facilities'
@@ -35,12 +36,13 @@ export default async function FacilityPage({ params }: { params: Promise<{ key: 
   const key = safeDecode((await params).key)
   const companyId = await companyScope()
   const locale = await getLocale()
-  const [loads, events, terms, notes, brokers] = await Promise.all([
+  const [loads, events, terms, notes, brokers, { rateCons }] = await Promise.all([
     listLoads(companyId),
     allStopEvents(companyId),
     detentionTerms(),
     getSettings([facilityNoteKey(key)]),
     listOurBrokers(companyId),
+    loadPapers(companyId),
   ])
   const f = facilityIndex(loads, events, terms.free).get(key)
   if (!f) notFound()
@@ -141,18 +143,30 @@ export default async function FacilityPage({ params }: { params: Promise<{ key: 
               limit={8}
               label={t(locale, 'brokers.dir.more')}
               items={here.map((l) => (
-                <Link
+                // Вся строка — ссылка-подложка: так рядом работает кнопка Rate Con (<button>
+                // внутри <a> — невалидно). min-w-16 у маршрута: кнопка не сжимает его в ноль,
+                // а переносится на новую строку — справа (ml-auto).
+                <div
                   key={l.id}
-                  href={`/loads/${l.id}`}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-lg border border-white/8 px-3 py-2 text-base hover:border-white/20"
+                  className="relative flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-lg border border-white/8 px-3 py-2 text-base hover:border-white/20"
                 >
+                  <Link
+                    href={`/loads/${l.id}`}
+                    aria-label={`${l.origin ?? '—'} → ${l.destination ?? '—'}`}
+                    className="absolute inset-0 rounded-[inherit]"
+                  />
                   <span className="nums w-[70px] shrink-0 text-t3">{usDate(when(l))}</span>
-                  <span className="min-w-0 flex-1 truncate text-t1">
+                  <span className="min-w-16 flex-1 truncate text-t1">
                     {l.origin ?? '—'} → {l.destination ?? '—'}
                   </span>
                   <span className="nums text-t2">{usd.format(Number(l.rate) || 0)}</span>
                   <Rpm rate={Number(l.rate) || 0} miles={l.loadedMiles + l.deadheadMiles} className="text-sm text-t3" />
-                </Link>
+                  {rateCons.get(l.id) && (
+                    <span className="relative z-10 ml-auto">
+                      <RateConButton docId={rateCons.get(l.id)!} compact />
+                    </span>
+                  )}
+                </div>
               ))}
             />
           </div>

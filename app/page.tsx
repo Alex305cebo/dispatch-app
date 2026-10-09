@@ -231,6 +231,7 @@ export default async function Page() {
         detail: e.detail,
         tone: e.bad ? 'bad' : c === 'ready' ? 'good' : undefined,
         money: c === 'ready' || c === 'overdue',
+        rcId: rateCons.get(e.id),
       })),
   })
   const needing = needsLoadRows(idle)

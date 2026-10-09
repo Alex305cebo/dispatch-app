@@ -22,6 +22,7 @@ import {
   uploadDocument,
 } from '@/app/actions'
 import { DeleteButton } from '@/components/delete-button'
+import { RateConButton } from '@/components/ratecon-button'
 import { DOC_KINDS, docKindLabel, fmtSize, type DocKind, type DocLibRow, type DocMeta } from '@/lib/docs'
 import { notify } from '@/lib/notify'
 import { staleBuildMessage } from '@/components/build-watch'
@@ -754,6 +755,8 @@ function LoadPapersRow({
   const d0 = docs[0]!
   const kinds = new Set(docs.map((d) => d.kind))
   const extra = docs.filter((d) => !NEEDED.includes(d.kind)).length
+  // Бумаги идут свежими первыми — это последний Rate Con груза, как и везде.
+  const rc = docs.find((d) => d.kind === 'ratecon')
   return (
     <details open={open} className="group/load overflow-hidden rounded-xl border border-white/8 bg-white/[0.02]">
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2 transition-colors hover:bg-white/[0.04] [&::-webkit-details-marker]:hidden">
@@ -769,20 +772,34 @@ function LoadPapersRow({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {NEEDED.map((k) => (
-            <span
-              key={k}
-              title={docKindLabel(k, locale)}
-              className={`inline-flex h-6 items-center gap-0.5 rounded-md px-1.5 text-2xs font-bold ${
-                kinds.has(k)
-                  ? 'bg-good-500/12 text-good-400 ring-1 ring-good-500/25 ring-inset'
-                  : 'border border-dashed border-white/15 text-t3'
-              }`}
-            >
-              {kinds.has(k) && <Check size={10} strokeWidth={3.5} aria-hidden />}
-              {SHORT[k]}
-            </span>
-          ))}
+          {NEEDED.map((k) =>
+            k === 'ratecon' && rc ? (
+              // Есть Rate Con — на месте зелёной галочки сама кнопка открыть его: два «RC»
+              // рядом говорили одно и то же. Внутри <summary> клик не сворачивает строку.
+              <span
+                key={k}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                }}
+              >
+                <RateConButton docId={rc.id} compact />
+              </span>
+            ) : (
+              <span
+                key={k}
+                title={docKindLabel(k, locale)}
+                className={`inline-flex h-6 items-center gap-0.5 rounded-md px-1.5 text-2xs font-bold ${
+                  kinds.has(k)
+                    ? 'bg-good-500/12 text-good-400 ring-1 ring-good-500/25 ring-inset'
+                    : 'border border-dashed border-white/15 text-t3'
+                }`}
+              >
+                {kinds.has(k) && <Check size={10} strokeWidth={3.5} aria-hidden />}
+                {SHORT[k]}
+              </span>
+            ),
+          )}
           {extra > 0 && <span className="nums rounded-md bg-white/6 px-1.5 py-1 text-2xs font-bold text-t2">+{extra}</span>}
           <a
             href={`/loads/${loadId}`}
