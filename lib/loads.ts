@@ -234,17 +234,6 @@ export async function loadsMissingPod(companyId: CompanyId, loads: LoadRecord[])
     .sort((a, b) => (b.deliveryDate ?? b.createdAt).localeCompare(a.deliveryDate ?? a.createdAt))
 }
 
-export async function rateConByLoad(companyId: CompanyId): Promise<Map<number, number>> {
-  const rows = await sql`
-    SELECT load_id, id FROM (
-      SELECT load_id, id, ROW_NUMBER() OVER (PARTITION BY load_id ORDER BY uploaded_at DESC) AS rn
-      FROM documents
-      WHERE company_id = ${companyId} AND kind = 'ratecon' AND load_id IS NOT NULL
-    ) x WHERE rn = 1`
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  return new Map(rows.map((r: any) => [r.load_id as number, r.id as number]))
-}
-
 /** Бумаги, по которым судят «чего не хватает» и «пора выставлять счёт»: последний Rate
  *  Con каждого груза (id документа) и грузы с КОНЕЧНЫМ POD (stop_seq IS NULL) — те же
  *  условия, по которым lib/invoice.ts выставляет счёт. Нужны «Грузам» и ленте «Сегодня». */

@@ -11,7 +11,7 @@
 // падал с React #310 (см. next.config.ts).
 
 import Link from 'next/link'
-import { rateConByLoad } from '@/lib/loads'
+import { loadPapers } from '@/lib/loads'
 import { ByDispatcher, ByWeek, Paid, Unpaid } from '@/app/docs/finance-tabs'
 import { ByDriver } from '@/app/docs/drivers-tab'
 import { ChipNav, type NavItem } from '@/app/docs/tab-nav'
@@ -79,9 +79,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
 async function Money({ tab, companyId, locale, week }: { tab: MoneyTab; companyId: CompanyId; locale: Locale; week?: string }) {
   switch (tab) {
     case 'unpaid':
-      return <Unpaid companyId={companyId} rateCons={await rateConByLoad(companyId)} locale={locale} />
+      // Rate Con — тот же источник, что у «Грузов»: рейт-кон из корзины кнопку не получает.
+      return <Unpaid companyId={companyId} rateCons={(await loadPapers(companyId)).rateCons} locale={locale} />
     case 'paid':
-      return <Paid companyId={companyId} rateCons={await rateConByLoad(companyId)} locale={locale} />
+      return <Paid companyId={companyId} rateCons={(await loadPapers(companyId)).rateCons} locale={locale} />
     case 'weeks':
       return <ByWeek companyId={companyId} locale={locale} />
     case 'dispatchers':

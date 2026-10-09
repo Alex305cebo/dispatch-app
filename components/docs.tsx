@@ -772,33 +772,35 @@ function LoadPapersRow({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {NEEDED.map((k) => (
-            <span
-              key={k}
-              title={docKindLabel(k, locale)}
-              className={`inline-flex h-6 items-center gap-0.5 rounded-md px-1.5 text-2xs font-bold ${
-                kinds.has(k)
-                  ? 'bg-good-500/12 text-good-400 ring-1 ring-good-500/25 ring-inset'
-                  : 'border border-dashed border-white/15 text-t3'
-              }`}
-            >
-              {kinds.has(k) && <Check size={10} strokeWidth={3.5} aria-hidden />}
-              {SHORT[k]}
-            </span>
-          ))}
-          {extra > 0 && <span className="nums rounded-md bg-white/6 px-1.5 py-1 text-2xs font-bold text-t2">+{extra}</span>}
-          {rc && (
-            // Внутри <summary> клик по кнопке не должен сворачивать строку.
-            <span
-              className="ml-1"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-              }}
-            >
-              <RateConButton docId={rc.id} compact />
-            </span>
+          {NEEDED.map((k) =>
+            k === 'ratecon' && rc ? (
+              // Есть Rate Con — на месте зелёной галочки сама кнопка открыть его: два «RC»
+              // рядом говорили одно и то же. Внутри <summary> клик не сворачивает строку.
+              <span
+                key={k}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                }}
+              >
+                <RateConButton docId={rc.id} compact />
+              </span>
+            ) : (
+              <span
+                key={k}
+                title={docKindLabel(k, locale)}
+                className={`inline-flex h-6 items-center gap-0.5 rounded-md px-1.5 text-2xs font-bold ${
+                  kinds.has(k)
+                    ? 'bg-good-500/12 text-good-400 ring-1 ring-good-500/25 ring-inset'
+                    : 'border border-dashed border-white/15 text-t3'
+                }`}
+              >
+                {kinds.has(k) && <Check size={10} strokeWidth={3.5} aria-hidden />}
+                {SHORT[k]}
+              </span>
+            ),
           )}
+          {extra > 0 && <span className="nums rounded-md bg-white/6 px-1.5 py-1 text-2xs font-bold text-t2">+{extra}</span>}
           <a
             href={`/loads/${loadId}`}
             onClick={(e) => e.stopPropagation()}
