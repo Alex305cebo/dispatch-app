@@ -85,9 +85,13 @@ export function DocViewer({ id, mime }: { id: number; mime: string }) {
 
     void (async () => {
       try {
-        const pdfjs = await import('pdfjs-dist')
+        // The legacy build, not the default one: the default build calls
+        // Map.prototype.getOrInsertComputed, which browsers that are not brand new lack
+        // (Chromium 141 does), so the rate con came up as a TypeError instead of the
+        // document. The legacy build ships the same code with core-js polyfills.
+        const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
         pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-          'pdfjs-dist/build/pdf.worker.min.mjs',
+          'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
           import.meta.url,
         ).toString()
 
@@ -185,34 +189,39 @@ export function DocViewer({ id, mime }: { id: number; mime: string }) {
 
   return (
     <>
-      {/* Floating, see-through zoom. Fixed, so the document scrolls under it. */}
-      <div className="fixed bottom-32 right-4 z-40 flex flex-col gap-2 md:bottom-8 md:right-6">
-        {[
-          { label: '+', f: 1.25, title: t(locale, 'docs.viewer.zoomIn') },
-          { label: '−', f: 1 / 1.25, title: t(locale, 'docs.viewer.zoomOut') },
-        ].map((b) => (
-          <button
-            key={b.label}
-            onClick={() => step(b.f)}
-            aria-label={b.title}
-            title={b.title}
-            // Colours are hard-coded, not theme tokens: these sit ON TOP of the white
-            // document page, so a "white" glyph would vanish there — and the light
-            // theme flips --color-white to near-black, which would hide it again.
-            // Dark translucent fill + white glyph + white hairline ring reads on both
-            // a white page and a dark background.
-            style={{
-              background: 'rgba(15, 18, 24, 0.62)',
-              color: '#ffffff',
-              boxShadow:
-                '0 0 0 1.5px rgba(255,255,255,0.55), 0 6px 20px rgba(0,0,0,0.45)',
-            }}
-            className="flex size-12 items-center justify-center rounded-full text-[24px] font-medium leading-none backdrop-blur-md transition-transform hover:scale-105 active:scale-95"
-          >
-            {b.label}
-          </button>
-        ))}
-      </div>
+      {/* Floating, see-through zoom. Fixed, so the document scrolls under it. Only once
+          there is a document to zoom: while it opens or after it failed, the window
+          around it is short, and inside DocModal (whose glass panel is the containing
+          block for "fixed") the buttons rode up over its ✕. */}
+      {(state === 'ready' || !isPdf) && (
+        <div className="fixed bottom-32 right-4 z-40 flex flex-col gap-2 md:bottom-8 md:right-6">
+          {[
+            { label: '+', f: 1.25, title: t(locale, 'docs.viewer.zoomIn') },
+            { label: '−', f: 1 / 1.25, title: t(locale, 'docs.viewer.zoomOut') },
+          ].map((b) => (
+            <button
+              key={b.label}
+              onClick={() => step(b.f)}
+              aria-label={b.title}
+              title={b.title}
+              // Colours are hard-coded, not theme tokens: these sit ON TOP of the white
+              // document page, so a "white" glyph would vanish there — and the light
+              // theme flips --color-white to near-black, which would hide it again.
+              // Dark translucent fill + white glyph + white hairline ring reads on both
+              // a white page and a dark background.
+              style={{
+                background: 'rgba(15, 18, 24, 0.62)',
+                color: '#ffffff',
+                boxShadow:
+                  '0 0 0 1.5px rgba(255,255,255,0.55), 0 6px 20px rgba(0,0,0,0.45)',
+              }}
+              className="flex size-12 items-center justify-center rounded-full text-[24px] font-medium leading-none backdrop-blur-md transition-transform hover:scale-105 active:scale-95"
+            >
+              {b.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {state === 'loading' && isPdf && (
         <p className="py-10 text-center text-base text-t3">{t(locale, 'docs.viewer.opening')}</p>
