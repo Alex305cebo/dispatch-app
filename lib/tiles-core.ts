@@ -232,6 +232,39 @@ export function migrateLoadOrder(saved: TilePlacement[]): TilePlacement[] {
 /** Все переезды карточки груза по порядку — то, что отдаётся в tileGrid. */
 export const migrateLoadCard = (saved: TilePlacement[]): TilePlacement[] => migrateLoadOrder(migrateLoadPapers(saved))
 
+/** Карточка трака по плану «Порядок в TMS» (10/09/26). Двенадцать плиток-цифр
+ *  собраны в «Неделю», «Новый груз из rate con» стал кнопкой «＋ Груз» в шапке,
+ *  «История пути» — частью карты, а грузы, документы, обслуживание и экономика трака —
+ *  вкладками.
+ *
+ *  Раскладка с любым из старых ключей уступает новой целиком, один раз — как
+ *  migrateLoadOrder: иначе новые плитки встали бы в конец, под старый порядок. */
+const TRUCK_RETIRED = new Set([
+  'week-rate',
+  'week-miles',
+  'rpm',
+  'deadhead',
+  'week-target',
+  'week-target-gross',
+  'on-time',
+  'odometer',
+  'oil',
+  'fuel',
+  'load-fuel',
+  'ratecon',
+  'trips',
+  'loads',
+  'docs',
+  'care',
+  'economics',
+])
+export function migrateTruckOrder(saved: TilePlacement[]): TilePlacement[] {
+  return saved.some((p) => TRUCK_RETIRED.has(p.id)) ? TRUCK_DETAIL_TILES : saved
+}
+
+/** Все переезды карточки трака по порядку — то, что отдаётся в tileGrid. */
+export const migrateTruckCard = (saved: TilePlacement[]): TilePlacement[] => migrateTruckOrder(migrateTruckDriverCard(saved))
+
 /** Раскладки остальных разделов по умолчанию — тот порядок, в котором блоки стояли до
  *  плиток. Все здесь по той же причине, что и TRUCKS_TILES: страницы-серверы не могут
  *  забрать обычное значение из модуля с 'use client'. */
@@ -365,38 +398,25 @@ export const LOAD_DETAIL_TILES: TilePlacement[] = [
   { id: 'backhaul', size: 'l' },
 ]
 
-/** Карточка трака — по той же причине со всеми условными плитками в списке. */
+/** Карточка трака — по той же причине со всеми условными плитками в списке.
+ *
+ *  План «Порядок в TMS» (10/09/26): шапка с одной кнопкой «＋ Груз» → текущий груз →
+ *  карта с историей пути → неделя картинками → вкладки «Грузы | Документы |
+ *  Обслуживание». */
 export const TRUCK_DETAIL_TILES: TilePlacement[] = [
-  // Шапка разобрана: паспорт с фото, текущее задание, длинные части задания и
-  // одиннадцать цифр трака, каждая своей маленькой плиткой. Часть цифр есть не у
-  // каждого трака — ключи смысловые, чтобы сохранённый порядок не путал пробег с
-  // топливом.
+  // Паспорт с фото, водитель, где сейчас и бак — и «＋ Груз».
   { id: 'hero', size: 'l' },
   // Во всю строку: задание бывает высоким (маршрут, даты, частичные грузы), и
   // маленькая плитка рядом с ним растягивалась на его высоту с одной цифрой внутри.
   { id: 'assignment', size: 'l' },
   { id: 'task', size: 'l' },
-  { id: 'week-rate', size: 's' },
-  { id: 'week-miles', size: 's' },
-  { id: 'rpm', size: 's' },
-  { id: 'deadhead', size: 's' },
-  { id: 'week-target', size: 's' },
-  { id: 'week-target-gross', size: 's' },
-  { id: 'on-time', size: 's' },
-  { id: 'odometer', size: 's' },
-  { id: 'oil', size: 's' },
-  { id: 'fuel', size: 's' },
-  { id: 'load-fuel', size: 's' },
   { id: 'todos', size: 'l' },
+  // Карта и история пути — одна плитка: это один ответ на «где он был и где он сейчас».
   { id: 'map', size: 'l' },
-  { id: 'ratecon', size: 'l' },
   { id: 'driver', size: 'l' },
-  { id: 'trips', size: 'l' },
-  { id: 'loads', size: 'w' },
-  { id: 'docs', size: 'w' },
-  // «driver-card» (Водитель · CDL, медкарта, фото) убрана 22.09.2026: она повторяла
-  // шапку трака, её уникальное переехало в «hero». Сохранённый ключ applyLayout
-  // выбрасывает сам — как любой незнакомый.
-  { id: 'care', size: 'l' },
-  { id: 'economics', size: 'l' },
+  // Неделя трака одной строкой картинок вместо двенадцати маленьких плиток-цифр —
+  // прямо над вкладкой «Грузы», где эти же грузы списком.
+  { id: 'week', size: 'l' },
+  // Грузы, бумаги и обслуживание — вкладками (components/truck-tabs.tsx).
+  { id: 'tabs', size: 'l' },
 ]

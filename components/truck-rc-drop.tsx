@@ -56,7 +56,7 @@ export function TruckRcDrop({
   truckId: number
   /** Груз, который трак везёт сейчас: новый рейт-кон может быть партиалом к нему. */
   currentLoad?: { id: number; route: string } | null
-  /** Файлы, уже выбранные кнопкой в шапке трака (components/truck-rc-button.tsx), — разбор сразу. */
+  /** Файлы, брошенные на кнопку «＋ Груз» в шапке трака (components/truck-add-load.tsx), — разбор сразу. */
   files?: File[]
 }) {
   const locale = useLocale()

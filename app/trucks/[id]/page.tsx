@@ -1,14 +1,13 @@
-import { cityOf } from '@/lib/maintenance-core'
+import { cityOf, expiries } from '@/lib/maintenance-core'
 import Link from 'next/link'
 import { type ReactNode } from 'react'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
 import { tileGrid } from '@/lib/tiles'
-import { migrateTruckDriverCard, TRUCK_DETAIL_TILES } from '@/lib/tiles-core'
+import { migrateTruckCard, TRUCK_DETAIL_TILES } from '@/lib/tiles-core'
 import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
-import { Phone, Plus } from 'lucide-react'
+import { Droplet, Fuel, Phone } from 'lucide-react'
 import { BackButton } from '@/components/back-button'
-import { Button } from '@/components/button'
 import { PairBar } from '@/components/pair-bar'
 import { DriverLinkButton } from '@/components/driver-link-button'
 import { sql } from '@/lib/db'
@@ -19,7 +18,7 @@ import { fleetStatusByUnit, getTruckMeta, listMaintenance, listTodos, oilStatus 
 import { tripHistory } from '@/lib/eld'
 import { seesFleetGps } from '@/lib/company'
 import { loadMapData, statusTone } from '@/lib/load-map'
-import { usd, usd2, weekBounds, loadWeekAnchorMs, usDate } from '@/lib/fmt'
+import { usd, usd2, weekBounds, weekStartIso, loadWeekAnchorMs, usDate } from '@/lib/fmt'
 import { zoneFor } from '@/lib/tz'
 import { LocalTime } from '@/components/local-time'
 import { FleetMap } from '@/components/fleet-map'
@@ -27,9 +26,10 @@ import { StatusBadge, statusLabel } from '@/components/status'
 import { TruckForm } from '@/components/truck-form'
 import { FuelPriceButton } from '@/components/fuel-price-button'
 import { TruckCare } from '@/components/truck-care'
-import { DriverActions, DriverPhoto, HEAD_BTN } from '@/components/driver-card'
-import { TruckRcButton } from '@/components/truck-rc-button'
-import { TruckRcDrop } from '@/components/truck-rc-drop'
+import { DriverActions, DriverPhoto } from '@/components/driver-card'
+import { TruckAddLoad } from '@/components/truck-add-load'
+import { TruckTabs } from '@/components/truck-tabs'
+import { TruckWeek } from '@/components/truck-week'
 import { OrphanRateCons } from '@/components/orphan-ratecons'
 import { DocList, DocUpload } from '@/components/docs'
 import { RateConButton } from '@/components/ratecon-button'
@@ -50,7 +50,7 @@ import { queueFit } from '@/lib/queue-fit-core'
 import { DriverTimeline } from '@/components/driver-timeline'
 import { QueuedLoadHint } from '@/components/queued-load-hint'
 import { getLocale } from '@/lib/i18n-server'
-import { t } from '@/lib/i18n'
+import { t, type Locale } from '@/lib/i18n'
 import { CopyPlace } from '@/components/copy-place'
 import { TruckPhoto } from '@/components/truck-photo'
 import { DateMore } from '@/components/date-more'
@@ -152,15 +152,12 @@ export default async function Page({
   // Доставленные грузы без POD — первой строкой «Текущего задания».
   const missingPod = await loadsMissingPod(companyId, live)
   const rows = live.map((l) => ({ load: l, r: calcLoad(l, truck) }))
-  const active = live.filter((l) => l.status === 'booked' || l.status === 'in_transit').length
 
-  // The hero chips are all "this truck's week at a glance" — Чистыми/Ставка-миля
-  // must come from the SAME loads as Рейт за неделю, or net (from every active
-  // load ever) reads as bigger than gross (from just this week), which looks like
-  // the math is broken even though each number was individually correct.
+  // «Неделя» трака — гросс, мили, $/mi и пустые мили из ОДНИХ И ТЕХ ЖЕ грузов недели:
+  // цифра «за всё время» рядом с недельной читалась как ошибка в расчёте.
   const { start: weekBegin, end: weekEnd } = weekBounds()
   // Same anchoring as the trucks list: this week's rows are the loads RUN this week
-  // (pickup date, Monday→Monday), so week gross/net/RPM all describe the same 7 days.
+  // (pickup date, Friday→Friday), so week gross/miles/RPM all describe the same 7 days.
   // Заявки (не подтверждены) в неделю не входят — как на «Сегодня», «Грузах» и в «Деньгах».
   const weekRows = rows.filter((x) => {
     const ms = loadWeekAnchorMs(x.load.pickupDate, x.load.createdAt)
@@ -168,9 +165,7 @@ export default async function Page({
   })
   const weekGross = weekRows.reduce((s, x) => s + x.load.rate, 0)
   const weekMiles = weekRows.reduce((s, x) => s + x.r.totalMiles, 0)
-  const avgRpm = weekMiles > 0 ? weekRows.reduce((s, x) => s + x.r.gross, 0) / weekMiles : 0
   const weekDeadhead = weekRows.reduce((s, x) => s + x.r.deadheadMiles, 0)
-  const weekDeadheadPct = weekMiles > 0 ? Math.round((weekDeadhead / weekMiles) * 100) : 0
   // Сколько дней стоит без груза: от плановой даты последней доставки. Дата
   // доставки, а не статус, потому что груз могут отметить «доставлен» и через
   // неделю — а трак всё это время уже искал работу.
@@ -342,9 +337,11 @@ export default async function Page({
               }}
               locale={locale}
             />
-            <TruckRcButton
+            {/* «＋ Груз» — одна кнопка на всю карточку (план «Порядок в TMS»): Rate Con
+                или вручную. Раньше то же самое было кнопкой здесь, плиткой «Новый груз
+                из rate con» и кнопкой «Добавить груз» у списка грузов. */}
+            <TruckAddLoad
               truckId={truck.id}
-              className={HEAD_BTN}
               currentLoad={
                 activeLoad
                   ? { id: activeLoad.id, route: `${activeLoad.origin ?? '—'} → ${activeLoad.destination ?? '—'}` }
@@ -419,6 +416,7 @@ export default async function Page({
                 hideText
                 className="mt-1.5"
               />
+              <TruckState fuel={fs.fuel} oil={oil} locale={locale} />
             </HeadField>
           )}
         </dl>
@@ -455,6 +453,7 @@ export default async function Page({
                   hideText
                   className="mt-1.5"
                 />
+                <TruckState fuel={fs.fuel} oil={oil} locale={locale} />
               </HeadField>
             </dl>
           )}
@@ -473,6 +472,14 @@ export default async function Page({
         </h2>
         <MissingPodBanner loads={missingPod} rateCons={rateCons} locale={locale} className="mb-3" />
         <StalePartialBanner items={stalePartials} locale={locale} />
+        {/* Rate Con, из которого груз так и не завёлся (разбор прервали) — одной
+            кнопкой в груз. Жил в плитке «Новый груз из rate con», которой больше нет. */}
+        <OrphanRateCons
+          truckId={truck.id}
+          docs={docs
+            .filter((d) => d.kind === 'ratecon' && d.loadId === null)
+            .map((d) => ({ id: d.id, title: d.title, uploadedAt: d.uploadedAt }))}
+        />
         {activeLoad ? (
           <>
             {/* Статус — ВПЛОТНУЮ к маршруту. justify-between отбрасывал его к правому
@@ -559,9 +566,10 @@ export default async function Page({
             ))}
           </>
         ) : (
-          <div className="flex flex-wrap items-center justify-between gap-2 text-base text-t3">
+          <div className="text-base text-t3">
             {/* Не просто «свободен», а ГДЕ стоит: это и есть ответ, в каком городе
-                искать ему груз. Без GPS остаётся прежняя фраза. */}
+                искать ему груз. Без GPS остаётся прежняя фраза. Завести груз — кнопкой
+                «＋ Груз» в шапке. */}
             <span className="flex flex-wrap items-center gap-2">
               {idleDays != null && (
                 <span
@@ -578,15 +586,6 @@ export default async function Page({
                   : t(locale, 'trucks.detail.noActiveLoad')}
               </span>
             </span>
-            {/* Свободный трак — главное действие на карточке: завести ему груз.
-                Была текстовая ссылка «+ груз» в углу, её не находили. */}
-            <Button
-              href={`/loads/new?truck=${truck.id}`}
-              variant="primary"
-              icon={<Plus size={15} strokeWidth={2.5} />}
-            >
-              {t(locale, 'trucks.detail.addLoadCta')}
-            </Button>
           </div>
         )}
         <PrevLoad load={prevLoad} rcId={prevLoad ? rateCons.get(prevLoad.id) : undefined} locale={locale} className="mt-3" />
@@ -653,105 +652,42 @@ export default async function Page({
       </section>
     ))
 
-  // Цифры трака — каждая своей маленькой плиткой. Раньше это была одна таблица на
-  // всю ширину: двенадцать чисел, которые нельзя ни подвинуть, ни убрать.
-  // Ключи смысловые, а не по порядку: часть цифр есть не у каждого трака, и
-  // сохранённый порядок не должен путать пробег с топливом.
-  const chips: (ChipProps & { id: string })[] = [
-  {
-    id: 'week-rate',
-    label: t(locale, 'trucks.chip.weekRate'),
-    value: usd.format(weekGross),
-    tone: weekGross > 0 ? 'good' : undefined,
-    info: t(locale, 'trucks.chip.weekRateInfo'),
-  },
-  {
-    id: 'week-miles',
-    label: t(locale, 'trucks.chip.weekMiles'),
-    value: `${Math.round(weekMiles).toLocaleString('en-US')} mi`,
-    info: t(locale, 'trucks.chip.weekMilesInfo'),
-  },
-  { id: 'rpm', label: t(locale, 'trucks.chip.rpm'), value: usd2.format(avgRpm), info: t(locale, 'trucks.chip.rpmInfo') },
-  {
-    id: 'deadhead',
-    label: t(locale, 'trucks.chip.deadhead'),
-    value: weekMiles > 0 ? `${Math.round(weekDeadhead).toLocaleString('en-US')} mi · ${weekDeadheadPct}%` : '—',
-    tone: weekMiles > 0 ? (weekDeadheadPct >= 25 ? 'bad' : weekDeadheadPct >= 15 ? 'warn' : 'good') : undefined,
-    info: t(locale, 'trucks.chip.deadheadInfo'),
-  },
-  // Цель недели из профиля водителя: сколько уже проехал / заработал против цели.
-  ...(meta?.weekTargetMiles
-    ? [
-        {
-          id: 'week-target',
-          label: t(locale, 'trucks.chip.weekTarget'),
-          value: `${Math.round(weekMiles).toLocaleString('en-US')} / ${meta.weekTargetMiles.toLocaleString('en-US')} mi · ${Math.round((weekMiles / meta.weekTargetMiles) * 100)}%`,
-          tone: weekMiles >= meta.weekTargetMiles ? ('good' as const) : undefined,
-          info: t(locale, 'trucks.chip.weekTargetInfo'),
-        },
-      ]
-    : []),
-  ...(meta?.weekTargetGross
-    ? [
-        {
-          id: 'week-target-gross',
-          label: t(locale, 'trucks.chip.weekTargetGross'),
-          value: `${usd.format(weekGross)} / ${usd.format(meta.weekTargetGross)} · ${Math.round((weekGross / meta.weekTargetGross) * 100)}%`,
-          tone: weekGross >= meta.weekTargetGross ? ('good' as const) : undefined,
-          info: t(locale, 'trucks.chip.weekTargetInfo'),
-        },
-      ]
-    : []),
-  {
-    id: 'on-time',
-    label: `${t(locale, 'trucks.chip.onTime')}${truck.driverName ? ` · ${truck.driverName}` : ''}`,
-    value:
-      onTimePct == null
-        ? t(locale, 'trucks.chip.onTimeFew')
-        : t(locale, 'trucks.chip.onTimeValue').replace('{pct}', String(onTimePct)).replace('{n}', String(onTime.total)),
-    tone: onTimePct == null ? undefined : onTimePct >= 90 ? 'good' : onTimePct < 80 ? 'warn' : undefined,
-    info: t(locale, 'trucks.chip.onTimeInfo'),
-  },
-  ...(fs?.odometer != null
-    ? [
-        {
-          id: 'odometer',
-          label: t(locale, 'trucks.chip.odometer'),
-          value: `${Math.round(fs.odometer).toLocaleString('en-US')} mi`,
-          info: t(locale, 'trucks.chip.odometerInfo'),
-        },
-      ]
-    : []),
-  {
-    id: 'oil',
-    label: t(locale, 'trucks.chip.oilIn'),
-    value: oil ? `${Math.max(0, oil.milesLeft).toLocaleString('en-US')} mi` : '—',
-    tone: oil?.tone,
-    info: t(locale, 'trucks.chip.oilInInfo'),
-  },
-  ...(fs?.fuel != null
-    ? [
-        {
-          id: 'fuel',
-          label: t(locale, 'trucks.chip.fuel'),
-          value: `${Math.round(fs.fuel)}%`,
-          tone: fs.fuel <= 15 ? ('bad' as const) : fs.fuel <= 30 ? ('warn' as const) : undefined,
-          info: t(locale, 'trucks.chip.fuelInfo'),
-        },
-      ]
-    : []),
-  ...(activeLoad
-    ? [
-        {
-          id: 'load-fuel',
-          label: t(locale, 'trucks.chip.loadFuel'),
-          value: usd.format(calcLoad(activeLoad, truck).fuel),
-          info: t(locale, 'trucks.chip.loadFuelInfo'),
-        },
-      ]
-    : []),
-]
-  for (const c of chips) add(c.id, <Chip {...c} />)
+  // Неделя трака — одной плиткой картинок (components/truck-week.tsx) вместо
+  // двенадцати плиток-цифр (план «Порядок в TMS»; владелец 09.10: «меньше цифр,
+  // больше визуала»): гросс столбиками по дням пикапа, мили полосой «гружёные / пустые»,
+  // «вовремя» кольцом. Бак — шкалой в шапке, пробег и масло — во вкладке
+  // «Обслуживание», топливо груза — в расходах на карточке груза.
+  // Столбики по дням пикапа (без пикапа — по дню заведения, как у недели выше):
+  // эта неделя и прошлая — пунктиром за ней.
+  const weekFrom = weekStartIso(todayEt())
+  const weekDays = Array.from({ length: 7 }, () => 0)
+  const prevDays = Array.from({ length: 7 }, () => 0)
+  for (const { load } of rows) {
+    if (load.status === 'quoted') continue
+    const iso = load.pickupDate ? load.pickupDate.slice(0, 10) : todayEt(new Date(load.createdAt))
+    const i = Math.round((Date.parse(`${iso}T12:00:00Z`) - Date.parse(`${weekFrom}T12:00:00Z`)) / 86_400_000)
+    if (i >= 0 && i < 7) weekDays[i] += load.rate
+    else if (i >= -7 && i < 0) prevDays[i + 7] += load.rate
+  }
+  add('week', (
+    <TruckWeek
+      locale={locale}
+      d={{
+        weekFrom,
+        today: todayEt(),
+        days: weekDays,
+        gross: weekGross,
+        prevDays,
+        prevGross: prevDays.reduce((a, b) => a + b, 0),
+        targetGross: meta?.weekTargetGross ?? null,
+        miles: weekMiles,
+        deadhead: weekDeadhead,
+        targetMiles: meta?.weekTargetMiles ?? null,
+        onTimePct,
+        onTimeTotal: onTime.total,
+      }}
+    />
+  ))
 
   // Незакрытый ремонт: висит, пока пункт не отметят выполненным в «Нужно починить».
   // Строкой в самом низу страницы о поломке узнавали практически никогда.
@@ -794,64 +730,52 @@ export default async function Page({
       </a>
     ))
 
-  // Где трак сейчас и куда сдаёт.
-  if (mapMarkers.length > 0)
-    add('map', (
-      <section className="panel p-4">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
-            {t(locale, 'trucks.detail.onMap')}
-            <Info text={t(locale, 'trucks.detail.onMapInfo')} />
-          </h2>
-          <RefreshFleetButton
-            staleMinutes={fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null}
-          />
-        </div>
-        <FleetMap
-          markers={mapMarkers}
-          routes={mapRoutes}
-          height="clamp(320px, 46vh, 600px)"
-          distanceMi={routeMiles}
-        />
-        {/* Два груза в трейлере: остановки обоих одним списком прямо под картой —
-            порядок меняется перетаскиванием или стрелками, и дорога с милями над
-            списком перестраивается по нему. */}
-        {mapShowsTask && (
-          <TaskStops loads={taskLoads} events={taskEvents} locale={locale} truckId={truck.id} order={taskOrder} className="mt-4" />
-        )}
-      </section>
-    ))
-
-  // Рейт-кон прилетает каждый час, и с него начинается любая работа с траком.
-  add('ratecon', (
+  // Где трак сейчас и где был — одна плитка: карта, под ней история пути (план
+  // «Порядок в TMS»: «Карта и история пути»). Без GPS карты нет — история остаётся.
+  // Окно истории переключается на клиенте (components/trip-history-panel.tsx);
+  // ?history= по-прежнему задаёт первое окно, чтобы старые ссылки работали.
+  add('map', (
     <section className="panel p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
-          {t(locale, 'trucks.detail.newLoadFromRc')}
-          <Info text={t(locale, 'trucks.detail.newLoadFromRcInfo')} />
-        </h2>
-        <Link href={`/loads/new?truck=${truck.id}`} className="text-sm text-t3 hover:text-t1">
-          {t(locale, 'trucks.detail.orManually')}
-        </Link>
+      {mapMarkers.length > 0 && (
+        <>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
+              {t(locale, 'trucks.detail.onMap')}
+              <Info text={t(locale, 'trucks.detail.onMapInfo')} />
+            </h2>
+            <RefreshFleetButton
+              staleMinutes={fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null}
+            />
+          </div>
+          <FleetMap
+            markers={mapMarkers}
+            routes={mapRoutes}
+            height="clamp(320px, 46vh, 600px)"
+            distanceMi={routeMiles}
+          />
+          {/* Два груза в трейлере: остановки обоих одним списком прямо под картой —
+              порядок меняется перетаскиванием или стрелками, и дорога с милями над
+              списком перестраивается по нему. */}
+          {mapShowsTask && (
+            <TaskStops loads={taskLoads} events={taskEvents} locale={locale} truckId={truck.id} order={taskOrder} className="mt-4" />
+          )}
+        </>
+      )}
+      <div className={mapMarkers.length > 0 ? 'mt-4 border-t border-white/8 pt-3' : ''}>
+        <TripHistoryPanel
+          embedded
+          truckId={truck.id}
+          windows={HISTORY_WINDOWS}
+          initialHours={historyWindow.hours}
+          initialLegs={history}
+          // Города погрузок и выгрузок этого трака — по ним стоянка в истории
+          // распознаётся как детеншен. Грузы уже загружены выше, нового запроса нет.
+          stops={loads.flatMap((l) => [
+            ...(l.origin ? [{ city: l.origin, kind: 'pickup' as const, day: l.pickupDate }] : []),
+            ...(l.destination ? [{ city: l.destination, kind: 'delivery' as const, day: l.deliveryDate }] : []),
+          ])}
+        />
       </div>
-      <TruckRcDrop
-        truckId={truck.id}
-        currentLoad={
-          activeLoad
-            ? { id: activeLoad.id, route: `${activeLoad.origin ?? '—'} → ${activeLoad.destination ?? '—'}` }
-            : null
-        }
-      />
-      <OrphanRateCons
-        truckId={truck.id}
-        docs={docs
-          .filter((d) => d.kind === 'ratecon' && d.loadId === null)
-          .map((d) => ({
-            id: d.id,
-            title: d.title,
-            uploadedAt: d.uploadedAt,
-          }))}
-      />
     </section>
   ))
 
@@ -889,87 +813,49 @@ export default async function Page({
       />
     ))
 
-  // История пути. Переключатель окна — на клиенте (components/trip-history-panel.tsx);
-  // ?history= по-прежнему задаёт первое окно, чтобы старые ссылки работали.
-  add('trips', (
-    <TripHistoryPanel
-      truckId={truck.id}
-      windows={HISTORY_WINDOWS}
-      initialHours={historyWindow.hours}
-      initialLegs={history}
-      // Города погрузок и выгрузок этого трака — по ним стоянка в истории
-      // распознаётся как детеншен. Грузы уже загружены выше, нового запроса нет.
-      stops={loads.flatMap((l) => [
-        ...(l.origin ? [{ city: l.origin, kind: 'pickup' as const, day: l.pickupDate }] : []),
-        ...(l.destination
-          ? [
-              {
-                city: l.destination,
-                kind: 'delivery' as const,
-                day: l.deliveryDate,
-              },
-            ]
-          : []),
-      ])}
-    />
-  ))
-
-  // Грузы трака и его бумаги — две плитки в полстроки, рядом.
-  add('loads', (
-    <section className="panel flex min-w-0 flex-col p-4">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-base leading-6 font-semibold text-t1">
-          {t(locale, 'trucks.detail.loadsHeading')}
-          {active > 0 && ` · ${active} ${t(locale, 'trucks.detail.inProgress')}`}
-        </h2>
-        <Button href={`/loads/new?truck=${truck.id}`} size="sm" icon={<Plus size={13} strokeWidth={2.5} />}>
-          {t(locale, 'trucks.detail.addLoadCta')}
-        </Button>
-      </div>
+  // Низ карточки — вкладками «Грузы | Документы | Обслуживание»
+  // (components/truck-tabs.tsx). Раньше это были четыре плитки на три экрана вниз:
+  // грузы и бумаги рядом, под ними обслуживание и свёрнутая экономика трака.
+  // Кнопки «Добавить груз» у списка больше нет — груз заводится «＋ Груз» в шапке.
+  const loadsNode = (
+    <section className="panel @container p-4">
       {rows.length === 0 ? (
         <p className="text-base text-t3">{t(locale, 'trucks.detail.noLoadsYet')}</p>
       ) : (
         <div className="flex flex-col gap-2">
           {/* Остальные грузы — не лентой, а по дню из мини-календаря (день пикапа). */}
-          <DateMore limit={4} items={rows.map(({ load, r }) => {
+          <DateMore limit={6} items={rows.map(({ load, r }) => {
             const rcId = rateCons.get(load.id)
             return { day: (load.pickupDate ?? load.createdAt).slice(0, 10), node: (
-              /* Two lines, not one. This card sits in a half-width column beside the
-                 documents panel, and the old single row asked the route, the status
-                 badge, the rate and the RC button to share ~330px — so every route
-                 clipped to "Denver, CO → Kansas C…". Route owns line one; the money
-                 drops to line two, where it has the width to itself. */
-              <div key={load.id} className="panel-interactive relative rounded-xl border border-white/6 p-3">
-                {/* The WHOLE row opens the load now, not just the route text — a
-                    2cm-wide link inside a card-sized target is a miss waiting to
-                    happen. Overlay link, so the RC button next to it keeps working
-                    (an anchor inside an anchor is invalid HTML and eats clicks). */}
+              /* Узко (телефон) — две строки: маршрут целиком, под ним статус, мили и
+                 ставка. Широко — одна строка, как в таблице: маршрут, цифры одной
+                 колонкой справа, кнопка Rate Con последней. */
+              <div
+                key={load.id}
+                className="panel-interactive relative flex flex-wrap items-start gap-x-3 gap-y-2 rounded-xl border border-white/6 p-3 @3xl:items-center"
+              >
+                {/* Вся строка открывает груз: ссылка-подложка, кнопка Rate Con рядом
+                    работает (<a> внутри <a> — невалидно и съедает нажатия). */}
                 <Link
                   href={`/loads/${load.id}`}
                   aria-label={`${load.origin ?? '—'} → ${load.destination ?? '—'}`}
                   className="absolute inset-0 rounded-[inherit]"
                 />
-                {/* Маршрут — первой строкой ЦЕЛИКОМ, с переносом: рядом с ним стоит
-                    только маленькая кнопка RC. Статус переехал во вторую строку —
-                    на телефоне он отнимал у маршрута половину ширины. */}
-                <div className="flex items-start gap-2">
-                  <span className="min-w-0 flex-1 text-md font-medium leading-5">
-                    {load.origin ?? '—'} → {load.destination ?? '—'}
+                <span className="min-w-0 flex-1 basis-0 text-md font-medium leading-5">
+                  {load.origin ?? '—'} → {load.destination ?? '—'}
+                </span>
+                {rcId && (
+                  <span className="relative z-10 -my-0.5 shrink-0 @3xl:order-last">
+                    <RateConButton docId={rcId} compact />
                   </span>
-                  {rcId && (
-                    <span className="relative z-10 -mt-0.5 shrink-0">
-                      <RateConButton docId={rcId} compact />
-                    </span>
-                  )}
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                )}
+                <div className="flex basis-full flex-wrap items-center gap-x-2 gap-y-1 @3xl:w-[26rem] @3xl:basis-auto">
                   <StatusBadge status={load.status} locale={locale} />
                   <span className="nums text-sm text-t2">
                     {Math.round(r.totalMiles)} mi · {usd2.format(r.allInRpm)}/mi
                   </span>
                   <DeadheadFlag miles={load.deadheadMiles} okMiles={load.deadheadOkMiles} locale={locale} className="relative z-10" />
-                  {/* Headline is the load's actual RATE, never net — the owner reads
-                      these cards as "what this load is worth". Net is the small line. */}
+                  {/* Крупно — ставка груза, а не чистыми: «сколько стоит груз». */}
                   <span className="nums ml-auto shrink-0 text-md font-bold">{usd.format(load.rate)}</span>
                 </div>
               </div>
@@ -978,16 +864,10 @@ export default async function Page({
         </div>
       )}
     </section>
-  ))
+  )
 
-  add('docs', (
+  const docsNode = (
     <section className="panel flex min-w-0 flex-col p-4">
-      <div className="mb-2">
-        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
-          {t(locale, 'trucks.detail.documents')}
-          <Info text={t(locale, 'trucks.detail.documentsInfo')} />
-        </h2>
-      </div>
       <DocUpload truckId={truck.id} />
       {/* attachTargets = this truck's live loads, so a file that came in via
           Telegram and landed under the truck can be recognised into a load or
@@ -996,7 +876,7 @@ export default async function Page({
         <DocList
           docs={docs}
           byDate
-          limit={Math.max(3, Math.round(Math.min(rows.length, 4) * 1.25))}
+          limit={8}
           attachTargets={live.map((l) => ({
             id: l.id,
             label: `${l.origin ?? '—'} → ${l.destination ?? '—'}`,
@@ -1004,12 +884,13 @@ export default async function Page({
         />
       </div>
     </section>
-  ))
+  )
 
-  // Масло, «нужно починить», сроки и журнал. id="care" — цель ссылок о сроках
-  // документов с обзора, поэтому его менять нельзя.
-  add('care', (
-    <div id="care" className="scroll-mt-4">
+  // Обслуживание: масло, «нужно починить», сроки и журнал — и экономика трака
+  // (свёрнута, в заголовке все её цифры одной строкой). Ссылки «#care» открывают
+  // эту вкладку: id="care" теперь у самих вкладок.
+  const careNode = (
+    <div className="flex flex-col gap-4">
       <TruckCare
         truckId={truck.id}
         meta={meta}
@@ -1020,69 +901,88 @@ export default async function Page({
         docs={docs}
         locale={locale}
       />
+      <details className="group panel p-4">
+        <summary className="-m-1 flex cursor-pointer list-none flex-wrap items-center gap-1.5 rounded-lg p-1 text-base leading-6 font-semibold text-t1 transition-colors hover:bg-white/[0.03] hover:text-t1">
+          <span className="text-base leading-none text-t3 transition-transform duration-200 group-open:rotate-90">
+            ▸
+          </span>
+          {t(locale, 'trucks.detail.economics')}
+          <Info text={t(locale, 'trucks.detail.economicsInfo')} />
+          <span className="nums flex min-w-0 basis-full flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-normal text-t2 group-open:hidden sm:ml-2 sm:basis-auto">
+            <span>{truck.mpg} mpg</span>
+            <span aria-hidden>·</span>
+            <span>{usd2.format(truck.fuelPricePerGallon)}/gal</span>
+            <FuelPriceButton truckId={truck.id} locale={locale} />
+            <span aria-hidden>·</span>
+            <span>
+              {t(locale, 'trucks.econ.driver')}{' '}
+              {truck.driverPay.mode === 'cpm' ? `${truck.driverPay.centsPerMile}¢/mi` : `${truck.driverPay.percentOfGross}%`}
+            </span>
+            <span aria-hidden>·</span>
+            <span>
+              {usd.format(truck.truckPaymentPerDay + truck.insurancePerDay + truck.eldPermitsPerDay)}/{t(locale, 'trucks.econ.day')}
+            </span>
+            <span aria-hidden>·</span>
+            <span>
+              {t(locale, 'trucks.econ.maint')} {usd2.format(truck.maintenanceCostPerMile)}/mi
+            </span>
+            <span aria-hidden>·</span>
+            <span>
+              {t(locale, 'trucks.econ.factoring')} {truck.factoringPercent}%
+            </span>
+            <span aria-hidden>·</span>
+            <span>
+              {t(locale, 'trucks.econ.dispatch')} {truck.dispatchPercent}%
+            </span>
+          </span>
+        </summary>
+        <div className="mt-4">
+          <TruckForm
+            id={truck.id}
+            initial={{
+              number: truck.number ?? '',
+              driverName: truck.driverName ?? '',
+              mpg: truck.mpg,
+              fuelPricePerGallon: truck.fuelPricePerGallon,
+              driverPay: truck.driverPay,
+              truckPaymentPerDay: truck.truckPaymentPerDay,
+              insurancePerDay: truck.insurancePerDay,
+              eldPermitsPerDay: truck.eldPermitsPerDay,
+              maintenanceCostPerMile: truck.maintenanceCostPerMile,
+              factoringPercent: truck.factoringPercent,
+              dispatchPercent: truck.dispatchPercent,
+            }}
+            locale={locale}
+          />
+        </div>
+      </details>
     </div>
+  )
+
+  // Точка у вкладки «Обслуживание», если там что-то горит: ремонт, масло, срок документа.
+  const exp = expiries(meta, locale)
+  const careTone =
+    hasUrgentTodo || oil?.tone === 'bad' || exp.some((e) => e.tone === 'bad')
+      ? ('bad' as const)
+      : openTodos > 0 || oil?.tone === 'warn' || exp.some((e) => e.tone === 'warn')
+        ? ('warn' as const)
+        : null
+  add('tabs', (
+    <TruckTabs
+      loads={loadsNode}
+      docs={docsNode}
+      care={careNode}
+      label={t(locale, 'trucks.tabs.label')}
+      labels={{
+        loads: rows.length ? `${t(locale, 'trucks.detail.loadsHeading')} · ${rows.length}` : t(locale, 'trucks.detail.loadsHeading'),
+        docs: docs.length ? `${t(locale, 'trucks.detail.documents')} · ${docs.length}` : t(locale, 'trucks.detail.documents'),
+        care: t(locale, 'trucks.tabs.care'),
+      }}
+      careTone={careTone}
+    />
   ))
 
-  // Экономика — свёрнута, но в заголовке видны все её цифры одной строкой.
-  add('economics', (
-    <details className="group panel p-4">
-      <summary className="-m-1 flex cursor-pointer list-none flex-wrap items-center gap-1.5 rounded-lg p-1 text-base leading-6 font-semibold text-t1 transition-colors hover:bg-white/[0.03] hover:text-t1">
-        <span className="text-base leading-none text-t3 transition-transform duration-200 group-open:rotate-90">
-          ▸
-        </span>
-        {t(locale, 'trucks.detail.economics')}
-        <Info text={t(locale, 'trucks.detail.economicsInfo')} />
-        <span className="nums flex min-w-0 basis-full flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-normal text-t2 group-open:hidden sm:ml-2 sm:basis-auto">
-          <span>{truck.mpg} mpg</span>
-          <span aria-hidden>·</span>
-          <span>{usd2.format(truck.fuelPricePerGallon)}/gal</span>
-          <FuelPriceButton truckId={truck.id} locale={locale} />
-          <span aria-hidden>·</span>
-          <span>
-            {t(locale, 'trucks.econ.driver')}{' '}
-            {truck.driverPay.mode === 'cpm' ? `${truck.driverPay.centsPerMile}¢/mi` : `${truck.driverPay.percentOfGross}%`}
-          </span>
-          <span aria-hidden>·</span>
-          <span>
-            {usd.format(truck.truckPaymentPerDay + truck.insurancePerDay + truck.eldPermitsPerDay)}/{t(locale, 'trucks.econ.day')}
-          </span>
-          <span aria-hidden>·</span>
-          <span>
-            {t(locale, 'trucks.econ.maint')} {usd2.format(truck.maintenanceCostPerMile)}/mi
-          </span>
-          <span aria-hidden>·</span>
-          <span>
-            {t(locale, 'trucks.econ.factoring')} {truck.factoringPercent}%
-          </span>
-          <span aria-hidden>·</span>
-          <span>
-            {t(locale, 'trucks.econ.dispatch')} {truck.dispatchPercent}%
-          </span>
-        </span>
-      </summary>
-      <div className="mt-4">
-        <TruckForm
-          id={truck.id}
-          initial={{
-            number: truck.number ?? '',
-            driverName: truck.driverName ?? '',
-            mpg: truck.mpg,
-            fuelPricePerGallon: truck.fuelPricePerGallon,
-            driverPay: truck.driverPay,
-            truckPaymentPerDay: truck.truckPaymentPerDay,
-            insurancePerDay: truck.insurancePerDay,
-            eldPermitsPerDay: truck.eldPermitsPerDay,
-            maintenanceCostPerMile: truck.maintenanceCostPerMile,
-            factoringPercent: truck.factoringPercent,
-            dispatchPercent: truck.dispatchPercent,
-          }}
-          locale={locale}
-        />
-      </div>
-    </details>
-  ))
-
-  const grid = await tileGrid('truck-detail', TRUCK_DETAIL_TILES, locale, migrateTruckDriverCard)
+  const grid = await tileGrid('truck-detail', TRUCK_DETAIL_TILES, locale, migrateTruckCard)
 
   return (
     <main className="page">
@@ -1111,31 +1011,56 @@ export default async function Page({
   )
 }
 
-type ChipProps = {
-  label: string
-  value: string
-  tone?: 'good' | 'bad' | 'warn'
-  info?: string
+const FUEL_TEXT = { good: 'text-good-400', warn: 'text-warn-400', bad: 'text-bad-400' } as const
+const FUEL_BAR = { good: 'bg-good-400', warn: 'bg-warn-400', bad: 'bg-bad-400' } as const
+
+/** Состояние машины под «где сейчас»: бак шкалой и — только когда пора — масло
+ *  плашкой-ссылкой на вкладку «Обслуживание». Были плитками-цифрами «Топливо» и
+ *  «Масло через»; масло живёт во вкладке, но «пора менять» не должно туда прятаться. */
+function TruckState({
+  fuel,
+  oil,
+  locale,
+}: {
+  fuel: number | null | undefined
+  oil: { milesLeft: number; tone: 'good' | 'warn' | 'bad' } | null
+  locale: Locale
+}) {
+  const oilDue = oil && oil.tone !== 'good' ? oil : null
+  if (fuel == null && !oilDue) return null
+  return (
+    <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      {fuel != null && <FuelGauge pct={fuel} label={t(locale, 'trucks.chip.fuel')} />}
+      {oilDue && (
+        <a
+          href="#care"
+          className={`inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm font-semibold transition-colors ${
+            oilDue.tone === 'bad' ? 'bg-bad-500/15 text-bad-400 hover:bg-bad-500/25' : 'bg-warn-500/15 text-warn-400 hover:bg-warn-500/25'
+          }`}
+        >
+          <Droplet size={13} strokeWidth={2.4} />
+          {oilDue.milesLeft > 0
+            ? `${t(locale, 'trucks.chip.oilIn')} ${oilDue.milesLeft.toLocaleString('en-US')} mi`
+            : `${t(locale, 'trucks.care.oilHeading')}: ${t(locale, 'trucks.care.overdueShort')}`}
+        </a>
+      )}
+    </span>
+  )
 }
 
-function Chip({ label, value, tone, info }: ChipProps) {
-  const color =
-    tone === 'good'
-      ? 'text-good-400'
-      : tone === 'bad'
-        ? 'text-bad-400'
-        : tone === 'warn'
-          ? 'text-warn-400'
-          : 'text-white'
-  // Плитка: подпись сверху, число под ней — одинаковая высота во всей таблице.
+/** Бак шкалой: сколько осталось, видно без чтения цифры. Красная до 15 %, жёлтая до
+ *  30 % — как у бывшей плитки «Топливо». */
+function FuelGauge({ pct, label }: { pct: number; label: string }) {
+  const v = Math.max(0, Math.min(100, Math.round(pct)))
+  const tone = v <= 15 ? 'bad' : v <= 30 ? 'warn' : 'good'
   return (
-    <div className="panel flex h-full w-full min-w-0 flex-col justify-center gap-0.5 px-3 py-2.5">
-      <span className="flex min-w-0 items-center gap-1 text-sm font-medium leading-4 text-t3">
-        <span className="truncate">{label}</span>
-        {info && <Info text={info} />}
+    <span className="flex items-center gap-2 text-sm" title={`${label}: ${v}%`}>
+      <Fuel size={14} strokeWidth={2.2} className={FUEL_TEXT[tone]} aria-label={label} />
+      <span className="h-2 w-24 overflow-hidden rounded-full bg-white/10" aria-hidden>
+        <span className={`block h-full rounded-full ${FUEL_BAR[tone]}`} style={{ width: `${v}%` }} />
       </span>
-      <span className={`nums text-xl font-semibold leading-6 ${color}`}>{value}</span>
-    </div>
+      <span className={`nums font-semibold ${tone === 'good' ? 'text-t2' : FUEL_TEXT[tone]}`}>{v}%</span>
+    </span>
   )
 }
 

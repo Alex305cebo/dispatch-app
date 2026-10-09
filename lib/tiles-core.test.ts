@@ -2,7 +2,9 @@ import { strict as assert } from 'node:assert'
 import { test } from 'node:test'
 import {
   applyLayout,
+  migrateTruckCard,
   migrateTruckDriverCard,
+  migrateTruckOrder,
   migrateTrucksTiles,
   migrateLoadCard,
   migrateLoadOrder,
@@ -211,6 +213,30 @@ test('migrateLoadPapers: «Точки» и «Подробности» влиты
     { id: 'status', size: 'l' },
   ])
   assert.ok(!merged.some((p) => p.id === 'stops' || p.id === 'details'))
+})
+
+test('migrateTruckCard: старая карточка трака уступает новой — карта, неделя, вкладки', () => {
+  // Раскладка до 10/09/26: двенадцать плиток-цифр, «Новый груз из rate con», история
+  // пути, грузы и документы рядом, обслуживание и экономика внизу.
+  const saved = parseLayout(
+    '[{"id":"hero","size":"l"},{"id":"assignment","size":"l"},{"id":"task","size":"l"},{"id":"week-rate","size":"s"},{"id":"week-miles","size":"s"},{"id":"rpm","size":"s"},{"id":"deadhead","size":"s"},{"id":"on-time","size":"s"},{"id":"odometer","size":"s"},{"id":"oil","size":"s"},{"id":"fuel","size":"s"},{"id":"load-fuel","size":"s"},{"id":"todos","size":"l"},{"id":"map","size":"l"},{"id":"ratecon","size":"l"},{"id":"driver","size":"l"},{"id":"trips","size":"l"},{"id":"loads","size":"w"},{"id":"docs","size":"w"},{"id":"care","size":"l"},{"id":"economics","size":"l"}]',
+  )
+  const merged = applyLayout(migrateTruckCard(saved), TRUCK_DETAIL_TILES)
+  assert.deepEqual(merged, TRUCK_DETAIL_TILES)
+  assert.deepEqual(
+    merged.map((p) => p.id),
+    ['hero', 'assignment', 'task', 'todos', 'map', 'driver', 'week', 'tabs'],
+  )
+  // Совсем старая (ещё с плиткой «Водитель») — туда же.
+  const older = parseLayout('[{"id":"driver-card","size":"w"},{"id":"hero","size":"w"},{"id":"loads","size":"w"}]')
+  assert.deepEqual(applyLayout(migrateTruckCard(older), TRUCK_DETAIL_TILES), TRUCK_DETAIL_TILES)
+})
+
+test('migrateTruckOrder: раскладку, сохранённую уже без старых плиток, не трогает', () => {
+  const fresh = parseLayout('[{"id":"map","size":"l"},{"id":"hero","size":"l"},{"id":"tabs","size":"l"}]')
+  assert.equal(migrateTruckOrder(fresh), fresh)
+  assert.equal(migrateTruckCard(fresh), fresh)
+  assert.deepEqual(migrateTruckOrder([]), [])
 })
 
 test('migrateLoadCard: старая карточка груза уступает новой — Документы и Инвойс рядом под картой', () => {
