@@ -1,53 +1,46 @@
 'use client'
 
-// Everything on /tracking that has to share one piece of state: which truck is picked.
-// The map reports a pin click, the strip under it switches from fleet totals to that
-// truck's own numbers, and its card in the list gets a ring. Server-rendered before
-// this, so nothing here refetches — the rows are already in hand.
+// «Траки»: всё, что держится на одном выборе — какие траки сейчас смотрят.
+//
+// Четыре цифры парка, карта, под ней один список траков и вкладкой рядом «Загрузка
+// парка» (план «Порядок в TMS», 10/09/26). Цифры — это и есть фильтры списка, как на
+// «Грузах»: нажал «Свободны 4» — список показывает эти четыре трака; нажал трак на
+// карте — список показывает его одного. Отдельного ряда кнопок-траков под картой и
+// счётчиков «до выгрузки / в пути / топливо / простой» больше нет: всё это — строка
+// трака в списке, и она стоит прямо под картой.
+//
+// Отрисовано на сервере заранее, здесь ничего не перезапрашивается: строки уже на руках.
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Truck, X } from 'lucide-react'
+import { AlertTriangle, CalendarRange, CloudLightning, Fuel, Hourglass, List, MapPinOff, Package, TreePalm, Truck, Wrench } from 'lucide-react'
 import { FleetMap, type MapMarker, type MapMarket, type MapRoute } from '@/components/fleet-map'
 import { useRoutePlan, type PlanSnaps, type PlanTruck } from '@/components/route-planner'
 import { ltStates, type DatEquipment, type DatSnapshot } from '@/lib/dat-market-core'
 import { FleetList, type TrackingRow, type TruckMoney } from '@/components/fleet-list'
 import { RefreshFleetButton } from '@/components/refresh-fleet-button'
-import { Button } from '@/components/button'
+import { Segmented } from '@/components/segmented'
+import { Stat } from '@/components/stat'
+import type { DirectoryCompany } from '@/components/driver-directory'
 import { useLocale } from '@/components/locale-provider'
-import { t } from '@/lib/i18n'
-import { LocalTime } from '@/components/local-time'
+import { t, type MsgKey } from '@/lib/i18n'
 import { WidgetGrid, type TileGridProps, type Widget } from '@/components/widget-grid'
-import type { TilePlacement } from '@/lib/tiles-core'
 
 /** Суточные снимки DAT по сериям со ставками по маршрутам: слой «Рынок» на карте и
  * слой «Из штата» — те же данные, что у «Куда отправить трак» на «Рынке». */
 export type FleetSnaps = PlanSnaps
 
-export type FleetTotals = {
-  deliveryMiles: number
-  underLoad: number
-  trucks: number
-  stuck: number
-  noGps: number
-}
+type View = 'list' | 'schedule'
 
-type TileData = { value: string; label: string; tone?: 'warn' }
+/** Какие траки показывает список: группа с цифры наверху или один трак с карты
+ *  (truckId — тогда на карте ещё и слой «Из штата» для него). */
+type Selection = { ids: number[]; label: string; truckId?: number } | null
 
-/** Счётчик — отдельная маленькая плитка, а не вставка внутри общего блока: четыре
- * числа раньше жили одной карточкой во всю строку, и двигать там было нечего.
- * Форма фиксированная и цифра одной строкой `nums`, чтобы соседние плитки стояли на
- * общей базовой линии, какими бы ни были значения. */
-function Tile({ value, label, tone }: TileData) {
-  return (
-    <div className="panel flex h-full flex-col justify-center px-3 py-2.5">
-      <div className={`nums truncate text-xl leading-tight ${tone === 'warn' ? 'text-warn-400' : 'text-t1'}`}>
-        {value}
-      </div>
-      <div className="mt-0.5 truncate text-xs text-t3">{label}</div>
-    </div>
-  )
-}
+const isFree = (r: TrackingRow) => !r.hasLoad && !r.unavailable
+const lowFuel = (r: TrackingRow) => r.fuel !== null && r.fuel <= 15
+/** Кем заняться первым: трак без GPS (его нет даже на карте), стоящий под грузом
+ *  (детеншен или поломка), под непогодой или почти без топлива. */
+const needsAttention = (r: TrackingRow) => r.city === null || r.idleHours !== null || !!r.weather || lowFuel(r)
 
 export function FleetPanel({
   markers,
@@ -55,13 +48,13 @@ export function FleetPanel({
   snaps = {},
   planTrucks = [],
   rows,
-  totals,
   updatedText,
   staleMinutes,
-  underMap,
+  schedule,
   after,
   money,
-  extra = [],
+  company,
+  dispatchers,
   grid,
 }: {
   markers: MapMarker[]
@@ -71,24 +64,19 @@ export function FleetPanel({
   /** Траки для слоя «Из штата»: откуда поедет, прицеп и расходы (lib/plan-data.ts). */
   planTrucks?: PlanTruck[]
   rows: TrackingRow[]
-  totals: FleetTotals
   /** Pre-formatted on the server — "обновлено 3 мин назад" or the no-snapshot line. */
   updatedText: string
   staleMinutes: number | null
-  /** Сразу под картой и её цифрами, выше «Куда отправить трак»: «Загрузка парка» —
-   * кто когда освободится, первое, что смотрят после карты. */
-  underMap?: React.ReactNode
-  /** Блоки, которые встают МЕЖДУ счётчиками и списком траков: справочник водителей и
-   * календарь загрузки. Место выбрано не случайно — оба отвечают на вопросы, которые
-   * задают до разбора отдельного трака: «что сказать брокеру» и «кто когда
-   * освободится». За списком карточек их приходилось искать прокруткой. */
-  /** Под списком траков: недельная аналитика и настройки. */
+  /** «Загрузка парка» — вторая вкладка списка: кто когда освободится. */
+  schedule?: React.ReactNode
+  /** Под списком траков: подключение ELD. */
   after?: React.ReactNode
-  /** Экономика по траку — вторая половина строки списка. */
+  /** Деньги, бумаги и простой по траку — вторая половина строки списка. */
   money?: Record<number, TruckMoney>
-  /** Плитки, которые собрала сама страница: цифры парка из её шапки. Со своими
-   *  ключами, потому что место каждой задаёт TRUCKS_TILES, а не порядок вызовов. */
-  extra?: Widget[]
+  /** Компания и тот, кто открыл страницу, — для блока брокеру в строке трака. */
+  company?: DirectoryCompany
+  /** Диспетчер, закреплённый за траком, — в блок брокеру вместо своего. */
+  dispatchers?: Record<number, { name: string; phone: string }>
   /** Раскладка плиток раздела, прочитанная страницей из настроек компании. */
   grid: TileGridProps
 }) {
@@ -101,7 +89,14 @@ export function FleetPanel({
     return id > 0 && planTrucks.some((x) => x.id === id) ? id : null
   })()
   const initialState = /^[A-Z]{2}$/.test(params.get('from') ?? '') ? params.get('from') : null
-  const [selected, setSelected] = useState<number | null>(initialTruck)
+  const [view, setViewState] = useState<View>(params.get('view') === 'schedule' ? 'schedule' : 'list')
+  const [selection, setSelection] = useState<Selection>(() => {
+    const r = initialTruck == null ? undefined : rows.find((x) => x.id === initialTruck)
+    return r ? { ids: [r.id], label: r.number, truckId: r.id } : null
+  })
+  const selected = selection?.truckId ?? null
+  const listRef = useRef<HTMLDivElement>(null)
+
   // Слой «Рынок»: грузов на трак по штатам каждой серии — из тех же снимков, что у планировщика.
   const market = useMemo<MapMarket | null>(() => {
     const list = Object.entries(snaps) as [DatEquipment, DatSnapshot & { date: string }][]
@@ -113,59 +108,60 @@ export function FleetPanel({
   // Слой «Из штата»: выбранный на карте трак — трак планировщика, его ставки по
   // направлениям красят штаты; нажатие по штату меняет «откуда» (вернулось 19.09.2026).
   const plan = useRoutePlan(planTrucks, snaps, selected, { truckId: initialTruck, state: initialState })
-  const row = selected == null ? null : (rows.find((r) => r.id === selected) ?? null)
-  // Выбор чипом ведёт карту к траку; выбор пином на карте — нет (он уже там).
-  const [focus, setFocus] = useState<{ lat: number; lng: number } | null>(null)
-  const pick = (r: TrackingRow) => {
-    if (selected === r.id) {
-      setSelected(null)
-      setFocus(null)
+
+  // Вид — в адрес, без перехода: обновил страницу или поделился ссылкой — открылось то
+  // же. Список — вид по умолчанию, его в адресе нет.
+  const setView = (v: View) => {
+    setViewState(v)
+    const url = new URL(window.location.href)
+    if (v === 'list') url.searchParams.delete('view')
+    else url.searchParams.set('view', v)
+    window.history.replaceState(window.history.state, '', url)
+  }
+
+  // Трак на карте: список показывает его одного. Щелчок мимо траков снимает только
+  // такой выбор — группу, выбранную цифрой, карта не трогает.
+  const onMapSelect = (id: number | null) => {
+    if (id == null) {
+      if (selection?.truckId != null) setSelection(null)
       return
     }
-    setSelected(r.id)
-    setFocus(r.lat != null && r.lng != null ? { lat: r.lat, lng: r.lng } : null)
+    const r = rows.find((x) => x.id === id)
+    if (!r) return
+    setSelection({ ids: [r.id], label: r.number, truckId: r.id })
+    if (view !== 'list') setView('list')
   }
-  // «Edwin M. TRK-2237 TRL-1186» → «2237»: на чипе только номер, остальное — в title.
-  const unitOf = (label: string) => /TRK-(\S+)/.exec(label)?.[1] ?? label
-  const toneDot = { move: 'text-good-400', on: 'text-haul-300', rest: 'text-t3' } as const
 
-  // Same four slots either way, so clicking a pin swaps the numbers without the strip
-  // changing height or the tiles jumping to new widths.
-  const tiles: TileData[] = row
-    ? [
-        {
-          value: row.delivery ? `${row.delivery.miles.toLocaleString('en-US')} mi` : '—',
-          label: t(locale, 'tracking.tileToDelivery'),
-        },
-        { value: row.driveTimeText ?? '—', label: t(locale, 'tracking.tileEnRoute') },
-        {
-          value: row.fuel != null ? `${Math.round(row.fuel)}%` : '—',
-          label: t(locale, 'tracking.tileFuel'),
-          tone: row.fuel != null && row.fuel <= 15 ? 'warn' : undefined,
-        },
-        {
-          value: row.idleHours != null ? String(row.idleHours) : '0',
-          label: t(locale, 'tracking.tileIdleH'),
-          tone: row.idleHours != null ? 'warn' : undefined,
-        },
-      ]
-    : [
-        {
-          value: totals.deliveryMiles > 0 ? `${totals.deliveryMiles.toLocaleString('en-US')} mi` : '—',
-          label: t(locale, 'tracking.tileToDelivery'),
-        },
-        { value: `${totals.underLoad}/${totals.trucks}`, label: t(locale, 'tracking.tileUnderLoad') },
-        {
-          value: String(totals.stuck),
-          label: t(locale, 'tracking.tileStuck'),
-          tone: totals.stuck > 0 ? 'warn' : undefined,
-        },
-        {
-          value: String(totals.noGps),
-          label: t(locale, 'tracking.noGpsBadge'),
-          tone: totals.noGps > 0 ? 'warn' : undefined,
-        },
-      ]
+  // Цифра наверху: список показывает свою группу и прокручивается к ней. Повторное
+  // нажатие — снова весь парк.
+  const pick = (key: MsgKey, group: TrackingRow[]) =>
+    group.length
+      ? () => {
+          const label = t(locale, key)
+          if (selection && selection.truckId == null && selection.label === label) {
+            setSelection(null)
+            return
+          }
+          setSelection({ ids: group.map((r) => r.id), label })
+          if (view !== 'list') setView('list')
+          setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
+        }
+      : undefined
+
+  const onLoad = rows.filter((r) => r.hasLoad)
+  const free = rows.filter(isFree)
+  const off = rows.filter((r) => r.unavailable)
+  const attention = rows.filter(needsAttention)
+  const shown = selection ? rows.filter((r) => selection.ids.includes(r.id)) : rows
+
+  // Под цифрой — картинка, а не ещё одна строка цифр (владелец, 10/09/26: «меньше
+  // цифр и текста, больше визуала»). Подробности — в ⓘ и во всплывающих подсказках.
+  const icon = { size: 15, strokeWidth: 2.5 }
+  const chip = { size: 12, strokeWidth: 2.5 }
+  const idle = free
+    .map((r) => ({ id: r.id, label: r.number, days: money?.[r.id]?.idle ?? 0 }))
+    .sort((a, b) => b.days - a.days)
+  const repairs = off.filter((r) => r.unavailable === 'repair').length
 
   // Плитки раздела. Каждая — самостоятельный блок, который человек может подвинуть
   // или сделать меньше; порядок общий для всей компании (lib/tiles.ts).
@@ -173,103 +169,207 @@ export function FleetPanel({
   const add = (id: string, node: React.ReactNode) => widgets.push({ id, node })
 
   add(
+    'on-load',
+    <Stat
+      compact
+      surface="panel"
+      accent="good"
+      icon={<Package {...icon} />}
+      label={t(locale, 'trucks.heatmap.sumOnLoad')}
+      value={`${onLoad.length} / ${rows.length}`}
+      info={t(locale, 'trucks.tile.onLoadInfo')}
+      onClick={pick('trucks.heatmap.sumOnLoad', onLoad)}
+    >
+      <Cells total={rows.length} lit={onLoad.length} />
+    </Stat>,
+  )
+  add(
+    'free',
+    <Stat
+      compact
+      surface="panel"
+      accent={free.length ? 'warn' : 'haul'}
+      icon={<Truck {...icon} />}
+      label={t(locale, 'trucks.heatmap.sumFree')}
+      value={String(free.length)}
+      info={t(locale, 'trucks.tile.freeInfo')}
+      onClick={pick('trucks.heatmap.sumFree', free)}
+    >
+      <IdleBars items={idle} title={(x) => `${x.label} · ${t(locale, 'trucks.heatmap.freeDays').replace('{n}', String(x.days))}`} />
+    </Stat>,
+  )
+  add(
+    'off',
+    <Stat
+      compact
+      surface="panel"
+      accent="haul"
+      icon={<Wrench {...icon} />}
+      label={t(locale, 'trucks.heatmap.sumOff')}
+      value={String(off.length)}
+      info={t(locale, 'trucks.tile.offInfo')}
+      onClick={pick('trucks.heatmap.sumOff', off)}
+    >
+      <Reasons>
+        <Reason icon={<Wrench {...chip} />} n={repairs} label={t(locale, 'trucks.tile.repair')} tone="warn" />
+        <Reason icon={<TreePalm {...chip} />} n={off.length - repairs} label={t(locale, 'trucks.tile.vacation')} tone="haul" />
+      </Reasons>
+    </Stat>,
+  )
+  add(
+    'attention',
+    <Stat
+      compact
+      surface="panel"
+      accent={attention.length ? 'bad' : 'good'}
+      icon={<AlertTriangle {...icon} />}
+      label={t(locale, 'tracking.needAttention')}
+      value={String(attention.length)}
+      tone={attention.length ? undefined : 'good'}
+      info={t(locale, 'trucks.tile.attentionInfo')}
+      onClick={pick('tracking.needAttention', attention)}
+    >
+      {/* Четыре причины всегда на месте: горит та, что есть, — глаз находит её сразу,
+          а не читает список через точку. */}
+      <Reasons>
+        <Reason icon={<MapPinOff {...chip} />} n={rows.filter((r) => r.city === null).length} label={t(locale, 'tracking.noGpsBadge')} tone="bad" />
+        <Reason icon={<Hourglass {...chip} />} n={rows.filter((r) => r.idleHours !== null).length} label={t(locale, 'tracking.tileStuck')} tone="bad" />
+        <Reason icon={<CloudLightning {...chip} />} n={rows.filter((r) => !!r.weather).length} label={t(locale, 'trucks.tile.weather')} tone="warn" />
+        <Reason icon={<Fuel {...chip} />} n={rows.filter(lowFuel).length} label={t(locale, 'trucks.tile.lowFuel')} tone="bad" />
+      </Reasons>
+    </Stat>,
+  )
+
+  add(
     'map',
     // Якорь для «Показать на карте» с «Рынка»: планировщик живёт там,
     // а карта осталась здесь. scroll-mt — чтобы верхнее меню её не накрывало.
     <div id="fleet-map" className="scroll-mt-16">
-        <FleetMap
-          markers={markers}
-          routes={routes}
-          onSelect={setSelected}
-          focus={focus}
-          market={market}
-          plan={plan.mapPlan}
-          onPickState={plan.setOrigin}
-        />
+      <FleetMap
+        markers={markers}
+        routes={routes}
+        onSelect={onMapSelect}
+        market={market}
+        plan={plan.mapPlan}
+        onPickState={plan.setOrigin}
+      />
     </div>,
   )
 
-  if (rows.length > 1)
-    add(
-      'picker',
-      // Быстрый выбор трака — чипы прямо под картой: номер и цвет статуса. Нажатие
-      // ведёт карту к траку и показывает его цифры в счётчиках; повторное — снимает
-      // выбор. Ряд переносится: весь парк виден без горизонтального жеста, а на
-      // телефоне чип не ниже 44px.
-      <div className="flex flex-wrap gap-2">
-        {rows.map((r) => {
-          const active = selected === r.id
-          return (
-            <button
-              key={r.id}
-              type="button"
-              onClick={() => pick(r)}
-              title={r.label}
-              aria-pressed={active}
-              className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-base font-semibold transition-colors md:min-h-8 md:px-2.5 md:text-sm ${
-                active
-                  ? 'border-haul-400/70 bg-haul-500/25 text-white'
-                  : 'border-white/12 bg-white/[0.04] text-t2 hover:border-white/30 hover:bg-white/[0.08]'
-              }`}
-            >
-              <Truck
-                size={13}
-                strokeWidth={2.3}
-                className={r.unavailable ? 'text-warn-400' : toneDot[r.statusTone]}
-              />
-              <span className="nums">{unitOf(r.label)}</span>
-            </button>
-          )
-        })}
-      </div>,
-    )
-
+  const viewIcon = { size: 17, strokeWidth: 2.25 }
   add(
-    'status',
-    // Кто сейчас выбран, когда обновлялось и кнопка «Обновить». Отдельной плиткой:
-    // раньше эта строка была шапкой общего блока со счётчиками, а счётчики разъехались
-    // по своим плиткам, и шапке стало не над чем стоять. Две строки, а не одна: в
-    // плитке шириной с соседний счётчик всё в ряд не встаёт и обрезается на полуслове.
-    <div className="panel flex h-full flex-col justify-center gap-1 px-3 py-2.5">
-      <span className="flex min-w-0 items-baseline gap-2">
-        <span className="truncate text-base font-semibold text-white">
-          {row ? row.label : t(locale, 'tracking.wholeFleet')}
-        </span>
-        {/* Время водителя, а не пятая плитка: счётчиков ровно четыре в обоих
-            состояниях, и пятый ломал бы ряд именно при выборе трака. */}
-        {row?.zone && (
-          <LocalTime zone={row.zone} className="nums shrink-0 text-xs font-semibold text-t1" />
-        )}
-      </span>
-      <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-2xs text-t3">
-        <span className="truncate">{updatedText}</span>
-        <RefreshFleetButton staleMinutes={staleMinutes} />
-        {row && (
-          <Button size="sm" variant="ghost" icon={<X size={12} />} onClick={() => setSelected(null)}>
-            {t(locale, 'tracking.wholeFleet')}
-          </Button>
-        )}
-      </span>
+    'list',
+    // Переключатель вида, выбор и сам список — одна плитка: выбор управляет именно
+    // списком, и по разным плиткам их растащить нельзя.
+    <div>
+      <div ref={listRef} className="scroll-mt-4" />
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <Segmented
+          label={t(locale, 'trucks.view.label')}
+          value={view}
+          onChange={setView}
+          className="max-sm:w-full"
+          items={[
+            { key: 'list', label: t(locale, 'loads.view.list'), icon: <List {...viewIcon} /> },
+            { key: 'schedule', label: t(locale, 'trucks.heatmap.name'), icon: <CalendarRange {...viewIcon} /> },
+          ]}
+        />
+        {/* Когда пришёл GPS и «Обновить». Здесь, а не в своей плитке: это про карту и
+            список сразу. Кнопка же держит и минутный опрос, поэтому стоит при любом виде. */}
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-t3">
+          <span className="truncate">{updatedText}</span>
+          <RefreshFleetButton staleMinutes={staleMinutes} />
+        </div>
+      </div>
+
+      {view === 'schedule' ? (
+        schedule
+      ) : (
+        <>
+          {selection && (
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+              <span className="rounded-full bg-haul-500/15 px-2.5 py-1 font-medium text-haul-300">
+                {selection.label}
+                {selection.truckId == null && (
+                  <>
+                    {' · '}
+                    <span className="nums">{selection.ids.length}</span>
+                  </>
+                )}
+              </span>
+              <button type="button" onClick={() => setSelection(null)} className="text-t3 transition-colors hover:text-t1 max-md:min-h-9">
+                {t(locale, 'tracking.wholeFleet')} ×
+              </button>
+            </div>
+          )}
+          <FleetList rows={shown} money={money} company={company} dispatchers={dispatchers} />
+        </>
+      )}
     </div>,
   )
-
-  // Четыре счётчика — четыре маленькие плитки. Осознанно НЕ повторение легенды карты:
-  // «едет / на смене / стоит» уже нарисовано на ней цветом. Эти четыре отвечают на то,
-  // чего карта не говорит: у трака без GPS нет пина, стоящий под грузом выглядит как
-  // стоящий без дела, а миль до выгрузки на карте нет вовсе.
-  // Ключи позиционные (counter-1…4), потому что слотов ровно четыре в обоих состояниях,
-  // а смысл второго, третьего и четвёртого у парка и у выбранного трака разный.
-  tiles.forEach((tile, i) => add(`counter-${i + 1}`, <Tile {...tile} />))
-
-  if (underMap) add('heatmap', <div>{underMap}</div>)
-  add('list', <div><FleetList rows={rows} selectedId={selected} money={money} /></div>)
   if (after) add('eld', <div>{after}</div>)
-  for (const w of extra) add(w.id, w.node)
 
+  return <WidgetGrid {...grid} widgets={widgets} />
+}
+
+/** Клетка на каждый трак парка, горят занятые: «сколько из скольких» видно, не читая
+ *  цифру. Парк больше двух дюжин — сплошная полоса: клетки стали бы точками. */
+function Cells({ total, lit }: { total: number; lit: number }) {
+  if (!total) return null
+  if (total > 24)
+    return (
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10" aria-hidden>
+        <div className="h-full rounded-full bg-good-400" style={{ width: `${(lit / total) * 100}%` }} />
+      </div>
+    )
   return (
-    <WidgetGrid
-      {...grid}
-      widgets={widgets}
-    />
+    <div className="mt-3 flex h-2 gap-[3px]" aria-hidden>
+      {Array.from({ length: total }, (_, i) => (
+        <span key={i} className={`flex-1 rounded-[2px] ${i < lit ? 'bg-good-400' : 'bg-white/10'}`} />
+      ))}
+    </div>
+  )
+}
+
+/** Столбик на свободный трак — сколько дней он стоит, самый долгий первым. Красный —
+ *  пять дней и больше: тот же порог, что у строки трака в списке. */
+function IdleBars<T extends { id: number; days: number }>({ items, title }: { items: T[]; title: (x: T) => string }) {
+  if (!items.length) return null
+  const max = Math.max(7, ...items.map((x) => x.days))
+  return (
+    <div className="mt-3 flex h-7 items-end gap-1">
+      {items.map((x) => (
+        <span
+          key={x.id}
+          title={title(x)}
+          className={`max-w-5 flex-1 rounded-[2px] ${x.days >= 5 ? 'bg-bad-400' : 'bg-warn-400'}`}
+          style={{ height: `${Math.max(12, (x.days / max) * 100)}%` }}
+        />
+      ))}
+    </div>
+  )
+}
+
+function Reasons({ children }: { children: React.ReactNode }) {
+  return <div className="mt-2.5 flex flex-wrap gap-1.5">{children}</div>
+}
+
+const REASON_TONE = {
+  bad: 'bg-bad-500/15 text-bad-400',
+  warn: 'bg-warn-400/15 text-warn-400',
+  haul: 'bg-haul-500/15 text-haul-300',
+} as const
+
+/** Значок причины со счётом. Нуль — бледный, но на месте: ряд не прыгает, и видно,
+ *  что эта причина проверена. */
+function Reason({ icon, n, label, tone }: { icon: React.ReactNode; n: number; label: string; tone: keyof typeof REASON_TONE }) {
+  return (
+    <span
+      title={`${label}: ${n}`}
+      className={`nums inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold ${n ? REASON_TONE[tone] : 'bg-white/[0.05] text-t3 opacity-60'}`}
+    >
+      {icon}
+      {n}
+    </span>
   )
 }

@@ -147,6 +147,8 @@ export function Nav({
   urgentDocs,
   tilesEnabled,
   showMoney = false,
+  dispatcherPhone = '',
+  company = null,
 }: {
   companyName: string
   user: CurrentUser | null
@@ -160,6 +162,9 @@ export function Nav({
   tilesEnabled: boolean
   /** Право «Финансы»: без него пункта «Деньги» нет (страница и сама не пустит). */
   showMoney?: boolean
+  /** «Мой номер» и реквизиты компании — в меню аккаунта, для блока брокеру. */
+  dispatcherPhone?: string
+  company?: { mc: string; name: string; email: string } | null
 }) {
   const pathname = usePathname()
   // Страница водителя (/d/<token>) — без навигации: у водителя нет доступа к приложению.
@@ -474,6 +479,8 @@ export function Nav({
             onExpandDock={expandDock}
             showTelegram={showTelegram}
             tilesEnabled={tilesEnabled}
+            dispatcherPhone={dispatcherPhone}
+            company={company}
             journalControl={
               user.role === 'admin' ? <JournalLink pathname={pathname} locale={locale} /> : undefined
             }

@@ -94,7 +94,8 @@ export async function saveDispatcherPhone(phone: string): Promise<{ error: strin
   const user = await getCurrentUser()
   if (!user) return { error: t(await getLocale(), 'actions.noAccess') }
   await setSetting(dispatcherPhoneKey(user.id), phone.trim())
-  revalidatePath('/trucks')
+  // Номер правится в меню аккаунта и читается макетом — значит, всеми страницами.
+  revalidatePath('/', 'layout')
 }
 
 /** Поиск брокера по названию — когда MC на бумаге не напечатан. Возвращает

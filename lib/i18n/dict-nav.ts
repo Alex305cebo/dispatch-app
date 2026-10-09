@@ -69,6 +69,15 @@ export const navDict = {
   'userPanel.tileBrokers': { ru: 'Брокеры', en: 'Brokers', es: 'Brókers', uk: 'Брокери', ro: 'Brokeri', kk: 'Брокерлер' },
   'userPanel.tileTelegram': { ru: 'Телеграм', en: 'Telegram', es: 'Telegram', uk: 'Telegram', ro: 'Telegram', kk: 'Telegram' },
   'userPanel.tileRefresh': { ru: 'Обновить', en: 'Refresh', es: 'Actualizar', uk: 'Оновити', ro: 'Reîmprospătează', kk: 'Жаңарту' },
+  'userPanel.brokerGroup': { ru: 'Для брокера', en: 'For brokers', es: 'Para el bróker', uk: 'Для брокера', ro: 'Pentru broker', kk: 'Брокер үшін' },
+  'userPanel.companyCopy': {
+    ru: 'Скопировать MC, название и почту компании для брокера',
+    en: 'Copy the company MC, name and email for a broker',
+    es: 'Copiar el MC, nombre y correo de la empresa para el bróker',
+    uk: 'Скопіювати MC, назву й пошту компанії для брокера',
+    ro: 'Copiază MC-ul, numele și emailul companiei pentru broker',
+    kk: 'Компанияның MC, атауы мен поштасын брокер үшін көшіру',
+  },
   'userPanel.admin': { ru: '🛡 Админ', en: '🛡 Admin', es: 'Administración', uk: 'Адміністрування', ro: 'Administrare', kk: 'Әкімшілік' },
   'userPanel.logout': { ru: '⏻ Выйти', en: '⏻ Log out', es: 'Cerrar sesión', uk: 'Вийти', ro: 'Deconectare', kk: 'Шығу' },
 

@@ -16,6 +16,7 @@ import { Toaster } from '@/components/toaster'
 import { Tour } from '@/components/tour'
 import { tourSteps } from '@/lib/tour'
 import { tilesEnabled } from '@/lib/tiles'
+import { dispatcherPhoneKey, getSetting } from '@/lib/settings'
 import { t } from '@/lib/i18n'
 import { RevealGuard } from '@/components/reveal-guard'
 import { BuildWatch } from '@/components/build-watch'
@@ -107,6 +108,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     tilesEnabled(),
     // Пункт «Деньги» — только с правом «Финансы».
     can(user, 'finances'),
+    // «Мой номер» в меню аккаунта — для блока брокеру (переехал туда с «Траков»).
+    user ? getSetting(dispatcherPhoneKey(user.id)) : Promise.resolve(null),
   ]).catch(() => null)
   // Overdue/≤30-day document expiries — a badge on the Траки nav item, visible from
   // anywhere in the app, not just the one banner on the dashboard.
@@ -136,6 +139,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             urgentDocs={urgentDocs}
             tilesEnabled={chrome?.[3] ?? false}
             showMoney={chrome?.[4] ?? false}
+            dispatcherPhone={chrome?.[5] ?? ''}
+            // «MC 123456 / DOT 7654321» → «123456 / DOT 7654321»: в блоке брокеру перед
+            // номером уже стоит «MC - ».
+            company={chrome ? { mc: chrome[0].mcdot.replace(/^MC[\s#-]*/i, ''), name: chrome[0].name, email: chrome[0].email } : null}
           />
           {user?.isDemo && <DemoModeBanner />}
           {/* Room for the bottom bar on phones (tabs + utility strip), sidebar on desktop.
