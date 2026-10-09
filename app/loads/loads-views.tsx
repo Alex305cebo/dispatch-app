@@ -45,7 +45,7 @@ import { DriverAvatar } from '@/components/driver-avatar'
 import { deleteLoad } from '@/app/actions'
 import { useLocale } from '@/components/locale-provider'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
-import { CountTile, loadsKpiTiles, LoadsWeekChart, LoadsAttention, weekdayLabel, type AttentionEntry, type Selection } from './loads-insights'
+import { CountTile, loadsKpiTiles, LoadsWeekChart, weekdayLabel, type Selection } from './loads-insights'
 import { WidgetGrid, type TileGridProps, type Widget } from '@/components/widget-grid'
 
 // Метрики груза (чистая, ставка-миля, RC/POD, ближайшая остановка) считает страница;
@@ -76,7 +76,6 @@ export function LoadsViews({
   metrics,
   rateConPairs,
   photoTruckIds,
-  attention,
   mapPanel,
   weekFrom,
   initialView,
@@ -93,8 +92,6 @@ export function LoadsViews({
   /** Map не переживает границу сервер-клиент как есть — передаём парами. */
   rateConPairs: [number, number][]
   photoTruckIds: number[]
-  /** Очередь внимания — собрана на сервере вместе с экономикой. */
-  attention: AttentionEntry[]
   /** Карта — серверный компонент, приходит готовым узлом. */
   mapPanel: ReactNode
   /** Первый день текущей расчётной недели (yyyy-mm-dd) — с сервера, чтобы SSR и клиент сошлись. */
@@ -223,10 +220,8 @@ export function LoadsViews({
       />
     </div>,
   )
-  // Очередь внимания есть не всегда: когда ничего не горит, плитки просто нет, а своё
-  // место в сохранённом порядке она не теряет (applyLayout сверяется с раскладкой).
-  if (attention.length)
-    add('attention', <div><LoadsAttention entries={attention} locale={locale} onSelect={select} /></div>)
+  // «Требуют действия» отсюда переехали в ленту «Ждёт тебя» на «Сегодня» (план «Порядок
+  // в TMS», 10/09/26): всё, что ждёт действия, — в одном месте, а здесь сами грузы.
 
   add(
     'list',

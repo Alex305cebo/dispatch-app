@@ -401,6 +401,13 @@
   color: #fff;
 }
 
+/* Одна ширина и одни отступы у всех разделов и карточек (план «Порядок в TMS»,
+   10/09/26). Раньше «Документы» и карточка трака были шире (6xl), остальное уже (5xl),
+   и при переходе между вкладками содержимое прыгало вбок. */
+@utility page {
+  @apply mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-8;
+}
+
 /* Every figure in the app already carries this: rates, miles, RPM, invoice numbers,
    truck numbers. It now also switches face to the mono font, so a column of money
    lines up digit-for-digit instead of only sharing an advance width. */

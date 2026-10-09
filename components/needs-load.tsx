@@ -1,175 +1,111 @@
-import Link from 'next/link'
-import { Info } from '@/components/info'
+import { CopyPlace } from '@/components/copy-place'
+import type { FeedItem } from '@/components/today-feed'
 import { truckLabel, type TruckRecord } from '@/lib/map'
 import { usd, usd2, usDate } from '@/lib/fmt'
 import { todayEt } from '@/lib/payments'
-import { idleSummary, type IdleTruck } from '@/lib/idle-fleet'
+import type { IdleTruck } from '@/lib/idle-fleet'
 import { t, type Locale } from '@/lib/i18n'
-import { CopyPlace } from '@/components/copy-place'
 import { datCached, datEquipment, heatLevel, HEAT_LEVEL_KEY, ltHeat, ltMedian, ltOf, regionOf, stateFromPlace, type DatEquipment } from '@/lib/dat-market'
 
 /**
- * «Кому искать груз» — карта на месте календаря загрузки.
+ * «Кому искать груз» — раздел ленты «Ждёт тебя» на «Сегодня».
  *
- * Календарь показывал, как парк отработал прошлые две недели. Для семи траков с
- * одним активным грузом сетка 14×7 почти пуста, и главное — на неё нельзя
- * отреагировать: это отчёт, а не задача. Здесь список того, что делать сегодня:
- * кто без груза, где он стоит, сколько уже стоит и во что это обошлось. Наверху
- * тот, кто стоит дольше всех, — с него и начинают обзвон.
+ * Список того, что делать сегодня: кто без груза, где он стоит, сколько уже стоит и во
+ * что это обошлось. Наверху тот, кто стоит дольше всех, — с него и начинают обзвон.
+ * Следом те, кто освобождается сегодня-завтра: под них груз ищут, пока они ещё едут.
+ * Ремонт, отпуск и «дома» сюда не попадают — это не работа диспетчера; вся картина
+ * парка по дням — «Загрузка парка» на «Траках».
  *
  * Цифра простоя — не упрёк, а порядок величины: платёж за трак, страховка, ELD и
  * пермиты капают каждый день независимо от того, едет он или нет.
  */
-export async function NeedsLoad({
+export function needsLoadRows(rows: IdleTruck[]): IdleTruck[] {
+  return rows.filter((r) => !r.unavailable && !r.homeUntil && (r.free || (r.days != null && r.days >= -1)))
+}
+
+const series = (trailers: Map<number, string>, truckId: number): DatEquipment => datEquipment(trailers.get(truckId)) ?? 'VAN'
+
+/** Насколько горячий рынок там, где стоят траки без груза: снимки DAT по сериям их
+ *  трейлеров (иначе Van). Только из кэша — главная DAT не ждёт. */
+export async function idleMarkets(rows: IdleTruck[], trailers: Map<number, string>) {
+  const kinds = [...new Set(rows.filter((r) => r.free).map((r) => series(trailers, r.truckId)))]
+  return new Map(await Promise.all(kinds.map(async (eq) => [eq, await datCached(eq)] as const)))
+}
+
+export function needsLoadItems({
   rows,
   trucks,
   trailers,
+  markets,
   locale,
 }: {
   rows: IdleTruck[]
   trucks: Map<number, TruckRecord>
   trailers: Map<number, string>
+  markets: Awaited<ReturnType<typeof idleMarkets>>
   locale: Locale
-}) {
-  if (rows.length === 0) return null
-  const { freeCount, burnPerDay } = idleSummary(rows)
-  // Насколько горячий рынок там, где стоит трак без груза: грузов на трак в штате по DAT.
-  // Серия — по трейлеру трака, иначе Van. Снимок из кэша — обзор DAT не ждёт.
-  const series = (truckId: number): DatEquipment => datEquipment(trailers.get(truckId)) ?? 'VAN'
-  const idle = rows.filter((r) => r.free && !r.unavailable && !r.homeUntil)
-  const snaps = new Map(
-    await Promise.all([...new Set(idle.map((r) => series(r.truckId)))].map(async (eq) => [eq, await datCached(eq)] as const)),
-  )
-
-  return (
-    <section className="panel mb-6 p-4">
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
-          {t(locale, 'needsLoad.title')}
-          <Info text={t(locale, 'needsLoad.info')} />
-        </h2>
-        {/* Итог словами, а не процентом: «шесть без груза, простой $648 в день» —
-            это и есть то, ради чего на карту смотрят. */}
-        <p className="text-sm text-t3">
-          {freeCount > 0 ? (
-            <>
-              <span className="font-semibold text-warn-400">{freeCount}</span>{' '}
-              {t(locale, 'needsLoad.freeOf').replace('{n}', String(rows.length))} ·{' '}
-              <span className="nums font-semibold text-warn-400">{usd.format(burnPerDay)}</span>
-              {t(locale, 'needsLoad.perDay')}
-            </>
-          ) : (
-            <span className="text-good-400">{t(locale, 'needsLoad.allBusy')}</span>
-          )}
-        </p>
-      </div>
-
-      <ul className="flex flex-col gap-1.5">
-        {rows.map((r) => {
-          const truck = trucks.get(r.truckId)
-          if (!truck) return null
-          // Водитель дома — как отпуск: место и рынок не нужны, груз ему не искать.
-          const off = !!r.unavailable || !!r.homeUntil
-          const snap = r.free && !off ? snaps.get(series(r.truckId)) : null
-          const state = stateFromPlace(r.place)
-          const lt = snap ? ltOf(snap, state) : null
-          const heat = snap && lt ? ltHeat(snap, lt.ratio) : null
-          return (
-            <li key={r.truckId}>
-              <Link
-                href={`/trucks/${r.truckId}`}
-                className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2 transition-colors ${
-                  off
-                    ? 'border-white/6 bg-white/[0.02] opacity-60 hover:opacity-100'
-                    : r.free
-                      ? 'border-warn-400/25 bg-warn-500/[0.06] hover:border-warn-400/50'
-                      : 'border-white/8 hover:border-white/20'
-                }`}
-              >
-                {/* На телефоне имя занимает всю строку, место и срок — под ним: в один ряд
-                    от «Jordan L. TRK-DEMO-317» оставалось «Jordan L. …». */}
-                <span className="min-w-0 basis-full truncate text-base font-medium sm:flex-1 sm:basis-auto">
-                  {truckLabel(truck, trailers.get(r.truckId))}
-                </span>
-
-                {/* У стоящего трака место — это ответ брокеру «где он сейчас», и его
-                    копируют. У едущего в этой колонке город ВЫГРУЗКИ, а не место
-                    трака, — там копировать нечего. */}
-                {r.free && !off && r.place ? (
-                  <CopyPlace text={r.place} size="sm" className="min-w-0 text-sm text-t2" />
-                ) : (
-                  <span className="min-w-0 truncate text-sm text-t3">
-                    {r.homeUntil
-                      ? t(locale, 'needsLoad.home').replace('{date}', usDate(r.homeUntil))
-                      : r.unavailable
-                      ? t(locale, r.unavailable === 'repair' ? 'needsLoad.repair' : 'needsLoad.vacation')
-                      : r.free
-                        ? t(locale, 'needsLoad.noPlace')
-                        : `→ ${r.place ?? '—'}`}
+}): FeedItem[] {
+  return rows.flatMap((r): FeedItem[] => {
+    const truck = trucks.get(r.truckId)
+    if (!truck) return []
+    const snap = r.free ? (markets.get(series(trailers, r.truckId)) ?? null) : null
+    const state = stateFromPlace(r.place)
+    const lt = snap ? ltOf(snap, state) : null
+    const heat = snap && lt ? ltHeat(snap, lt.ratio) : null
+    return [
+      {
+        key: `idle-${r.truckId}`,
+        href: `/trucks/${r.truckId}`,
+        title: truckLabel(truck, trailers.get(r.truckId)),
+        detail: (
+          <span className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+            {/* У стоящего трака место — это ответ брокеру «где он сейчас», и его
+                копируют. У едущего здесь город ВЫГРУЗКИ — копировать нечего. */}
+            {r.free && r.place ? (
+              <CopyPlace text={r.place} size="sm" className="min-w-0 text-sm text-t2" />
+            ) : (
+              <span className="text-t3">{r.free ? t(locale, 'needsLoad.noPlace') : `→ ${r.place ?? '—'}`}</span>
+            )}
+            {/* Рынок в штате стоянки: ставка за милю региона и насколько горячий штат —
+                словами, без цифры «грузов на трак», которую никто не читал. */}
+            {snap && lt && heat && (
+              <span title={`${state} · ${t(locale, 'loadCard.marketAsOf').replace('{when}', usDate(todayEt(new Date(snap.at))))}`} className="text-t3">
+                {(() => {
+                  const [before, after] = t(locale, 'needsLoad.market').split('{heat}')
+                  const rpm = regionOf(snap, state)?.rpm
+                  return (
+                    <>
+                      {rpm ? <span className="nums text-t2">{usd2.format(rpm)}/mi · </span> : null}
+                      {before}
+                      <span className={heat === 'hot' ? 'font-semibold text-good-400' : heat === 'cold' ? 'font-semibold text-bad-400' : 'text-t2'}>
+                        {t(locale, HEAT_LEVEL_KEY[heatLevel(ltMedian(snap), lt.ratio)])}
+                      </span>
+                      {after}
+                    </>
+                  )
+                })()}
+              </span>
+            )}
+            {/* Ответ на «когда»: у стоящего — сколько уже стоит, у едущего — когда освободится. */}
+            {r.free ? (
+              r.days === null ? (
+                <span className="text-t3">{t(locale, 'needsLoad.never')}</span>
+              ) : (
+                <span>
+                  <span className={r.days >= 5 ? 'font-semibold text-bad-400' : 'text-warn-400'}>
+                    {t(locale, 'needsLoad.idleDays').replace('{n}', String(r.days))}
                   </span>
-                )}
-
-                {/* Рынок в штате стоянки: чем больше грузов на трак, тем проще найти груз и
-                    удержать ставку. На телефоне и планшете — своей строкой под местом. */}
-                {snap && lt && heat && (
-                  <span
-                    title={`${state} · ${t(locale, 'loadCard.marketAsOf').replace('{when}', usDate(todayEt(new Date(snap.at))))}`}
-                    className="order-last basis-full text-sm text-t3 lg:order-none lg:basis-auto"
-                  >
-                    {(() => {
-                      // Ставка за милю региона и насколько горячий штат словами — без цифры
-                      // «грузов на трак», которую никто не читал.
-                      const [before, after] = t(locale, 'needsLoad.market').split('{heat}')
-                      const rpm = regionOf(snap, state)?.rpm
-                      return (
-                        <>
-                          {rpm ? <span className="nums text-t2">{usd2.format(rpm)}/mi · </span> : null}
-                          {before}
-                          <span className={heat === 'hot' ? 'font-semibold text-good-400' : heat === 'cold' ? 'font-semibold text-bad-400' : 'text-t2'}>
-                            {t(locale, HEAT_LEVEL_KEY[heatLevel(ltMedian(snap), lt.ratio)])}
-                          </span>
-                          {after}
-                        </>
-                      )
-                    })()}
-                  </span>
-                )}
-
-                {/* Правая часть — ответ на «когда». У стоящего это «сколько уже»,
-                    у едущего «до какого числа занят». */}
-                <span className="nums shrink-0 text-right text-sm">
-                  {r.free ? (
-                    r.days === null ? (
-                      <span className="text-t3">{t(locale, 'needsLoad.never')}</span>
-                    ) : (
-                      <>
-                        <span className={r.days >= 5 ? 'font-semibold text-bad-400' : 'text-warn-400'}>
-                          {t(locale, 'needsLoad.idleDays').replace('{n}', String(r.days))}
-                        </span>
-                        {!off && r.idleCost > 0 && (
-                          <span className="ml-2 text-t3">−{usd.format(r.idleCost)}</span>
-                        )}
-                      </>
-                    )
-                  ) : (
-                    <span className="text-good-400">
-                      {r.since
-                        ? t(locale, 'needsLoad.freeOn').replace('{d}', fmtDay(r.since, locale))
-                        : t(locale, 'needsLoad.onLoad')}
-                    </span>
-                  )}
+                  {r.idleCost > 0 && <span className="nums ml-2 text-t3">−{usd.format(r.idleCost)}</span>}
                 </span>
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
-    </section>
-  )
-}
-
-/** «2026-08-17» → «17 авг». Год не пишем: карта смотрит на ближайшие дни. */
-function fmtDay(iso: string, locale: Locale): string {
-  void locale
-  return usDate(iso) || iso
+              )
+            ) : (
+              <span className="text-good-400">
+                {r.since ? t(locale, 'needsLoad.freeOn').replace('{d}', usDate(r.since) || r.since) : t(locale, 'needsLoad.onLoad')}
+              </span>
+            )}
+          </span>
+        ),
+      },
+    ]
+  })
 }

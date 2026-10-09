@@ -56,9 +56,8 @@ const STEPS: Def[] = [
   // Пункт меню — общий с брокерами («Рынок»).
   { key: 'facilities', href: '/brokers?view=facilities', target: 'nav-brokers', image: '' },
   { key: 'tolls', href: '/tolls', target: '', image: 'tolls' },
-  // «Финансы» слились с «Файлами» в «Документы»: кадр снят до слияния и показывает
-  // прежний экран — переснять scripts/guide-shots.mjs, когда дойдут руки.
-  { key: 'invoices', href: '/docs?tab=unpaid', target: '', image: 'invoices' },
+  // Деньги — своим разделом с 10/09/26 (до того — вкладка «Документов»).
+  { key: 'invoices', href: '/money?tab=unpaid', target: 'nav-money', image: 'invoices' },
 ]
 
 /** cache(): читают и корневой layout (сама экскурсия), и «Обзор» (карточка «Пройти

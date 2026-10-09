@@ -1,6 +1,15 @@
-// Finances domain: app/invoices/**, invoice-actions, lib/invoice.ts.
+// Finances domain: app/money (раздел «Деньги»), app/docs/finance-tabs, lib/invoice.ts.
 
 export const financesDict = {
+  // Кто пришёл в «Деньги» по старой ссылке без права «Финансы»: пункта в меню у него нет.
+  'money.noAccess': {
+    ru: 'Деньги видит тот, у кого есть право «Финансы», — его включает администратор. Бумаги грузов — в «Документах».',
+    en: 'Money is visible to people with the Finances permission — an admin turns it on. Load paperwork is in Documents.',
+    es: 'Dinero lo ve quien tiene el permiso «Finanzas» — lo activa el administrador. Los documentos de las cargas están en Documentos.',
+    uk: 'Гроші бачить той, у кого є право «Фінанси», — його вмикає адміністратор. Документи вантажів — у «Документах».',
+    ro: 'Banii îi vede cine are dreptul „Finanțe” — îl activează administratorul. Documentele curselor sunt în Documente.',
+    kk: '«Ақша» бөлімін «Қаржы» құқығы барлар көреді — оны әкімші қосады. Жүк құжаттары — «Құжаттарда».',
+  },
   'finances.payWeekNote': {
     ru: 'Неделя расчёта — с пятницы по пятницу',
     en: 'Pay week runs Friday to Friday',

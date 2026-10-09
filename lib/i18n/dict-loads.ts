@@ -11,6 +11,15 @@ export const loadsDict = {
 
   // app/loads/page.tsx
   'loads.page.title': { ru: 'Грузы', en: 'Loads', es: 'Cargas', uk: 'Вантажі', ro: 'Curse', kk: 'Жүктер' },
+  // Строка под заголовком раздела (одна шапка на все разделы, 10/09/26).
+  'loads.page.subtitle': {
+    ru: 'Все грузы парка: по водителям, по неделе и на карте.',
+    en: 'Every load in the fleet: by driver, by week and on the map.',
+    es: 'Todas las cargas de la flota: por conductor, por semana y en el mapa.',
+    uk: 'Усі вантажі парку: за водіями, за тижнем і на карті.',
+    ro: 'Toate cursele flotei: pe șofer, pe săptămână și pe hartă.',
+    kk: 'Парктің барлық жүгі: жүргізуші, апта және карта бойынша.',
+  },
   'loads.page.tooltip': {
     ru: '«По водителю» — грузы сгруппированы по траку. «По статусу» — цветная доска: одна колонка на каждый статус груза, чтобы видеть всё сразу, а не открывать каждого водителя по очереди. «Календарь» — вся история грузов по неделям, листается назад и вперёд. «Чистыми» — что остаётся после всех расходов трака; число после точки — доход на милю (RPM).',
     en: '"By driver" groups loads by truck. "By status" is a color-coded board — one column per load status, so you can see everything at a glance instead of opening each driver in turn. "Calendar" is the full load history by week, paged back and forward. "Net" is what\'s left after all truck expenses; the number after the dot is revenue per mile (RPM).',
@@ -3875,22 +3884,6 @@ export const loadsDict = {
     ro: 'Timpul de transfer și orele șoferului nu sunt verificate',
     kk: 'Жету уақыты мен жүргізушінің қолжетімді сағаттары тексерілмеген',
   },
-  'loads.dash.attention': {
-    ru: 'Требуют действия',
-    en: 'Action needed',
-    es: 'Requieren acción',
-    uk: 'Потребують дії',
-    ro: 'Necesită acțiune',
-    kk: 'Әрекет қажет',
-  },
-  'loads.dash.documents': {
-    ru: 'Документы',
-    en: 'Documents',
-    es: 'Documentos',
-    uk: 'Документи',
-    ro: 'Documente',
-    kk: 'Құжаттар',
-  },
   'loads.dash.checks': {
     ru: 'Проверить расчёт',
     en: 'Review estimate',
@@ -3930,14 +3923,6 @@ export const loadsDict = {
     uk: 'За цей період вантажів немає',
     ro: 'Nu există curse în această perioadă',
     kk: 'Бұл кезеңде жүктер жоқ',
-  },
-  'loads.dash.more': {
-    ru: 'Показать все',
-    en: 'Show all',
-    es: 'Mostrar todas',
-    uk: 'Показати всі',
-    ro: 'Arată toate',
-    kk: 'Барлығын көрсету',
   },
   'loads.dash.clear': {
     ru: 'Сбросить выборку',
@@ -4004,14 +3989,6 @@ export const loadsDict = {
     uk: 'Підтверджені вантажі з пікапом наступного розрахункового тижня і скільки траків ними закрито. Заявки не входять.',
     ro: 'Curse confirmate cu încărcare săptămâna de plată viitoare și câte camioane acoperă. Fără oferte.',
     kk: 'Келесі есеп аптасында тиелетін расталған жүктер және олар қанша тракты жабады. Өтінімдер кірмейді.',
-  },
-  'loads.dash.attentionInfo': {
-    ru: 'Грузы, по которым нужно что-то сделать: дособрать документы, выставить счёт, напомнить об оплате или проверить расчёт. Оплаченные и черновики сюда не попадают.',
-    en: 'Loads that need something done: collect documents, invoice, chase payment or check the estimate. Paid loads and drafts are not listed.',
-    es: 'Cargas que requieren algo: reunir documentos, facturar, reclamar el pago o revisar la estimación. Sin cargas pagadas ni borradores.',
-    uk: 'Вантажі, де треба щось зробити: дозібрати документи, виставити рахунок, нагадати про оплату чи перевірити розрахунок. Оплачені й чернетки сюди не потрапляють.',
-    ro: 'Curse care cer o acțiune: documente lipsă, facturare, urmărirea plății sau verificarea estimării. Cursele plătite și ciornele nu apar.',
-    kk: 'Бірдеңе істеу керек жүктер: құжаттарды жинау, шот қою, төлемді еске салу немесе есепті тексеру. Төленгендер мен жобалар кірмейді.',
   },
 
   // Флаг приоритета груза (components/priority-picker.tsx, очередь внимания).

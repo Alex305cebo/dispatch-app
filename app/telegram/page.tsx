@@ -26,7 +26,7 @@ import type { TgDriver } from './tg-attach-button'
 import { TgImage } from './tg-image'
 import { TgChatSettings } from './tg-chat-settings'
 import { TgAddChat } from './tg-add-chat'
-import { Info } from '@/components/info'
+import { PageHeader } from '@/components/page-header'
 import { CountTile } from '@/components/count-tile'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
 import { tileGrid } from '@/lib/tiles'
@@ -305,24 +305,24 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   const grid = await tileGrid('telegram', TELEGRAM_TILES, locale)
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
-            Telegram
-            <Info side="bottom" text={t(locale, 'telegram.page.tooltip')} />
-          </h1>
-          <p className="text-base text-t2">
+    <main className="page">
+      <PageHeader
+        title="Telegram"
+        info={t(locale, 'telegram.page.tooltip')}
+        subtitle={
+          <>
             {t(locale, 'telegram.page.yourAccount')}
             {account?.phone ? ` · +${account.phone}` : ''}
             {account?.name ? ` · ${account.name}` : ''}
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <TgCheckButton />
-          <TgDisconnectButton />
-        </div>
-      </header>
+          </>
+        }
+        actions={
+          <>
+            <TgCheckButton />
+            <TgDisconnectButton />
+          </>
+        }
+      />
 
       {/* Ошибка — первой: сломанное подключение важнее любых настроек. */}
       {error && <p className="panel mb-4 p-4 text-base text-bad-400">{error}</p>}

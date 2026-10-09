@@ -21,6 +21,8 @@ import { BROKERS_TILES } from '@/lib/tiles-core'
 import { Suspense } from 'react'
 import { RoutePlanSection } from '@/components/route-plan-section'
 import { Directory, type DirBroker, type DirFacility, type DirView } from './directory'
+import { MarketTabs } from './market-tabs'
+import { PageHeader } from '@/components/page-header'
 
 export const dynamic = 'force-dynamic'
 
@@ -280,9 +282,9 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
   const grid = await tileGrid('brokers', BROKERS_TILES, locale)
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <h1 className="text-xl font-bold tracking-tight">{t(locale, 'nav.brokers')}</h1>
-      <p className="mb-4 text-base text-t2">{t(locale, 'brokers.dir.subtitle')}</p>
+    <main className="page">
+      <PageHeader title={t(locale, 'nav.brokers')} subtitle={t(locale, 'brokers.dir.subtitle')} />
+      <MarketTabs active="brokers" locale={locale} />
 
       <WidgetGrid
         {...grid}

@@ -4,12 +4,13 @@
 // same chrome, so they live here rather than in a domain shard).
 
 export const navDict = {
-  'nav.overview': { ru: 'Обзор', en: 'Overview', es: 'Resumen', uk: 'Огляд', ro: 'Prezentare', kk: 'Шолу' },
+  // «Сегодня» (до 10/09/26 — «Обзор»): главная показывает то, что ждёт действия сегодня.
+  'nav.overview': { ru: 'Сегодня', en: 'Today', es: 'Hoy', uk: 'Сьогодні', ro: 'Azi', kk: 'Бүгін' },
   'nav.loads': { ru: 'Грузы', en: 'Loads', es: 'Cargas', uk: 'Вантажі', ro: 'Curse', kk: 'Жүктер' },
   'nav.trucks': { ru: 'Траки', en: 'Trucks', es: 'Camiones', uk: 'Траки', ro: 'Camioane', kk: 'Тракттар' },
   'nav.tracking': { ru: 'Трекинг', en: 'Track', es: 'Rastreo', uk: 'Трекінг', ro: 'Urmărire', kk: 'Бақылау' },
-  // Бумаги и деньги слиты в один раздел 19.09.2026 — одно слово и на меню, и на
-  // заголовок страницы.
+  // Бумаги и деньги слиты в один раздел 19.09.2026, деньги снова отдельно с 10/09/26
+  // («Деньги»). Одно слово и на меню, и на заголовок страницы.
   'nav.docs': { ru: 'Документы', en: 'Documents', es: 'Documentos', uk: 'Документи', ro: 'Documente', kk: 'Құжаттар' },
   // Раздел перестал быть только справочником: с 18.09.2026 сверху «Куда отправить
   // трак». Одно слово — правило владельца (19.09.2026): у пункта меню одно нужное
@@ -19,6 +20,8 @@ export const navDict = {
   // «Толлы» — то самое слово, которым это и называют вслух в диспетчерской, и оно
   // втрое короче. Полное название осталось заголовком самого раздела.
   'nav.tolls': { ru: 'Толлы', en: 'Tolls', es: 'Peajes', uk: 'Толи', ro: 'Taxe', kk: 'Жолақы' },
+  // «Деньги» — своим пунктом меню с 10/09/26 (раньше — первая вкладка «Документов»).
+  'nav.money': { ru: 'Деньги', en: 'Money', es: 'Dinero', uk: 'Гроші', ro: 'Bani', kk: 'Ақша' },
   // Раздел рейсов Amazon Relay (10/03/26). Название сервиса не переводится.
   'nav.amazon': { ru: 'Amazon', en: 'Amazon', es: 'Amazon', uk: 'Amazon', ro: 'Amazon', kk: 'Amazon' },
   'nav.telegram': { ru: 'Telegram', en: 'Telegram', es: 'Telegram', uk: 'Telegram', ro: 'Telegram', kk: 'Telegram' },

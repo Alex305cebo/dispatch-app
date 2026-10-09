@@ -1,27 +1,24 @@
-// Раздел «Документы» — бывшие «Файлы» и «Финансы» одной страницей.
+// Раздел «Документы» — все бумаги парка.
 //
-// Слито по грузу: у него есть и бумаги, и деньги, и раньше человек читал «не хватает
-// POD» в одном разделе, а искал сам файл в другом. Теперь:
-//   Грузы            — строка груза: плитки бумаг (открыть/догрузить) + путь денег;
-//   Траки и водители — бумаги, у которых груза нет: страховка, регистрация, чеки, фото;
-//   Деньги           — отчёты: кто должен, что оплачено, недели, диспетчеры, водители;
-//   Корзина          — удалённые бумаги, откуда их возвращают.
+//   Грузы   — строка груза: плитки бумаг (открыть/догрузить) + путь денег до оплаты;
+//   Траки   — бумаги, у которых груза нет: страховка, регистрация, чеки, фото;
+//   Корзина — удалённые бумаги, откуда их возвращают.
 //
-// Денежные вкладки и суммы закрыты правом «Финансы»; без него остаются бумаги, и
-// раздел не исчезает — файлы нужны всем, кто работает с грузом.
-// Старый адрес /invoices ведёт сюда со своей вкладкой (app/invoices/page.tsx).
+// Деньги (отчёты: кто должен, что оплачено, недели, диспетчеры, водители) с 10/09/26 —
+// своим разделом app/money: раньше это была первая вкладка здесь, и раздел бумаг
+// открывался на деньгах. Старые ссылки /docs?tab=unpaid и /invoices переводит туда
+// next.config.ts (redirects).
 
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
 import { tileGrid } from '@/lib/tiles'
 import { DOCS_FLEET_TILES, DOCS_TILES } from '@/lib/tiles-core'
 import Link from 'next/link'
-import { listDocsForLibrary, listTrashedDocs, listTrucks, rateConByLoad } from '@/lib/loads'
+import { listDocsForLibrary, listTrashedDocs, listTrucks } from '@/lib/loads'
 import { DocLibrary, DocTrash, DocUpload } from '@/components/docs'
-import { ByDispatcher, ByWeek, loadsTabTiles, Paid, Unpaid } from './finance-tabs'
-import { ByDriver } from './drivers-tab'
-import { ChipNav, SectionNav, type NavItem } from './tab-nav'
-import { FileText, Package, ScanText, Trash2, Truck, Wallet } from 'lucide-react'
-import { Info } from '@/components/info'
+import { loadsTabTiles } from './finance-tabs'
+import { SectionNav, type NavItem } from './tab-nav'
+import { FileText, Package, ScanText, Trash2, Truck } from 'lucide-react'
+import { PageHeader } from '@/components/page-header'
 import { Stat } from '@/components/stat'
 import { companyScope, getCurrentUser } from '@/lib/session'
 import { can } from '@/lib/capabilities-server'
@@ -31,110 +28,60 @@ import type { CompanyId } from '@/lib/company'
 
 export const dynamic = 'force-dynamic'
 
-/** Вкладки с деньгами — их видно только с правом «Финансы». */
-const MONEY_TABS = ['unpaid', 'paid', 'weeks', 'dispatchers', 'drivers'] as const
-type MoneyTab = (typeof MONEY_TABS)[number]
-type Tabs = 'loads' | 'fleet' | 'trash' | MoneyTab
-
-const isMoney = (tab: string): tab is MoneyTab => (MONEY_TABS as readonly string[]).includes(tab)
+type Tabs = 'loads' | 'fleet' | 'trash'
 
 const SUBTITLE: Record<Tabs, MsgKey> = {
   loads: 'docs.sub.loads',
   fleet: 'docs.sub.fleet',
   trash: 'docs.sub.trash',
-  unpaid: 'finances.tabDesc.unpaid',
-  paid: 'finances.tabDesc.paid',
-  weeks: 'finances.tabDesc.weeks',
-  dispatchers: 'finances.tabDesc.dispatchers',
-  drivers: 'finances.tabDesc.drivers',
 }
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; stage?: string; week?: string }> }) {
-  const { tab: tabParam, q, stage, week } = await searchParams
+export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; stage?: string }> }) {
+  const { tab: tabParam, q, stage } = await searchParams
   const user = await getCurrentUser()
   const canFinances = await can(user, 'finances')
-  // «По диспетчерам» — своё право (по умолчанию включено): заработок ВСЕХ диспетчеров.
-  const canReport = await can(user, 'dispatcher_report')
   const companyId = await companyScope()
   const locale = await getLocale()
 
-  const tab = pickTab(tabParam, canFinances, canReport, Boolean(q || stage))
+  const tab: Tabs = tabParam === 'fleet' || tabParam === 'trash' ? tabParam : 'loads'
 
-  // Деньги — первым разделом и главным экраном (владелец, 29.09.2026: «этот раздел
-  // должен быть первым», «это должно быть главным» — про неделю водителей).
   const sections: NavItem[] = [
-    ...(canFinances
-      ? [{ key: 'money', href: '/docs?tab=drivers', label: t(locale, 'docs.tab.money'), icon: <Wallet size={16} />, active: isMoney(tab) }]
-      : []),
     { key: 'loads', href: '/docs?tab=loads', label: t(locale, 'docs.tab.loads'), icon: <Package size={16} />, active: tab === 'loads' },
     { key: 'fleet', href: '/docs?tab=fleet', label: t(locale, 'docs.tab.fleet'), icon: <Truck size={16} />, active: tab === 'fleet' },
     { key: 'trash', href: '/docs?tab=trash', label: t(locale, 'docs.tab.trash'), icon: <Trash2 size={16} />, active: tab === 'trash' },
   ]
-  // Вкладки денег: сначала работа недели (водители, недели, диспетчеры), потом кто
-  // сколько должен и что уже пришло.
-  const moneyTabs: NavItem[] = [
-    { key: 'drivers', href: '/docs?tab=drivers', label: t(locale, 'finances.tab.drivers'), active: tab === 'drivers' },
-    { key: 'weeks', href: '/docs?tab=weeks', label: t(locale, 'finances.tab.weeks'), active: tab === 'weeks' },
-    ...(canReport
-      ? [{ key: 'dispatchers', href: '/docs?tab=dispatchers', label: t(locale, 'finances.tab.dispatchers'), active: tab === 'dispatchers' }]
-      : []),
-    { key: 'unpaid', href: '/docs?tab=unpaid', label: t(locale, 'finances.tab.unpaid'), active: tab === 'unpaid' },
-    { key: 'paid', href: '/docs?tab=paid', label: t(locale, 'finances.tab.paid'), active: tab === 'paid' },
-  ]
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-8">
-      {/* Шапка: слева что это за раздел и что на вкладке, справа — главное действие.
-          С бумаги начинается груз, поэтому «Распознать Rate Con» — кнопка шапки, а не
+    <main className="page">
+      {/* С бумаги начинается груз, поэтому «Распознать Rate Con» — кнопка шапки, а не
           плитка, которая съедала полстроки над числами. */}
-      <header className="mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
-        <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            {t(locale, 'docs.title')}
-            <Info side="bottom" text={t(locale, 'docs.info')} />
-          </h1>
-          <p className="mt-0.5 text-base text-t2">{t(locale, SUBTITLE[tab])}</p>
-        </div>
-        <Link
-          href="/loads/new"
-          className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-haul-500 px-4 text-base font-semibold text-white shadow-[0_8px_24px_-10px_rgba(124,108,255,0.8)] transition-colors hover:bg-haul-400 max-sm:w-full max-sm:justify-center"
-        >
-          <ScanText size={17} strokeWidth={2.25} />
-          {t(locale, 'docs.recognize.btn')}
-        </Link>
-      </header>
+      <PageHeader
+        title={t(locale, 'docs.title')}
+        info={t(locale, 'docs.info')}
+        subtitle={t(locale, SUBTITLE[tab])}
+        actions={
+          <Link
+            href="/loads/new"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-haul-500 px-4 text-base font-semibold text-white shadow-[0_8px_24px_-10px_rgba(124,108,255,0.8)] transition-colors hover:bg-haul-400"
+          >
+            <ScanText size={17} strokeWidth={2.25} />
+            {t(locale, 'docs.recognize.btn')}
+          </Link>
+        }
+      />
 
-      {/* Разделы — одним переключателем-сегментом: деньги, груз, трак, корзина.
-          На телефоне четыре равные ячейки со значком над словом — влезают в ширину. */}
+      {/* Разделы — одним переключателем-сегментом: груз, трак, корзина. */}
       <SectionNav items={sections} label={t(locale, 'docs.title')} />
-
-      {isMoney(tab) && <ChipNav items={moneyTabs} className="mb-5" />}
 
       {tab === 'loads' ? (
         <Loads companyId={companyId} locale={locale} query={q ?? ''} stage={stage ?? ''} money={canFinances} />
       ) : tab === 'fleet' ? (
         <Fleet companyId={companyId} locale={locale} />
-      ) : tab === 'trash' ? (
-        <Trash companyId={companyId} />
       ) : (
-        <Money tab={tab} companyId={companyId} locale={locale} week={week} />
+        <Trash companyId={companyId} />
       )}
     </main>
   )
-}
-
-/** Адрес → вкладка, с оглядкой на права. Старые ссылки (/docs?tab=trash и все
- * /invoices?tab=…) ведут туда же, куда вели: их вкладки никуда не делись. */
-function pickTab(param: string | undefined, canFinances: boolean, canReport: boolean, loadsQuery: boolean): Tabs {
-  // Без вкладки в адресе открываются деньги — неделя водителей; ссылки на поиск и
-  // этап груза (/docs?q=…, /docs?stage=…) по-прежнему ведут к грузам.
-  const tab = param === 'library' ? 'loads' : (param ?? (canFinances && !loadsQuery ? 'drivers' : 'loads'))
-  if (tab === 'fleet' || tab === 'trash') return tab
-  if (isMoney(tab)) {
-    if (!canFinances) return 'loads'
-    return tab === 'dispatchers' && !canReport ? 'drivers' : tab
-  }
-  return 'loads'
 }
 
 async function Loads({
@@ -220,20 +167,4 @@ async function Trash({ companyId }: { companyId: CompanyId }) {
       <DocTrash rows={trash} />
     </div>
   )
-}
-
-async function Money({ tab, companyId, locale, week }: { tab: MoneyTab; companyId: CompanyId; locale: Locale; week?: string }) {
-  const rateCons = await rateConByLoad(companyId)
-  switch (tab) {
-    case 'unpaid':
-      return <Unpaid companyId={companyId} rateCons={rateCons} locale={locale} />
-    case 'paid':
-      return <Paid companyId={companyId} rateCons={rateCons} locale={locale} />
-    case 'weeks':
-      return <ByWeek companyId={companyId} locale={locale} />
-    case 'dispatchers':
-      return <ByDispatcher companyId={companyId} locale={locale} week={week} />
-    case 'drivers':
-      return <ByDriver companyId={companyId} locale={locale} week={week} />
-  }
 }

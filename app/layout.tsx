@@ -105,6 +105,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // раздела, а бумаги в нём нужны всем.
     can(user, 'telegram'),
     tilesEnabled(),
+    // Пункт «Деньги» — только с правом «Финансы».
+    can(user, 'finances'),
   ]).catch(() => null)
   // Overdue/≤30-day document expiries — a badge on the Траки nav item, visible from
   // anywhere in the app, not just the one banner on the dashboard.
@@ -133,6 +135,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             showTelegram={chrome?.[2] ?? false}
             urgentDocs={urgentDocs}
             tilesEnabled={chrome?.[3] ?? false}
+            showMoney={chrome?.[4] ?? false}
           />
           {user?.isDemo && <DemoModeBanner />}
           {/* Room for the bottom bar on phones (tabs + utility strip), sidebar on desktop.
