@@ -6,8 +6,10 @@ import {
   migrateDriversTile,
   migrateTruckDriverCard,
   migrateLoadPapers,
+  migrateLoadsMap,
   trucksTiles,
   LOAD_DETAIL_TILES,
+  LOADS_TILES,
   parseLayout,
   serializeLayout,
   TILE_PAGES,
@@ -221,4 +223,20 @@ test('migrateLoadPapers: «Точки» и «Подробности» влиты
     { id: 'status', size: 'l' },
   ])
   assert.ok(!merged.some((p) => p.id === 'stops' || p.id === 'details'))
+})
+
+test('migrateLoadsMap: карта встаёт перед списком, а не под все грузы', () => {
+  const ids = (l: { id: string }[]) => l.map((p) => p.id)
+  // Сохранено, пока карта была видом внутри списка: ключа 'map' нет.
+  const saved = parseLayout(
+    '[{"id":"week-rpm","size":"s"},{"id":"week-gross","size":"s"},{"id":"utilization","size":"s"},{"id":"next-week","size":"s"},{"id":"list","size":"l"}]',
+  )
+  assert.deepEqual(ids(applyLayout(migrateLoadsMap(saved), LOADS_TILES)), ['week-rpm', 'week-gross', 'utilization', 'next-week', 'map', 'list'])
+  // Раскладка старше хранит карту на прежнем месте — её не трогаем.
+  const older = parseLayout('[{"id":"map","size":"w"},{"id":"week-gross","size":"s"},{"id":"list","size":"l"}]')
+  assert.equal(migrateLoadsMap(older), older)
+  assert.deepEqual(ids(applyLayout(older, LOADS_TILES)), ['map', 'week-gross', 'list', 'week-rpm', 'utilization', 'next-week'])
+  // Ничего не сохранено — порядок по умолчанию, карта сразу под цифрами.
+  assert.deepEqual(migrateLoadsMap([]), [])
+  assert.deepEqual(ids(applyLayout([], LOADS_TILES)), ['week-gross', 'week-rpm', 'utilization', 'next-week', 'map', 'list'])
 })

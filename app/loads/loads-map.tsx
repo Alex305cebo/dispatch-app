@@ -57,14 +57,14 @@ export function LoadsMap({ rows, locale }: { rows: LoadsMapRow[]; locale: Locale
   )
   if (!rows.length)
     return (
-      <section className="panel mb-4 px-3.5 py-3">
+      <section className="panel px-3.5 py-3">
         {heading}
         <p className="mt-0.5 text-base text-t3">{t(locale, 'loads.dash.noActive')}</p>
       </section>
     )
 
   return (
-    <section className="panel mb-4 overflow-hidden">
+    <section className="panel overflow-hidden">
       <div className="flex items-center gap-2 px-3.5 py-2.5">
         {heading}
         <span className="nums rounded-full bg-white/10 px-1.5 py-0.5 text-xs font-bold text-t2">{rows.length}</span>

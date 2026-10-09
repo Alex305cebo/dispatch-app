@@ -1,8 +1,10 @@
 'use client'
 
-// «Грузы»: четыре цифры недели, под ними один переключатель Список · Статусы · Неделя ·
-// Карта (план «Порядок в TMS», 10/09/26). До этого карта, неделя и список стояли тремя блоками
-// подряд, и список — то, ради чего сюда заходят, — оказывался на третьем экране.
+// «Грузы»: четыре цифры недели, под ними карта активных грузов со списком водителей и
+// кнопкой «Открыть груз», ниже один переключатель Список · Статусы · Неделя (план «Порядок
+// в TMS», 10/09/26). До этого карта, неделя и список стояли тремя блоками подряд, и список
+// оказывался на третьем экране. Карта сутки побыла четвёртым видом и вернулась наверх —
+// владелец: «карта и список водителей со ссылкой должны быть всегда на первой странице».
 //
 // Виды живут на клиенте не ради моды. Раньше вкладки были ссылками с ?view=, а стрелки
 // календаря — ссылками с ?week=/?day=, то есть каждый клик был переходом по маршруту:
@@ -15,7 +17,7 @@
 
 import { createContext, useContext, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { CalendarDays, Columns3, List, Map as MapIcon, PackageOpen, Plus } from 'lucide-react'
+import { CalendarDays, Columns3, List, PackageOpen, Plus } from 'lucide-react'
 import { Button } from '@/components/button'
 import { ShowMore } from '@/components/collapse'
 import { Empty } from '@/components/empty'
@@ -65,8 +67,9 @@ const COLUMN_ACCENT: Record<LoadRecord['status'], string> = {
   cancelled: 'border-t-bad-500/50',
 }
 
-/** Вид раздела: список по водителю, колонки по статусу, неделя по тракам, карта. */
-export type LoadsView = 'list' | 'board' | 'week' | 'map'
+/** Вид раздела: список по водителю, колонки по статусу, неделя по тракам. Карта — не
+ *  вид, а своя плитка над ними: она видна всегда. */
+export type LoadsView = 'list' | 'board' | 'week'
 
 /** Сравнение, где Infinity значит «в конец»: Infinity - Infinity даёт NaN, а не 0. */
 const cmp = (a: number, b: number) => (a === b ? 0 : a < b ? -1 : 1)
@@ -91,7 +94,8 @@ export function LoadsViews({
   /** Map не переживает границу сервер-клиент как есть — передаём парами. */
   rateConPairs: [number, number][]
   photoTruckIds: number[]
-  /** Карта — серверный компонент, приходит готовым узлом. */
+  /** Карта активных грузов со списком водителей — серверный компонент, приходит готовым
+   *  узлом и стоит своей плиткой над списком. */
   mapPanel: ReactNode
   /** Первый день текущей расчётной недели (yyyy-mm-dd) — с сервера, чтобы SSR и клиент сошлись. */
   weekFrom: string
@@ -179,6 +183,9 @@ export function LoadsViews({
   // «Требуют действия» — в ленте «Ждёт тебя» на «Сегодня»; «Грузы по дате пикапа» и
   // «Направления» — в «Деньгах», вкладка «Недели».
 
+  // Карта с водителями и «Открыть груз» — сразу под цифрами, при любом виде списка.
+  add('map', mapPanel)
+
   const icon = { size: 17, strokeWidth: 2.25 }
   add(
     'list',
@@ -197,7 +204,6 @@ export function LoadsViews({
           // Бывшая вкладка «По статусу»: те же грузы колонками, с суммой в каждой.
           { key: 'board', label: t(locale, 'loads.view.board'), icon: <Columns3 {...icon} /> },
           { key: 'week', label: t(locale, 'loads.view.week'), icon: <CalendarDays {...icon} /> },
-          { key: 'map', label: t(locale, 'loads.view.map'), icon: <MapIcon {...icon} /> },
         ]}
       />
 
@@ -206,10 +212,6 @@ export function LoadsViews({
         // сужают — это обзор парка, а не список; отменённые грузы она не рисует сама.
         <Calendar loads={allLoads} week={week} byId={byId} rateCons={rateCons} locale={locale} onWeek={setWeek} />
       )}
-
-      {/* Карта монтируется, только когда её открыли: в скрытом блоке она считала бы
-          свой размер нулевым. */}
-      {view === 'map' && mapPanel}
 
       {(view === 'list' || view === 'board') && (
         <>

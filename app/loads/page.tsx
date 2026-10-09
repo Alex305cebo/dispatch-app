@@ -1,5 +1,5 @@
 import { tileGrid } from '@/lib/tiles'
-import { LOADS_TILES } from '@/lib/tiles-core'
+import { LOADS_TILES, migrateLoadsMap } from '@/lib/tiles-core'
 import { Suspense } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/button'
@@ -108,11 +108,11 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
   // из одной и той же ms сервер в UTC и браузер в New York получали разные дни (#418).
   const weekFrom = weekStartIso(todayEt())
   const initialWeek = sp.week && !Number.isNaN(Date.parse(`${sp.week}T12:00:00`)) ? weekStartIso(sp.week) : weekFrom
-  const grid = await tileGrid('loads', LOADS_TILES, locale)
+  const grid = await tileGrid('loads', LOADS_TILES, locale, migrateLoadsMap)
   // Вид из адреса. Старые ссылки тоже: ?view=calendar или одна ?week= — неделя (раньше
-  // она всегда стояла под картой).
+  // она всегда стояла под картой); ?view=map — список, карта и так стоит над ним.
   const initialView =
-    sp.view === 'map' || sp.view === 'board' ? sp.view : sp.view === 'week' || sp.view === 'calendar' || (sp.week && !sp.view) ? 'week' : 'list'
+    sp.view === 'board' ? sp.view : sp.view === 'week' || sp.view === 'calendar' || (sp.week && !sp.view) ? 'week' : 'list'
 
   return (
     <LoadsViews
