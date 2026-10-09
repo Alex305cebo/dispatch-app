@@ -497,11 +497,19 @@ function Cell({
         bind(node)
       }}
       data-tile-size={size}
-      layout={reduce ? false : 'position'}
+      // Анимация места — только в режиме перестановки, когда плитки и правда едут.
+      // Включённая всегда, она заставляла motion перемерять КАЖДУЮ плитку (и прокрутку
+      // всех её родителей) на каждом рендере страницы: на «Грузах» это ~60 мс
+      // принудительной перекладки при каждом входе в раздел, а под стеклянным размытием
+      // каждая такая перекладка ещё и перерисовывает всё размытое.
+      layout={reduce || !edit ? false : 'position'}
       transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 38 }}
       drag={edit}
       dragListener={false}
-      dragControls={controls}
+      // Тоже только в режиме перестановки: одно наличие dragControls включает в motion
+      // перетаскивание, а оно при появлении плитки меряет её и прокрутку всех предков —
+      // ~85 мс на входе в «Грузы», хотя двигать сейчас ничего нельзя.
+      dragControls={edit ? controls : undefined}
       dragSnapToOrigin
       dragElastic={0.12}
       dragMomentum={false}

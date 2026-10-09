@@ -44,7 +44,13 @@ export function RefreshFleetButton({ staleMinutes }: { staleMinutes: number | nu
             ? `${t(locale, 'tracking.updatedTrucksPrefix')}${res.updated}`
             : t(locale, 'tracking.noNewData'),
         )
-      router.refresh()
+      // Свежий GPS страница получает сама: действие зовёт revalidatePath, и Next
+      // присылает перерисованную страницу прямо в ответе на него. Лишний
+      // router.refresh() здесь был ВТОРЫМ полным рендером «Траков» — на каждом
+      // открытии со старым GPS и раз в минуту по таймеру, даже когда ничего не
+      // пришло, — и заодно стирал в браузере все уже открытые разделы.
+      // Только по нажатию кнопки — человек явно просит перечитать страницу.
+      if (!silent) router.refresh()
     })
   }
 

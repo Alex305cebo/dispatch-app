@@ -26,6 +26,12 @@ const config: NextConfig = {
     '/login': ['./lib/schema.sql'],
   },
   experimental: {
+    // Сколько браузер держит уже открытый раздел. По умолчанию 0: любой возврат на
+    // вкладку, где был минуту назад, — новый рендер на сервере и «Загрузка…» заново.
+    // 30 с — вернуться на «Грузы» с карточки или переключиться туда-обратно мгновенно,
+    // и при этом цифры не залёживаются: любое изменение (серверное действие) и так
+    // сбрасывает этот кэш, а GPS обновляется своим таймером через router.refresh().
+    staleTimes: { dynamic: 30, static: 30 },
     serverActions: {
       // Document upload goes through a server action; default cap is 1MB and a
       // scanned rate con or a photo is bigger. Hard cap enforced again in the action.

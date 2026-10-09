@@ -658,8 +658,14 @@ export async function refreshFleetStatus(): Promise<{
     ('updated' in share ? share.updated : 0) +
     ('updated' in key ? key.updated : 0) +
     ('updated' in sam ? sam.updated : 0)
-  revalidatePath('/tracking')
-  revalidatePath('/', 'layout')
+  // Только когда что-то правда пришло. Этот опрос идёт раз в минуту с каждой открытой
+  // карты, и сброс «/» как layout на пустом опросе — это полный рендер страницы ни за
+  // чем плюс стёртые в браузере все уже открытые разделы: следующий клик по вкладке
+  // снова ждал сервер.
+  if (updated > 0) {
+    revalidatePath('/tracking')
+    revalidatePath('/', 'layout')
+  }
   return { updated, errors }
 }
 

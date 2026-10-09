@@ -56,10 +56,14 @@ export default async function Page() {
   const user = await getCurrentUser()
   // Сколько ссылок Live Share заведено — подпись блока ELD, переехавшего сюда
   // вместе с картой. Одно чтение настройки, оно и так кэшируется.
-  const shareRaw = await getSetting('eld_share_tokens')
-  const shareCount = shareRaw ? (JSON.parse(shareRaw) as string[]).length : 0
-  const samsaraOn = (await (await import('@/lib/eld-samsara')).samsaraToken()) !== ''
-  const [trucks, company, metas, fleetRaw, dispatcherPhone, dispRows] = await Promise.all([
+  // Всё одной волной: раньше две настройки читались по очереди ДО основной пачки —
+  // два лишних круга в базу перед каждым открытием «Траков».
+  const [shareRaw, samsaraOn, allLoads, trucks, company, metas, fleetRaw, dispatcherPhone, dispRows] = await Promise.all([
+    getSetting('eld_share_tokens'),
+    import('@/lib/eld-samsara').then(async (m) => (await m.samsaraToken()) !== ''),
+    // Все грузы компании одним запросом (тот же, что берёт «Доска парка» ниже, —
+    // cache() отдаёт его ей без второго круга), дальше раскладываем по тракам здесь.
+    listLoads(companyId),
     listTrucks(companyId),
     getCompany(),
     truckMetas(companyId),
@@ -75,6 +79,7 @@ export default async function Page() {
         LEFT JOIN settings s ON s.key = 'disp_phone:' || u.id
         WHERE t.company_id = ${companyId}`,
   ])
+  const shareCount = shareRaw ? (JSON.parse(shareRaw) as string[]).length : 0
   const dispByTruck = new Map(
     (dispRows as { id: number; name: string; phone: string | null }[]).map((r) => [
       r.id,
@@ -96,12 +101,21 @@ export default async function Page() {
           }))
       : []
 
-  // Per-truck loads in parallel — the whole point is strict separation, so each
-  // truck's money is computed only from its own loads.
+  // Грузы каждого трака — из общего списка по truck_id. Раньше это был отдельный
+  // запрос на КАЖДЫЙ трак: на парке из 15 траков — три волны по пять (столько
+  // соединений в пуле), то есть три лишних круга в базу на каждое открытие раздела.
+  // Деньги трака по-прежнему считаются только из его собственных грузов.
+  const loadsByTruck = new Map<number, typeof allLoads>()
+  for (const l of allLoads) {
+    if (l.truckId == null) continue
+    const list = loadsByTruck.get(l.truckId)
+    if (list) list.push(l)
+    else loadsByTruck.set(l.truckId, [l])
+  }
   const { start: weekBegin, end: weekEnd } = weekBounds()
   const perTruck = await Promise.all(
     trucks.map(async (t) => {
-      const loads = await listLoads(companyId, { truckId: t.id })
+      const loads = loadsByTruck.get(t.id) ?? []
       const live = loads.filter((l) => l.status !== 'cancelled')
       // The truck's current load is already sitting in `live` — asking the DB for it
       // separately made this loop cost two round trips per truck instead of one.
