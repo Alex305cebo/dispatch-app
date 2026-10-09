@@ -37,7 +37,8 @@ export const loadsDict = {
     kk: '{n} дана',
   },
   'loads.page.new': { ru: 'Новый', en: 'New', es: 'Nueva', uk: 'Новий', ro: 'Nouă', kk: 'Жаңа' },
-  // Переключатель вида «Грузов» (10/09/26): Список · Статусы · Неделя · Карта.
+  // Переключатель вида «Грузов» (10/09/26): Список · Статусы · Неделя. Карта — своей
+  // плиткой над ним, видна всегда.
   'loads.view.label': {
     ru: 'Вид грузов',
     en: 'Loads view',
@@ -49,7 +50,6 @@ export const loadsDict = {
   'loads.view.list': { ru: 'Список', en: 'List', es: 'Lista', uk: 'Список', ro: 'Listă', kk: 'Тізім' },
   'loads.view.board': { ru: 'Статусы', en: 'Status', es: 'Estados', uk: 'Статуси', ro: 'Stări', kk: 'Күйлер' },
   'loads.view.week': { ru: 'Неделя', en: 'Week', es: 'Semana', uk: 'Тиждень', ro: 'Săptămână', kk: 'Апта' },
-  'loads.view.map': { ru: 'Карта', en: 'Map', es: 'Mapa', uk: 'Мапа', ro: 'Hartă', kk: 'Карта' },
   'loads.view.sortLabel': { ru: 'Порядок', en: 'Order', es: 'Orden', uk: 'Порядок', ro: 'Ordine', kk: 'Реті' },
   // Доска недели (вид «Календарь»)
   'loads.board.truck': { ru: 'Трак', en: 'Truck', es: 'Camión', uk: 'Трак', ro: 'Camion', kk: 'Тракт' },
