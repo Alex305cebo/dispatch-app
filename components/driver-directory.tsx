@@ -1,15 +1,11 @@
 'use client'
 
-import { useCallback, useState, useSyncExternalStore, useTransition } from 'react'
-import Link from 'next/link'
-import { Copy, Pencil, Phone } from 'lucide-react'
+import { useCallback, useSyncExternalStore, useTransition } from 'react'
 import { saveDispatcherPhone } from '@/app/actions'
 import { notify } from '@/lib/notify'
-import { useLocale } from '@/components/locale-provider'
-import { t } from '@/lib/i18n'
 
 /**
- * Данные водителей — то, что у диспетчера спрашивает брокер, плитками.
+ * Данные водителей — то, что у диспетчера спрашивает брокер.
  *
  * Зачем эти поля вообще собраны вместе. Брокер спрашивает их в каждом звонке, а
  * лежали они в четырёх разных местах: имя и номер трака — на карточке, телефон,
@@ -17,18 +13,15 @@ import { t } from '@/lib/i18n'
  * Собрать их во время разговора значило уйти со страницы два-три раза, держа
  * брокера на линии.
  *
- * Почему теперь плитки, а не свёрнутый список. Раньше это был один блок во всю
- * строку: сначала нажать на заголовок, потом на водителя, и только тогда видно
- * телефон. Два нажатия ради строки, которую диктуют в трубку. Теперь каждый
- * водитель — своя маленькая плитка в общей сетке раздела: всё, что спрашивают,
- * видно сразу, плитки двигаются и меняют размер, как все остальные, а порядок
- * общий для всей компании (lib/tiles-core.ts).
+ * Где это теперь (план «Порядок в TMS», 10/09/26). Водитель, его телефон и кнопка
+ * «скопировать для брокера» — в строке трака на «Траках» (components/fleet-list.tsx):
+ * раньше у каждого водителя была ещё и своя плитка, и он стоял на странице четыре
+ * раза. «Мой номер» и «Компания» — в меню аккаунта (components/user-panel.tsx):
+ * они одни на все траки, и повторять их в разделе незачем.
  *
- * Что на экране и что в буфере. Кнопка копирования кладёт тот же устоявшийся блок
- * из десяти строк, который отправляют брокеру (infoBlock ниже) — на плитке те же
- * значения, только подписаны коротко и на языке интерфейса. Общие для всех
- * водителей строки (MC, компания, почта) вынесены в свою плитку: повторять их на
- * каждой из восьми карточек незачем.
+ * Что в буфере. Кнопка копирования кладёт тот же устоявшийся блок из десяти строк,
+ * который отправляют брокеру (infoBlock ниже), — и со страницы «Траки», и с карточки
+ * трака: один формат в двух местах, иначе брокер получал бы разные письма.
  */
 
 export interface DriverEntry {
@@ -53,15 +46,15 @@ export interface DirectoryCompany {
   dispatcherPhone: string
 }
 
-/* Свой номер диспетчера живёт в отдельной плитке, а подставляется в блок каждого
-   водителя без назначенного диспетчера. Плитки теперь разные компоненты и общего
-   состояния у них нет, поэтому номер держим в маленьком хранилище на модуль: иначе
-   человек поправил бы номер в своей плитке, а копировался бы до перезагрузки
-   страницы старый. Снимок для сервера — то, что пришло с сервера, иначе гидрация. */
+/* Свой номер диспетчера правится в меню аккаунта, а подставляется в блок каждого
+   водителя без назначенного диспетчера — в строках «Траков». Это разные компоненты
+   без общего состояния, поэтому номер держим в маленьком хранилище на модуль: иначе
+   человек поправил бы номер в меню, а копировался бы до перезагрузки страницы
+   старый. Снимок для сервера — то, что пришло с сервера, иначе гидрация. */
 let edited: string | null = null
 const listeners = new Set<() => void>()
 
-function useDispatcherPhone(fromServer: string): string {
+export function useDispatcherPhone(fromServer: string): string {
   return useSyncExternalStore(
     useCallback((cb: () => void) => {
       listeners.add(cb)
@@ -77,166 +70,33 @@ function setDispatcherPhone(v: string) {
   for (const cb of listeners) cb()
 }
 
-/** Плитка одного водителя. Всё, что спрашивает брокер, — без единого нажатия. */
-export function DriverTile({ driver, company }: { driver: DriverEntry; company: DirectoryCompany }) {
-  const locale = useLocale()
-  const phone = useDispatcherPhone(company.dispatcherPhone)
-  const block = infoBlock(driver, { ...company, dispatcherPhone: phone })
-  // Диспетчер на карточке — только закреплённый за ЭТИМ траком. Когда трак ничей,
-  // в блок идёт тот, кто открыл страницу, и его номер стоит своей плиткой рядом:
-  // повторять собственное имя на каждой из восьми карточек незачем.
-  const dispatcher = driver.dispatcherName
-  const digits = (driver.driverPhone ?? '').replace(/[^\d+]/g, '')
-
-  return (
-    <div className="panel flex h-full flex-col gap-1 px-3 py-2.5">
-      <div className="flex items-start gap-1">
-        {/* Имя ведёт на карточку трака: оттуда берут VIN, бумаги и пробег — то, что
-            на плитку не помещается и в блок брокеру не идёт. */}
-        <Link
-          href={`/trucks/${driver.truckId}`}
-          className="line-clamp-2 min-w-0 flex-1 text-base leading-tight font-semibold break-words text-t1 hover:text-haul-300"
-        >
-          {driver.driverName || t(locale, 'drivers.noName')}
-        </Link>
-        <button
-          type="button"
-          onClick={() => copy(block, t(locale, 'drivers.copied'))}
-          title={t(locale, 'drivers.copy')}
-          aria-label={`${t(locale, 'drivers.copy')}: ${driver.driverName || t(locale, 'drivers.noName')}`}
-          className="-mr-1 -mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg text-haul-300/70 transition-colors hover:bg-white/10 hover:text-haul-300"
-        >
-          <Copy size={13} strokeWidth={2.5} />
-        </button>
-      </div>
-
-      {/* Телефон водителя — ссылка: с телефона по нему сразу звонят, а не переписывают
-          цифры в звонилку руками. */}
-      {digits ? (
-        <a
-          href={`tel:${digits}`}
-          className="nums flex min-w-0 items-center gap-1 truncate text-sm text-haul-300 hover:underline"
-        >
-          <Phone size={11} strokeWidth={2.5} className="shrink-0 opacity-70" />
-          {driver.driverPhone}
-        </a>
-      ) : (
-        <span className="text-sm text-t3">{t(locale, 'drivers.noPhone')}</span>
-      )}
-
-      {/* Трак и прицеп переносятся целиком, вторым рядом: в узкой плитке телефона
-          обрезка оставляла «TRK-DEMO-101 · TRL…» — прицеп пропадал. */}
-      <div className="nums flex flex-wrap gap-x-1 text-xs text-t3">
-        <span className="whitespace-nowrap">{driver.truckNumber ? `TRK-${driver.truckNumber}` : '—'}</span>
-        {driver.trailerNumber && <span className="whitespace-nowrap">· TRL-{driver.trailerNumber}</span>}
-      </div>
-      {dispatcher && (
-        <div className="mt-auto truncate text-2xs text-t3">
-          {t(locale, 'drivers.dispatcher')} {dispatcher}
-        </div>
-      )}
-    </div>
-  )
-}
-
-/** Свой номер: брокер перезванивает человеку, который прислал груз, а не на общий
- *  номер компании. В базе его негде было хранить, поэтому диспетчер вписывает его
- *  прямо здесь — и это единственная плитка раздела, которую правят. */
-export function MyPhoneTile({ phone: fromServer }: { phone: string }) {
-  const locale = useLocale()
+/** «Мой номер» для меню аккаунта: текущий номер и сохранение. Брокер перезванивает
+ *  человеку, который прислал груз, а не на общий номер компании; в базе его негде
+ *  было хранить, поэтому диспетчер вписывает его сам. */
+export function useMyPhone(fromServer: string) {
   const phone = useDispatcherPhone(fromServer)
-  const [draft, setDraft] = useState(phone)
-  const [edit, setEdit] = useState(false)
   const [pending, start] = useTransition()
-
-  return (
-    <div className="panel flex h-full flex-col justify-center gap-1 px-3 py-2.5">
-      <div className="truncate text-xs text-t3">{t(locale, 'drivers.myPhone')}</div>
-      {edit ? (
-        <div className="flex items-center gap-1.5">
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="786 461 4739"
-            aria-label={t(locale, 'drivers.myPhone')}
-            className="nums min-w-0 flex-1 rounded-md border border-white/10 bg-ink-950/70 px-2 py-1 text-sm text-white outline-none focus:border-haul-500"
-          />
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() =>
-              start(async () => {
-                const res = await saveDispatcherPhone(draft)
-                if (res?.error) notify('error', res.error)
-                else {
-                  setDispatcherPhone(draft)
-                  notify('ok', t(locale, 'drivers.phoneSaved'))
-                  setEdit(false)
-                }
-              })
-            }
-            className="shrink-0 rounded-md bg-haul-500/20 px-2 py-1 text-sm font-medium text-haul-300 hover:bg-haul-500/30 disabled:opacity-50"
-          >
-            {t(locale, 'drivers.save')}
-          </button>
-        </div>
-      ) : (
-        <div className="flex items-center gap-1.5">
-          {/* Номер — моноширинным и в одну строку; «не указан» — обычным текстом и с
-              переносом: в узкой плитке моноширинная подпись обрезалась до «no number …». */}
-          <span
-            className={`min-w-0 flex-1 ${phone ? 'nums truncate text-base font-semibold text-t1' : 'text-sm text-t3'}`}
-          >
-            {phone || t(locale, 'drivers.noPhone')}
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              setDraft(phone)
-              setEdit(true)
-            }}
-            title={t(locale, 'drivers.editPhone')}
-            aria-label={t(locale, 'drivers.editPhone')}
-            className="-mr-1 flex size-7 shrink-0 items-center justify-center rounded-lg text-haul-300/70 transition-colors hover:bg-white/10 hover:text-haul-300"
-          >
-            <Pencil size={13} strokeWidth={2.5} />
-          </button>
-        </div>
-      )}
-    </div>
-  )
+  const save = (draft: string, okMessage: string, done: () => void) =>
+    start(async () => {
+      const res = await saveDispatcherPhone(draft)
+      if (res?.error) notify('error', res.error)
+      else {
+        setDispatcherPhone(draft.trim())
+        notify('ok', okMessage)
+        done()
+      }
+    })
+  return { phone, save, pending }
 }
 
-/** Компания: вторая половина блока, одинаковая у всех водителей. Отдельной плиткой,
- *  чтобы не повторять три строки на каждой карточке. Копируется тоже — брокер часто
- *  просит только MC и название. */
-export function CompanyTile({ mc, companyName, companyEmail }: Omit<DirectoryCompany, 'dispatcherName' | 'dispatcherPhone'>) {
-  const locale = useLocale()
-  const block = [
-    `MC - ${mc.trim() || '—'}`,
-    `Company Name - ${companyName.trim() || '—'}`,
-    `Email - ${companyEmail.trim() || '—'}`,
+/** Вторая половина блока, одинаковая у всех водителей. Брокер часто просит только MC
+ *  и название — поэтому она копируется и отдельно, из меню аккаунта. */
+export function companyBlock(co: Pick<DirectoryCompany, 'mc' | 'companyName' | 'companyEmail'>): string {
+  return [
+    `MC - ${co.mc.trim() || '—'}`,
+    `Company Name - ${co.companyName.trim() || '—'}`,
+    `Email - ${co.companyEmail.trim() || '—'}`,
   ].join('\n')
-
-  return (
-    <div className="panel flex h-full flex-col gap-1 px-3 py-2.5">
-      <div className="flex items-start gap-1">
-        <span className="min-w-0 flex-1 truncate text-xs text-t3">{t(locale, 'drivers.company')}</span>
-        <button
-          type="button"
-          onClick={() => copy(block, t(locale, 'drivers.copied'))}
-          title={t(locale, 'drivers.copy')}
-          aria-label={`${t(locale, 'drivers.copy')}: ${t(locale, 'drivers.company')}`}
-          className="-mr-1 -mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg text-haul-300/70 transition-colors hover:bg-white/10 hover:text-haul-300"
-        >
-          <Copy size={13} strokeWidth={2.5} />
-        </button>
-      </div>
-      <div className="nums truncate text-base leading-tight font-semibold text-t1">MC {mc || '—'}</div>
-      <div className="truncate text-xs text-t3">{companyName || '—'}</div>
-      <div className="mt-auto truncate text-2xs text-t3">{companyEmail || '—'}</div>
-    </div>
-  )
 }
 
 /**
@@ -278,7 +138,7 @@ export function infoBlock(d: DriverEntry, co: DirectoryCompany): string {
   ].join('\n')
 }
 
-function copy(text: string, okMessage: string) {
+export function copyText(text: string, okMessage: string) {
   navigator.clipboard
     .writeText(text)
     .then(() => notify('ok', okMessage))

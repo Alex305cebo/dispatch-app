@@ -2,12 +2,10 @@ import { strict as assert } from 'node:assert'
 import { test } from 'node:test'
 import {
   applyLayout,
-  driverTileId,
-  migrateDriversTile,
   migrateTruckDriverCard,
+  migrateTrucksTiles,
   migrateLoadPapers,
   migrateLoadsMap,
-  trucksTiles,
   LOAD_DETAIL_TILES,
   LOADS_TILES,
   parseLayout,
@@ -135,43 +133,32 @@ test('у каждого раздела есть адрес — иначе сох
   for (const page of TILE_PAGES) assert.ok(TILE_PATHS[page], page)
 })
 
-test('trucksTiles: плитки водителей встают сразу за «Компанией», а не в конец страницы', () => {
-  const ids = trucksTiles([7, 9]).map((p) => p.id)
-  assert.deepEqual(ids.slice(ids.indexOf('drivers-me')), [
-    'drivers-me',
-    'drivers-co',
-    'driver-7',
-    'driver-9',
-    'list',
-    'eld',
-  ])
-  // Парк пустой — остаются только постоянные плитки, дыры в раскладке нет.
-  assert.deepEqual(trucksTiles([]).map((p) => p.id), TRUCKS_TILES.map((p) => p.id))
-  assert.ok(trucksTiles([7]).every((p) => (p.id === driverTileId(7) ? p.size === 's' : true)))
-})
-
-test('migrateDriversTile: старая плитка «Данные водителей» разворачивается на своём месте', () => {
-  const saved = parseLayout('[{"id":"map","size":"l"},{"id":"drivers","size":"l"},{"id":"list","size":"l"}]')
-  assert.deepEqual(migrateDriversTile(saved, [3, 4]).map((p) => p.id), [
-    'map',
-    'drivers-me',
-    'drivers-co',
-    'driver-3',
-    'driver-4',
-    'list',
-  ])
-  // Раскладка уже новая — трогать нечего, и тот же массив возвращается как есть.
-  const fresh = parseLayout('[{"id":"drivers-me","size":"s"},{"id":"driver-3","size":"s"}]')
-  assert.equal(migrateDriversTile(fresh, [3]), fresh)
-})
-
-test('после разворота старой плитки водители стоят на месте, а не в хвосте', () => {
-  const saved = parseLayout('[{"id":"drivers","size":"l"},{"id":"map","size":"l"}]')
-  const merged = applyLayout(migrateDriversTile(saved, [3]), trucksTiles([3]))
-  // Водитель выше карты — ровно там, где стоял разобранный блок.
-  assert.ok(merged.findIndex((p) => p.id === 'driver-3') < merged.findIndex((p) => p.id === 'map'))
+test('migrateTrucksTiles: четыре новые цифры встают на место старых, а не под ELD', () => {
+  // Раскладка до 10/09/26: восемь цифр, карта, чипы, «Загрузка парка», водители.
+  const saved = parseLayout(
+    '[{"id":"map","size":"l"},{"id":"week-gross","size":"s"},{"id":"counter-1","size":"s"},{"id":"picker","size":"w"},{"id":"heatmap","size":"l"},{"id":"driver-3","size":"s"},{"id":"list","size":"l"},{"id":"eld","size":"w"}]',
+  )
+  const merged = applyLayout(migrateTrucksTiles(saved), TRUCKS_TILES)
+  assert.deepEqual(
+    merged.map((p) => p.id),
+    ['map', 'on-load', 'free', 'off', 'attention', 'list', 'eld'],
+  )
   // Ключи не задвоились: иначе сетка рисует две одинаковые плитки.
   assert.equal(new Set(merged.map((p) => p.id)).size, merged.length)
+})
+
+test('migrateTrucksTiles: без старых цифр новые встают перед картой', () => {
+  const saved = parseLayout('[{"id":"list","size":"l"},{"id":"map","size":"w"}]')
+  assert.deepEqual(
+    applyLayout(migrateTrucksTiles(saved), TRUCKS_TILES).map((p) => p.id),
+    ['list', 'on-load', 'free', 'off', 'attention', 'map', 'eld'],
+  )
+})
+
+test('migrateTrucksTiles: новую раскладку и пустую не трогает', () => {
+  const fresh = parseLayout('[{"id":"map","size":"l"},{"id":"free","size":"s"}]')
+  assert.equal(migrateTrucksTiles(fresh), fresh)
+  assert.deepEqual(migrateTrucksTiles([]), [])
 })
 
 test('migrateTruckDriverCard: плитка-дубль «Водитель» уходит, шапка трака забирает строку', () => {

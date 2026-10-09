@@ -49,7 +49,17 @@ const city = (p: string | null) => (p ? p.split(',')[0]!.trim() : '')
 /** today — день yyyy-mm-dd по ET с сервера (todayEt), а не new Date() здесь: сервер в
  * UTC после 20:00 ET живёт уже завтра, и его сетка расходилась с браузерной на
  * колонку — React #418 на обзоре и /trucks каждый вечер. */
-export function FleetHeatmap({ rows, today }: { rows: HeatRow[]; today: string }) {
+export function FleetHeatmap({
+  rows,
+  today,
+  heading = true,
+}: {
+  rows: HeatRow[]
+  today: string
+  /** Своё название над сеткой. Вкладкой «Загрузка парка» на «Траках» его уже назвала
+   *  сама вкладка — там вместо названия в шапке стоит сводка. */
+  heading?: boolean
+}) {
   const locale = useLocale()
   const rootRef = useRef<HTMLDivElement>(null)
   // 0 до первого замера: сервер и первый кадр в браузере рисуют одинаково (широко).
@@ -122,14 +132,36 @@ export function FleetHeatmap({ rows, today }: { rows: HeatRow[]; today: string }
   const whenText = (d: (typeof data)[number]) =>
     d.idle ? t(locale, 'trucks.heatmap.freeDays').replace('{n}', String(d.idle)) : (d.r.when?.text ?? '')
 
+  // Сводка по парку: все числа — из тех же строк, что ниже.
+  const summary = (
+    <>
+      <Chip label={t(locale, 'trucks.heatmap.sumOnLoad')} value={String(count('busy'))} tone="text-good-400" />
+      <Chip label={t(locale, 'trucks.heatmap.sumFree')} value={String(count('free'))} tone="text-warn-400" />
+      {count('off') > 0 && <Chip label={t(locale, 'trucks.heatmap.sumOff')} value={String(count('off'))} />}
+      <Chip label={t(locale, 'trucks.heatmap.sumUtil')} value={`${util}%`} hint={t(locale, 'trucks.heatmap.sumUtilHint')} />
+      <Chip
+        label={t(locale, 'trucks.heatmap.sumRate')}
+        value={totalRate > 0 ? usd.format(totalRate) : '—'}
+        hint={t(locale, 'trucks.heatmap.colRateHint')}
+      />
+    </>
+  )
+
   return (
     <div ref={rootRef} className="panel relative p-3 sm:p-4">
-      {/* Шапка: название, листалка периода и возврат к сегодняшнему дню. */}
+      {/* Шапка: название (или сразу сводка), листалка периода и возврат к сегодняшнему дню. */}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <h2 className="flex items-center gap-1.5 text-base font-semibold text-t1">
-          {t(locale, 'trucks.heatmap.name')}
-          <Info text={t(locale, 'trucks.heatmap.info')} />
-        </h2>
+        {heading ? (
+          <h2 className="flex items-center gap-1.5 text-base font-semibold text-t1">
+            {t(locale, 'trucks.heatmap.name')}
+            <Info text={t(locale, 'trucks.heatmap.info')} />
+          </h2>
+        ) : (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {summary}
+            <Info text={t(locale, 'trucks.heatmap.info')} />
+          </div>
+        )}
         <div className="flex items-center gap-1">
           {offset > 0 && (
             <button
@@ -163,22 +195,7 @@ export function FleetHeatmap({ rows, today }: { rows: HeatRow[]; today: string }
         </div>
       </div>
 
-      {/* Сводка по парку: четыре числа, все из тех же строк, что ниже. */}
-      <div className="mt-2.5 flex flex-wrap gap-1.5">
-        <Chip label={t(locale, 'trucks.heatmap.sumOnLoad')} value={String(count('busy'))} tone="text-good-400" />
-        <Chip label={t(locale, 'trucks.heatmap.sumFree')} value={String(count('free'))} tone="text-warn-400" />
-        {count('off') > 0 && <Chip label={t(locale, 'trucks.heatmap.sumOff')} value={String(count('off'))} />}
-        <Chip
-          label={t(locale, 'trucks.heatmap.sumUtil')}
-          value={`${util}%`}
-          hint={t(locale, 'trucks.heatmap.sumUtilHint')}
-        />
-        <Chip
-          label={t(locale, 'trucks.heatmap.sumRate')}
-          value={totalRate > 0 ? usd.format(totalRate) : '—'}
-          hint={t(locale, 'trucks.heatmap.colRateHint')}
-        />
-      </div>
+      {heading && <div className="mt-2.5 flex flex-wrap gap-1.5">{summary}</div>}
 
       <div className="mt-3 grid items-center gap-x-2 sm:gap-x-3" style={{ gridTemplateColumns: gridCols }}>
         {/* Заголовки столбцов. */}

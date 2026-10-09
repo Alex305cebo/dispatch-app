@@ -9,25 +9,23 @@ import { BoardSkeleton, FleetBoard } from './fleet-board'
 import { listLoads, listTrucks } from '@/lib/loads'
 import { currentLoadsByTruck } from '@/lib/map'
 import { FleetHeatmap } from '@/components/fleet-heatmap'
-import { CompanyTile, DriverTile, MyPhoneTile, type DirectoryCompany } from '@/components/driver-directory'
+import type { DirectoryCompany } from '@/components/driver-directory'
 import { dispatcherPhoneKey, getSetting } from '@/lib/settings'
 import { getCurrentUser } from '@/lib/session'
-import { buildWorkingDays } from '@/lib/heatmap'
+import { buildWorkingDays, idleDays } from '@/lib/heatmap'
 import { todayEt } from '@/lib/payments'
 import { getCompany } from '@/lib/invoice'
 import { expiries, truckMetas } from '@/lib/maintenance'
 import { sql } from '@/lib/db'
-import { usd, shortName, weekBounds, loadWeekAnchorMs, usDate } from '@/lib/fmt'
+import { shortName, weekBounds, loadWeekAnchorMs, usDate } from '@/lib/fmt'
 import { companyScope } from '@/lib/session'
 import { seesFleetGps } from '@/lib/company'
 import { getLocale } from '@/lib/i18n-server'
 import { placeCity } from '@/lib/place'
 import { t, type Locale } from '@/lib/i18n'
-import { Info } from '@/components/info'
-import { Rpm } from '@/components/rpm'
 import type { TruckMoney } from '@/components/fleet-list'
 import { tileGrid } from '@/lib/tiles'
-import { driverTileId, migrateDriversTile, trucksTiles } from '@/lib/tiles-core'
+import { migrateTrucksTiles, TRUCKS_TILES } from '@/lib/tiles-core'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,7 +67,7 @@ export default async function Page() {
     getCompany(),
     truckMetas(companyId),
     seesFleetGps(companyId) ? sql`SELECT unit, drive_status, location, odometer, fuel, driver_name FROM fleet_status` : Promise.resolve([]),
-    // Свой номер диспетчера — в блок «Driver Info» для брокера.
+    // Свой номер диспетчера — в блок «Driver Info» для брокера (правится он в меню аккаунта).
     user ? getSetting(dispatcherPhoneKey(user.id)) : Promise.resolve(null),
     // Кто закреплён за каждым траком. Раньше в блоке для брокера у ВСЕХ водителей
     // стоял тот, кто открыл страницу, — а траки распределены между диспетчерами.
@@ -140,10 +138,11 @@ export default async function Page() {
     }),
   )
 
-  // id трака → деньги и бумаги. Плоский объект, а не Map: так он без потерь
+  // id трака → деньги, бумаги и простой. Плоский объект, а не Map: так он без потерь
   // переезжает с сервера в браузер вместе с остальными пропсами списка.
+  const today = todayEt()
   const moneyByTruck: Record<number, TruckMoney> = {}
-  for (const { truck, count, weekGross, weekMiles } of perTruck) {
+  for (const { truck, count, current, weekGross, weekMiles, working } of perTruck) {
     const meta = metas.get(truck.id) ?? null
     const worst = expiries(meta, locale).find((e) => e.tone !== 'good')
     moneyByTruck[truck.id] = {
@@ -151,20 +150,13 @@ export default async function Page() {
       miles: weekMiles,
       loads: count,
       docWarn: worst ? worst.label : null,
+      // Тот же счёт, что у «Загрузки парка»: дни с последней выгрузки у свободного.
+      idle: truck.unavailable || current ? null : idleDays(working, today),
     }
   }
 
-  const fleetWeekGross = perTruck.reduce((sum, x) => sum + x.weekGross, 0)
-  const fleetWeekMiles = perTruck.reduce((sum, x) => sum + x.weekMiles, 0)
-
-  // «С грузом» и «свободно» считает и показывает панель над картой — здесь остались
-  // только те, кого нельзя грузить: этого числа в плитках нет.
-  const unavailable = trucks.filter((t) => t.unavailable).length
-
-  // Данные водителей — по маленькой плитке на каждого: ключи зависят от парка,
-  // поэтому раскладку по умолчанию собирает функция, а старая единственная плитка
-  // «Данные водителей» из сохранённого порядка разворачивается на своём же месте.
-  const truckIds = trucks.map((truck) => truck.id)
+  // Блок брокеру в строке трака: компания и тот, кто открыл страницу. Свой номер и
+  // реквизиты правятся в меню аккаунта — на странице их больше нет отдельными плитками.
   const directory: DirectoryCompany = {
     mc: company.mcdot.replace(/^MC[\s#-]*/i, ''),
     companyName: company.name,
@@ -172,9 +164,8 @@ export default async function Page() {
     dispatcherName: user?.name ?? '',
     dispatcherPhone: dispatcherPhone ?? '',
   }
-  const grid = await tileGrid('trucks', trucksTiles(truckIds), locale, (saved) =>
-    migrateDriversTile(saved, truckIds),
-  )
+  const dispatchers = Object.fromEntries(dispByTruck)
+  const grid = await tileGrid('trucks', TRUCKS_TILES, locale, migrateTrucksTiles)
 
   return (
     <main className="page">
@@ -203,103 +194,23 @@ export default async function Page() {
         }
       />
 
-      {/* Вторая половина строки списка: деньги за неделю, число грузов и ближайший
-          к истечению документ. Раньше ради них под списком стояла ВТОРАЯ сетка
-          карточек, и один трак показывался на странице дважды. Считает страница —
-          она уже держит и грузы, и паспорта траков. */}
-      {/* Живая часть парка — первым делом: карта, счётчики и список «где сейчас».
-          Раньше это был отдельный раздел «Трекинг», и один и тот же трак жил на двух
-          экранах разными половинами. Своя Suspense-граница, потому что здесь ждут
-          геокодирование и маршрутизатор: шапка и всё, что ниже, показываются сразу. */}
+      {/* Живая часть парка: цифры, карта и список траков «где сейчас». Своя
+          Suspense-граница, потому что здесь ждут геокодирование и маршрутизатор:
+          шапка показывается сразу. */}
       <EldNewTrucks units={eldNew} />
 
       <Suspense fallback={<BoardSkeleton />}>
         <FleetBoard
           locale={locale}
           money={moneyByTruck}
+          company={directory}
+          dispatchers={dispatchers}
           grid={grid}
-          // Цифры парка — маленькими плитками, как на «Обзоре»: место каждой задаёт
-          // TRUCKS_TILES, поэтому порядок здесь значения не имеет.
-          extra={[
-            {
-              id: 'week-gross',
-              node: (
-                <div className="panel flex h-full flex-col justify-center px-3 py-2.5">
-                  <div className="nums truncate text-xl leading-tight text-t1">
-                    {usd.format(fleetWeekGross)}
-                    <Rpm rate={fleetWeekGross} miles={fleetWeekMiles} className="ml-1.5 text-sm text-t2" />
-                  </div>
-                  <div className="mt-0.5 flex items-center gap-1 truncate text-xs text-t3">
-                    {t(locale, 'trucks.page.weekGross')}
-                    <Info text={t(locale, 'trucks.page.weekGrossInfo')} />
-                  </div>
-                </div>
-              ),
-            },
-            {
-              id: 'fleet-size',
-              node: (
-                <div className="panel flex h-full flex-col justify-center px-3 py-2.5">
-                  <div className="nums truncate text-xl leading-tight text-t1">{trucks.length}</div>
-                  <div className="mt-0.5 truncate text-xs text-t3">{t(locale, 'trucks.page.inFleet')}</div>
-                </div>
-              ),
-            },
-            {
-              id: 'unavailable',
-              node: (
-                <div className="panel flex h-full flex-col justify-center px-3 py-2.5">
-                  <div
-                    className={`nums truncate text-xl leading-tight ${unavailable > 0 ? 'text-warn-400' : 'text-t1'}`}
-                  >
-                    {unavailable}
-                  </div>
-                  <div className="mt-0.5 truncate text-xs text-t3">{t(locale, 'trucks.page.unavailable')}</div>
-                </div>
-              ),
-            },
-            // Данные водителей: свой номер, компания и по плитке на каждого водителя.
-            // Всё, что спрашивает брокер, видно без единого нажатия; данные новых
-            // запросов не стоят — trucks, metas и company страница уже загрузила.
-            { id: 'drivers-me', node: <MyPhoneTile phone={directory.dispatcherPhone} /> },
-            {
-              id: 'drivers-co',
-              node: (
-                <CompanyTile
-                  mc={directory.mc}
-                  companyName={directory.companyName}
-                  companyEmail={directory.companyEmail}
-                />
-              ),
-            },
-            ...trucks.map((truck) => {
-              const meta = metas.get(truck.id)
-              const disp = dispByTruck.get(truck.id)
-              return {
-                id: driverTileId(truck.id),
-                node: (
-                  <DriverTile
-                    company={directory}
-                    driver={{
-                      truckId: truck.id,
-                      dispatcherName: disp?.name ?? null,
-                      dispatcherPhone: disp?.phone ?? null,
-                      driverName: truck.driverName,
-                      driverPhone: meta?.driverPhone ?? null,
-                      truckNumber: truck.number,
-                      trailerNumber: meta?.trailerNumber ?? null,
-                      vin: meta?.vin ?? null,
-                    }}
-                  />
-                ),
-              }
-            }),
-          ]}
-          // «Загрузка парка» — сразу под картой: кто когда освободится смотрят первым делом.
-          underMap={
-          <div className="mb-4">
+          // «Загрузка парка» — вкладка рядом со списком: кто когда освободится.
+          schedule={
             <FleetHeatmap
-              today={todayEt()}
+              heading={false}
+              today={today}
               rows={perTruck.map(({ truck, working, current }) => {
                 const fs = truck.number ? byUnit.get(truck.number) : undefined
                 return {
@@ -308,8 +219,7 @@ export default async function Page() {
                   sub: shortName(truck.driverName),
                   working,
                   // Два правых столбца вместо полосы и процента: куда едет либо где
-                  // стоит, и когда освободится. Данные уже на странице — карточки
-                  // парка ниже читают ровно эти же current и byUnit.
+                  // стоит, и когда освободится.
                   place: current
                     ? `→ ${current.destination ?? '—'}`
                     : (placeCity(fs?.location ?? null) ?? t(locale, 'trucks.card.noData')),
@@ -326,9 +236,8 @@ export default async function Page() {
                 }
               })}
             />
-          </div>
           }
-          // Под карточками: подключение ELD — раз в жизни трака.
+          // Под списком: подключение ELD — раз в жизни трака.
           after={
             <>
               {/* ELD — машины владельца; в своём кабинете диспетчера блока нет. */}

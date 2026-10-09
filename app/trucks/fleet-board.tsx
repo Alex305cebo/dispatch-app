@@ -11,16 +11,16 @@
 // остальное сразу, а это приезжает потоком в свою Suspense-границу.
 
 import { sql } from '@/lib/db'
-import { listLoads, listTrucks } from '@/lib/loads'
+import { listLoads, listTrucks, loadPapers } from '@/lib/loads'
 import { currentLoadsByTruck, prevLoadFor, truckLabel, eldStatus } from '@/lib/map'
 import { zoneFor } from '@/lib/tz'
 import { fixPlace } from '@/lib/place'
 import { type MapMarker, type MapRoute } from '@/components/fleet-map'
 import { loadPlanData } from '@/lib/plan-data'
 import { FleetPanel } from '@/components/fleet-panel'
-import type { TileGridProps, Widget } from '@/components/widget-grid'
-import type { TilePlacement } from '@/lib/tiles-core'
-import { type TrackingRow } from '@/components/fleet-list'
+import type { TileGridProps } from '@/components/widget-grid'
+import type { TrackingRow, TruckMoney } from '@/components/fleet-list'
+import type { DirectoryCompany } from '@/components/driver-directory'
 import { cityCoordsBest, deliveryInfoBest } from '@/lib/geo-routing'
 import { liveTrail, trailLabels } from '@/lib/eld'
 import { trailSegments } from '@/lib/geo'
@@ -48,32 +48,38 @@ type FS = {
 export async function FleetBoard({
   locale,
   grid,
-  underMap,
-  extra,
+  schedule,
   after,
   money,
+  company,
+  dispatchers,
 }: {
   locale: Locale
   /** Раскладка плиток раздела — страница читает её из настроек компании. */
   grid: TileGridProps
-  underMap?: React.ReactNode
-  /** Плитки, собранные самой страницей: цифры парка из её шапки. */
-  extra?: Widget[]
+  /** «Загрузка парка» — вкладка рядом со списком; строки собирает страница. */
+  schedule?: React.ReactNode
   after?: React.ReactNode
-  /** Деньги и бумаги по траку: считает страница, показывает список. */
-  money?: Record<number, import('@/components/fleet-list').TruckMoney>
+  /** Деньги, бумаги и простой по траку: считает страница, показывает список. */
+  money?: Record<number, TruckMoney>
+  /** Компания и тот, кто открыл страницу, — блок брокеру в строке трака. */
+  company?: DirectoryCompany
+  /** Диспетчер, закреплённый за траком, и его номер. */
+  dispatchers?: Record<number, { name: string; phone: string }>
 }) {
   const companyId = await companyScope()
   // All four are independent, so they go together. The truck list and the share token
   // used to be awaited one after the other before this even started — two round trips
   // of dead time on a page that already has plenty.
-  const [trucks, loads, rowsRaw, phoneRowsRaw] = await Promise.all([
+  const [trucks, loads, rowsRaw, phoneRowsRaw, { rateCons }] = await Promise.all([
     listTrucks(companyId),
     listLoads(companyId),
     seesFleetGps(companyId) ? sql`SELECT * FROM fleet_status` : Promise.resolve([]),
     // Прицеп берём здесь же: запрос к truck_meta всё равно уже идёт, а номер
     // прицепа нужен подписи трака (truckLabel) — отдельного захода он не стоит.
     sql`SELECT truck_id, driver_phone, trailer_number FROM truck_meta`,
+    // Рейт-кон текущего груза — кнопка «RC» в строке трака.
+    loadPapers(companyId),
   ])
   // Слои «Рынок DAT» и «Из штата» на карте: снимки по трём сериям и траки со
   // ставками по направлениям — те же данные, что у «Куда отправить трак» на «Рынке».
@@ -156,14 +162,6 @@ export async function FleetBoard({
   const markers: MapMarker[] = []
   const routes: MapRoute[] = []
   const trackingRows: TrackingRow[] = []
-  // Only facts the map itself cannot show — that's the whole point of the strip under
-  // it. A truck with no GPS has no pin at all; a truck standing still under a load looks
-  // identical on the map to one parked between jobs. Moving/on-duty/stopped is NOT
-  // counted here any more: the map already draws it, in colour.
-  let noGps = 0
-  let totalDeliveryMiles = 0
-  let underLoad = 0
-  let stuck = 0
 
   // Плашка точки: сколько миль осталось от трака СЕЙЧАС и ETA — с отдыхом водителя,
   // в поясе самой точки.
@@ -193,13 +191,10 @@ export async function FleetBoard({
     const idleHoursAny = idleAt ? Math.floor((Date.now() - idleAt.getTime()) / 3_600_000) : null
     const st = eldStatus(fs?.drive_status ?? null, idleHoursAny, locale)
     const hasGps = !!fs && fs.lat !== null && fs.lng !== null
-    if (!hasGps) noGps++
 
     // A truck with an active load that hasn't moved in hours is worth a flag
     // (detention, breakdown). An idle EMPTY truck is just parked — unremarkable.
     const idleHoursRaw = load && idleAt ? idleHoursAny : null
-    if (load) underLoad++
-    if (idleHoursRaw !== null && idleHoursRaw >= 3) stuck++
 
     // Real total to delivery: deadhead (truck→pickup) + loaded miles (pickup→delivery)
     // when the load hasn't been picked up yet, or just the direct leg once it has.
@@ -226,7 +221,6 @@ export async function FleetBoard({
     let delivery: TrackingRow['delivery'] = null
     if (hasGps && fs && legToDelivery && load) {
       delivery = { to: load.destination ?? '—', miles: totalMiles, etaMin: totalEtaMin }
-      totalDeliveryMiles += totalMiles
       if (legToPickup && pickup) {
         routes.push({ from: [fs.lat!, fs.lng!], to: [pickup.lat, pickup.lng], coords: legToPickup.coords, ...routeStyle })
         routes.push({
@@ -283,6 +277,9 @@ export async function FleetBoard({
     trackingRows.push({
       id: t.id,
       label: truckLabel(t, trailerByTruck.get(t.id)),
+      number: t.number?.trim() || t.name,
+      trailer: trailerByTruck.get(t.id) ?? null,
+      driverName: t.driverName,
       // Координаты последнего фикса — чтобы место из строки открывалось на карте
       // ровно там, где трак, а не в центре ближайшего городка.
       lat: fs?.lat ?? null,
@@ -294,6 +291,15 @@ export async function FleetBoard({
       hasLoad: !!load,
       loadId: load?.id ?? null,
       loadRoute: load ? `${load.origin ?? '—'} → ${load.destination ?? '—'}` : null,
+      rcId: load ? (rateCons.get(load.id) ?? null) : null,
+      // Сколько гружёного пути позади — полоса в строке. До пикапа — ноль: груз ещё не
+      // взят, и все мили впереди.
+      progress:
+        delivery && load && load.loadedMiles > 0
+          ? load.status === 'booked'
+            ? 0
+            : Math.min(1, Math.max(0, 1 - delivery.miles / load.loadedMiles))
+          : null,
       phone: phoneById.get(t.id) ?? null,
       zone: zoneFor(fs?.lat, fs?.lng),
       delivery,
@@ -335,37 +341,35 @@ export async function FleetBoard({
       snaps={snaps}
       planTrucks={planTrucks}
       rows={trackingRows}
-      totals={{
-        deliveryMiles: totalDeliveryMiles,
-        underLoad,
-        trucks: perTruck.length,
-        stuck,
-        noGps,
-      }}
       updatedText={
         snapshot
           ? `${tr(locale, 'tracking.updatedPrefix')}${agoText(snapshot, locale)}`
           : tr(locale, 'tracking.noSnapshotYet')
       }
       staleMinutes={staleMinutes}
-      underMap={underMap}
-      extra={extra}
+      schedule={schedule}
       after={after}
       money={money}
+      company={company}
+      dispatchers={dispatchers}
       grid={grid}
     />
   )
 }
 
-/** Placeholder while FleetBoard resolves. Mirrors the real block's shape — map, then
- * the counter strip, then list rows — so the page doesn't jump when it swaps in. */
+/** Placeholder while FleetBoard resolves. Mirrors the real block's shape — four
+ * numbers, the map, then list rows — so the page doesn't jump when it swaps in. */
 export function BoardSkeleton() {
   return (
     <div className="animate-pulse">
       {/* `panel`, not bg-white/[0.03]: 3% of near-black on the light theme's #eef1f6
           page is invisible, so this placeholder simply wasn't there in light mode. */}
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="panel h-[92px]" />
+        ))}
+      </div>
       <div className="panel mb-4 h-[320px]" />
-      <div className="panel mb-4 h-[100px]" />
       <div className="space-y-2">
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="panel h-16" />

@@ -135,10 +135,10 @@ export function applyLayout(
 
 /** Раскладка раздела «Траки» по умолчанию.
  *
- *  Крупные блоки разобраны на части: деньги парка, число траков, недоступные и
- *  четыре счётчика под картой — отдельные маленькие плитки, а не одна карточка во
- *  всю строку. Так их есть что двигать и чем менять местами; одна плитка на пол-экрана
- *  этого не даёт.
+ *  Четыре цифры парка, карта, под ней один список траков (вкладкой рядом —
+ *  «Загрузка парка») и подключение ELD. План «Порядок в TMS», 10/09/26: до этого
+ *  один и тот же водитель стоял на странице четыре раза — кнопкой-траком под картой,
+ *  строкой «Загрузки парка», плиткой с телефоном и карточкой внизу.
  *
  *  Живёт ЗДЕСЬ, а не рядом с самим компонентом: fleet-panel.tsx помечен 'use client',
  *  и обычное значение, вывезенное из клиентского модуля, на сервере превращается в
@@ -146,66 +146,31 @@ export function applyLayout(
  *  «defaults.map is not a function».
  */
 export const TRUCKS_TILES: TilePlacement[] = [
-  { id: 'week-gross', size: 's' },
-  { id: 'fleet-size', size: 's' },
-  { id: 'unavailable', size: 's' },
-  { id: 'status', size: 's' },
-  { id: 'counter-1', size: 's' },
-  { id: 'counter-2', size: 's' },
-  { id: 'counter-3', size: 's' },
-  { id: 'counter-4', size: 's' },
+  { id: 'on-load', size: 's' },
+  { id: 'free', size: 's' },
+  { id: 'off', size: 's' },
+  { id: 'attention', size: 's' },
   { id: 'map', size: 'l' },
-  { id: 'picker', size: 'w' },
-  { id: 'heatmap', size: 'l' },
-  // Данные водителей: свой номер, компания и дальше по маленькой плитке на
-  // каждого водителя — их подставляет trucksTiles, потому что зависят от парка.
-  { id: 'drivers-me', size: 's' },
-  { id: 'drivers-co', size: 's' },
   { id: 'list', size: 'l' },
   { id: 'eld', size: 'w' },
 ]
 
-/** Ключ плитки водителя. Номер трака, а не место в списке: трак продали — его плитка
- *  исчезла, остальные остались на своих местах. */
-export function driverTileId(truckId: number): string {
-  return `driver-${truckId}`
-}
+/** Цифры «Траков» до 10/09/26: восемь плиток в два ряда. */
+const OLD_TRUCK_NUMBERS = new Set(['week-gross', 'fleet-size', 'unavailable', 'status', 'counter-1', 'counter-2', 'counter-3', 'counter-4'])
 
-/** Раскладка «Траков» по умолчанию для КОНКРЕТНОГО парка: к постоянным плиткам
- *  добавляются плитки водителей, сразу за «Мой номер» и «Компания».
- *
- *  Зачем функция, а не постоянный список: водителей столько, сколько траков, и ключи
- *  у их плиток зависят от базы. applyLayout сверяет сохранённый порядок именно с этим
- *  списком, поэтому плитка нового трака встаёт в конец, а не в середину чужой
- *  раскладки, а плитка проданного не висит в настройках вечно. */
-export function trucksTiles(truckIds: number[]): TilePlacement[] {
-  const out: TilePlacement[] = []
-  for (const p of TRUCKS_TILES) {
-    out.push(p)
-    if (p.id === 'drivers-co') for (const id of truckIds) out.push({ id: driverTileId(id), size: 's' })
-  }
-  return out
-}
-
-/** Сохранённый порядок со старой единственной плиткой «Данные водителей» → новые
- *  плитки на её месте.
+/** Сохранённый порядок «Траков» со старыми цифрами → четыре новые на их месте.
  *
  *  Без этого раздел, где кто-то уже переставлял плитки, встретил бы владельца
- *  водителями в самом низу страницы: старый ключ applyLayout выбросил бы как
- *  незнакомый, а новые приписал бы в конец. Записывать обратно в настройки нечего —
- *  как только плитку подвинут, сохранится уже новый порядок. */
-export function migrateDriversTile(saved: TilePlacement[], truckIds: number[]): TilePlacement[] {
-  if (!saved.some((p) => p.id === 'drivers')) return saved
-  const out: TilePlacement[] = []
-  for (const p of saved) {
-    if (p.id !== 'drivers') {
-      out.push(p)
-      continue
-    }
-    out.push({ id: 'drivers-me', size: 's' }, { id: 'drivers-co', size: 's' })
-    for (const id of truckIds) out.push({ id: driverTileId(id), size: 's' })
-  }
-  return out
+ *  цифрами в самом низу страницы: старые ключи applyLayout выбросил бы как
+ *  незнакомые, а новые приписал бы в конец, под ELD. Новые встают туда, где стояла
+ *  первая из старых цифр; раскладки без них — перед картой. Записывать обратно в
+ *  настройки нечего: как только плитку подвинут, сохранится уже новый порядок. */
+export function migrateTrucksTiles(saved: TilePlacement[]): TilePlacement[] {
+  const fresh = TRUCKS_TILES.filter((p) => p.size === 's')
+  if (!saved.length || saved.some((p) => fresh.some((f) => f.id === p.id))) return saved
+  const old = saved.findIndex((p) => OLD_TRUCK_NUMBERS.has(p.id))
+  const at = old >= 0 ? old : Math.max(0, saved.findIndex((p) => p.id === 'map'))
+  return [...saved.slice(0, at), ...fresh, ...saved.slice(at)]
 }
 
 /** Карточка трака: сохранённый порядок со старой плиткой «Водитель · CDL, медкарта,

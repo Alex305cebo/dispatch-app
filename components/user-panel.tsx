@@ -26,8 +26,10 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
+  Building2,
   Check,
   ChevronRight,
+  Copy,
   Globe,
   History,
   KeyRound,
@@ -36,6 +38,7 @@ import {
   PackagePlus,
   LayoutGrid,
   Palette,
+  Phone,
   RotateCw,
   Send,
   ShieldCheck,
@@ -50,6 +53,7 @@ import type { CurrentUser } from '@/lib/session'
 import { useLocale } from '@/components/locale-provider'
 import { shortName } from '@/lib/fmt'
 import { AlertToggle } from '@/components/alert-watch'
+import { companyBlock, copyText, useMyPhone } from '@/components/driver-directory'
 import { t } from '@/lib/i18n'
 
 function initialsOf(name: string): string {
@@ -168,6 +172,8 @@ export function UserPanel({
   themeControl,
   journalControl,
   tilesEnabled = false,
+  dispatcherPhone = '',
+  company = null,
 }: {
   user: CurrentUser
   /** Same capability flags the nav uses to hide dead tabs. A row pointing at a screen
@@ -187,6 +193,10 @@ export function UserPanel({
    *  тоже общий), но лежит здесь, а не в панели администратора: включать её может
    *  любой, кто вошёл. */
   tilesEnabled?: boolean
+  /** Свой номер того, кто вошёл, — для блока брокеру (lib/settings.ts dispatcherPhoneKey). */
+  dispatcherPhone?: string
+  /** Реквизиты компании для того же блока: MC, название, почта. */
+  company?: { mc: string; name: string; email: string } | null
 }) {
   const router = useRouter()
   const locale = useLocale()
@@ -199,6 +209,9 @@ export function UserPanel({
   // поэтому выбор языка «не открывался», хотя открывался.
   const [langOpen, setLangOpen] = useState(false)
   const [bday, setBday] = useState('')
+  const [phoneOpen, setPhoneOpen] = useState(false)
+  const [phoneDraft, setPhoneDraft] = useState('')
+  const my = useMyPhone(dispatcherPhone)
   const [pending, start] = useTransition()
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -313,6 +326,76 @@ export function UserPanel({
                 href="/trucks/new"
                 onNavigate={close}
               />
+            </Group>
+
+            {/* Для брокера: свой номер и реквизиты компании. Переехали сюда с «Траков»
+                (план «Порядок в TMS», 10/09/26): они одни на весь парк, а в разделе
+                стояли плитками рядом с водителями. В строке каждого трака их кладёт в
+                блок брокеру кнопка «Copy Driver Info». */}
+            <Group title={t(locale, 'userPanel.brokerGroup')}>
+              <Row
+                icon={<Phone size={15} />}
+                label={t(locale, 'drivers.myPhone')}
+                right={
+                  <span className="flex items-center gap-1">
+                    <span className={my.phone ? 'nums font-semibold text-t2' : undefined}>
+                      {my.phone || t(locale, 'drivers.noPhone')}
+                    </span>
+                    <ChevronRight size={14} className={`transition-transform ${phoneOpen ? 'rotate-90' : ''}`} />
+                  </span>
+                }
+                onClick={() => {
+                  setPhoneDraft(my.phone)
+                  setPhoneOpen((v) => !v)
+                }}
+              />
+              {phoneOpen && (
+                <div className="flex items-center gap-1.5 px-2 pb-2">
+                  <input
+                    value={phoneDraft}
+                    autoFocus
+                    inputMode="tel"
+                    onChange={(e) => setPhoneDraft(e.target.value)}
+                    placeholder="786 461 4739"
+                    aria-label={t(locale, 'drivers.myPhone')}
+                    className="nums min-w-0 flex-1 rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-base text-white outline-none focus:border-haul-500"
+                  />
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    loading={my.pending}
+                    disabled={my.pending}
+                    onClick={() => my.save(phoneDraft, t(locale, 'drivers.phoneSaved'), () => setPhoneOpen(false))}
+                  >
+                    {t(locale, 'drivers.save')}
+                  </Button>
+                </div>
+              )}
+              {company && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    copyText(
+                      companyBlock({ mc: company.mc, companyName: company.name, companyEmail: company.email }),
+                      t(locale, 'drivers.copied'),
+                    )
+                  }
+                  title={t(locale, 'userPanel.companyCopy')}
+                  className={ROW}
+                >
+                  <span className="shrink-0 text-t3">
+                    <Building2 size={15} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{t(locale, 'drivers.company')}</span>
+                    <span className="nums block truncate text-xs text-t3">
+                      MC {company.mc || '—'}
+                      {company.name && ` · ${company.name}`}
+                    </span>
+                  </span>
+                  <Copy size={14} className="shrink-0 text-haul-300/80" aria-hidden />
+                </button>
+              )}
             </Group>
 
             {/* 3. Разделы — ТОЛЬКО на телефоне: в нижнюю панель влезает шесть вкладок,
