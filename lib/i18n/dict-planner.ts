@@ -206,6 +206,10 @@ export const plannerDict = {
   'plan.map.noRate': { ru: 'ставки нет', en: 'no rate', es: 'sin tarifa', uk: 'ставки немає', ro: 'fără tarif', kk: 'тариф жоқ' },
   'plan.ltVsMedian': { ru: '{n} груза на трак · середина по штатам {m}', en: '{n} loads per truck · state median {m}', es: '{n} cargas por camión · mediana de estados {m}', uk: '{n} вантажу на трак · середина по штатах {m}', ro: '{n} curse pe camion · mediana statelor {m}', kk: 'бір тартқышқа {n} жүк · штаттар медианасы {m}' },
   'plan.perTruck': { ru: 'груза на трак', en: 'loads per truck', es: 'cargas por camión', uk: 'вантажу на трак', ro: 'curse pe camion', kk: 'жүк бір тартқышқа' },
+  // Подпись под полосой «Рынок в штате» (10/09/26).
+  'plan.ltShort': { ru: '{n} на трак · середина {m}', en: '{n} per truck · median {m}', es: '{n} por camión · mediana {m}', uk: '{n} на трак · середина {m}', ro: '{n} pe camion · mediana {m}', kk: 'бір тартқышқа {n} · медиана {m}' },
+  // Подпись к полосе в строках «Куда ехать» — одна на весь список (10/09/26).
+  'plan.ltLegend': { ru: 'грузов на трак', en: 'loads per truck', es: 'cargas por camión', uk: 'вантажів на трак', ro: 'curse pe camion', kk: 'бір тартқышқа жүк' },
   'plan.regionRates': { ru: 'Ставки DAT: {list}', en: 'DAT rates: {list}', es: 'Tarifas DAT: {list}', uk: 'Ставки DAT: {list}', ro: 'Tarife DAT: {list}', kk: 'DAT тарифтері: {list}' },
   'plan.bench.datLane': { ru: 'DAT RateView · {from}→{to} · {n} напр. за 30 дн', en: 'DAT RateView · {from}→{to} · {n} lanes, 30 d', es: 'DAT RateView · {from}→{to} · {n} rutas, 30 d', uk: 'DAT RateView · {from}→{to} · {n} напр. за 30 дн', ro: 'DAT RateView · {from}→{to} · {n} rute, 30 z', kk: 'DAT RateView · {from}→{to} · 30 күнде {n} бағыт' },
   'plan.bench.usdaLane': { ru: 'USDA, рефрижератор · {from}→{to} · неделя {week}', en: 'USDA, reefer · {from}→{to} · week of {week}', es: 'USDA, refrigerado · {from}→{to} · semana {week}', uk: 'USDA, рефрижератор · {from}→{to} · тиждень {week}', ro: 'USDA, frigorific · {from}→{to} · săptămâna {week}', kk: 'USDA, рефрижератор · {from}→{to} · {week} аптасы' },

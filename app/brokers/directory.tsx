@@ -74,6 +74,17 @@ const norm = (s: string) => s.toLowerCase().replace(/[.,]/g, '').replace(/\s+/g,
 
 const row = 'rounded-lg border border-white/8 px-3 py-2 transition-colors hover:border-white/20 hover:bg-white/[0.03]'
 
+/** Справа в строке — плашка с точкой: цвет читается раньше слов (план «Порядок в TMS»,
+ * 10/09/26 — меньше текста для чтения). Серая — просто факт, без оценки. */
+const PILL = {
+  good: 'bg-good-400/10 text-good-400',
+  warn: 'bg-warn-400/10 text-warn-400',
+  bad: 'bg-bad-400/10 text-bad-400',
+  plain: 'bg-white/[0.06] text-t2',
+  muted: 'text-t3',
+} as const
+type Tone = keyof typeof PILL
+
 export function Directory({
   brokers,
   facilities,
@@ -165,12 +176,13 @@ export function Directory({
   }
 
   // Чипы не переключают экраны, а сужают один и тот же список — поэтому у «Все» тоже
-  // стоит число: видно, что оно равно сумме, и что ничего не спрятано.
-  const chips: [DirView, string][] = [
-    ['all', `${t(locale, 'brokers.dir.all')} ${counts.brokers + counts.facilities}`],
-    ['brokers', `${t(locale, 'brokers.pageTitle')} ${counts.brokers}`],
-    ['facilities', `${t(locale, 'facilities.title')} ${counts.facilities}`],
-    ['attention', `${t(locale, 'brokers.dir.attention')} ${counts.attention}`],
+  // стоит число: видно, что оно равно сумме, и что ничего не спрятано. С 10/09/26 это
+  // и есть числа раздела: плитки с ними над «Куда отправить трак» убраны.
+  const chips: [DirView, string, number][] = [
+    ['all', t(locale, 'brokers.dir.all'), counts.brokers + counts.facilities],
+    ['brokers', t(locale, 'brokers.pageTitle'), counts.brokers],
+    ['facilities', t(locale, 'facilities.title'), counts.facilities],
+    ['attention', t(locale, 'brokers.dir.attention'), counts.attention],
   ]
 
   return (
@@ -187,13 +199,13 @@ export function Directory({
       </label>
 
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-        {chips.map(([key, label]) => (
+        {chips.map(([key, label, n]) => (
           <button
             key={key}
             type="button"
             aria-pressed={view === key}
             onClick={() => setView(key)}
-            className={`nums min-h-9 rounded-full border px-3 text-sm font-medium transition-colors max-md:min-h-10 ${
+            className={`min-h-9 rounded-full border px-3 text-sm font-medium transition-colors max-md:min-h-10 ${
               view === key
                 ? 'border-haul-500/60 bg-haul-500/15 text-haul-300'
                 : key === 'attention' && counts.attention > 0
@@ -201,7 +213,7 @@ export function Directory({
                   : 'border-white/10 text-t2 hover:border-white/25 hover:text-t1'
             }`}
           >
-            {label}
+            {label} <span className="nums ml-0.5 font-semibold">{n}</span>
           </button>
         ))}
         {mcState === 'working' && <span className="text-sm text-t3">{t(locale, 'brokers.mcWorking')}</span>}
@@ -268,7 +280,7 @@ function DirRow({
   meta,
   linked,
   right,
-  rightCls,
+  tone,
   children,
 }: {
   icon: ReactNode
@@ -278,7 +290,7 @@ function DirRow({
   /** Вторая сторона связи — своей строкой во всю ширину, её нельзя обрезать. */
   linked: string | null
   right: string | null
-  rightCls: string
+  tone: Tone
   /** Раскрытое содержимое строки. */
   children: ReactNode
 }) {
@@ -296,18 +308,23 @@ function DirRow({
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-base font-medium text-t1">{name}</span>
-            <span className="nums block truncate text-sm text-t3">{meta}</span>
+            <span className="block truncate text-sm text-t3">{meta}</span>
           </span>
           {/* Переносится только между частями «долг $1,003 · 50 дн»: иначе в узкой строке
               телефона от неё отрывалось одно «дн» на вторую строку. */}
           {right && (
-            <span className={`nums max-w-[38%] shrink-0 text-right text-sm ${rightCls}`}>
-              {right.split(' · ').map((part, i) => (
-                <span key={i} className="whitespace-nowrap">
-                  {i > 0 ? ' · ' : ''}
-                  {part}
-                </span>
-              ))}
+            <span
+              className={`inline-flex max-w-[38%] shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-right text-sm font-medium max-sm:gap-1 max-sm:px-1.5 max-sm:text-xs ${PILL[tone]}`}
+            >
+              {tone !== 'muted' && <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-current" />}
+              <span className="min-w-0">
+                {right.split(' · ').map((part, i) => (
+                  <span key={i} className="whitespace-nowrap">
+                    {i > 0 ? ' · ' : ''}
+                    {part}
+                  </span>
+                ))}
+              </span>
             </span>
           )}
           <ChevronDown size={15} aria-hidden className={`shrink-0 text-t3 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -337,16 +354,16 @@ const sinceText = (days: number | null, kind: 'broker' | 'facility', locale: Loc
 
 /** Строка брокера: сколько возили и когда, справа — одно главное про деньги. */
 function BrokerRow({ b, locale }: { b: DirBroker; locale: Locale }) {
-  const status = b.inactive
-    ? { text: t(locale, 'brokers.dir.inactive'), cls: 'text-bad-400' }
+  const status: { text: string; tone: Tone } | null = b.inactive
+    ? { text: t(locale, 'brokers.dir.inactive'), tone: 'bad' }
     : b.owed > 0 && b.oldest > 30
-      ? { text: t(locale, 'brokers.dir.owedLate').replace('{sum}', usd.format(b.owed)).replace('{n}', String(b.oldest)), cls: 'text-warn-400' }
+      ? { text: t(locale, 'brokers.dir.owedLate').replace('{sum}', usd.format(b.owed)).replace('{n}', String(b.oldest)), tone: 'warn' }
       : b.owed > 0
-        ? { text: t(locale, 'brokers.dir.owed').replace('{sum}', usd.format(b.owed)), cls: 'text-t2' }
+        ? { text: t(locale, 'brokers.dir.owed').replace('{sum}', usd.format(b.owed)), tone: 'plain' }
         : b.payDays != null
-          ? { text: t(locale, 'brokers.paysIn').replace('{n}', String(b.payDays)), cls: b.payDays <= 30 ? 'text-good-400' : 'text-warn-400' }
+          ? { text: t(locale, 'brokers.paysIn').replace('{n}', String(b.payDays)), tone: b.payDays <= 30 ? 'good' : 'warn' }
           : b.loads === 0 && b.checked
-            ? { text: t(locale, 'brokers.dir.checked').replace('{date}', b.checked), cls: 'text-t3' }
+            ? { text: t(locale, 'brokers.dir.checked').replace('{date}', b.checked), tone: 'muted' }
             : null
   const meta = [b.loads > 0 ? t(locale, 'brokers.loadsCount').replace('{n}', String(b.loads)) : null, sinceText(b.sinceDays, 'broker', locale)].filter(Boolean)
   return (
@@ -357,7 +374,7 @@ function BrokerRow({ b, locale }: { b: DirBroker; locale: Locale }) {
       meta={meta.join(' · ') || t(locale, 'brokers.dir.kindBroker')}
       linked={linkedText(b.linked, locale)}
       right={status?.text ?? null}
-      rightCls={status?.cls ?? ''}
+      tone={status?.tone ?? 'muted'}
     >
       <BrokerDetails brokerKey={b.key} mc={b.mc} checked={b.checked} payDays={b.payDays} owed={b.owed} oldest={b.oldest} d={b.detail} />
     </DirRow>
@@ -376,7 +393,7 @@ function FacilityRow({ f, locale }: { f: DirFacility; locale: Locale }) {
       linked={linkedText(f.linked, locale)}
       // Справа у склада — только то, во что он нам обходится: сколько там стоим.
       right={f.dwell != null ? t(locale, 'facilities.dwell').replace('{t}', driveTime(f.dwell, locale)) : null}
-      rightCls={f.attention ? 'text-bad-400' : 'text-t2'}
+      tone={f.attention ? 'bad' : 'plain'}
     >
       <FacilityDetails facilityKey={f.key} visits={f.visits} dwell={f.dwell} d={f.detail} />
     </DirRow>

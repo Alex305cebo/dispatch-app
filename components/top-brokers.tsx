@@ -2,7 +2,9 @@
 
 // «Крупнейшие брокеры США» — справочник из старой страницы «Брокеры»: чип на
 // компанию, по нажатию — кто они и реквизиты из реестра (MC, DOT, authority, город,
-// телефон). Убран при переделке 16.09.2026, возвращён на «Рынок» 19.09.2026.
+// телефон). Убран при переделке 16.09.2026, возвращён на «Рынок» 19.09.2026. С
+// 10/09/26 — нижняя часть карточки «Проверить брокера» (своей рамки у него нет):
+// чип — та же проверка, только номер вводить не надо.
 
 import { useEffect, useState } from 'react'
 import { topBrokerInfo, type TopFacts } from '@/app/actions'
@@ -24,11 +26,11 @@ export function TopBrokers({ brokers }: { brokers: TopBroker[] }) {
   }, [history])
 
   return (
-    <section className="panel h-full p-4">
-      <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
+    <div className="mt-4 border-t border-white/8 pt-3.5">
+      <h3 className="mb-2.5 flex items-center gap-1.5 text-sm font-semibold text-t2">
         {t(locale, 'brokers.topHeading')}
         <Info text={t(locale, 'brokers.topInfo')} />
-      </h2>
+      </h3>
       <div className="flex flex-wrap gap-1.5">
         {brokers.map((b) => (
           <button
@@ -70,7 +72,7 @@ export function TopBrokers({ brokers }: { brokers: TopBroker[] }) {
           </div>
         </div>
       )}
-    </section>
+    </div>
   )
 }
 

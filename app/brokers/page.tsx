@@ -15,9 +15,8 @@ import { TOP_BROKERS } from '@/lib/brokers-top'
 import { BrokerCheckForm } from '@/components/broker-check-form'
 import { TopBrokers } from '@/components/top-brokers'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
-import { CountTile } from '@/components/count-tile'
 import { tileGrid } from '@/lib/tiles'
-import { BROKERS_TILES } from '@/lib/tiles-core'
+import { BROKERS_TILES, migrateBrokersTiles } from '@/lib/tiles-core'
 import { Suspense } from 'react'
 import { RoutePlanSection } from '@/components/route-plan-section'
 import { Directory, type DirBroker, type DirFacility, type DirView } from './directory'
@@ -34,8 +33,8 @@ const VIEWS: DirView[] = ['all', 'brokers', 'facilities', 'attention']
  * платит брокер или сколько стоим на складе; нажатие раскрывает строку на месте со
  * всем, что было на старых страницах «Брокеры» и «Склады» (реестр, правка, люди,
  * направления, грузы, заметка; у склада — простой, детеншн, «как заехать»). Карточки
- * по адресу (/brokers/<ключ>, /facilities/<ключ>) остались для ссылок. Ниже —
- * проверка по MC/DOT и «Крупнейшие брокеры», вернувшиеся со старой страницы.
+ * по адресу (/brokers/<ключ>, /facilities/<ключ>) остались для ссылок. Ниже — одна
+ * карточка «Проверить брокера»: проверка по MC/DOT и «Крупнейшие брокеры».
  */
 export default async function BrokersPage({ searchParams }: { searchParams: Promise<{ q?: string; view?: string }> }) {
   const { q = '', view } = await searchParams
@@ -234,23 +233,10 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
       }
     })
 
-  // Сколько брокеров, сколько складов и сколько из них требуют внимания — своими
-  // маленькими плитками. Те же числа стоят на чипах списка, но там их видно, только
-  // дойдя до списка, а здесь — с первого экрана.
-  const needAttention = dirBrokers.filter((b) => b.attention).length + dirFacilities.filter((f) => f.attention).length
+  // Плиток-чисел над планом больше нет (план «Порядок в TMS», 10/09/26): сколько
+  // брокеров, складов и «требуют внимания» — на чипах списка, и первый экран отдан
+  // главному вопросу раздела — куда отправить трак.
   const widgets: Widget[] = [
-    { id: 'brokers-count', node: <CountTile value={dirBrokers.length} label={t(locale, 'brokers.pageTitle')} /> },
-    { id: 'facilities-count', node: <CountTile value={dirFacilities.length} label={t(locale, 'facilities.title')} /> },
-    {
-      id: 'attention-count',
-      node: (
-        <CountTile
-          value={needAttention}
-          label={t(locale, 'brokers.dir.attention')}
-          tone={needAttention > 0 ? 'bad' : undefined}
-        />
-      ),
-    },
     {
       id: 'plan',
       // «Куда отправить трак» переехало сюда с «Траков» (18.09.2026) — отсюда и новое
@@ -278,11 +264,19 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
       ),
     },
     // Со старой страницы «Брокеры» (до 16.09.2026): проверка незнакомого брокера по
-    // MC или DOT и справочник крупнейших брокеров — владелец попросил вернуть.
-    { id: 'check', node: <BrokerCheckForm /> },
-    { id: 'top', node: <TopBrokers brokers={TOP_BROKERS} /> },
+    // MC или DOT и справочник крупнейших брокеров — владелец попросил вернуть. Одной
+    // карточкой: чип крупного брокера — та же проверка, только номер вводить не надо.
+    {
+      id: 'check',
+      node: (
+        <section className="panel p-4">
+          <BrokerCheckForm />
+          <TopBrokers brokers={TOP_BROKERS} />
+        </section>
+      ),
+    },
   ]
-  const grid = await tileGrid('brokers', BROKERS_TILES, locale)
+  const grid = await tileGrid('brokers', BROKERS_TILES, locale, migrateBrokersTiles)
 
   return (
     <main className="page">
