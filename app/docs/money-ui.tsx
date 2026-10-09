@@ -96,19 +96,30 @@ export function Figure({
   sub,
   accent,
   tone = 'text-t1',
+  href,
 }: {
   label: string
   value: string
   sub?: string
   accent?: boolean
   tone?: string
+  /** Число — это и фильтр списка под ним («Факторинг»): нажал — видны только эти грузы. */
+  href?: string
 }) {
-  return (
-    <div className={`panel-inset px-3 py-2.5 ${accent ? 'ring-1 ring-haul-400/30 ring-inset' : ''}`}>
+  const box = `panel-inset px-3 py-2.5 ${accent ? 'ring-1 ring-haul-400/30 ring-inset' : ''}`
+  const body = (
+    <>
       <div className="text-2xs font-semibold tracking-wide text-t3 uppercase">{label}</div>
       <div className={`nums mt-1 text-xl font-bold ${accent ? 'text-haul-300' : tone}`}>{value}</div>
       {sub && <div className="nums mt-0.5 text-xs text-t3">{sub}</div>}
-    </div>
+    </>
+  )
+  return href ? (
+    <Link href={href} className={`${box} block transition-colors hover:bg-white/[0.06]`}>
+      {body}
+    </Link>
+  ) : (
+    <div className={box}>{body}</div>
   )
 }
 

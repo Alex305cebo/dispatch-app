@@ -107,9 +107,10 @@ export function factoringDoneDay(p: LoadPayment | null, paidAt: string | null): 
   return paidAt ? todayEt(new Date(paidAt)) : null
 }
 
-/** Груз на вкладке «Грузы» раздела «Документы» — через поиск по номеру груза. */
+/** Груз во «Факторинге» раздела «Деньги» — через поиск по номеру груза. До 10/09/26
+ *  этот список был «Грузами» в «Документах». */
 export const financesHref = (load: { id: number; referenceId?: string | null }) =>
-  `/docs?q=${encodeURIComponent(load.referenceId || String(load.id))}`
+  `/money?tab=factoring&q=${encodeURIComponent(load.referenceId || String(load.id))}`
 
 /** Метка «где деньги» для карточки груза: ключ словаря и цвет. */
 export function payBadge(
