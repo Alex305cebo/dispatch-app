@@ -1,6 +1,7 @@
-import { Package } from 'lucide-react'
+import { CalendarDays, DollarSign, Package, TrendingUp, Truck } from 'lucide-react'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
-import { CountTile } from '@/components/count-tile'
+import { Stat } from '@/components/stat'
+import { Cells, Spark } from '@/components/mini-charts'
 import { Empty } from '@/components/empty'
 import { PageHeader } from '@/components/page-header'
 import { tileGrid } from '@/lib/tiles'
@@ -9,7 +10,7 @@ import { listTrucks } from '@/lib/loads'
 import { truckLabel } from '@/lib/map'
 import { listAmazonTrips, type AmazonTrip } from '@/lib/amazon'
 import { todayEt } from '@/lib/payments'
-import { usDate, weekStartIso } from '@/lib/fmt'
+import { usd2, usDate, weekStartIso } from '@/lib/fmt'
 import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t, type Locale } from '@/lib/i18n'
@@ -54,11 +55,24 @@ export default async function AmazonPage() {
 
   const truckOpts = trucks.map((tr) => ({ id: tr.id, label: truckLabel(tr) }))
   const live = trips.filter((tr) => tr.status !== 'cancelled')
-  const weekTrips = live.filter((tr) => tr.startDate && tr.startDate >= week)
+  // Неделя — семь дней с пятницы. Рейсы следующей недели (Relay бронирует вперёд) в её
+  // оплату не идут: до 10/09/26 верхней границы не было, и они прибавлялись к этой.
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(week, i))
+  const weekTrips = live.filter((tr) => tr.startDate && tr.startDate >= week && tr.startDate <= weekDays[6])
   const weekPay = weekTrips.reduce((s, tr) => s + (tr.rate ?? 0), 0)
   const withMiles = weekTrips.filter((tr) => tr.rate != null && tr.miles)
   const weekMiles = withMiles.reduce((s, tr) => s + (tr.miles ?? 0), 0)
   const weekRpm = weekMiles ? withMiles.reduce((s, tr) => s + (tr.rate ?? 0), 0) / weekMiles : null
+  // Те же деньги и RPM по дням — столбиками под цифрами; сегодняшний горит ярче.
+  const dayPay = weekDays.map((d) => weekTrips.filter((tr) => tr.startDate === d).reduce((s, tr) => s + (tr.rate ?? 0), 0))
+  const dayRpm = weekDays.map((d) => {
+    const xs = withMiles.filter((tr) => tr.startDate === d)
+    const mi = xs.reduce((s, tr) => s + (tr.miles ?? 0), 0)
+    return mi ? xs.reduce((s, tr) => s + (tr.rate ?? 0), 0) / mi : null
+  })
+  const todayIdx = weekDays.indexOf(today)
+  const todays = live.filter((x) => x.startDate === today)
+  const inTransit = live.filter((x) => x.status === 'in_transit')
 
   // Доска: сначала сегодня и вперёд, потом прошедшие дни (свежие выше), без даты — в конце.
   // Доставленные и отменённые старше вчера с доски уходят: их место — в деньгах недели.
@@ -97,19 +111,90 @@ export default async function AmazonPage() {
       return { truck: tr, now, next }
     })
     .filter((r) => r.now || r.next)
+  // Клетки под «В пути»: траки с рейсами Amazon на доске, горят те, что едут сейчас.
+  const amazonTrucks = new Set(board.filter((x) => x.status !== 'cancelled' && x.truckId != null).map((x) => x.truckId))
+  const rollingTrucks = new Set(inTransit.filter((x) => x.truckId != null).map((x) => x.truckId))
 
   const tripLine = (x: AmazonTrip) =>
     [x.vrid, x.stops.map((s) => s.code ?? s.city).join(' → '), x.startDate ? usDate(x.startDate) : null]
       .filter(Boolean)
       .join(' · ')
 
+  const icon = { size: 15, strokeWidth: 2.5 }
   const widgets: Widget[] = [
-    { id: 'am-today', node: <CountTile value={live.filter((x) => x.startDate === today).length} label={t(locale, 'amazon.tileToday')} /> },
-    { id: 'am-transit', node: <CountTile value={live.filter((x) => x.status === 'in_transit').length} label={t(locale, 'amazon.tileTransit')} tone="warn" /> },
-    { id: 'am-week', node: <CountTile value={weekPay ? usd.format(weekPay) : 0} label={t(locale, 'amazon.tileWeek')} info={t(locale, 'amazon.tileWeekInfo')} tone="good" /> },
+    // Под цифрой — картинка, как на «Грузах» и «Траках» (владелец, 10/09/26: «меньше
+    // цифр и текста, больше визуала»). Что значат клетки и столбики — в ⓘ.
+    {
+      id: 'am-today',
+      node: (
+        <Stat
+          compact
+          surface="panel"
+          accent="haul"
+          icon={<CalendarDays {...icon} />}
+          label={t(locale, 'amazon.tileToday')}
+          value={String(todays.length)}
+          info={t(locale, 'amazon.tileTodayInfo')}
+        >
+          {/* Клетка на рейс дня: доставленные, за ними едущие, пустые — ещё не выехали. */}
+          <Cells
+            total={todays.length}
+            parts={[
+              { n: todays.filter((x) => x.status === 'delivered').length, tone: 'good' },
+              { n: todays.filter((x) => x.status === 'in_transit').length, tone: 'warn' },
+            ]}
+          />
+        </Stat>
+      ),
+    },
+    {
+      id: 'am-transit',
+      node: (
+        <Stat
+          compact
+          surface="panel"
+          accent={inTransit.length ? 'warn' : 'haul'}
+          icon={<Truck {...icon} />}
+          label={t(locale, 'amazon.tileTransit')}
+          value={String(inTransit.length)}
+          info={t(locale, 'amazon.tileTransitInfo')}
+        >
+          <Cells total={amazonTrucks.size} lit={rollingTrucks.size} tone="warn" />
+        </Stat>
+      ),
+    },
+    {
+      id: 'am-week',
+      node: (
+        <Stat
+          hero
+          compact
+          surface="panel"
+          accent="good"
+          icon={<DollarSign {...icon} />}
+          label={t(locale, 'amazon.tileWeek')}
+          value={usd.format(weekPay)}
+          info={t(locale, 'amazon.tileWeekInfo')}
+        >
+          <Spark values={dayPay} tone="good" mark={todayIdx} />
+        </Stat>
+      ),
+    },
     {
       id: 'am-rpm',
-      node: <CountTile value={weekRpm != null ? `$${weekRpm.toFixed(2)}` : 0} label={t(locale, 'amazon.tileRpm')} info={t(locale, 'amazon.tileRpmInfo')} />,
+      node: (
+        <Stat
+          compact
+          surface="panel"
+          accent="haul"
+          icon={<TrendingUp {...icon} />}
+          label={t(locale, 'amazon.tileRpm')}
+          value={weekRpm != null ? `${usd2.format(weekRpm)}/mi` : '—'}
+          info={t(locale, 'amazon.tileRpmInfo')}
+        >
+          <Spark values={dayRpm} tone="haul" mark={todayIdx} />
+        </Stat>
+      ),
     },
     { id: 'am-add', node: <div><AmazonAdd trucks={truckOpts} today={today} /></div> },
     {
@@ -170,8 +255,6 @@ export default async function AmazonPage() {
         </div>
       ),
     },
-    // Уроки — для учеников: всегда в разделе, а не где-то на сайте курсов.
-    { id: 'am-lessons', node: <div><AmazonLessons locale={locale} /></div> },
   ]
   const grid = await tileGrid('amazon', AMAZON_TILES, locale)
 
@@ -181,15 +264,9 @@ export default async function AmazonPage() {
         title={t(locale, 'amazon.title')}
         info={t(locale, 'amazon.info')}
         subtitle={t(locale, 'amazon.subtitle')}
-        actions={
-          // Ссылка к урокам сверху: плитку уроков можно утащить вниз, а найти её надо сразу.
-          <a
-            href="#amazon-lessons"
-            className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/12 px-3 text-sm font-semibold text-haul-300 hover:border-haul-500/50"
-          >
-            📚 {t(locale, 'amazon.lessonsShort')}
-          </a>
-        }
+        // Уроки — для учеников: всегда под рукой в разделе, а не где-то на сайте курсов.
+        // С 10/09/26 — окошком этой кнопки, а не плиткой внизу (план «Порядок в TMS»).
+        actions={<AmazonLessons />}
       />
       <WidgetGrid {...grid} widgets={widgets} />
     </main>

@@ -319,6 +319,8 @@ export function migrateTollsTiles(saved: TilePlacement[]): TilePlacement[] {
  *  одной вкладки толкает плитку другой. Денежные отчёты и корзина — по одному блоку,
  *  двигать там нечего, поэтому сетки у них нет. */
 // Раздел «Amazon» (10/03/26): счётчики сверху, рейс вставкой, рейсы по дням, траки.
+// Уроки с 10/09/26 — окошком кнопки «Уроки» в шапке, плитки 'am-lessons' больше нет:
+// сохранённая раскладка её просто теряет (applyLayout).
 export const AMAZON_TILES: TilePlacement[] = [
   { id: 'am-today', size: 's' },
   { id: 'am-transit', size: 's' },
@@ -327,7 +329,6 @@ export const AMAZON_TILES: TilePlacement[] = [
   { id: 'am-add', size: 'l' },
   { id: 'am-board', size: 'l' },
   { id: 'am-trucks', size: 'l' },
-  { id: 'am-lessons', size: 'l' },
 ]
 
 // «Грузы» в «Документах» с 10/09/26 — один список бумаг без сетки: четыре денежных

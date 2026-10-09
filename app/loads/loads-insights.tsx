@@ -13,6 +13,7 @@ import { weekStats, shiftDay } from '@/lib/loads-dashboard'
 import { usd, usd2 } from '@/lib/fmt'
 import { pctText, versusMarket } from '@/lib/dat-market-core'
 import { Stat } from '@/components/stat'
+import { Spark } from '@/components/mini-charts'
 import type { LoadMetrics } from '@/components/loads-toolbar'
 
 /** Выборка для списка ниже: какие грузы показать и как подписать чип. */
@@ -22,25 +23,6 @@ const dateLabel = (day: string, locale: Locale) =>
   new Date(`${day}T12:00:00`).toLocaleDateString(locale, { month: 'short', day: 'numeric' })
 export const weekdayLabel = (day: string, locale: Locale) =>
   new Date(`${day}T12:00:00`).toLocaleDateString(locale, { weekday: 'short' })
-
-const SPARK = { haul: 'bg-haul-400', good: 'bg-good-400', warn: 'bg-warn-400' } as const
-
-/** Мини-график под цифрой плитки: форма недели или парка, без осей. Нулевой день —
- * тонкая черта, чтобы пустые дни было видно. */
-function Spark({ values, tone }: { values: (number | null)[]; tone: keyof typeof SPARK }) {
-  const max = Math.max(1, ...values.map((v) => v ?? 0))
-  return (
-    <div className="mt-3 flex h-7 items-end gap-0.5" aria-hidden="true">
-      {values.map((v, i) => (
-        <span
-          key={i}
-          className={`flex-1 rounded-[2px] opacity-50 ${SPARK[tone]}`}
-          style={{ height: v == null ? 0 : `${Math.max(6, (v / max) * 100)}%` }}
-        />
-      ))}
-    </div>
-  )
-}
 
 /** Четыре числа недели — по плитке на каждое, а не общей карточкой на всю строку.
  *  Возвращает готовые плитки с ключами, которыми их знает раскладка (lib/tiles-core). */
