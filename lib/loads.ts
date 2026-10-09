@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { sql } from './db.ts'
 import {
   rowToLoad,
@@ -122,18 +123,33 @@ export async function listLoads(
   companyId: CompanyId,
   opts: { truckId?: number; status?: LoadStatus } = {},
 ): Promise<LoadRecord[]> {
+  // Строки — из общего на запрос кэша, объекты — каждый раз новые: вызывающие
+  // бывают, что сортируют или правят список у себя, и чужой список это не задевает.
+  const rows = await loadRows(companyId, opts.truckId, opts.status)
+  return rows.map(rowToLoad)
+}
+
+/** cache(): одна страница спрашивала весь список грузов по два-три раза за рендер
+ * (сама страница, плитка «Доска парка», план рейсов) — каждый раз круг в базу за
+ * одними и теми же строками. Внутри одного рендера теперь круг один. Вне рендера
+ * (серверные действия, обработчики /api) cache ничего не хранит. */
+const loadRows = cache(async function loadRows(
+  companyId: CompanyId,
+  truckId: number | undefined,
+  status: LoadStatus | undefined,
+): Promise<LoadRow[]> {
   // Three filters, all optional — small enough to branch by hand rather than build
   // a query string. tagged-template params keep it injection-safe either way.
   const rows =
-    opts.truckId !== undefined && opts.status
-      ? await sql`SELECT * FROM loads WHERE company_id = ${companyId} AND truck_id = ${opts.truckId} AND status = ${opts.status} ORDER BY created_at DESC`
-      : opts.truckId !== undefined
-        ? await sql`SELECT * FROM loads WHERE company_id = ${companyId} AND truck_id = ${opts.truckId} ORDER BY created_at DESC`
-        : opts.status
-          ? await sql`SELECT * FROM loads WHERE company_id = ${companyId} AND status = ${opts.status} ORDER BY created_at DESC`
+    truckId !== undefined && status
+      ? await sql`SELECT * FROM loads WHERE company_id = ${companyId} AND truck_id = ${truckId} AND status = ${status} ORDER BY created_at DESC`
+      : truckId !== undefined
+        ? await sql`SELECT * FROM loads WHERE company_id = ${companyId} AND truck_id = ${truckId} ORDER BY created_at DESC`
+        : status
+          ? await sql`SELECT * FROM loads WHERE company_id = ${companyId} AND status = ${status} ORDER BY created_at DESC`
           : await sql`SELECT * FROM loads WHERE company_id = ${companyId} ORDER BY created_at DESC`
-  return (rows as LoadRow[]).map(rowToLoad)
-}
+  return rows as LoadRow[]
+})
 
 export type Receivable = {
   load: LoadRecord
@@ -269,9 +285,13 @@ export async function getLoad(companyId: CompanyId, id: number): Promise<LoadRec
 }
 
 export async function listTrucks(companyId: CompanyId): Promise<TruckRecord[]> {
-  const rows = (await sql`SELECT * FROM trucks WHERE company_id = ${companyId} ORDER BY id`) as TruckRow[]
-  return rows.map(rowToTruck)
+  return (await truckRows(companyId)).map(rowToTruck)
 }
+
+/** cache() — по той же причине, что loadRows: список траков нужен и странице, и её плиткам. */
+const truckRows = cache(async function truckRows(companyId: CompanyId): Promise<TruckRow[]> {
+  return (await sql`SELECT * FROM trucks WHERE company_id = ${companyId} ORDER BY id`) as TruckRow[]
+})
 
 export async function getTruck(companyId: CompanyId, id: number): Promise<TruckRecord | null> {
   const rows = (await sql`SELECT * FROM trucks WHERE id = ${id} AND company_id = ${companyId}`) as TruckRow[]

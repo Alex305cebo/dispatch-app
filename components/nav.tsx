@@ -202,8 +202,8 @@ export function Nav({
   // Keeps Live Share GPS moving while anyone has the app open — no external cron was
   // ever set up, so without this the data only advanced on a manual "Обновить".
   // Polling into the DB is useless on its own: the page on screen was rendered from the
-  // OLD snapshot, so router.refresh() re-renders it once fresh data actually landed
-  // (and is skipped entirely when the server-side throttle says nothing changed).
+  // OLD snapshot; the action's own revalidatePath makes Next send the re-rendered page
+  // back with its response once fresh data actually landed (nothing when throttled).
   //
   // On a TIMER, not on every navigation. It used to run on each pathname change, and a
   // server action forces Next to render the destination page on the server to build its
@@ -217,15 +217,42 @@ export function Nav({
       // A backgrounded tab does not need fresh truck positions; a dispatcher leaves
       // this open all day next to everything else.
       if (document.hidden) return
-      autoRefreshFleet()
-        .then((refreshed) => refreshed && router.refresh())
-        .catch(() => {})
+      // Без router.refresh(): действие само зовёт revalidatePath, и Next присылает
+      // перерисованную страницу в ответе. Обновление сверху было вторым рендером.
+      autoRefreshFleet().catch(() => {})
     }
     poll()
     const id = setInterval(poll, 3 * 60 * 1000)
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
+
+  // Разогрев раздела до клика. Каждый раздел рисуется на сервере заново, и раньше
+  // этот круг начинался только по нажатию: всё это время человек смотрел на «Загрузка…».
+  // Теперь он начинается, когда курсор задержался на пункте меню или палец коснулся
+  // его (касание на ~100 мс раньше самого нажатия): к клику страница часто уже готова.
+  // Полная загрузка, не одна заглушка: у разделов есть loading.tsx, и обычная
+  // предзагрузка Next приносит только её. Готовая страница живёт 30 с (staleTimes в
+  // next.config.ts), повторный заход в это время не ходит на сервер вовсе.
+  const warmTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const warm = (href: string) => {
+    if (href === pathname) return
+    router.prefetch(href, { kind: 'full' as never })
+  }
+  const warmSoon = (href: string) => {
+    if (warmTimer.current) clearTimeout(warmTimer.current)
+    // Задержка — чтобы курсор, просто проехавший по меню, не заказал все разделы разом.
+    warmTimer.current = setTimeout(() => warm(href), 120)
+  }
+  const warmCancel = () => {
+    if (warmTimer.current) clearTimeout(warmTimer.current)
+  }
+  const warmProps = (href: string) => ({
+    onMouseEnter: () => warmSoon(href),
+    onMouseLeave: warmCancel,
+    onFocus: () => warm(href),
+    onTouchStart: () => warm(href),
+  })
 
   if (driverPage) return null
 
@@ -286,6 +313,7 @@ export function Nav({
               <Link
                 key={it.href}
                 href={it.href}
+                {...warmProps(it.href)}
                 className={`flex min-h-11 items-center gap-2.5 rounded-xl px-3 text-base font-medium ${
                   isOn(it, pathname) ? 'bg-haul-500/15 text-haul-300' : 'text-t1 hover:bg-white/5'
                 }`}
@@ -346,6 +374,7 @@ export function Nav({
           <Link
             key={it.href}
             href={it.href}
+            {...warmProps(it.href)}
             // Цель вводной экскурсии: /trucks -> "nav-trucks". Ставится на всех
             // пунктах разом, чтобы шаг экскурсии не зависел от порядка в списке.
             data-tour={'nav-' + it.href.replace(/\//g, '')}
