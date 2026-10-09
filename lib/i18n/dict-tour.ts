@@ -109,12 +109,12 @@ export const tourDict = {
   },
   'tour.docs.title': { ru: 'Документы: все бумаги в одном месте', en: 'Documents: every paper in one place', es: 'Documentos: todos los papeles en un sitio', uk: 'Документи: усі папери в одному місці', ro: 'Documente: toate hârtiile într-un loc', kk: 'Құжаттар: барлық қағаз бір жерде' },
   'tour.docs.text': {
-    ru: 'Рейт-коны, BOL, POD, страховки, регистрации, фото — по тракам и по грузам. Загружаете с компьютера или с телефона; приложение само определяет, что за документ, и кладёт к нужному грузу. Отсюда же собирается пакет для счёта.',
-    en: 'Rate cons, BOLs, PODs, insurance, registrations, photos — by truck and by load. Upload from a computer or a phone; the app recognises what kind of document it is and files it with the right load. The invoice package is assembled from here too.',
-    es: 'Rate cons, BOL, POD, seguros, registros, fotos — por camión y por carga. Los subes desde el ordenador o el teléfono; la app decide sola qué documento es y lo pone en la carga que toca. Desde aquí también se arma el paquete de la factura.',
-    uk: 'Рейт-кони, BOL, POD, страховки, реєстрації, фото — за траками і за вантажами. Завантажуєте з комп\'ютера або з телефона; застосунок сам визначає, що за документ, і кладе до потрібного вантажу. Звідси ж збирається пакет для рахунку.',
-    ro: 'Rate con-uri, BOL, POD, asigurări, înmatriculări, poze — pe camioane și pe curse. Le încarci de pe calculator sau de pe telefon; aplicația decide singură ce document e și îl pune la cursa potrivită. Tot de aici se face pachetul facturii.',
-    kk: 'Рейт-кондар, BOL, POD, сақтандырулар, тіркеулер, суреттер — тракттар мен жүктер бойынша. Компьютерден немесе телефоннан жүктейсіз; қолданба құжаттың түрін өзі анықтап, керекті жүкке салады. Осы жерден шот пакеті де жиналады.',
+    ru: 'Рейт-коны, BOL, POD, страховки, регистрации, фото — по тракам и по грузам. Загружаете с компьютера или с телефона; приложение само определяет, что за документ, и кладёт к нужному грузу.',
+    en: 'Rate cons, BOLs, PODs, insurance, registrations, photos — by truck and by load. Upload from a computer or a phone; the app recognises what kind of document it is and files it with the right load.',
+    es: 'Rate cons, BOL, POD, seguros, registros, fotos — por camión y por carga. Los subes desde el ordenador o el teléfono; la app decide sola qué documento es y lo pone en la carga que toca.',
+    uk: 'Рейт-кони, BOL, POD, страховки, реєстрації, фото — за траками і за вантажами. Завантажуєте з комп\'ютера або з телефона; застосунок сам визначає, що за документ, і кладе до потрібного вантажу.',
+    ro: 'Rate con-uri, BOL, POD, asigurări, înmatriculări, poze — pe camioane și pe curse. Le încarci de pe calculator sau de pe telefon; aplicația decide singură ce document e și îl pune la cursa potrivită.',
+    kk: 'Рейт-кондар, BOL, POD, сақтандырулар, тіркеулер, суреттер — тракттар мен жүктер бойынша. Компьютерден немесе телефоннан жүктейсіз; қолданба құжаттың түрін өзі анықтап, керекті жүкке салады.',
   },
   'tour.brokers.title': { ru: 'Рынок: с кем работаем и куда возим', en: 'Market: who you work with and where you haul', es: 'Mercado: con quién trabajas y adónde llevas', uk: 'Ринок: з ким працюємо і куди возимо', ro: 'Piață: cu cine lucrăm și unde transportăm', kk: 'Нарық: кіммен жұмыс істейміз және қайда тасимыз' },
   'tour.brokers.text': {

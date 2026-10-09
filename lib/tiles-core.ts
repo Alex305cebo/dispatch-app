@@ -308,15 +308,10 @@ export const AMAZON_TILES: TilePlacement[] = [
   { id: 'am-lessons', size: 'l' },
 ]
 
-export const DOCS_TILES: TilePlacement[] = [
-  // «Распознать Rate Con» с 25.09.2026 — кнопка в шапке раздела, не плитка.
-  // Денежные числа есть только у того, кому открыты «Финансы»; без права их нет.
-  { id: 'pay-to-submit', size: 's' },
-  { id: 'pay-awaiting', size: 's' },
-  { id: 'pay-funded', size: 's' },
-  { id: 'pay-risk', size: 's' },
-  { id: 'loads', size: 'l' },
-]
+// «Грузы» в «Документах» с 10/09/26 — один список бумаг без сетки: четыре денежных
+// числа над ним уехали вместе с факторингом в «Деньги» (app/docs/finance-tabs.tsx
+// Factoring), а одну плитку переставлять некуда. Сохранённая раскладка 'docs' просто
+// больше не читается.
 
 export const DOCS_FLEET_TILES: TilePlacement[] = [
   { id: 'docs-count', size: 's' },

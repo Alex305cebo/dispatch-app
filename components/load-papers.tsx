@@ -33,7 +33,7 @@ const REQUIRED: DocKind[] = ['ratecon', 'bol', 'pod', 'invoice']
 
 /** Из них человек приносит только три. Инвойс собирает кнопка «Собрать пакет», и
  * держать его в списке «не хватает» значит звать грузить чужую бумагу руками. */
-const NEEDED: DocKind[] = ['ratecon', 'bol', 'pod']
+export const NEEDED: DocKind[] = ['ratecon', 'bol', 'pod']
 
 const EXTRA_SHOWN = 2
 

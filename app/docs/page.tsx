@@ -1,27 +1,26 @@
-// Раздел «Документы» — все бумаги парка.
+// Раздел «Документы» — только бумаги парка (план «Порядок в TMS», 10/09/26).
 //
-//   Грузы   — строка груза: плитки бумаг (открыть/догрузить) + путь денег до оплаты;
+//   Грузы   — строка груза: плитки Rate Con, BOL, POD, инвойса (открыть/догрузить);
 //   Траки   — бумаги, у которых груза нет: страховка, регистрация, чеки, фото;
 //   Корзина — удалённые бумаги, откуда их возвращают.
 //
-// Деньги (отчёты: кто должен, что оплачено, недели, диспетчеры, водители) с 10/09/26 —
-// своим разделом app/money: раньше это была первая вкладка здесь, и раздел бумаг
-// открывался на деньгах. Старые ссылки /docs?tab=unpaid и /invoices переводит туда
-// next.config.ts (redirects).
+// Деньги с 10/09/26 — своим разделом app/money: и отчёты (кто должен, что оплачено,
+// недели, диспетчеры, водители), и путь денег груза через факторинг, который раньше был
+// «Грузами» здесь у того, кому открыты «Финансы». Старые ссылки /docs?tab=unpaid,
+// /docs?stage=toSubmit и /invoices переводит туда next.config.ts (redirects).
 
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
 import { tileGrid } from '@/lib/tiles'
-import { DOCS_FLEET_TILES, DOCS_TILES } from '@/lib/tiles-core'
+import { DOCS_FLEET_TILES } from '@/lib/tiles-core'
 import Link from 'next/link'
 import { listDocsForLibrary, listTrashedDocs, listTrucks } from '@/lib/loads'
 import { DocLibrary, DocTrash, DocUpload } from '@/components/docs'
-import { loadsTabTiles } from './finance-tabs'
+import { PapersBoard } from './finance-tabs'
 import { SectionNav, type NavItem } from './tab-nav'
 import { FileText, Package, ScanText, Trash2, Truck } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
 import { Stat } from '@/components/stat'
-import { companyScope, getCurrentUser } from '@/lib/session'
-import { can } from '@/lib/capabilities-server'
+import { companyScope } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
 import type { CompanyId } from '@/lib/company'
@@ -38,8 +37,6 @@ const SUBTITLE: Record<Tabs, MsgKey> = {
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; q?: string; stage?: string }> }) {
   const { tab: tabParam, q, stage } = await searchParams
-  const user = await getCurrentUser()
-  const canFinances = await can(user, 'finances')
   const companyId = await companyScope()
   const locale = await getLocale()
 
@@ -74,34 +71,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       <SectionNav items={sections} label={t(locale, 'docs.title')} />
 
       {tab === 'loads' ? (
-        <Loads companyId={companyId} locale={locale} query={q ?? ''} stage={stage ?? ''} money={canFinances} />
+        // Одна плитка — без сетки и «Переставить»: переставлять нечего.
+        <PapersBoard companyId={companyId} locale={locale} query={q ?? ''} stage={stage ?? ''} />
       ) : tab === 'fleet' ? (
         <Fleet companyId={companyId} locale={locale} />
       ) : (
         <Trash companyId={companyId} />
       )}
     </main>
-  )
-}
-
-async function Loads({
-  companyId,
-  locale,
-  query,
-  stage,
-  money,
-}: {
-  companyId: CompanyId
-  locale: Locale
-  query: string
-  stage: string
-  money: boolean
-}) {
-  const widgets: Widget[] = await loadsTabTiles({ companyId, locale, query, stage, money })
-  const grid = await tileGrid('docs', DOCS_TILES, locale)
-
-  return (
-    <WidgetGrid {...grid} widgets={widgets} />
   )
 }
 

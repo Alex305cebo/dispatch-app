@@ -10,7 +10,7 @@
 
 import Link, { useLinkStatus } from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { SEGMENT_BAR, segmentClass } from '@/components/segmented'
 
 export type NavItem = { key: string; href: string; label: string; icon?: ReactNode; active: boolean }
@@ -72,8 +72,19 @@ export function SectionNav({ items, label }: { items: NavItem[]; label: string }
 
 export function ChipNav({ items, className = '' }: { items: NavItem[]; className?: string }) {
   const [active, press] = useActiveKey(items)
+  const bar = useRef<HTMLDivElement>(null)
+  const serverActive = items.find((i) => i.active)?.key
+  // На телефоне пилюли листаются вбок, и открытая вкладка («Факторинг», «Оплачено»)
+  // оказывалась за краем экрана — подвигаем полосу так, чтобы она была видна.
+  useEffect(() => {
+    const el = bar.current
+    const on = el?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (!el || !on || el.scrollWidth <= el.clientWidth) return
+    const left = on.getBoundingClientRect().left - el.getBoundingClientRect().left
+    el.scrollLeft += left - (el.clientWidth - on.offsetWidth) / 2
+  }, [serverActive])
   return (
-    <div className={`-mx-4 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 ${className}`}>
+    <div ref={bar} className={`-mx-4 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 ${className}`}>
       {items.map((c) => {
         const on = c.key === active
         return (

@@ -1,11 +1,9 @@
-// Денежные вкладки раздела «Документы»: оплата·факторинг, недели, диспетчеры,
-// не оплачено, оплачено (водители — в drivers-tab.tsx, общий вид — в money-ui.tsx).
-// Раньше это была вся страница /invoices; после слияния с файлами страница одна
-// (app/docs/page.tsx), а эти вкладки — её часть.
+// Вкладки раздела «Деньги» (app/money/page.tsx): факторинг, недели, диспетчеры,
+// не оплачено, оплачено (водители — в drivers-tab.tsx, общий вид — в money-ui.tsx), и
+// «Грузы» раздела «Документы» — те же строки грузов, только с бумагами без денег.
 // Правила этапов — lib/payments.ts, запись — app/docs/payment-actions.ts.
 
 import Link from 'next/link'
-import type { ReactNode } from 'react'
 import {
   listLoads,
   listLoadsByDispatcher,
@@ -39,8 +37,7 @@ import { LaneStats } from '@/components/lane-stats'
 import { PickupWeekChart } from '@/components/pickup-week-chart'
 import { calcLoad } from '@/lib/profit'
 import { weekStartIso } from '@/lib/loads-dashboard'
-import { CircleCheckBig, Download, Hourglass, Send, TriangleAlert, Wallet } from 'lucide-react'
-import { Stat as StageStat } from '@/components/stat'
+import { CircleCheckBig, Download, Wallet } from 'lucide-react'
 import { rpmText } from '@/components/rpm'
 import { Empty } from '@/components/empty'
 import {
@@ -64,25 +61,9 @@ import type { CompanyId } from '@/lib/company'
 /** Закрытые грузы видны столько дней — дальше они в «Оплачено». */
 const DONE_DAYS = 45
 
-/** Вкладка «Грузы»: у каждого не отменённого груза — его бумаги и его этап денег. */
-/** Вкладка «Грузы» в «Документах» — готовыми плитками, а не одним блоком: четыре
- *  денежных числа сверху были вставками внутри общей карточки, и подвинуть их было
- *  нельзя. Ключи те, которыми их знает раскладка (lib/tiles-core). */
-export async function loadsTabTiles({
-  companyId,
-  locale,
-  query,
-  stage = '',
-  money,
-}: {
-  companyId: CompanyId
-  locale: Locale
-  query: string
-  /** Этап, до которого сразу сужен список (?stage= — ссылка с плитки-числа). */
-  stage?: string
-  /** Есть право «Финансы» — со суммами и факторингом; иначе только бумаги. */
-  money: boolean
-}): Promise<{ id: string; node: ReactNode }[]> {
+/** Строки грузов для «Документы → Грузы» и «Деньги → Факторинг»: у каждого не
+ *  отменённого груза — его бумаги и его этап денег. */
+async function payRows(companyId: CompanyId, locale: Locale) {
   const today = todayEt()
   const [loads, trucks, payments, settings] = await Promise.all([
     listLoads(companyId),
@@ -135,8 +116,46 @@ export async function loadsTabTiles({
       miles: load.loadedMiles + load.deadheadMiles,
     })
   }
+  return { rows, payments, settings, today }
+}
 
+/** «Документы → Грузы» — только бумаги, у всех одинаково (план «Порядок в TMS»,
+ *  10/09/26: «Документы только бумаги»). Деньги тех же грузов — во «Факторинге». */
+export async function PapersBoard({
+  companyId,
+  locale,
+  query,
+  stage,
+}: {
+  companyId: CompanyId
+  locale: Locale
+  query: string
+  /** Группа, до которой сразу сужен список (?stage=missing). */
+  stage: string
+}) {
+  const { rows, settings, today } = await payRows(companyId, locale)
+  return <LoadsBoard key={stage} rows={rows} settings={settings} today={today} initialQuery={query} initialStage={stage} money={false} />
+}
+
+/** «Деньги → Факторинг»: путь денег каждого груза — отправить, аванс, оплата брокера.
+ *  До 10/09/26 это были «Грузы» в «Документах» у того, кому открыты «Финансы»: раздел
+ *  бумаг открывался на деньгах. Четыре числа сверху — фильтр списка под ними. */
+export async function Factoring({
+  companyId,
+  locale,
+  query,
+  stage,
+}: {
+  companyId: CompanyId
+  locale: Locale
+  query: string
+  /** Этап, до которого сразу сужен список (?stage= — ссылка с числа). */
+  stage: string
+}) {
+  const { rows, payments, settings, today } = await payRows(companyId, locale)
   const sum = (groups: PayGroup[]) => rows.filter((r) => groups.includes(r.group)).reduce((s, r) => s + r.rate, 0)
+  const count = (groups: PayGroup[]) =>
+    t(locale, 'docs.stage.loads').replace('{n}', String(rows.filter((r) => groups.includes(r.group)).length))
   // Деньги этого месяца: аванс факторинга или прямая оплата, по дате поступления.
   const month = today.slice(0, 7)
   let inMonth = 0
@@ -148,83 +167,43 @@ export async function loadsTabTiles({
     }
     if (p.stage === 'paid' && p.paidOn?.startsWith(month)) inMonth += p.paidAmount ?? 0
   }
+  const toSubmit = sum(['toSubmit'])
   const risk = sum(['problems', 'atRisk'])
+  const at = (g: string) => `/money?tab=factoring&stage=${g}#board`
 
-  const tiles: { id: string; node: ReactNode }[] = []
-  if (money) {
-    const toSubmit = sum(['toSubmit'])
-    const count = (groups: PayGroup[]) =>
-      t(locale, 'docs.stage.loads').replace('{n}', String(rows.filter((r) => groups.includes(r.group)).length))
-    // Каждое число ведёт к своим грузам: плитка — это и есть фильтр списка ниже.
-    tiles.push(
-      {
-        id: 'pay-to-submit',
-        node: (
-          <StageStat
-            surface="panel"
-            label={t(locale, 'payments.stat.toSubmit')}
-            value={usd.format(toSubmit)}
-            sub={count(['toSubmit'])}
-            icon={<Send size={13} strokeWidth={2.5} />}
-            accent="warn"
-            hero={toSubmit > 0}
-            href="/docs?stage=toSubmit#board"
-          />
-        ),
-      },
-      {
-        id: 'pay-awaiting',
-        node: (
-          <StageStat
-            surface="panel"
-            label={t(locale, 'payments.stat.awaiting')}
-            value={usd.format(sum(['awaitingFunding']))}
-            sub={count(['awaitingFunding'])}
-            icon={<Hourglass size={13} strokeWidth={2.5} />}
-            href="/docs?stage=awaitingFunding#board"
-          />
-        ),
-      },
-      {
-        id: 'pay-funded',
-        node: (
-          <StageStat
-            surface="panel"
-            label={t(locale, 'payments.stat.fundedMonth')}
-            value={usd.format(inMonth)}
-            sub={`${t(locale, 'payments.stat.feesMonth')}: ${usd2.format(feesMonth)}`}
-            icon={<CircleCheckBig size={13} strokeWidth={2.5} />}
-            accent="good"
-            tone={inMonth > 0 ? 'good' : undefined}
-          />
-        ),
-      },
-      {
-        id: 'pay-risk',
-        node: (
-          <StageStat
-            surface="panel"
-            label={t(locale, 'payments.stat.risk')}
-            value={usd.format(risk)}
-            sub={count(['problems', 'atRisk'])}
-            icon={<TriangleAlert size={13} strokeWidth={2.5} />}
-            accent="bad"
-            tone={risk ? 'bad' : undefined}
-            href={risk ? `/docs?stage=${rows.some((r) => r.group === 'problems') ? 'problems' : 'atRisk'}#board` : undefined}
-          />
-        ),
-      },
-    )
-  }
-  tiles.push({
-    id: 'loads',
-    node: (
-      <div>
-        <LoadsBoard key={stage} rows={rows} settings={settings} today={today} initialQuery={query} initialStage={stage} money={money} />
-      </div>
-    ),
-  })
-  return tiles
+  return (
+    <div className="@container flex flex-col gap-3">
+      <Summary title={t(locale, 'money.factoring.title')}>
+        <Figure
+          label={t(locale, 'payments.stat.toSubmit')}
+          value={usd.format(toSubmit)}
+          sub={count(['toSubmit'])}
+          tone={toSubmit > 0 ? 'text-warn-400' : 'text-t1'}
+          href={toSubmit > 0 ? at('toSubmit') : undefined}
+        />
+        <Figure
+          label={t(locale, 'payments.stat.awaiting')}
+          value={usd.format(sum(['awaitingFunding']))}
+          sub={count(['awaitingFunding'])}
+          href={rows.some((r) => r.group === 'awaitingFunding') ? at('awaitingFunding') : undefined}
+        />
+        <Figure
+          label={t(locale, 'payments.stat.fundedMonth')}
+          value={usd.format(inMonth)}
+          sub={`${t(locale, 'payments.stat.feesMonth')}: ${usd2.format(feesMonth)}`}
+          tone={inMonth > 0 ? 'text-good-400' : 'text-t1'}
+        />
+        <Figure
+          label={t(locale, 'payments.stat.risk')}
+          value={usd.format(risk)}
+          sub={count(['problems', 'atRisk'])}
+          tone={risk > 0 ? 'text-bad-400' : 'text-t1'}
+          href={risk ? at(rows.some((r) => r.group === 'problems') ? 'problems' : 'atRisk') : undefined}
+        />
+      </Summary>
+      <LoadsBoard key={stage} rows={rows} settings={settings} today={today} initialQuery={query} initialStage={stage} money />
+    </div>
+  )
 }
 
 /** Строка груза в «Не оплачено» и «Оплачено»: сколько дней и какой срок. */

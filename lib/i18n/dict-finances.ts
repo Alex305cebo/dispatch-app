@@ -52,6 +52,14 @@ export const financesDict = {
     ro: 'Cine încă nu a plătit. Factura se construiește pe pagina cursei după încărcarea POD-ului.',
     kk: 'Кім әлі төлемеген. Инвойс POD жүктелген соң жүк бетінде жиналады.',
   },
+  'finances.tabDesc.factoring': {
+    ru: 'Путь денег каждого груза: отправить в факторинг, аванс, оплата брокера.',
+    en: "Each load's money path: send to factoring, advance, broker payment.",
+    es: 'El camino del dinero de cada carga: enviar al factoring, anticipo, pago del bróker.',
+    uk: 'Шлях грошей кожного вантажу: надіслати у факторинг, аванс, оплата брокера.',
+    ro: 'Drumul banilor fiecărei curse: trimitere la factoring, avans, plata brokerului.',
+    kk: 'Әр жүктің ақша жолы: факторингке жіберу, аванс, брокер төлемі.',
+  },
   'finances.tabDesc.paid': {
     ru: 'Уже оплаченные грузы и что каждый из них принёс.',
     en: 'Loads already paid, and what each one brought in.',
@@ -112,6 +120,7 @@ export const financesDict = {
     kk: 'Төленбеген',
   },
   'finances.tab.paid': { ru: 'Оплачено', en: 'Paid', es: 'Pagado', uk: 'Оплачено', ro: 'Plătit', kk: 'Төленген' },
+  'finances.tab.factoring': { ru: 'Факторинг', en: 'Factoring', es: 'Factoring', uk: 'Факторинг', ro: 'Factoring', kk: 'Факторинг' },
   'finances.tab.drivers': {
     ru: 'Водители',
     en: 'Drivers',

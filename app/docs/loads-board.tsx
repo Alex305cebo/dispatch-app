@@ -1,14 +1,16 @@
 'use client'
 
-// Грузы раздела «Документы»: одна строка на груз, в ней и бумаги, и деньги.
+// Строки грузов «Документов» и «Факторинга»: одна строка на груз, в ней его бумаги и
+// (с money) его деньги.
 //
 // Раньше это была страница «Оплата · факторинг» раздела «Финансы», а бумаги того же
 // груза лежали в «Файлах» — человек читал «не хватает POD» в одном разделе и шёл
 // искать файл в другой. Теперь плитки бумаг стоят в той же строке (components/
 // load-papers.tsx) и грузятся на месте, а путь денег идёт под ними.
 //
-// Без права «Финансы» строка та же, только без сумм и денежных действий: грузы
-// сгруппированы по тому, все ли бумаги собраны.
+// Без денег (money={false}) строка та же, только без сумм и денежных действий: грузы
+// сгруппированы по тому, все ли бумаги собраны. Так их видят «Документы» — у всех
+// одинаково с 10/09/26; с деньгами тот же список стоит в «Деньги → Факторинг».
 // Данные собирает сервер (app/docs/page.tsx), правила этапов — lib/payments.ts,
 // запись — app/docs/payment-actions.ts.
 
@@ -16,7 +18,7 @@ import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { ChevronDown, Download, Landmark, Search } from 'lucide-react'
 import { DocLink } from '@/components/doc-link'
-import { LoadPapers, missingPapers, papersComplete, type LoadPaper } from '@/components/load-papers'
+import { LoadPapers, NEEDED, missingPapers, papersComplete, type LoadPaper } from '@/components/load-papers'
 import { useLocale } from '@/components/locale-provider'
 import { CountPill } from '@/components/count-pill'
 import { Rpm } from '@/components/rpm'
@@ -199,6 +201,16 @@ export function LoadsBoard({
         },
       ]
 
+  // Бумаги сданных грузов одной полосой: зелёное собрано, жёлтое не хватает. Груз в пути
+  // в неё не входит — BOL и POD у него и не должно быть.
+  const missingRows = money ? [] : (sections.find((sec) => sec.key === 'missing')?.rows ?? [])
+  const readyCount = money ? 0 : (sections.find((sec) => sec.key === 'ready')?.rows.length ?? 0)
+  const delivered = readyCount + missingRows.length
+  // Чего именно не хватает — по бумаге: «POD 6» сразу говорит, кого торопить.
+  const gaps = NEEDED.map((kind) => ({ kind, n: missingRows.filter((r) => missingPapers(r.papers).includes(kind)).length })).filter(
+    (g) => g.n > 0,
+  )
+
   const selRows = rows.filter((r) => selected.has(r.id))
   const selGroups = new Set(selRows.map((r) => (r.group === 'atRisk' ? 'funded' : r.group)))
   const selGroup = selGroups.size === 1 ? [...selGroups][0]! : null
@@ -287,6 +299,22 @@ export function LoadsBoard({
             </button>
           )}
         </div>
+
+        {delivered > 0 && (
+          <div className="flex items-center gap-3">
+            <div
+              role="img"
+              aria-label={fill(t(locale, 'papers.sum.collected'), { n: readyCount, total: delivered })}
+              className="flex h-2.5 min-w-0 flex-1 gap-0.5 overflow-hidden rounded-full bg-white/8"
+            >
+              {readyCount > 0 && <span className="rounded-full bg-good-400" style={{ width: `${(readyCount / delivered) * 100}%` }} />}
+              {missingRows.length > 0 && (
+                <span className="rounded-full bg-warn-400" style={{ width: `${(missingRows.length / delivered) * 100}%` }} />
+              )}
+            </div>
+            <span className="shrink-0 text-sm text-t2">{fill(t(locale, 'papers.sum.collected'), { n: readyCount, total: delivered })}</span>
+          </div>
+        )}
 
         {visible.length > 1 && (
           <div role="tablist" className="-mx-3 flex gap-1.5 overflow-x-auto px-3 [scrollbar-width:none]">
@@ -403,8 +431,19 @@ export function LoadsBoard({
           >
             <summary className="flex cursor-pointer list-none items-center gap-2.5 px-4 py-3 transition-colors hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden">
               <span aria-hidden className={`size-2 shrink-0 rounded-full ${DOT[sec.tone]}`} />
-              <span className={`min-w-0 flex-1 truncate text-md font-semibold ${sec.tone === 'plain' ? 'text-t1' : TEXT[sec.tone]}`}>
-                {sec.title}
+              <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
+                <span className={`min-w-0 truncate text-md font-semibold ${sec.tone === 'plain' ? 'text-t1' : TEXT[sec.tone]}`}>
+                  {sec.title}
+                </span>
+                {sec.key === 'missing' && gaps.length > 0 && (
+                  <span className="flex gap-1">
+                    {gaps.map((g) => (
+                      <span key={g.kind} className="rounded-md bg-warn-400/12 px-1.5 py-0.5 text-xs font-semibold text-warn-400">
+                        {SHORT_KIND[g.kind] ?? g.kind} <span className="nums">{g.n}</span>
+                      </span>
+                    ))}
+                  </span>
+                )}
               </span>
               <span className="nums shrink-0 rounded-full bg-white/8 px-2 py-0.5 text-xs font-bold text-t2">{list.length}</span>
               {money && <span className="nums shrink-0 text-md font-bold text-t1">{usd.format(list.reduce((s, r) => s + r.rate, 0))}</span>}

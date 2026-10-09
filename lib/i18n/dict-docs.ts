@@ -11,12 +11,12 @@ export const docsDict = {
   // app/docs/page.tsx
   'docs.title': { ru: 'Документы', en: 'Documents', es: 'Documentos', uk: 'Документи', ro: 'Documente', kk: 'Құжаттар' },
   'docs.info': {
-    ru: 'Бумаги и деньги одного груза лежат вместе. «Грузы» — строка на груз: плитки rate con, BOL, POD и инвойса (нажал — открыл, нет бумаги — сразу загрузил) и путь денег до оплаты. «Траки и водители» — бумаги без груза: страховки, регистрации, чеки, фото. Отчёты по деньгам (кто должен, что оплачено, недели, водители) — в разделе «Деньги». Удаление под именем и PIN перемещает в корзину — насовсем только оттуда, запись остаётся в Журнале.',
-    en: 'A load\u2019s paperwork and its money sit together. "Loads" is one row per load: rate con, BOL, POD and invoice tiles (tap to open, upload right there when one is missing) plus the path of the money. "Trucks & drivers" holds the papers with no load: insurance, registration, receipts, photos. Money reports (who owes, what was paid, weeks, drivers) live in the Money section. Deleting moves it to Trash — permanent deletion only happens from there, and the record stays in the Log.',
-    es: 'Los papeles y el dinero de una carga van juntos. «Cargas» es una fila por carga: rate con, BOL, POD y factura (pulsa para abrir, o sube el que falte ahí mismo) y el camino del dinero. «Camiones y conductores» guarda los papeles sin carga: seguros, registros, recibos, fotos. Los informes de dinero (quién debe, qué se pagó, semanas, conductores) están en la sección Dinero. Borrar con nombre y PIN manda a la papelera — definitivo solo desde allí, y el registro queda en el Log.',
-    uk: 'Папери й гроші одного вантажу лежать разом. «Вантажі» — рядок на вантаж: плитки rate con, BOL, POD та інвойса (натиснув — відкрив, немає паперу — одразу завантажив) і шлях грошей. «Траки і водії» — папери без вантажу: страховки, реєстрації, чеки, фото. Звіти про гроші (хто винен, що оплачено, тижні, водії) — у розділі «Гроші». Видалення під іменем і PIN переміщує в кошик — назавжди тільки звідти, запис лишається в Журналі.',
-    ro: 'Hârtiile și banii unei curse stau împreună. „Curse" este un rând per cursă: plăcuțele rate con, BOL, POD și factură (apeși și se deschide, iar dacă lipsește o încarci pe loc) și drumul banilor. „Camioane și șoferi" ține hârtiile fără cursă: asigurări, înmatriculări, bonuri, poze. Rapoartele de bani (cine datorează, ce s-a plătit, săptămâni, șoferi) sunt în secțiunea Bani. Ștergerea cu nume și PIN mută în coș — definitiv doar de acolo, iar înregistrarea rămâne în Jurnal.',
-    kk: 'Бір жүктің қағазы мен ақшасы бірге тұрады. «Жүктер» — жүкке бір жол: rate con, BOL, POD және инвойс тақташалары (бассаң ашылады, қағаз жоқ болса сол жерде жүктейсің) және ақшаның жолы. «Тракттар мен жүргізушілер» — жүксіз қағаздар: сақтандыру, тіркеу, чектер, фото. Ақша есептері (кім қарыз, не төленді, апталар, жүргізушілер) — «Ақша» бөлімінде. Атпен және PIN-мен жою себетке жібереді — біржола тек содан, ал жазба Журналда қалады.',
+    ru: 'Здесь только бумаги. «Грузы» — строка на груз: плитки rate con, BOL, POD и инвойса (нажал — открыл, нет бумаги — сразу загрузил), полоса сверху — сколько сданных грузов уже со всеми бумагами. «Траки» — бумаги без груза: страховки, регистрации, чеки, фото. Деньги — отправка в факторинг, кто должен, что оплачено — в разделе «Деньги». Удаление под именем и PIN перемещает в корзину — насовсем только оттуда, запись остаётся в Журнале.',
+    en: 'Paperwork only. "Loads" is one row per load: rate con, BOL, POD and invoice tiles (tap to open, upload right there when one is missing); the bar on top shows how many delivered loads have every paper. "Trucks" holds the papers with no load: insurance, registration, receipts, photos. Money — sending to factoring, who owes, what was paid — lives in the Money section. Deleting moves it to Trash — permanent deletion only happens from there, and the record stays in the Log.',
+    es: 'Solo papeles. «Cargas» es una fila por carga: rate con, BOL, POD y factura (pulsa para abrir, o sube el que falte ahí mismo); la barra de arriba muestra cuántas cargas entregadas tienen todos los papeles. «Camiones» guarda los papeles sin carga: seguros, registros, recibos, fotos. El dinero — envío al factoring, quién debe, qué se pagó — está en la sección Dinero. Borrar con nombre y PIN manda a la papelera — definitivo solo desde allí, y el registro queda en el Log.',
+    uk: 'Тут лише папери. «Вантажі» — рядок на вантаж: плитки rate con, BOL, POD та інвойса (натиснув — відкрив, немає паперу — одразу завантажив), смуга зверху — скільки зданих вантажів уже з усіма паперами. «Траки» — папери без вантажу: страховки, реєстрації, чеки, фото. Гроші — відправка у факторинг, хто винен, що оплачено — у розділі «Гроші». Видалення під іменем і PIN переміщує в кошик — назавжди тільки звідти, запис лишається в Журналі.',
+    ro: 'Doar hârtii. „Curse" este un rând per cursă: plăcuțele rate con, BOL, POD și factură (apeși și se deschide, iar dacă lipsește o încarci pe loc); bara de sus arată câte curse livrate au toate hârtiile. „Camioane" ține hârtiile fără cursă: asigurări, înmatriculări, bonuri, poze. Banii — trimiterea la factoring, cine datorează, ce s-a plătit — sunt în secțiunea Bani. Ștergerea cu nume și PIN mută în coș — definitiv doar de acolo, iar înregistrarea rămâne în Jurnal.',
+    kk: 'Мұнда тек қағаздар. «Жүктер» — жүкке бір жол: rate con, BOL, POD және инвойс тақташалары (бассаң ашылады, қағаз жоқ болса сол жерде жүктейсің), жоғарыдағы жолақ — тапсырылған жүктердің қаншасында барлық қағаз бар. «Тракттар» — жүксіз қағаздар: сақтандыру, тіркеу, чектер, фото. Ақша — факторингке жіберу, кім қарыз, не төленді — «Ақша» бөлімінде. Атпен және PIN-мен жою себетке жібереді — біржола тек содан, ал жазба Журналда қалады.',
   },
   // Плитки-счётчики над библиотекой бумаг парка.
   'docs.tiles.papers': { ru: 'Бумаг', en: 'Papers', es: 'Documentos', uk: 'Паперів', ro: 'Documente', kk: 'Құжат' },
@@ -36,12 +36,12 @@ export const docsDict = {
   'docs.tab.money': { ru: 'Деньги', en: 'Money', es: 'Dinero', uk: 'Гроші', ro: 'Bani', kk: 'Ақша' },
   'docs.tab.trash': { ru: 'Корзина', en: 'Trash', es: 'Papelera', uk: 'Кошик', ro: 'Coș de gunoi', kk: 'Себет' },
   'docs.sub.loads': {
-    ru: 'Бумаги и оплата каждого груза в одной строке.',
-    en: "Each load's paperwork and payment in one row.",
-    es: 'El papeleo y el pago de cada carga en una fila.',
-    uk: 'Папери й оплата кожного вантажу в одному рядку.',
-    ro: 'Hârtiile și plata fiecărei curse pe un rând.',
-    kk: 'Әр жүктің қағазы мен төлемі бір жолда.',
+    ru: 'Rate Con, BOL и POD каждого груза. Нет бумаги — загрузи прямо в строке.',
+    en: "Each load's Rate Con, BOL and POD. One missing? Upload it right in the row.",
+    es: 'Rate Con, BOL y POD de cada carga. ¿Falta uno? Súbelo en la misma fila.',
+    uk: 'Rate Con, BOL і POD кожного вантажу. Немає папера — завантаж просто в рядку.',
+    ro: 'Rate Con, BOL și POD pentru fiecare cursă. Lipsește unul? Încarcă-l direct pe rând.',
+    kk: 'Әр жүктің Rate Con, BOL және POD қағазы. Қағаз жоқ болса — сол жолда жүкте.',
   },
   'docs.sub.fleet': {
     ru: 'Все бумаги каждого водителя: его грузов, страховка, регистрация, чеки, фото.',
@@ -120,6 +120,8 @@ export const docsDict = {
   },
   'papers.group.missing': { ru: 'Не хватает бумаг', en: 'Paperwork missing', es: 'Faltan papeles', uk: 'Бракує паперів', ro: 'Lipsesc hârtii', kk: 'Қағаз жетіспейді' },
   'papers.group.inWork': { ru: 'В пути', en: 'In transit', es: 'En ruta', uk: 'В дорозі', ro: 'În cursă', kk: 'Жолда' },
+  // Полоса над списком: сколько сданных грузов уже со всеми бумагами.
+  'papers.sum.collected': { ru: 'собрано {n} из {total}', en: '{n} of {total} complete', es: '{n} de {total} completas', uk: 'зібрано {n} з {total}', ro: '{n} din {total} complete', kk: '{total} ішінен {n} жиналды' },
   'papers.group.ready': { ru: 'Всё собрано', en: 'All collected', es: 'Todo reunido', uk: 'Усе зібрано', ro: 'Totul adunat', kk: 'Бәрі жиналды' },
 
   // components/docs.tsx — DocUpload
@@ -212,6 +214,7 @@ export const docsDict = {
   'money.noInvoice': { ru: 'без счёта', en: 'not invoiced', es: 'sin factura', uk: 'без рахунку', ro: 'fără factură', kk: 'шотсыз' },
   'money.pay': { ru: 'Оплата', en: 'Payment', es: 'Pago', uk: 'Оплата', ro: 'Plată', kk: 'Төлем' },
   'money.invoice': { ru: 'Инвойс', en: 'Invoice', es: 'Factura', uk: 'Інвойс', ro: 'Factură', kk: 'Инвойс' },
+  'money.factoring.title': { ru: 'Где деньги сейчас', en: 'Where the money is now', es: 'Dónde está el dinero ahora', uk: 'Де гроші зараз', ro: 'Unde sunt banii acum', kk: 'Ақша қазір қайда' },
   'money.waiting.title': { ru: 'Ждём денег', en: 'Money we are waiting for', es: 'Dinero por cobrar', uk: 'Чекаємо грошей', ro: 'Bani de încasat', kk: 'Күтілетін ақша' },
   'money.fig.noInvoice': { ru: 'Без инвойса', en: 'Not invoiced', es: 'Sin facturar', uk: 'Без інвойсу', ro: 'Nefacturat', kk: 'Инвойссыз' },
   'money.paid.title': { ru: 'Пришедшие деньги', en: 'Money received', es: 'Dinero cobrado', uk: 'Отримані гроші', ro: 'Bani încasați', kk: 'Түскен ақша' },

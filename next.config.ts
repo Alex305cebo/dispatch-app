@@ -42,15 +42,20 @@ const config: NextConfig = {
   // а ещё раньше — страницей /invoices. Перевод здесь, а не в самой странице: redirect() из
   // страницы уходит уже потоком (после app/loading.tsx), и роутер Next при первом открытии
   // падал с React #310 «Rendered more hooks», прежде чем перейти. Отсюда — обычный ответ
-  // 307 до всякой отрисовки, а остальные параметры адреса (tab, week, q) едут следом сами.
-  // Имена вкладок — те же, что в lib/money-tabs.ts.
+  // 307 до всякой отрисовки, а остальные параметры адреса (tab, week, q, stage) едут
+  // следом сами. Имена вкладок — те же, что в lib/money-tabs.ts.
+  //
+  // Путь денег груза через факторинг до 10/09/26 был «Грузами» в «Документах»: ссылки с
+  // его этапом (/docs?stage=toSubmit) и /invoices без вкладки ведут во «Факторинг».
+  // Этапы бумаг (?stage=missing|inWork|ready) остаются в «Документах».
   async redirects() {
-    const money = [{ type: 'query' as const, key: 'tab', value: '(unpaid|paid|weeks|dispatchers|drivers)' }]
+    const money = [{ type: 'query' as const, key: 'tab', value: '(unpaid|factoring|paid|weeks|dispatchers|drivers)' }]
+    const payStage = [{ type: 'query' as const, key: 'stage', value: '(toSubmit|awaitingFunding|funded|atRisk|problems|done)' }]
     return [
       { source: '/docs', has: money, destination: '/money', permanent: false },
       { source: '/invoices', has: money, destination: '/money', permanent: false },
-      // Без вкладки /invoices была «Оплата · факторинг» — теперь это «Грузы» в «Документах».
-      { source: '/invoices', destination: '/docs', permanent: false },
+      { source: '/docs', has: payStage, destination: '/money?tab=factoring', permanent: false },
+      { source: '/invoices', destination: '/money?tab=factoring', permanent: false },
     ]
   },
   // Заголовки, которых не было вовсе.
