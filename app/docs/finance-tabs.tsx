@@ -35,6 +35,10 @@ import { t, type Locale } from '@/lib/i18n'
 import { getSetting } from '@/lib/settings'
 import { RateConButton } from '@/components/ratecon-button'
 import { Info } from '@/components/info'
+import { LaneStats } from '@/components/lane-stats'
+import { PickupWeekChart } from '@/components/pickup-week-chart'
+import { calcLoad } from '@/lib/profit'
+import { weekStartIso } from '@/lib/loads-dashboard'
 import { CircleCheckBig, Download, Hourglass, Send, TriangleAlert, Wallet } from 'lucide-react'
 import { Stat as StageStat } from '@/components/stat'
 import { rpmText } from '@/components/rpm'
@@ -817,6 +821,18 @@ export async function ByWeek({ companyId, locale }: { companyId: CompanyId; loca
             })}
         </ul>
       </section>
+
+      {/* С «Грузов» (план «Порядок в TMS», 10/09/26): неделя по дням и направления — это
+          про деньги, а не про то, где сейчас грузы. */}
+      <PickupWeekChart loads={loads} trucks={trucks} weekFrom={weekStartIso(todayEt())} locale={locale} />
+      <LaneStats
+        rows={loads.map((load) => {
+          const truck = load.truckId !== null ? byTruckId.get(load.truckId) : undefined
+          // Экономика — против СВОЕГО трака; грузу без трака чужой не подставляется.
+          return { load, net: truck ? calcLoad(load, truck).net : 0, miles: load.loadedMiles + load.deadheadMiles }
+        })}
+        locale={locale}
+      />
     </div>
   )
 }

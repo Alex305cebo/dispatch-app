@@ -1,11 +1,9 @@
-import type { Widget } from '@/components/widget-grid'
 import { tileGrid } from '@/lib/tiles'
 import { LOADS_TILES } from '@/lib/tiles-core'
 import { Suspense } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/button'
 import { PageHeader } from '@/components/page-header'
-import { LaneStats } from '@/components/lane-stats'
 import { listLoads, listTrucks, loadPapers, openStopMarks } from '@/lib/loads'
 import { calcLoad } from '@/lib/profit'
 import { truckPhotoFlags, truckTrailerNumbers } from '@/lib/maintenance'
@@ -23,7 +21,7 @@ import { LoadsViews } from './loads-views'
 
 export const dynamic = 'force-dynamic'
 
-type Params = Promise<{ view?: string; week?: string; day?: string; q?: string }>
+type Params = Promise<{ view?: string; week?: string; q?: string }>
 
 // Каркас рисуется сразу; всё, что ходит в базу, — в <LoadsBoard> за Suspense, чтобы
 // смена вкладки или недели не выбрасывала страницу целиком в app/loading.tsx.
@@ -111,45 +109,28 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
   const weekFrom = weekStartIso(todayEt())
   const initialWeek = sp.week && !Number.isNaN(Date.parse(`${sp.week}T12:00:00`)) ? weekStartIso(sp.week) : weekFrom
   const grid = await tileGrid('loads', LOADS_TILES, locale)
-  // Свод направлений собирает страница-сервер, остальные плитки — сам LoadsViews:
-  // они завязаны на его состояние. Сюда он приходит готовой плиткой.
-  const lanes: Widget[] = [
-    {
-      id: 'lanes',
-      node: (
-        <div>
-          <LaneStats
-            rows={priced.map(({ load, r }) => ({ load, net: r?.net ?? 0, miles: load.loadedMiles + load.deadheadMiles }))}
-            locale={locale}
-          />
-        </div>
-      ),
-    },
-  ]
+  // Вид из адреса. Старые ссылки тоже: ?view=calendar или одна ?week= — неделя (раньше
+  // она всегда стояла под картой).
+  const initialView =
+    sp.view === 'map' || sp.view === 'board' ? sp.view : sp.view === 'week' || sp.view === 'calendar' || (sp.week && !sp.view) ? 'week' : 'list'
 
   return (
-    <>
-      {/* Число грузов ушло из шапки в свою плитку: в шапке его нельзя было ни
-          подвинуть, ни нажать, а плитка ещё и сужает список до своих грузов. */}
-      <LoadsViews
-        loads={loads}
-        trucks={trucks}
-        metrics={metrics}
-        rateConPairs={[...rateCons]}
-        photoTruckIds={[...photoIds]}
-        weekFrom={weekFrom}
-        initialView={sp.view === 'board' ? 'board' : sp.view === 'calendar' ? 'calendar' : 'driver'}
-        initialWeek={initialWeek}
-        initialDay={sp.day ?? null}
-        initialQuery={sp.q ?? ''}
-        grid={grid}
-        extra={lanes}
-        mapPanel={
-          <Suspense key="map" fallback={<div className="panel h-64 animate-pulse" />}>
-            <LoadsMapServer loads={loads} trucks={trucks} metrics={metrics} locale={locale} />
-          </Suspense>
-        }
-      />
-    </>
+    <LoadsViews
+      loads={loads}
+      trucks={trucks}
+      metrics={metrics}
+      rateConPairs={[...rateCons]}
+      photoTruckIds={[...photoIds]}
+      weekFrom={weekFrom}
+      initialView={initialView}
+      initialWeek={initialWeek}
+      initialQuery={sp.q ?? ''}
+      grid={grid}
+      mapPanel={
+        <Suspense key="map" fallback={<div className="panel h-64 animate-pulse" />}>
+          <LoadsMapServer loads={loads} trucks={trucks} metrics={metrics} locale={locale} />
+        </Suspense>
+      }
+    />
   )
 }

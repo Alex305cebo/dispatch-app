@@ -11,6 +11,7 @@
 import Link, { useLinkStatus } from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState, type ReactNode } from 'react'
+import { SEGMENT_BAR, segmentClass } from '@/components/segmented'
 
 export type NavItem = { key: string; href: string; label: string; icon?: ReactNode; active: boolean }
 
@@ -49,7 +50,7 @@ function ChipSpinner() {
 export function SectionNav({ items, label }: { items: NavItem[]; label: string }) {
   const [active, press] = useActiveKey(items)
   return (
-    <nav aria-label={label} className="panel mb-4 grid auto-cols-fr grid-flow-col gap-1 p-1 sm:inline-grid">
+    <nav aria-label={label} className={`${SEGMENT_BAR} mb-4`}>
       {items.map((s) => {
         const on = s.key === active
         return (
@@ -58,11 +59,7 @@ export function SectionNav({ items, label }: { items: NavItem[]; label: string }
             href={s.href}
             onClick={() => press(s.key)}
             aria-current={on ? 'page' : undefined}
-            className={`flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-xl px-4 text-base font-medium transition-colors select-none max-sm:flex-col max-sm:gap-0.5 max-sm:px-1 max-sm:py-1.5 max-sm:text-sm ${
-              on
-                ? 'bg-haul-500 text-white shadow-[0_6px_18px_-8px_rgba(124,108,255,0.9)]'
-                : 'text-t2 hover:bg-white/6 hover:text-t1 active:bg-white/10'
-            }`}
+            className={segmentClass(on)}
           >
             <IconOrSpinner icon={s.icon} />
             {s.label}

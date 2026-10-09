@@ -23,7 +23,7 @@ export function LaneStats({ rows, locale }: { rows: PricedLoad[]; locale: Locale
   if (shown.length === 0) return null
 
   return (
-    <details className="panel mt-4 p-4">
+    <details className="panel p-4">
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-1.5 text-base leading-6 font-semibold text-t1">
         <span className="text-t3">▸</span>
         {t(locale, 'lanes.heading')}

@@ -80,12 +80,12 @@ export const financesDict = {
 
   'finances.tab.weeks': { ru: 'Недели', en: 'Weeks', es: 'Semanas', uk: 'Тижні', ro: 'Săptămâni', kk: 'Апталар' },
   'finances.tabDesc.weeks': {
-    ru: 'Гросс, мили и Rate per mile всего парка по неделям — какая неделя была сильнее.',
-    en: 'Fleet gross, miles and rate per mile by week — which week was stronger.',
-    es: 'Bruto, millas y rate per mile de la flota por semana: qué semana fue mejor.',
-    uk: 'Гросс, милі та Rate per mile всього парку по тижнях — який тиждень був сильніший.',
-    ro: 'Brutul, milele și rate per mile ale flotei pe săptămâni — care săptămână a fost mai bună.',
-    kk: 'Бүкіл парктің апта бойынша гроссы, милі және Rate per mile — қай апта күштірек болды.',
+    ru: 'Гросс, мили и Rate per mile всего парка по неделям, ниже — неделя по дням и направления.',
+    en: 'Fleet gross, miles and rate per mile by week; below, the week by day and your lanes.',
+    es: 'Bruto, millas y rate per mile de la flota por semana; debajo, la semana por días y las rutas.',
+    uk: 'Гросс, милі та Rate per mile всього парку по тижнях, нижче — тиждень по днях і напрямки.',
+    ro: 'Brutul, milele și rate per mile ale flotei pe săptămâni; dedesubt, săptămâna pe zile și rutele.',
+    kk: 'Бүкіл парктің апта бойынша гроссы, милі және Rate per mile, төменде — апта күндер бойынша және бағыттар.',
   },
   'finances.noTruck': {
     ru: 'Без трака',
