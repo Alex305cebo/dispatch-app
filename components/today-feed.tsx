@@ -10,6 +10,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { CheckCircle2 } from 'lucide-react'
 import { Info } from '@/components/info'
+import { RateConButton } from '@/components/ratecon-button'
 
 export type FeedTone = 'bad' | 'warn' | 'haul' | 'good'
 
@@ -22,6 +23,8 @@ export type FeedItem = {
   tone?: FeedTone
   /** Правая часть — сумма: моноширинные цифры, чтобы столбик сумм читался ровно. */
   money?: boolean
+  /** Строка про груз с Rate Con — кнопка открыть его справа от строки. */
+  rcId?: number
 }
 
 export type FeedSection = {
@@ -129,16 +132,18 @@ function Section({ section: s, more }: { section: FeedSection; more: string }) {
 
 function Row({ item }: { item: FeedItem }) {
   return (
-    <li>
+    // Кнопка Rate Con — рядом со ссылкой, а не внутри: <button> в <a> — невалидная разметка.
+    <li className="flex items-center gap-2">
       <Link
         href={item.href}
-        className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2 text-base text-t1 transition-colors hover:text-white max-md:min-h-11 max-md:items-center"
+        className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2 text-base text-t1 transition-colors hover:text-white max-md:min-h-11 max-md:items-center"
       >
         <span className="min-w-0 break-words">{item.title}</span>
         {/* Без shrink-0: длинная подпись («Пикап · Chicago, IL · окно закрылось…») на
             телефоне уходит на вторую строку целиком, а не за край экрана. */}
         <span className={`min-w-0 break-words text-sm ${item.money ? 'nums' : ''} ${item.tone ? TEXT[item.tone] : 'text-t3'}`}>{item.detail}</span>
       </Link>
+      {item.rcId && <RateConButton docId={item.rcId} compact />}
     </li>
   )
 }

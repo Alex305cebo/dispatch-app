@@ -22,6 +22,7 @@ import {
   uploadDocument,
 } from '@/app/actions'
 import { DeleteButton } from '@/components/delete-button'
+import { RateConButton } from '@/components/ratecon-button'
 import { DOC_KINDS, docKindLabel, fmtSize, type DocKind, type DocLibRow, type DocMeta } from '@/lib/docs'
 import { notify } from '@/lib/notify'
 import { staleBuildMessage } from '@/components/build-watch'
@@ -754,6 +755,8 @@ function LoadPapersRow({
   const d0 = docs[0]!
   const kinds = new Set(docs.map((d) => d.kind))
   const extra = docs.filter((d) => !NEEDED.includes(d.kind)).length
+  // Бумаги идут свежими первыми — это последний Rate Con груза, как и везде.
+  const rc = docs.find((d) => d.kind === 'ratecon')
   return (
     <details open={open} className="group/load overflow-hidden rounded-xl border border-white/8 bg-white/[0.02]">
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2 transition-colors hover:bg-white/[0.04] [&::-webkit-details-marker]:hidden">
@@ -784,6 +787,18 @@ function LoadPapersRow({
             </span>
           ))}
           {extra > 0 && <span className="nums rounded-md bg-white/6 px-1.5 py-1 text-2xs font-bold text-t2">+{extra}</span>}
+          {rc && (
+            // Внутри <summary> клик по кнопке не должен сворачивать строку.
+            <span
+              className="ml-1"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+              }}
+            >
+              <RateConButton docId={rc.id} compact />
+            </span>
+          )}
           <a
             href={`/loads/${loadId}`}
             onClick={(e) => e.stopPropagation()}

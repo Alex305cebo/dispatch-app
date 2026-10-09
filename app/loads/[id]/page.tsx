@@ -55,7 +55,7 @@ import { MissingPodBanner } from '@/components/missing-pod-banner'
 import { PrevLoad } from '@/components/prev-load'
 import { DeadheadFlag } from '@/components/deadhead-flag'
 import { DEADHEAD_FLAG_MI } from '@/lib/load-status'
-import { loadsMissingPod } from '@/lib/loads'
+import { loadPapers, loadsMissingPod } from '@/lib/loads'
 import { CopyPlace } from '@/components/copy-place'
 import { placeCity } from '@/lib/place'
 import { datEquipment } from '@/lib/dat-market'
@@ -105,7 +105,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           const proto = h.get('x-forwarded-proto') ?? 'https'
           return host ? `${proto}://${host}/d/${await driverTokenFor(truck.id)}` : null
         })()
-  const [truckMeta, laneAvgRpm, backhaul, brokerGrade, driverEvents, truckCurrent, truckLoads, charges] = await Promise.all([
+  const [truckMeta, laneAvgRpm, backhaul, brokerGrade, driverEvents, truckCurrent, truckLoads, charges, { rateCons }] = await Promise.all([
     getTruckMeta(truck.id),
     laneAvgRpmFor(companyId, load.origin, load.destination, load.id),
     wantBackhaul ? backhaulBrokers(companyId, load.destination, load.id) : Promise.resolve(null),
@@ -116,6 +116,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     // Что ещё едет в этом же трейлере — чтобы показать одно задание на все грузы.
     listLoads(companyId, { truckId: truck.id }),
     listCharges(companyId, load.id),
+    // Rate Con других грузов трака — у строк «Прошлый груз» и «Нет POD».
+    loadPapers(companyId),
   ])
   // Окно ближайшей остановки закрылось, а приезда нет — «опаздывает» в шапку.
   const late = lateStop(load, driverEvents, Date.now())
@@ -333,7 +335,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         hasRc={!!rateConDoc}
       />
       {/* Откуда трак пришёл на этот пикап. */}
-      <PrevLoad load={prevLoad} locale={locale} className="mt-3" />
+      <PrevLoad load={prevLoad} rcId={prevLoad ? rateCons.get(prevLoad.id) : undefined} locale={locale} className="mt-3" />
       <div className="mt-3">
         <LoadEditNumbers
           load={{
@@ -392,7 +394,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             ))}
           </div>
         )}
-        <MissingPodBanner loads={missingPod} locale={locale} />
+        <MissingPodBanner loads={missingPod} rateCons={rateCons} locale={locale} />
         <DeadheadFlag miles={load.deadheadMiles} okMiles={load.deadheadOkMiles} loadId={load.id} locale={locale} banner />
       </section>
     ))

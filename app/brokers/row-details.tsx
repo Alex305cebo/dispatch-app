@@ -12,6 +12,7 @@ import { Stat } from '@/components/stat'
 import { ShowMore } from '@/components/collapse'
 import { BrokerNote, FacilityNote } from '@/components/facility-note'
 import { BrokerTools } from '@/app/brokers/[key]/broker-tools'
+import { RateConButton } from '@/components/ratecon-button'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
 import { driveTime, usd, usd2 } from '@/lib/fmt'
@@ -32,6 +33,8 @@ export type DetailLoad = {
   waiting: number | null
   /** Куда идти отмечать оплату («Документы»). */
   moneyHref: string | null
+  /** Rate Con груза (id документа); null — его нет. */
+  rcId: number | null
 }
 
 export type BrokerDetail = {
@@ -68,7 +71,7 @@ export type FacilityDetail = {
   directions: string | null
   note: string | null
   brokers: { key: string; name: string; n: number }[]
-  loads: { id: number; date: string; route: string; rate: number; miles: number }[]
+  loads: { id: number; date: string; route: string; rate: number; miles: number; rcId: number | null }[]
 }
 
 const h3 = 'mb-1.5 text-sm font-semibold text-t1'
@@ -231,9 +234,11 @@ export function BrokerDetails({ brokerKey, mc, checked, payDays, owed, oldest, d
                 limit={4}
                 label={t(locale, 'brokers.dir.more')}
                 items={d.loads.map((l) => (
+                  // min-w-16 у маршрута: кнопка Rate Con не сжимает его в ноль, а переносится
+                  // на новую строку — справа (ml-auto).
                   <div key={l.id} className={loadRow}>
                     <span className="nums w-[70px] shrink-0 text-t3">{l.date}</span>
-                    <Link href={`/loads/${l.id}`} className="min-w-0 flex-1 truncate text-t1 hover:underline">
+                    <Link href={`/loads/${l.id}`} className="min-w-16 flex-1 truncate text-t1 hover:underline">
                       {l.route}
                       {l.ref ? ` · ${l.ref}` : ''}
                     </Link>
@@ -245,6 +250,11 @@ export function BrokerDetails({ brokerKey, mc, checked, payDays, owed, oldest, d
                       </Link>
                     ) : (
                       <span className="text-sm text-t3">{l.statusText}</span>
+                    )}
+                    {l.rcId && (
+                      <span className="ml-auto">
+                        <RateConButton docId={l.rcId} compact />
+                      </span>
                     )}
                   </div>
                 ))}
@@ -345,12 +355,21 @@ export function FacilityDetails({ facilityKey, visits, dwell, d }: { facilityKey
               limit={4}
               label={t(locale, 'brokers.dir.more')}
               items={d.loads.map((l) => (
-                <Link key={l.id} href={`/loads/${l.id}`} className={`${loadRow} hover:border-white/20`}>
+                // Вся строка — ссылка-подложка: так рядом работает кнопка Rate Con (<button>
+                // внутри <a> — невалидно). min-w-16 у маршрута: кнопка не сжимает его в ноль,
+                // а переносится на новую строку — справа (ml-auto).
+                <div key={l.id} className={`relative ${loadRow} hover:border-white/20`}>
+                  <Link href={`/loads/${l.id}`} aria-label={l.route} className="absolute inset-0 rounded-[inherit]" />
                   <span className="nums w-[70px] shrink-0 text-t3">{l.date}</span>
-                  <span className="min-w-0 flex-1 truncate text-t1">{l.route}</span>
+                  <span className="min-w-16 flex-1 truncate text-t1">{l.route}</span>
                   <span className="nums text-t2">{usd.format(l.rate)}</span>
                   <Rpm rate={l.rate} miles={l.miles} className="text-sm text-t3" />
-                </Link>
+                  {l.rcId && (
+                    <span className="relative z-10 ml-auto">
+                      <RateConButton docId={l.rcId} compact />
+                    </span>
+                  )}
+                </div>
               ))}
             />
           </div>

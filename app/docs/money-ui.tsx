@@ -12,6 +12,7 @@ import { ChevronDown } from 'lucide-react'
 import { usd2, weekLabel } from '@/lib/fmt'
 import type { Locale } from '@/lib/i18n'
 import { todayEt } from '@/lib/payments'
+import { RateConButton } from '@/components/ratecon-button'
 import { ChipNav } from './tab-nav'
 
 export const rpmOf = (gross: number, miles: number) => (miles > 0 ? gross / miles : null)
@@ -263,7 +264,7 @@ export function Trend({
 }
 
 /** Строка-ссылка на груз внутри раскрытой строки: маршрут, номер, день — слева; мили,
- *  ставка и $/mi — справа. */
+ *  ставка и $/mi — справа; у груза с Rate Con — кнопка открыть его, рядом со ссылкой. */
 export function LoadLine({
   href,
   route,
@@ -271,6 +272,7 @@ export function LoadLine({
   miles,
   amount,
   rpm,
+  rcId,
 }: {
   href: string
   route: string
@@ -278,20 +280,25 @@ export function LoadLine({
   miles: number
   amount: string
   rpm: number | null
+  /** Rate Con груза; у строк-итогов (трак за неделю) его нет. */
+  rcId?: number
 }) {
   return (
-    <Link
-      href={href}
-      className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 rounded-lg px-2 py-1.5 text-sm text-t2 transition-colors hover:bg-white/5 hover:text-t1"
-    >
-      <span className="min-w-0">
-        <span className="text-t1">{route}</span>
-        <span className="nums text-t3">{meta}</span>
-      </span>
-      <span className="nums shrink-0 text-t2">
-        {Math.round(miles)} mi · <b className="font-semibold text-t1">{amount}</b>
-        {rpm != null ? ` · ${usd2.format(rpm)}/mi` : ''}
-      </span>
-    </Link>
+    <div className="flex items-center gap-1.5">
+      <Link
+        href={href}
+        className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 rounded-lg px-2 py-1.5 text-sm text-t2 transition-colors hover:bg-white/5 hover:text-t1"
+      >
+        <span className="min-w-0">
+          <span className="text-t1">{route}</span>
+          <span className="nums text-t3">{meta}</span>
+        </span>
+        <span className="nums shrink-0 text-t2">
+          {Math.round(miles)} mi · <b className="font-semibold text-t1">{amount}</b>
+          {rpm != null ? ` · ${usd2.format(rpm)}/mi` : ''}
+        </span>
+      </Link>
+      {rcId && <RateConButton docId={rcId} compact />}
+    </div>
   )
 }

@@ -6,6 +6,7 @@ import { ArrowUpRight } from 'lucide-react'
 import { FleetMap, type MapMarker, type MapRoute } from '@/components/fleet-map'
 import { StatusBadge } from '@/components/status'
 import { Info } from '@/components/info'
+import { RateConButton } from '@/components/ratecon-button'
 import type { LoadRecord } from '@/lib/map'
 import { stopsFrom, type LoadStop } from '@/lib/stops'
 import { t, type Locale } from '@/lib/i18n'
@@ -20,6 +21,8 @@ export type LoadsMapRow = {
   /** «15 мин назад» — посчитано на сервере, чтобы клиент не пересчитывал в своём поясе. */
   seenText: string | null
   nextStop: LoadStop | null
+  /** Rate Con груза (id документа); null — его нет. */
+  rcId: number | null
 }
 
 /** Карта плюс список рейсов рядом: выбор с любой стороны — строкой, пином или линией. */
@@ -132,13 +135,16 @@ export function LoadsMap({ rows, locale }: { rows: LoadsMapRow[]; locale: Locale
                       </span>
                     )}
                   </span>
-                  <Link
-                    href={`/loads/${row.load.id}`}
-                    className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-haul-500 px-3 text-sm font-semibold text-white transition-colors hover:bg-haul-400 max-md:h-10"
-                  >
-                    {t(locale, 'loads.dash.open')}
-                    <ArrowUpRight size={13} />
-                  </Link>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    {row.rcId && <RateConButton docId={row.rcId} compact />}
+                    <Link
+                      href={`/loads/${row.load.id}`}
+                      className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-haul-500 px-3 text-sm font-semibold text-white transition-colors hover:bg-haul-400 max-md:h-10"
+                    >
+                      {t(locale, 'loads.dash.open')}
+                      <ArrowUpRight size={13} />
+                    </Link>
+                  </span>
                 </div>
                 {(!row.markers.length || row.seenText) && (
                   <p className="text-xs text-t3">

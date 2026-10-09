@@ -3,7 +3,7 @@ import { getLocale } from '@/lib/i18n-server'
 import { t, type MsgKey } from '@/lib/i18n'
 import { listOurBrokers } from '@/lib/brokers'
 import { brokerKeyOf, brokerNoteKey, prettyCompany } from '@/lib/broker-key'
-import { listLoads } from '@/lib/loads'
+import { listLoads, loadPapers } from '@/lib/loads'
 import { allStopEvents } from '@/lib/load-events'
 import { detentionTerms, getSettings } from '@/lib/settings'
 import { avgDwell, facilityIndex, facilityNoteKey } from '@/lib/facilities'
@@ -41,11 +41,12 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
   const { q = '', view } = await searchParams
   const companyId = await companyScope()
   const locale = await getLocale()
-  const [brokers, loads, events, terms] = await Promise.all([
+  const [brokers, loads, events, terms, { rateCons }] = await Promise.all([
     listOurBrokers(companyId),
     listLoads(companyId),
     allStopEvents(companyId),
     detentionTerms(),
+    loadPapers(companyId),
   ])
 
   // Брокер и склад — не два справочника, а одна сеть: их связывают грузы. У склада
@@ -183,6 +184,7 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
             statusText: t(locale, `status.${l.status}` as MsgKey),
             waiting: u?.days ?? null,
             moneyHref: u ? financesHref({ id: l.id, referenceId: l.referenceId }) : null,
+            rcId: rateCons.get(l.id) ?? null,
           }
         }),
         note: notes.get(brokerNoteKey(b.key)) ?? null,
@@ -226,6 +228,7 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
             route: `${l.origin ?? '—'} → ${l.destination ?? '—'}`,
             rate: Number(l.rate) || 0,
             miles: l.loadedMiles + l.deadheadMiles,
+            rcId: rateCons.get(l.id) ?? null,
           })),
         },
       }

@@ -5,7 +5,7 @@ import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { listOurBrokers } from '@/lib/brokers'
 import { brokerKeyOf, brokerNoteKey, prettyCompany } from '@/lib/broker-key'
-import { listLoads } from '@/lib/loads'
+import { listLoads, loadPapers } from '@/lib/loads'
 import { allStopEvents } from '@/lib/load-events'
 import { detentionTerms, getSettings } from '@/lib/settings'
 import { facilityIndex } from '@/lib/facilities'
@@ -18,6 +18,7 @@ import { ShowMore } from '@/components/collapse'
 import { BrokerNote } from '@/components/facility-note'
 import { BrokerTools } from './broker-tools'
 import { Rpm } from '@/components/rpm'
+import { RateConButton } from '@/components/ratecon-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,12 +40,13 @@ export default async function BrokerPage({ params }: { params: Promise<{ key: st
   const key = safeDecode((await params).key)
   const companyId = await companyScope()
   const locale = await getLocale()
-  const [brokers, loads, events, terms, notes] = await Promise.all([
+  const [brokers, loads, events, terms, notes, { rateCons }] = await Promise.all([
     listOurBrokers(companyId),
     listLoads(companyId),
     allStopEvents(companyId),
     detentionTerms(),
     getSettings([brokerNoteKey(key)]),
+    loadPapers(companyId),
   ])
   const b = brokers.find((x) => x.key === key)
   if (!b) notFound()
@@ -204,10 +206,13 @@ export default async function BrokerPage({ params }: { params: Promise<{ key: st
                 label={t(locale, 'brokers.dir.more')}
                 items={ordered.map((l) => {
                   const u = unpaid.get(l.id)
+                  const rc = rateCons.get(l.id)
                   return (
+                    // min-w-16 у маршрута: кнопка Rate Con не сжимает его в ноль, а переносится
+                    // на новую строку — справа (ml-auto).
                     <div key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-lg border border-white/8 px-3 py-2 text-base">
                       <span className="nums w-[70px] shrink-0 text-t3">{usDate(when(l))}</span>
-                      <Link href={`/loads/${l.id}`} className="min-w-0 flex-1 truncate text-t1 hover:underline">
+                      <Link href={`/loads/${l.id}`} className="min-w-16 flex-1 truncate text-t1 hover:underline">
                         {l.origin ?? '—'} → {l.destination ?? '—'}
                         {l.referenceId ? ` · ${l.referenceId}` : ''}
                       </Link>
@@ -222,6 +227,11 @@ export default async function BrokerPage({ params }: { params: Promise<{ key: st
                         </Link>
                       ) : (
                         <span className="text-sm text-t3">{t(locale, `status.${l.status}`)}</span>
+                      )}
+                      {rc && (
+                        <span className="ml-auto">
+                          <RateConButton docId={rc} compact />
+                        </span>
                       )}
                     </div>
                   )
