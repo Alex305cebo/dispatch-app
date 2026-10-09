@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { weekStats, weekStartIso, shiftDay, upcomingStop, stopOrder, scheduleConnection, whenText, lateStop, priorityRank, onTimeStats } from './loads-dashboard.ts'
+import { weekStats, weekStartIso, shiftDay, upcomingStop, stopOrder, scheduleConnection, whenText, lateStop, lateStopKey, lateAcked, lateAlert, priorityRank, onTimeStats } from './loads-dashboard.ts'
 import { zonedMs } from './trip-eta.ts'
 import { weekLabel } from './fmt.ts'
 import { todayEt } from './payments.ts'
@@ -129,6 +129,25 @@ test('lateStop: окно пикапа закрылось по поясу шта�
   const loaded = [{ kind: 'loaded', at: new Date(at(12)).toISOString() }]
   assert.equal(lateStop(load({ ...l, status: 'in_transit', deliveryTime: '18:00' }), loaded, at(16)), null)
   assert.equal(lateStop(load({ ...l, status: 'in_transit', deliveryTime: '10:00' }), loaded, at(16))?.stop.role, 'delivery')
+})
+
+test('«Брокер в курсе» гасит тревогу только для той остановки, что была отмечена', () => {
+  const l = load({ origin: 'Olathe, KS', pickupDate: '2026-09-15', pickupTime: '8am-3pm' })
+  const at = (h: number) => zonedMs('2026-09-15', h * 60, 'America/Chicago')!
+  const late = lateStop(l, [], at(16))!
+  const key = lateStopKey(late.stop)
+  assert.equal(lateAcked(l, late), false)
+  assert.equal(lateAlert(l, [], at(16))?.minutes, 60)
+  const acked = load({ ...l, lateAck: key })
+  assert.equal(lateAcked(acked, late), true)
+  assert.equal(lateAlert(acked, [], at(16)), null)
+  // Окно сдвинули — это уже другое опоздание, снова тревога.
+  const moved = load({ ...l, pickupTime: '8am-2pm', lateAck: key })
+  assert.equal(lateAlert(moved, [], at(16))?.minutes, 120)
+  // Пикап пройден, опаздывает выгрузка — отметка пикапа её не гасит.
+  const loaded = [{ kind: 'loaded', at: new Date(at(12)).toISOString() }]
+  const dl = load({ ...l, status: 'in_transit', deliveryTime: '10:00', lateAck: key })
+  assert.equal(lateAlert(dl, loaded, at(16))?.stop.role, 'delivery')
 })
 
 test('onTimeStats: приехал не позже конца окна; считаются только точки с окном и приездом за 90 дней', () => {

@@ -381,6 +381,10 @@ ALTER TABLE loads ADD COLUMN IF NOT EXISTS deadhead_ok_miles INT NULL;
 -- Флаг диспетчера «за этим грузом следить»: caution / important / critical (как в Alvys).
 -- Поднимает груз наверх очереди внимания; NULL — обычный груз.
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS priority VARCHAR(16) NULL;
+-- «Всё ок, брокер в курсе» на красном «Опаздывает»: какая остановка (роль:seq:дата:время,
+-- lib/loads-dashboard.ts lateStopKey) уже отработана диспетчером. Опоздание этой же
+-- остановки больше не тревога; следующая опоздавшая точка снова красная. NULL — не отмечено.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS late_ack VARCHAR(64) NULL;
 
 -- Профиль водителя для планировщика (идея LoadOps Load AI / Uber «go home»): домашний
 -- штат, дома с… по…, цель недели и стоп-лист штатов «не возить в…» (коды через запятую).
@@ -552,5 +556,5 @@ CREATE TABLE IF NOT EXISTS amazon_trips (
   CONSTRAINT amazon_trips_truck_fkey FOREIGN KEY (truck_id) REFERENCES trucks (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
 
-INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-10-03')
+INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-10-09')
 ON DUPLICATE KEY UPDATE value = VALUES(value);

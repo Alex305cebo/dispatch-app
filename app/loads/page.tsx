@@ -13,7 +13,7 @@ import { laneTargets } from '@/lib/rate-check'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
 import { usDate } from '@/lib/fmt'
-import { lateStop, upcomingStop, weekStartIso } from '@/lib/loads-dashboard'
+import { lateAlert, upcomingStop, weekStartIso } from '@/lib/loads-dashboard'
 import { todayEt } from '@/lib/payments'
 import type { LoadMetrics } from '@/components/loads-toolbar'
 import { LoadsMapServer } from './loads-map-server'
@@ -97,7 +97,8 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
       hasRc: rateCons.has(load.id),
       nextStop: upcomingStop(load, marks.get(load.id)),
       // Окно остановки прошло, а приезда никто не отметил и GPS не видел — опаздывает.
-      lateMin: lateStop(load, marks.get(load.id) ?? [], now)?.minutes ?? null,
+      // «Брокер в курсе» снимает красную метку.
+      lateMin: lateAlert(load, marks.get(load.id) ?? [], now)?.minutes ?? null,
       market,
       marketAt: market && snap && !(load.spotRpm && load.spotRpm > 0) ? usDate(todayEt(new Date(snap.at))) : null,
       rc: targets.get(load.id) ?? null,

@@ -4058,6 +4058,11 @@ export const loadsDict = {
     kk: '«Келді» белгісі де, нүктедегі GPS те жоқ. Жүргізушіге қоңырау шал, брокер өзі қоңырау шалғанша ескерт.',
   },
 
+  // Кнопка на «Опаздывает»: позвонил, брокер предупреждён (components/late-alert.tsx).
+  'loadDetail.lateAck': { ru: 'Всё ок, брокер в курсе', en: 'All good, broker knows', es: 'Todo bien, el bróker lo sabe', uk: 'Усе ок, брокер у курсі', ro: 'E în regulă, brokerul știe', kk: 'Бәрі жақсы, брокер біледі' },
+  'loadDetail.lateAcked': { ru: 'Брокер в курсе', en: 'Broker notified', es: 'Bróker avisado', uk: 'Брокер у курсі', ro: 'Broker anunțat', kk: 'Брокерге хабарланды' },
+  'loadDetail.lateAckUndo': { ru: 'Вернуть', en: 'Undo', es: 'Deshacer', uk: 'Повернути', ro: 'Anulează', kk: 'Қайтару' },
+
   // Доп. начисления брокеру (components/load-charges.tsx, lib/invoice.ts).
   'loads.charges.heading': { ru: 'Доп. начисления', en: 'Extra charges', es: 'Cargos extra', uk: 'Дод. нарахування', ro: 'Taxe suplimentare', kk: 'Қосымша есептеулер' },
   'loads.charges.info': {

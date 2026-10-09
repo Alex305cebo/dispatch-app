@@ -60,7 +60,8 @@ import { CopyPlace } from '@/components/copy-place'
 import { placeCity } from '@/lib/place'
 import { datEquipment } from '@/lib/dat-market'
 import { rateCheck } from '@/lib/rate-check'
-import { lateStop } from '@/lib/loads-dashboard'
+import { lateAcked, lateStop, lateStopKey } from '@/lib/loads-dashboard'
+import { LateAlert } from '@/components/late-alert'
 import { listCharges } from '@/lib/charges'
 import { LoadCharges } from '@/components/load-charges'
 import { PriorityPicker } from '@/components/priority-picker'
@@ -402,13 +403,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     add('warnings', (
       <section className="panel flex h-full flex-col gap-3 p-4">
         {late && (
-          <div className="rounded-xl border border-bad-500/30 bg-bad-500/[0.08] px-4 py-3 text-base">
-            <span className="font-semibold text-bad-400">{t(locale, 'loads.dash.late')}</span>{' '}
-            <span className="text-t2">
-              {t(locale, late.stop.role === 'pickup' ? 'stops.pickup' : 'stops.delivery')} · {late.stop.city ?? late.stop.address ?? '—'} ·{' '}
-              {t(locale, 'loads.dash.lateBy').replace('{t}', driveTime(late.minutes, locale))}. {t(locale, 'loadDetail.lateHint')}
-            </span>
-          </div>
+          <LateAlert
+            loadId={load.id}
+            stopKey={lateStopKey(late.stop)}
+            acked={lateAcked(load, late)}
+            where={`${t(locale, late.stop.role === 'pickup' ? 'stops.pickup' : 'stops.delivery')} · ${late.stop.city ?? late.stop.address ?? '—'} · ${t(locale, 'loads.dash.lateBy').replace('{t}', driveTime(late.minutes, locale))}`}
+          />
         )}
         {assign.length > 0 && (
           <div className="rounded-xl border border-warn-400/35 bg-warn-500/[0.08] px-4 py-3 text-base text-warn-400">

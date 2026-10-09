@@ -8,7 +8,7 @@
 import type { LoadRecord, TruckRecord } from './map.ts'
 import type { StopEv } from './stops.ts'
 import { calcLoad } from './profit.ts'
-import { lateStop, priorityRank, PRIORITY_KEY } from './loads-dashboard.ts'
+import { lateAlert, priorityRank, PRIORITY_KEY } from './loads-dashboard.ts'
 import { driveTime, usd } from './fmt.ts'
 import { t, type Locale } from './i18n.ts'
 
@@ -77,7 +77,8 @@ export function attentionQueue({
     const open = load.status === 'booked' || load.status === 'in_transit'
 
     // Окно остановки прошло, а приезда никто не отметил и GPS не видел — опаздывает.
-    const late = open ? lateStop(load, marks.get(load.id) ?? [], now) : null
+    // Отмеченное «брокер в курсе» уже отработано и наверх не тянет.
+    const late = open ? lateAlert(load, marks.get(load.id) ?? [], now) : null
     if (late)
       push(
         'late',

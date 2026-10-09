@@ -2155,6 +2155,20 @@ export async function setLoadPriority(loadId: number, priority: LoadPriority | n
   revalidatePath('/', 'layout')
 }
 
+/** «Всё ок, брокер в курсе» на красном «Опаздывает»: запомнить, какая остановка уже
+ * отработана (lib/loads-dashboard.ts lateStopKey). null — вернуть тревогу. */
+export async function setLateAck(loadId: number, key: string | null): Promise<{ error: string } | void> {
+  const ro = await writeGuard()
+  if (ro) return ro
+  const companyId = await companyScope()
+  if (!(await loadBelongs(companyId, loadId))) return { error: t(await getLocale(), 'actions.loadNotFound') }
+  const value = typeof key === 'string' && key.trim() ? key.trim().slice(0, 64) : null
+  await sql`UPDATE loads SET late_ack = ${value} WHERE id = ${loadId} AND company_id = ${companyId}`
+  revalidatePath(`/loads/${loadId}`)
+  revalidatePath('/loads')
+  revalidatePath('/', 'layout')
+}
+
 /** Доп. начисление брокеру (detention, lumper, TONU…) — строкой в счёт, ставка груза не
  * меняется. Письмо брокеру — руками, как и всё остальное. */
 export async function addLoadCharge(

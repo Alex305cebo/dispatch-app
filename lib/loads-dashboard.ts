@@ -99,6 +99,23 @@ export function lateStop(load: LoadRecord, events: StopEv[], nowMs: number): Lat
   return minutes > 0 ? { stop, minutes } : null
 }
 
+/** Чем опоздание помечается как отработанное: остановка и её окно. Поменяли окно или
+ * опаздывает уже другая точка — ключ другой, и тревога снова красная. */
+export function lateStopKey(stop: LoadStop): string {
+  return `${stop.role}:${stop.seq}:${stop.date ?? ''}:${stop.time ?? ''}`.slice(0, 64)
+}
+
+/** Диспетчер нажал «Всё ок, брокер в курсе» именно на это опоздание. */
+export function lateAcked(load: LoadRecord, late: LateStop | null): boolean {
+  return late != null && load.lateAck != null && load.lateAck === lateStopKey(late.stop)
+}
+
+/** Опоздание, которое ещё никто не отработал: для красных меток в списке и очереди внимания. */
+export function lateAlert(load: LoadRecord, events: StopEv[], nowMs: number): LateStop | null {
+  const late = lateStop(load, events, nowMs)
+  return lateAcked(load, late) ? null : late
+}
+
 /** GPS-приезд пишется только на первый пикап и последнюю выгрузку. */
 function gpsArrival(load: LoadRecord, stop: LoadStop, stops: LoadStop[]): string | null {
   if (stop.role === 'pickup') return stop.seq === stops[0]?.seq ? load.pickupArrivedAt : null
