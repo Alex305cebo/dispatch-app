@@ -1,7 +1,8 @@
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
 import { tileGrid } from '@/lib/tiles'
 import { TOLLS_TILES } from '@/lib/tiles-core'
-import { Info } from '@/components/info'
+import { PageHeader } from '@/components/page-header'
+import { MarketTabs } from '@/app/brokers/market-tabs'
 import { TollsClient } from './tolls-client'
 import { TollMissing, tollMoneyTiles } from './toll-money'
 import { TollGuide } from './toll-guide'
@@ -95,12 +96,10 @@ export default async function TollsPage() {
   const grid = await tileGrid('tolls', TOLLS_TILES, locale)
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
-        {t(locale, 'tolls.title')}
-        <Info text={t(locale, 'tolls.info')} />
-      </h1>
-      <p className="mb-5 text-base text-t2">{t(locale, 'tolls.subtitle')}</p>
+    <main className="page">
+      {/* «Толлы» — вкладка «Рынка» (10/09/26): шапка раздела та же, подпись — про дороги. */}
+      <PageHeader title={t(locale, 'nav.brokers')} info={t(locale, 'tolls.info')} subtitle={t(locale, 'tolls.subtitle')} />
+      <MarketTabs active="tolls" locale={locale} />
 
       <WidgetGrid
         {...grid}

@@ -38,6 +38,21 @@ const config: NextConfig = {
       bodySizeLimit: '10mb',
     },
   },
+  // Старые адреса денег. До 10/09/26 деньги были вкладками «Документов» (/docs?tab=unpaid…),
+  // а ещё раньше — страницей /invoices. Перевод здесь, а не в самой странице: redirect() из
+  // страницы уходит уже потоком (после app/loading.tsx), и роутер Next при первом открытии
+  // падал с React #310 «Rendered more hooks», прежде чем перейти. Отсюда — обычный ответ
+  // 307 до всякой отрисовки, а остальные параметры адреса (tab, week, q) едут следом сами.
+  // Имена вкладок — те же, что в lib/money-tabs.ts.
+  async redirects() {
+    const money = [{ type: 'query' as const, key: 'tab', value: '(unpaid|paid|weeks|dispatchers|drivers)' }]
+    return [
+      { source: '/docs', has: money, destination: '/money', permanent: false },
+      { source: '/invoices', has: money, destination: '/money', permanent: false },
+      // Без вкладки /invoices была «Оплата · факторинг» — теперь это «Грузы» в «Документах».
+      { source: '/invoices', destination: '/docs', permanent: false },
+    ]
+  },
   // Заголовки, которых не было вовсе.
   //
   // frame-ancestors: без него любую страницу можно положить в прозрачный <iframe> на

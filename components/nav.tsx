@@ -97,28 +97,47 @@ function JournalLink({
   )
 }
 
-/** also — другие адреса того же раздела: пункт подсвечен и на них. */
-type Item = { href: string; labelKey: MsgKey; icon: string; soon?: boolean; primary?: boolean; also?: string[] }
+/** also — другие адреса того же раздела: пункт подсвечен и на них.
+ * group — рабочие разделы сверху, инструменты под чертой (план «Порядок в TMS», 10/09/26).
+ * money — пункт только для тех, у кого право «Финансы». */
+type Item = {
+  href: string
+  labelKey: MsgKey
+  icon: string
+  group: 'work' | 'tools'
+  soon?: boolean
+  money?: boolean
+  also?: string[]
+}
+
+/** Сколько рабочих разделов стоит в нижнем меню телефона; остальное — за «Ещё». */
+const PHONE_TABS = 4
 
 const isOn = (it: Item, pathname: string) =>
   it.href === '/' ? pathname === '/' : [it.href, ...(it.also ?? [])].some((h) => pathname.startsWith(h))
 
 const ITEMS: Item[] = [
-  // primary — четыре вкладки нижнего меню телефона; остальное там лежит за «Ещё».
-  // На десктопе в сайдбаре видны все.
-  { href: '/', labelKey: 'nav.overview', icon: 'dash', primary: true },
-  { href: '/loads', labelKey: 'nav.loads', icon: 'loads', primary: true },
-  { href: '/trucks', labelKey: 'nav.trucks', icon: 'settings', primary: true },
-  // «Документы» — бумаги и деньги одним разделом (слиты 19.09.2026): строка груза
-  // несёт и его файлы, и его оплату, поэтому отдельного пункта «Финансы» больше нет.
-  { href: '/docs', labelKey: 'nav.docs', icon: 'docs', primary: true, also: ['/invoices'] },
+  // Рабочие разделы — то, с чем диспетчер работает каждый день. Первые четыре видимых
+  // встают в нижнее меню телефона, остальное там лежит за «Ещё». На десктопе в
+  // сайдбаре видны все.
+  //
+  // «Сегодня» (до 10/09/26 — «Обзор»): главная показывает то, что ждёт действия.
+  { href: '/', labelKey: 'nav.overview', icon: 'dash', group: 'work' },
+  { href: '/loads', labelKey: 'nav.loads', icon: 'loads', group: 'work' },
+  { href: '/trucks', labelKey: 'nav.trucks', icon: 'settings', group: 'work' },
+  // «Деньги» — своим пунктом (10/09/26): раньше это была первая вкладка «Документов»,
+  // и раздел бумаг открывался на деньгах. Старые адреса /docs?tab=… и /invoices
+  // ведут сюда же.
+  { href: '/money', labelKey: 'nav.money', icon: 'money', group: 'work', money: true },
+  { href: '/docs', labelKey: 'nav.docs', icon: 'docs', group: 'work' },
+  // Инструменты — под чертой.
   // «Рынок» — один раздел (пользователь, 16.09.2026; переименован 18–19.09.2026, когда
-  // сюда переехало «Куда отправить трак»): вкладки внутри, адреса прежние.
+  // сюда переехало «Куда отправить трак»): вкладки внутри, адреса прежние. С 10/09/26
+  // внутри и «Толлы» — своей вкладкой, отдельного пункта меню у них больше нет.
+  { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield', group: 'tools', also: ['/facilities', '/tolls'] },
   // «Amazon» — рейсы Amazon Relay (10/03/26): свой раздел, не фильтр грузов.
-  { href: '/amazon', labelKey: 'nav.amazon', icon: 'amazon' },
-  { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield', also: ['/facilities'] },
-  { href: '/tolls', labelKey: 'nav.tolls', icon: 'toll' },
-  { href: '/telegram', labelKey: 'nav.telegram', icon: 'chat' },
+  { href: '/amazon', labelKey: 'nav.amazon', icon: 'amazon', group: 'tools' },
+  { href: '/telegram', labelKey: 'nav.telegram', icon: 'chat', group: 'tools' },
 ]
 
 export function Nav({
@@ -127,6 +146,7 @@ export function Nav({
   showTelegram,
   urgentDocs,
   tilesEnabled,
+  showMoney = false,
 }: {
   companyName: string
   user: CurrentUser | null
@@ -138,6 +158,8 @@ export function Nav({
   urgentDocs: number
   /** Разрешена ли перестановка плиток: выключатель живёт в меню аккаунта. */
   tilesEnabled: boolean
+  /** Право «Финансы»: без него пункта «Деньги» нет (страница и сама не пустит). */
+  showMoney?: boolean
 }) {
   const pathname = usePathname()
   // Страница водителя (/d/<token>) — без навигации: у водителя нет доступа к приложению.
@@ -193,7 +215,14 @@ export function Nav({
   // Telegram — всегда в меню: без доступа или без подключения его страница сама
   // пишет, что сделать. Спрятанный пункт не находили вовсе. «Документы» тоже всегда:
   // право «Финансы» закрывает внутри раздела только деньги, а не бумаги.
-  const rest = ITEMS.filter((it) => !it.primary && !it.soon)
+  const items = ITEMS.filter((it) => !it.money || showMoney)
+  const primary = new Set(
+    items
+      .filter((it) => it.group === 'work' && !it.soon)
+      .slice(0, PHONE_TABS)
+      .map((it) => it.href),
+  )
+  const rest = items.filter((it) => !primary.has(it.href) && !it.soon)
   const restActive = rest.some((it) => isOn(it, pathname))
   // Вкладка: на телефоне равные доли ширины, в сайдбаре — строка с иконкой слева.
   const shape =
@@ -330,8 +359,13 @@ export function Nav({
           sidebar. */}
       <div className="nav-dock">
         <div className="flex items-stretch gap-0.5 md:flex-col md:gap-0.5">
-        {ITEMS.map((it) => {
+        {items.map((it, i) => {
         const active = !it.soon && isOn(it, pathname)
+        // Черта между рабочими разделами и инструментами — только в сайдбаре.
+        const divider =
+          it.group === 'tools' && items[i - 1]?.group === 'work' ? (
+            <div key={`divider-${it.href}`} aria-hidden className="my-2 hidden h-px bg-white/10 md:block" />
+          ) : null
 
         const body = (
           <>
@@ -358,7 +392,8 @@ export function Nav({
         )
 
         if (it.soon) {
-          return (
+          return [
+            divider,
             <div
               key={it.href}
               aria-disabled
@@ -366,11 +401,12 @@ export function Nav({
               className={`${shape} cursor-not-allowed text-t3 max-md:hidden`}
             >
               {body}
-            </div>
-          )
+            </div>,
+          ]
         }
 
-        return (
+        return [
+          divider,
           <Link
             key={it.href}
             href={it.href}
@@ -380,7 +416,7 @@ export function Nav({
             data-tour={'nav-' + it.href.replace(/\//g, '')}
             title={t(locale, it.labelKey)}
             aria-current={active ? 'page' : undefined}
-            className={`${shape} ${it.primary ? '' : 'max-md:hidden'} ${
+            className={`${shape} ${primary.has(it.href) ? '' : 'max-md:hidden'} ${
               active ? 'text-haul-400 md:text-white' : 'text-t2 hover:text-t1'
             }`}
           >
@@ -389,8 +425,8 @@ export function Nav({
                 so the phone dock — where every tab is a few pixels wide — doesn't
                 reflow the moment it appears. Renders nothing at rest. */}
             <LinkPending className="absolute right-1 top-1" />
-          </Link>
-        )
+          </Link>,
+        ]
         })}
         {rest.length > 0 && (
           <button

@@ -330,7 +330,6 @@ export const LOADS_TILES: TilePlacement[] = [
   { id: 'delivered', size: 's' },
   { id: 'map', size: 'l' },
   { id: 'calendar', size: 'l' },
-  { id: 'attention', size: 'l' },
   { id: 'list', size: 'l' },
   { id: 'chart', size: 'l' },
   { id: 'lanes', size: 'l' },

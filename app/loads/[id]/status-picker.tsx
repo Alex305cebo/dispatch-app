@@ -17,7 +17,7 @@ import { t } from '@/lib/i18n'
 // The pipeline a load actually walks, in order. `cancelled` is deliberately NOT in it:
 // it isn't a later stage of the same journey, it's the journey being abandoned, and
 // putting it sixth in a row of equal buttons implied a load progresses into it.
-// «Оплачен» здесь не шаг: деньги отмечает бухгалтер в «Финансах» (app/invoices).
+// «Оплачен» здесь не шаг: деньги отмечает бухгалтер в «Деньгах» (app/money).
 const PIPELINE: LoadStatus[] = ['quoted', 'booked', 'in_transit', 'delivered']
 
 // Each step's colour once reached. Matches components/status.tsx's badge hues so the

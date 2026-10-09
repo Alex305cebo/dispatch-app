@@ -37,7 +37,7 @@ export default function Loading() {
   const label = t(locale, 'common.loading')
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-10">
+    <main className="page">
       {/* One unmistakable status line at the top. role=status so a screen reader
           announces it too — a pulsing rectangle says nothing out loud. */}
       <div role="status" className="flex items-center gap-2 text-base font-medium text-t2">

@@ -64,7 +64,7 @@ export default async function FacilityPage({ params }: { params: Promise<{ key: 
   const h2 = 'mb-2 text-base leading-6 font-semibold text-t1'
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
+    <main className="page">
       <Link href="/brokers?view=facilities" className="text-sm text-t3 hover:text-white">
         ← {t(locale, 'nav.brokers')}
       </Link>

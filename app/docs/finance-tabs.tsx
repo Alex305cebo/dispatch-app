@@ -647,7 +647,7 @@ function PartLines({ parts, week, locale }: { parts: Part[]; week: number; local
         .map((p) => (
           <li key={p.key}>
             <LoadLine
-              href={`/docs?tab=drivers&week=${weekDay(week)}`}
+              href={`/money?tab=drivers&week=${weekDay(week)}`}
               route={p.label}
               meta={` · ${t(locale, 'finances.loadsCountSuffix').replace('{n}', String(p.loads))}`}
               miles={p.miles}
@@ -798,7 +798,7 @@ export async function ByWeek({ companyId, locale }: { companyId: CompanyId; loca
                     <PartLines parts={[...w.trucks.values()]} week={w.ms} locale={locale} />
                     <div className="mt-1.5 flex flex-wrap gap-2 px-2 pb-1">
                       <Link
-                        href={`/docs?tab=drivers&week=${weekDay(w.ms)}`}
+                        href={`/money?tab=drivers&week=${weekDay(w.ms)}`}
                         className="inline-flex min-h-9 items-center rounded-lg border border-white/12 px-3 text-sm font-medium text-t2 transition-colors hover:border-white/30 hover:text-t1"
                       >
                         {t(locale, 'money.weeks.open')} →

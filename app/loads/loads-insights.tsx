@@ -1,12 +1,13 @@
 'use client'
 
-// Верх страницы «Грузы»: плитки недели, очередь внимания и недельный график.
+// Верх страницы «Грузы»: плитки недели и недельный график.
 // Считается на клиенте из той же выборки, что и список, — новых данных не нужно.
-// Оформление — как на обзоре: плитки Stat, тонированный баннер внимания, секции с ⓘ.
+// Оформление — как на «Сегодня»: плитки Stat, секции с ⓘ. Очередь «Требуют действия»
+// отсюда переехала в ленту «Ждёт тебя» на «Сегодня» (lib/attention.ts).
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, DollarSign, Truck, TrendingUp } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, DollarSign, Truck, TrendingUp } from 'lucide-react'
 import type { LoadRecord, TruckRecord } from '@/lib/map'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
 import { weekStats, shiftDay } from '@/lib/loads-dashboard'
@@ -118,11 +119,11 @@ export function loadsKpiTiles({
           surface="panel"
           accent="haul"
           icon={<DollarSign {...icon} />}
-          label={t(locale, 'loads.dash.booked')}
+          label={t(locale, 'today.weekGross')}
           value={usd.format(week.gross)}
           sub={`${dateLabel(weekFrom, locale)} – ${dateLabel(shiftDay(weekFrom, 6), locale)}`}
           info={t(locale, 'loads.dash.bookedInfo')}
-          onClick={pick('loads.dash.booked', week.rows)}
+          onClick={pick('today.weekGross', week.rows)}
         >
           <Spark values={week.buckets.map((b) => b.gross)} tone="haul" />
         </Stat>
@@ -310,87 +311,6 @@ export function LoadsWeekChart({ loads, trucks, weekFrom, locale }: { loads: Loa
           )}
         </div>
       )}
-    </section>
-  )
-}
-
-export type AttentionCategory = 'priority' | 'late' | 'documents' | 'ready' | 'overdue' | 'checks'
-export type AttentionEntry = { id: number; route: string; category: AttentionCategory; detail: string }
-const CATEGORY_KEY: Record<AttentionCategory, MsgKey> = {
-  priority: 'loads.priority.label',
-  late: 'loads.dash.late',
-  documents: 'loads.dash.documents',
-  ready: 'loads.filter.ready',
-  overdue: 'loads.dash.overdue',
-  checks: 'loads.dash.checks',
-}
-const CATEGORIES = Object.keys(CATEGORY_KEY) as AttentionCategory[]
-
-/** Очередь внимания — тот же тонированный баннер, что «Document deadlines» на обзоре:
- * категории чипами, три первые записи, «Показать все» уводит в список ниже. */
-export function LoadsAttention({ entries, locale, onSelect }: { entries: AttentionEntry[]; locale: Locale; onSelect: (value: Selection) => void }) {
-  const [category, setCategory] = useState<AttentionCategory | null>(null)
-  if (!entries.length) return null
-  const rows = category ? entries.filter((e) => e.category === category) : entries
-  const ids = [...new Set(rows.map((e) => e.id))]
-  const total = new Set(entries.map((e) => e.id)).size
-  return (
-    <section className="flex gap-2.5 rounded-xl border border-warn-400/25 bg-warn-400/[0.07] px-3.5 py-2.5">
-      <span className="mt-px flex size-6 shrink-0 items-center justify-center rounded-md bg-warn-400/15 text-warn-400 ring-1 ring-warn-400/25">
-        <AlertTriangle size={15} strokeWidth={2.5} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-warn-400">
-            {t(locale, 'loads.dash.attention')} · <span className="nums">{total}</span>
-            <Info text={t(locale, 'loads.dash.attentionInfo')} />
-          </h2>
-          <div className="flex flex-wrap gap-1.5">
-            {CATEGORIES.map((key) => {
-              const n = entries.filter((e) => e.category === key).length
-              return (
-                n > 0 && (
-                  <button
-                    key={key}
-                    type="button"
-                    aria-pressed={category === key}
-                    onClick={() => setCategory(category === key ? null : key)}
-                    className={`rounded-full px-2.5 py-1 text-sm font-medium transition-colors max-md:min-h-9 ${
-                      category === key ? 'bg-warn-400/20 text-warn-400 ring-1 ring-warn-400/30' : 'bg-white/[0.06] text-t2 hover:text-white'
-                    }`}
-                  >
-                    {t(locale, CATEGORY_KEY[key])} · <span className="nums">{n}</span>
-                  </button>
-                )
-              )
-            })}
-          </div>
-        </div>
-        <div className="mt-1.5 divide-y divide-white/[0.06]">
-          {rows.slice(0, 3).map((e) => (
-            <Link
-              key={`${e.id}-${e.category}`}
-              href={`/loads/${e.id}`}
-              className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-1.5 text-base text-t1 transition-colors hover:text-white max-md:min-h-11 max-md:items-center"
-            >
-              <span className="min-w-0 break-words">{e.route}</span>
-              {/* Без shrink-0: у строки вроде «Опаздывает · Пикап · Chicago, IL · окно…»
-                  на телефоне не оставалось места, и хвост уезжал за край экрана. Строка
-                  переносится, поэтому подпись просто уходит на вторую строку целиком. */}
-              <span className="nums min-w-0 break-words text-sm text-t3">
-                {category ? e.detail : `${t(locale, CATEGORY_KEY[e.category])} · ${e.detail}`}
-              </span>
-            </Link>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => onSelect({ ids, label: t(locale, category ? CATEGORY_KEY[category] : 'loads.dash.attention') })}
-          className="mt-1 text-sm font-medium text-warn-400 hover:underline max-md:min-h-9"
-        >
-          {t(locale, 'loads.dash.more')} · <span className="nums">{ids.length}</span> →
-        </button>
-      </div>
     </section>
   )
 }

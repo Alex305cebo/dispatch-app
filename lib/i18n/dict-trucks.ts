@@ -275,6 +275,15 @@ export const trucksDict = {
     ro: 'în flotă',
     kk: 'паркте',
   },
+  // Строка под заголовком раздела (одна шапка на все разделы, 10/09/26).
+  'trucks.page.subtitle': {
+    ru: 'Где каждый трак, кто за рулём и что везёт.',
+    en: 'Where every truck is, who is driving and what it hauls.',
+    es: 'Dónde está cada camión, quién conduce y qué lleva.',
+    uk: 'Де кожен трак, хто за кермом і що везе.',
+    ro: 'Unde e fiecare camion, cine conduce și ce transportă.',
+    kk: 'Әр трак қайда, кім рульде және не тасиды.',
+  },
   'trucks.page.ownerPrefix': {
     ru: ' · владелец ',
     en: ' · owner ',

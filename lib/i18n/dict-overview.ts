@@ -1,17 +1,64 @@
 // The Overview dashboard: app/page.tsx.
 
 export const overviewDict = {
-  'overview.title': { ru: 'Обзор', en: 'Overview', es: 'Resumen', uk: 'Огляд', ro: 'Prezentare', kk: 'Шолу' },
-  'overview.truckCount': { ru: '{n} трак(ов) — что парк заработал и что везёт сейчас.', en: '{n} truck(s) — what the fleet earned and what it is hauling right now.', es: '{n} camión(es) — lo que ganó la flota y lo que lleva ahora.', uk: '{n} трак(ів) — що парк заробив і що везе зараз.', ro: '{n} camion/camioane — cât a câștigat flota și ce transportă acum.', kk: '{n} тракт — парк қанша тапты және қазір не тасып жүр.' },
-  'overview.addLoad': { ru: 'Груз', en: 'Load', es: 'Carga', uk: 'Вантаж', ro: 'Cursă', kk: 'Жүк' },
-  'overview.addLoadInfo': {
-    ru: 'Добавить груз вручную. Выберешь трак, введёшь ставку и мили — приложение сразу посчитает, что груз оставит на траке чистыми.',
-    en: "Add a load manually. Pick a truck, enter the rate and miles — the app immediately calculates what the load nets the truck.",
-    es: 'Añade una carga a mano. Eliges el camión, pones la tarifa y las millas — la app calcula al instante lo que le queda neto al camión.',
-    uk: 'Додати вантаж вручну. Обереш трак, введеш ставку і милі — застосунок одразу порахує, що вантаж залишить траку чистими.',
-    ro: 'Adaugă o cursă manual. Alegi camionul, introduci tariful și milele — aplicația calculează imediat cât rămâne net.',
-    kk: 'Жүкті қолмен қосу. Трактты таңдап, мөлшерлеме мен мильді енгізесіз — қолданба жүктің тракқа таза не қалдыратынын бірден санайды.',
+  // «Сегодня» — главная с 10/09/26 (план «Порядок в TMS»): четыре цифры недели и лента
+  // «Ждёт тебя». Заголовок страницы — пункт меню nav.overview.
+  'today.subtitle': {
+    ru: 'Цифры недели и всё, что ждёт действия.',
+    en: 'This week in numbers and everything waiting on you.',
+    es: 'Las cifras de la semana y todo lo que te espera.',
+    uk: 'Цифри тижня і все, що чекає дії.',
+    ro: 'Cifrele săptămânii și tot ce te așteaptă.',
+    kk: 'Апта сандары және әрекет күтіп тұрғанның бәрі.',
   },
+  'today.info': {
+    ru: 'Главная. Сверху — четыре цифры этой расчётной недели (пятница–четверг). Ниже — «Ждёт тебя»: всё, по чему нужно что-то сделать, по срочности: кто опаздывает, грузы с флагом, кому искать груз, важное от брокера, каких бумаг не хватает, сроки документов, счета и оплата. Сделал — строка уходит сама.',
+    en: 'The home screen. At the top, four numbers for this pay week (Friday to Thursday). Below, “Waiting on you”: everything that needs doing, most urgent first — who is running late, flagged loads, who needs a load, important broker notes, missing paperwork, document deadlines, invoices and payments. Once done, the line goes away by itself.',
+    es: 'La pantalla principal. Arriba, cuatro cifras de esta semana de pago (viernes a jueves). Abajo, «Te espera»: todo lo que hay que hacer, lo más urgente primero — quién va con retraso, cargas marcadas, quién necesita carga, avisos importantes del bróker, documentos que faltan, vencimientos, facturas y pagos. Cuando lo haces, la línea desaparece sola.',
+    uk: 'Головна. Зверху — чотири цифри цього розрахункового тижня (пʼятниця–четвер). Нижче — «Чекає на тебе»: усе, з чим треба щось зробити, за терміновістю: хто запізнюється, вантажі з прапорцем, кому шукати вантаж, важливе від брокера, яких документів бракує, терміни документів, рахунки й оплата. Зробив — рядок зникає сам.',
+    ro: 'Ecranul principal. Sus, patru cifre ale acestei săptămâni de plată (vineri–joi). Dedesubt, „Te așteaptă”: tot ce trebuie făcut, cele mai urgente primele — cine întârzie, cursele marcate, cine are nevoie de cursă, notele importante de la broker, documentele lipsă, termenele documentelor, facturile și plățile. Odată făcut, rândul dispare singur.',
+    kk: 'Басты бет. Жоғарыда — осы есеп аптасының (жұма–бейсенбі) төрт саны. Төменде — «Сізді күтуде»: бір нәрсе істеу керек нәрсенің бәрі, шұғылдығы бойынша: кім кешігуде, белгіленген жүктер, кімге жүк іздеу керек, брокерден маңызды, қандай құжаттар жетіспейді, құжат мерзімдері, шоттар мен төлем. Істелген соң жол өзі кетеді.',
+  },
+  'today.weekGross': { ru: 'Гросс недели', en: 'Week gross', es: 'Bruto de la semana', uk: 'Гросс тижня', ro: 'Brut săptămână', kk: 'Апта гроссы' },
+  'today.weekGrossInfo': {
+    ru: 'Ставки подтверждённых грузов с пикапом на этой расчётной неделе (пятница–четверг). Заявки и отменённые не входят. Нажми — откроются «Грузы».',
+    en: 'Rates of confirmed loads picking up this pay week (Friday to Thursday). Quotes and cancelled loads are excluded. Click to open Loads.',
+    es: 'Tarifas de las cargas confirmadas con recogida esta semana de pago (viernes a jueves). No cuentan cotizaciones ni canceladas. Pulsa para abrir Cargas.',
+    uk: 'Ставки підтверджених вантажів із пікапом цього розрахункового тижня (пʼятниця–четвер). Заявки й скасовані не входять. Натисни — відкриються «Вантажі».',
+    ro: 'Tarifele curselor confirmate cu încărcare în această săptămână de plată (vineri–joi). Ofertele și cursele anulate nu intră. Apasă pentru Curse.',
+    kk: 'Осы есеп аптасында (жұма–бейсенбі) тиелетін расталған жүктердің мөлшерлемелері. Өтінімдер мен бас тартылғандар кірмейді. Басыңыз — «Жүктер» ашылады.',
+  },
+  'today.rpmInfo': {
+    ru: 'Ставка за милю этой недели: гросс недели, делённый на все мили её грузов, включая deadhead. Снизу — сами мили.',
+    en: 'This week’s rate per mile: the week’s gross divided by all miles of its loads, deadhead included. The miles are shown below.',
+    es: 'Tarifa por milla de esta semana: el bruto de la semana dividido entre todas las millas de sus cargas, deadhead incluido. Abajo, las millas.',
+    uk: 'Ставка за милю цього тижня: гросс тижня, поділений на всі милі його вантажів, включно з deadhead. Знизу — самі милі.',
+    ro: 'Tariful pe milă al săptămânii: brutul săptămânii împărțit la toate milele curselor ei, inclusiv deadhead. Dedesubt, milele.',
+    kk: 'Осы аптаның миль үшін мөлшерлемесі: апта гроссы оның жүктерінің барлық миліне бөлінген, deadhead қоса. Астында — милдің өзі.',
+  },
+  'today.utilizationInfo': {
+    ru: 'Доля трако-дней этой недели, когда трак занят грузом: от пикапа до выгрузки. Траки в ремонте и в отпуске не считаются.',
+    en: 'Share of this week’s truck-days with a load on board, from pickup to delivery. Trucks in repair or on vacation are not counted.',
+    es: 'Parte de los días-camión de esta semana con carga, de la recogida a la entrega. No cuentan camiones en reparación ni de vacaciones.',
+    uk: 'Частка трако-днів цього тижня з вантажем: від пікапа до вивантаження. Траки в ремонті й у відпустці не рахуються.',
+    ro: 'Ponderea zilelor-camion din această săptămână cu marfă, de la încărcare la descărcare. Camioanele în reparație sau în concediu nu contează.',
+    kk: 'Осы аптадағы трак жүкпен бос емес трак-күндердің үлесі: тиеуден түсіруге дейін. Жөндеудегі және демалыстағы тракттар есептелмейді.',
+  },
+  'today.feed.title': { ru: 'Ждёт тебя', en: 'Waiting on you', es: 'Te espera', uk: 'Чекає на тебе', ro: 'Te așteaptă', kk: 'Сізді күтуде' },
+  'today.feed.empty': {
+    ru: 'Ничего не ждёт — всё в порядке.',
+    en: 'Nothing is waiting — all clear.',
+    es: 'Nada pendiente — todo en orden.',
+    uk: 'Нічого не чекає — усе гаразд.',
+    ro: 'Nimic nu așteaptă — totul e în regulă.',
+    kk: 'Ештеңе күтпейді — бәрі ретте.',
+  },
+  'today.feed.more': { ru: 'ещё {n}', en: '{n} more', es: '{n} más', uk: 'ще {n}', ro: 'încă {n}', kk: 'тағы {n}' },
+  'today.sec.late': { ru: 'Опаздывают', en: 'Running late', es: 'Con retraso', uk: 'Запізнюються', ro: 'Întârzie', kk: 'Кешігуде' },
+  'today.sec.broker': { ru: 'Важное от брокера', en: 'Important from the broker', es: 'Importante del bróker', uk: 'Важливе від брокера', ro: 'Important de la broker', kk: 'Брокерден маңызды' },
+  'today.overdueBy': { ru: 'просрочено на {n} дн', en: '{n}d overdue', es: 'vencido hace {n} d', uk: 'прострочено на {n} дн', ro: 'întârziat {n} z', kk: '{n} күн кешікті' },
+
+  'overview.addLoad': { ru: 'Груз', en: 'Load', es: 'Carga', uk: 'Вантаж', ro: 'Cursă', kk: 'Жүк' },
 
   'overview.docDeadlines': { ru: 'Сроки документов', en: 'Document deadlines', es: 'Vencimiento de documentos', uk: 'Терміни документів', ro: 'Termene documente', kk: 'Құжат мерзімдері' },
   'overview.docDeadlinesInfo': {
@@ -25,7 +72,6 @@ export const overviewDict = {
   'overview.overdue': { ru: 'просрочено', en: 'overdue', es: 'vencido', uk: 'прострочено', ro: 'expirat', kk: 'мерзімі өткен' },
   'overview.daysLeft': { ru: '{n} дн.', en: '{n}d', es: '{n} d', uk: '{n} дн.', ro: '{n} z.', kk: '{n} күн' },
 
-  'overview.brokerUnread': { ru: '⚠ Важное от брокера — не прочитано', en: '⚠ Important from broker — unread', es: '⚠ Importante del bróker — sin leer', uk: '⚠ Важливе від брокера — не прочитано', ro: '⚠ Important de la broker — necitit', kk: '⚠ Брокерден маңызды — оқылмаған' },
   'overview.brokerUnreadInfo': {
     ru: 'Особые инструкции брокера (detention, аппойнтмент, требования к POD и т.д.), распознанные из rate con, которые ещё никто не отметил прочитанными на странице груза.',
     en: "Special broker instructions (detention, appointment, POD requirements, etc) recognized from the rate con, that no one has marked read yet on the load's page.",
@@ -37,36 +83,18 @@ export const overviewDict = {
 
   'overview.awaitingPayment': { ru: 'Ждём оплаты', en: 'Awaiting payment', es: 'Esperando pago', uk: 'Чекаємо оплати', ro: 'Așteptăm plata', kk: 'Төлем күтілуде' },
   'overview.awaitingPaymentInfo': {
-    ru: 'Выставленные, но ещё не оплаченные счета, плюс доставленные грузы без выставленного счёта — то же, что «Не оплачено» на странице Финансы, одной цифрой.',
-    en: 'Invoiced but not yet paid, plus delivered loads with no invoice yet — the same figure as "Unpaid" on the Finances page, as one number.',
-    es: 'Facturado pero aún sin cobrar, más las cargas entregadas sin factura — la misma cifra que «Sin pagar» en Finanzas, en un solo número.',
-    uk: 'Виставлені, але ще не оплачені рахунки, плюс доставлені вантажі без рахунку — те саме, що «Не оплачено» на сторінці «Фінанси», однією цифрою.',
-    ro: 'Facturat, dar încă neîncasat, plus cursele livrate fără factură — aceeași cifră ca „Neplătit” în Finanțe, într-un singur număr.',
-    kk: 'Шот қойылған, бірақ әлі төленбегендер, плюс шот қойылмаған жеткізілген жүктер — «Қаржы» бетіндегі «Төленбеген» дегенмен бірдей, бір санмен.',
+    ru: 'Выставленные, но ещё не оплаченные счета, плюс доставленные грузы без выставленного счёта — то же, что «Деньги → Не оплачено», одной цифрой. Снизу — сколько из этого уже просрочено.',
+    en: 'Invoiced but not yet paid, plus delivered loads with no invoice yet — the same figure as Money → Unpaid, as one number. Below, how much of it is already overdue.',
+    es: 'Facturado pero aún sin cobrar, más las cargas entregadas sin factura — la misma cifra que Dinero → Sin pagar, en un solo número. Abajo, cuánto ya está vencido.',
+    uk: 'Виставлені, але ще не оплачені рахунки, плюс доставлені вантажі без рахунку — те саме, що «Гроші → Не оплачено», однією цифрою. Знизу — скільки з цього вже прострочено.',
+    ro: 'Facturat, dar încă neîncasat, plus cursele livrate fără factură — aceeași cifră ca Bani → Neplătit, într-un singur număr. Dedesubt, cât e deja restant.',
+    kk: 'Шот қойылған, бірақ әлі төленбегендер, плюс шот қойылмаған жеткізілген жүктер — «Ақша → Төленбеген» дегенмен бірдей, бір санмен. Астында — оның қаншасының мерзімі өткен.',
   },
   'overview.ofWhichOverdue': { ru: 'из них просрочено', en: 'of which overdue', es: 'de ello vencido', uk: 'з них прострочено', ro: 'din care restant', kk: 'оның ішінде мерзімі өткен' },
 
-  'overview.rateTotal': { ru: 'Рейт всего', en: 'Total rate', es: 'Tarifa total', uk: 'Рейт усього', ro: 'Tarif total', kk: 'Барлық мөлшерлеме' },
-  'overview.rateTotalSub': { ru: 'чистыми {v}', en: 'net {v}', es: 'neto {v}', uk: 'чистими {v}', ro: 'net {v}', kk: 'таза {v}' },
-  'overview.rateTotalInfo': {
-    ru: 'Полная ставка за все активные грузы (гросс) — самое важное: сколько всего работы взято. Снизу «чистыми» — что останется после всех расходов (топливо, водитель, фикс, обслуживание, факторинг), это доп. информация.',
-    en: 'The full rate across all active loads (gross) — the key figure: how much work is booked in total. "Net" below is what remains after all costs (fuel, driver pay, fixed costs, maintenance, factoring) — extra context.',
-    es: 'La tarifa completa de todas las cargas activas (bruto) — la cifra clave: cuánto trabajo hay tomado. Abajo, «neto» es lo que queda tras todos los gastos (combustible, conductor, fijos, mantenimiento, factoring).',
-    uk: 'Повна ставка за всі активні вантажі (гросс) — найважливіше: скільки роботи взято. Знизу «чистими» — що залишиться після всіх витрат (пальне, водій, фікс, обслуговування, факторинг).',
-    ro: 'Tariful total al tuturor curselor active (brut) — cifra principală: cât de multă muncă e luată. Dedesubt, „net” este ce rămâne după toate costurile (combustibil, șofer, costuri fixe, întreținere, factoring).',
-    kk: 'Барлық белсенді жүктердің толық мөлшерлемесі (жалпы) — ең бастысы: қанша жұмыс алынған. Астында «таза» — барлық шығыннан кейін не қалады (жанармай, жүргізуші, тұрақты шығын, қызмет көрсету, факторинг).',
-  },
   // Just the acronym: the tile is a quarter of the grid and the long form was being
   // truncated to "RPM · REVENUE ...". The (i) tooltip beside it carries the meaning.
   'overview.rpm': { ru: 'RPM', en: 'RPM', es: 'RPM', uk: 'RPM', ro: 'RPM', kk: 'RPM' },
-  'overview.rpmInfo': {
-    ru: 'RPM (rate per mile) — средний доход на милю по всему парку: общая выручка ÷ общие мили (гружёные + deadhead). Главный ориентир, брать груз или нет.',
-    en: 'RPM (rate per mile) — average revenue per mile across the whole fleet: total revenue ÷ total miles (loaded + empty). The main yardstick for whether to take a load.',
-    es: 'RPM (tarifa por milla) — ingreso medio por milla de toda la flota: ingresos totales ÷ millas totales (cargadas + vacías). La referencia principal para decidir si tomar una carga.',
-    uk: 'RPM (rate per mile) — середній дохід на милю по всьому парку: загальна виручка ÷ загальні милі (гружені + Deadhead). Головний орієнтир, брати вантаж чи ні.',
-    ro: 'RPM (tarif pe milă) — venitul mediu pe milă pentru toată flota: venit total ÷ mile totale (încărcate + goale). Reperul principal pentru a decide dacă iei cursa.',
-    kk: 'RPM (миль үшін мөлшерлеме) — бүкіл парк бойынша бір мильге орташа табыс: жалпы түсім ÷ жалпы миль (жүкті + бос). Жүкті алу-алмауды шешетін басты бағдар.',
-  },
   'overview.inWork': { ru: 'В работе', en: 'In progress', es: 'En curso', uk: 'У роботі', ro: 'În lucru', kk: 'Жұмыста' },
   'overview.inWorkSub': { ru: '{n} свободно', en: '{n} free', es: '{n} libres', uk: '{n} вільно', ro: '{n} libere', kk: '{n} бос' },
   'overview.inWorkInfo': {
@@ -77,36 +105,22 @@ export const overviewDict = {
     ro: 'Câte curse sunt acum „rezervate” sau „în tranzit”. Dedesubt — câte camioane nu au cursă activă și pot lua una.',
     kk: 'Қазір қанша жүк «броньдалған» немесе «жолда». Астында — қанша тракт белсенді жүксіз және жаңасын алуға дайын.',
   },
-  'overview.totalMiles': { ru: 'Всего миль', en: 'Total miles', es: 'Millas totales', uk: 'Усього миль', ro: 'Mile totale', kk: 'Барлық миль' },
-  'overview.totalMilesInfo': {
-    ru: 'Суммарные мили всех активных грузов — гружёные плюс Deadhead.',
-    en: 'Total miles across all active loads — loaded plus empty (deadhead).',
-    es: 'Millas sumadas de todas las cargas activas — cargadas más vacías (deadhead).',
-    uk: 'Сумарні милі всіх активних вантажів — гружені плюс Deadhead.',
-    ro: 'Milele însumate ale tuturor curselor active — încărcate plus goale (deadhead).',
-    kk: 'Барлық белсенді жүктердің жиынтық милі — жүкті плюс бос (deadhead).',
-  },
 
   'needsLoad.title': { ru: 'Кому искать груз', en: 'Who needs a load', es: 'Quién necesita carga', uk: 'Кому шукати вантаж', ro: 'Cine are nevoie de cursă', kk: 'Кімге жүк іздеу керек' },
   'needsLoad.info': {
-    ru: 'Парк, отсортированный по срочности: сверху те, кто дольше всех стоит без груза, — с них начинают обзвон. Дальше те, кто скоро освободится, с датой и городом выгрузки: под них груз ищут заранее, пока трак ещё в пути. Сумма рядом — во что уже обошёлся простой: платёж за трак, страховка, ELD и пермиты капают каждый день, едет он или нет. Ремонт и отпуск внизу — их загрузить нельзя. Строка DAT у стоящего трака — сколько грузов приходится на один свободный трак в его штате: на горячем рынке груз найти проще и ставку удержать легче, на холодном — наоборот. Горячий и холодный — относительно медианы по всем штатам.',
-    en: 'The fleet sorted by urgency: trucks sitting without a load the longest come first — start the calls there. Below them, trucks about to free up, with the date and city of delivery, so you can book them while they are still rolling. The figure beside a row is what the idle time has already cost: truck payment, insurance, ELD and permits accrue every day whether it moves or not. Repair and vacation sit at the bottom — they cannot be dispatched. The DAT line under an idle truck is how many loads there are per free truck in its state: in a hot market freight is easier to find and the rate easier to hold, in a cold one it is the opposite. Hot and cold are relative to the median across all states.',
-    es: 'La flota ordenada por urgencia: arriba los que llevan más tiempo parados — por ahí se empieza a llamar. Después los que quedan libres pronto, con fecha y ciudad de descarga, para buscarles carga mientras aún ruedan. La cifra al lado es lo que ya costó la parada: el pago del camión, el seguro, el ELD y los permisos corren cada día, se mueva o no. Taller y vacaciones abajo — a esos no se les puede dar carga. La línea DAT de un camión parado es cuántas cargas hay por cada camión libre en su estado: en un mercado caliente es más fácil conseguir carga y sostener la tarifa, en uno frío, al revés. Caliente y frío se miden frente a la mediana de todos los estados.',
-    uk: 'Парк, відсортований за терміновістю: зверху ті, хто найдовше стоїть без вантажу, — з них починають обдзвін. Далі ті, хто скоро звільниться, з датою і містом вивантаження: під них вантаж шукають заздалегідь, поки трак ще в дорозі. Сума поруч — у що вже обійшовся простій: платіж за трак, страховка, ELD і перміти капають щодня, їде він чи ні. Ремонт і відпустка внизу — їх завантажити не можна. Рядок DAT у трака, що стоїть, — скільки вантажів припадає на один вільний трак у його штаті: на гарячому ринку вантаж знайти простіше і ставку втримати легше, на холодному — навпаки. Гарячий і холодний — відносно медіани по всіх штатах.',
-    ro: 'Flota sortată după urgență: sus cei care stau cel mai mult fără cursă — de acolo încep telefoanele. Apoi cei care se eliberează curând, cu data și orașul de descărcare, ca să le cauți cursă cât încă rulează. Suma alăturată e cât a costat deja staționarea: rata camionului, asigurarea, ELD-ul și permisele curg zilnic, fie că merge sau nu. Reparațiile și concediul sunt jos — acelea nu pot fi încărcate. Rândul DAT de la un camion oprit arată câte curse revin unui camion liber din statul lui: pe o piață fierbinte găsești mai ușor marfă și menții tariful, pe una rece e invers. Fierbinte și rece se raportează la mediana tuturor statelor.',
-    kk: 'Парк шұғылдығы бойынша сұрыпталған: жоғарыда ең ұзақ жүксіз тұрғандар — солардан бастап қоңырау шалады. Одан кейін жақында босайтындар, түсіру күні мен қаласымен: оларға жүк тракт әлі жолда жүргенде ізделеді. Қасындағы сома — тұрып қалу қанша тұрғанын көрсетеді: тракт төлемі, сақтандыру, ELD және пермиттер күн сайын жүреді, ол жүрсе де, тұрса да. Жөндеу мен демалыс төменде — оларға жүк беруге болмайды. Тұрған тракттағы DAT жолы — оның штатындағы бір бос тартқышқа келетін жүк саны: қызу нарықта жүк табу және мөлшерлемені ұстау оңайырақ, салқын нарықта — керісінше. Қызу мен салқын барлық штаттардың медианасына қарай есептеледі.',
+    ru: 'Парк, отсортированный по срочности: сверху те, кто дольше всех стоит без груза, — с них начинают обзвон. Дальше те, кто освобождается сегодня или завтра, с датой и городом выгрузки: под них груз ищут заранее, пока трак ещё в пути. Сумма рядом — во что уже обошёлся простой: платёж за трак, страховка, ELD и пермиты капают каждый день, едет он или нет. Ремонт, отпуск и «дома» сюда не попадают: их загрузить нельзя. Строка DAT у стоящего трака — сколько грузов приходится на один свободный трак в его штате: на горячем рынке груз найти проще и ставку удержать легче, на холодном — наоборот. Горячий и холодный — относительно медианы по всем штатам.',
+    en: 'The fleet sorted by urgency: trucks sitting without a load the longest come first — start the calls there. Below them, trucks freeing up today or tomorrow, with the date and city of delivery, so you can book them while they are still rolling. The figure beside a row is what the idle time has already cost: truck payment, insurance, ELD and permits accrue every day whether it moves or not. Trucks in repair, on vacation or at home are left out — they cannot be dispatched. The DAT line under an idle truck is how many loads there are per free truck in its state: in a hot market freight is easier to find and the rate easier to hold, in a cold one it is the opposite. Hot and cold are relative to the median across all states.',
+    es: 'La flota ordenada por urgencia: arriba los que llevan más tiempo parados — por ahí se empieza a llamar. Después los que quedan libres hoy o mañana, con fecha y ciudad de descarga, para buscarles carga mientras aún ruedan. La cifra al lado es lo que ya costó la parada: el pago del camión, el seguro, el ELD y los permisos corren cada día, se mueva o no. Los que están en el taller, de vacaciones o en casa no aparecen — a esos no se les puede dar carga. La línea DAT de un camión parado es cuántas cargas hay por cada camión libre en su estado: en un mercado caliente es más fácil conseguir carga y sostener la tarifa, en uno frío, al revés. Caliente y frío se miden frente a la mediana de todos los estados.',
+    uk: 'Парк, відсортований за терміновістю: зверху ті, хто найдовше стоїть без вантажу, — з них починають обдзвін. Далі ті, хто звільняється сьогодні або завтра, з датою і містом вивантаження: під них вантаж шукають заздалегідь, поки трак ще в дорозі. Сума поруч — у що вже обійшовся простій: платіж за трак, страховка, ELD і перміти капають щодня, їде він чи ні. Ремонт, відпустка і «вдома» сюди не потрапляють: їх завантажити не можна. Рядок DAT у трака, що стоїть, — скільки вантажів припадає на один вільний трак у його штаті: на гарячому ринку вантаж знайти простіше і ставку втримати легше, на холодному — навпаки. Гарячий і холодний — відносно медіани по всіх штатах.',
+    ro: 'Flota sortată după urgență: sus cei care stau cel mai mult fără cursă — de acolo încep telefoanele. Apoi cei care se eliberează azi sau mâine, cu data și orașul de descărcare, ca să le cauți cursă cât încă rulează. Suma alăturată e cât a costat deja staționarea: rata camionului, asigurarea, ELD-ul și permisele curg zilnic, fie că merge sau nu. Cei în service, în concediu sau acasă nu apar aici — aceia nu pot fi încărcați. Rândul DAT de la un camion oprit arată câte curse revin unui camion liber din statul lui: pe o piață fierbinte găsești mai ușor marfă și menții tariful, pe una rece e invers. Fierbinte și rece se raportează la mediana tuturor statelor.',
+    kk: 'Парк шұғылдығы бойынша сұрыпталған: жоғарыда ең ұзақ жүксіз тұрғандар — солардан бастап қоңырау шалады. Одан кейін бүгін не ертең босайтындар, түсіру күні мен қаласымен: оларға жүк тракт әлі жолда жүргенде ізделеді. Қасындағы сома — тұрып қалу қанша тұрғанын көрсетеді: тракт төлемі, сақтандыру, ELD және пермиттер күн сайын жүреді, ол жүрсе де, тұрса да. Жөндеудегі, демалыстағы және үйдегілер мұнда кірмейді — оларға жүк беруге болмайды. Тұрған тракттағы DAT жолы — оның штатындағы бір бос тартқышқа келетін жүк саны: қызу нарықта жүк табу және мөлшерлемені ұстау оңайырақ, салқын нарықта — керісінше. Қызу мен салқын барлық штаттардың медианасына қарай есептеледі.',
   },
-  'needsLoad.freeOf': { ru: 'из {n} без груза', en: 'of {n} without a load', es: 'de {n} sin carga', uk: 'з {n} без вантажу', ro: 'din {n} fără cursă', kk: '{n}-нің ішінен жүксіз' },
   'needsLoad.perDay': { ru: '/день простоя', en: '/day idle', es: '/día parado', uk: '/день простою', ro: '/zi de staționare', kk: '/тұрып қалған күн' },
-  'needsLoad.allBusy': { ru: 'Весь парк в работе', en: 'Whole fleet is working', es: 'Toda la flota trabajando', uk: 'Увесь парк у роботі', ro: 'Toată flota lucrează', kk: 'Бүкіл парк жұмыста' },
   'needsLoad.idleDays': { ru: 'стоит {n} дн', en: 'idle {n}d', es: 'parado {n} d', uk: 'стоїть {n} дн', ro: 'oprit de {n} z', kk: '{n} күн тұр' },
   'needsLoad.freeOn': { ru: 'свободен {d}', en: 'free {d}', es: 'libre {d}', uk: 'вільний {d}', ro: 'liber {d}', kk: '{d} бос' },
   'needsLoad.onLoad': { ru: 'везёт груз', en: 'on a load', es: 'lleva carga', uk: 'везе вантаж', ro: 'are cursă', kk: 'жүк тасып жүр' },
   'needsLoad.never': { ru: 'ни одного рейса', en: 'never ran', es: 'ningún viaje', uk: 'жодного рейсу', ro: 'niciun drum', kk: 'бірде-бір рейс жоқ' },
   'needsLoad.noPlace': { ru: 'нет данных GPS', en: 'no GPS data', es: 'sin datos de GPS', uk: 'немає даних GPS', ro: 'fără date GPS', kk: 'GPS дерегі жоқ' },
-  'needsLoad.repair': { ru: 'в ремонте', en: 'in repair', es: 'en el taller', uk: 'у ремонті', ro: 'în service', kk: 'жөндеуде' },
-  'needsLoad.vacation': { ru: 'в отпуске', en: 'on vacation', es: 'de vacaciones', uk: 'у відпустці', ro: 'în concediu', kk: 'демалыста' },
-  'needsLoad.home': { ru: 'дома до {date}', en: 'home until {date}', es: 'en casa hasta {date}', uk: 'вдома до {date}', ro: 'acasă până pe {date}', kk: '{date} дейін үйде' },
   'needsLoad.market': {
     ru: 'рынок {heat}',
     en: '{heat} market',
@@ -158,33 +172,7 @@ export const overviewDict = {
   'needsLoad.heatHot': { ru: 'горячий', en: 'hot', es: 'caliente', uk: 'гарячий', ro: 'fierbinte', kk: 'қызу' },
   'needsLoad.heatWarm': { ru: 'обычный', en: 'normal', es: 'normal', uk: 'звичайний', ro: 'normal', kk: 'қалыпты' },
   'needsLoad.heatCold': { ru: 'холодный', en: 'cold', es: 'frío', uk: 'холодний', ro: 'rece', kk: 'салқын' },
-  'overview.fleetHeading': { ru: 'Парк', en: 'Fleet', es: 'Flota', uk: 'Парк', ro: 'Flotă', kk: 'Парк' },
-  'overview.fleetInfo': {
-    ru: 'Все траки с живыми данными: где сейчас трак и сколько он заработал за неделю. Кружок слева — статус движения по GPS: зелёный едет, синий on-duty, серый стоит. Нажми на трак — вся его карточка.',
-    en: "Every truck with live data: where it is now and what it earned this week. The dot on the left is GPS movement status: green is driving, blue is on-duty, gray is stopped. Click a truck for its full card.",
-    es: 'Todos los camiones con datos en vivo: dónde está cada uno y cuánto ganó esta semana. El círculo de la izquierda es el estado de movimiento por GPS: verde en marcha, azul on-duty, gris parado. Pulsa un camión para ver su ficha entera.',
-    uk: 'Усі траки з живими даними: де зараз трак і скільки він заробив за тиждень. Кружок зліва — статус руху за GPS: зелений їде, синій on-duty, сірий стоїть. Натисни на трак — уся його картка.',
-    ro: 'Toate camioanele cu date live: unde e fiecare acum și cât a câștigat săptămâna asta. Cerculețul din stânga e starea de mișcare după GPS: verde merge, albastru on-duty, gri oprit. Apasă pe un camion pentru fișa lui completă.',
-    kk: 'Тірі деректері бар барлық тракт: тракт қазір қайда және апта ішінде қанша тапты. Сол жақтағы дөңгелек — GPS бойынша қозғалыс күйі: жасыл жүріп келеді, көк on-duty, сұр тұр. Трактты бассаңыз — оның толық картасы.',
-  },
-  'overview.trackingLink': { ru: 'Весь парк →', en: 'Whole fleet →', es: 'Toda la flota →', uk: 'Увесь парк →', ro: 'Toată flota →', kk: 'Бүкіл парк →' },
-  'overview.repair': { ru: '🔧 ремонт', en: '🔧 repair', es: '🔧 taller', uk: '🔧 ремонт', ro: '🔧 service', kk: '🔧 жөндеу' },
-  'overview.onVacation': { ru: '🌴 отпуск', en: '🌴 vacation', es: '🌴 vacaciones', uk: '🌴 відпустка', ro: '🌴 concediu', kk: '🌴 демалыс' },
-  'overview.trailer': { ru: 'Трейлер {n} · ', en: 'Trailer {n} · ', es: 'Remolque {n} · ', uk: 'Трейлер {n} · ', ro: 'Remorcă {n} · ', kk: 'Тіркеме {n} · ' },
-  'overview.noEldData': { ru: 'Нет данных с ELD', en: 'No data from ELD', es: 'Sin datos del ELD', uk: 'Немає даних з ELD', ro: 'Fără date de la ELD', kk: 'ELD дерегі жоқ' },
-  'overview.perWeek': { ru: 'за неделю', en: 'per week', es: 'por semana', uk: 'за тиждень', ro: 'pe săptămână', kk: 'аптасына' },
-  'overview.perWeekInfo': {
-    ru: 'Гросс этого трака за расчётную неделю (пятница–пятница) — по дате погрузки. Рядом Rate per mile: гросс ÷ все мили (гружёные + порожние).',
-    en: "This truck's gross for the pay week (Friday to Friday), by pickup date. Next to it, rate per mile: gross ÷ all miles (loaded + deadhead).",
-    es: 'Bruto de este camión en la semana de pago (viernes a viernes), por fecha de carga. Al lado, rate per mile: bruto ÷ todas las millas (cargadas + en vacío).',
-    uk: 'Гросс цього трака за розрахунковий тиждень (пʼятниця–пʼятниця) — за датою завантаження. Поруч Rate per mile: гросс ÷ усі милі (гружені + порожні).',
-    ro: 'Brutul acestui camion în săptămâna de plată (vineri–vineri), după data încărcării. Alături, rate per mile: brut ÷ toate milele (încărcate + goale).',
-    kk: 'Осы тракттың есеп аптасындағы (жұма–жұма) гроссы — тиеу күні бойынша. Қасында Rate per mile: гросс ÷ барлық миль (жүкті + бос).',
-  },
-  'overview.toDelivery': { ru: 'До выгрузки · ', en: 'To delivery · ', es: 'Hasta la descarga · ', uk: 'До вивантаження · ', ro: 'Până la descărcare · ', kk: 'Түсіруге дейін · ' },
 
-  'overview.recentLoads': { ru: 'Последние грузы', en: 'Recent loads', es: 'Últimas cargas', uk: 'Останні вантажі', ro: 'Ultimele curse', kk: 'Соңғы жүктер' },
-  'overview.net': { ru: 'чистыми', en: 'net', es: 'neto', uk: 'чистими', ro: 'net', kk: 'таза' },
 
   'overview.noLoadsYet': { ru: 'Грузов пока нет', en: 'No loads yet', es: 'Aún no hay cargas', uk: 'Вантажів поки немає', ro: 'Încă nu sunt curse', kk: 'Әзірге жүк жоқ' },
   'overview.noLoadsBody': {
@@ -197,10 +185,6 @@ export const overviewDict = {
   },
   'overview.rateCon': { ru: 'Rate con', en: 'Rate con', es: 'Rate con', uk: 'Rate con', ro: 'Rate con', kk: 'Rate con' },
 
-  'overview.driveDot.noEld': { ru: 'Нет данных с ELD', en: 'No data from ELD', es: 'Sin datos del ELD', uk: 'Немає даних з ELD', ro: 'Fără date de la ELD', kk: 'ELD дерегі жоқ' },
-  'overview.driveDot.moving': { ru: 'В движении', en: 'Moving', es: 'En movimiento', uk: 'У русі', ro: 'În mișcare', kk: 'Қозғалыста' },
-  'overview.driveDot.onDuty': { ru: 'На месте (on duty)', en: 'Stopped (on duty)', es: 'Parado (on duty)', uk: 'На місці (on duty)', ro: 'Oprit (on duty)', kk: 'Орнында (on duty)' },
-  'overview.driveDot.stopped': { ru: 'Стоит', en: 'Stopped', es: 'Parado', uk: 'Стоїть', ro: 'Oprit', kk: 'Тұр' },
   // Сетка переставляемых плиток (components/widget-grid.tsx): режим включает и
   // выключает сам пользователь, на каждой странице свой.
   'grid.rearrange': { ru: 'Переставить', en: 'Rearrange', es: 'Reordenar', uk: 'Переставити', ro: 'Rearanjează', kk: 'Қайта реттеу' },

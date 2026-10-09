@@ -11,6 +11,7 @@ import {
 } from './map.ts'
 import type { DocMeta, DocLibRow } from './docs.ts'
 import type { CompanyId } from './company.ts'
+import type { StopEv } from './stops.ts'
 
 // Every function below takes companyId ('default' = the real fleet, 'demo' = the
 // public sandbox — lib/demo.ts) and filters by it directly, rather than trusting
@@ -243,6 +244,42 @@ export async function rateConByLoad(companyId: CompanyId): Promise<Map<number, n
   /* eslint-disable @typescript-eslint/no-explicit-any */
   return new Map(rows.map((r: any) => [r.load_id as number, r.id as number]))
 }
+
+/** Бумаги, по которым судят «чего не хватает» и «пора выставлять счёт»: последний Rate
+ *  Con каждого груза (id документа) и грузы с КОНЕЧНЫМ POD (stop_seq IS NULL) — те же
+ *  условия, по которым lib/invoice.ts выставляет счёт. Нужны «Грузам» и ленте «Сегодня». */
+export const loadPapers = cache(async function loadPapers(
+  companyId: CompanyId,
+): Promise<{ rateCons: Map<number, number>; pods: Set<number> }> {
+  const docs = (await sql`
+    SELECT id, load_id, kind, stop_seq FROM documents
+    WHERE company_id = ${companyId} AND load_id IS NOT NULL AND deleted_at IS NULL AND kind IN ('ratecon', 'pod')
+    ORDER BY uploaded_at DESC`) as { id: number; load_id: number; kind: string; stop_seq: number | null }[]
+  const rateCons = new Map<number, number>()
+  const pods = new Set<number>()
+  for (const doc of docs) {
+    if (doc.kind === 'ratecon' && !rateCons.has(doc.load_id)) rateCons.set(doc.load_id, doc.id)
+    if (doc.kind === 'pod' && doc.stop_seq == null) pods.add(doc.load_id)
+  }
+  return { rateCons, pods }
+})
+
+/** Отметки водителя («приехал», «загрузился»…) по открытым грузам, по грузу — по ним
+ *  ищут ближайшую остановку и опоздание. */
+export const openStopMarks = cache(async function openStopMarks(companyId: CompanyId): Promise<Map<number, StopEv[]>> {
+  const events = (await sql`
+    SELECT e.load_id, e.kind, e.at, e.stop_seq FROM load_events e
+    JOIN loads l ON l.id = e.load_id AND l.company_id = e.company_id
+    WHERE e.company_id = ${companyId} AND l.status IN ('booked', 'in_transit')
+    ORDER BY e.at ASC`) as { load_id: number; kind: string; at: unknown; stop_seq: number | null }[]
+  const marks = new Map<number, StopEv[]>()
+  for (const e of events) {
+    const list = marks.get(e.load_id) ?? []
+    list.push({ kind: e.kind, at: String(e.at), stopSeq: e.stop_seq })
+    marks.set(e.load_id, list)
+  }
+  return marks
+})
 
 /** The truck's current live load — newest not-yet-paid/cancelled. For Telegram intake
  * (always companyId 'default' — see lib/tg-intake.ts). */

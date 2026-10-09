@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/button'
+import { PageHeader } from '@/components/page-header'
 import { FuelPriceButton } from '@/components/fuel-price-button'
 import { Suspense } from 'react'
 import { EldLinks } from '@/components/eld-links'
@@ -124,9 +125,11 @@ export default async function Page() {
       // watches — not net. Scoped to this calendar week (Mon–Mon).
       // This week's gross = loads the truck actually RAN this week (pickup date,
       // Monday→Monday), not loads entered this week. The whole point of the fix.
+      // Заявки (не подтверждены) в гросс не входят — как на «Сегодня», «Грузах» и в «Деньгах»:
+      // иначе «Гросс недели» на разных страницах был разной цифрой.
       const weekLoads = live.filter((l) => {
         const ms = loadWeekAnchorMs(l.pickupDate, l.createdAt)
-        return ms >= weekBegin && ms < weekEnd
+        return l.status !== 'quoted' && ms >= weekBegin && ms < weekEnd
       })
       const weekGross = weekLoads.reduce((s, l) => s + l.rate, 0)
       // Мили тех же грузов — из них Rate per mile недели рядом с гроссом.
@@ -174,29 +177,31 @@ export default async function Page() {
   )
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      {/* Телефон: заголовок с цифрами на всю ширину, кнопки строкой под ним. В одну
-          строку длинная «Обновить цену топлива всем тракам» уезжала за край экрана и
-          зажимала заголовок в колонку шириной в слово. */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold tracking-tight">{t(locale, 'trucks.page.title')}</h1>
-          {/* Цифры парка ушли из этой строки в плитки над картой — их двигают и
-              уменьшают, как всё остальное. Здесь остался владелец: это не число. */}
-          {company.owner && (
-            <p className="text-base text-t2">
-              {t(locale, 'trucks.page.ownerPrefix').trim()}{' '}
-              <span className="font-medium text-t1">{company.owner}</span>
-            </p>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
-          {trucks.length > 0 && <FuelPriceButton truckId={null} locale={locale} size="md" />}
-          <Button href="/trucks/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
-            {t(locale, 'trucks.page.addTruck')}
-          </Button>
-        </div>
-      </div>
+    <main className="page">
+      {/* Цифры парка ушли из шапки в плитки над картой — их двигают и уменьшают, как
+          всё остальное. В подписи остался владелец: это не число. */}
+      <PageHeader
+        title={t(locale, 'trucks.page.title')}
+        subtitle={
+          <>
+            {t(locale, 'trucks.page.subtitle')}
+            {company.owner && (
+              <>
+                {' · '}
+                {t(locale, 'trucks.page.ownerPrefix').trim()} <span className="font-medium text-t1">{company.owner}</span>
+              </>
+            )}
+          </>
+        }
+        actions={
+          <>
+            {trucks.length > 0 && <FuelPriceButton truckId={null} locale={locale} size="md" />}
+            <Button href="/trucks/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
+              {t(locale, 'trucks.page.addTruck')}
+            </Button>
+          </>
+        }
+      />
 
       {/* Вторая половина строки списка: деньги за неделю, число грузов и ближайший
           к истечению документ. Раньше ради них под списком стояла ВТОРАЯ сетка

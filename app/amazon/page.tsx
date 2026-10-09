@@ -2,7 +2,7 @@ import { Package } from 'lucide-react'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
 import { CountTile } from '@/components/count-tile'
 import { Empty } from '@/components/empty'
-import { Info } from '@/components/info'
+import { PageHeader } from '@/components/page-header'
 import { tileGrid } from '@/lib/tiles'
 import { AMAZON_TILES } from '@/lib/tiles-core'
 import { listTrucks } from '@/lib/loads'
@@ -176,19 +176,21 @@ export default async function AmazonPage() {
   const grid = await tileGrid('amazon', AMAZON_TILES, locale)
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
-        {t(locale, 'amazon.title')}
-        <Info text={t(locale, 'amazon.info')} />
-        {/* Ссылка к урокам сверху: плитку уроков можно утащить вниз, а найти её надо сразу. */}
-        <a
-          href="#amazon-lessons"
-          className="ml-auto inline-flex min-h-9 items-center rounded-lg border border-white/12 px-2.5 text-sm font-semibold text-haul-300 hover:border-haul-500/50 max-md:min-h-11"
-        >
-          📚 {t(locale, 'amazon.lessonsShort')}
-        </a>
-      </h1>
-      <p className="mb-5 text-base text-t2">{t(locale, 'amazon.subtitle')}</p>
+    <main className="page">
+      <PageHeader
+        title={t(locale, 'amazon.title')}
+        info={t(locale, 'amazon.info')}
+        subtitle={t(locale, 'amazon.subtitle')}
+        actions={
+          // Ссылка к урокам сверху: плитку уроков можно утащить вниз, а найти её надо сразу.
+          <a
+            href="#amazon-lessons"
+            className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/12 px-3 text-sm font-semibold text-haul-300 hover:border-haul-500/50"
+          >
+            📚 {t(locale, 'amazon.lessonsShort')}
+          </a>
+        }
+      />
       <WidgetGrid {...grid} widgets={widgets} />
     </main>
   )

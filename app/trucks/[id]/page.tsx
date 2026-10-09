@@ -159,9 +159,10 @@ export default async function Page({
   const { start: weekBegin, end: weekEnd } = weekBounds()
   // Same anchoring as the trucks list: this week's rows are the loads RUN this week
   // (pickup date, Monday→Monday), so week gross/net/RPM all describe the same 7 days.
+  // Заявки (не подтверждены) в неделю не входят — как на «Сегодня», «Грузах» и в «Деньгах».
   const weekRows = rows.filter((x) => {
     const ms = loadWeekAnchorMs(x.load.pickupDate, x.load.createdAt)
-    return ms >= weekBegin && ms < weekEnd
+    return x.load.status !== 'quoted' && ms >= weekBegin && ms < weekEnd
   })
   const weekGross = weekRows.reduce((s, x) => s + x.load.rate, 0)
   const weekMiles = weekRows.reduce((s, x) => s + x.r.totalMiles, 0)
@@ -1047,7 +1048,7 @@ export default async function Page({
   const grid = await tileGrid('truck-detail', TRUCK_DETAIL_TILES, locale, migrateTruckDriverCard)
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-10">
+    <main className="page">
       <BackButton href="/trucks" label={t(locale, 'trucks.detail.backAll')} />
       <PairBar
         current="truck"

@@ -57,7 +57,7 @@ export function WeekChips({
     <ChipNav
       items={weeks.map((ms) => ({
         key: String(ms),
-        href: `/docs?tab=${tab}&week=${weekDay(ms)}`,
+        href: `/money?tab=${tab}&week=${weekDay(ms)}`,
         label: ms === current ? currentLabel : weekLabel(ms, locale).replace(/ \d{4}$/, ''),
         active: ms === chosen,
       }))}

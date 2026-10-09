@@ -667,7 +667,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const grid = await tileGrid('load-detail', LOAD_DETAIL_TILES, locale, migrateLoadPapers)
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
+    <main className="page">
       <BackButton href="/loads" label={t(locale, 'loads.page.title')} />
       <PairBar
         current="load"

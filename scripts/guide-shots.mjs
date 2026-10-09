@@ -122,8 +122,8 @@ for (const locale of LOCALES) {
       [...new Set(as.map((a) => a.getAttribute('href')))].filter((h) => /^\/loads\/\d+$/.test(h)),
     )
 
-    // Обзор: плитки цифр и лента «Загрузка парка» — два соседних блока.
-    await shot('overview', '/', [block(h('overview.rateTotal')), block(h('trucks.heatmap.title'))], { wait: 1800 })
+    // «Сегодня»: цифры недели и лента «Ждёт тебя» под ними.
+    await shot('overview', '/', [block(h('today.weekGross')), block(h('today.feed.title'))], { wait: 1800, maxH: 760 })
     // Новый трак: сама форма.
     await shot('truck-new', '/trucks/new', [block(h('trucks.form.truckHeading'))], { maxH: 700 })
     // Карточка трака: шапка с машиной, плитками и текущим заданием.
@@ -138,9 +138,9 @@ for (const locale of LOCALES) {
     await shot('planner', '/trucks', [page.locator('#route-planner')], { wait: 3000, maxH: 860, scroll: true })
     // Файлы: вкладки видов документов и список.
     await shot('docs', '/docs', [page.locator('main .panel').first(), page.locator('main .panel').nth(1)], { maxH: 560 })
-    // Финансы: плитки «ждём» и список счетов.
+    // Деньги → Не оплачено: плитки «ждём» и список счетов.
     // В демо просроченных может не быть — берём плитки и первый список под ними.
-    await shot('invoices', '/invoices', [page.locator('main .grid').first(), page.locator('main details.panel').first()], { maxH: 600 })
+    await shot('invoices', '/money?tab=unpaid', [page.locator('main section').first(), page.locator('main section').nth(1)], { maxH: 600 })
     // Брокеры и склады: поиск, фильтры и оба списка — верх раздела.
     await shot('brokers', '/brokers', [page.locator('main h1').first(), page.locator('main div.grid').first()], { maxH: 620 })
     // Толлы: форма маршрута и результат под ней.

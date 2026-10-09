@@ -1,173 +1,116 @@
+// «Сегодня» — главная (до 10/09/26 «Обзор»). По плану «Порядок в TMS» здесь только то, с
+// чем работают каждый день: сверху четыре цифры недели, ниже лента «Ждёт тебя» — всё,
+// по чему нужно что-то сделать. «Загрузка парка», карточки водителей и последние грузы
+// отсюда ушли: они живут на «Траках» и «Грузах», а здесь повторяли их же, и главная
+// была длиной в три экрана.
+
 import {
+  AlarmClock,
+  Calculator,
   CalendarClock,
   DollarSign,
-  Fuel,
+  FileWarning,
+  Flag,
+  Gauge,
   MessageSquareWarning,
   Package,
-  Palmtree,
   Plus,
-  Route,
+  Receipt,
   TrendingUp,
   Truck,
   Wallet,
-  Wrench,
 } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Button } from '@/components/button'
+import { PageHeader } from '@/components/page-header'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
+import { TodayFeed, type FeedSection, type FeedTone } from '@/components/today-feed'
+import { idleMarkets, needsLoadItems, needsLoadRows } from '@/components/needs-load'
+import { Stat } from '@/components/stat'
+import { TourCard } from '@/components/tour-card'
 import { tileGrid } from '@/lib/tiles'
-import { type TilePlacement, type TileSize } from '@/lib/tiles-core'
-import { Suspense, type ReactNode } from 'react'
-import Link from 'next/link'
-import {
-  listLoads,
-  listReceivables,
-  listTrucks,
-  listUninvoicedDelivered,
-  rateConByLoad,
-} from '@/lib/loads'
-import { currentLoadsByTruck, truckLabel, type TruckRecord } from '@/lib/map'
-import { calcLoad } from '@/lib/profit'
+import type { TilePlacement, TileSize } from '@/lib/tiles-core'
+import { listLoads, listTrucks, loadPapers, openStopMarks } from '@/lib/loads'
 import { sql } from '@/lib/db'
 import { seesFleetGps } from '@/lib/company'
-import { deliveryInfo } from '@/lib/geo-routing'
-import { fleetExpiryAlerts, truckPhotoFlags, truckProfiles, truckTrailerNumbers } from '@/lib/maintenance'
+import { fleetExpiryAlerts, truckProfiles, truckTrailerNumbers } from '@/lib/maintenance'
 import { homeUntil } from '@/lib/maintenance-core'
 import { companyScope, getCurrentUser } from '@/lib/session'
 import { getLocale } from '@/lib/i18n-server'
-import { fixPlace, placeCity } from '@/lib/place'
-import { t as tr, type Locale } from '@/lib/i18n'
+import { fixPlace } from '@/lib/place'
+import { t, type Locale, type MsgKey } from '@/lib/i18n'
 import { can } from '@/lib/capabilities-server'
-import { usd, usd2, driveTime, shortName, weekBounds, loadWeekAnchorMs, usDate } from '@/lib/fmt'
-import { Rpm } from '@/components/rpm'
-import { StatusBadge } from '@/components/status'
-import { NeedsLoad } from '@/components/needs-load'
-import { NoBreakWords } from '@/components/ui'
-import { FleetHeatmap } from '@/components/fleet-heatmap'
-import { idleFleet } from '@/lib/idle-fleet'
-import { buildWorkingDays } from '@/lib/heatmap'
+import { usd, usd2 } from '@/lib/fmt'
+import { idleFleet, idleSummary } from '@/lib/idle-fleet'
+import { shiftDay, weekStartIso, weekStats } from '@/lib/loads-dashboard'
 import { todayEt } from '@/lib/payments'
-import { RateConButton } from '@/components/ratecon-button'
-import { DriverAvatar } from '@/components/driver-avatar'
-import { Info } from '@/components/info'
-import { Stat } from '@/components/stat'
-import { CopyPlace } from '@/components/copy-place'
-import { TourCard } from '@/components/tour-card'
+import { attentionQueue, overdueDays, type AttentionCategory, type AttentionEntry } from '@/lib/attention'
 import { tourSteps } from '@/lib/tour'
 
 export const dynamic = 'force-dynamic'
 
-type FS = {
-  unit: string
-  drive_status: string | null
-  location: string | null
-  lat: number | null
-  lng: number | null
-  fuel: number | null
+type FS = { unit: string; location: string | null; lat: number | null; lng: number | null }
+
+const ICON = { size: 15, strokeWidth: 2.5 }
+
+/** Разделы ленты про грузы: заголовок, цвет и значок. */
+const SECTION: Record<AttentionCategory, { title: MsgKey; tone: FeedTone; icon: ReactNode; info?: MsgKey }> = {
+  late: { title: 'today.sec.late', tone: 'bad', icon: <AlarmClock {...ICON} /> },
+  priority: { title: 'loads.priority.label', tone: 'warn', icon: <Flag {...ICON} /> },
+  broker: { title: 'today.sec.broker', tone: 'haul', icon: <MessageSquareWarning {...ICON} />, info: 'overview.brokerUnreadInfo' },
+  documents: { title: 'loads.dash.missingDocs', tone: 'warn', icon: <FileWarning {...ICON} /> },
+  ready: { title: 'loads.filter.ready', tone: 'good', icon: <Receipt {...ICON} /> },
+  overdue: { title: 'loads.dash.overdue', tone: 'bad', icon: <Wallet {...ICON} /> },
+  checks: { title: 'loads.dash.checks', tone: 'warn', icon: <Calculator {...ICON} /> },
 }
 
-// HOS isn't connected (Live Share gives GPS only), so the dot shows the LIVE drive
-// status instead of stale hours: rolling = green, on-duty = blue, else muted.
-function driveDot(s: string | null): string {
-  if (!s) return 'bg-white/20'
-  if (/mi\/h|^d$/i.test(s)) return 'bg-good-500'
-  if (/^on$/i.test(s)) return 'bg-haul-500'
-  return 'bg-white/30'
-}
-
-function driveDotTitle(s: string | null, locale: Locale): string {
-  if (!s) return tr(locale, 'overview.driveDot.noEld')
-  if (/mi\/h|^d$/i.test(s)) return tr(locale, 'overview.driveDot.moving')
-  if (/^on$/i.test(s)) return tr(locale, 'overview.driveDot.onDuty')
-  return tr(locale, 'overview.driveDot.stopped')
-}
+/** «3 окт» — как подпись недели на «Грузах». */
+const dayLabel = (day: string, locale: Locale) =>
+  new Date(`${day}T12:00:00`).toLocaleDateString(locale, { month: 'short', day: 'numeric' })
 
 export default async function Page() {
   const companyId = await companyScope()
   const locale = await getLocale()
   const user = await getCurrentUser()
-  const showFinances = await can(user, 'finances')
-  const [loads, trucks, fleetRaw, alerts, rateCons, photoIds, trailers, receivables, uninvoiced, profiles] =
-    await Promise.all([
-      listLoads(companyId),
-      listTrucks(companyId),
-      seesFleetGps(companyId) ? sql`SELECT unit, drive_status, location, lat, lng, fuel FROM fleet_status` : Promise.resolve([]),
-      // Без локали функция подставляла 'en' по умолчанию, и подписи о сроках
-      // документов на главной были английскими при русском интерфейсе.
-      fleetExpiryAlerts(companyId, locale),
-      rateConByLoad(companyId),
-      truckPhotoFlags(companyId),
-      truckTrailerNumbers(companyId),
-      // Only fetched when actually shown below — a dispatcher without the finances
-      // capability shouldn't see money figures even loaded, not just hidden by CSS.
-      showFinances ? listReceivables(companyId) : Promise.resolve([]),
-      showFinances ? listUninvoicedDelivered(companyId) : Promise.resolve([]),
-      truckProfiles(companyId),
-    ])
+  // Деньги (кто сколько должен) — только с правом «Финансы»: без него их даже не считаем.
+  const money = await can(user, 'finances')
+  const [loads, trucks, fleetRaw, alerts, { rateCons, pods }, marks, trailers, profiles] = await Promise.all([
+    listLoads(companyId),
+    listTrucks(companyId),
+    seesFleetGps(companyId) ? sql`SELECT unit, location, lat, lng FROM fleet_status` : Promise.resolve([]),
+    fleetExpiryAlerts(companyId, locale),
+    loadPapers(companyId),
+    openStopMarks(companyId),
+    truckTrailerNumbers(companyId),
+    truckProfiles(companyId),
+  ])
+  const now = Date.now()
+  const today = todayEt()
+
+  // Где стоит каждый трак. Строка места приходит из ELD с чужим штатом (lib/place.ts) —
+  // правим сразу на входе.
+  const byUnit = new Map((fleetRaw as FS[]).map((r) => [r.unit, fixPlace(r.location, r.lat, r.lng)]))
+  const placeByTruck = new Map<number, string | null>(trucks.map((tr) => [tr.id, (tr.number ? byUnit.get(tr.number) : null) ?? null]))
   // Кто дома до какого числа (профиль водителя) — «Кому искать груз» их не считает.
-  const homeByTruck = new Map([...profiles].map(([id, p]) => [id, homeUntil(p, todayEt())]))
-  // Строка места приходит из ELD с чужим штатом (см. lib/place.ts) — правим сразу
-  // на входе, чтобы ни одна карточка ниже не показала «CA» для трака в Неваде.
-  const fleet = (fleetRaw as FS[]).map((r) => ({ ...r, location: fixPlace(r.location, r.lat, r.lng) }))
-  const byId = new Map<number, TruckRecord>(trucks.map((t) => [t.id, t]))
-  const byUnit = new Map(fleet.map((f) => [f.unit, f]))
-  const fallback = trucks[0]
-  // Где стоит каждый трак — для карты «Кому искать груз». Позиции уже в руках,
-  // это разворот той же fleet_status по id трака вместо номера юнита.
-  const placeByTruck = new Map<number, string | null>(
-    trucks.map((t) => [t.id, (t.number ? byUnit.get(t.number)?.location : null) ?? null]),
-  )
-
-  // Each load is costed against its own truck, then summed across the fleet.
+  const homeByTruck = new Map([...profiles].map(([id, p]) => [id, homeUntil(p, today)]))
   const live = loads.filter((l) => l.status !== 'cancelled')
+  const idle = idleFleet(trucks, live, placeByTruck, now, homeByTruck)
+  const { freeCount, burnPerDay } = idleSummary(idle)
 
-  // Was a currentLoadForTruck() query PER TRUCK, on top of the listLoads() above that
-  // had already fetched every one of them. Same answer, N fewer round trips.
-  const currentByTruck = currentLoadsByTruck(live)
-  const rows = live.flatMap((load) => {
-    const truck = (load.truckId !== null ? byId.get(load.truckId) : undefined) ?? fallback
-    return truck ? [{ load, truck, r: calcLoad(load, truck) }] : []
-  })
-  const totalGross = rows.reduce((s, x) => s + x.r.gross, 0)
-  const totalMiles = rows.reduce((s, x) => s + x.r.totalMiles, 0)
-  const avgRpm = totalMiles > 0 ? rows.reduce((s, x) => s + x.r.gross, 0) / totalMiles : 0
+  // Неделя — та же, что на «Грузах»: подтверждённые грузы с пикапом на этой расчётной неделе.
+  const weekFrom = weekStartIso(today)
+  const week = weekStats(loads, trucks, weekFrom)
+  const weekMiles = week.rows.reduce((s, l) => s + l.loadedMiles + l.deadheadMiles, 0)
   const active = live.filter((l) => l.status === 'booked' || l.status === 'in_transit').length
-  // Trucks with nothing booked/in_transit right now — free to take a load. A truck
-  // manually flagged в ремонте/отпуск isn't free either, whatever its load list says.
-  const busyTruckIds = new Set(
-    live.filter((l) => (l.status === 'booked' || l.status === 'in_transit') && l.truckId != null).map((l) => l.truckId),
-  )
-  const freeTrucks = trucks.filter((t) => !busyTruckIds.has(t.id) && !t.unavailable).length
 
-  // Гросс и мили каждого трака за расчётную неделю (пятница–пятница) — по дате
-  // погрузки, как на «Траках» и в «Деньги → Водители»: раньше здесь считалось по дате
-  // внесения груза, и один трак на двух экранах показывал разные суммы.
-  const { start: weekBegin, end: weekEnd } = weekBounds()
-  const weekByTruck = new Map<number, { gross: number; miles: number }>()
-  for (const l of live) {
-    if (l.truckId == null) continue
-    const ms = loadWeekAnchorMs(l.pickupDate, l.createdAt)
-    if (ms < weekBegin || ms >= weekEnd) continue
-    const w = weekByTruck.get(l.truckId) ?? { gross: 0, miles: 0 }
-    w.gross += l.rate
-    w.miles += l.loadedMiles + l.deadheadMiles
-    weekByTruck.set(l.truckId, w)
-  }
+  // Ждём оплаты — то же, что «Деньги → Не оплачено», одной цифрой: выставленные и не
+  // оплаченные счета плюс доставленные грузы без счёта.
+  const unpaid = money ? loads.filter((l) => (l.invoicedAt && !l.paidAt) || (l.status === 'delivered' && !l.invoicedAt)) : []
+  const unpaidTotal = unpaid.reduce((s, l) => s + l.rate, 0)
+  const overdueTotal = unpaid.filter((l) => overdueDays(l, now) != null).reduce((s, l) => s + l.rate, 0)
 
-  // Ждём оплаты: everything invoiced-but-unpaid, plus delivered loads with no
-  // invoice yet at all — same two buckets the Финансы page's "Не оплачено" tab uses,
-  // just summed to one figure for the dashboard.
-  const unpaidTotal = receivables.reduce((s, r) => s + r.load.rate, 0) + uninvoiced.reduce((s, l) => s + l.rate, 0)
-  const overdue = receivables.filter((r) => r.overdue)
-  const overdueTotal = overdue.reduce((s, r) => s + r.load.rate, 0)
-
-  // Важное от брокера, ещё не прочитанное — the same "must-read" flag BrokerNotes
-  // highlights on the load page, surfaced here so it can't get missed by never
-  // opening that particular load.
-  const unreadNotes = live.filter((l) => l.brokerNotes && !l.notesReadAt)
-
-  // Плитки раздела. Порядок и размеры ОБЩИЕ для всей компании и лежат в настройках
-  // (lib/tiles.ts), поэтому здесь задаётся только исходная раскладка — та, с которой
-  // раздел живёт, пока никто ничего не переставил.
+  // Плитки. Порядок и размеры общие для компании (lib/tiles.ts); здесь — исходная
+  // раскладка, пока никто ничего не переставил. Ключ раздела прежний — 'overview'.
   const widgets: Widget[] = []
   const defaults: TilePlacement[] = []
   const add = (id: string, size: TileSize, node: ReactNode) => {
@@ -175,421 +118,172 @@ export default async function Page() {
     defaults.push({ id, size })
   }
 
-  if (alerts.length > 0)
-    add(
-      'docs-due',
-      'l',
-      <div className="flex h-full gap-2.5 rounded-xl border border-warn-400/25 bg-warn-400/[0.07] px-3.5 py-2.5">
-        {/* A coloured rule down the left edge plus an icon chip: at a glance this is
-            now recognisably a WARNING block rather than one more card of text. */}
-        <span className="mt-px flex size-6 shrink-0 items-center justify-center rounded-md bg-warn-400/15 text-warn-400 ring-1 ring-warn-400/25">
-          <CalendarClock size={15} strokeWidth={2.5} />
-        </span>
-        <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1.5 text-base leading-6 font-semibold text-warn-400">
-          {tr(locale, 'overview.docDeadlines')}
-          <Info text={tr(locale, 'overview.docDeadlinesInfo')} />
-        </p>
-        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-base">
-          {alerts.slice(0, 6).map((a) => (
-            <Link
-              key={`${a.truckId}-${a.item.label}`}
-              href={`/trucks/${a.truckId}#care`}
-              className="text-t1 hover:underline"
-            >
-              <span className="text-t3">#{a.number}</span> {a.item.label} —{' '}
-              <span className={a.item.tone === 'bad' ? 'text-bad-400' : 'text-warn-400'}>
-                {a.item.daysLeft < 0 ? tr(locale, 'overview.overdue') : tr(locale, 'overview.daysLeft').replace('{n}', String(a.item.daysLeft))}
-              </span>
-            </Link>
-          ))}
-        </div>
-        </div>
-      </div>,
-    )
-
-  if (unreadNotes.length > 0)
-    add(
-      'broker-unread',
-      'w',
-      <div className="flex h-full gap-2.5 rounded-xl border border-haul-400/25 bg-haul-500/[0.09] px-3.5 py-2.5">
-        <span className="mt-px flex size-6 shrink-0 items-center justify-center rounded-md bg-haul-500/20 text-haul-300 ring-1 ring-haul-400/25">
-          <MessageSquareWarning size={15} strokeWidth={2.5} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 text-base leading-6 font-semibold text-haul-300">
-            {tr(locale, 'overview.brokerUnread')}
-            <Info text={tr(locale, 'overview.brokerUnreadInfo')} />
-          </p>
-          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-base">
-            {unreadNotes.slice(0, 6).map((l) => (
-              <Link key={l.id} href={`/loads/${l.id}`} className="text-t1 hover:underline">
-                {l.origin ?? '—'} → {l.destination ?? '—'}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>,
-    )
-
-  // Число траков — своя плитка, а не строка под заголовком: нажимается и ведёт в парк.
-  if (trucks.length > 0)
-    add(
-      'trucks',
-      's',
-      <Stat
-        surface="panel"
-        compact
-        href="/trucks"
-        icon={<Truck size={15} strokeWidth={2.5} />}
-        accent="haul"
-        label={tr(locale, 'nav.trucks')}
-        value={String(trucks.length)}
-        info={tr(locale, 'overview.truckCount').replace('{n}', String(trucks.length))}
-      />,
-    )
-
-  // Деньги, которых ждут, — двумя маленькими плитками вместо одного баннера на
-  // пол-строки: «сколько ждём» и «сколько уже просрочено» — разные числа, и второе
-  // важнее первого. Просроченное показываем, только когда оно есть.
-  if (showFinances && unpaidTotal > 0) {
+  add(
+    'gross',
+    's',
+    <Stat
+      surface="panel"
+      hero
+      href="/loads"
+      icon={<DollarSign {...ICON} />}
+      accent="haul"
+      label={t(locale, 'today.weekGross')}
+      value={usd.format(week.gross)}
+      sub={`${dayLabel(weekFrom, locale)} – ${dayLabel(shiftDay(weekFrom, 6), locale)}`}
+      info={t(locale, 'today.weekGrossInfo')}
+    />,
+  )
+  add(
+    'rpm',
+    's',
+    <Stat
+      surface="panel"
+      href="/loads"
+      icon={<TrendingUp {...ICON} />}
+      accent="good"
+      label={t(locale, 'overview.rpm')}
+      value={week.rpm == null ? '—' : `${usd2.format(week.rpm)}/mi`}
+      sub={`${Math.round(weekMiles).toLocaleString('en-US')} mi`}
+      info={t(locale, 'today.rpmInfo')}
+    />,
+  )
+  add(
+    'active',
+    's',
+    <Stat
+      surface="panel"
+      href="/loads"
+      icon={<Package {...ICON} />}
+      accent="warn"
+      label={t(locale, 'overview.inWork')}
+      value={String(active)}
+      sub={trucks.length > 0 ? t(locale, 'overview.inWorkSub').replace('{n}', String(freeCount)) : undefined}
+      subTone={freeCount > 0 ? 'good' : undefined}
+      info={t(locale, 'overview.inWorkInfo')}
+    />,
+  )
+  if (money)
     add(
       'unpaid',
       's',
       <Stat
         surface="panel"
-        compact
-        href="/docs?tab=unpaid"
-        icon={<Wallet size={15} strokeWidth={2.5} />}
+        href="/money?tab=unpaid"
+        icon={<Wallet {...ICON} />}
         accent={overdueTotal > 0 ? 'bad' : 'haul'}
-        label={tr(locale, 'overview.awaitingPayment')}
+        label={t(locale, 'overview.awaitingPayment')}
         value={usd.format(unpaidTotal)}
-        info={tr(locale, 'overview.awaitingPaymentInfo')}
+        sub={overdueTotal > 0 ? `${t(locale, 'overview.ofWhichOverdue')} ${usd.format(overdueTotal)}` : undefined}
+        subTone="bad"
+        info={t(locale, 'overview.awaitingPaymentInfo')}
       />,
     )
-    if (overdueTotal > 0)
-      add(
-        'overdue',
-        's',
-        <Stat
-          surface="panel"
-          compact
-          href="/docs?tab=unpaid"
-          icon={<Wallet size={15} strokeWidth={2.5} />}
-          accent="bad"
-          tone="bad"
-          label={tr(locale, 'overview.ofWhichOverdue')}
-          value={usd.format(overdueTotal)}
-          sub={tr(locale, 'loads.page.countSuffix').replace('{n}', String(overdue.length))}
-          subTone="bad"
-          info={tr(locale, 'overview.awaitingPaymentInfo')}
-        />,
-      )
-  }
+  // Без права «Финансы» четвёртой цифрой — занятость парка: денег не видно, а ряд целый.
+  else
+    add(
+      'utilization',
+      's',
+      <Stat
+        surface="panel"
+        href="/loads"
+        icon={<Gauge {...ICON} />}
+        accent="haul"
+        label={t(locale, 'loads.dash.utilization')}
+        value={week.utilization == null ? '—' : `${Math.round(week.utilization)}%`}
+        sub={`${week.occupied} / ${week.capacity} ${t(locale, 'loads.dash.truckDays')}`}
+        info={t(locale, 'today.utilizationInfo')}
+      />,
+    )
 
-  if (loads.length > 0) {
+  // Новая компания без единого груза: вместо пустых нулей — с чего начать.
+  if (loads.length === 0)
     add(
-      'gross',
-      's',
-        <Stat
-              surface="panel"
-          href="/loads"
-          hero
-          icon={<DollarSign size={15} strokeWidth={2.5} />}
-          accent="haul"
-          label={tr(locale, 'overview.rateTotal')}
-          value={usd.format(totalGross)}
-          info={tr(locale, 'overview.rateTotalInfo')}
-        />,
-    )
-    add(
-      'rpm',
-      's',
-        <Stat
-              surface="panel"
-          href="/trucks"
-          icon={<TrendingUp size={15} strokeWidth={2.5} />}
-          accent="good"
-          label={tr(locale, 'overview.rpm')}
-          value={`${usd2.format(avgRpm)}/mi`}
-          info={tr(locale, 'overview.rpmInfo')}
-        />,
-    )
-    add(
-      'active',
-      's',
-        <Stat
-              surface="panel"
-          href="/loads"
-          icon={<Package size={15} strokeWidth={2.5} />}
-          accent="warn"
-          label={tr(locale, 'overview.inWork')}
-          value={String(active)}
-          sub={trucks.length > 0 ? tr(locale, 'overview.inWorkSub').replace('{n}', String(freeTrucks)) : undefined}
-          subTone={freeTrucks > 0 ? 'good' : undefined}
-          info={tr(locale, 'overview.inWorkInfo')}
-        />,
-    )
-    add(
-      'miles',
-      's',
-        <Stat
-              surface="panel"
-          href="/trucks"
-          icon={<Route size={15} strokeWidth={2.5} />}
-          accent="haul"
-          label={tr(locale, 'overview.totalMiles')}
-          value={Math.round(totalMiles).toLocaleString('en-US')}
-          info={tr(locale, 'overview.totalMilesInfo')}
-        />,
-    )
-  }
-
-  if (trucks.length > 0 && live.length > 0)
-    add(
-      'heatmap',
+      'start',
       'l',
-        <FleetHeatmap
-          today={todayEt()}
-          rows={trucks.map((t) => {
-            const cur = currentByTruck.get(t.id)
-            return {
-              id: t.id,
-              label: t.number?.trim() || t.name,
-              sub: shortName(t.driverName),
-              working: buildWorkingDays(live.filter((l) => l.truckId === t.id)),
-              // Те же два правых столбца, что и на /trucks: куда едет либо где
-              // стоит, и когда освободится. Иначе на обзоре они стояли бы пустыми.
-              place: cur
-                ? `→ ${cur.destination ?? '—'}`
-                : (placeCity((t.number ? byUnit.get(t.number)?.location : null) ?? null) ??
-                   tr(locale, 'overview.noEldData')),
-              when: t.unavailable
-                ? {
-                    text: tr(locale, t.unavailable === 'repair' ? 'overview.repair' : 'overview.onVacation'),
-                    tone: 'off' as const,
-                  }
-                : cur
-                  ? {
-                      text: cur.deliveryDate
-                        ? `${tr(locale, 'trucks.heatmap.until')} ${usDate(cur.deliveryDate.slice(0, 10))}`
-                        : tr(locale, 'trucks.heatmap.onLoad'),
-                      tone: 'busy' as const,
-                    }
-                  : { text: tr(locale, 'trucks.heatmap.free'), tone: 'free' as const },
-            }
-          })}
-        />,
+      <div className="panel h-full p-6 text-center">
+        <p className="text-md font-medium">{t(locale, 'overview.noLoadsYet')}</p>
+        <p className="mx-auto mt-1.5 max-w-sm text-base leading-relaxed text-t2">{t(locale, 'overview.noLoadsBody')}</p>
+        <div className="mt-4 flex justify-center gap-2">
+          <Button href="/loads/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
+            {t(locale, 'overview.addLoad')}
+          </Button>
+          <Button href="/loads/new" variant="secondary">
+            {t(locale, 'overview.rateCon')}
+          </Button>
+        </div>
+      </div>,
     )
 
+  // Лента «Ждёт тебя».
+  const queue = attentionQueue({ loads, trucks, rateCons, pods, marks, now, locale, money })
+  const loadSection = (c: AttentionCategory): FeedSection => ({
+    key: c,
+    title: t(locale, SECTION[c].title),
+    tone: SECTION[c].tone,
+    icon: SECTION[c].icon,
+    info: SECTION[c].info && t(locale, SECTION[c].info),
+    items: queue
+      .filter((e: AttentionEntry) => e.category === c)
+      .map((e) => ({
+        key: `${c}-${e.id}`,
+        href: `/loads/${e.id}`,
+        title: e.route,
+        detail: e.detail,
+        tone: e.bad ? 'bad' : c === 'ready' ? 'good' : undefined,
+        money: c === 'ready' || c === 'overdue',
+      })),
+  })
+  const needing = needsLoadRows(idle)
+  const truckById = new Map(trucks.map((tr) => [tr.id, tr]))
+  const sections: FeedSection[] = [
+    loadSection('late'),
+    loadSection('priority'),
+    {
+      key: 'idle',
+      title: t(locale, 'needsLoad.title'),
+      tone: 'haul',
+      icon: <Truck {...ICON} />,
+      info: t(locale, 'needsLoad.info'),
+      // Во что обходится простой всех стоящих — в сутки.
+      aside:
+        burnPerDay > 0 ? (
+          <span>
+            <span className="nums font-semibold text-warn-400">{usd.format(burnPerDay)}</span>
+            {t(locale, 'needsLoad.perDay')}
+          </span>
+        ) : undefined,
+      items: needsLoadItems({
+        rows: needing,
+        trucks: truckById,
+        trailers,
+        markets: await idleMarkets(needing, trailers),
+        locale,
+      }),
+    },
+    loadSection('broker'),
+    loadSection('documents'),
+    {
+      key: 'deadlines',
+      title: t(locale, 'overview.docDeadlines'),
+      tone: 'warn',
+      icon: <CalendarClock {...ICON} />,
+      info: t(locale, 'overview.docDeadlinesInfo'),
+      items: alerts.map((a) => ({
+        key: `due-${a.truckId}-${a.item.label}`,
+        href: `/trucks/${a.truckId}#care`,
+        title: `#${a.number} · ${a.item.label}`,
+        detail: a.item.daysLeft < 0 ? t(locale, 'overview.overdue') : t(locale, 'overview.daysLeft').replace('{n}', String(a.item.daysLeft)),
+        tone: a.item.tone === 'bad' ? 'bad' : 'warn',
+      })),
+    },
+    loadSection('ready'),
+    loadSection('overdue'),
+    loadSection('checks'),
+  ]
   add(
-    'needs-load',
+    'todo',
     'l',
-    // «Кому искать груз» — исходно под «Загрузкой парка» (просьба пользователя):
-    // сначала картина по дням, кто когда освободится, потом список, кому искать сейчас.
-    <NeedsLoad
-      rows={idleFleet(trucks, live, placeByTruck, Date.now(), homeByTruck)}
-      trucks={byId}
-      trailers={trailers}
-      locale={locale}
-    />,
-  )
-
-  add(
-    'fleet',
-    'l',
-    <div>
-      {/* Fleet at a glance — driver + last-known ELD status, straight from the trucks. */}
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
-          {tr(locale, 'overview.fleetHeading')}
-          <Info text={tr(locale, 'overview.fleetInfo')} />
-        </h2>
-        <Link href="/trucks" className="text-sm text-haul-400 hover:underline">
-          {tr(locale, 'overview.trackingLink')}
-        </Link>
-      </div>
-      <div className="stagger grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-        {trucks.map((t) => {
-          const fs = t.number ? byUnit.get(t.number) : undefined
-          const { gross: week, miles: weekMiles } = weekByTruck.get(t.id) ?? { gross: 0, miles: 0 }
-          // Where it's headed is known for free right here; how far is a routing call,
-          // so the destination paints instantly and only the mileage streams in.
-          const cur = currentByTruck.get(t.id)
-          const dest =
-            fs?.lat != null && fs.lng != null && cur?.destination
-              ? { lat: fs.lat, lng: fs.lng, to: cur.destination }
-              : null
-          return (
-            <Link
-              key={t.id}
-              href={`/trucks/${t.id}`}
-              // min-w-0: this card is a grid item (single column below `sm`) and grid
-              // items default to min-width:auto, so its own natural content width
-              // was blowing out the grid track past the viewport on narrow phones.
-              className="panel panel-interactive group flex min-w-0 flex-col gap-2 p-3"
-            >
-              <div className="flex items-center gap-3">
-                <div className="relative shrink-0">
-                  <DriverAvatar truckId={t.id} name={t.driverName} hasPhoto={photoIds.has(t.id)} size={34} />
-                  <span
-                    title={driveDotTitle(fs?.drive_status ?? null, locale)}
-                    className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-ink-900 ${driveDot(fs?.drive_status ?? null)}`}
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="min-w-0 break-words text-md font-medium leading-snug sm:text-md">
-                      <NoBreakWords text={truckLabel(t, trailers.get(t.id))} />
-                    </span>
-                    {/* Icon-only, with the words on hover. Spelled out ("🔧 в ремонте")
-                        this badge took ~55px out of the very row that holds the truck
-                        number and driver name, and those two are what the card is for
-                        — the wrench already says everything at a glance. */}
-                    {t.unavailable && (
-                      <span
-                        title={
-                          t.unavailable === 'repair'
-                            ? tr(locale, 'overview.repair')
-                            : tr(locale, 'overview.onVacation')
-                        }
-                        className="flex size-4 shrink-0 items-center justify-center rounded-full bg-warn-400/15 text-warn-400"
-                      >
-                        {t.unavailable === 'repair' ? (
-                          <Wrench size={9.5} strokeWidth={2.75} />
-                        ) : (
-                          <Palmtree size={9.5} strokeWidth={2.75} />
-                        )}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5 text-sm text-t2">
-                    {/* Прицеп уехал в подпись выше (truckLabel), здесь осталось
-                        только место — иначе номер печатался бы дважды подряд. Место
-                        копируется: с обзора его и диктуют брокеру чаще всего. */}
-                    {placeCity(fs?.location ?? null) ? (
-                      <CopyPlace
-                        text={placeCity(fs?.location ?? null)!}
-                        coords={{ lat: fs?.lat, lng: fs?.lng }}
-                        size="sm"
-                        className="min-w-0 text-sm text-t2"
-                      />
-                    ) : (
-                      <span className="min-w-0 truncate">{tr(locale, 'overview.noEldData')}</span>
-                    )}
-                    {/* Tank level rides with the location line — same glance, and it
-                        never has to compete with the week's money on the right. */}
-                    {fs?.fuel != null && (
-                      <span
-                        title={tr(locale, 'trucks.chip.fuelInfo')}
-                        className={`nums flex shrink-0 items-center gap-0.5 text-2xs font-medium ${
-                          fs.fuel <= 15
-                            ? 'text-bad-400'
-                            : fs.fuel <= 30
-                              ? 'text-warn-400'
-                              : 'text-t3'
-                        }`}
-                      >
-                        <Fuel size={10} strokeWidth={2.5} />
-                        {Math.round(fs.fuel)}%
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {/* The week's money. It briefly had a tinted plate with its own ring
-                    and padding, which read well but stole ~24px from the same row as
-                    the driver's name — enough that "DEMO-428 · Casey Brooks" started
-                    clipping on any truck that also carries a repair/vacation badge.
-                    Colour alone carries the emphasis; the box was costing more than
-                    it was worth. */}
-                <div className="min-w-0 shrink-0 text-right">
-                  <div
-                    className={`nums whitespace-nowrap text-md font-bold leading-tight ${week > 0 ? 'text-good-400' : 'text-t3'}`}
-                  >
-                    {usd.format(week)}
-                  </div>
-                  <div className="flex items-center justify-end gap-1 text-xs text-t3 font-medium">
-                    <Rpm rate={week} miles={weekMiles} className="text-t2" />
-                    {tr(locale, 'overview.perWeek')}
-                    <Info text={tr(locale, 'overview.perWeekInfo')} />
-                  </div>
-                </div>
-              </div>
-              {dest && (
-                <Suspense fallback={<DeliveryRow to={dest.to} locale={locale} />}>
-                  <DeliveryLine lat={dest.lat} lng={dest.lng} to={dest.to} locale={locale} />
-                </Suspense>
-              )}
-            </Link>
-          )
-        })}
-      </div>
-    </div>,
-  )
-
-  add(
-    'recent-loads',
-    'l',
-    <div>
-      {rows.length > 0 ? (
-        <>
-          <h2 className="mb-2 mt-4 text-base leading-6 font-semibold text-t1">
-            {tr(locale, 'overview.recentLoads')}
-          </h2>
-          <div className="flex flex-col gap-1.5">
-            {rows.slice(0, 8).map(({ load, truck, r }) => {
-              const rcId = rateCons.get(load.id)
-              return (
-                <div
-                  key={load.id}
-                  className="panel flex items-center gap-3 p-3 transition-colors hover:border-white/15"
-                >
-                  <Link href={`/loads/${load.id}`} className="flex min-w-0 flex-1 items-center gap-4">
-                    <div className="min-w-0 flex-1">
-                      {/* Route gets the whole line and wraps in full instead of truncating —
-                          the badge moved down to the details row so nothing steals its width. */}
-                      <div className="text-md font-medium leading-snug">
-                        {load.origin ?? '—'} → {load.destination ?? '—'}
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <StatusBadge status={load.status} locale={locale} />
-                        <span className="nums min-w-0 text-sm text-t2">
-                          <span className="text-t3">{truckLabel(truck)}</span> · {usd2.format(r.allInRpm)}/mi
-                        </span>
-                      </div>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <div className="nums text-lg font-bold">{usd.format(load.rate)}</div>
-                      {load.loadedMiles > 0 && (
-                        <div className="nums text-xs font-medium text-haul-300">
-                          {Math.round(load.loadedMiles).toLocaleString('en-US')} mi
-                        </div>
-                      )}
-                    </div>
-                  </Link>
-                  {rcId && <RateConButton docId={rcId} compact />}
-                </div>
-              )
-            })}
-          </div>
-        </>
-      ) : (
-        <div className="panel mt-6 p-6 text-center">
-          <p className="text-md font-medium">{tr(locale, 'overview.noLoadsYet')}</p>
-          <p className="mx-auto mt-1.5 max-w-sm text-base leading-relaxed text-t2">
-            {tr(locale, 'overview.noLoadsBody')}
-          </p>
-          <div className="mt-4 flex justify-center gap-2">
-            <Button href="/loads/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
-              {tr(locale, 'overview.addLoad')}
-            </Button>
-            <Button href="/loads/new" variant="secondary">
-              {tr(locale, 'overview.rateCon')}
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>,
+    <TodayFeed title={t(locale, 'today.feed.title')} empty={t(locale, 'today.feed.empty')} more={t(locale, 'today.feed.more')} sections={sections} />,
   )
 
   const grid = await tileGrid('overview', defaults, locale)
@@ -598,78 +292,21 @@ export default async function Page() {
   const tour = await tourSteps(user, locale).catch(() => null)
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-20 pt-6 sm:px-6 sm:pt-10">
-      {/* Число траков ушло из шапки в свою плитку: в шапке его нельзя было ни
-          подвинуть, ни нажать. */}
-      <header className="mb-4 flex items-end justify-between gap-4">
-        <h1 className="text-xl font-bold tracking-tight">{tr(locale, 'overview.title')}</h1>
-        <span className="flex shrink-0 items-center gap-1.5">
+    <main className="page">
+      <PageHeader
+        title={t(locale, 'nav.overview')}
+        info={t(locale, 'today.info')}
+        subtitle={t(locale, 'today.subtitle')}
+        actions={
           <Button href="/loads/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
-            {tr(locale, 'overview.addLoad')}
+            {t(locale, 'overview.addLoad')}
           </Button>
-          <Info side="bottom" text={tr(locale, 'overview.addLoadInfo')} />
-        </span>
-      </header>
-
-      {tour && (
-        <TourCard
-          total={tour.length}
-          done={tour.filter((s) => s.done).length}
-          persist={user?.isDemo ? 'session' : 'local'}
-        />
-      )}
-
-      <WidgetGrid
-        {...grid}
-        widgets={widgets}
+        }
       />
+
+      {tour && <TourCard total={tour.length} done={tour.filter((s) => s.done).length} persist={user?.isDemo ? 'session' : 'local'} />}
+
+      <WidgetGrid {...grid} widgets={widgets} />
     </main>
-  )
-}
-
-
-/** The "→ Ashland, VA … 220 mi · ~4h" strip on a fleet card. Rendered by both the
- * streamed result and its placeholder, so the card never changes height when the
- * mileage lands — only the figure on the right swaps in. */
-function DeliveryRow({ to, locale, figure }: { to: string; locale: Locale; figure?: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-1.5">
-      <span className="min-w-0 truncate text-xs text-t3">
-        {tr(locale, 'overview.toDelivery')}
-        <span className="text-t2">{to}</span>
-      </span>
-      <span className="nums shrink-0 text-xs font-semibold text-t1">
-        {figure ?? (
-          <span className="inline-block h-3 w-20 animate-pulse rounded bg-white/10 align-middle" />
-        )}
-      </span>
-    </div>
-  )
-}
-
-/** Road miles + drive time from the truck's live GPS to its delivery, via a free
- * external router (OSRM, no SLA). Streamed in its own Suspense boundary: the dashboard
- * previously awaited this for EVERY truck before emitting a single byte of HTML, which
- * put a third-party service squarely in the critical path of the whole page. */
-async function DeliveryLine({
-  lat,
-  lng,
-  to,
-  locale,
-}: {
-  lat: number
-  lng: number
-  to: string
-  locale: Locale
-}) {
-  const del = await deliveryInfo({ lat, lng }, to)
-  // Em-dash rather than nothing when routing can't answer — the row stays put instead
-  // of appearing and then vanishing under the reader's eye.
-  return (
-    <DeliveryRow
-      to={to}
-      locale={locale}
-      figure={del ? `${del.miles} mi · ~${driveTime(del.etaMin, locale)}` : '—'}
-    />
   )
 }
