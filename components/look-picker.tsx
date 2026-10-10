@@ -53,7 +53,7 @@ export function LookPicker() {
     if (pos) return setPos(null)
     const r = btnRef.current?.getBoundingClientRect()
     if (!r) return
-    const w = 256
+    const w = 280
     const left = Math.max(12, Math.min(r.left, window.innerWidth - w - 12))
     // Кнопка в верхней панели (телефон) — окошко вниз; внизу сайдбара — вверх.
     setPos(
