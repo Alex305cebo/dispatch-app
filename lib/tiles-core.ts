@@ -133,6 +133,16 @@ export function applyLayout(
   return out
 }
 
+/** Главная по образцу SmartHop (10/10/26): четвёртая цифра — «Ждём оплаты» или, без права
+ *  «Финансы», «Занятость парка» — стала тёмной карточкой в плитке «Деньги и траки»
+ *  ('fleet'), а рядом встали «Ждёт тебя» коротко ('actions') и «Календарь». Сохранённая
+ *  раскладка со старой цифрой уступает новой целиком, один раз — как migrateLoadOrder:
+ *  иначе applyLayout приписал бы новые карточки в самый низ, под длинный список. */
+const OVERVIEW_RETIRED = new Set(['unpaid', 'utilization'])
+export function migrateOverviewTiles(saved: TilePlacement[]): TilePlacement[] {
+  return saved.some((p) => OVERVIEW_RETIRED.has(p.id)) ? [] : saved
+}
+
 /** Раскладка раздела «Траки» по умолчанию.
  *
  *  Четыре цифры парка, карта, под ней один список траков (вкладкой рядом —

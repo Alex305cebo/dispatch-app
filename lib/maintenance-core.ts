@@ -40,9 +40,13 @@ export type TruckMeta = {
   targetRpm: number | null
 }
 
-/** Что планировщик и «Кому искать груз» знают о водителе: домашний штат, когда он дома,
- * цель недели и стоп-лист штатов. Всё необязательное — пустой профиль ничего не меняет. */
-export type DriverProfile = Pick<TruckMeta, 'homeState' | 'homeFrom' | 'homeTo' | 'weekTargetMiles' | 'weekTargetGross' | 'avoidStates'>
+/** Что планировщик, «Кому искать груз» и цели на главной знают о водителе: домашний
+ * штат, когда он дома, цели недели и по ставке, стоп-лист штатов. Всё необязательное —
+ * пустой профиль ничего не меняет. */
+export type DriverProfile = Pick<
+  TruckMeta,
+  'homeState' | 'homeFrom' | 'homeTo' | 'weekTargetMiles' | 'weekTargetGross' | 'avoidStates' | 'targetRpm'
+>
 
 export const EMPTY_PROFILE: DriverProfile = {
   homeState: null,
@@ -51,6 +55,7 @@ export const EMPTY_PROFILE: DriverProfile = {
   weekTargetMiles: null,
   weekTargetGross: null,
   avoidStates: [],
+  targetRpm: null,
 }
 
 /** «ny, ca; tx» → ['NY', 'CA', 'TX']: только двухбуквенные коды, без повторов. */

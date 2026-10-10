@@ -59,7 +59,7 @@ const metaOf = (r: any): TruckMeta => ({
 /** Профили водителей всего парка — одним лёгким запросом, для обзора и планировщика. */
 export async function truckProfiles(companyId: CompanyId): Promise<Map<number, DriverProfile>> {
   const rows = await sql`
-    SELECT m.truck_id, m.home_state, m.home_from, m.home_to, m.week_target_miles, m.week_target_gross, m.avoid_states
+    SELECT m.truck_id, m.home_state, m.home_from, m.home_to, m.week_target_miles, m.week_target_gross, m.avoid_states, m.target_rpm
     FROM truck_meta m JOIN trucks t ON t.id = m.truck_id
     WHERE t.company_id = ${companyId}`
   return new Map(
@@ -72,6 +72,7 @@ export async function truckProfiles(companyId: CompanyId): Promise<Map<number, D
         weekTargetMiles: r.week_target_miles ?? null,
         weekTargetGross: r.week_target_gross ?? null,
         avoidStates: parseStates(r.avoid_states),
+        targetRpm: r.target_rpm ?? null,
       },
     ]),
   )
