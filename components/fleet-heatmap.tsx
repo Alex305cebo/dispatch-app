@@ -11,6 +11,10 @@
 //
 // Сколько дней показывать и как раскладывать строку, решает ширина САМОЙ плитки
 // (ResizeObserver), а не экрана: плитку можно сделать маленькой и на компьютере.
+//
+// Вариант «Календарь» (week) — на главной, по образцу SmartHop (10/10/26): ровно семь
+// дней расчётной недели, слева водители, на полосах маршрут «откуда → куда»; ни сводки,
+// ни столбцов справа, ни легенды — только неделя.
 
 import { rpmText } from '@/components/rpm'
 import { useEffect, useRef, useState } from 'react'
@@ -56,6 +60,7 @@ export function FleetHeatmap({
   today,
   heading = true,
   rateCons,
+  week,
 }: {
   rows: HeatRow[]
   today: string
@@ -64,6 +69,8 @@ export function FleetHeatmap({
   heading?: boolean
   /** id груза → id его Rate Con (lib/loads.ts loadPapers): кнопка RC в карточке рейса. */
   rateCons?: Record<number, number>
+  /** Календарь недели (главная): первый день расчётной недели. Листается неделями. */
+  week?: string
 }) {
   const locale = useLocale()
   // Открытый Rate Con. Окно — здесь, а не в карточке рейса: карточка закрывается, как
@@ -82,8 +89,8 @@ export function FleetHeatmap({
   const narrow = width > 0 && width < 540
   // Столбцы «где / когда / рейт» справа — только когда им есть место; иначе
   // «где / когда» уходят второй строкой под полосы.
-  const wide = width === 0 || width >= 860
-  const winDays = narrow ? 7 : 14
+  const wide = !week && (width === 0 || width >= 860)
+  const winDays = week || narrow ? 7 : 14
   const ahead = narrow ? 2 : 3
 
   const [hover, setHover] = useState<Hover | null>(null)
@@ -100,7 +107,7 @@ export function FleetHeatmap({
 
   // offset — на сколько окон назад листнули (0 — окно с сегодняшним днём).
   const [offset, setOffset] = useState(0)
-  const lastDay = shiftDay(today, ahead - offset * winDays)
+  const lastDay = week ? shiftDay(week, 6 - offset * 7) : shiftDay(today, ahead - offset * winDays)
   const colKeys = daySpan(shiftDay(lastDay, 1 - winDays), lastDay)
   const todayIdx = colKeys.indexOf(today)
   // Полдень того же дня: день недели от него — этот день в любом поясе.
@@ -108,7 +115,12 @@ export function FleetHeatmap({
   const weekend = cols.map((c) => c.getDay() === 0 || c.getDay() === 6)
   const weekday = (d: Date) => d.toLocaleDateString(TAG[locale], { weekday: 'short' }).replace('.', '')
   const md = (k: string) => usDate(k).slice(0, 5)
-  const rangeLabel = `${md(colKeys[0]!)} – ${md(colKeys[colKeys.length - 1]!)}`
+  // У календаря — месяц недели словом («Октябрь 2026»), как на образце; у сетки — даты.
+  // Месяц и год по отдельности: вместе русская локаль пишет «октябрь 2026 г.».
+  const monthLabel = `${cols[3]!.toLocaleDateString(TAG[locale], { month: 'long' })} ${cols[3]!.getFullYear()}`
+  const rangeLabel = week
+    ? monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
+    : `${md(colKeys[0]!)} – ${md(colKeys[colKeys.length - 1]!)}`
   const pastKeys = colKeys.filter((k) => k <= today)
 
   // Полосы и рейт каждой строки считаются один раз — из них же сводка сверху.
@@ -128,11 +140,15 @@ export function FleetHeatmap({
   const totalRate = data.reduce((s, d) => s + d.rate, 0)
 
   // Одна сетка на всю плитку, чтобы шапка дней стояла ровно над клетками строк.
-  const gridCols = wide
-    ? '6.5rem minmax(0,1fr) minmax(7rem,10rem) 7.5rem 4.5rem'
-    : narrow
-      ? '4.5rem minmax(0,1fr) 4rem'
-      : '6rem minmax(0,1fr) 5rem'
+  const gridCols = week
+    ? narrow
+      ? '5.5rem minmax(0,1fr)'
+      : '9rem minmax(0,1fr)'
+    : wide
+      ? '6.5rem minmax(0,1fr) minmax(7rem,10rem) 7.5rem 4.5rem'
+      : narrow
+        ? '4.5rem minmax(0,1fr) 4rem'
+        : '6rem minmax(0,1fr) 5rem'
   const dayGrid = { gridTemplateColumns: `repeat(${winDays}, minmax(0,1fr))` }
 
   const whenCls = (tone?: 'free' | 'busy' | 'off') =>
@@ -159,7 +175,12 @@ export function FleetHeatmap({
     <div ref={rootRef} className="panel relative p-3 sm:p-4">
       {/* Шапка: название (или сразу сводка), листалка периода и возврат к сегодняшнему дню. */}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        {heading ? (
+        {week ? (
+          <h2 className="flex items-center gap-1.5 text-md font-semibold text-t1">
+            {t(locale, 'today.calendar')}
+            <Info text={t(locale, 'today.calendarInfo')} />
+          </h2>
+        ) : heading ? (
           <h2 className="flex items-center gap-1.5 text-base font-semibold text-t1">
             {t(locale, 'trucks.heatmap.name')}
             <Info text={t(locale, 'trucks.heatmap.info')} />
@@ -189,7 +210,7 @@ export function FleetHeatmap({
           >
             <ChevronLeft size={16} />
           </button>
-          <span className="nums min-w-[6.5rem] text-center text-xs font-medium text-t2">{rangeLabel}</span>
+          <span className={`min-w-[6.5rem] text-center font-medium ${week ? 'text-sm text-t1' : 'nums text-xs text-t2'}`}>{rangeLabel}</span>
           <button
             type="button"
             onClick={() => setOffset((o) => Math.max(0, o - 1))}
@@ -203,12 +224,12 @@ export function FleetHeatmap({
         </div>
       </div>
 
-      {heading && <div className="mt-2.5 flex flex-wrap gap-1.5">{summary}</div>}
+      {heading && !week && <div className="mt-2.5 flex flex-wrap gap-1.5">{summary}</div>}
 
       <div className="mt-3 grid items-center gap-x-2 sm:gap-x-3" style={{ gridTemplateColumns: gridCols }}>
         {/* Заголовки столбцов. */}
         <span className="self-end pb-1 text-2xs font-semibold uppercase tracking-wide text-t3">
-          {t(locale, 'trucks.heatmap.colTruck')}
+          {t(locale, week ? 'today.calendarDriver' : 'trucks.heatmap.colTruck')}
         </span>
         <div className="grid gap-px" style={dayGrid}>
           {cols.map((c, i) => {
@@ -216,8 +237,14 @@ export function FleetHeatmap({
             return (
               <span
                 key={colKeys[i]}
-                className={`flex min-w-0 flex-col items-center rounded-t-md pt-1 pb-1 leading-none ${
-                  isToday ? 'bg-haul-500/25 text-white' : weekend[i] ? 'text-haul-200' : 'text-t3'
+                className={`flex min-w-0 flex-col items-center pt-1 pb-1 leading-none ${
+                  isToday
+                    ? week
+                      ? 'rounded-md bg-haul-500 text-[#fff]'
+                      : 'rounded-t-md bg-haul-500/25 text-white'
+                    : weekend[i]
+                      ? 'rounded-t-md text-haul-200'
+                      : 'rounded-t-md text-t3'
                 }`}
                 title={isToday ? t(locale, 'trucks.heatmap.today') : undefined}
               >
@@ -241,34 +268,57 @@ export function FleetHeatmap({
             </span>
           </>
         )}
-        <span
-          className="self-end truncate pb-1 text-right text-2xs font-semibold uppercase tracking-wide text-t3"
-          title={t(locale, 'trucks.heatmap.colRateHint')}
-        >
-          {t(locale, 'trucks.heatmap.colRate')}
-        </span>
+        {!week && (
+          <span
+            className="self-end truncate pb-1 text-right text-2xs font-semibold uppercase tracking-wide text-t3"
+            title={t(locale, 'trucks.heatmap.colRateHint')}
+          >
+            {t(locale, 'trucks.heatmap.colRate')}
+          </span>
+        )}
 
         {data.map((d, rowIdx) => {
           const { r, segs, lanes } = d
           return (
             <div key={r.id} className="contents">
               {/* Трак и водитель — ссылка на карточку трака. */}
-              <Link
-                href={`/trucks/${r.id}`}
-                className={`min-w-0 self-stretch border-t border-white/[0.06] py-2 leading-tight hover:underline ${
-                  wide ? '' : 'row-span-2'
-                }`}
-              >
-                <span className="nums block truncate text-sm font-semibold text-t1">{r.label}</span>
-                {r.sub && <span className="block truncate text-xs text-t2">{r.sub}</span>}
-              </Link>
+              {week ? (
+                // Календарь: сначала водитель — диспетчер держит в голове людей. Чёрточка
+                // слева — его состояние теми же цветами, что «когда» в сетке парка:
+                // зелёная — везёт, жёлтая — свободен, серая — не работает.
+                <Link
+                  href={`/trucks/${r.id}`}
+                  className="flex min-w-0 items-center gap-2 self-stretch border-t border-white/[0.06] py-2 leading-tight hover:underline"
+                >
+                  <span
+                    aria-hidden
+                    className={`h-0.5 w-3 shrink-0 rounded-full ${
+                      r.when?.tone === 'busy' ? 'bg-good-500' : r.when?.tone === 'off' ? 'bg-white/20' : 'bg-warn-400'
+                    }`}
+                  />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-t1">{r.sub || r.label}</span>
+                    {r.sub && <span className="nums block truncate text-2xs text-t3">{r.label}</span>}
+                  </span>
+                </Link>
+              ) : (
+                <Link
+                  href={`/trucks/${r.id}`}
+                  className={`min-w-0 self-stretch border-t border-white/[0.06] py-2 leading-tight hover:underline ${
+                    wide ? '' : 'row-span-2'
+                  }`}
+                >
+                  <span className="nums block truncate text-sm font-semibold text-t1">{r.label}</span>
+                  {r.sub && <span className="block truncate text-xs text-t2">{r.sub}</span>}
+                </Link>
+              )}
 
               {/* Дни: фон столбцов (выходные, сегодня) и поверх — полосы рейсов. */}
               <div
                 className="grid gap-x-px gap-y-1 self-stretch border-t border-white/[0.06]"
                 // Пустые ряды сверху и снизу — отступ, под который тоже ложится фон
                 // столбцов: столбец «Сегодня» идёт сплошной полосой через все строки.
-                style={{ ...dayGrid, gridTemplateRows: `minmax(0.125rem,1fr) repeat(${lanes}, 1.5rem) minmax(0.125rem,1fr)` }}
+                style={{ ...dayGrid, gridTemplateRows: `minmax(0.125rem,1fr) repeat(${lanes}, ${week ? '1.75rem' : '1.5rem'}) minmax(0.125rem,1fr)` }}
               >
                 {cols.map((_, i) => (
                   <span
@@ -287,7 +337,9 @@ export function FleetHeatmap({
                 {segs.map((s, n) => {
                   const phase = phaseOf(s.load)
                   const span = s.end - s.start + 1
-                  const text = city(s.load.dest)
+                  // В календаре дней мало и они широкие — на полосе весь маршрут, как на образце.
+                  // На телефоне маршрут не влезает — там, как в сетке парка, только куда.
+                  const text = week && span >= 2 && !narrow ? s.load.route : city(s.load.dest)
                   return (
                     <Link
                       key={s.load.id}
@@ -305,7 +357,9 @@ export function FleetHeatmap({
                         })
                       }}
                       onMouseLeave={scheduleClose}
-                      className={`heat-bar relative z-[1] mx-px flex min-w-0 items-center gap-1 overflow-hidden border px-1.5 text-[11px] font-medium leading-none transition-[filter] hover:brightness-125 ${
+                      className={`heat-bar relative z-[1] mx-px flex min-w-0 items-center gap-1 overflow-hidden border px-1.5 font-medium leading-none transition-[filter] hover:brightness-125 ${
+                        week ? 'text-xs' : 'text-[11px]'
+                      } ${
                         BAR[phase]
                       } ${s.cutStart ? 'rounded-l-none border-l-0' : 'rounded-l-md'} ${
                         s.cutEnd ? 'rounded-r-none border-r-0' : 'rounded-r-md'
@@ -317,7 +371,7 @@ export function FleetHeatmap({
                       }}
                     >
                       {!s.cutStart && <span className="size-1.5 shrink-0 rounded-full bg-current opacity-80" />}
-                      {span >= 2 && <span className="truncate">{text}</span>}
+                      {(span >= 2 || week) && <span className="truncate">{text}</span>}
                     </Link>
                   )
                 })}
@@ -336,6 +390,7 @@ export function FleetHeatmap({
                   </span>
                 </>
               )}
+              {!week && (
               <span
                 className={`nums self-stretch border-t border-white/[0.06] py-2 text-right text-sm leading-6 ${
                   d.rate > 0 ? 'text-t1' : 'text-t3'
@@ -344,8 +399,9 @@ export function FleetHeatmap({
                 {d.rate > 0 ? usd.format(d.rate) : '—'}
                 {rpmText(d.rate, d.miles) && <span className="block text-2xs leading-4 text-t3">{rpmText(d.rate, d.miles)}</span>}
               </span>
+              )}
               {/* Узкая плитка: где трак и когда свободен — строкой под полосами. */}
-              {!wide && (
+              {!wide && !week && (
                 <span className="-mt-1.5 flex min-w-0 items-baseline gap-2 pb-2 text-xs">
                   <span className="min-w-0 truncate text-t2" title={r.place ?? undefined}>{r.place ?? '—'}</span>
                   <span
@@ -361,8 +417,9 @@ export function FleetHeatmap({
         })}
       </div>
 
-      {/* Легенда — теми же полосами, что в сетке. */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-t2">
+      {/* Легенда — теми же полосами, что в сетке. В календаре её нет: цвета объясняет
+          карточка рейса при наведении. */}
+      <div className={`mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-t2 ${week ? 'hidden' : ''}`}>
         {(['done', 'moving', 'planned'] as Phase[]).map((p) => (
           <span key={p} className="flex items-center gap-1.5">
             <span className={`h-2.5 w-5 rounded-sm border ${BAR[p]}`} />

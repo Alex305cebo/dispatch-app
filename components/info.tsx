@@ -13,7 +13,9 @@ import { t } from '@/lib/i18n'
 
 type Box = { top: number; left: number; width: number; placement: 'above' | 'below' }
 
-export function Info({ text }: { text: string; side?: 'top' | 'bottom' }) {
+/** onColor — значок на тёмной или цветной карточке (деньги и топливо на «Сегодня»):
+ *  белый в обеих темах, обычный серый там не виден. */
+export function Info({ text, onColor = false }: { text: string; side?: 'top' | 'bottom'; onColor?: boolean }) {
   const locale = useLocale()
   const btnRef = useRef<HTMLButtonElement>(null)
   const [hovered, setHovered] = useState(false)
@@ -78,7 +80,9 @@ export function Info({ text }: { text: string; side?: 'top' | 'bottom' }) {
           setHovered(true)
         }}
         onMouseLeave={() => setHovered(false)}
-        className="relative inline-flex size-[15px] shrink-0 items-center justify-center rounded-full border border-white/25 align-middle before:absolute before:-inset-3.5 before:content-[''] text-2xs font-semibold leading-none text-t3 transition-colors hover:border-haul-500 hover:text-haul-400"
+        className={`relative inline-flex size-[15px] shrink-0 items-center justify-center rounded-full border align-middle before:absolute before:-inset-3.5 before:content-[''] text-2xs font-semibold leading-none transition-colors ${
+          onColor ? 'border-[#fff]/45 text-[#fff]/85 hover:border-[#fff] hover:text-[#fff]' : 'border-white/25 text-t3 hover:border-haul-500 hover:text-haul-400'
+        }`}
       >
         i
       </button>

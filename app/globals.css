@@ -487,6 +487,21 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-haul-400) 50%, transparent);
 }
 
+/* Тёмная карточка денег на главной (components/today-cards.tsx, WalletCard) — тёмная в
+   обеих темах, как «Smart Wallet» на образце SmartHop. Текст в ней — буквальный белый
+   (text-[#fff]): text-white на светлой теме перекрашивается в почти чёрный. На тёмной
+   теме чуть светлее страницы и с кромкой, иначе чёрная карточка пропала бы на чёрном. */
+.card-ink {
+  background: #17181d;
+  color: #fff;
+  border: 1px solid #17181d;
+  box-shadow: 0 10px 28px -16px rgba(16, 24, 40, 0.45);
+}
+:root[data-theme='dark'] .card-ink {
+  background: linear-gradient(160deg, #262b3d 0%, #171a26 100%);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
 /* On a filled accent (buttons, badges) text must stay light in BOTH themes — the
    var swap would otherwise flip button labels to dark. Plain rules (unlayered) beat
    the text-white utility, so labels stay white. */
