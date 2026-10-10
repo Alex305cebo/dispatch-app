@@ -293,7 +293,7 @@ export function LoadEditNumbers({ load }: { load: LoadDetails }) {
           type="checkbox"
           checked={f.partial}
           onChange={(e) => setF({ ...f, partial: e.target.checked })}
-          className="size-4 accent-[#7c6cff]"
+          className="size-4 accent-haul-500"
         />
         {t(locale, 'loadEdit.partial')}
         <span className="text-sm text-t3">· {t(locale, 'loadEdit.partialHint')}</span>
