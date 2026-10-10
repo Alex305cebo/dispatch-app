@@ -162,6 +162,98 @@
   --glass-dock-edge: rgba(17, 21, 40, 0.1);
 }
 
+/* ——— Цвет акцента: кнопка «Вид» → «Цвет» (components/look-picker.tsx, lib/look.ts) ———
+   Оранжевый — по образцу SmartHop, который прислал владелец 10/10/26, и он же по
+   умолчанию; фиолетовый — прежний (значения в @theme выше); синий — третий. Меняются
+   только haul-*: компоненты берут акцент оттуда и сами ничего не знают о выборе.
+   Контраст: белая подпись на кнопке (haul-500) — 3.8 на тёмной теме (как у прежнего
+   фиолетового) и 4.6 на светлой; ссылки (haul-400) — 8.9 на тёмной и 5.2 на белом. */
+:root[data-accent='orange'] {
+  --color-haul-300: #fdba74;
+  --color-haul-400: #fb923c;
+  --color-haul-500: #e0560c;
+  --color-haul-600: #c2410c;
+  --shadow-accent: 0 4px 16px -4px rgba(224, 86, 12, 0.55);
+  --aura-1: rgba(249, 115, 22, 0.24);
+  --aura-2: rgba(251, 146, 60, 0.14);
+  --aura-3: rgba(234, 88, 12, 0.16);
+}
+:root[data-theme='light'][data-accent='orange'] {
+  --color-haul-300: #9a3412;
+  --color-haul-400: #c2410c;
+  --color-haul-500: #cc4a0e;
+  --color-haul-600: #9a3412;
+  --glass-edge-hi: rgba(204, 74, 14, 0.45);
+  --aura-1: rgba(253, 186, 116, 0.42);
+  --aura-2: rgba(254, 215, 170, 0.42);
+  --aura-3: rgba(255, 237, 213, 0.5);
+}
+:root[data-accent='blue'] {
+  --color-haul-300: #bfdbfe;
+  --color-haul-400: #60a5fa;
+  --color-haul-500: #2563eb;
+  --color-haul-600: #1d4ed8;
+  --shadow-accent: 0 4px 16px -4px rgba(37, 99, 235, 0.55);
+  --aura-1: rgba(37, 99, 235, 0.3);
+  --aura-2: rgba(56, 189, 248, 0.16);
+  --aura-3: rgba(29, 78, 216, 0.2);
+}
+:root[data-theme='light'][data-accent='blue'] {
+  --color-haul-300: #1e3a8a;
+  --color-haul-400: #1d4ed8;
+  --color-haul-500: #2563eb;
+  --color-haul-600: #1e40af;
+  --glass-edge-hi: rgba(37, 99, 235, 0.45);
+  --aura-1: rgba(147, 197, 253, 0.45);
+  --aura-2: rgba(191, 219, 254, 0.45);
+  --aura-3: rgba(219, 234, 254, 0.5);
+}
+/* Сиреневый оттенок светлой страницы подобран под фиолетовый акцент. С оранжевым и
+   синим страница нейтрально-серая, как на образце: сиреневый фон под оранжевыми
+   кнопками выглядел грязным. */
+:root[data-theme='light']:not([data-accent='violet']) {
+  --color-ink-950: #f3f4f6;
+  --color-ink-800: #f2f3f5;
+  --color-ink-700: #e5e7eb;
+  --color-ink-600: #d1d5db;
+}
+
+/* ——— Карточки: «Плоские» (по умолчанию) или «Стекло» ———
+   Плоские — как на образце SmartHop: сплошная карточка с мягкой тенью, без размытия и
+   без свечения под страницей. Стекло — прежний вид (переменные выше), включается той же
+   кнопкой «Вид». Вложенная поверхность (panel-inset) на белом — светло-серая плашка. */
+:root[data-surface='flat'] {
+  --glass-bg: #121520;
+  --glass-sheen: none;
+  --glass-blur: none;
+  --glass-edge: rgba(255, 255, 255, 0.08);
+  --glass-inset: rgba(255, 255, 255, 0.04);
+  --glass-inset-edge: rgba(255, 255, 255, 0.07);
+  --glass-shadow: 0 10px 28px -16px rgba(0, 0, 0, 0.8);
+  --glass-dock: #10121b;
+}
+:root[data-theme='light'][data-surface='flat'] {
+  --glass-bg: #ffffff;
+  --glass-edge: rgba(16, 24, 40, 0.07);
+  --glass-inset: #f8f9fb;
+  --glass-inset-edge: rgba(16, 24, 40, 0.06);
+  --glass-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 28px -16px rgba(16, 24, 40, 0.16);
+  --glass-dock: #ffffff;
+}
+:root[data-surface='flat'] body::before {
+  display: none;
+}
+/* Сайдбар у плоских карточек — сплошной, цвета карточки (на светлой — белый, как на
+   образце), а не полупрозрачный цвет страницы: без стекла серый сайдбар сливался с
+   серой страницей. Только на компьютере: на телефоне у меню своего фона нет. */
+@media (min-width: 768px) {
+  :root[data-surface='flat'] .app-nav {
+    background-color: var(--glass-bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 /* Тем, кто просил у системы меньше прозрачности (iOS Reduce Transparency,
    Windows «Эффекты прозрачности»), стекло не показываем: сплошная поверхность. */
 @media (prefers-reduced-transparency: reduce) {
@@ -379,16 +471,20 @@
 .panel-interactive:has(:focus-visible) {
   outline: none;
   border-color: rgba(142, 162, 255, 0.65);
+  border-color: color-mix(in srgb, var(--color-haul-400) 65%, transparent);
   box-shadow: 0 0 0 2px rgba(142, 162, 255, 0.65);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-haul-400) 65%, transparent);
 }
 :root[data-theme='light'] .panel-interactive:hover {
-  border-color: rgba(79, 70, 229, 0.45);
+  border-color: var(--glass-edge-hi);
   box-shadow: 0 18px 36px -18px rgba(30, 35, 70, 0.5), inset 0 1px 0 #fff;
 }
 :root[data-theme='light'] .panel-interactive:focus-visible,
 :root[data-theme='light'] .panel-interactive:has(:focus-visible) {
   border-color: rgba(79, 70, 229, 0.55);
+  border-color: color-mix(in srgb, var(--color-haul-400) 55%, transparent);
   box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.5);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-haul-400) 50%, transparent);
 }
 
 /* On a filled accent (buttons, badges) text must stay light in BOTH themes — the
@@ -808,12 +904,18 @@
 .user-menu .nav-icon-btn:active {
   transform: scale(0.93);
   background-color: rgba(124, 108, 255, 0.3);
+  background-color: color-mix(in srgb, var(--color-haul-500) 30%, transparent);
   box-shadow: inset 0 2px 6px 0 rgba(0, 0, 0, 0.4);
 }
 /* On/active tile — accent fill, the way a lit Control Centre toggle reads. */
 .user-menu .nav-icon-btn[aria-pressed='true'],
 .user-menu .nav-icon-btn[aria-current='page'] {
   background: linear-gradient(160deg, rgba(142, 162, 255, 0.9), rgba(124, 108, 255, 0.75));
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-haul-400) 90%, transparent),
+    color-mix(in srgb, var(--color-haul-500) 75%, transparent)
+  );
   border-color: rgba(255, 255, 255, 0.22);
   color: #fff;
 }
@@ -888,9 +990,11 @@
    lifts a touch so switching tabs has a small "pop". */
 .nav-tab-btn[aria-current='page'] {
   background-color: rgba(124, 108, 255, 0.2);
+  background-color: color-mix(in srgb, var(--color-haul-500) 20%, transparent);
 }
 :root[data-theme='light'] .nav-tab-btn[aria-current='page'] {
   background-color: rgba(124, 108, 255, 0.15);
+  background-color: color-mix(in srgb, var(--color-haul-500) 15%, transparent);
 }
 .nav-tab-btn svg {
   transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);

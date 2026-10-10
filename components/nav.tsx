@@ -5,7 +5,7 @@ import { LinkPending } from '@/components/link-pending'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { Notifier } from '@/components/notifier'
-import { ThemeToggle } from '@/components/theme-toggle'
+import { LookPicker } from '@/components/look-picker'
 import { LocaleQuick } from '@/components/locale-quick'
 import { autoRefreshFleet } from '@/app/actions'
 import { UserPanel } from '@/components/user-panel'
@@ -299,7 +299,7 @@ export function Nav({
         // floats directly over the page, relying on its own text/icon contrast
         // (and, for the top icon row, its own shadow-only 3D look) to read —
         // there's no bar underneath any of it to lean on.
-        'fixed inset-x-0 bottom-0 z-50 flex flex-col',
+        'app-nav fixed inset-x-0 bottom-0 z-50 flex flex-col',
         'px-2 pt-1',
         'md:inset-y-0 md:right-auto md:w-[var(--sidebar-w)] md:justify-start md:border-r md:border-white/8 md:bg-ink-950/80 md:p-3 md:backdrop-blur-xl md:transition-[width] md:duration-200 md:ease-out',
       ].join(' ')}
@@ -486,10 +486,10 @@ export function Nav({
             }
           />
         )}
-        {/* Язык и тема — на виду, рядом с колокольчиком, а не в меню аватара
-            (владелец 03.10.2026). На телефоне ряд — верхняя панель. */}
+        {/* Язык и вид (тема, цвет, карточки) — на виду, рядом с колокольчиком, а не в
+            меню аватара (владелец 03.10.2026). На телефоне ряд — верхняя панель. */}
         <LocaleQuick />
-        <ThemeToggle />
+        <LookPicker />
         <Notifier collapsed={false} />
         {/* Сюда components/tour.tsx подселяет кнопку «Как это работает» — она
             принадлежит ряду аккаунта, а не плавает над страницей. */}

@@ -92,8 +92,16 @@ export const navDict = {
   'theme.lightShort': { ru: 'Светлая', en: 'Light', es: 'Clara', uk: 'Світла', ro: 'Luminoasă', kk: 'Ашық' },
   'theme.darkShort': { ru: 'Тёмная', en: 'Dark', es: 'Oscura', uk: 'Темна', ro: 'Întunecată', kk: 'Қараңғы' },
   'theme.pick': { ru: 'Тема оформления', en: 'Theme', es: 'Tema', uk: 'Тема оформлення', ro: 'Temă', kk: 'Тақырып' },
-  'theme.light': { ru: 'Светлая тема', en: 'Light theme', es: 'Tema claro', uk: 'Світла тема', ro: 'Temă deschisă', kk: 'Ашық тақырып' },
-  'theme.dark': { ru: 'Тёмная тема', en: 'Dark theme', es: 'Tema oscuro', uk: 'Темна тема', ro: 'Temă întunecată', kk: 'Қараңғы тақырып' },
+
+  // Кнопка «Вид» (components/look-picker.tsx): тема, цвет и карточки.
+  'look.title': { ru: 'Вид', en: 'Appearance', es: 'Apariencia', uk: 'Вигляд', ro: 'Aspect', kk: 'Көрініс' },
+  'look.accent': { ru: 'Цвет', en: 'Color', es: 'Color', uk: 'Колір', ro: 'Culoare', kk: 'Түс' },
+  'look.surface': { ru: 'Карточки', en: 'Cards', es: 'Tarjetas', uk: 'Картки', ro: 'Carduri', kk: 'Карточкалар' },
+  'look.flat': { ru: 'Плоские', en: 'Flat', es: 'Planas', uk: 'Пласкі', ro: 'Plate', kk: 'Жалпақ' },
+  'look.glass': { ru: 'Стекло', en: 'Glass', es: 'Cristal', uk: 'Скло', ro: 'Sticlă', kk: 'Шыны' },
+  'look.orange': { ru: 'Оранжевый', en: 'Orange', es: 'Naranja', uk: 'Помаранчевий', ro: 'Portocaliu', kk: 'Қызғылт сары' },
+  'look.violet': { ru: 'Фиолетовый', en: 'Violet', es: 'Violeta', uk: 'Фіолетовий', ro: 'Violet', kk: 'Күлгін' },
+  'look.blue': { ru: 'Синий', en: 'Blue', es: 'Azul', uk: 'Синій', ro: 'Albastru', kk: 'Көк' },
 
   'demo.banner': {
     ru: 'ДЕМО-режим — все данные ненастоящие, изменения не сохранятся навсегда.',

@@ -21,12 +21,9 @@ import { t } from '@/lib/i18n'
 import { RevealGuard } from '@/components/reveal-guard'
 import { BuildWatch } from '@/components/build-watch'
 import { AlertWatch } from '@/components/alert-watch'
+import { LOOK_INIT } from '@/lib/look'
 import './globals.css'
 
-// Apply the saved theme before first paint — no flash of the wrong colours.
-// Light is now the default surface (airy SaaS); dark is opt-in and only applied when
-// the user explicitly chose it. Absence of a stored choice = light.
-const THEME_INIT = `try{var t=localStorage.getItem('theme');document.documentElement.dataset.theme=(t==='dark'?'dark':'light')}catch(e){document.documentElement.dataset.theme='light'}`
 
 // Self-hosted by next/font at build time: no request to Google at runtime, no layout
 // shift while a webfont loads, and nothing for an ad blocker to break.
@@ -69,7 +66,7 @@ async function onProductSite() {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#eef0fa',
+  themeColor: '#f3f4f6',
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
@@ -119,12 +116,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const tour = await tourSteps(user, locale).catch(() => null)
 
   return (
-    // suppressHydrationWarning: the inline script sets data-theme before hydration,
-    // so the server HTML (no attr) and client (attr) legitimately differ on <html>.
+    // suppressHydrationWarning: the inline script sets data-theme / data-accent /
+    // data-surface before hydration (lib/look.ts — saved choice or the default look,
+    // before first paint, so no flash of the wrong colours), so the server HTML (no
+    // attrs) and client (attrs) legitimately differ on <html>.
     // Гость (форма входа) — язык формы, а не приложения: иначе lang="ru" над английским текстом.
     <html lang={user ? locale : await getLoginLocale()} translate="no" suppressHydrationWarning className={`${sans.variable} ${mono.variable}`}>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+        <script dangerouslySetInnerHTML={{ __html: LOOK_INIT }} />
       </head>
       <body>
         <LocaleProvider locale={locale}>

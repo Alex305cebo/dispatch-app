@@ -2,7 +2,7 @@
 
 // Выбор темы на экране входа: две кнопки «Светлая / Тёмная» вместо одной иконки — человек
 // видит, что выбор есть, до того как войти. Пишет тот же localStorage 'theme', что и
-// переключатель в меню (components/theme-toggle.tsx), и тот же data-theme на <html>, так
+// кнопка «Вид» в меню (components/look-picker.tsx), и тот же data-theme на <html>, так
 // что выбор применяется сразу и остаётся после входа.
 
 import { useEffect, useState } from 'react'
