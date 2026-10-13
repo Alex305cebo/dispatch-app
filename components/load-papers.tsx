@@ -43,12 +43,18 @@ export function LoadPapers({
   loadId,
   papers,
   urgent = false,
+  cells = false,
 }: {
   loadId: number
   papers: LoadPaper[]
   /** Груз уже сдан — недостающая бумага держит деньги, поэтому красным. Пока груз в
    * пути её и не должно быть, и красить нечего. */
   urgent?: boolean
+  /** Ячейками таблицы (13/10/26, «Документы» таблицей, как в SmartHop): на широкой
+   *  плитке каждая бумага встаёт в свой столбец родительской сетки — зелёный кружок с
+   *  галочкой или пунктирный «+», а название бумаги несёт шапка столбца. На узкой —
+   *  та же полоса плашек с названиями, что и без этого флага. */
+  cells?: boolean
 }) {
   const locale = useLocale()
   const router = useRouter()
@@ -82,51 +88,55 @@ export function LoadPapers({
     })
   }
 
-  return (
-    <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
-      {REQUIRED.map((kind) => {
-        const doc = firstOf(kind)
-        const label = docKindLabel(kind, locale)
-        if (doc) {
-          return (
-            <DocLink
-              key={kind}
-              docId={doc.id}
-              title={t(locale, 'papers.open').replace('{doc}', label)}
-              className={`${chip} bg-good-500/12 text-good-400 ring-1 ring-good-500/25 ring-inset hover:bg-good-500/22`}
-            >
-              <Check size={12} strokeWidth={3} aria-hidden />
-              {label}
-            </DocLink>
-          )
-        }
-        return (
-          <label
-            key={kind}
-            title={t(locale, 'papers.add').replace('{doc}', label)}
-            className={`${chip} cursor-pointer border border-dashed ${
-              urgent && NEEDED.includes(kind)
-                ? 'border-bad-400/45 text-bad-400 hover:bg-bad-400/10'
-                : 'border-white/15 text-t3 hover:border-white/30 hover:text-t2'
-            } ${pending ? 'opacity-50' : ''}`}
-          >
-            <Plus size={12} strokeWidth={3} aria-hidden />
-            {label}
-            <input
-              ref={(el) => {
-                inputs.current[kind] = el
-              }}
-              type="file"
-              accept="application/pdf,image/*"
-              multiple
-              className="hidden"
-              disabled={pending}
-              onChange={(e) => send(kind, e.target.files)}
-            />
-          </label>
-        )
-      })}
+  // В ячейке широкой таблицы плашка — кружок со значком: название уже в шапке столбца.
+  const shape = cells ? '@3xl:size-8 @3xl:justify-center @3xl:rounded-full @3xl:px-0' : ''
+  const name = (label: string) => (cells ? <span className="@3xl:sr-only">{label}</span> : label)
 
+  const tile = (kind: DocKind) => {
+    const doc = firstOf(kind)
+    const label = docKindLabel(kind, locale)
+    if (doc) {
+      return (
+        <DocLink
+          key={kind}
+          docId={doc.id}
+          title={t(locale, 'papers.open').replace('{doc}', label)}
+          className={`${chip} ${shape} bg-good-500/12 text-good-400 ring-1 ring-good-500/25 ring-inset hover:bg-good-500/22`}
+        >
+          <Check size={12} strokeWidth={3} aria-hidden />
+          {name(label)}
+        </DocLink>
+      )
+    }
+    return (
+      <label
+        key={kind}
+        title={t(locale, 'papers.add').replace('{doc}', label)}
+        className={`${chip} ${shape} cursor-pointer border border-dashed ${
+          urgent && NEEDED.includes(kind)
+            ? 'border-bad-400/45 text-bad-400 hover:bg-bad-400/10'
+            : 'border-white/15 text-t3 hover:border-white/30 hover:text-t2'
+        } ${pending ? 'opacity-50' : ''}`}
+      >
+        <Plus size={12} strokeWidth={3} aria-hidden />
+        {name(label)}
+        <input
+          ref={(el) => {
+            inputs.current[kind] = el
+          }}
+          type="file"
+          accept="application/pdf,image/*"
+          multiple
+          className="hidden"
+          disabled={pending}
+          onChange={(e) => send(kind, e.target.files)}
+        />
+      </label>
+    )
+  }
+
+  const extras = (
+    <>
       {extra.slice(0, EXTRA_SHOWN).map((doc) => (
         <DocLink
           key={doc.id}
@@ -140,6 +150,27 @@ export function LoadPapers({
       {extra.length > EXTRA_SHOWN && (
         <span className={`${chip} bg-white/6 text-t3`}>+{extra.length - EXTRA_SHOWN}</span>
       )}
+    </>
+  )
+
+  // Ячейки: на широкой плитке обёртка исчезает (contents), и каждая бумага — ячейка
+  // сетки строки; на узкой это обычная полоса плашек под маршрутом.
+  if (cells)
+    return (
+      <div className="mt-2.5 flex flex-wrap items-center gap-1 @3xl:contents">
+        {REQUIRED.map((kind) => (
+          <div key={kind} className="@3xl:flex @3xl:justify-center">
+            {tile(kind)}
+          </div>
+        ))}
+        <div className="flex min-w-0 flex-wrap items-center gap-1">{extras}</div>
+      </div>
+    )
+
+  return (
+    <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
+      {REQUIRED.map(tile)}
+      {extras}
     </div>
   )
 }
