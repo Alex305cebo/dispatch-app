@@ -58,7 +58,7 @@ const digits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '')
 
 /** Fallback display name when a load never captured broker_name — read it off the
  * email domain, e.g. ops@apex-logistics.com → "Apex Logistics". */
-function nameFromEmail(email: string | null): string | null {
+export function nameFromEmail(email: string | null): string | null {
   const label = (email?.split('@')[1] ?? '').split('.')[0]?.replace(/-?demo/i, '').replace(/[-_]+/g, ' ').trim()
   return label ? label.replace(/\b\w/g, (c) => c.toUpperCase()) : null
 }

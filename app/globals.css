@@ -1106,7 +1106,8 @@
   .nav-collapsed .nav-brand-name {
     display: none;
   }
-  .nav-collapsed .nav-tab-btn {
+  .nav-collapsed .nav-tab-btn,
+  .nav-collapsed .nav-search-btn {
     justify-content: center;
     gap: 0;
     padding-left: 0;
