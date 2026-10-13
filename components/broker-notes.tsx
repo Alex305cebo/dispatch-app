@@ -299,7 +299,7 @@ export function BrokerNotes({
               {t(locale, 'brokerNotes.heading')}
             </span>
             {unread && (
-              <span className="shrink-0 rounded-full bg-warn-400 px-1.5 py-px text-2xs font-bold uppercase tracking-wide text-ink-950">
+              <span className="shrink-0 rounded-full bg-warn-400 px-1.5 py-px text-2xs font-bold text-ink-950">
                 {t(locale, 'brokerNotes.new')}
               </span>
             )}

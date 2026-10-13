@@ -59,7 +59,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         actions={
           <Link
             href="/loads/new"
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-haul-500 px-4 text-base font-semibold text-white shadow-[0_8px_24px_-10px_rgba(124,108,255,0.8)] transition-colors hover:bg-haul-400"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-haul-500 px-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-haul-400"
           >
             <ScanText size={17} strokeWidth={2.25} />
             {t(locale, 'docs.recognize.btn')}

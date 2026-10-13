@@ -722,7 +722,7 @@ function Connection({ current, next, locale }: { current: LoadRecord; next: Load
     whenText(date, time, t(locale, 'loads.dash.noDate'), t(locale, 'loads.dash.noTime'))
   return (
     <div className="panel-inset px-3 py-2 text-sm">
-      <p className="text-2xs font-semibold uppercase tracking-wide text-t3">{t(locale, 'loads.dash.connection')}</p>
+      <p className="text-xs font-medium text-t3">{t(locale, 'loads.dash.connection')}</p>
       <p className="mt-1 break-words text-t2">
         {current.destination ?? '—'} · {when(current.deliveryDate, current.deliveryTime)} → {next.origin ?? '—'} ·{' '}
         {when(next.pickupDate, next.pickupTime)}
@@ -764,7 +764,7 @@ function DriverGroup({
   const row = (l: LoadRecord) => <LoadRow key={l.id} load={l} truck={truck} rcId={rateCons.get(l.id)} locale={locale} />
   const labelled = (l: LoadRecord, key: MsgKey, tone: string) => (
     <div key={l.id}>
-      <p className={`mb-1 px-0.5 text-2xs font-semibold uppercase tracking-wide ${tone}`}>{t(locale, key)}</p>
+      <p className={`mb-1 px-0.5 text-xs font-semibold ${tone}`}>{t(locale, key)}</p>
       {row(l)}
     </div>
   )

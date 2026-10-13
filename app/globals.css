@@ -142,6 +142,11 @@
   /* Плотная подложка под полосами навигации: сквозь них не должен просвечивать текст. */
   --glass-dock: rgba(16, 18, 27, 0.92);
   --glass-dock-edge: rgba(255, 255, 255, 0.1);
+  /* Шрифт цифр (утилита nums). Образец SmartHop пишет суммы обычным шрифтом, а не
+     моноширинным — так у плоских карточек (по умолчанию). Стекло оставляет Geist Mono
+     прежнего вида: правило у [data-surface='glass']. Не в @theme: оттуда Tailwind
+     выбрасывает переменные, которых не видит в классах. */
+  --font-nums: var(--font-sans);
 }
 :root[data-theme='light'] {
   --glass-bg: rgba(255, 255, 255, 0.82);
@@ -242,6 +247,9 @@
 }
 :root[data-surface='flat'] body::before {
   display: none;
+}
+:root[data-surface='glass'] {
+  --font-nums: var(--font-mono);
 }
 /* Сайдбар у плоских карточек — сплошной, цвета карточки (на светлой — белый, как на
    образце), а не полупрозрачный цвет страницы: без стекла серый сайдбар сливался с
@@ -520,10 +528,10 @@
 }
 
 /* Every figure in the app already carries this: rates, miles, RPM, invoice numbers,
-   truck numbers. It now also switches face to the mono font, so a column of money
-   lines up digit-for-digit instead of only sharing an advance width. */
+   truck numbers. Табличные цифры одной ширины — столбец денег ровный при любом шрифте;
+   сам шрифт задаёт --font-nums: обычный у плоских карточек, моноширинный у стекла. */
 @utility nums {
-  font-family: var(--font-mono);
+  font-family: var(--font-nums);
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
   /* NO font-size here. It once set 0.96em to shrink mono toward Inter's optical size,

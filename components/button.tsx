@@ -34,8 +34,8 @@ const VARIANTS: Record<Variant, string> = {
   // sinks instead of just changing colour.
   primary: [
     'border-haul-400/30 bg-haul-500 text-white',
-    'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.22),0_2px_8px_-2px_rgba(109,90,232,0.55)]',
-    'hover:bg-haul-400 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.28),0_4px_14px_-2px_rgba(109,90,232,0.65)]',
+    'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.22),0_2px_8px_-2px_color-mix(in_srgb,var(--color-haul-500)_45%,transparent)]',
+    'hover:bg-haul-400 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.28),0_4px_14px_-2px_color-mix(in_srgb,var(--color-haul-500)_55%,transparent)]',
     'active:bg-haul-600 active:shadow-[inset_0_2px_5px_0_rgba(0,0,0,0.45)]',
   ].join(' '),
   secondary: [

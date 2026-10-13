@@ -60,7 +60,7 @@ export function LoadStops({
   return (
     <div className={className}>
       {tags.length > 0 && (
-        <p className="mb-2 text-xs font-semibold tracking-wide text-t3 uppercase">{tags.join(' · ')}</p>
+        <p className="mb-2 text-xs font-medium text-t3">{tags.join(' · ')}</p>
       )}
       {worth && (
         <div className={`grid gap-2 ${stops.length > 1 ? 'sm:grid-cols-2' : ''}`}>
@@ -89,7 +89,7 @@ function Stop({ stop, stops, locale }: { stop: LoadStop; stops: LoadStop[]; loca
     <div className="panel-inset min-w-0 px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span
-          className={`shrink-0 rounded-md px-1.5 py-0.5 text-2xs font-semibold tracking-wide uppercase ${
+          className={`shrink-0 rounded-md px-1.5 py-0.5 text-2xs font-semibold ${
             stop.role === 'pickup' ? 'bg-haul-500/15 text-haul-300' : 'bg-good-500/15 text-good-400'
           }`}
         >

@@ -109,7 +109,7 @@ export function Figure({
   const box = `panel-inset px-3 py-2.5 ${accent ? 'ring-1 ring-haul-400/30 ring-inset' : ''}`
   const body = (
     <>
-      <div className="text-2xs font-semibold tracking-wide text-t3 uppercase">{label}</div>
+      <div className="text-xs font-medium text-t3">{label}</div>
       <div className={`nums mt-1 text-xl font-bold ${accent ? 'text-haul-300' : tone}`}>{value}</div>
       {sub && <div className="nums mt-0.5 text-xs text-t3">{sub}</div>}
     </>
@@ -132,7 +132,7 @@ export const LOAD_ROW = '@3xl:grid-cols-[minmax(0,2.4fr)_minmax(0,0.8fr)_minmax(
 export function TableHead({ grid, cols }: { grid: string; cols: string[] }) {
   return (
     <div
-      className={`hidden gap-3 border-b border-white/8 px-4 py-2.5 text-2xs font-semibold tracking-wide text-t3 uppercase @3xl:grid ${grid}`}
+      className={`hidden gap-3 border-b border-white/8 px-4 py-2.5 text-xs font-medium text-t3 @3xl:grid ${grid}`}
     >
       {cols.map((c, i) => (
         <span key={i} className={i === 0 ? '' : 'text-right'}>
@@ -163,7 +163,7 @@ export function Cell({
 }) {
   return (
     <div className={`min-w-0 @3xl:text-right ${className}`}>
-      <div className="text-2xs font-semibold tracking-wide text-t3 uppercase @3xl:hidden">{label}</div>
+      <div className="text-xs font-medium text-t3 @3xl:hidden">{label}</div>
       <div className={`nums ${big ? 'text-lg font-bold' : strong ? 'text-md font-semibold' : 'text-md'} ${tone}`}>{value}</div>
       {sub && <div className="nums text-xs text-t3">{sub}</div>}
     </div>

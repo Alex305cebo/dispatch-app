@@ -11,7 +11,7 @@ export const SEGMENT_BAR = 'panel grid auto-cols-fr grid-flow-col gap-1 p-1 sm:i
 
 export const segmentClass = (on: boolean) =>
   `flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-xl px-4 text-base font-medium transition-colors select-none max-sm:flex-col max-sm:gap-0.5 max-sm:px-1 max-sm:py-1.5 max-sm:text-sm ${
-    on ? 'bg-haul-500 text-white shadow-[0_6px_18px_-8px_rgba(124,108,255,0.9)]' : 'text-t2 hover:bg-white/6 hover:text-t1 active:bg-white/10'
+    on ? 'bg-haul-500 text-white shadow-sm' : 'text-t2 hover:bg-white/6 hover:text-t1 active:bg-white/10'
   }`
 
 export function Segmented<K extends string>({

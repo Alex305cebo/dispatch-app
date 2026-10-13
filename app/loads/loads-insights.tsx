@@ -2,7 +2,7 @@
 
 // Верх страницы «Грузы»: четыре цифры недели.
 // Считается на клиенте из той же выборки, что и список, — новых данных не нужно.
-// Оформление — как на «Сегодня»: плитки Stat с ⓘ. Очередь «Требуют действия» отсюда
+// Оформление — как на «Сегодня»: плитки Stat с ⓘ, доли — кольцом (образец SmartHop). Очередь «Требуют действия» отсюда
 // переехала в ленту «Ждёт тебя» на «Сегодня» (lib/attention.ts), недельный график
 // «Грузы по дате пикапа» — в «Деньги → Недели» (components/pickup-week-chart.tsx).
 
@@ -108,8 +108,10 @@ export function loadsKpiTiles({
           accent="haul"
           icon={<Truck {...icon} />}
           label={t(locale, 'loads.dash.utilization')}
-          value={week.utilization == null ? '—' : `${Math.round(week.utilization)}%`}
-          sub={`${week.occupied} / ${week.capacity} ${t(locale, 'loads.dash.truckDays')}`}
+          // Процент — кольцом справа (как цели на образце SmartHop), крупно — из чего он.
+          ring={week.utilization}
+          value={`${week.occupied} / ${week.capacity}`}
+          sub={t(locale, 'loads.dash.truckDays')}
           info={t(locale, 'loads.dash.utilizationInfo')}
           onClick={pick('loads.dash.utilization', week.busy)}
         >
@@ -126,6 +128,7 @@ export function loadsKpiTiles({
           accent={nextTone}
           icon={<CalendarDays {...icon} />}
           label={t(locale, 'loads.dash.nextWeek')}
+          ring={next.coverage.length ? (nextTrucks / next.coverage.length) * 100 : null}
           value={usd.format(next.gross)}
           sub={`${nextTrucks} / ${next.coverage.length} ${t(locale, 'loads.dash.planned')}`}
           info={t(locale, 'loads.dash.nextWeekInfo')}

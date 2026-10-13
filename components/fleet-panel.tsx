@@ -22,7 +22,6 @@ import { RefreshFleetButton } from '@/components/refresh-fleet-button'
 import { FuelPriceButton } from '@/components/fuel-price-button'
 import { Segmented } from '@/components/segmented'
 import { Stat } from '@/components/stat'
-import { Cells } from '@/components/mini-charts'
 import type { DirectoryCompany } from '@/components/driver-directory'
 import { useLocale } from '@/components/locale-provider'
 import { t, type MsgKey } from '@/lib/i18n'
@@ -178,12 +177,12 @@ export function FleetPanel({
       accent="good"
       icon={<Package {...icon} />}
       label={t(locale, 'trucks.heatmap.sumOnLoad')}
+      // Доля парка в рейсе — кольцом, как цели на образце SmartHop.
+      ring={rows.length ? (onLoad.length / rows.length) * 100 : null}
       value={`${onLoad.length} / ${rows.length}`}
       info={t(locale, 'trucks.tile.onLoadInfo')}
       onClick={pick('trucks.heatmap.sumOnLoad', onLoad)}
-    >
-      <Cells total={rows.length} lit={onLoad.length} />
-    </Stat>,
+    />,
   )
   add(
     'free',
