@@ -156,11 +156,11 @@ export default async function AmazonPage() {
           accent={inTransit.length ? 'warn' : 'haul'}
           icon={<Truck {...icon} />}
           label={t(locale, 'amazon.tileTransit')}
+          // Доля траков Amazon в дороге — кольцом, как на образце SmartHop.
+          ring={amazonTrucks.size ? (rollingTrucks.size / amazonTrucks.size) * 100 : null}
           value={String(inTransit.length)}
           info={t(locale, 'amazon.tileTransitInfo')}
-        >
-          <Cells total={amazonTrucks.size} lit={rollingTrucks.size} tone="warn" />
-        </Stat>
+        />
       ),
     },
     {

@@ -141,7 +141,7 @@ export function LoadMoney({
       <div className="mt-3 grid gap-2 @2xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         {/* Ставка: сумма, $/mi и шкала. */}
         <div className="panel-inset min-w-0 px-3 py-2.5">
-          <div className="flex items-center gap-1 text-2xs font-semibold tracking-wide text-t3 uppercase">
+          <div className="flex items-center gap-1 text-xs font-medium text-t3">
             {t(locale, 'loadEdit.rate')}
             <Info text={t(locale, 'loadMoney.scaleInfo')} />
           </div>
@@ -233,7 +233,7 @@ export function LoadMoney({
         {/* Мили: гружёные и пустые одной полосой, груз и вес — под ней. */}
         <div className="panel-inset min-w-0 px-3 py-2.5">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="text-2xs font-semibold tracking-wide text-t3 uppercase">{t(locale, 'loadMoney.miles')}</span>
+            <span className="text-xs font-medium text-t3">{t(locale, 'loadMoney.miles')}</span>
             <span className="nums text-lg font-semibold text-t1">{Math.round(r.totalMiles).toLocaleString('en-US')} mi</span>
           </div>
           <div className="mt-2.5 flex h-2 overflow-hidden rounded-full bg-white/8" aria-hidden>

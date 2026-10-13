@@ -467,7 +467,7 @@ function OptionCard({
         {o.badges.map((b) => (
           <span
             key={b}
-            className={`rounded-full px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide ${
+            className={`rounded-full px-1.5 py-0.5 text-2xs font-semibold ${
               b === 'cheapest' ? 'bg-good-500/20 text-good-400' : 'bg-white/8 text-t3'
             }`}
           >

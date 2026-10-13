@@ -422,7 +422,7 @@ export function StatusPicker({
             <HeadIcon size={17} strokeWidth={2.25} />
           </span>
           <div className="min-w-0 leading-tight">
-            <p className="text-2xs font-medium uppercase tracking-wider text-t3">
+            <p className="text-xs font-medium text-t3">
               {t(locale, 'loadStatus.caption')}
               {!cancelled && (
                 <span className="nums ml-1.5 normal-case tracking-normal text-t3/80">

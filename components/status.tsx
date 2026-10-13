@@ -59,7 +59,7 @@ export function StatusBadge({ status, locale }: { status: LoadStatus; locale: Lo
       // shrink-0 + whitespace-nowrap: adding the icon made the badge wide enough that
       // a flex parent started shrinking it, and "В ПУТИ" wrapped onto two lines inside
       // its own pill. A status badge is an atom — it never wraps and never shrinks.
-      className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full py-0.5 pl-1.5 pr-2 text-2xs font-semibold uppercase tracking-wide ${STATUS_STYLE[status]}`}
+      className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full py-0.5 pl-1.5 pr-2 text-2xs font-semibold ${STATUS_STYLE[status]}`}
     >
       <Icon size={11} strokeWidth={2.75} className="shrink-0" />
       {statusLabel(locale, status)}

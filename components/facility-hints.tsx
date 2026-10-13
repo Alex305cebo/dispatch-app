@@ -35,7 +35,7 @@ export async function FacilityHints({ companyId, load, locale }: { companyId: Co
           return (
             <li key={`${stop.seq}-${f.key}`} className="py-2 text-base">
               <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <span className="text-xs font-semibold uppercase tracking-wide text-t3">{stopTitle(stop, stops, locale)}</span>
+                <span className="text-xs font-medium text-t3">{stopTitle(stop, stops, locale)}</span>
                 <Link href={`/facilities/${encodeURIComponent(f.key)}`} className="font-medium text-t1 hover:text-haul-300 hover:underline">
                   {f.name ?? f.address ?? f.city}
                 </Link>

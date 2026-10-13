@@ -86,7 +86,7 @@ export function LookPicker() {
       on ? 'bg-haul-500 text-[#fff] shadow-sm' : 'text-t2 hover:bg-white/8 hover:text-t1'
     }`
   const row = 'flex gap-0.5 rounded-xl border border-white/10 bg-white/[0.03] p-1'
-  const caption = 'px-1 pb-1.5 pt-3 text-2xs font-semibold uppercase tracking-wide text-t3'
+  const caption = 'px-1 pb-1.5 pt-3 text-xs font-medium text-t3'
 
   return (
     <>

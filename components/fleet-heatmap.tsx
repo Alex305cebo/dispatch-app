@@ -228,7 +228,7 @@ export function FleetHeatmap({
 
       <div className="mt-3 grid items-center gap-x-2 sm:gap-x-3" style={{ gridTemplateColumns: gridCols }}>
         {/* Заголовки столбцов. */}
-        <span className="self-end pb-1 text-2xs font-semibold uppercase tracking-wide text-t3">
+        <span className="self-end pb-1 text-xs font-medium text-t3">
           {t(locale, week ? 'today.calendarDriver' : 'trucks.heatmap.colTruck')}
         </span>
         <div className="grid gap-px" style={dayGrid}>
@@ -260,17 +260,17 @@ export function FleetHeatmap({
         </div>
         {wide && (
           <>
-            <span className="self-end truncate pb-1 text-2xs font-semibold uppercase tracking-wide text-t3">
+            <span className="self-end truncate pb-1 text-xs font-medium text-t3">
               {t(locale, 'trucks.heatmap.colPlace')}
             </span>
-            <span className="self-end truncate pb-1 text-right text-2xs font-semibold uppercase tracking-wide text-t3">
+            <span className="self-end truncate pb-1 text-right text-xs font-medium text-t3">
               {t(locale, 'trucks.heatmap.colWhen')}
             </span>
           </>
         )}
         {!week && (
           <span
-            className="self-end truncate pb-1 text-right text-2xs font-semibold uppercase tracking-wide text-t3"
+            className="self-end truncate pb-1 text-right text-xs font-medium text-t3"
             title={t(locale, 'trucks.heatmap.colRateHint')}
           >
             {t(locale, 'trucks.heatmap.colRate')}

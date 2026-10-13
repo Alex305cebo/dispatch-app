@@ -701,7 +701,7 @@ function DriverPapers({
     <div className="flex flex-col gap-3 p-3">
       {own.length > 0 && (
         <section>
-          <h4 className="mb-1 px-1 text-2xs font-semibold tracking-wide text-t3 uppercase">
+          <h4 className="mb-1 px-1 text-xs font-medium text-t3">
             {t(locale, 'docs.library.own')} · {own.length}
           </h4>
           <ul className="flex flex-col gap-0.5">
@@ -715,7 +715,7 @@ function DriverPapers({
       )}
       {loads.length > 0 && (
         <section>
-          <h4 className="mb-1.5 px-1 text-2xs font-semibold tracking-wide text-t3 uppercase">
+          <h4 className="mb-1.5 px-1 text-xs font-medium text-t3">
             {t(locale, 'docs.library.loads')} · {loads.length}
           </h4>
           <div className="flex flex-col gap-1.5">

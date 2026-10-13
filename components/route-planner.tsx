@@ -590,7 +590,7 @@ export function RoutePlanner({
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-2xs font-semibold uppercase tracking-wide text-t3">
+            <h3 className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs font-medium text-t3">
               {t(locale, 'plan.lanesFrom').replace('{state}', stateName(origin))}
               <Info text={t(locale, 'plan.bench.info')} />
               {/* Что за полоса в строках: один раз здесь, а не «груза на трак» в каждой. */}
@@ -673,7 +673,7 @@ export function RoutePlanner({
                 if (!list.length) return null
                 return (
                   <div key={key}>
-                    <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wide text-t3">{t(locale, `plan.range.${key}` as MsgKey)}</p>
+                    <p className="mb-1.5 text-xs font-medium text-t3">{t(locale, `plan.range.${key}` as MsgKey)}</p>
                     <div className="flex flex-col gap-1.5">
                       {list.map((lane, i) => (
                         <LaneRow
@@ -757,7 +757,7 @@ function MarketDetails({
 }) {
   const trend = snap.trend
   const nowRatio = snap.history?.length ? snap.history[snap.history.length - 1]!.ratio : null
-  const sub = 'text-2xs font-semibold uppercase tracking-wide text-t3'
+  const sub = 'text-xs font-medium text-t3'
   return (
     // Раскрыт сразу: свёрнутым блок показывал одну цифру, а график недели, ставки по
     // пяти регионам и дизель — то, ради чего на «Рынок» и заходят (владелец, 22.09.2026).
@@ -915,7 +915,7 @@ function StatesTable({ snaps, series, locale }: { snaps: PlanSnaps; series: DatE
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <h4 className="text-2xs font-semibold uppercase tracking-wide text-t3">{t(locale, 'plan.market.states')}</h4>
+        <h4 className="text-xs font-medium text-t3">{t(locale, 'plan.market.states')}</h4>
         <div className="flex flex-wrap items-center gap-1.5">
           {list.length > 1 && (
             <div className="flex rounded-lg border border-white/10 bg-white/[0.04] p-0.5">
@@ -1366,7 +1366,7 @@ function LaneCalc({
       <span className={`nums shrink-0 font-medium ${cls}`}>{value}</span>
     </div>
   )
-  const section = (text: string) => <p className="mt-2 text-2xs font-semibold uppercase tracking-wide text-t3 first:mt-0">{text}</p>
+  const section = (text: string) => <p className="mt-2 text-xs font-medium text-t3 first:mt-0">{text}</p>
   const totalMiles = (lane.miles + lane.deadhead).toLocaleString('en-US')
   return (
     <div className="border-t border-white/[0.06] px-3 pb-3 pt-2 text-sm">

@@ -34,7 +34,7 @@ export type TruckWeekData = {
 const DEADHEAD_WARN_PCT = 15
 const DEADHEAD_BAD_PCT = 25
 
-const LABEL = 'text-2xs font-semibold tracking-wide text-t3 uppercase'
+const LABEL = 'text-xs font-medium text-t3'
 
 export function TruckWeek({ d, locale }: { d: TruckWeekData; locale: Locale }) {
   const rpm = d.miles > 0 ? d.gross / d.miles : 0

@@ -144,7 +144,7 @@ export function FleetList({
   return (
     <div className="@container">
       {/* Шапка таблицы — только когда строка и правда таблица. */}
-      <div className={`${GRID} mb-1 hidden gap-x-4 px-3 text-2xs font-semibold uppercase tracking-wide text-t3 @4xl:grid`}>
+      <div className={`${GRID} mb-1 hidden gap-x-4 px-3 text-xs font-medium text-t3 @4xl:grid`}>
         <span className="[grid-area:who]">{t(locale, 'trucks.list.colTruck')}</span>
         <span className="[grid-area:where]">{t(locale, 'trucks.list.colWhere')}</span>
         <span className="[grid-area:load]">{t(locale, 'trucks.list.colLoad')}</span>

@@ -179,7 +179,7 @@ function StopCard({
     <div className="panel-inset min-w-0 p-3.5">
       <div className="flex items-center justify-between gap-2">
         <span
-          className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide ${
+          className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-semibold ${
             kind === 'pickup' ? 'bg-haul-500/15 text-haul-300' : 'bg-good-500/15 text-good-400'
           }`}
         >
@@ -417,17 +417,17 @@ export function CardClient() {
       {/* ── Шапка: откуда груз, маршрут, действия, ставка ─────────────────── */}
       <section className="panel p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1 rounded-md bg-haul-500/15 px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide text-haul-300">
+          <span className="inline-flex items-center gap-1 rounded-md bg-haul-500/15 px-2 py-0.5 text-2xs font-semibold text-haul-300">
             {t(locale, rc ? 'loadCard.srcRc' : 'loadCard.srcBoard')}
           </span>
           {verdict && (
-            <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide ${toneChip(verdict.tone)}`}>
+            <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-2xs font-semibold ${toneChip(verdict.tone)}`}>
               <ToneIcon tone={verdict.tone} size={12} />
               DAT {pct}
             </span>
           )}
           {brokerCheck?.state === 'done' && (
-            <span className="inline-flex items-center gap-1 rounded-md bg-white/6 px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide text-t2">
+            <span className="inline-flex items-center gap-1 rounded-md bg-white/6 px-2 py-0.5 text-2xs font-semibold text-t2">
               <ShieldCheck size={12} />
               FMCSA
             </span>

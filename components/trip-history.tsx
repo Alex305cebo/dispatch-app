@@ -478,12 +478,12 @@ function LegRow({
                   />
                 </span>
                 {role && (
-                  <span className="shrink-0 rounded-full bg-haul-500/20 px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide text-haul-300">
+                  <span className="shrink-0 rounded-full bg-haul-500/20 px-1.5 py-0.5 text-2xs font-semibold text-haul-300">
                     {t(locale, role === 'pickup' ? 'trucks.trip.atPickup' : 'trucks.trip.atDelivery')}
                   </span>
                 )}
                 {!role && leg.long && (
-                  <span className="shrink-0 rounded-full bg-warn-400/15 px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide text-warn-400">
+                  <span className="shrink-0 rounded-full bg-warn-400/15 px-1.5 py-0.5 text-2xs font-semibold text-warn-400">
                     {t(locale, 'trucks.trip.longRest')}
                   </span>
                 )}

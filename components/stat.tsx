@@ -1,17 +1,20 @@
-// Плитка с цифрой: подпись капсом, иконка в цветном квадрате, крупное число. Одна на
-// приложение — обзор и грузы, чтобы плитки не расходились в стиле.
+// Плитка с цифрой — одна на приложение, чтобы плитки разделов не расходились в стиле.
+// С 13/10/26 — по образцу SmartHop (владелец: «мне понравился новый вид, переделай всё»):
+// название обычными буквами и жирным, справа кольцо «сколько из скольких», крупное
+// число обычным шрифтом, под ним картинка. Подписей капсом и значков в цветном квадрате
+// на образце нет — их больше нет и здесь.
 
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { Info } from '@/components/info'
+import { GoalRing } from '@/components/today-cards'
 
-/** Tint used by a tile's icon chip and its meter. Kept to the semantic four so a
- * figure's colour still means something rather than just decorating the grid. */
+/** Цвет полосы под цифрой. Только смысловые четыре: цвет значит что-то, а не красит. */
 const ACCENTS = {
-  haul: { chip: 'bg-haul-500/15 text-haul-300 ring-haul-400/20', bar: 'bg-haul-400' },
-  good: { chip: 'bg-good-500/15 text-good-400 ring-good-400/20', bar: 'bg-good-400' },
-  warn: { chip: 'bg-warn-400/15 text-warn-400 ring-warn-400/20', bar: 'bg-warn-400' },
-  bad: { chip: 'bg-bad-500/15 text-bad-400 ring-bad-400/20', bar: 'bg-bad-400' },
+  haul: { bar: 'bg-haul-400' },
+  good: { bar: 'bg-good-400' },
+  warn: { bar: 'bg-warn-400' },
+  bad: { bar: 'bg-bad-400' },
 } as const
 
 export function Stat({
@@ -22,7 +25,6 @@ export function Stat({
   subTone,
   info,
   href,
-  icon,
   accent = 'haul',
   meter,
   hero,
@@ -30,6 +32,7 @@ export function Stat({
   compact,
   surface = 'inset',
   word,
+  ring,
   children,
 }: {
   label: string
@@ -41,13 +44,14 @@ export function Stat({
   info?: string
   /** Where the card leads — e.g. the loads list behind a rate total. */
   href?: string
+  /** Больше не рисуется (образец SmartHop — без значков на плитках); оставлен, чтобы
+   *  разделы не ломались, пока их плитки не переписаны. */
   icon?: ReactNode
   accent?: keyof typeof ACCENTS
   /** 0..1 — draws a thin fill bar along the bottom of the tile. */
   meter?: number
-  /** The one figure an owner watches first (rate/profit). Lifts the tile to elevation
-   * tier 2 and caps it with an accent strip, so four equal numbers gain a focal point
-   * instead of reading as an undifferentiated row. */
+  /** Главная цифра ряда (гросс): на ступень крупнее остальных. Цветной полосы сверху
+   *  больше нет — на образце её нет. */
   hero?: boolean
   /** На какой поверхности живёт плитка. 'inset' — внутри общей карточки (так она
    * устроена на странице грузов). 'panel' — сама себе карточка: в переставляемой
@@ -61,6 +65,9 @@ export function Stat({
   /** Значение — слово («Georgia», «горячий»), а не число: оно и подпись под ним —
    *  обычным шрифтом и с переносом по словам. Моноширинный — только у цифр. */
   word?: boolean
+  /** Кольцо справа от названия — доля 0..100 («сколько из скольких», как на образце
+   *  SmartHop). null — кольцо пустое: сравнивать не с чем. */
+  ring?: number | null
   /** Мини-график под цифрой. */
   children?: ReactNode
 }) {
@@ -68,36 +75,22 @@ export function Stat({
   const skin = surface === 'panel' ? 'panel panel-interactive' : 'panel-inset'
   const body = (
     <>
-      {hero && (
-        <span
-          aria-hidden
-          className={`absolute inset-x-0 top-0 h-[3px] ${surface === 'panel' ? 'rounded-t-2xl' : 'rounded-t-xl'} ${a.bar}`}
-        />
-      )}
-      {/* Label first, figure second. The old tile led with the number and buried the
-          label underneath in 10px grey, so four tiles in a row read as four loose
-          numbers with no way to tell at a glance which was which. */}
+      {/* Название первым, цифра второй. Жирное и обычными буквами, как заголовок
+          карточки на образце; переносится на вторую строку, а не обрезается: «TOT…»
+          не говорит ничего. Справа — кольцо, если плитка про долю. */}
       <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1 text-2xs font-semibold uppercase tracking-wide text-t3">
-          {/* Переносится на вторую строку, а не обрезается: «TOT…» не говорит ничего,
-              две строки говорят всё. Плитки в ряду тянутся до общей высоты. */}
+        <div className="flex min-w-0 items-center gap-1 text-md font-semibold leading-snug text-t1">
           <span className="min-w-0">{label}</span>
           {info && <Info text={info} />}
         </div>
-        {icon && (
-          <span
-            className={`flex size-6 shrink-0 items-center justify-center rounded-md ring-1 ${a.chip}`}
-          >
-            {icon}
-          </span>
-        )}
+        {ring !== undefined && <GoalRing pct={ring} />}
       </div>
 
       {/* Размер по ширине экрана: на узком крупный шрифт не помещался и число
           обрезалось молча — это хуже, чем то же число на пару пунктов мельче. */}
       <div
         className={`${word ? 'break-words' : 'nums break-all'} font-bold leading-none tracking-tight ${
-          compact ? 'mt-1.5 lg:mt-2' : 'mt-2'
+          ring !== undefined ? 'mt-0' : compact ? 'mt-2 lg:mt-3' : 'mt-3'
         } ${
           hero
             ? compact
@@ -115,7 +108,7 @@ export function Stat({
 
       {sub && (
         <div
-          className={`${word ? '' : 'nums '}mt-1 text-xs font-medium ${
+          className={`${word ? '' : 'nums '}mt-1.5 text-xs font-medium ${
             subTone === 'good' ? 'text-good-400/90' : subTone === 'bad' ? 'text-bad-400/90' : 'text-t3'
           }`}
         >

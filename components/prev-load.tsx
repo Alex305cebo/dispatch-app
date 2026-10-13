@@ -37,7 +37,7 @@ export function PrevLoad({
     <div className={className}>
       {/* Подпись со значком — отдельной строкой над самим грузом: внутри строки ⓘ
           попадал под ссылку и открывал груз вместо подсказки. */}
-      <p className="mb-1 flex items-center gap-1.5 px-0.5 text-xs font-semibold tracking-wide text-t3 uppercase">
+      <p className="mb-1 flex items-center gap-1.5 px-0.5 text-xs font-medium text-t3">
         <History size={12} strokeWidth={2.2} aria-hidden />
         {t(locale, 'prevLoad.label')}
         <Info text={t(locale, 'prevLoad.info')} />

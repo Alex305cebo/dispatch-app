@@ -389,7 +389,7 @@ export function Nav({
               {t(locale, it.labelKey)}
             </span>
             {it.soon && (
-              <span className="nav-label ml-auto hidden rounded-full bg-white/8 px-1.5 py-0.5 text-2xs uppercase tracking-wide text-t2 md:inline">
+              <span className="nav-label ml-auto hidden rounded-full bg-white/8 px-1.5 py-0.5 text-2xs text-t2 md:inline">
                 {t(locale, 'nav.soon')}
               </span>
             )}

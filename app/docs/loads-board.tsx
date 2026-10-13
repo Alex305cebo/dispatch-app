@@ -109,7 +109,7 @@ const input =
 const btn =
   'inline-flex min-h-9 items-center rounded-lg border border-white/12 bg-white/[0.04] px-3 text-sm font-semibold text-t1 transition-colors hover:border-white/30 hover:bg-white/[0.08] disabled:opacity-50 max-md:min-h-10'
 const primary =
-  'inline-flex min-h-9 items-center rounded-lg bg-haul-500 px-3 text-sm font-semibold text-white shadow-[0_6px_16px_-8px_rgba(124,108,255,0.9)] transition-colors hover:bg-haul-400 disabled:opacity-50 max-md:min-h-10'
+  'inline-flex min-h-9 items-center rounded-lg bg-haul-500 px-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-haul-400 disabled:opacity-50 max-md:min-h-10'
 
 const fill = (s: string, vars: Record<string, string | number>) =>
   Object.entries(vars).reduce((acc, [k, v]) => acc.replace(`{${k}}`, String(v)), s)
