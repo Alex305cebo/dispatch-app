@@ -108,7 +108,7 @@ export function LoadsTable({
       </div>
       {/* Длинный список («Завершённые», «Все») — порциями: сорок строк подряд уводят
           страницу на пять экранов вниз. */}
-      <ShowMore limit={25} label={t(locale, 'loads.page.showMore')} items={rows} />
+      <ShowMore flush limit={25} label={t(locale, 'loads.page.showMore')} items={rows} />
     </div>
   )
 }

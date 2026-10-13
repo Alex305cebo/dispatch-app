@@ -72,7 +72,9 @@ const byImportance = (a: Row, b: Row) =>
 /** «C.H. Robinson» ищется и как «ch robinson». */
 const norm = (s: string) => s.toLowerCase().replace(/[.,]/g, '').replace(/\s+/g, ' ').trim()
 
-const row = 'rounded-lg border border-white/8 px-3 py-2 transition-colors hover:border-white/20 hover:bg-white/[0.03]'
+// Строки — одной таблицей в одной карточке (13/10/26, вид SmartHop): делит тонкая
+// линия, а не рамка у каждой из десятка строк.
+const row = 'border-t border-white/[0.07] px-3 py-2 transition-colors first:border-t-0 hover:bg-white/[0.025] sm:px-4'
 
 /** Справа в строке — плашка с точкой: цвет читается раньше слов (план «Порядок в TMS»,
  * 10/09/26 — меньше текста для чтения). Серая — просто факт, без оценки. */
@@ -251,9 +253,10 @@ export function Directory({
           {q || view === 'attention' ? t(locale, 'brokers.noMatch') : t(locale, 'brokers.dir.empty')}
         </p>
       ) : (
-        <div className="mt-4 flex flex-col gap-1.5">
+        <div className="panel mt-4 flex flex-col overflow-hidden p-0">
           <ShowMore
             key={`${view}-${q}`}
+            flush
             limit={12}
             label={t(locale, 'brokers.dir.more')}
             items={list.map((r) =>
@@ -296,7 +299,7 @@ function DirRow({
 }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className={`${row} ${open ? 'border-white/20 bg-white/[0.03]' : ''}`}>
+    <div className={`${row} ${open ? 'bg-white/[0.03]' : ''}`}>
       <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="block min-h-11 w-full text-left">
         <span className="flex items-center gap-3">
           <span
