@@ -10,6 +10,8 @@ import { tripRpm, type AmazonStatus } from '@/lib/amazon-relay'
 import type { AmazonTrip } from '@/lib/amazon'
 import { deleteAmazonTrip, setAmazonTripStatus, setAmazonTripTruck } from '@/app/amazon/actions'
 import { TripForm, type TruckOption } from './trip-form'
+import { TripSteps } from '@/components/today-cards'
+import { TRIP_COLS } from './trip-cols'
 
 const STATUS_TONE: Record<AmazonStatus, string> = {
   booked: 'border-haul-400/40 text-haul-300',
@@ -26,6 +28,13 @@ const NEXT: Partial<Record<AmazonStatus, { to: AmazonStatus; label: MsgKey }>> =
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 const SMALL_BTN =
   'min-h-9 rounded-lg border border-white/12 px-2.5 text-sm text-t2 hover:border-white/25 hover:text-t1 disabled:opacity-50 max-md:min-h-11'
+/** Второстепенные действия строки — словами, но без рамки: в таблице три кнопки в
+ *  рамках на каждой строке спорили с самим рейсом. */
+const TEXT_BTN = 'min-h-9 whitespace-nowrap rounded-lg px-1.5 text-sm text-t3 hover:bg-white/[0.06] hover:text-t1 disabled:opacity-50 max-md:min-h-11'
+
+/** Сколько шагов рейса пройдено — полоса под статусом, как «Рейс» на «Грузах». */
+const STEPS: Record<AmazonStatus, number | null> = { booked: 1, in_transit: 2, delivered: 3, cancelled: null }
+
 
 export function TripRow({ trip, trucks }: { trip: AmazonTrip; trucks: TruckOption[] }) {
   const locale = useLocale()
@@ -39,7 +48,7 @@ export function TripRow({ trip, trucks }: { trip: AmazonTrip; trucks: TruckOptio
 
   if (editing)
     return (
-      <li className="panel-inset rounded-xl p-3">
+      <li className="border-t border-white/[0.07] bg-white/[0.02] p-4 first:border-t-0">
         <TripForm
           id={trip.id}
           trucks={trucks}
@@ -66,56 +75,60 @@ export function TripRow({ trip, trucks }: { trip: AmazonTrip; trucks: TruckOptio
   const cancelled = trip.status === 'cancelled'
 
   return (
-    <li className={`panel-inset rounded-xl p-3 ${cancelled ? 'opacity-60' : ''}`}>
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+    <li className={`${TRIP_COLS} border-t border-white/[0.07] px-4 py-3 transition-colors first:border-t-0 hover:bg-white/[0.025] ${cancelled ? 'opacity-60' : ''}`}>
+      {/* Статус плашкой и полоса из трёх шагов: взят → в пути → доставлен. */}
+      <div className="flex min-w-0 flex-col items-start gap-1.5 [grid-area:status]">
         <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_TONE[trip.status]}`}>
           {t(locale, `amazon.status.${trip.status}` as MsgKey)}
         </span>
-        {trip.vrid && <span className="font-mono text-sm font-bold text-t1">{trip.vrid}</span>}
+        <div className="w-16">
+          <TripSteps
+            steps={STEPS[trip.status]}
+            labels={[t(locale, 'amazon.status.booked'), t(locale, 'amazon.status.in_transit'), t(locale, 'amazon.status.delivered')]}
+          />
+        </div>
+      </div>
+
+      {/* Рейс: VRID крупно, тур под ним. */}
+      <div className="min-w-0 [grid-area:trip]">
+        {trip.vrid && <div className="truncate font-mono text-sm font-bold text-t1">{trip.vrid}</div>}
         {trip.tourId && (
-          <span className="rounded-md bg-white/[0.06] px-1.5 py-0.5 font-mono text-xs text-t2">
+          <div className="truncate font-mono text-xs text-t3">
             {t(locale, 'amazon.tour')} {trip.tourId}
-          </span>
+          </div>
         )}
-        <span className="ml-auto nums text-sm font-semibold text-t1">
-          {trip.rate != null && usd.format(trip.rate)}
-          {trip.miles != null && <span className="font-normal text-t3"> · {Math.round(trip.miles)} mi</span>}
-          {rpm != null && (
-            <span className="font-normal text-t2" title={t(locale, 'amazon.rpmSource')}>
-              {' '}
-              · ${rpm.toFixed(2)}/mi
-            </span>
-          )}
-        </span>
       </div>
 
       {/* Маршрут: склады по порядку, у каждого — время, как напечатано в Relay. Дата —
           только у остановки другого дня: день рейса и так стоит заголовком над ним
           («Сегодня», «Завтра»), и одна и та же дата у каждого склада была лишней цифрой. */}
-      <ol className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
+      <ol className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm [grid-area:route]">
         {trip.stops.map((s, i) => (
-          <li key={i} className="flex items-center gap-1.5">
+          <li key={i} className="flex min-w-0 items-center gap-1.5">
             {i > 0 && <span className="text-t3">→</span>}
-            <span className="font-mono font-semibold text-t1">{s.code ?? s.city}</span>
-            {s.code && s.city && <span className="text-t3">{s.city}</span>}
-            {((s.date && s.date !== trip.startDate) || s.time) && (
-              <span className="nums text-t2">
-                {s.date && s.date !== trip.startDate ? `${usDate(s.date)} ` : ''}
-                {s.time ?? ''}
-                {s.time && s.tz ? ` ${s.tz}` : ''}
-              </span>
-            )}
+            <span className="min-w-0">
+              <span className="font-mono font-semibold text-t1">{s.code ?? s.city}</span>
+              {((s.date && s.date !== trip.startDate) || s.time) && (
+                <span className="nums ml-1.5 text-t2">
+                  {s.date && s.date !== trip.startDate ? `${usDate(s.date)} ` : ''}
+                  {s.time ?? ''}
+                  {s.time && s.tz ? ` ${s.tz}` : ''}
+                </span>
+              )}
+              {s.code && s.city && <span className="block truncate text-xs text-t3">{s.city}</span>}
+            </span>
           </li>
         ))}
       </ol>
 
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+      {/* Трак — выбор на месте; прицеп и тип погрузки строкой под ним. */}
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm [grid-area:truck] @4xl:flex-col @4xl:items-stretch">
         <select
           value={trip.truckId ?? ''}
           disabled={busy}
           onChange={(e) => run(() => setAmazonTripTruck(trip.id, e.target.value ? Number(e.target.value) : null))}
           aria-label={t(locale, 'amazon.truck')}
-          className="min-h-9 max-w-[14rem] rounded-lg border border-white/12 bg-white/[0.04] px-2 text-sm text-t1 outline-none max-md:min-h-11"
+          className="min-h-9 max-w-[14rem] rounded-lg border border-white/12 bg-white/[0.04] px-2 text-sm text-t1 outline-none max-md:min-h-11 @4xl:w-full @4xl:min-w-0 @4xl:max-w-none"
         >
           <option value="">{t(locale, 'amazon.noTruck')}</option>
           {trucks.map((tr) => (
@@ -124,41 +137,52 @@ export function TripRow({ trip, trucks }: { trip: AmazonTrip; trucks: TruckOptio
             </option>
           ))}
         </select>
-        {(trip.trailerOwner || trip.trailerNo || trip.loadKind) && (
-          <span className="text-t2">
+        {(trip.trailerOwner || trip.trailerNo || trip.loadKind || trip.notes) && (
+          <span className="min-w-0 text-xs text-t3">
             {[
               trip.trailerOwner === 'amazon' ? t(locale, 'amazon.trailerAmazon') : null,
               trip.trailerNo ? `TRL ${trip.trailerNo}` : null,
               trip.loadKind ? t(locale, trip.loadKind === 'drop' ? 'amazon.kindDrop' : 'amazon.kindLive') : null,
+              trip.notes,
             ]
               .filter(Boolean)
               .join(' · ')}
           </span>
         )}
-        {trip.notes && <span className="text-t3">{trip.notes}</span>}
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {/* Оплата: сумма крупно, мили и $/mi под ней. */}
+      <div className="nums min-w-0 text-right [grid-area:pay]">
+        {trip.rate != null && <div className="text-md font-bold text-t1">{usd.format(trip.rate)}</div>}
+        {(trip.miles != null || rpm != null) && (
+          <div className="text-xs text-t3" title={t(locale, 'amazon.rpmSource')}>
+            {[trip.miles != null ? `${Math.round(trip.miles)} mi` : null, rpm != null ? `$${rpm.toFixed(2)}/mi` : null].filter(Boolean).join(' · ')}
+          </div>
+        )}
+      </div>
+
+      {/* Действия: следующий шаг рейса — кнопкой, остальное — словами без рамки. */}
+      <div className="flex flex-wrap items-center gap-1 [grid-area:acts] @4xl:flex-nowrap @4xl:justify-end">
         {next && (
-          <button type="button" disabled={busy} onClick={() => run(() => setAmazonTripStatus(trip.id, next.to))} className={`${SMALL_BTN} border-haul-500/40 text-haul-300`}>
+          <button type="button" disabled={busy} onClick={() => run(() => setAmazonTripStatus(trip.id, next.to))} className={`${SMALL_BTN} whitespace-nowrap border-haul-500/40 text-haul-300`}>
             {t(locale, next.label)}
           </button>
         )}
+        <button type="button" onClick={() => setEditing(true)} className={TEXT_BTN}>
+          {t(locale, 'amazon.edit')}
+        </button>
         {cancelled ? (
-          <button type="button" disabled={busy} onClick={() => run(() => setAmazonTripStatus(trip.id, 'booked'))} className={SMALL_BTN}>
+          <button type="button" disabled={busy} onClick={() => run(() => setAmazonTripStatus(trip.id, 'booked'))} className={TEXT_BTN}>
             {t(locale, 'amazon.restore')}
           </button>
         ) : (
           trip.status !== 'delivered' && (
-            <button type="button" disabled={busy} onClick={() => run(() => setAmazonTripStatus(trip.id, 'cancelled'))} className={SMALL_BTN}>
+            <button type="button" disabled={busy} onClick={() => run(() => setAmazonTripStatus(trip.id, 'cancelled'))} className={TEXT_BTN}>
               {t(locale, 'amazon.toCancel')}
             </button>
           )
         )}
-        <button type="button" onClick={() => setEditing(true)} className={SMALL_BTN}>
-          {t(locale, 'amazon.edit')}
-        </button>
-        <span className="ml-auto">
+        <span className="ml-auto @4xl:ml-0">
           <DeleteButton action={deleteAmazonTrip} id={trip.id} title={trip.vrid ?? t(locale, 'amazon.delete')} note={t(locale, 'amazon.deleteNote')} />
         </span>
       </div>

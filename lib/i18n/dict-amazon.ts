@@ -83,6 +83,11 @@ export const amazonDict = {
   'amazon.toCancel': { ru: 'Отменить', en: 'Cancel', uk: 'Скасувати' },
   'amazon.restore': { ru: 'Вернуть', en: 'Restore', uk: 'Повернути' },
 
+  // Шапка таблицы рейсов (13/10/26).
+  'amazon.col.status': { ru: 'Статус', en: 'Status', uk: 'Статус' },
+  'amazon.col.trip': { ru: 'Рейс', en: 'Trip', uk: 'Рейс' },
+  'amazon.col.route': { ru: 'Маршрут', en: 'Route', uk: 'Маршрут' },
+  'amazon.col.pay': { ru: 'Оплата', en: 'Pay', uk: 'Оплата' },
   'amazon.board': { ru: 'Рейсы по дням', en: 'Trips by day', uk: 'Рейси по днях' },
   'amazon.today': { ru: 'Сегодня', en: 'Today', uk: 'Сьогодні' },
   'amazon.tomorrow': { ru: 'Завтра', en: 'Tomorrow', uk: 'Завтра' },
