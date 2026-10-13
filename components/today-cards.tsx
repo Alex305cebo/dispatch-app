@@ -291,6 +291,22 @@ export function FuelCard({
   )
 }
 
+/** Полоса рейса из трёх шагов, как на образце SmartHop: груз есть → погрузился →
+ *  доставил. Пройденные шаги залиты акцентом. null — рейса нет вовсе (трак в ремонте,
+ *  груз отменён): полоса едва видна. Подписи шагов — в подсказке. */
+export function TripSteps({ steps, labels }: { steps: number | null; labels: [string, string, string] }) {
+  return (
+    <div className="flex gap-1" title={labels.join(' → ')} aria-hidden>
+      {[1, 2, 3].map((n) => (
+        <span
+          key={n}
+          className={`h-1.5 flex-1 rounded-full ${steps == null ? 'bg-white/[0.05]' : n <= steps ? 'bg-haul-500' : 'bg-white/10'}`}
+        />
+      ))}
+    </div>
+  )
+}
+
 export type TruckStatusRow = {
   id: number
   number: string
@@ -383,16 +399,7 @@ export function TruckStatusCard({
                 <td className="py-1.5">
                   <div className="flex items-center gap-2">
                     <div className="min-w-[4.5rem] flex-1 sm:min-w-[6rem]">
-                      <div className="flex gap-1" title={steps.join(' → ')} aria-hidden>
-                        {[1, 2, 3].map((n) => (
-                          <span
-                            key={n}
-                            className={`h-1.5 flex-1 rounded-full ${
-                              r.steps == null ? 'bg-white/[0.05]' : n <= r.steps ? 'bg-haul-500' : 'bg-white/10'
-                            }`}
-                          />
-                        ))}
-                      </div>
+                      <TripSteps steps={r.steps} labels={steps} />
                       {r.caption && (
                         <div className={`mt-1 truncate text-2xs leading-none ${capCls(r.caption.tone)}`}>{r.caption.text}</div>
                       )}
