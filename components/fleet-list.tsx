@@ -17,6 +17,10 @@
 // (столбцы совпадают у всех строк, поэтому читаются сверху вниз), на узком — карточка
 // в четыре строки. Раскладку решает ширина самой плитки, а не экрана: плитку можно
 // сделать узкой и на компьютере.
+//
+// С 13/10/26 — одной таблицей в одной карточке, как «Статус траков» на образце SmartHop
+// (владелец: «мне понравился новый вид, переделай всё»): строки делит тонкая линия, а не
+// просвет между восемью карточками; слева — фото водителя, как на образце.
 
 import Link from 'next/link'
 import { Clock, Copy, FileWarning, Fuel, Hourglass, Phone, Truck, Undo2 } from 'lucide-react'
@@ -31,11 +35,14 @@ import { Info } from '@/components/info'
 import { Rpm } from '@/components/rpm'
 import { copyText, infoBlock, useDispatcherPhone, type DirectoryCompany } from '@/components/driver-directory'
 import { RateConButton } from '@/components/ratecon-button'
+import { DriverAvatar } from '@/components/driver-avatar'
 
 export type TrackingRow = {
   id: number
   /** Подпись трака целиком — «Alex M. TRK-DEMO-101 TRL-TR-101»: на карте и в подсказках. */
   label: string
+  /** Есть ли фото водителя — тогда в строке оно, иначе инициалы. */
+  hasPhoto?: boolean
   /** Номер трака (или его имя, если номера нет) — первое, что ищут глазами в строке. */
   number: string
   trailer: string | null
@@ -113,8 +120,9 @@ const IDLE_DAYS = 14
 // Широко: пять столбцов, в первом — трак, под ним водитель и телефон. Ширины без
 // оглядки на содержимое (minmax(0, …) и фиксированные), иначе каждая строка-карточка
 // посчитала бы свои столбцы и таблица разъехалась бы.
+// Фото водителя — свой столбец слева на обе строки (трак и водитель), как на образце.
 const GRID =
-  "grid grid-cols-[minmax(0,1fr)_auto] [grid-template-areas:'who_status'_'contact_contact'_'where_where'_'load_load'_'week_week'] @4xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.05fr)_minmax(0,1.2fr)_8.5rem_7.5rem] @4xl:[grid-template-areas:'who_where_load_status_week'_'contact_where_load_status_week']"
+  "grid grid-cols-[2.25rem_minmax(0,1fr)_auto] [grid-template-areas:'ava_who_status'_'ava_contact_contact'_'where_where_where'_'load_load_load'_'week_week_week'] @4xl:grid-cols-[2.25rem_minmax(0,1.1fr)_minmax(0,1.05fr)_minmax(0,1.2fr)_8.5rem_7.5rem] @4xl:[grid-template-areas:'ava_who_where_load_status_week'_'ava_contact_where_load_status_week']"
 
 export function FleetList({
   rows,
@@ -143,8 +151,9 @@ export function FleetList({
 
   return (
     <div className="@container">
+      <div className="panel overflow-hidden p-0">
       {/* Шапка таблицы — только когда строка и правда таблица. */}
-      <div className={`${GRID} mb-1 hidden gap-x-4 px-3 text-xs font-medium text-t3 @4xl:grid`}>
+      <div className={`${GRID} hidden gap-x-3 border-b border-white/8 px-4 py-2.5 text-xs font-medium text-t3 @4xl:grid`}>
         <span className="[grid-area:who]">{t(locale, 'trucks.list.colTruck')}</span>
         <span className="[grid-area:where]">{t(locale, 'trucks.list.colWhere')}</span>
         <span className="[grid-area:load]">{t(locale, 'trucks.list.colLoad')}</span>
@@ -155,17 +164,25 @@ export function FleetList({
         </span>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div>
         {rows.map((r) => {
           const m = money?.[r.id]
           const disp = dispatchers?.[r.id]
           const digits = (r.phone ?? '').replace(/[^\d+]/g, '')
           return (
-            <div key={r.id} className={`${GRID} panel panel-interactive relative gap-x-4 gap-y-1 px-3 py-2.5`}>
+            <div
+              key={r.id}
+              className={`${GRID} relative gap-x-3 gap-y-1 border-t border-white/[0.07] px-4 py-3 transition-colors first:border-t-0 hover:bg-white/[0.025]`}
+            >
               {/* Вся строка открывает трак. Ссылка-подложка, а не <Link> вокруг: внутри
                   есть свои кнопки и ссылки, а вложенные ссылки — неверная разметка, и
                   щелчки по ним съедались бы. Всё нажимаемое ниже стоит на z-10. */}
-              <Link href={`/trucks/${r.id}`} aria-label={r.label} className="absolute inset-0 rounded-[inherit]" />
+              <Link href={`/trucks/${r.id}`} aria-label={r.label} className="absolute inset-0" />
+
+              {/* Фото водителя (или инициалы) — по нему трак находят глазами быстрее номера. */}
+              <div className="self-center [grid-area:ava]">
+                <DriverAvatar truckId={r.id} name={r.driverName} hasPhoto={!!r.hasPhoto} size={36} locale={locale} />
+              </div>
 
               {/* Трак: номер, прицеп, ремонт или отпуск. Цвет значка — состояние по ELD,
                   тот же, что у трака на карте. */}
@@ -368,6 +385,7 @@ export function FleetList({
             </div>
           )
         })}
+      </div>
       </div>
 
       {/* Итог столбца «Неделя» — гросс парка, тот же, что на «Сегодня». Для одной
