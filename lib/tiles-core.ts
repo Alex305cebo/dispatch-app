@@ -140,7 +140,13 @@ export function applyLayout(
  *  иначе applyLayout приписал бы новые карточки в самый низ, под длинный список. */
 const OVERVIEW_RETIRED = new Set(['unpaid', 'utilization'])
 export function migrateOverviewTiles(saved: TilePlacement[]): TilePlacement[] {
-  return saved.some((p) => OVERVIEW_RETIRED.has(p.id)) ? [] : saved
+  if (saved.some((p) => OVERVIEW_RETIRED.has(p.id))) return []
+  // «Прибыль недели» (13/10/26) — новая плитка: в уже переставленной раскладке она
+  // встаёт сразу под «Деньги и траки», а не в самый низ под длинный список. Её
+  // передвинули — она уже в сохранённом порядке, и сюда больше не попадает.
+  const fleet = saved.findIndex((p) => p.id === 'fleet')
+  if (fleet < 0 || saved.some((p) => p.id === 'profit')) return saved
+  return [...saved.slice(0, fleet + 1), { id: 'profit', size: 'l' }, ...saved.slice(fleet + 1)]
 }
 
 /** Раскладка раздела «Траки» по умолчанию.

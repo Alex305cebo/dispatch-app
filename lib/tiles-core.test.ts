@@ -13,6 +13,7 @@ import {
   migrateLoadOrder,
   migrateLoadPapers,
   migrateLoadsMap,
+  migrateOverviewTiles,
   LOAD_DETAIL_TILES,
   LOADS_TILES,
   parseLayout,
@@ -316,4 +317,24 @@ test('migrateTollsTiles: четыре числа толлов → одна по�
   assert.equal(migrateTollsTiles(fresh), fresh)
   assert.deepEqual(migrateTollsTiles([]), [])
   assert.deepEqual(ids(applyLayout([], TOLLS_TILES)), ['toll-month', 'missing', 'calc', 'toll-top', 'guide'])
+})
+
+test('migrateOverviewTiles: «Прибыль недели» встаёт под «Деньги и траки», а не в самый низ', () => {
+  const ids = (l: { id: string }[]) => l.map((p) => p.id)
+  const defaults = parseLayout(
+    '[{"id":"gross","size":"s"},{"id":"rpm","size":"s"},{"id":"active","size":"s"},{"id":"actions","size":"s"},{"id":"fleet","size":"l"},{"id":"profit","size":"l"},{"id":"calendar","size":"l"},{"id":"todo","size":"l"}]',
+  )
+  const saved = parseLayout(
+    '[{"id":"rpm","size":"s"},{"id":"gross","size":"s"},{"id":"active","size":"s"},{"id":"actions","size":"s"},{"id":"fleet","size":"l"},{"id":"calendar","size":"l"},{"id":"todo","size":"l"}]',
+  )
+  assert.deepEqual(ids(applyLayout(migrateOverviewTiles(saved), defaults)), ['rpm', 'gross', 'active', 'actions', 'fleet', 'profit', 'calendar', 'todo'])
+  // Её уже передвинули — порядок не трогаем.
+  const moved = parseLayout('[{"id":"profit","size":"l"},{"id":"fleet","size":"l"},{"id":"gross","size":"s"}]')
+  assert.equal(migrateOverviewTiles(moved), moved)
+  // Без права «Финансы» плитки нет на странице — applyLayout её выбрасывает.
+  const noMoney = defaults.filter((p) => p.id !== 'profit')
+  assert.deepEqual(ids(applyLayout(migrateOverviewTiles(saved), noMoney)), ['rpm', 'gross', 'active', 'actions', 'fleet', 'calendar', 'todo'])
+  // Старая раскладка с вынутыми цифрами уступает новой целиком, пустая — пустая.
+  assert.deepEqual(migrateOverviewTiles(parseLayout('[{"id":"unpaid","size":"s"},{"id":"fleet","size":"l"}]')), [])
+  assert.deepEqual(migrateOverviewTiles([]), [])
 })

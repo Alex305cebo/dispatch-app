@@ -4,8 +4,9 @@
 //   1. Четыре карточки: гросс и RPM недели кольцами (сколько из цели), грузы в работе с
 //      ближайшими датами, «Ждёт тебя» — сколько и самое срочное.
 //   2. Деньги (тёмная карточка) и топливо (цветная) стопкой слева, справа «Статус траков».
-//   3. Календарь недели: водители по строкам, рейсы полосами.
-//   4. Полный список «Ждёт тебя» — рабочий, со всеми кнопками.
+//   3. Прибыль недели: гросс, расходы и чистыми одной полосой и по тракам (13/10/26).
+//   4. Календарь недели: водители по строкам, рейсы полосами.
+//   5. Полный список «Ждёт тебя» — рабочий, со всеми кнопками.
 // Карточки — components/today-cards.tsx, календарь — FleetHeatmap в варианте week.
 
 import {
@@ -28,6 +29,7 @@ import { TodayFeed, type FeedSection, type FeedTone } from '@/components/today-f
 import { idleMarkets, needsLoadItems, needsLoadRows } from '@/components/needs-load'
 import { TourCard } from '@/components/tour-card'
 import { FleetHeatmap } from '@/components/fleet-heatmap'
+import { ProfitCard, type ProfitView } from '@/components/profit-card'
 import {
   FuelCard,
   GoalCard,
@@ -57,6 +59,7 @@ import { shiftDay, weekStartIso, weekStats } from '@/lib/loads-dashboard'
 import { todayEt } from '@/lib/payments'
 import { attentionQueue, overdueDays, type AttentionCategory, type AttentionEntry } from '@/lib/attention'
 import { tourSteps } from '@/lib/tour'
+import { weekProfit } from '@/lib/week-profit'
 
 export const dynamic = 'force-dynamic'
 
@@ -477,6 +480,33 @@ export default async function Page() {
         </div>
       </div>,
     )
+
+  // Прибыль недели (13/10/26, как «Revenue · Expenses · Profit» у SmartHop): гросс минус
+  // расходы по карточкам траков — та же экономика, что у карточки груза. Это деньги —
+  // только с правом «Финансы»; прошлая неделя рядом, кнопкой.
+  if (money) {
+    const profitView = (rows: LoadRecord[]): ProfitView => {
+      const p = weekProfit(rows, trucks)
+      return {
+        gross: p.gross,
+        net: p.net,
+        costs: p.costs,
+        unpriced: p.unpriced,
+        trucks: p.byTruck.map((r) => {
+          const tr = truckById.get(r.truckId)
+          return {
+            id: r.truckId,
+            label: tr?.number?.trim() || tr?.name || '—',
+            sub: shortName(tr?.driverName),
+            gross: r.gross,
+            net: r.net,
+            goal: profiles.get(r.truckId)?.weekTargetGross ?? null,
+          }
+        }),
+      }
+    }
+    add('profit', 'l', <ProfitCard href="/money?tab=weeks" now={profitView(week.rows)} last={profitView(lastWeek.rows)} />)
+  }
 
   // Календарь недели: те же полосы, что «Загрузка парка» на «Траках», но ровно семь дней
   // расчётной недели и водители по строкам.
