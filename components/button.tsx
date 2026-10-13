@@ -39,8 +39,10 @@ const VARIANTS: Record<Variant, string> = {
     'active:bg-haul-600 active:shadow-[inset_0_2px_5px_0_rgba(0,0,0,0.45)]',
   ].join(' '),
   secondary: [
-    'border-white/10 bg-white/[0.06] text-white',
-    'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.07),0_1px_2px_0_rgba(0,0,0,0.35)]',
+    // Фон и тень — из переменных: у плоских карточек кнопка белая и почти без тени
+    // (app/globals.css, --btn2-*), у стекла — прежняя приподнятая клавиша.
+    'border-white/10 bg-[var(--btn2-bg)] text-white',
+    'shadow-[var(--btn2-shadow)]',
     'hover:border-white/20 hover:bg-white/[0.10]',
     'active:bg-white/[0.04] active:shadow-[inset_0_2px_4px_0_rgba(0,0,0,0.4)]',
   ].join(' '),

@@ -12,6 +12,7 @@
 
 import { sql } from '@/lib/db'
 import { listLoads, listTrucks, loadPapers } from '@/lib/loads'
+import { truckPhotoFlags } from '@/lib/maintenance'
 import { currentLoadsByTruck, prevLoadFor, truckLabel, eldStatus } from '@/lib/map'
 import { zoneFor } from '@/lib/tz'
 import { fixPlace } from '@/lib/place'
@@ -71,7 +72,7 @@ export async function FleetBoard({
   // All four are independent, so they go together. The truck list and the share token
   // used to be awaited one after the other before this even started — two round trips
   // of dead time on a page that already has plenty.
-  const [trucks, loads, rowsRaw, phoneRowsRaw, { rateCons }] = await Promise.all([
+  const [trucks, loads, rowsRaw, phoneRowsRaw, { rateCons }, photoIds] = await Promise.all([
     listTrucks(companyId),
     listLoads(companyId),
     seesFleetGps(companyId) ? sql`SELECT * FROM fleet_status` : Promise.resolve([]),
@@ -80,6 +81,8 @@ export async function FleetBoard({
     sql`SELECT truck_id, driver_phone, trailer_number FROM truck_meta`,
     // Рейт-кон текущего груза — кнопка «RC» в строке трака.
     loadPapers(companyId),
+    // Фото водителей — в строке трака, как на образце SmartHop.
+    truckPhotoFlags(companyId),
   ])
   // Слои «Рынок DAT» и «Из штата» на карте: снимки по трём сериям и траки со
   // ставками по направлениям — те же данные, что у «Куда отправить трак» на «Рынке».
@@ -278,6 +281,7 @@ export async function FleetBoard({
       id: t.id,
       label: truckLabel(t, trailerByTruck.get(t.id)),
       number: t.number?.trim() || t.name,
+      hasPhoto: photoIds.has(t.id),
       trailer: trailerByTruck.get(t.id) ?? null,
       driverName: t.driverName,
       // Координаты последнего фикса — чтобы место из строки открывалось на карте

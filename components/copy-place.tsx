@@ -83,7 +83,9 @@ export function CopyPlace({
   const skin =
     variant === 'action'
       ? 'relative z-10 inline-flex shrink-0 items-center rounded-lg border border-white/12 bg-white/[0.04] font-medium text-t1 transition-colors hover:border-white/30 hover:bg-white/[0.08] hover:text-white [&>svg]:text-haul-300'
-      : 'relative z-10 inline-flex shrink-0 items-center rounded-lg border border-haul-500/35 bg-haul-500/15 font-medium text-haul-300 transition-colors hover:border-haul-400 hover:bg-haul-500/30 hover:text-white'
+      : // Тонкая рамка без заливки (вид SmartHop, 13/10/26): в строке каждого трака их
+        // по две, и оранжевые плашки перекрикивали сам адрес. Цвет — у значка.
+        'relative z-10 inline-flex shrink-0 items-center rounded-lg border border-white/12 font-medium text-t2 transition-colors hover:border-haul-400 hover:text-haul-400 [&>svg]:text-haul-400'
 
   return (
     <span className={`inline-flex min-w-0 flex-wrap items-center gap-1.5 ${className}`}>
