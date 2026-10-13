@@ -16,6 +16,7 @@ import { getLocale } from '@/lib/i18n-server'
 import { t, type Locale } from '@/lib/i18n'
 import { AmazonAdd } from './trip-form'
 import { TripRow } from './trip-row'
+import { TRIP_COLS } from './trip-cols'
 import { AmazonLessons } from './lessons'
 
 export const dynamic = 'force-dynamic'
@@ -200,25 +201,37 @@ export default async function AmazonPage() {
     {
       id: 'am-board',
       node: (
-        <div className="panel p-4">
-          <h2 className="mb-3 text-base font-bold text-t1">{t(locale, 'amazon.board')}</h2>
+        // Одной таблицей, как «Статус траков» на образце SmartHop (13/10/26): строки делит
+        // линия, день — полосой-заголовком над своими рейсами, шапка столбцов — у широкой.
+        <div className="panel @container overflow-hidden p-0">
+          <h2 className="px-4 pt-4 pb-3 text-base font-bold text-t1">{t(locale, 'amazon.board')}</h2>
           {order.length === 0 ? (
-            <Empty icon={Package} title={t(locale, 'amazon.empty')} text={t(locale, 'amazon.emptyText')} compact />
+            <div className="px-4 pb-4">
+              <Empty icon={Package} title={t(locale, 'amazon.empty')} text={t(locale, 'amazon.emptyText')} compact />
+            </div>
           ) : (
-            <div className="flex flex-col gap-4">
+            <>
+              <div className={`${TRIP_COLS} hidden border-t border-white/8 px-4 py-2 text-xs font-medium text-t3 @4xl:grid`}>
+                <span className="[grid-area:status]">{t(locale, 'amazon.col.status')}</span>
+                <span className="[grid-area:trip]">{t(locale, 'amazon.col.trip')}</span>
+                <span className="[grid-area:route]">{t(locale, 'amazon.col.route')}</span>
+                <span className="[grid-area:truck]">{t(locale, 'amazon.truck')}</span>
+                <span className="text-right [grid-area:pay]">{t(locale, 'amazon.col.pay')}</span>
+                <span className="[grid-area:acts]" />
+              </div>
               {order.map((day) => (
                 <section key={day ?? 'none'}>
-                  <h3 className="mb-1.5 text-sm font-semibold text-t2">
+                  <h3 className="border-t border-white/8 bg-white/[0.025] px-4 py-1.5 text-xs font-semibold text-t2">
                     {dayTitle(day, today, locale)} <span className="font-normal text-t3">· {days.get(day)!.length}</span>
                   </h3>
-                  <ul className="flex flex-col gap-2">
+                  <ul className="border-t border-white/[0.07]">
                     {sortDay(days.get(day)!).map((x) => (
                       <TripRow key={x.id} trip={x} trucks={truckOpts} />
                     ))}
                   </ul>
                 </section>
               ))}
-            </div>
+            </>
           )}
         </div>
       ),
