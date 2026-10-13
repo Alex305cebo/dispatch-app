@@ -13,12 +13,12 @@ export const loadsDict = {
   'loads.page.title': { ru: 'Грузы', en: 'Loads', es: 'Cargas', uk: 'Вантажі', ro: 'Curse', kk: 'Жүктер' },
   // Строка под заголовком раздела (одна шапка на все разделы, 10/09/26).
   'loads.page.subtitle': {
-    ru: 'Все грузы парка: по водителям, по неделе и на карте.',
-    en: 'Every load in the fleet: by driver, by week and on the map.',
-    es: 'Todas las cargas de la flota: por conductor, por semana y en el mapa.',
-    uk: 'Усі вантажі парку: за водіями, за тижнем і на карті.',
-    ro: 'Toate cursele flotei: pe șofer, pe săptămână și pe hartă.',
-    kk: 'Парктің барлық жүгі: жүргізуші, апта және карта бойынша.',
+    ru: 'Все грузы парка: таблицей, по статусам, неделей и на карте.',
+    en: 'Every load in the fleet: as a table, by status, by week and on the map.',
+    es: 'Todas las cargas de la flota: en tabla, por estado, por semana y en el mapa.',
+    uk: 'Усі вантажі парку: таблицею, за статусами, тижнем і на карті.',
+    ro: 'Toate cursele flotei: în tabel, pe status, pe săptămână și pe hartă.',
+    kk: 'Парктің барлық жүгі: кесте, күй, апта және карта бойынша.',
   },
   'loads.page.tooltip': {
     ru: '«По водителю» — грузы сгруппированы по траку. «По статусу» — цветная доска: одна колонка на каждый статус груза, чтобы видеть всё сразу, а не открывать каждого водителя по очереди. «Календарь» — вся история грузов по неделям, листается назад и вперёд. «Чистыми» — что остаётся после всех расходов трака; число после точки — доход на милю (RPM).',
@@ -4127,6 +4127,33 @@ export const loadsDict = {
     uk: 'Історія за адресами цього вантажу: скільки разів возили, скільки стояли, детеншн, «як заїхати» з минулого разу і нотатка про склад. Усе з минулих вантажів і відміток водія.',
     ro: 'Istoric pentru adresele acestei curse: vizite, timp la rampă, detenție, indicații de data trecută și nota depozitului. Totul din cursele trecute și marcajele șoferului.',
     kk: 'Осы жүк мекенжайларының тарихы: неше рет болдық, қанша тұрдық, детеншн, өткен жолғы «қалай кіру» және қойма ескертпесі. Бәрі өткен жүктер мен жүргізуші белгілерінен.',
+  },
+  // Таблица грузов по образцу SmartHop (13/10/26): шапка колонок и короткие метки строки.
+  'loads.col.load': { ru: 'Груз', en: 'Load', es: 'Carga', uk: 'Вантаж', ro: 'Cursă', kk: 'Жүк' },
+  'loads.col.rate': { ru: 'Ставка', en: 'Rate', es: 'Tarifa', uk: 'Ставка', ro: 'Tarif', kk: 'Тариф' },
+  'loads.dash.noNextShort': {
+    ru: 'дальше пусто',
+    en: 'nothing next',
+    es: 'nada después',
+    uk: 'далі порожньо',
+    ro: 'nimic după',
+    kk: 'кейін бос',
+  },
+  'loads.dash.deliveredOn': {
+    ru: 'Доставлен {date}',
+    en: 'Delivered {date}',
+    es: 'Entregada {date}',
+    uk: 'Доставлено {date}',
+    ro: 'Livrată {date}',
+    kk: 'Жеткізілді {date}',
+  },
+  'loads.dash.overlapShort': {
+    ru: 'накладка по датам',
+    en: 'dates overlap',
+    es: 'fechas se solapan',
+    uk: 'накладка за датами',
+    ro: 'datele se suprapun',
+    kk: 'күндер қабаттасады',
   },
   'facilities.all': { ru: 'Все склады', en: 'All facilities', es: 'Todos los almacenes', uk: 'Усі склади', ro: 'Toate depozitele', kk: 'Барлық қоймалар' },
 } as const
