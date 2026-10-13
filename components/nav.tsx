@@ -3,12 +3,14 @@
 import Link from 'next/link'
 import { LinkPending } from '@/components/link-pending'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Notifier } from '@/components/notifier'
 import { LookPicker } from '@/components/look-picker'
 import { LocaleQuick } from '@/components/locale-quick'
 import { autoRefreshFleet } from '@/app/actions'
 import { UserPanel } from '@/components/user-panel'
+import { QuickSearch, QuickSearchButton } from '@/components/quick-search'
+import type { QuickItem } from '@/lib/quick-search'
 import type { CurrentUser } from '@/lib/session'
 import { useLocale } from '@/components/locale-provider'
 import { t, type MsgKey } from '@/lib/i18n'
@@ -30,6 +32,7 @@ const icons: Record<string, string> = {
   history: 'M12 8v4l3 3 M3.05 11a9 9 0 1 0 .5-4 M3 4v6h6',
   money: 'M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
   more: 'M5 12h.01 M12 12h.01 M19 12h.01',
+  search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M20 20l-4-4',
   shield: 'M12 3l7 3v6c0 4-3 7-7 8-4-1-7-4-7-8V6z M9 12l2 2 4-4',
   // Шлагбаум: стойка и поднятая стрела — узнаваемый знак платной дороги.
   toll: 'M5 21V8 M3 8h4 M7 11l14-4 M7 14l14-4',
@@ -200,6 +203,29 @@ export function Nav({
   const [moreOpen, setMoreOpen] = useState(false)
   useEffect(() => setMoreOpen(false), [pathname])
 
+  // Быстрый поиск (Ctrl+K, 13/10/26): разделы меню и пара частых вкладок ищутся по
+  // названию сразу, грузы, траки и брокеры окно подгружает само при открытии.
+  const [searchOpen, setSearchOpen] = useState(false)
+  const searchPages = useMemo<QuickItem[]>(
+    () => [
+      ...ITEMS.filter((it) => !it.soon && (!it.money || showMoney)).map((it) => ({
+        kind: 'page' as const,
+        href: it.href,
+        title: t(locale, it.labelKey),
+        extra: it.href === '/brokers' ? t(locale, 'search.brokers') : undefined,
+      })),
+      { kind: 'page' as const, href: '/loads/new', title: t(locale, 'search.newLoad') },
+      { kind: 'page' as const, href: '/tolls', title: t(locale, 'nav.tolls') },
+      ...(showMoney
+        ? [
+            { kind: 'page' as const, href: '/money?tab=unpaid', title: t(locale, 'finances.tab.unpaid') },
+            { kind: 'page' as const, href: '/money?tab=factoring', title: t(locale, 'finances.tab.factoring') },
+          ]
+        : []),
+    ],
+    [locale, showMoney],
+  )
+
   function bumpDockTimer() {
     if (collapseTimer.current) clearTimeout(collapseTimer.current)
     collapseTimer.current = setTimeout(() => setDockExpanded(false), 5000)
@@ -337,12 +363,30 @@ export function Nav({
         </svg>
       </button>
 
+      {user && <QuickSearchButton onClick={() => setSearchOpen(true)} />}
+      {user && <QuickSearch open={searchOpen} onOpenChange={setSearchOpen} pages={searchPages} />}
+
       {/* Лист «Ещё» над нижним меню телефона. Подложка на весь экран ловит тап
           мимо — закрыть; z-[-1] прячет её под содержимое nav, но над страницей. */}
       {moreOpen && (
         <>
           <div className="fixed inset-0 z-[-1] md:hidden" onClick={() => setMoreOpen(false)} aria-hidden />
           <div className="mb-2 grid grid-cols-2 gap-1.5 rounded-2xl border border-white/10 bg-ink-900 p-2 shadow-[0_8px_24px_rgba(0,0,0,0.32)] md:hidden">
+            {/* Поиск на телефоне — первой строкой «Ещё»: Ctrl+K тут нет, а в верхней
+                панели и так пять кнопок. */}
+            {user && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMoreOpen(false)
+                  setSearchOpen(true)
+                }}
+                className="col-span-2 flex min-h-11 items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-base text-t3"
+              >
+                <Icon d={icons.search} />
+                {t(locale, 'search.open')}
+              </button>
+            )}
             {rest.map((it) => (
               <Link
                 key={it.href}

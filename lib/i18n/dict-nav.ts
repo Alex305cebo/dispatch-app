@@ -229,4 +229,13 @@ export const navDict = {
     ro: 'Șoferul, factoringul și dispeceratul împreună trebuie să ia sub 100% din brut.',
     kk: 'Жүргізуші, факторинг және диспетч бірге гросстың 100%-нан азын алуы керек.',
   },
+  // Быстрый поиск, Ctrl+K (13/10/26, components/quick-search.tsx).
+  'search.open': { ru: 'Поиск', en: 'Search', es: 'Buscar', uk: 'Пошук', ro: 'Căutare', kk: 'Іздеу' },
+  'search.placeholder': { ru: 'Груз, трак, водитель, брокер, город…', en: 'Load, truck, driver, broker, city…', es: 'Carga, camión, conductor, bróker, ciudad…', uk: 'Вантаж, трак, водій, брокер, місто…', ro: 'Cursă, camion, șofer, broker, oraș…', kk: 'Жүк, тракт, жүргізуші, брокер, қала…' },
+  'search.pages': { ru: 'Разделы', en: 'Sections', es: 'Secciones', uk: 'Розділи', ro: 'Secțiuni', kk: 'Бөлімдер' },
+  'search.brokers': { ru: 'Брокеры', en: 'Brokers', es: 'Brókers', uk: 'Брокери', ro: 'Brokeri', kk: 'Брокерлер' },
+  'search.empty': { ru: 'Ничего не нашлось', en: 'Nothing found', es: 'No se encontró nada', uk: 'Нічого не знайшлося', ro: 'Nu s-a găsit nimic', kk: 'Ештеңе табылмады' },
+  'search.loading': { ru: 'Загружаю грузы…', en: 'Loading loads…', es: 'Cargando cargas…', uk: 'Завантажую вантажі…', ro: 'Se încarcă cursele…', kk: 'Жүктер жүктелуде…' },
+  'search.hint': { ru: '↑↓ выбрать · Enter открыть · Esc закрыть', en: '↑↓ select · Enter open · Esc close', es: '↑↓ elegir · Enter abrir · Esc cerrar', uk: '↑↓ вибрати · Enter відкрити · Esc закрити', ro: '↑↓ alege · Enter deschide · Esc închide', kk: '↑↓ таңдау · Enter ашу · Esc жабу' },
+  'search.newLoad': { ru: 'Новый груз', en: 'New load', es: 'Nueva carga', uk: 'Новий вантаж', ro: 'Cursă nouă', kk: 'Жаңа жүк' },
 } as const
