@@ -73,11 +73,15 @@ export function ShowMore({
   items,
   limit = 6,
   label,
+  flush = false,
 }: {
   items: React.ReactNode[]
   limit?: number
   /** Must contain "{n}" — replaced with the number of hidden rows. */
   label: string
+  /** Внутри таблицы-карточки (строки делит линия): «ещё N» — такой же строкой во всю
+   *  ширину, а не пунктирной кнопкой, прилипшей к краям карточки. */
+  flush?: boolean
 }) {
   if (items.length <= limit) return <>{items}</>
   const hidden = items.length - limit
@@ -85,7 +89,13 @@ export function ShowMore({
     <>
       {items.slice(0, limit)}
       <details className="group/more">
-        <summary className="flex cursor-pointer list-none items-center justify-center gap-1 rounded-lg border border-dashed border-white/12 py-1.5 text-base font-semibold text-t2 transition-colors hover:border-white/25 hover:text-t1">
+        <summary
+          className={
+            flush
+              ? 'flex min-h-10 cursor-pointer list-none items-center justify-center gap-1 border-t border-white/[0.07] text-sm font-semibold text-t2 transition-colors hover:bg-white/[0.025] hover:text-t1'
+              : 'flex cursor-pointer list-none items-center justify-center gap-1 rounded-lg border border-dashed border-white/12 py-1.5 text-base font-semibold text-t2 transition-colors hover:border-white/25 hover:text-t1'
+          }
+        >
           <ChevronRight
             size={12}
             strokeWidth={2.75}
@@ -93,7 +103,7 @@ export function ShowMore({
           />
           {label.replace('{n}', String(hidden))}
         </summary>
-        <div className="mt-1.5 flex flex-col gap-1.5">{items.slice(limit)}</div>
+        <div className={flush ? 'flex flex-col border-t border-white/[0.07]' : 'mt-1.5 flex flex-col gap-1.5'}>{items.slice(limit)}</div>
       </details>
     </>
   )

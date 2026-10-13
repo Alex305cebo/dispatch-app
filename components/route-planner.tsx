@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Flame, Fuel, ImagePlus, MapPin, Snowflake, TrendingDown, TrendingUp } from 'lucide-react'
 import { Info } from '@/components/info'
+import { StateHeatGrid } from '@/components/state-heat-grid'
 import { Stat } from '@/components/stat'
 import { Button } from '@/components/button'
 import { ShowMore } from '@/components/collapse'
@@ -736,7 +737,21 @@ export function RoutePlanner({
         </>
       )}
 
-      {snap && series && <MarketDetails snap={snap} snaps={snaps} series={series} locale={locale} />}
+      {snap && series && (
+        <MarketDetails
+          snap={snap}
+          snaps={snaps}
+          series={series}
+          locale={locale}
+          origin={origin}
+          // Штат с карты — в «Откуда», и экран к началу планировщика: список «куда ехать»
+          // пересчитан там, а не под картой.
+          onPick={(state) => {
+            plan.setOrigin(state)
+            document.getElementById('route-planner')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }}
+        />
+      )}
     </section>
   )
 }
@@ -749,11 +764,15 @@ function MarketDetails({
   snaps,
   series,
   locale,
+  origin,
+  onPick,
 }: {
   snap: DatSnapshot & { date: string }
   snaps: PlanSnaps
   series: DatEquipment
   locale: Locale
+  origin?: string | null
+  onPick?: (state: string) => void
 }) {
   const trend = snap.trend
   const nowRatio = snap.history?.length ? snap.history[snap.history.length - 1]!.ratio : null
@@ -782,6 +801,14 @@ function MarketDetails({
         )}
       </summary>
       <div className="space-y-3 border-t border-white/[0.06] px-3 pb-3 pt-2.5">
+        {/* Карта штатов — первой: где грузы, видно одним взглядом (вид SmartHop, 13/10/26). */}
+        <div>
+          <h4 className={`mb-1.5 flex items-center gap-1.5 ${sub}`}>
+            {t(locale, 'plan.market.heatMap')}
+            <Info text={t(locale, 'plan.market.heatMapInfo')} />
+          </h4>
+          <StateHeatGrid snap={snap} origin={origin} onPick={onPick} />
+        </div>
         {snap.history && snap.history.length > 1 && (
           <div>
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">

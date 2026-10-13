@@ -190,6 +190,16 @@ export const plannerDict = {
     ro: '🔥 fierbinte · ❄️ rece',
     kk: '🔥 қызу · ❄️ салқын',
   },
+  // Карта горячести штатов (13/10/26, components/state-heat-grid.tsx).
+  'plan.market.heatMap': { ru: 'Где грузы: карта штатов', en: 'Where the loads are: state map', es: 'Dónde hay cargas: mapa de estados', uk: 'Де вантажі: карта штатів', ro: 'Unde sunt cursele: harta statelor', kk: 'Жүк қайда: штаттар картасы' },
+  'plan.market.heatMapInfo': {
+    ru: 'Цвет — сколько грузов DAT приходится на один трак в штате против середины по стране: оранжевый — грузов много, голубой — мало. Нажми штат — он встанет в «Откуда».',
+    en: 'Colour is DAT loads per truck in the state against the national middle: orange means many loads, blue means few. Tap a state to set it as “From”.',
+    es: 'El color es cargas DAT por camión en el estado frente a la media nacional: naranja, muchas cargas; azul, pocas. Toca un estado para ponerlo en «Desde».',
+    uk: 'Колір — скільки вантажів DAT припадає на один трак у штаті проти середини по країні: помаранчевий — вантажів багато, блакитний — мало. Натисни штат — він стане в «Звідки».',
+    ro: 'Culoarea e cursele DAT pe camion în stat față de mijlocul țării: portocaliu — multe curse, albastru — puține. Apasă un stat ca să-l pui la «De unde».',
+    kk: 'Түс — штаттағы бір тракқа келетін DAT жүктері ел ортасымен салыстырғанда: қызғылт сары — жүк көп, көгілдір — аз. Штатты бас — ол «Қайдан» болады.',
+  },
   'plan.market.states': { ru: 'Все штаты', en: 'All states', es: 'Todos los estados', uk: 'Усі штати', ro: 'Toate statele', kk: 'Барлық штаттар' },
   'plan.market.compare': { ru: 'Сравнить прицепы', en: 'Compare trailers', es: 'Comparar remolques', uk: 'Порівняти причепи', ro: 'Compară remorcile', kk: 'Тіркемелерді салыстыру' },
   'plan.market.colState': { ru: 'Штат', en: 'State', es: 'Estado', uk: 'Штат', ro: 'Stat', kk: 'Штат' },
