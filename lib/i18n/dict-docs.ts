@@ -79,7 +79,14 @@ export const docsDict = {
   'docs.library.loads': { ru: 'Грузы', en: 'Loads', es: 'Cargas', uk: 'Вантажі', ro: 'Curse', kk: 'Жүктер' },
   'docs.library.moreLoads': { ru: 'ещё грузов: {n}', en: '{n} more loads', es: '{n} cargas más', uk: 'ще вантажів: {n}', ro: 'încă {n} curse', kk: 'тағы {n} жүк' },
   'docs.library.files': { ru: 'файлов: {n}', en: 'files: {n}', es: 'archivos: {n}', uk: 'файлів: {n}', ro: 'fișiere: {n}', kk: 'файл: {n}' },
-  'docs.library.summary': { ru: 'грузов: {loads} · своих бумаг: {own}', en: 'loads: {loads} · own papers: {own}', es: 'cargas: {loads} · propios: {own}', uk: 'вантажів: {loads} · своїх паперів: {own}', ro: 'curse: {loads} · proprii: {own}', kk: 'жүк: {loads} · өз қағазы: {own}' },
+  'docs.library.loadsFull': {
+    ru: 'RC, BOL и POD собраны у {n} из {total} грузов',
+    en: 'RC, BOL and POD collected for {n} of {total} loads',
+    es: 'RC, BOL y POD reunidos en {n} de {total} cargas',
+    uk: 'RC, BOL і POD зібрані у {n} з {total} вантажів',
+    ro: 'RC, BOL și POD strânse la {n} din {total} curse',
+    kk: 'RC, BOL және POD {total} жүктің {n}-інде жиналған',
+  },
   // app/docs/drivers-tab.tsx — «Деньги → Водители»: неделя каждого водителя.
   'drivers.week.current': { ru: 'Эта неделя', en: 'This week', es: 'Esta semana', uk: 'Цей тиждень', ro: 'Săptămâna asta', kk: 'Осы апта' },
   'drivers.col.driver': { ru: 'Водитель', en: 'Driver', es: 'Conductor', uk: 'Водій', ro: 'Șofer', kk: 'Жүргізуші' },
@@ -118,6 +125,9 @@ export const docsDict = {
     ro: 'Cursă, rută, camion, broker…',
     kk: 'Жүк, бағыт, тракт, брокер…',
   },
+  // Шапка таблицы «Документов» (13/10/26): груз · трак · бумаги · прочие.
+  'docs.col.truck': { ru: 'Трак', en: 'Truck', es: 'Camión', uk: 'Трак', ro: 'Camion', kk: 'Трак' },
+  'docs.col.other': { ru: 'Другие', en: 'Other', es: 'Otros', uk: 'Інші', ro: 'Altele', kk: 'Басқалары' },
   'papers.group.missing': { ru: 'Не хватает бумаг', en: 'Paperwork missing', es: 'Faltan papeles', uk: 'Бракує паперів', ro: 'Lipsesc hârtii', kk: 'Қағаз жетіспейді' },
   'papers.group.inWork': { ru: 'В пути', en: 'In transit', es: 'En ruta', uk: 'В дорозі', ro: 'În cursă', kk: 'Жолда' },
   // Полоса над списком: сколько сданных грузов уже со всеми бумагами.

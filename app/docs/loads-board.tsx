@@ -20,6 +20,7 @@ import { ChevronDown, Download, Landmark, Search } from 'lucide-react'
 import { DocLink } from '@/components/doc-link'
 import { LoadPapers, NEEDED, missingPapers, papersComplete, type LoadPaper } from '@/components/load-papers'
 import { useLocale } from '@/components/locale-provider'
+import { docKindLabel, type DocKind } from '@/lib/docs'
 import { CountPill } from '@/components/count-pill'
 import { Rpm } from '@/components/rpm'
 import { notify } from '@/lib/notify'
@@ -449,8 +450,52 @@ export function LoadsBoard({
               {money && <span className="nums shrink-0 text-md font-bold text-t1">{usd.format(list.reduce((s, r) => s + r.rate, 0))}</span>}
               <ChevronDown size={16} className="shrink-0 text-t3 transition-transform duration-200 group-open/sec:rotate-180" />
             </summary>
+            {/* «Документы» (без денег) — таблицей, как в SmartHop: груз, трак и столбец на
+                каждую бумагу. Галочки и плюсы встают друг под другом, и пустую клетку видно
+                сразу по всему списку, а не читая строки. Шапка — только у широкой плитки. */}
+            {!money && (
+              <div className={`${PAPER_COLS} hidden border-t border-white/8 px-4 py-2 text-xs font-medium text-t3 @3xl:grid`}>
+                <span>{t(locale, 'loads.col.load')}</span>
+                <span>{t(locale, 'docs.col.truck')}</span>
+                {PAPER_KINDS.map((kind) => (
+                  <span key={kind} className="text-center">
+                    {docKindLabel(kind, locale)}
+                  </span>
+                ))}
+                <span>{t(locale, 'docs.col.other')}</span>
+              </div>
+            )}
             <ul className="divide-y divide-white/6 border-t border-white/8">
-              {list.map((r) => (
+              {!money && list.map((r) => (
+                <li
+                  key={r.id}
+                  id={`pay-${r.id}`}
+                  className={`relative scroll-mt-20 px-3 py-3 transition-colors hover:bg-white/[0.025] @xl:px-4 ${PAPER_COLS} @3xl:items-center`}
+                >
+                  <Link href={`/loads/${r.id}`} className="block min-w-0 hover:[&_.route]:text-haul-300">
+                    <div className="route text-base font-semibold text-t1 transition-colors">{r.route}</div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-t3">
+                      {r.ref && <span className="nums text-t2">#{r.ref}</span>}
+                      {r.broker && (
+                        <>
+                          {r.ref && <span aria-hidden>·</span>}
+                          <span>{r.broker}</span>
+                        </>
+                      )}
+                      {/* Трак на узкой плитке — тут же; на широкой у него свой столбец. */}
+                      <span className="@3xl:hidden">
+                        {(r.ref || r.broker) && <span aria-hidden>· </span>}
+                        {r.truck}
+                      </span>
+                    </div>
+                  </Link>
+                  <span className="hidden min-w-0 truncate text-sm text-t2 @3xl:block" title={r.truck}>
+                    {r.truck}
+                  </span>
+                  <LoadPapers loadId={r.id} papers={r.papers} urgent={g !== 'inWork'} cells />
+                </li>
+              ))}
+              {money && list.map((r) => (
                 <li
                   key={r.id}
                   id={`pay-${r.id}`}
@@ -528,6 +573,10 @@ export function LoadsBoard({
     </div>
   )
 }
+
+/** Столбцы «Документов» на широкой плитке: груз · трак · четыре бумаги · прочие. */
+const PAPER_COLS = '@3xl:grid @3xl:grid-cols-[minmax(0,2fr)_minmax(0,1.1fr)_repeat(4,4.75rem)_minmax(0,1fr)] @3xl:gap-x-3'
+const PAPER_KINDS: DocKind[] = ['ratecon', 'bol', 'pod', 'invoice']
 
 const DOT = { plain: 'bg-t3', good: 'bg-good-400', warn: 'bg-warn-400', bad: 'bg-bad-400' } as const
 const TEXT = { good: 'text-good-400', warn: 'text-warn-400', bad: 'text-bad-400' } as const

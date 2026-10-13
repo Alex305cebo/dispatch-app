@@ -549,7 +549,11 @@ export function DocLibrary({
   const [del, setDel] = useState<DocMeta | null>(null)
   const [kind, setKind] = useState<DocKind | 'all'>('all')
   const [query, setQuery] = useState('')
-  const [closed, setClosed] = useState<Set<string>>(new Set())
+  // Траки свёрнуты (13/10/26, вид SmartHop): восемь раскрытых траков были четырьмя
+  // экранами списка файлов. В шапке трака теперь видно главное — свои бумаги галочками
+  // и полоса «у скольких грузов собраны RC, BOL и POD»; файлы — по нажатию. Поиск и
+  // фильтр по типу раскрывают всё: там ищут файл, а не трак.
+  const [opened, setOpened] = useState<Set<string>>(new Set())
 
   // Поиск по имени файла, траку и водителю: у парка из десяти траков список групп
   // длиннее экрана, и «раскрыть и поискать глазами» — это и есть то, из-за чего за
@@ -620,31 +624,59 @@ export function DocLibrary({
         <div className="flex flex-col gap-2">
           {groups.map((g) => {
             const key = String(g.id)
-            const open = !closed.has(key)
+            const open = !!q || kind !== 'all' || groups.length === 1 || opened.has(key)
+            const ownKinds = [...new Set(g.rows.filter((r) => r.loadId == null).map((r) => r.kind))]
+            // Грузы трака и у скольких из них на месте все три бумаги.
+            const perLoad = new Map<number, Set<DocKind>>()
+            for (const r of g.rows) if (r.loadId != null) perLoad.set(r.loadId, (perLoad.get(r.loadId) ?? new Set()).add(r.kind))
+            const loadSets = [...perLoad.values()]
+            const full = loadSets.filter((ks) => NEEDED.every((k) => ks.has(k))).length
             return (
               <div key={key} className="overflow-hidden rounded-xl border border-white/8">
                 <button
                   onClick={() =>
-                    setClosed((prev) => {
+                    setOpened((prev) => {
                       const n = new Set(prev)
                       n.has(key) ? n.delete(key) : n.add(key)
                       return n
                     })
                   }
-                  className="flex w-full items-center gap-3 bg-white/[0.03] px-3 py-2.5 text-left transition-colors hover:bg-white/[0.06]"
+                  aria-expanded={open}
+                  className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5 bg-white/[0.03] px-3 py-2.5 text-left transition-colors hover:bg-white/[0.06]"
                 >
                   <ChevronRight size={14} strokeWidth={2.5} className={`shrink-0 text-t3 transition-transform ${open ? 'rotate-90' : ''}`} />
                   <span className="nums text-md font-semibold">{g.label}</span>
                   {g.sub && <span className="truncate text-sm text-t2">{g.sub}</span>}
-                  {g.rows.length > 0 && (
-                    <span className="ml-auto hidden shrink-0 text-xs text-t3 @md:inline">
-                      {t(locale, 'docs.library.summary')
-                        .replace('{loads}', String(new Set(g.rows.map((r) => r.loadId).filter((id) => id != null)).size))
-                        .replace('{own}', String(g.rows.filter((r) => r.loadId == null).length))}
+                  {/* Свои бумаги трака — галочками по типу: страховка, регистрация… */}
+                  {ownKinds.length > 0 && (
+                    <span className="hidden flex-wrap gap-1 @lg:flex">
+                      {ownKinds.slice(0, 3).map((k) => (
+                        <span key={k} className="inline-flex items-center gap-1 rounded-md bg-good-500/12 px-1.5 py-0.5 text-2xs font-semibold text-good-400">
+                          <Check size={10} strokeWidth={3} aria-hidden />
+                          {docKindLabel(k, locale)}
+                        </span>
+                      ))}
+                      {ownKinds.length > 3 && <span className="rounded-md bg-white/8 px-1.5 py-0.5 text-2xs font-semibold text-t3">+{ownKinds.length - 3}</span>}
+                    </span>
+                  )}
+                  {/* Грузы — клеткой каждый: зелёная — RC, BOL и POD собраны, жёлтая — нет. */}
+                  {loadSets.length > 0 && (
+                    <span
+                      className="ml-auto flex shrink-0 items-center gap-2"
+                      title={t(locale, 'docs.library.loadsFull').replace('{n}', String(full)).replace('{total}', String(loadSets.length))}
+                    >
+                      <span className="flex h-2 w-24 gap-[2px]" aria-hidden>
+                        {loadSets.slice(0, 12).map((ks, i) => (
+                          <span key={i} className={`flex-1 rounded-[1px] ${NEEDED.every((k) => ks.has(k)) ? 'bg-good-400' : 'bg-warn-400'}`} />
+                        ))}
+                      </span>
+                      <span className="nums text-xs text-t3">
+                        {full}/{loadSets.length}
+                      </span>
                     </span>
                   )}
                   <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${g.rows.length ? '' : 'ml-auto'} ${
+                    className={`nums shrink-0 rounded-full px-2 py-0.5 text-xs ${loadSets.length ? '' : 'ml-auto'} ${
                       g.rows.length ? 'bg-white/8 text-t2' : 'bg-warn-400/15 text-warn-400'
                     }`}
                   >
