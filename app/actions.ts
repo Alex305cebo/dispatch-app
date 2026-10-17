@@ -1667,6 +1667,12 @@ export async function setTruckAvailability(
 
 const MAX_DOC_BYTES = 8 * 1024 * 1024
 
+/** Обратно из hex (textToHex в lib/upload-name.ts); мусор и пустое — ''. */
+function hexText(v: FormDataEntryValue | null): string {
+  if (typeof v !== 'string' || !v || v.length > 2000 || !/^(?:[0-9a-f]{2})+$/i.test(v)) return ''
+  return Buffer.from(v, 'hex').toString('utf8').slice(0, 300)
+}
+
 /** Vision-classify an uploaded document (base64) into a doc kind before deciding what to do
  * with it — so a BOL dropped on the truck card is filed as a BOL, not force-labelled a rate
  * con. Degrades to 'other' with no AI key; never throws. */
@@ -1703,15 +1709,20 @@ export async function uploadDocument(
   // повторно строкой base64. noFile в ответе — сигнал браузеру сделать этот повтор.
   const b64 = fd.get('fileB64')
   if ((!(file instanceof File) || file.size === 0) && typeof b64 === 'string' && b64) {
-    const name = String(fd.get('fileName') || 'document')
-    console.warn(`uploadDocument: файл пришёл только строкой (${name}, ${b64.length} симв.)`)
-    file = new File([Buffer.from(b64, 'base64')], name, { type: String(fd.get('fileType') || '') })
+    console.warn(`uploadDocument: файл пришёл только строкой (${b64.length} симв.)`)
+    file = new File([Buffer.from(b64, 'base64')], 'file', { type: String(fd.get('fileType') || '') })
   }
   if (!(file instanceof File) || file.size === 0) return { error: t(locale, 'actions.noFileSelected'), noFile: true }
   if (file.size > MAX_DOC_BYTES) return { error: t(locale, 'actions.fileOver8mb') }
 
   const kind = String(fd.get('kind') || 'other')
-  const title = String(fd.get('title') || '').trim() || file.name
+  // Имя и подпись браузер шлёт hex-строкой (lib/send-document.ts): открытым текстом
+  // имя с датой и временем фильтр хостинга вырезал вместе с файлом.
+  const title =
+    String(fd.get('title') || '').trim() ||
+    hexText(fd.get('titleHex')).trim() ||
+    hexText(fd.get('nameHex')).trim() ||
+    file.name
   const truckId = fd.get('truckId') ? Number(fd.get('truckId')) : null
   const loadId = fd.get('loadId') ? Number(fd.get('loadId')) : null
   const maintenanceId = fd.get('maintenanceId') ? Number(fd.get('maintenanceId')) : null
