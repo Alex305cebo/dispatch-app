@@ -10,7 +10,7 @@
 
 import { uploadDocument } from '@/app/actions'
 import { t, type Locale } from '@/lib/i18n'
-import { bytesToBase64, readUploadFile } from '@/lib/upload-name'
+import { bytesToBase64, readUploadFile, textToHex } from '@/lib/upload-name'
 
 const MAX_DOC_BYTES = 8 * 1024 * 1024
 
@@ -25,9 +25,14 @@ export async function sendDocument(
   if (!ready) return { error: t(locale, 'actions.fileUnreadable') }
   if (ready.size > MAX_DOC_BYTES) return { error: t(locale, 'actions.fileOver8mb') }
 
+  // Настоящее имя и подпись — только hex-строкой: в открытом виде имя с датой и временем
+  // фильтр хостинга вырезает вместе с файлом (см. wireUploadName).
+  const { title, ...rest } = fields
   const form = () => {
     const fd = new FormData()
-    for (const [k, v] of Object.entries(fields)) if (v != null && v !== '') fd.append(k, String(v))
+    for (const [k, v] of Object.entries(rest)) if (v != null && v !== '') fd.append(k, String(v))
+    fd.append('nameHex', textToHex(file.name))
+    if (title != null && title !== '') fd.append('titleHex', textToHex(String(title)))
     return fd
   }
   const fd = form()
@@ -37,7 +42,6 @@ export async function sendDocument(
 
   const again = form()
   again.append('fileB64', bytesToBase64(await ready.arrayBuffer()))
-  again.append('fileName', ready.name)
   again.append('fileType', ready.type)
   return uploadDocument(again)
 }
