@@ -167,19 +167,43 @@ export async function truckPhotoFlags(companyId: CompanyId): Promise<Set<number>
   return new Set((rows as { truck_id: number }[]).map((r) => r.truck_id))
 }
 
+const recordOf = (r: any): MaintenanceRecord => ({
+  id: r.id,
+  truckId: r.truck_id,
+  kind: r.kind,
+  title: r.title,
+  notes: r.notes,
+  cost: r.cost,
+  odometer: r.odometer,
+  doneAt: asDate(r.done_at) ?? '',
+  doneTime: r.done_time ?? null,
+  shop: r.shop ?? null,
+  isOil: !!r.is_oil,
+})
+
 export async function listMaintenance(truckId: number): Promise<MaintenanceRecord[]> {
   const rows = await sql`
-    SELECT * FROM truck_maintenance WHERE truck_id = ${truckId} ORDER BY done_at DESC, id DESC`
-  return rows.map((r: any) => ({
-    id: r.id,
-    truckId: r.truck_id,
-    kind: r.kind,
-    title: r.title,
-    notes: r.notes,
-    cost: r.cost,
-    odometer: r.odometer,
-    doneAt: asDate(r.done_at) ?? '',
-  }))
+    SELECT * FROM truck_maintenance WHERE truck_id = ${truckId} ORDER BY done_at DESC, done_time DESC, id DESC`
+  return rows.map(recordOf)
+}
+
+/** Журнал всего парка — для раздела «Гараж». По кабинету через trucks. */
+export async function fleetMaintenance(companyId: CompanyId): Promise<MaintenanceRecord[]> {
+  const rows = await sql`
+    SELECT m.* FROM truck_maintenance m JOIN trucks t ON t.id = m.truck_id
+    WHERE t.company_id = ${companyId}
+    ORDER BY m.done_at DESC, m.done_time DESC, m.id DESC
+    LIMIT 3000`
+  return rows.map(recordOf)
+}
+
+/** Чеки и бумаги, прикреплённые к записям журнала (documents.maintenance_id), без самих файлов. */
+export async function maintenanceDocs(companyId: CompanyId): Promise<{ id: number; maintenanceId: number; title: string; mime: string }[]> {
+  const rows = await sql`
+    SELECT id, maintenance_id, title, mime FROM documents
+    WHERE company_id = ${companyId} AND maintenance_id IS NOT NULL AND deleted_at IS NULL
+    ORDER BY uploaded_at`
+  return rows.map((r: any) => ({ id: r.id, maintenanceId: r.maintenance_id, title: r.title, mime: r.mime }))
 }
 
 export async function listTodos(truckId: number): Promise<TruckTodo[]> {

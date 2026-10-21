@@ -9,6 +9,9 @@
 //
 // Токен создаёт владелец парка: Samsara → Settings → API tokens, право
 // «Read Vehicle Statistics». Больше от него ничего не нужно.
+//
+// С 10/21/26 тем же запросом берём пробег (одометр OBD, без него — GPS-одометр) и
+// уровень бака: «Гараж» считает по ним масло и показывает пробег сейчас.
 
 import 'server-only'
 import { sql } from './db.ts'
@@ -32,6 +35,19 @@ type SamsaraVehicle = {
     time?: string
     reverseGeo?: { formattedLocation?: string }
   }
+  obdOdometerMeters?: { value?: number }
+  gpsOdometerMeters?: { value?: number }
+  fuelPercent?: { value?: number }
+}
+
+const METERS_PER_MILE = 1609.344
+/** Пробег в милях: одометр с OBD точнее, GPS-одометр — запасной. Меньше 10 миль — мусор
+ * (у ZigZag так приходил «1»), не пишем. */
+export function samsaraMiles(v: Pick<SamsaraVehicle, 'obdOdometerMeters' | 'gpsOdometerMeters'>): number | null {
+  const m = v.obdOdometerMeters?.value ?? v.gpsOdometerMeters?.value
+  if (typeof m !== 'number' || !Number.isFinite(m)) return null
+  const mi = Math.round(m / METERS_PER_MILE)
+  return mi >= 10 ? mi : null
 }
 
 /**
@@ -49,15 +65,23 @@ export async function samsaraSnapshot(): Promise<{ updated: number; errors: stri
   const errors: string[] = []
   let updated = 0
   let after: string | null = null
+  // Не все тарифы и токены отдают одометр и бак — тогда Samsara отвечает 400, и мы
+  // откатываемся на один GPS, как было до 10/21/26.
+  let types = 'gps,obdOdometerMeters,gpsOdometerMeters,fuelPercents'
   // Страниц у парка на десяток машин одна, но пагинация есть в ответе, и полагаться
   // на «их всегда мало» — способ однажды потерять половину парка молча.
   for (let page = 0; page < 20; page++) {
     const url =
-      'https://api.samsara.com/fleet/vehicles/stats?types=gps' + (after ? `&after=${encodeURIComponent(after)}` : '')
+      `https://api.samsara.com/fleet/vehicles/stats?types=${types}` + (after ? `&after=${encodeURIComponent(after)}` : '')
     let body: { data?: SamsaraVehicle[]; pagination?: { endCursor?: string; hasNextPage?: boolean } }
     try {
       const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' })
       if (r.status === 401 || r.status === 403) return { error: 'bad_token' }
+      if (r.status === 400 && types !== 'gps') {
+        types = 'gps'
+        page--
+        continue
+      }
       if (!r.ok) return { error: `samsara ${r.status}` }
       body = await r.json()
     } catch (e) {
@@ -73,14 +97,18 @@ export async function samsaraSnapshot(): Promise<{ updated: number; errors: stri
       // «Едет» начинается с 3 mi/h — как и на пути ZigZag: ниже это дрожание GPS
       // на стоянке, и трак «ехал» бы круглые сутки.
       const status = speed !== null && speed > 3 ? `${Math.round(speed)} mi/h` : null
+      const odometer = samsaraMiles(v)
+      const fuel = typeof v.fuelPercent?.value === 'number' ? v.fuelPercent.value : null
       try {
         await sql`
-          INSERT INTO fleet_status (unit, location, lat, lng, drive_status, eld_seen, updated_at)
-          VALUES (${unit}, ${desc}, ${g.latitude}, ${g.longitude}, ${status}, ${'samsara'}, NOW(6))
+          INSERT INTO fleet_status (unit, location, lat, lng, drive_status, odometer, fuel, eld_seen, updated_at)
+          VALUES (${unit}, ${desc}, ${g.latitude}, ${g.longitude}, ${status}, ${odometer}, ${fuel}, ${'samsara'}, NOW(6))
           ON DUPLICATE KEY UPDATE
             location = COALESCE(VALUES(location), fleet_status.location),
             lat = VALUES(lat), lng = VALUES(lng),
             drive_status = COALESCE(VALUES(drive_status), fleet_status.drive_status),
+            odometer = COALESCE(VALUES(odometer), fleet_status.odometer),
+            fuel = COALESCE(VALUES(fuel), fleet_status.fuel),
             eld_seen = VALUES(eld_seen), updated_at = NOW(6)`
         await logPosition(unit, g.latitude, g.longitude, status, desc)
         updated++

@@ -2430,35 +2430,75 @@ export async function deleteLoad(id: number, confirm: string): Promise<{ error: 
 /* ---------- Truck care: maintenance log, to-fix list, passport ---------- */
 
 export type MaintenanceInput = {
-  kind: 'repair' | 'service' | 'inspection'
+  /** 'oil' — замена масла: в базе kind='service' + is_oil. */
+  kind: 'oil' | 'repair' | 'service' | 'inspection'
   title: string
   notes: string
   cost: number | null
   odometer: number | null
   doneAt: string // YYYY-MM-DD
+  /** «ЧЧ:ММ» по ET; пусто — время не записано. */
+  doneTime?: string | null
+  /** Где сделано: сервис, город. */
+  shop?: string | null
 }
 
-export async function addMaintenance(truckId: number, m: MaintenanceInput): Promise<{ error: string } | void> {
+const cleanTime = (v: string | null | undefined) => (v && /^\d{2}:\d{2}$/.test(v) ? v : null)
+
+/** Замена масла с пробегом двигает счётчик масла трака — но только вперёд: запись
+ * задним числом (старая замена, внесённая сегодня) не откатывает его к старому пробегу. */
+async function bumpOilCounter(truckId: number, odometer: number) {
+  await sql`
+    INSERT INTO truck_meta (truck_id, oil_last_odometer) VALUES (${truckId}, ${odometer})
+    ON DUPLICATE KEY UPDATE oil_last_odometer = GREATEST(COALESCE(oil_last_odometer, 0), ${odometer})`
+}
+
+export async function addMaintenance(truckId: number, m: MaintenanceInput): Promise<{ error: string } | { id: number }> {
   const ro = await writeGuard()
   if (ro) return ro
   const locale = await getLocale()
   if (!m.title.trim()) return { error: t(locale, 'actions.sayWhatWasDone') }
   if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
+  const oil = m.kind === 'oil'
+  let id: number
   try {
-    await sql`
-      INSERT INTO truck_maintenance (truck_id, kind, title, notes, cost, odometer, done_at)
-      VALUES (${truckId}, ${m.kind}, ${m.title.trim()}, ${m.notes.trim() || null},
-              ${m.cost}, ${m.odometer}, ${m.doneAt})`
-    // An oil change in the log IS the oil counter's reset point — one entry, two effects.
-    if (m.kind === 'service' && m.odometer !== null && /масл|oil/i.test(m.title)) {
-      await sql`
-        INSERT INTO truck_meta (truck_id, oil_last_odometer) VALUES (${truckId}, ${m.odometer})
-        ON DUPLICATE KEY UPDATE oil_last_odometer = ${m.odometer}`
-    }
+    const rows = await sql`
+      INSERT INTO truck_maintenance (truck_id, kind, title, notes, cost, odometer, done_at, done_time, shop, is_oil)
+      VALUES (${truckId}, ${oil ? 'service' : m.kind}, ${m.title.trim()}, ${m.notes.trim() || null},
+              ${m.cost}, ${m.odometer}, ${m.doneAt}, ${cleanTime(m.doneTime)}, ${m.shop?.trim() || null}, ${oil ? 1 : 0})
+      RETURNING id`
+    id = (rows[0] as { id: number }).id
+    // Замена масла в журнале и есть точка сброса счётчика — одна запись, два действия.
+    if (m.odometer !== null && (oil || (m.kind === 'service' && /масл|oil/i.test(m.title)))) await bumpOilCounter(truckId, m.odometer)
   } catch (e) {
     return { error: humanError(e, locale) }
   }
   revalidatePath(`/trucks/${truckId}`)
+  revalidatePath('/garage')
+  return { id }
+}
+
+/** Поправить запись журнала: дописать время, место, пробег, сумму к старой записи. */
+export async function updateMaintenance(id: number, truckId: number, m: MaintenanceInput): Promise<{ error: string } | { id: number }> {
+  const ro = await writeGuard()
+  if (ro) return ro
+  const locale = await getLocale()
+  if (!m.title.trim()) return { error: t(locale, 'actions.sayWhatWasDone') }
+  if (!(await truckBelongs(await companyScope(), truckId))) return { error: t(locale, 'actions.truckNotFound') }
+  const oil = m.kind === 'oil'
+  try {
+    await sql`
+      UPDATE truck_maintenance SET kind = ${oil ? 'service' : m.kind}, title = ${m.title.trim()},
+        notes = ${m.notes.trim() || null}, cost = ${m.cost}, odometer = ${m.odometer}, done_at = ${m.doneAt},
+        done_time = ${cleanTime(m.doneTime)}, shop = ${m.shop?.trim() || null}, is_oil = ${oil ? 1 : 0}
+      WHERE id = ${id} AND truck_id = ${truckId}`
+    if (oil && m.odometer !== null) await bumpOilCounter(truckId, m.odometer)
+  } catch (e) {
+    return { error: humanError(e, locale) }
+  }
+  revalidatePath(`/trucks/${truckId}`)
+  revalidatePath('/garage')
+  return { id }
 }
 
 export async function deleteMaintenance(
@@ -2480,9 +2520,12 @@ export async function deleteMaintenance(
   }[]
   if (!rows[0]) return { error: t(locale, 'actions.entryNotFound') }
 
+  // Чеки записи остаются в бумагах трака: иначе внешний ключ не даёт удалить запись.
+  await sql`UPDATE documents SET maintenance_id = NULL WHERE maintenance_id = ${id}`
   await sql`DELETE FROM truck_maintenance WHERE id = ${id}`
   await auditDelete(check.user.companyId, who, 'delete_maintenance', rows[0].title, null, null, null)
   revalidatePath(`/trucks/${truckId}`)
+  revalidatePath('/garage')
   revalidatePath('/logins')
 }
 

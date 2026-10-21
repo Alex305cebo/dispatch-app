@@ -899,6 +899,7 @@ export default async function Page({
         currentOdometer={fs?.odometer ?? null}
         oil={oil}
         docs={docs}
+        truckLabel={truckShortLabel(truck)}
         locale={locale}
       />
       <details className="group panel p-4">

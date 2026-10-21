@@ -90,6 +90,82 @@ export type MaintenanceRecord = {
   cost: number | null
   odometer: number | null
   doneAt: string
+  /** Во сколько, «ЧЧ:ММ» по ET; у старых записей нет. */
+  doneTime: string | null
+  /** Где сделано: сервис, город. */
+  shop: string | null
+  /** Отмечено как замена масла. */
+  isOil: boolean
+}
+
+/** Тип записи журнала так, как его видит диспетчер: масло — свой тип, хотя в базе это
+ * kind='service' с отметкой is_oil. */
+export type ServiceKind = 'oil' | 'repair' | 'service' | 'inspection'
+export const SERVICE_KINDS: ServiceKind[] = ['oil', 'repair', 'service', 'inspection']
+
+/** Замена масла? Отметка is_oil — с 10/21/26; старые записи узнаются по названию
+ * (кнопка «Масло заменено» писала «Замена масла» / «Oil change» / … на языке диспетчера). */
+export function isOilRecord(r: Pick<MaintenanceRecord, 'kind' | 'title' | 'isOil'>): boolean {
+  return r.isOil || (r.kind === 'service' && /масл|мастил|oil|aceite|ulei|май ауыс/i.test(r.title))
+}
+
+export function serviceKind(r: Pick<MaintenanceRecord, 'kind' | 'title' | 'isOil'>): ServiceKind {
+  return isOilRecord(r) ? 'oil' : r.kind
+}
+
+/** Новые записи — сверху: день, потом время (без времени — ниже записей того же дня
+ * со временем), потом порядок ввода. */
+export function byNewest(a: MaintenanceRecord, b: MaintenanceRecord): number {
+  return b.doneAt.localeCompare(a.doneAt) || (b.doneTime ?? '').localeCompare(a.doneTime ?? '') || b.id - a.id
+}
+
+export type OilCard = {
+  /** Последняя записанная замена; null — замен в журнале нет. */
+  last: MaintenanceRecord | null
+  /** Пробег при последней замене: из записи, иначе из паспорта трака. */
+  atOdometer: number | null
+  interval: number
+  /** Проехано с замены; null — нет текущего пробега или он меньше, чем при замене. */
+  since: number | null
+  /** Осталось до следующей; меньше нуля — перепробег. */
+  left: number | null
+  /** Доля интервала, 0–100, для шкалы. */
+  pct: number | null
+  tone: 'good' | 'warn' | 'bad' | null
+}
+
+/** Масло трака одной карточкой: когда и где меняли, при каком пробеге, сколько проехал
+ * с тех пор и сколько осталось. Пороги — как у oilStatus. */
+export function oilCard(records: MaintenanceRecord[], meta: Pick<TruckMeta, 'oilIntervalMi' | 'oilLastOdometer'> | null, currentOdometer: number | null): OilCard {
+  const last = records.filter(isOilRecord).sort(byNewest)[0] ?? null
+  const interval = meta?.oilIntervalMi || 25_000
+  const atOdometer = last?.odometer ?? meta?.oilLastOdometer ?? null
+  const since = atOdometer != null && currentOdometer != null && currentOdometer >= atOdometer ? Math.round(currentOdometer - atOdometer) : null
+  const left = since == null ? null : interval - since
+  const pct = since == null ? null : Math.min(100, Math.round((since / interval) * 100))
+  const tone = left == null ? null : left > 5000 ? 'good' : left > 1000 ? 'warn' : 'bad'
+  return { last, atOdometer, interval, since, left, pct, tone }
+}
+
+/** Расходы на трак по месяцам за последние n месяцев (до месяца today включительно):
+ * [{ month: 'yyyy-mm', total }], старые слева. */
+export function costByMonth(records: MaintenanceRecord[], today: string, n = 12): { month: string; total: number }[] {
+  let y = Number(today.slice(0, 4))
+  let m = Number(today.slice(5, 7))
+  const months: string[] = []
+  for (let i = 0; i < n; i++) {
+    months.unshift(`${y}-${String(m).padStart(2, '0')}`)
+    if (--m === 0) {
+      m = 12
+      y--
+    }
+  }
+  const sums = new Map(months.map((k) => [k, 0]))
+  for (const r of records) {
+    const k = r.doneAt.slice(0, 7)
+    if (r.cost && sums.has(k)) sums.set(k, sums.get(k)! + r.cost)
+  }
+  return months.map((month) => ({ month, total: Math.round(sums.get(month)!) }))
 }
 
 export type TruckTodo = {
