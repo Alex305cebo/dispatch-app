@@ -1,7 +1,7 @@
 'use client'
 
-import { sendDocument } from '@/lib/send-document'
-import { DocLink } from '@/components/doc-link'
+import Link from 'next/link'
+import { ServiceEntryModal, ServiceLog } from '@/components/service-log'
 
 import { Button } from '@/components/button'
 // The care tab of a truck: oil countdown + passport, the to-fix list, and the
@@ -10,18 +10,8 @@ import { Button } from '@/components/button'
 
 import { useState, useTransition } from 'react'
 import { Check } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import {
-  addMaintenance,
-  addTodo,
-  deleteMaintenance,
-  deleteTodo,
-  saveTruckMeta,
-  toggleTodo,
-  type MaintenanceInput,
-  type TruckMetaInput,
-} from '@/app/actions'
-import { expiries, type MaintenanceRecord, type TruckMeta, type TruckTodo } from '@/lib/maintenance-core'
+import { addTodo, deleteTodo, saveTruckMeta, toggleTodo, type TruckMetaInput } from '@/app/actions'
+import { expiries, oilCard, type MaintenanceRecord, type TruckMeta, type TruckTodo } from '@/lib/maintenance-core'
 import { Field, TextField } from '@/components/ui'
 import { DeleteButton } from '@/components/delete-button'
 import { Info } from '@/components/info'
@@ -57,11 +47,6 @@ function DateInput({
   )
 }
 
-const kindLabel = (locale: Locale) => ({
-  repair: t(locale, 'trucks.care.kindRepair'),
-  service: t(locale, 'trucks.care.kindService'),
-  inspection: t(locale, 'trucks.care.kindInspection'),
-})
 const prioLabel = (locale: Locale) => ({
   low: t(locale, 'trucks.care.prioLow'),
   normal: t(locale, 'trucks.care.prioNormal'),
@@ -76,6 +61,7 @@ export function TruckCare({
   currentOdometer,
   oil,
   docs,
+  truckLabel,
   locale = 'en',
 }: {
   truckId: number
@@ -86,10 +72,11 @@ export function TruckCare({
   oil: { milesLeft: number; tone: 'good' | 'warn' | 'bad' } | null
   /** This truck's documents (already fetched for the Documents section) — reused
    * here to find each repair's own attached receipt, keyed by maintenance_id. */
-  docs: { id: number; maintenanceId: number | null }[]
+  docs: { id: number; maintenanceId: number | null; title: string }[]
+  /** Подпись трака для окна записи журнала. */
+  truckLabel: string
   locale?: Locale
 }) {
-  const router = useRouter()
   const [pending, start] = useTransition()
 
   /* ---- oil + passport ---- */
@@ -132,51 +119,15 @@ export function TruckCare({
       ].filter(Boolean)
     : []
   const exp = expiries(meta, locale)
-  const KIND_LABEL = kindLabel(locale)
+  const lastOil = oilCard(records, meta, currentOdometer).last
   const PRIO_LABEL = prioLabel(locale)
 
-  /* ---- «масло заменено» ---- */
+  /* ---- «масло заменено» — то же окно, что «＋ Запись» в журнале ---- */
   const [oilForm, setOilForm] = useState(false)
-  const [oilOdo, setOilOdo] = useState<number | null>(currentOdometer ? Math.round(currentOdometer) : null)
-  const [oilDate, setOilDate] = useState(new Date().toISOString().slice(0, 10))
-  const [oilCost, setOilCost] = useState<number | null>(null)
-  const saveOil = () =>
-    run(
-      async () => {
-        const r = await addMaintenance(truckId, {
-          kind: 'service',
-          title: t(locale, 'trucks.care.oilChangeTitle'),
-          notes: '',
-          cost: oilCost,
-          odometer: oilOdo,
-          doneAt: oilDate,
-        })
-        if (r?.error) return r
-        // Счётчик — явно: addMaintenance сбрасывает его по слову «масло»/«oil» в
-        // названии, а в испанском, румынском и казахском названии этого слова нет.
-        return saveTruckMeta(truckId, { ...m, oilLastOdometer: oilOdo })
-      },
-      t(locale, 'trucks.care.oilChangedToast'),
-      () => {
-        setM({ ...m, oilLastOdometer: oilOdo })
-        setOilForm(false)
-      },
-    )
 
   /* ---- quick todo ---- */
   const [todoTitle, setTodoTitle] = useState('')
   const [todoPrio, setTodoPrio] = useState<'low' | 'normal' | 'urgent'>('normal')
-
-  /* ---- maintenance form ---- */
-  const [showMaint, setShowMaint] = useState(false)
-  const [mt, setMt] = useState<MaintenanceInput>({
-    kind: 'repair',
-    title: '',
-    notes: '',
-    cost: null,
-    odometer: currentOdometer ? Math.round(currentOdometer) : null,
-    doneAt: new Date().toISOString().slice(0, 10),
-  })
 
   const run = (fn: () => Promise<{ error: string } | void>, ok: string, after?: () => void) =>
     start(async () => {
@@ -187,21 +138,6 @@ export function TruckCare({
         after?.()
       }
     })
-
-  /** Attach a document to one specific repair row — same documents pipeline as the
-   * generic uploader above, linked back to this exact record (maintenanceId) so the
-   * row can open its own receipt instead of just filing it under the truck. */
-  function attachReceipt(file: File | undefined, recordTitle: string, maintenanceId: number) {
-    if (!file) return
-    const title = `${recordTitle}${t(locale, 'trucks.care.receiptSuffix')}`
-    start(async () => {
-      const res = await sendDocument(file, { kind: 'repair', truckId, maintenanceId, title }, locale)
-      if ('error' in res) notify('error', res.error)
-      else {
-        notify('ok', t(locale, 'trucks.care.docAdded'))
-      }
-    })
-  }
 
   const oilTone = { good: 'text-good-400', warn: 'text-warn-400', bad: 'text-bad-400' }
   const oilBar = { good: 'bg-good-400', warn: 'bg-warn-400', bad: 'bg-bad-500' }
@@ -283,49 +219,36 @@ export function TruckCare({
             ) : null}
           </p>
 
-          {/* Масло поменяли — отмечается прямо здесь: пробег и дата подставлены, запись
-              уходит в журнал ниже, счётчик сбрасывается. Раньше для этого надо было
-              найти журнал в другой карточке. */}
-          {oilForm ? (
-            <div className="mt-3 grid gap-3 rounded-xl border border-white/8 p-3 sm:grid-cols-3">
-              <Field
-                label={t(locale, 'trucks.care.odometerLabel')}
-                value={oilOdo ?? NaN}
-                onChange={(n) => setOilOdo(Number.isNaN(n) ? null : n)}
-                suffix="mi"
-              />
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-t2">
-                  {t(locale, 'trucks.care.dateLabel')}
-                </span>
-                <input type="date" value={oilDate} onChange={(e) => setOilDate(e.target.value)} className={input} />
-              </label>
-              <Field
-                label={t(locale, 'trucks.care.costLabel')}
-                value={oilCost ?? NaN}
-                onChange={(n) => setOilCost(Number.isNaN(n) ? null : n)}
-                prefix="$"
-              />
-              <div className="flex flex-wrap items-center gap-2 sm:col-span-3">
-                <Button variant="primary" size="sm" disabled={pending || oilOdo === null} onClick={saveOil}>
-                  {t(locale, 'trucks.care.oilSave')}
-                </Button>
-                <Button variant="secondary" size="sm" onClick={() => setOilForm(false)}>
-                  {t(locale, 'trucks.care.oilCancel')}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="mt-2">
-              <Button
-                variant={oil && oil.tone !== 'good' ? 'primary' : 'secondary'}
-                size="sm"
-                icon={<Check size={14} strokeWidth={2.5} />}
-                onClick={() => setOilForm(true)}
-              >
-                {t(locale, 'trucks.care.oilChanged')}
-              </Button>
-            </div>
+          {/* Последняя замена: когда, во сколько, где, при каком пробеге — одной строкой. */}
+          {lastOil && (
+            <p className="nums mt-1 text-sm text-t2">
+              {t(locale, 'service.colLastOil')}: {usDate(lastOil.doneAt)}
+              {lastOil.doneTime && ` · ${lastOil.doneTime}`}
+              {lastOil.shop && ` · ${lastOil.shop}`}
+              {lastOil.odometer != null && ` · ${Math.round(lastOil.odometer).toLocaleString('en-US')} mi`}
+            </p>
+          )}
+
+          {/* «Масло заменено» открывает окно журнала с типом «Масло»: дата, время, где,
+              пробег и чек — одной записью, счётчик сбрасывается сам. */}
+          <div className="mt-2">
+            <Button
+              variant={oil && oil.tone !== 'good' ? 'primary' : 'secondary'}
+              size="sm"
+              icon={<Check size={14} strokeWidth={2.5} />}
+              onClick={() => setOilForm(true)}
+            >
+              {t(locale, 'trucks.care.oilChanged')}
+            </Button>
+          </div>
+          {oilForm && (
+            <ServiceEntryModal
+              trucks={[{ id: truckId, label: truckLabel, odometer: currentOdometer }]}
+              truckId={truckId}
+              preset="oil"
+              onClose={() => setOilForm(false)}
+              locale={locale}
+            />
           )}
         </div>
 
@@ -540,149 +463,19 @@ export function TruckCare({
           </ul>
         )}
 
-        {/* Maintenance log — same card as "Needs fixing": one ongoing story of
-            what's broken and what's already been fixed on this truck. */}
-        <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/8 pt-4">
-          <h3 className="flex items-center gap-1.5 text-md font-semibold text-t1">
-            {t(locale, 'trucks.care.logHeading')}
-            <Info text={t(locale, 'trucks.care.logInfo')} />
-          </h3>
-          <Button variant="primary" size="sm" onClick={() => setShowMaint((v) => !v)}>
-            {showMaint ? t(locale, 'trucks.care.hide') : t(locale, 'trucks.care.addRecord')}
-          </Button>
-        </div>
-
-        {showMaint && (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-t2">
-                {t(locale, 'trucks.care.typeLabel')}
-              </span>
-              <select
-                value={mt.kind}
-                onChange={(e) => setMt({ ...mt, kind: e.target.value as MaintenanceInput['kind'] })}
-                className={input}
-              >
-                <option value="repair">{t(locale, 'trucks.care.kindRepair')}</option>
-                <option value="service">{t(locale, 'trucks.care.kindServiceOption')}</option>
-                <option value="inspection">{t(locale, 'trucks.care.kindInspection')}</option>
-              </select>
-            </label>
-            <TextField
-              label={t(locale, 'trucks.care.whatDoneLabel')}
-              value={mt.title}
-              onChange={(v) => setMt({ ...mt, title: v })}
-              placeholder={t(locale, 'trucks.care.whatDonePlaceholder')}
-            />
-            <Field
-              label={t(locale, 'trucks.care.costLabel')}
-              value={mt.cost ?? NaN}
-              onChange={(n) => setMt({ ...mt, cost: Number.isNaN(n) ? null : n })}
-              prefix="$"
-            />
-            <Field
-              label={t(locale, 'trucks.care.odometerLabel')}
-              value={mt.odometer ?? NaN}
-              onChange={(n) => setMt({ ...mt, odometer: Number.isNaN(n) ? null : n })}
-              suffix="mi"
-            />
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-t2">
-                {t(locale, 'trucks.care.dateLabel')}
-              </span>
-              <input
-                type="date"
-                value={mt.doneAt}
-                onChange={(e) => setMt({ ...mt, doneAt: e.target.value })}
-                className={input}
-              />
-            </label>
-            <TextField label={t(locale, 'trucks.care.notesLabel')} value={mt.notes} onChange={(v) => setMt({ ...mt, notes: v })} />
-            <div className="sm:col-span-2">
-              <Button variant="primary" disabled={pending || !mt.title.trim()}
-                onClick={() =>
-                  run(() => addMaintenance(truckId, mt), t(locale, 'trucks.care.recordAdded'), () => {
-                    setShowMaint(false)
-                    setMt({ ...mt, title: '', notes: '', cost: null })
-                  })
-                }>
-                {t(locale, 'trucks.care.saveRecord')}
-              </Button>
-              <span className="ml-3 text-sm text-t3">
-                {t(locale, 'trucks.care.oilResetHint')}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {records.length === 0 ? (
-          <p className="mt-3 text-base text-t3">{t(locale, 'trucks.care.recordsEmpty')}</p>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-1.5">
-            {records.map((r) => {
-              // Most recently attached receipt for THIS record, if any — real link
-              // via maintenance_id, not a fuzzy title match.
-              const receipt = docs.filter((d) => d.maintenanceId === r.id).at(-1)
-              return (
-                <li key={r.id} className="rounded-lg border border-white/6 px-3 py-2">
-                  <div className="flex items-baseline justify-between gap-3">
-                    {receipt ? (
-                      <DocLink
-                        docId={receipt.id}
-                        title={t(locale, 'trucks.care.openReceipt')}
-                        className="text-left text-md text-t1 hover:text-haul-400 hover:underline"
-                      >
-                        {r.title}
-                      </DocLink>
-                    ) : (
-                      <span className="text-md text-t1">{r.title}</span>
-                    )}
-                    <span className="flex shrink-0 items-center gap-2">
-                      <span className="nums text-base text-t2">
-                        {r.cost !== null ? usd.format(r.cost) : ''}
-                      </span>
-                      <label
-                        title={t(locale, 'trucks.care.attachDoc')}
-                        className={`flex size-6 cursor-pointer items-center justify-center rounded-md bg-white/8 text-base text-t2 transition-colors hover:bg-white/16 hover:text-haul-400 ${pending ? 'opacity-40' : ''}`}
-                      >
-                        📎
-                        <input
-                          type="file"
-                          accept="application/pdf,image/*"
-                          className="hidden"
-                          disabled={pending}
-                          onChange={(e) => {
-                            attachReceipt(e.target.files?.[0], r.title, r.id)
-                            e.target.value = ''
-                          }}
-                        />
-                      </label>
-                      <DeleteButton
-                        action={(id, confirm) => deleteMaintenance(id, truckId, confirm)}
-                        id={r.id}
-                        title={r.title}
-                      />
-                    </span>
-                  </div>
-                  <div className="mt-0.5 text-sm text-t3">
-                    {KIND_LABEL[r.kind]} · {r.doneAt}
-                    {r.odometer !== null && ` · ${Math.round(r.odometer).toLocaleString('en-US')} mi`}
-                    {r.notes && ` · ${r.notes}`}
-                    {receipt && (
-                      <>
-                        {' · '}
-                        <DocLink docId={receipt.id} className="text-haul-400 hover:underline">
-                          📄 {t(locale, 'trucks.care.receiptLink')}
-                        </DocLink>
-                      </>
-                    )}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
       </section>
+
+      {/* Журнал — та же таблица, что в разделе «Гараж», только этот трак. */}
+      <ServiceLog
+        records={records}
+        docs={docs.filter((d): d is { id: number; maintenanceId: number; title: string } => d.maintenanceId != null)}
+        trucks={[{ id: truckId, label: truckLabel, odometer: currentOdometer }]}
+        fixedTruckId={truckId}
+        locale={locale}
+      />
+      <Link href={`/garage?truck=${truckId}#log`} className="self-start text-sm font-medium text-haul-300 hover:underline">
+        🔧 {t(locale, 'service.fleetLog')} →
+      </Link>
     </div>
   )
 }

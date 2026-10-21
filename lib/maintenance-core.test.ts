@@ -47,3 +47,45 @@ test('проверка трака под груз: документы до вы�
   assert.deepEqual(assignWarnings(meta, { places: ['Dallas, TX'] }, '2026-09-16'), ['Documents: Driver CDL expired 09/10/26'])
   assert.deepEqual(assignWarnings(null, trip, '2026-09-16'), [])
 })
+
+import { costByMonth, oilCard, serviceKind, type MaintenanceRecord } from './maintenance-core.ts'
+
+const rec = (o: Partial<MaintenanceRecord>): MaintenanceRecord => ({
+  id: 1, truckId: 1, kind: 'repair', title: 'x', notes: null, cost: null, odometer: null,
+  doneAt: '2026-10-01', doneTime: null, shop: null, isOil: false, ...o,
+})
+
+test('журнал: масло — по отметке и по старому названию', () => {
+  assert.equal(serviceKind(rec({ kind: 'service', isOil: true, title: 'PM A' })), 'oil')
+  assert.equal(serviceKind(rec({ kind: 'service', title: 'Cambio de aceite' })), 'oil')
+  assert.equal(serviceKind(rec({ kind: 'service', title: 'Шины' })), 'service')
+  assert.equal(serviceKind(rec({ kind: 'repair', title: 'Течь масла' })), 'repair')
+})
+
+test('журнал: карточка масла — последняя замена, проехано, осталось', () => {
+  const rs = [
+    rec({ id: 1, kind: 'service', isOil: true, odometer: 400_000, doneAt: '2026-06-01' }),
+    rec({ id: 2, kind: 'service', isOil: true, odometer: 420_000, doneAt: '2026-09-01', doneTime: '14:30' }),
+    rec({ id: 3, kind: 'repair', odometer: 430_000, doneAt: '2026-10-01' }),
+  ]
+  const c = oilCard(rs, { oilIntervalMi: 25_000, oilLastOdometer: 1 }, 441_000)
+  assert.equal(c.last?.id, 2)
+  assert.equal(c.since, 21_000)
+  assert.equal(c.left, 4_000)
+  assert.equal(c.tone, 'warn')
+  assert.equal(c.pct, 84)
+  // Без замен в журнале — пробег из паспорта; без текущего пробега — не считаем.
+  const p = oilCard([], { oilIntervalMi: 25_000, oilLastOdometer: 100_000 }, null)
+  assert.equal(p.atOdometer, 100_000)
+  assert.equal(p.since, null)
+  assert.equal(p.tone, null)
+})
+
+test('журнал: расходы по месяцам, через Новый год', () => {
+  const m = costByMonth([rec({ cost: 100, doneAt: '2026-01-05' }), rec({ cost: 50, doneAt: '2025-12-31' }), rec({ cost: 9, doneAt: '2024-01-01' })], '2026-01-20', 3)
+  assert.deepEqual(m, [
+    { month: '2025-11', total: 0 },
+    { month: '2025-12', total: 50 },
+    { month: '2026-01', total: 100 },
+  ])
+})

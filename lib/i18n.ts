@@ -22,6 +22,7 @@ import { tollsDict } from './i18n/dict-tolls.ts'
 import { tourDict } from './i18n/dict-tour.ts'
 import { plannerDict } from './i18n/dict-planner.ts'
 import { amazonDict } from './i18n/dict-amazon.ts'
+import { serviceDict } from './i18n/dict-service.ts'
 
 export type Locale = 'en' | 'ru' | 'es' | 'uk' | 'ro' | 'kk'
 
@@ -70,6 +71,7 @@ const DICT = {
   ...tourDict,
   ...plannerDict,
   ...amazonDict,
+  ...serviceDict,
 } as const
 
 export type MsgKey = keyof typeof DICT
