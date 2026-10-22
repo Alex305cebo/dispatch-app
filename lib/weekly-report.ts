@@ -10,6 +10,7 @@
 // в Админке, они лежат в settings, как ключи Gemini/FMCSA; в коде и логах их нет.
 // Писать можно только на адреса из настройки report_emails — никому больше.
 
+import { existsSync } from 'node:fs'
 import nodemailer from 'nodemailer'
 import { sql } from './db.ts'
 import { getSetting, setSetting } from './settings.ts'
@@ -189,7 +190,11 @@ export async function sendWeeklyReport(opts: { force?: boolean; today?: string; 
     return { ok: false, error, week: week.from }
   }
   if (!to.length) return fail('Нет адресов получателей.')
-  if (!user || !pass) return fail('Не заданы адрес Gmail и пароль приложения.')
+  // Без пароля Gmail — почтой самого сервера (sendmail хостинга): владелец не хочет
+  // заводить пароль (10/22/26). Пароль остаётся запасным путём, если письма не доходят.
+  const gmail = !!(user && pass)
+  const sendmail = gmail ? null : SENDMAIL_PATHS.find((p) => existsSync(p))
+  if (!gmail && !sendmail) return fail('На сервере нет почты (sendmail). Нужен пароль приложения Gmail.')
 
   try {
     const { built, attach } = await collectReport(week, opts.appUrl ?? 'https://app.mayalogisticsinc.com')
@@ -207,9 +212,13 @@ export async function sendWeeklyReport(opts: { force?: boolean; today?: string; 
         used.add(name.toLowerCase())
         return { filename: name, content: Buffer.from(byId.get(f.id)!), contentType: f.mime }
       })
-    const transport = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass } })
+    const transport = gmail
+      ? nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass } })
+      : nodemailer.createTransport({ sendmail: true, newline: 'unix', path: sendmail! })
     await transport.sendMail({
-      from: { name: 'TMS · отчёт по тракам', address: user },
+      from: { name: 'TMS · отчёт по тракам', address: gmail ? user : senderFor(opts.appUrl) },
+      // Ответ на письмо с сервера — в почту компании, а не в никуда.
+      ...(gmail ? {} : { replyTo: to[0] }),
       to,
       subject: built.subject,
       html: built.html,
@@ -227,6 +236,35 @@ export async function sendWeeklyReport(opts: { force?: boolean; today?: string; 
         : `Не отправилось: ${String(err.message ?? e).slice(0, 160)}`
     return fail(msg)
   }
+}
+
+const SENDMAIL_PATHS = ['/usr/sbin/sendmail', '/usr/lib/sendmail', '/usr/bin/sendmail']
+
+/** Адрес отправителя с сервера: noreply@ домена сайта (app.mayalogisticsinc.com → mayalogisticsinc.com). */
+function senderFor(appUrl: string | undefined): string {
+  let host = 'mayalogisticsinc.com'
+  try {
+    host = new URL(appUrl ?? `https://${host}`).hostname.split('.').slice(-2).join('.') || host
+  } catch {
+    /* оставляем домен по умолчанию */
+  }
+  return `noreply@${host}`
+}
+
+/** Расписание без отдельного планировщика: зовётся из /api/eld-poll (внешний пингер раз в
+ * 5 минут) и после открытия «Сегодня». Неделя уходит с воскресенья 18:00 ET, один раз;
+ * после неудачи — повтор не раньше чем через 6 часов, чтобы не долбить почту. */
+let sending: Promise<unknown> | null = null
+export async function maybeSendWeeklyReport(appUrl?: string): Promise<void> {
+  if (sending) return
+  const now = new Date()
+  const today = todayEt(now)
+  if (new Date(`${today}T12:00:00Z`).getUTCDay() === 0 && Number(etHour.format(now)) < 18) return
+  const week = reportWeek(today)
+  const { last } = await reportStatus()
+  if (last && last.week === week.from && (last.ok || now.getTime() - Date.parse(last.at) < 6 * 3_600_000)) return
+  sending = sendWeeklyReport({ today, appUrl }).catch(() => null).finally(() => (sending = null))
+  await sending
 }
 
 /** Письмо как страница — посмотреть, не отправляя. */

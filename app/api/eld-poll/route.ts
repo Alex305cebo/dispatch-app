@@ -1,8 +1,9 @@
-import { NextResponse, type NextRequest } from 'next/server'
+import { after, NextResponse, type NextRequest } from 'next/server'
 import { secretMatches } from '@/lib/secret-compare'
 import { fleetSnapshot, liveShareSnapshot } from '@/lib/eld'
 import { backfillBrokerMc } from '@/lib/mc-backfill'
 import { samsaraSnapshot } from '@/lib/eld-samsara'
+import { maybeSendWeeklyReport } from '@/lib/weekly-report'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +22,8 @@ export async function GET(req: NextRequest) {
   // внешний планировщик у нас один и настроен на этот адрес: отдельный крон пришлось
   // бы заводить руками, а это ровно та работа, которой быть не должно. Партия
   // маленькая — реестр отвечает медленно, и опрос траков ждать не должен.
+  // Воскресный отчёт по тракам на почту — тот же пингер, после ответа, чтобы опрос не ждал.
+  after(() => maybeSendWeeklyReport().catch(() => undefined))
   const [share, key, samsara, mc] = await Promise.all([
     liveShareSnapshot(),
     fleetSnapshot(),

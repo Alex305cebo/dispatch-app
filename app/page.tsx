@@ -22,6 +22,8 @@ import {
   Wallet,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { after } from 'next/server'
+import { maybeSendWeeklyReport } from '@/lib/weekly-report'
 import { Button } from '@/components/button'
 import { PageHeader } from '@/components/page-header'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
@@ -109,6 +111,9 @@ export default async function Page() {
   const companyId = await companyScope()
   const locale = await getLocale()
   const user = await getCurrentUser()
+  // Воскресный отчёт по тракам на почту: если внешний пингер молчит, его отправит первое
+  // открытие «Сегодня» после воскресенья 18:00 ET. После ответа — страница не ждёт.
+  if (companyId === 'default') after(() => maybeSendWeeklyReport().catch(() => undefined))
   // Деньги (кто сколько должен) — только с правом «Финансы»: без него их даже не считаем.
   const money = await can(user, 'finances')
   const [loads, trucks, fleetRaw, alerts, { rateCons, pods }, marks, trailers, profiles] = await Promise.all([

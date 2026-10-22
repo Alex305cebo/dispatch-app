@@ -71,9 +71,8 @@ export function ReportForm({ status }: { status: { to: string; user: string; pas
         <div>
           <div className="mb-1 flex items-center gap-2">
             <span className="text-base font-medium">{t(locale, 'admin.report.pass')}</span>
-            <span className={`rounded px-1.5 py-0.5 text-2xs font-semibold ${status.passSet ? 'bg-good-500/15 text-good-400' : 'bg-warn-400/15 text-warn-400'}`}>
-              {t(locale, status.passSet ? 'admin.keys.set' : 'admin.keys.notSet')}
-            </span>
+            {/* Пароль не обязателен (без него шлёт сервер сайта) — «не задан» жёлтым не пугаем. */}
+            {status.passSet && <span className="rounded bg-good-500/15 px-1.5 py-0.5 text-2xs font-semibold text-good-400">{t(locale, 'admin.keys.set')}</span>}
             <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="ml-auto text-xs text-haul-300 hover:underline">
               {t(locale, 'admin.keys.where')}
             </a>
