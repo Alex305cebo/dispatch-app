@@ -435,3 +435,46 @@ export async function saveKeys(input: {
   if (input.modelPref) await setSetting('ai_model_pref', input.modelPref)
   revalidatePath('/admin')
 }
+
+// ---------- Отчёт по тракам на почту (lib/weekly-report.ts) ----------
+
+export async function getReportStatus() {
+  await assertAdmin()
+  const { reportStatus } = await import('@/lib/weekly-report')
+  return reportStatus()
+}
+
+/** Пустое поле — не трогать сохранённое; «-» — стереть, как у ключей. */
+export async function saveReportSettings(input: { to: string; user: string; pass: string }): Promise<{ error: string } | void> {
+  await assertAdmin()
+  const { REPORT_KEYS } = await import('@/lib/weekly-report')
+  const { parseRecipients } = await import('@/lib/weekly-report-core')
+  const locale = await getLocale()
+  const to = parseRecipients(input.to)
+  if (!to.length) return { error: t(locale, 'admin.report.toHint') }
+  const user = input.user.trim().toLowerCase()
+  if (user && !EMAIL_RE.test(user)) return { error: t(locale, 'admin.report.user') }
+  await setSetting(REPORT_KEYS.to, to.join(', '))
+  if (user) await setSetting(REPORT_KEYS.user, user)
+  const pass = input.pass.replace(/\s+/g, '')
+  if (pass === '-') await deleteSetting(REPORT_KEYS.pass)
+  else if (pass) await setSetting(REPORT_KEYS.pass, pass)
+  revalidatePath('/admin')
+}
+
+/** Кнопка «Отправить сейчас»: та же отправка, что по воскресеньям, только без отметки «уже ушло». */
+export async function sendReportNow(): Promise<{ ok: true; to: number; files: number } | { error: string }> {
+  await assertAdmin()
+  const { sendWeeklyReport } = await import('@/lib/weekly-report')
+  const res = await sendWeeklyReport({ force: true, appUrl: await appOrigin() })
+  revalidatePath('/admin')
+  if (res.ok) return { ok: true, to: res.to, files: res.files }
+  return { error: 'error' in res ? res.error : res.reason }
+}
+
+async function appOrigin(): Promise<string> {
+  const { headers } = await import('next/headers')
+  const h = await headers()
+  const host = h.get('x-forwarded-host') ?? h.get('host')
+  return host ? `https://${host}` : 'https://app.mayalogisticsinc.com'
+}

@@ -8,11 +8,12 @@ import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/button'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
-import { getDemoConfig, getKeyStatus, getOpenAccess, listFleetForAssign, listRecentErrors, listUsers, listWorkspaces } from './actions'
+import { getDemoConfig, getKeyStatus, getOpenAccess, getReportStatus, listFleetForAssign, listRecentErrors, listUsers, listWorkspaces } from './actions'
 import { UserList } from './user-list'
 import { WorkspaceList } from './workspace-list'
 import { OpenAccessToggle } from './open-access-toggle'
 import { KeysForm } from './keys-form'
+import { ReportForm } from './report-form'
 import { DemoToggle } from './demo-toggle'
 
 export const dynamic = 'force-dynamic'
@@ -24,7 +25,7 @@ export default async function AdminPage() {
   if (!user || user.role !== 'admin' || user.isWorkspace) redirect('/')
   const locale = await getLocale()
 
-  const [users, company, openAccess, keys, demo, fleet, errors, workspaces] = await Promise.all([
+  const [users, company, openAccess, keys, demo, fleet, errors, workspaces, report] = await Promise.all([
     listUsers(),
     getCompany(),
     getOpenAccess(),
@@ -33,6 +34,7 @@ export default async function AdminPage() {
     listFleetForAssign(),
     listRecentErrors().catch(() => []),
     listWorkspaces().catch(() => []),
+    getReportStatus(),
   ])
 
   return (
@@ -56,6 +58,15 @@ export default async function AdminPage() {
           <Info text={t(locale, 'admin.usersInfo')} />
         </h2>
         <UserList users={users} currentUserId={user.id} fleet={fleet} />
+      </section>
+      {/* Отчёт на почту — сразу под людьми: его настраивают и проверяют кнопкой, а
+          владелец ищет его здесь, а не среди ключей. */}
+      <section id="report" className="scroll-mt-4 panel mt-4 p-5">
+        <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
+          {t(locale, 'admin.report.heading')}
+          <Info text={t(locale, 'admin.report.info')} />
+        </h2>
+        <ReportForm status={report} />
       </section>
       <section className="panel mt-4 p-5">
         <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
