@@ -96,10 +96,21 @@ export async function middleware(req: NextRequest) {
     } catch {
       // база недоступна или пуста — решает /login
     }
-    // rewrite, not redirect: the QR carries the load in the URL hash, and a redirect
-    // would drop it. Rewriting keeps the address bar — and the hash — intact, so after
-    // sign-in the load is still there.
-    return NextResponse.rewrite(new URL('/login', req.url))
+    // Переход на вход — перенаправлением, а не подменой (rewrite) ответа. Подмена на
+    // Hostinger ломалась: ссылка из письма без входа давала голый «500 Internal Server
+    // Error» вместо формы (10/22/26). Адрес страницы едет в ?next=, после входа форма
+    // перезагружается, и строка ниже отправляет обратно. #хэш (груз из QR) браузер
+    // переносит через перенаправление сам. /api — 401: там ждут данные, не страницу.
+    if (req.nextUrl.pathname.startsWith('/api/')) return new NextResponse('Unauthorized', { status: 401 })
+    if (req.nextUrl.pathname === '/login') return NextResponse.next({ request: { headers } })
+    const back = `${req.nextUrl.pathname}${req.nextUrl.search}`
+    return goTo(req, back === '/' ? '/login' : `/login?next=${encodeURIComponent(back)}`)
+  }
+
+  // Уже вошёл и пришёл на /login?next=… (форма после входа перезагружается) — туда, откуда звали.
+  if (req.nextUrl.pathname === '/login') {
+    const next = safeNext(req.nextUrl.searchParams.get('next'))
+    if (next) return goTo(req, next)
   }
 
   // Downstream Server Components read these via next/headers' headers() instead of
@@ -116,6 +127,27 @@ export async function middleware(req: NextRequest) {
   headers.set('x-user-role', user.role)
   headers.set('x-company-id', user.companyId)
   return NextResponse.next({ request: { headers } })
+}
+
+/** Перенаправление на адрес, который видит браузер: за прокси хостинга req.url знает
+ * внутренний адрес (localhost:порт), поэтому домен — из x-forwarded-host / host.
+ * Относительный Location middleware Next не принимает (Invalid URL → голый 500). */
+function goTo(req: NextRequest, path: string): NextResponse {
+  const host = req.headers.get('x-forwarded-host')?.split(',')[0]?.trim() || req.headers.get('host')
+  const proto = req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() || req.nextUrl.protocol.replace(':', '')
+  let target: URL
+  try {
+    target = new URL(path, host ? `${proto}://${host}` : req.nextUrl.origin)
+  } catch {
+    target = new URL(path, req.nextUrl.origin)
+  }
+  return NextResponse.redirect(target, { status: 307, headers: { 'cache-control': 'no-store' } })
+}
+
+/** Только свой путь: «/loads/1?x», не «//чужой.сайт» и не обратно на /login. */
+function safeNext(raw: string | null): string | null {
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\') || raw.startsWith('/login')) return null
+  return raw
 }
 
 const BUSY_HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dispatch</title></head>
