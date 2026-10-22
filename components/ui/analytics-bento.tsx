@@ -15,9 +15,13 @@ import * as React from "react";
 /*  приходят пропсом labels (6 языков), ось волн — пропсом axis.         */
 /*  Всё нажимается (владелец, 10/22/26): за точкой, днём, плиткой,       */
 /*  месяцем и строкой лежат ids грузов — onOpenLoads открывает их списком.  */
+/*  Графики живые (владелец, 10/22/26: «должны меняться по кнопкам»):      */
+/*  новая линия перетекает из старой, плитки переезжают, период плиток —   */
+/*  снаружи (categories.period / onPeriod), единицы главной цифры — unit.   */
 /* ------------------------------------------------------------------ */
 
 type Point = { label: string; value: number; ids?: number[] };
+type Unit = { prefix?: string; suffix?: string; digits?: number };
 /** Нажали на точку графика: что это и какие грузы за ней. */
 export type Pick = (title: string, ids: number[]) => void;
 
@@ -30,6 +34,10 @@ export type AnalyticsBentoProps = React.JSX.IntrinsicElements["div"] & {
     note?: React.ReactNode;
     caption?: string;
     series: Point[];
+    /** Единицы главной цифры и графика: «$», «%», знаки после запятой. По умолчанию — валюта. */
+    unit?: Unit;
+    /** Переключатели в шапке карточки (например «По дням | Накопительно»). */
+    tools?: React.ReactNode;
   };
   sessions: {
     label: string;
@@ -49,6 +57,9 @@ export type AnalyticsBentoProps = React.JSX.IntrinsicElements["div"] & {
     title: string;
     groups: { id: string; name: string; color: string; ink?: "dark" | "light" }[];
     periods: { label: string; total: number; delta: string; compare: string; ids?: number[] }[];
+    /** Выбранный период, если им управляет страница; иначе — свой внутри. */
+    period?: number;
+    onPeriod?: (i: number) => void;
     /** one value per period, in the same order as `periods` */
     items: { name: string; group: string; values: number[]; ids?: number[][] }[];
     table?: { columns: string[]; rows: { label: string; values: string[]; ids?: number[] }[] };
@@ -76,7 +87,8 @@ export type AnalyticsBentoProps = React.JSX.IntrinsicElements["div"] & {
 
 /* ---------------- helpers ---------------- */
 
-const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
+const fmt = (n: number, digits = 0) => n.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const fmtU = (n: number, u: Unit) => (u.prefix ?? "") + fmt(n, u.digits) + (u.suffix ?? "");
 const ease = (t: number) => 1 - Math.pow(1 - t, 3);
 
 function useReducedMotion() {
@@ -120,25 +132,27 @@ function smooth(P: [number, number][]) {
   return d;
 }
 
-function CountUp({ value, prefix = "", duration = 1100 }: { value: number; prefix?: string; duration?: number }) {
+function CountUp({ value, prefix = "", suffix = "", digits = 0, duration = 1100 }: { value: number; prefix?: string; suffix?: string; digits?: number; duration?: number }) {
   const ref = React.useRef(null as HTMLSpanElement | null);
   const from = React.useRef(0);
   const reduce = useReducedMotion();
   React.useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (reduce) { el.textContent = prefix + fmt(value); from.current = value; return; }
+    if (reduce) { el.textContent = prefix + fmt(value, digits) + suffix; from.current = value; return; }
     const a = from.current, t0 = performance.now();
     let raf = 0;
     const f = (now: number) => {
       const t = Math.min(1, (now - t0) / duration), v = a + (value - a) * ease(t);
-      el.textContent = prefix + fmt(v); from.current = v;
+      el.textContent = prefix + fmt(v, digits) + suffix; from.current = v;
       if (t < 1) raf = requestAnimationFrame(f);
     };
     raf = requestAnimationFrame(f);
     return () => cancelAnimationFrame(raf);
-  }, [value, prefix, duration, reduce]);
-  return <span ref={ref}>{prefix}0</span>;
+  }, [value, prefix, suffix, digits, duration, reduce]);
+  // Одна строка, а не несколько текстовых узлов: эффект переписывает textContent, и
+  // при смене единиц (Выручка → Мили) React не должен искать уже заменённые узлы.
+  return <span ref={ref}>{`${prefix}0${suffix}`}</span>;
 }
 
 /* ---------------- tooltip ---------------- */
@@ -167,7 +181,7 @@ function Tooltip({ mono, api }: { mono: string; api: TipRef }) {
     <div
       ref={box}
       role="tooltip"
-      className={`pointer-events-none fixed z-50 whitespace-nowrap rounded-xl border border-white/10 bg-ink-900/95 px-2.5 py-2 text-xs text-t1 shadow-e2 backdrop-blur-md transition-opacity duration-150 ${tip ? "opacity-100" : "opacity-0"}`}
+      className={`pointer-events-none fixed z-50 whitespace-nowrap rounded-xl border border-white/10 bg-ink-900/95 px-2.5 py-2 text-xs text-t1 shadow-e2 backdrop-blur-md transition-opacity duration-150 ${tip ? "opacity-100" : "invisible opacity-0"}`}
       style={{ left: pos.l, top: pos.t }}
     >
       {tip && (
@@ -244,7 +258,7 @@ function Segmented({ items, value, onChange, label }: { items: string[]; value: 
 
 /* ---------------- A: revenue line ---------------- */
 
-function RevenueChart({ series, caption, prefix, colors, mono, tip, word, onPick }: { series: Point[]; caption?: string; prefix: string; colors: [string, string]; mono: string; tip: TipRef; word: string; onPick?: (i: number) => void }) {
+function RevenueChart({ series, caption, unit, colors, mono, tip, word, onPick }: { series: Point[]; caption?: string; unit: Unit; colors: [string, string]; mono: string; tip: TipRef; word: string; onPick?: (i: number) => void }) {
   const [ref, { w: W, h: H }] = useSize();
   const reduce = useReducedMotion();
   const [drawn, setDrawn] = React.useState(false);
@@ -252,7 +266,28 @@ function RevenueChart({ series, caption, prefix, colors, mono, tip, word, onPick
   const id = React.useId().replace(/:/g, "");
   React.useEffect(() => { if (!W) return; const r = requestAnimationFrame(() => requestAnimationFrame(() => setDrawn(true))); return () => cancelAnimationFrame(r); }, [W]);
 
-  const vals = series.map((s) => s.value);
+  // Новые цифры (другой трак, брокер, что показывать) не прыгают: линия и шкала
+  // перетекают из прежних за 0.7 с. Другое число точек (другой период) — рисуется заново.
+  const target = series.map((s) => s.value);
+  const sig = target.join(",");
+  const [vals, setVals] = React.useState(target);
+  const live = React.useRef(target);
+  React.useEffect(() => {
+    const from = live.current;
+    if (reduce || from.length !== target.length) { live.current = target; setVals(target); return; }
+    const t0 = performance.now();
+    let raf = 0;
+    const step = (now: number) => {
+      const k = ease(Math.min(1, (now - t0) / 700));
+      live.current = from.map((v, i) => v + (target[i] - v) * k);
+      setVals(live.current);
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sig, reduce]);
+
   const lo = Math.min(...vals), hi = Math.max(...vals), span = hi - lo || 1;
   const raw = span / 4, mag = Math.pow(10, Math.floor(Math.log10(raw))), step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) || raw;
   const mn = lo - span * 0.45, mx = hi + span * 0.08, top = 30, bot = 14;
@@ -262,7 +297,7 @@ function RevenueChart({ series, caption, prefix, colors, mono, tip, word, onPick
   const P = vals.map((v, i) => [14 + (i / (vals.length - 1)) * (W - 66), Y(v)] as [number, number]);
   const d = W ? smooth(P) : "";
   const last = P[P.length - 1];
-  const compact = (v: number) => (v >= 1000 ? (v / 1000).toFixed(step < 1000 ? 1 : 0) + "K" : String(v));
+  const compact = (v: number) => (unit.prefix ?? "") + (v >= 1000 ? (v / 1000).toFixed(step < 1000 ? 1 : 0) + "K" : String(Number(v.toFixed(2)))) + (unit.suffix ?? "");
 
   const at = (e: { clientX: number; currentTarget: EventTarget }) => {
     const r = (e.currentTarget as SVGRectElement).ownerSVGElement!.getBoundingClientRect();
@@ -271,14 +306,14 @@ function RevenueChart({ series, caption, prefix, colors, mono, tip, word, onPick
   const move = (e: React.PointerEvent) => {
     const { r, i } = at(e);
     setHover(i);
-    tip.current?.show(r.left + P[i][0], r.top + P[i][1], { title: series[i].label, rows: [{ label: word, value: prefix + fmt(vals[i]), color: colors[1] }] });
+    tip.current?.show(r.left + P[i][0], r.top + P[i][1], { title: series[i].label, rows: [{ label: word, value: fmtU(target[i], unit), color: colors[1] }] });
   };
 
   return (
     <div ref={ref} className="panel-inset relative min-h-[190px] flex-1 overflow-hidden rounded-[18px]">
       {caption && <div className="pointer-events-none absolute left-3 top-2.5 text-2xs tracking-[-0.01em] text-t3">{caption}</div>}
       {W > 0 && (
-        <svg width={W} height={H} className="block" role="img" aria-label={`${caption ?? word}: ${prefix}${fmt(vals[0])} → ${prefix}${fmt(vals[vals.length - 1])}`}>
+        <svg width={W} height={H} className="block" role="img" aria-label={`${caption ?? word}: ${fmtU(target[0] ?? 0, unit)} → ${fmtU(target[target.length - 1] ?? 0, unit)}`}>
           <defs>
             <linearGradient id={`${id}l`} x1="0" x2="1" y1="0" y2="0">
               <stop offset="0" style={{ stopColor: colors[0] }} />
@@ -473,11 +508,13 @@ function Treemap({ data, period, mono, tip, prefix, shareWord, onPick }: { data:
         // что не влезает, просто не рисуется (полностью — в подсказке и по нажатию).
         const pad = w < 70 ? 6 : 12;
         const money = prefix + fmt(r.v);
-        const fs = Math.min(30, (w - 2 * pad) / (money.length * 0.6));
-        const showMoney = fs >= 11 && h >= 44;
-        const showPct = showMoney && w - 2 * pad - money.length * 0.6 * fs >= 52 && h >= 70;
         const nameFs = Math.max(9, Math.min(12, (w - 2 * pad) / (r.name.length * 0.66)));
         const showName = h >= 22 && w >= 22 && r.name.length * 0.66 * nameFs <= w - 2 * pad + 1;
+        // Сумма не наезжает на подпись: кегль ограничен и шириной, и оставшейся высотой.
+        const room = h - 2 * pad - (showName ? nameFs + 6 : 0);
+        const fs = Math.min(30, (w - 2 * pad) / (money.length * 0.6), room / 0.95);
+        const showMoney = fs >= 11 && h >= 44;
+        const showPct = showMoney && w - 2 * pad - money.length * 0.6 * fs >= 52 && h >= 70;
         // Буквальные цвета: text-white на светлой теме перекрашивается в почти чёрный.
         const ink = g.ink === "light" ? "text-[#fff]" : "text-[#111318]";
         return (
@@ -625,7 +662,10 @@ export function AnalyticsBento({
   ...rest
 }: AnalyticsBentoProps) {
   const tip = React.useRef(null as TipApi | null) as TipRef;
-  const [period, setPeriod] = React.useState(1);
+  const [ownPeriod, setOwnPeriod] = React.useState(1);
+  const period = categories.period ?? ownPeriod;
+  const setPeriod = categories.onPeriod ?? setOwnPeriod;
+  const unit: Unit = revenue.unit ?? { prefix: currency };
   const [year, setYear] = React.useState(0);
   const [shown, setShown] = React.useState(false);
   React.useEffect(() => { const r = requestAnimationFrame(() => setShown(true)); return () => cancelAnimationFrame(r); }, []);
@@ -655,16 +695,18 @@ export function AnalyticsBento({
             <div>
               <div className="text-sm tracking-[-0.01em] text-t3">{revenue.label}</div>
               <div className="mt-2 text-3xl font-medium leading-none" style={mono}>
-                <CountUp value={revenue.value} prefix={currency} />
+                <CountUp value={revenue.value} prefix={unit.prefix} suffix={unit.suffix} digits={unit.digits} />
                 <Delta className="ml-2.5 align-[6px] text-sm">{revenue.delta}</Delta>
               </div>
+              {revenue.note && <div className="mt-2 text-sm tracking-[-0.01em] text-t3">{revenue.note}</div>}
             </div>
-            {revenue.note && <div className="text-sm tracking-[-0.01em] text-t3">{revenue.note}</div>}
+            {revenue.tools}
           </div>
           <RevenueChart
+            key={revenue.series.length}
             series={revenue.series}
             caption={revenue.caption}
-            prefix={currency}
+            unit={unit}
             colors={c.revenue as [string, string]}
             mono={monoFamily}
             tip={tip}
@@ -710,7 +752,7 @@ export function AnalyticsBento({
               ))}
             </div>
           </div>
-          <div role="tablist" className="my-4 grid grid-cols-3 gap-1.5 rounded-[14px] bg-white/5 p-1">
+          <div role="tablist" className="my-4 grid grid-cols-2 gap-1.5 rounded-[14px] bg-white/5 p-1 sm:grid-cols-4">
             {categories.periods.map((p, i) => (
               <button
                 key={p.label}
