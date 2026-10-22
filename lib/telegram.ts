@@ -10,8 +10,8 @@
 // клиенту на каждый подключённый аккаунт (Map, keyed by uid).
 
 import { randomUUID } from 'node:crypto'
-import { Api, TelegramClient } from 'telegram'
-import { StringSession } from 'telegram/sessions/index.js'
+import type { Api, TelegramClient } from 'telegram'
+import type { StringSession } from 'telegram/sessions/index.js'
 import { sql } from './db'
 import { deleteSetting, getSetting, setSetting } from './settings'
 import { getLocale } from './i18n-server'
@@ -21,6 +21,34 @@ import { tgConnected, tgCreds } from './telegram-status'
 export { getSetting, setSetting }
 
 const k = (base: string, uid: number) => `${base}:${uid}`
+
+/**
+ * GramJS — только по требованию, не при импорте этого файла. Статический импорт грузил
+ * GramJS и пакет websocket вместе с модулем страницы, и когда они не поднимались на
+ * сервере, раздел отдавал чёрный «500 Internal Server Error» без меню и без следа
+ * (10/22/26, так же падала карточка груза). Теперь сбой — обычная ошибка: страница
+ * показывает её текстом, а настоящая причина пишется в «Сбои» Админки.
+ */
+let gramMod: Promise<{
+  Api: typeof import('telegram').Api
+  TelegramClient: typeof import('telegram').TelegramClient
+  StringSession: typeof import('telegram/sessions/index.js').StringSession
+}> | null = null
+function gram() {
+  gramMod ??= Promise.all([import('telegram'), import('telegram/sessions/index.js')])
+    .then(([m, s]) => ({ Api: m.Api, TelegramClient: m.TelegramClient, StringSession: s.StringSession }))
+    .catch(async (e) => {
+      gramMod = null
+      const err = e instanceof Error ? e : new Error(String(e))
+      const where = err.stack?.split('\n').slice(1, 4).map((x) => x.trim()).join(' | ') ?? ''
+      await sql`INSERT INTO app_errors (company_id, user_id, path, message, digest, agent)
+                VALUES ('default', NULL, ${'[server] telegram module'}, ${`GramJS не загрузился: ${err.name}: ${err.message} @ ${where}`.slice(0, 2000)}, NULL, '')`.catch(
+        () => undefined,
+      )
+      throw new Error(`Telegram module failed to load: ${err.message}`)
+    })
+  return gramMod
+}
 
 /* ---------- which accounts are connected ---------- */
 
@@ -219,6 +247,7 @@ function connectClient(uid: number): Promise<TelegramClient> {
     if (devBlocked()) throw new Error(t(await getLocale(), 'telegram.lib.devBlocked'))
     const c = await creds(uid)
     if (!c) throw new Error(t(await getLocale(), 'telegram.lib.notConnected'))
+    const { TelegramClient, StringSession } = await gram()
     const tc = new TelegramClient(new StringSession(c.session), c.apiId, c.apiHash, {
       connectionRetries: 3,
     })
@@ -247,6 +276,7 @@ export async function startLogin(
   // Вход из локальной копии записал бы новую сессию в прод-базу, и сайт с dev снова
   // держали бы один ключ вдвоём.
   if (devBlocked()) throw new Error(t(await getLocale(), 'telegram.lib.devBlocked'))
+  const { TelegramClient, StringSession } = await gram()
   const client = new TelegramClient(new StringSession(''), apiId, apiHash, {
     connectionRetries: 3,
   })
@@ -273,6 +303,7 @@ export async function confirmLogin(
   const p = pending.get(token)
   if (!p) throw new Error(t(await getLocale(), 'telegram.lib.loginExpired'))
 
+  const { Api } = await gram()
   try {
     await p.client.invoke(
       new Api.auth.SignIn({ phoneNumber: p.phone, phoneCodeHash: p.codeHash, phoneCode: code }),
