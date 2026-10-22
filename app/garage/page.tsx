@@ -14,6 +14,7 @@ import {
   expiries,
   fleetMaintenance,
   fleetStatusByUnit,
+  looseTruckDocs,
   maintenanceDocs,
   oilCard,
   openTodoCounts,
@@ -39,13 +40,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   const { truck: truckParam } = await searchParams
   const companyId = await companyScope()
   const locale = await getLocale()
-  const [trucks, metas, records, docs, fleet, todos] = await Promise.all([
+  const [trucks, metas, records, docs, fleet, todos, loose] = await Promise.all([
     listTrucks(companyId),
     truckMetas(companyId),
     fleetMaintenance(companyId),
     maintenanceDocs(companyId),
     fleetStatusByUnit(),
     openTodoCounts(companyId),
+    looseTruckDocs(companyId),
   ])
   const today = todayEt()
   const yearAgo = `${Number(today.slice(0, 4)) - 1}${today.slice(4)}`
@@ -296,7 +298,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
 
           <CostBars months={months} locale={locale} />
 
-          <ServiceLog records={records} docs={docs} trucks={logTrucks} initialTruck={selected} locale={locale} />
+          <ServiceLog records={records} docs={docs} looseDocs={loose} trucks={logTrucks} initialTruck={selected} locale={locale} />
         </div>
       )}
     </main>
