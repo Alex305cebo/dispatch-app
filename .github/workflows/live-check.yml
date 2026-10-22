@@ -46,9 +46,18 @@ jobs:
           check "без входа /login?next" "200" "$SITE/login?next=%2Floads%2F1"
           # Демо-вход (кука в jar) и разделы, на которые ведут ссылки письма.
           check "демо-вход" "307" -c /tmp/jar "$SITE/demo"
-          for p in / /loads /garage "/money?tab=weeks" /trucks /docs; do
-            check "под входом $p" "200" -b /tmp/jar "$SITE$p"
+          # Все разделы меню. 307 — раздел не для демо (Админка и т.п.), это не сбой.
+          for p in / /loads /trucks /money "/money?tab=weeks" "/money?tab=factoring" /docs /garage /analytics \
+                   /brokers /amazon /tolls /tracking /telegram /import /load /loads/new /trucks/new; do
+            check "под входом $p" "200 307" -b /tmp/jar "$SITE$p"
           done
-          id=$(curl -s -m 30 -b /tmp/jar "$SITE/loads" | grep -o 'href="/loads/[0-9]\+' | head -1 | grep -o '[0-9]\+$')
-          if [ -n "$id" ]; then check "под входом /loads/$id" "200" -b /tmp/jar "$SITE/loads/$id"; else echo "::warning::в демо не нашлось груза"; fi
+          # Карточки: чёрный 500 10/22/26 был у ЛЮБОЙ карточки груза, а /loads в это время
+          # открывался — поэтому открываем по нескольку карточек грузов, траков и брокеров.
+          loads=$(curl -s -m 30 -b /tmp/jar "$SITE/loads" | grep -o 'href="/loads/[0-9]\+' | grep -o '[0-9]\+$' | sort -u | head -12)
+          [ -n "$loads" ] || { echo "::error::в демо не нашлось груза"; fail=1; }
+          for id in $loads; do check "карточка груза /loads/$id" "200" -b /tmp/jar "$SITE/loads/$id"; done
+          trucks=$(curl -s -m 30 -b /tmp/jar "$SITE/trucks" | grep -o 'href="/trucks/[0-9]\+' | grep -o '[0-9]\+$' | sort -u | head -8)
+          for id in $trucks; do check "карточка трака /trucks/$id" "200" -b /tmp/jar "$SITE/trucks/$id"; done
+          broker=$(curl -s -m 30 -b /tmp/jar "$SITE/brokers" | grep -o 'href="/brokers/[^"?]\+' | head -1 | sed 's/href="//')
+          [ -n "$broker" ] && check "карточка брокера $broker" "200" -b /tmp/jar "$SITE$broker"
           exit $fail

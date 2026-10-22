@@ -11,3 +11,10 @@ test('карточка груза не импортирует lib/telegram (Gram
   const status = readFileSync(new URL('./telegram-status.ts', import.meta.url), 'utf8')
   assert.doesNotMatch(status, /from 'telegram/)
 })
+
+// И сам lib/telegram берёт GramJS только по требованию (gram()): статический импорт
+// ронял весь раздел /telegram и фоновые /api/tg-* чёрным 500, если websocket не поднялся.
+test('lib/telegram не импортирует GramJS статически', () => {
+  const src = readFileSync(new URL('./telegram.ts', import.meta.url), 'utf8')
+  assert.doesNotMatch(src, /^import (?!type )[^\n]*from 'telegram/m)
+})
