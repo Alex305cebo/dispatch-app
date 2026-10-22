@@ -16,6 +16,7 @@ import { sql } from './db'
 import { deleteSetting, getSetting, setSetting } from './settings'
 import { getLocale } from './i18n-server'
 import { t } from './i18n.ts'
+import { tgConnected, tgCreds } from './telegram-status'
 
 export { getSetting, setSetting }
 
@@ -32,18 +33,9 @@ export async function connectedTgUserIds(): Promise<number[]> {
 
 /* ---------- client ---------- */
 
-async function creds(uid: number): Promise<{ apiId: number; apiHash: string; session: string } | null> {
-  const [id, hash, session] = await Promise.all([
-    getSetting(k('tg_api_id', uid)),
-    getSetting(k('tg_api_hash', uid)),
-    getSetting(k('tg_session', uid)),
-  ])
-  return id && hash && session ? { apiId: Number(id), apiHash: hash, session } : null
-}
+const creds = tgCreds
 
-export async function tgConnected(uid: number): Promise<boolean> {
-  return (await creds(uid)) !== null
-}
+export { tgConnected }
 
 /** Ключ сессии убит на стороне Telegram — этой строкой больше не войти, только заново
  * по коду. AUTH_KEY_DUPLICATED (406): одну и ту же сессию открыли в двух местах сразу

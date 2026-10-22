@@ -36,7 +36,7 @@ import { detentionTerms, getSetting } from '@/lib/settings'
 import { headers } from 'next/headers'
 import { DriverLinkButton } from '@/components/driver-link-button'
 import { Building2, Mail, Phone, RotateCw, Send } from 'lucide-react'
-import { tgConnected } from '@/lib/telegram'
+import { tgConnected } from '@/lib/telegram-status'
 import { stopWindows } from '@/lib/detention'
 import { BackhaulList } from '@/components/backhaul-list'
 import { backhaulBrokers } from '@/lib/backhaul'
@@ -69,6 +69,16 @@ import { FacilityHints } from '@/components/facility-hints'
 
 export const dynamic = 'force-dynamic'
 
+/** Подсказки вокруг груза (рынок, «кому звонить», оценка брокера, POD прошлых грузов)
+ * карточку не держат: упала такая выборка — блока нет, а груз открывается. Сбой пишется
+ * в лог сервера с названием, чтобы его было видно, а не проглатывалось молча. */
+function soft<T>(p: Promise<T>, fallback: T): Promise<T> {
+  return p.catch((e) => {
+    console.error('load card: optional read failed', e)
+    return fallback
+  })
+}
+
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const companyId = await companyScope()
@@ -84,7 +94,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     truckForLoad(companyId, load),
     listDocs(companyId, { loadId: load.id }),
     getCompany(),
-    fleetStatusByUnit(),
+    // GPS парка — для карты и плиток под ней; без него карточка открывается.
+    soft(fleetStatusByUnit(), new Map() as Awaited<ReturnType<typeof fleetStatusByUnit>>),
   ])
   // Прицеп для кнопки трака + наш средний $/милю по этому направлению. Оба нужны
   // только для показа, поэтому идут вторым параллельным заходом, уже зная truck.id.
@@ -108,9 +119,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         })()
   const [truckMeta, laneAvgRpm, backhaul, brokerGrade, driverEvents, truckCurrent, truckLoads, charges, { rateCons }] = await Promise.all([
     getTruckMeta(truck.id),
-    laneAvgRpmFor(companyId, load.origin, load.destination, load.id),
-    wantBackhaul ? backhaulBrokers(companyId, load.destination, load.id) : Promise.resolve(null),
-    brokerGradeFor(companyId, load.brokerMc, load.brokerEmail, load.brokerName),
+    soft(laneAvgRpmFor(companyId, load.origin, load.destination, load.id), null),
+    wantBackhaul ? soft(backhaulBrokers(companyId, load.destination, load.id), null) : Promise.resolve(null),
+    soft(brokerGradeFor(companyId, load.brokerMc, load.brokerEmail, load.brokerName), null),
     listLoadEvents(companyId, load.id),
     // Этот груз забукирован, а трак ещё везёт другой — подсказка, что делать.
     load.status === 'booked' ? currentLoadForTruck(companyId, truck.id) : Promise.resolve(null),
@@ -118,7 +129,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     listLoads(companyId, { truckId: truck.id }),
     listCharges(companyId, load.id),
     // Rate Con других грузов трака — у строк «Прошлый груз» и «Нет POD».
-    loadPapers(companyId),
+    soft(loadPapers(companyId), { rateCons: new Map() } as Awaited<ReturnType<typeof loadPapers>>),
   ])
   // Окно ближайшей остановки закрылось, а приезда нет — «опаздывает» в шапку.
   const late = lateStop(load, driverEvents, Date.now())
@@ -140,7 +151,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   // Проверка ставки — та же, что в боте и расширении (lib/rate-check.ts). Warp здесь не
   // спрашиваем: открытие страницы не должно тратить суточный лимит, для этого есть кнопка.
   const [missingPod, rc] = await Promise.all([
-    loadsMissingPod(companyId, truckLoads.filter((l) => l.id !== load.id)),
+    soft(loadsMissingPod(companyId, truckLoads.filter((l) => l.id !== load.id)), []),
     rateCheck(
       {
         origin: load.origin,

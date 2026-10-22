@@ -390,6 +390,14 @@ export const overviewDict = {
     kk: 'Тек {name} үшін орналасу',
   },
   'grid.resetShared': { ru: 'Как у всех', en: 'Same as everyone', es: 'Como todos', uk: 'Як у всіх', ro: 'Ca la toți', kk: 'Бәріндегідей' },
+  'grid.tileFailed': {
+    ru: 'Этот блок не открылся. Остальное на странице работает — обновите позже.',
+    en: 'This block did not load. The rest of the page works — refresh later.',
+    es: 'Este bloque no cargó. El resto de la página funciona; actualiza más tarde.',
+    uk: 'Цей блок не відкрився. Решта сторінки працює — оновіть пізніше.',
+    ro: 'Acest bloc nu s-a încărcat. Restul paginii funcționează — reîncărcați mai târziu.',
+    kk: 'Бұл блок ашылмады. Беттің қалғаны жұмыс істейді — кейінірек жаңартыңыз.',
+  },
   'grid.backToShared': {
     ru: 'Вернуться к общей раскладке',
     en: 'Back to the shared layout',
