@@ -472,7 +472,7 @@ export function TruckCare({
         trucks={[{ id: truckId, label: truckLabel, odometer: currentOdometer }]}
         fixedTruckId={truckId}
         looseDocs={docs
-          .filter((d) => d.maintenanceId == null && d.loadId == null && ['repair', 'invoice', 'photo', 'other'].includes(d.kind))
+          .filter((d) => d.maintenanceId == null && d.loadId == null && d.kind === 'repair')
           .map((d) => ({ id: d.id, truckId, kind: d.kind, title: d.title, uploadedAt: d.uploadedAt }))}
         locale={locale}
       />

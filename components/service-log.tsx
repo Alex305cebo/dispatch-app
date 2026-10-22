@@ -9,12 +9,13 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { Paperclip, Pencil, Plus, ScanText } from 'lucide-react'
+import { Paperclip, Pencil, Plus, ScanText, Sparkles } from 'lucide-react'
 import { addMaintenance, deleteMaintenance, linkDocToMaintenance, updateMaintenance, type MaintenanceInput } from '@/app/actions'
 import { byNewest, serviceKind, SERVICE_KINDS, type MaintenanceRecord, type ServiceKind } from '@/lib/maintenance-core'
 import { sendDocument } from '@/lib/send-document'
-import { readServiceDoc } from '@/app/garage/actions'
+import { autoRecordFromDoc, readServiceDoc, scanStoredDoc } from '@/app/garage/actions'
 import { bytesToBase64, readUploadFile } from '@/lib/upload-name'
+import { titleHints } from '@/lib/service-scan-core'
 import { Button } from '@/components/button'
 import { DocLink } from '@/components/doc-link'
 import { DeleteButton } from '@/components/delete-button'
@@ -67,6 +68,7 @@ export function ServiceEntryModal({
   record,
   preset,
   scan,
+  scanDocId,
   onClose,
   locale,
 }: {
@@ -77,6 +79,8 @@ export function ServiceEntryModal({
   /** Файлы чека: окно открывается сразу, ИИ читает их и заполняет поля; файлы
    * прикрепятся к записи при сохранении. */
   scan?: File[]
+  /** Бумага уже в базе («Бумаги без записи»): ИИ читает её, при сохранении она встаёт к записи. */
+  scanDocId?: number
   onClose: () => void
   locale: Locale
 }) {
@@ -97,17 +101,26 @@ export function ServiceEntryModal({
     shop: record?.shop ?? '',
   }))
   const [files, setFiles] = useState<File[]>(scan ?? [])
-  const [reading, setReading] = useState(!!scan?.length)
+  const [reading, setReading] = useState(!!scan?.length || scanDocId != null)
 
   // Распознавание — один раз при открытии. Заполняет только то, что нашлось на бумаге:
   // пустое не затирает подставленное (дата сегодня, пробег с ELD).
   useEffect(() => {
-    if (!scan?.length) return
+    if (!scan?.length && scanDocId == null) return
     let alive = true
     void (async () => {
-      const ready = (await Promise.all(scan.map(readUploadFile))).filter((f): f is File => !!f)
-      const payload = await Promise.all(ready.map(async (f) => ({ b64: bytesToBase64(await f.arrayBuffer()), mime: f.type || 'application/octet-stream' })))
-      const res = await readServiceDoc(payload).catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }))
+      const fail = (e: unknown) => ({ error: e instanceof Error ? e.message : String(e) })
+      let res: Awaited<ReturnType<typeof readServiceDoc>>
+      if (scanDocId != null) {
+        const stored = await scanStoredDoc(scanDocId).catch(fail)
+        // Без ИИ — подсказки из имени бумаги всё равно подставляются, ошибку показываем.
+        if (!('error' in stored) && stored.aiError) notify('error', stored.aiError)
+        res = stored
+      } else {
+        const ready = (await Promise.all(scan!.map(readUploadFile))).filter((f): f is File => !!f)
+        const payload = await Promise.all(ready.map(async (f) => ({ b64: bytesToBase64(await f.arrayBuffer()), mime: f.type || 'application/octet-stream' })))
+        res = await readServiceDoc(payload).catch(fail)
+      }
       if (!alive) return
       setReading(false)
       if ('error' in res) {
@@ -164,6 +177,10 @@ export function ServiceEntryModal({
           locale,
         )
         if ('error' in up) notify('error', `${f.name}: ${up.error}`)
+      }
+      if (scanDocId != null) {
+        const linked = await linkDocToMaintenance(scanDocId, res.id)
+        if (linked?.error) notify('error', linked.error)
       }
       notify('ok', t(locale, 'service.saved'))
       router.refresh()
@@ -347,7 +364,7 @@ export function CostBars({ months, locale }: { months: { month: string; total: n
         {months.map((x) => (
           <div key={x.month} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={`${x.month}: ${usd.format(x.total)}`}>
             <div
-              className={`w-full rounded-t-md ${x.total ? 'bg-haul-400/80' : 'bg-white/[0.06]'}`}
+              className={`garage-bar w-full rounded-t-md ${x.total ? 'bg-haul-400/80' : 'bg-white/[0.06]'}`}
               style={{ height: `${x.total ? Math.max(6, Math.round((x.total / max) * 100)) : 4}%` }}
             />
             <span className="nums text-2xs text-t3">{x.month.slice(5)}</span>
@@ -381,7 +398,8 @@ export function ServiceLog({
   const [pending, start] = useTransition()
   const [kind, setKind] = useState<ServiceKind | 'all'>('all')
   const [truck, setTruck] = useState<number | null>(fixedTruckId ?? initialTruck)
-  const [modal, setModal] = useState<{ record?: MaintenanceRecord; preset?: ServiceKind; scan?: File[] } | null>(null)
+  const [modal, setModal] = useState<{ record?: MaintenanceRecord; preset?: ServiceKind; scan?: File[]; scanDocId?: number } | null>(null)
+  const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null)
 
   useEffect(() => setTruck(fixedTruckId ?? initialTruck), [fixedTruckId, initialTruck])
   useEffect(() => {
@@ -409,6 +427,28 @@ export function ServiceLog({
         router.refresh()
       }
     })
+
+  // «Разобрать всё»: по одной бумаге за раз — у бесплатного ключа ИИ лимит в минуту,
+  // и полоса показывает, сколько осталось.
+  const parseAll = async () => {
+    const list = loose.map((d) => d.id)
+    setBulk({ done: 0, total: list.length })
+    let ok = 0
+    let aiErr: string | null = null
+    for (const [i, id] of list.entries()) {
+      const res = await autoRecordFromDoc(id).catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }))
+      if ('error' in res) notify('error', res.error)
+      else {
+        ok++
+        aiErr ??= res.aiError
+      }
+      setBulk({ done: i + 1, total: list.length })
+    }
+    setBulk(null)
+    if (aiErr) notify('error', aiErr)
+    notify('ok', t(locale, 'service.parsedN').replace('{n}', String(ok)))
+    router.refresh()
+  }
 
   const attach = (file: File | undefined, r: MaintenanceRecord) => {
     if (!file) return
@@ -512,39 +552,62 @@ export function ServiceLog({
         ))}
       </div>
 
+      {/* Ремонтные бумаги без записи: ИИ превращает каждую в запись журнала — по одной
+          (окно с полями на проверку) или все сразу. Или руками — к готовой записи. */}
       {loose.length > 0 && (
-        <div className="mt-3 rounded-xl border border-warn-400/30 bg-warn-400/[0.06] p-3">
-          <p className="flex items-center gap-1.5 text-base font-semibold text-t1">
-            {t(locale, 'service.looseTitle')} · {loose.length}
-            <Info text={t(locale, 'service.looseInfo')} />
-          </p>
-          <ul className="mt-2 flex flex-col gap-1.5">
+        <div className="garage-pop mt-3 rounded-2xl border border-haul-400/30 bg-gradient-to-br from-haul-500/[0.08] to-transparent p-3 sm:p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="mr-auto flex items-center gap-1.5 text-base font-semibold text-t1">
+              <Sparkles size={16} className="text-haul-300" />
+              {t(locale, 'service.looseTitle')} · {loose.length}
+              <Info text={t(locale, 'service.looseInfo')} />
+            </p>
+            <Button variant="primary" size="sm" disabled={pending || bulk != null} icon={<Sparkles size={14} />} onClick={parseAll}>
+              {bulk ? `${bulk.done} / ${bulk.total}` : t(locale, 'service.parseAll')}
+            </Button>
+          </div>
+          {bulk && (
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
+              <div className="h-full rounded-full bg-haul-400 transition-[width] duration-500" style={{ width: `${Math.round((bulk.done / bulk.total) * 100)}%` }} />
+            </div>
+          )}
+          <ul className="stagger mt-2 flex flex-col gap-1.5">
             {loose.map((d) => {
               const recs = records.filter((r) => r.truckId === d.truckId).sort(byNewest)
               return (
-                <li key={d.id} className="flex flex-wrap items-center gap-2">
-                  <DocLink docId={d.id} title={d.title} className="max-w-full truncate rounded-md bg-haul-500/15 px-2 py-0.5 text-left text-sm font-semibold text-haul-300 hover:bg-haul-500/25">
-                    📄 {d.title}
+                <li key={d.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-white/[0.03] px-2 py-1.5">
+                  <DocLink docId={d.id} title={d.title} className="min-w-0 max-w-full truncate text-left text-sm font-semibold text-t1 hover:text-haul-300 hover:underline">
+                    📄 {d.title.replace(/\.[a-z0-9]{2,4}$/i, '')}
                   </DocLink>
                   <span className="nums text-sm text-t3">
-                    {usDate(d.uploadedAt)}
+                    {usDate(titleHints(d.title).doneAt ?? d.uploadedAt)}
                     {fleet && ` · ${label.get(d.truckId) ?? '—'}`}
                   </span>
-                  {recs.length > 0 && (
-                    <select
-                      value=""
-                      disabled={pending}
-                      onChange={(e) => link(d.id, Number(e.target.value))}
-                      className="rounded-lg border border-white/10 bg-ink-900/80 px-2 py-1 text-sm text-t1 outline-none max-md:min-h-9"
+                  <span className="ml-auto flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={pending || bulk != null}
+                      onClick={() => setModal({ scanDocId: d.id })}
+                      className="inline-flex items-center gap-1 rounded-lg bg-haul-500/15 px-2.5 py-1 text-sm font-semibold text-haul-300 transition-colors hover:bg-haul-500/25 max-md:min-h-9"
                     >
-                      <option value="">{t(locale, 'service.linkTo')}</option>
-                      {recs.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {usDate(r.doneAt)} · {r.title}
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                      <Sparkles size={13} /> {t(locale, 'service.parseOne')}
+                    </button>
+                    {recs.length > 0 && (
+                      <select
+                        value=""
+                        disabled={pending || bulk != null}
+                        onChange={(e) => link(d.id, Number(e.target.value))}
+                        className="max-w-48 rounded-lg border border-white/10 bg-ink-900/80 px-2 py-1 text-sm text-t2 outline-none max-md:min-h-9"
+                      >
+                        <option value="">{t(locale, 'service.linkTo')}</option>
+                        {recs.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {usDate(r.doneAt)} · {r.title}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </span>
                 </li>
               )
             })}
@@ -643,6 +706,7 @@ export function ServiceLog({
           record={modal.record}
           preset={modal.preset}
           scan={modal.scan}
+          scanDocId={modal.scanDocId}
           onClose={() => setModal(null)}
           locale={locale}
         />
@@ -671,7 +735,7 @@ export function ScanButton({ locale, onFiles, size = 'md' }: { locale: Locale; o
       }}
     >
       <span
-        className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-haul-400/40 bg-haul-500/10 font-semibold text-haul-300 transition-colors hover:bg-haul-500/20 max-md:min-h-11 ${
+        className={`inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-haul-400/40 bg-haul-500/10 font-semibold text-haul-300 transition-colors hover:bg-haul-500/20 max-md:min-h-11 ${
           size === 'sm' ? 'px-3 py-1.5 text-sm' : 'px-4 py-2.5 text-base'
         }`}
       >
