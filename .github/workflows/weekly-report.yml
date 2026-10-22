@@ -1,0 +1,46 @@
+name: Weekly truck report
+
+# Отчёт по тракам за неделю (пн–вс по ET) на почту владельца — каждое воскресенье вечером.
+# Вся работа в lib/weekly-report.ts; адреса и пароль приложения Gmail лежат в базе
+# (Админка → «Отчёт на почту»), здесь только MYSQL_URL, как у сбора ставок.
+#
+# Два запуска: воскресенье 23:30 UTC (19:30 летом / 18:30 зимой по ET) и запасной в
+# понедельник 06:00 UTC — расписание GitHub опаздывает и иногда пропускает. Неделя
+# уходит один раз: второй запуск видит отметку в settings и ничего не шлёт.
+# Логи публичные — скрипт печатает только неделю и счётчики.
+
+on:
+  schedule:
+    - cron: '30 23 * * 0'
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Отправить ещё раз, даже если неделя уже ушла'
+        type: boolean
+        default: false
+
+concurrency:
+  group: weekly-report
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Send the report
+        env:
+          DATABASE_URL: ${{ secrets.MYSQL_URL }}
+        run: |
+          test -n "$DATABASE_URL" || { echo "MYSQL_URL secret is not set"; exit 1; }
+          node --conditions=react-server scripts/weekly-report.mts ${{ inputs.force && '--force' || '' }}
