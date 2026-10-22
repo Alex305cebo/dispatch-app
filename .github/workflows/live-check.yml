@@ -1,0 +1,54 @@
+# Проверка живого сайта после выкладки. Владелец 10/22/26: «ты не должен мне выдавать
+# поломанный вариант». Ссылки из письма давали 500 на app.mayalogisticsinc.com, хотя
+# локально всё работало: локальный сервер не Hostinger. Здесь — настоящий сайт:
+# ждём, пока /api/health покажет новую сборку, потом открываем страницы под демо-входом
+# и без входа. Любой 5xx — красная проверка (GitHub пришлёт письмо).
+name: live-check
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: live-check
+  cancel-in-progress: true
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SITE: https://app.mayalogisticsinc.com
+    steps:
+      - name: Ждём новую сборку
+        run: |
+          pushed=$(date -u +%s)
+          for i in $(seq 1 60); do
+            build=$(curl -s -m 15 "$SITE/api/health" | sed -n 's/.*"build":"\([^"]*\)".*/\1/p')
+            if [ -n "$build" ] && [ "$(date -u -d "$build" +%s)" -ge "$((pushed - 120))" ]; then
+              echo "сборка $build"; sleep 30; exit 0
+            fi
+            sleep 20
+          done
+          echo "::warning::новая сборка не появилась за 20 минут (последняя: ${build:-нет ответа})"
+
+      - name: Страницы без входа и под демо
+        run: |
+          fail=0
+          check() { # check <что> <ожидаемые коды> <curl-аргументы…>
+            name=$1; want=$2; shift 2
+            code=$(curl -s -o /tmp/body -w '%{http_code}' -m 30 "$@")
+            if echo " $want " | grep -q " $code "; then echo "ok  $code $name"; else echo "::error::$name → $code"; head -c 300 /tmp/body; echo; fail=1; fi
+          }
+          # Без входа: ссылка из письма ведёт на вход, вход открывается.
+          check "без входа /loads/1" "307" "$SITE/loads/1"
+          check "без входа /login?next" "200" "$SITE/login?next=%2Floads%2F1"
+          # Демо-вход (кука в jar) и разделы, на которые ведут ссылки письма.
+          check "демо-вход" "307" -c /tmp/jar "$SITE/demo"
+          for p in / /loads /garage "/money?tab=weeks" /trucks /docs; do
+            check "под входом $p" "200" -b /tmp/jar "$SITE$p"
+          done
+          id=$(curl -s -m 30 -b /tmp/jar "$SITE/loads" | grep -o 'href="/loads/[0-9]\+' | head -1 | grep -o '[0-9]\+$')
+          if [ -n "$id" ]; then check "под входом /loads/$id" "200" -b /tmp/jar "$SITE/loads/$id"; else echo "::warning::в демо не нашлось груза"; fi
+          exit $fail
