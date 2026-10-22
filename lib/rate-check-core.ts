@@ -13,7 +13,7 @@
 // • своя история по этим штатам — отдельной строкой и с подписью: это не рынок.
 
 import { targetBand, vsTarget, type BrokerCut } from './broker-cut.ts'
-import type { HeatLevel } from './dat-market-core.ts'
+import { sensibleRpm, type HeatLevel } from './dat-market-core.ts'
 import type { NextState } from './route-plan-core.ts'
 
 export type RateSide = { state: string; ratio: number; heat: HeatLevel }
@@ -126,7 +126,7 @@ export function rateCheckFrom(p: {
 export function withRate(rc: RateCheck, rate: number | null, miles: number | null, deadhead?: number | null): RateCheck {
   const m = miles && miles > 0 ? miles : null
   const r = rate && rate > 0 ? rate : null
-  const rpm = r && m ? r / m : null
+  const rpm = sensibleRpm(r && m ? r / m : null)
   const dh = deadhead && deadhead > 0 ? deadhead : 0
   const tg = rc.target
   const verdict = tg && rpm ? vsTarget(rpm, tg) : null
@@ -135,7 +135,7 @@ export function withRate(rc: RateCheck, rate: number | null, miles: number | nul
     miles: m,
     rate: r,
     rpm: rpm ? round2(rpm) : null,
-    allInRpm: r && m && dh ? round2(r / (m + dh)) : null,
+    allInRpm: rpm && r && m && dh ? round2(r / (m + dh)) : null,
     target: tg && {
       ...tg,
       lowTotal: m ? Math.round(tg.low * m) : null,

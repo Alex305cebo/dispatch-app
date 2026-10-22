@@ -253,6 +253,7 @@ function MarketBadge({ load, locale }: { load: LoadRecord; locale: Locale }) {
   if (!m?.market || !(load.loadedMiles > 0) || !(load.rate > 0)) return target
   const rpm = load.rate / load.loadedMiles
   const v = marketVerdict(rpm, m.market)
+  if (!v) return target
   const source = m.marketAt ? t(locale, 'loads.dash.marketDat').replace('{date}', m.marketAt) : t(locale, 'loads.dash.marketSpot')
   return (
     <>

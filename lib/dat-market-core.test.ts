@@ -107,10 +107,23 @@ test('груз без своей рыночной ставки: ставка DAT
 })
 
 test('вердикт по рынку: ±10% ещё в рынке', () => {
-  assert.equal(marketVerdict(3.48, 3.1).tone, 'good')
-  assert.equal(marketVerdict(3.2, 3.1).tone, 'warn')
-  assert.equal(marketVerdict(2.6, 3.1).tone, 'bad')
-  assert.equal(Math.round(marketVerdict(3.41, 3.1).diff), 10)
+  assert.equal(marketVerdict(3.48, 3.1)?.tone, 'good')
+  assert.equal(marketVerdict(3.2, 3.1)?.tone, 'warn')
+  assert.equal(marketVerdict(2.6, 3.1)?.tone, 'bad')
+  assert.equal(Math.round(marketVerdict(3.41, 3.1)?.diff ?? 0), 10)
+})
+
+test('нелепая ставка за милю — процента к рынку нет (не «выше на 9296%»)', () => {
+  assert.equal(marketVerdict(314, 3.34), null)
+  assert.equal(marketVerdict(0.05, 3.34), null)
+  assert.equal(marketVerdict(3, 0), null)
+  // груз с опечаткой в милях не перекашивает неделю
+  const vs = versusMarket([
+    { rate: 3000, loadedMiles: 1000, market: 3 },
+    { rate: 3140, loadedMiles: 10, market: 3.34 },
+  ])
+  assert.equal(vs?.loads, 1)
+  assert.equal(Math.round(vs?.diff ?? -1), 0)
 })
 
 test('процент к рынку — со знаком, как в карточке груза', () => {
