@@ -2501,6 +2501,24 @@ export async function updateMaintenance(id: number, truckId: number, m: Maintena
   return { id }
 }
 
+/** Привязать бумагу трака к записи журнала (или отвязать: maintenanceId = null).
+ * Запись должна быть того же трака, что и бумага. */
+export async function linkDocToMaintenance(docId: number, maintenanceId: number | null): Promise<{ error: string } | void> {
+  const ro = await writeGuard()
+  if (ro) return ro
+  const locale = await getLocale()
+  const companyId = await companyScope()
+  const docs = (await sql`SELECT truck_id FROM documents WHERE id = ${docId} AND company_id = ${companyId}`) as { truck_id: number | null }[]
+  if (!docs[0]?.truck_id) return { error: t(locale, 'actions.entryNotFound') }
+  if (maintenanceId != null) {
+    const recs = await sql`SELECT 1 FROM truck_maintenance WHERE id = ${maintenanceId} AND truck_id = ${docs[0].truck_id}`
+    if (!recs.length) return { error: t(locale, 'actions.entryNotFound') }
+  }
+  await sql`UPDATE documents SET maintenance_id = ${maintenanceId} WHERE id = ${docId}`
+  revalidatePath(`/trucks/${docs[0].truck_id}`)
+  revalidatePath('/garage')
+}
+
 export async function deleteMaintenance(
   id: number,
   truckId: number,

@@ -9,23 +9,29 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { Paperclip, Pencil, Plus } from 'lucide-react'
-import { addMaintenance, deleteMaintenance, updateMaintenance, type MaintenanceInput } from '@/app/actions'
+import { Paperclip, Pencil, Plus, ScanText } from 'lucide-react'
+import { addMaintenance, deleteMaintenance, linkDocToMaintenance, updateMaintenance, type MaintenanceInput } from '@/app/actions'
 import { byNewest, serviceKind, SERVICE_KINDS, type MaintenanceRecord, type ServiceKind } from '@/lib/maintenance-core'
 import { sendDocument } from '@/lib/send-document'
+import { readServiceDoc } from '@/app/garage/actions'
+import { bytesToBase64, readUploadFile } from '@/lib/upload-name'
 import { Button } from '@/components/button'
 import { DocLink } from '@/components/doc-link'
 import { DeleteButton } from '@/components/delete-button'
+import { Info } from '@/components/info'
 import { Field, TextField } from '@/components/ui'
 import { notify } from '@/lib/notify'
 import { usd, usDate } from '@/lib/fmt'
 import { t, type Locale } from '@/lib/i18n'
 
 export type LogDoc = { id: number; maintenanceId: number; title: string }
+export type LooseDoc = { id: number; truckId: number; kind: string; title: string; uploadedAt: string }
 export type LogTruck = { id: number; label: string; odometer: number | null }
 
-/** Событие «открыть окно новой записи» — кнопка в шапке раздела стоит отдельно от журнала. */
+/** Событие «открыть окно новой записи» — кнопка в шапке раздела стоит отдельно от журнала.
+ * detail: тип по умолчанию и файлы, которые надо сразу распознать. */
 export const ADD_EVENT = 'garage:add'
+type AddDetail = { preset?: ServiceKind; scan?: File[] }
 
 export const KIND_CHIP: Record<ServiceKind, string> = {
   oil: 'bg-haul-500/15 text-haul-300',
@@ -60,6 +66,7 @@ export function ServiceEntryModal({
   truckId,
   record,
   preset,
+  scan,
   onClose,
   locale,
 }: {
@@ -67,6 +74,9 @@ export function ServiceEntryModal({
   truckId: number | null
   record?: MaintenanceRecord | null
   preset?: ServiceKind
+  /** Файлы чека: окно открывается сразу, ИИ читает их и заполняет поля; файлы
+   * прикрепятся к записи при сохранении. */
+  scan?: File[]
   onClose: () => void
   locale: Locale
 }) {
@@ -86,7 +96,45 @@ export function ServiceEntryModal({
     doneTime: record ? record.doneTime : now.time,
     shop: record?.shop ?? '',
   }))
-  const [files, setFiles] = useState<File[]>([])
+  const [files, setFiles] = useState<File[]>(scan ?? [])
+  const [reading, setReading] = useState(!!scan?.length)
+
+  // Распознавание — один раз при открытии. Заполняет только то, что нашлось на бумаге:
+  // пустое не затирает подставленное (дата сегодня, пробег с ELD).
+  useEffect(() => {
+    if (!scan?.length) return
+    let alive = true
+    void (async () => {
+      const ready = (await Promise.all(scan.map(readUploadFile))).filter((f): f is File => !!f)
+      const payload = await Promise.all(ready.map(async (f) => ({ b64: bytesToBase64(await f.arrayBuffer()), mime: f.type || 'application/octet-stream' })))
+      const res = await readServiceDoc(payload).catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }))
+      if (!alive) return
+      setReading(false)
+      if ('error' in res) {
+        notify('error', res.error)
+        return
+      }
+      const f = res.input
+      if (res.truckId != null && trucks.some((x) => x.id === res.truckId)) setTruck(res.truckId)
+      setM((cur) => ({
+        ...cur,
+        kind: f.kind,
+        title: f.title || (f.kind === 'oil' ? t(locale, 'trucks.care.oilChangeTitle') : cur.title),
+        notes: f.notes || cur.notes,
+        cost: f.cost ?? cur.cost,
+        odometer: f.odometer ?? cur.odometer,
+        doneAt: f.doneAt ?? cur.doneAt,
+        doneTime: f.doneTime ?? (f.doneAt ? null : cur.doneTime),
+        shop: f.shop || cur.shop,
+      }))
+      notify('ok', t(locale, 'service.scanDone'))
+    })()
+    return () => {
+      alive = false
+    }
+    // Только при открытии окна.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -144,6 +192,13 @@ export function ServiceEntryModal({
             ✕
           </button>
         </div>
+
+        {reading && (
+          <div className="flex items-center gap-2 rounded-xl bg-haul-500/10 px-3 py-2.5 text-base font-medium text-haul-300">
+            <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            {t(locale, 'service.scanReading')}
+          </div>
+        )}
 
         {/* Тип — кнопками, не списком: четыре варианта видны сразу. */}
         <div className="flex flex-wrap gap-1.5">
@@ -265,7 +320,7 @@ export function ServiceEntryModal({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button variant="primary" disabled={pending || truck == null || !m.title.trim()} onClick={save}>
+          <Button variant="primary" disabled={pending || reading || truck == null || !m.title.trim()} onClick={save}>
             {t(locale, 'service.save')}
           </Button>
           <Button variant="secondary" onClick={onClose}>
@@ -309,10 +364,13 @@ export function ServiceLog({
   trucks,
   fixedTruckId = null,
   initialTruck = null,
+  looseDocs = [],
   locale,
 }: {
   records: MaintenanceRecord[]
   docs: LogDoc[]
+  /** Бумаги трака без записи журнала — показываются над журналом, привязываются выбором. */
+  looseDocs?: LooseDoc[]
   trucks: LogTruck[]
   /** Журнал одного трака (вкладка трака): без колонки «Трак» и выбора трака. */
   fixedTruckId?: number | null
@@ -323,11 +381,11 @@ export function ServiceLog({
   const [pending, start] = useTransition()
   const [kind, setKind] = useState<ServiceKind | 'all'>('all')
   const [truck, setTruck] = useState<number | null>(fixedTruckId ?? initialTruck)
-  const [modal, setModal] = useState<{ record?: MaintenanceRecord; preset?: ServiceKind } | null>(null)
+  const [modal, setModal] = useState<{ record?: MaintenanceRecord; preset?: ServiceKind; scan?: File[] } | null>(null)
 
   useEffect(() => setTruck(fixedTruckId ?? initialTruck), [fixedTruckId, initialTruck])
   useEffect(() => {
-    const open = (e: Event) => setModal({ preset: (e as CustomEvent<ServiceKind | undefined>).detail })
+    const open = (e: Event) => setModal({ ...((e as CustomEvent<AddDetail | undefined>).detail ?? {}) })
     window.addEventListener(ADD_EVENT, open)
     return () => window.removeEventListener(ADD_EVENT, open)
   }, [])
@@ -340,6 +398,17 @@ export function ServiceLog({
     .sort(byNewest)
   const total = rows.reduce((a, r) => a + (r.cost ?? 0), 0)
   const fleet = fixedTruckId == null
+
+  const loose = looseDocs.filter((d) => truck == null || d.truckId === truck)
+  const link = (docId: number, maintenanceId: number) =>
+    start(async () => {
+      const res = await linkDocToMaintenance(docId, maintenanceId)
+      if (res?.error) notify('error', res.error)
+      else {
+        notify('ok', t(locale, 'service.linked'))
+        router.refresh()
+      }
+    })
 
   const attach = (file: File | undefined, r: MaintenanceRecord) => {
     if (!file) return
@@ -405,9 +474,12 @@ export function ServiceLog({
         <h2 className="mr-auto text-base font-semibold text-t1">{t(locale, 'service.log')}</h2>
         {/* В «Гараже» кнопка записи — в шапке раздела (AddEntryButton), вторая не нужна. */}
         {!fleet && (
-          <Button variant="primary" size="sm" icon={<Plus size={14} strokeWidth={2.6} />} onClick={() => setModal({})}>
-            {t(locale, 'service.add')}
-          </Button>
+          <>
+            <ScanButton locale={locale} size="sm" onFiles={(scan) => setModal({ scan })} />
+            <Button variant="primary" size="sm" icon={<Plus size={14} strokeWidth={2.6} />} onClick={() => setModal({})}>
+              {t(locale, 'service.add')}
+            </Button>
+          </>
         )}
       </div>
 
@@ -439,6 +511,46 @@ export function ServiceLog({
           </button>
         ))}
       </div>
+
+      {loose.length > 0 && (
+        <div className="mt-3 rounded-xl border border-warn-400/30 bg-warn-400/[0.06] p-3">
+          <p className="flex items-center gap-1.5 text-base font-semibold text-t1">
+            {t(locale, 'service.looseTitle')} · {loose.length}
+            <Info text={t(locale, 'service.looseInfo')} />
+          </p>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {loose.map((d) => {
+              const recs = records.filter((r) => r.truckId === d.truckId).sort(byNewest)
+              return (
+                <li key={d.id} className="flex flex-wrap items-center gap-2">
+                  <DocLink docId={d.id} title={d.title} className="max-w-full truncate rounded-md bg-haul-500/15 px-2 py-0.5 text-left text-sm font-semibold text-haul-300 hover:bg-haul-500/25">
+                    📄 {d.title}
+                  </DocLink>
+                  <span className="nums text-sm text-t3">
+                    {usDate(d.uploadedAt)}
+                    {fleet && ` · ${label.get(d.truckId) ?? '—'}`}
+                  </span>
+                  {recs.length > 0 && (
+                    <select
+                      value=""
+                      disabled={pending}
+                      onChange={(e) => link(d.id, Number(e.target.value))}
+                      className="rounded-lg border border-white/10 bg-ink-900/80 px-2 py-1 text-sm text-t1 outline-none max-md:min-h-9"
+                    >
+                      <option value="">{t(locale, 'service.linkTo')}</option>
+                      {recs.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {usDate(r.doneAt)} · {r.title}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <p className="mt-4 text-base text-t3">{t(locale, 'service.empty')}</p>
@@ -530,6 +642,7 @@ export function ServiceLog({
           truckId={truck ?? fixedTruckId}
           record={modal.record}
           preset={modal.preset}
+          scan={modal.scan}
           onClose={() => setModal(null)}
           locale={locale}
         />
@@ -538,15 +651,57 @@ export function ServiceLog({
   )
 }
 
-/** Кнопка в шапке раздела: открывает окно записи журнала ниже на странице. */
-export function AddEntryButton({ locale, preset, label }: { locale: Locale; preset?: ServiceKind; label?: string }) {
+/** «Распознать чек»: выбрать (или бросить на кнопку) фото / PDF — откроется окно записи,
+ * и ИИ заполнит его по бумаге. */
+export function ScanButton({ locale, onFiles, size = 'md' }: { locale: Locale; onFiles: (files: File[]) => void; size?: 'sm' | 'md' }) {
+  const [over, setOver] = useState(false)
   return (
-    <Button
-      variant="primary"
-      icon={<Plus size={15} strokeWidth={2.6} />}
-      onClick={() => window.dispatchEvent(new CustomEvent(ADD_EVENT, { detail: preset }))}
+    <label
+      className={`rounded-xl ${over ? 'ring-2 ring-haul-300' : ''}`}
+      onDragOver={(e) => {
+        e.preventDefault()
+        setOver(true)
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        e.preventDefault()
+        setOver(false)
+        const files = Array.from(e.dataTransfer.files ?? [])
+        if (files.length) onFiles(files)
+      }}
     >
-      {label ?? t(locale, 'service.add')}
-    </Button>
+      <span
+        className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-haul-400/40 bg-haul-500/10 font-semibold text-haul-300 transition-colors hover:bg-haul-500/20 max-md:min-h-11 ${
+          size === 'sm' ? 'px-3 py-1.5 text-sm' : 'px-4 py-2.5 text-base'
+        }`}
+      >
+        <ScanText size={size === 'sm' ? 14 : 16} strokeWidth={2.4} />
+        {t(locale, 'service.scan')}
+      </span>
+      <input
+        type="file"
+        multiple
+        accept="application/pdf,image/*"
+        className="hidden"
+        onChange={(e) => {
+          const files = Array.from(e.target.files ?? [])
+          e.target.value = ''
+          if (files.length) onFiles(files)
+        }}
+      />
+    </label>
+  )
+}
+
+/** Кнопки в шапке раздела: «Распознать чек» и «＋ Запись» открывают окно записи журнала. */
+export function AddEntryButton({ locale, preset, label }: { locale: Locale; preset?: ServiceKind; label?: string }) {
+  const fire = (detail: AddDetail) => window.dispatchEvent(new CustomEvent(ADD_EVENT, { detail }))
+  return (
+    <>
+      <ScanButton locale={locale} onFiles={(scan) => fire({ scan })} />
+      <Button variant="primary" icon={<Plus size={15} strokeWidth={2.6} />} onClick={() => fire({ preset })}>
+        {label ?? t(locale, 'service.add')}
+      </Button>
+    </>
   )
 }

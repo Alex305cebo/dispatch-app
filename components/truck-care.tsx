@@ -72,7 +72,7 @@ export function TruckCare({
   oil: { milesLeft: number; tone: 'good' | 'warn' | 'bad' } | null
   /** This truck's documents (already fetched for the Documents section) — reused
    * here to find each repair's own attached receipt, keyed by maintenance_id. */
-  docs: { id: number; maintenanceId: number | null; title: string }[]
+  docs: { id: number; maintenanceId: number | null; title: string; kind: string; loadId: number | null; uploadedAt: string }[]
   /** Подпись трака для окна записи журнала. */
   truckLabel: string
   locale?: Locale
@@ -468,9 +468,12 @@ export function TruckCare({
       {/* Журнал — та же таблица, что в разделе «Гараж», только этот трак. */}
       <ServiceLog
         records={records}
-        docs={docs.filter((d): d is { id: number; maintenanceId: number; title: string } => d.maintenanceId != null)}
+        docs={docs.flatMap((d) => (d.maintenanceId != null ? [{ id: d.id, maintenanceId: d.maintenanceId, title: d.title }] : []))}
         trucks={[{ id: truckId, label: truckLabel, odometer: currentOdometer }]}
         fixedTruckId={truckId}
+        looseDocs={docs
+          .filter((d) => d.maintenanceId == null && d.loadId == null && ['repair', 'invoice', 'photo', 'other'].includes(d.kind))
+          .map((d) => ({ id: d.id, truckId, kind: d.kind, title: d.title, uploadedAt: d.uploadedAt }))}
         locale={locale}
       />
       <Link href={`/garage?truck=${truckId}#log`} className="self-start text-sm font-medium text-haul-300 hover:underline">

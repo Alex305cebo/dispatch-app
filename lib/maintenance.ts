@@ -206,6 +206,21 @@ export async function maintenanceDocs(companyId: CompanyId): Promise<{ id: numbe
   return rows.map((r: any) => ({ id: r.id, maintenanceId: r.maintenance_id, title: r.title, mime: r.mime }))
 }
 
+/** Бумаги трака без записи журнала: ремонтные счета, чеки, фото, «прочее», загруженные
+ * через «Документы» трака, а не из журнала. Без них «Гараж» показывал только чеки,
+ * прикреплённые к записи, и остальное как будто пропадало (владелец, 10/21/26).
+ * Страховка, регистрация и бумаги водителя — паспорт трака, их тут нет. */
+export async function looseTruckDocs(companyId: CompanyId): Promise<{ id: number; truckId: number; kind: string; title: string; uploadedAt: string }[]> {
+  const rows = await sql`
+    SELECT id, truck_id, kind, title, uploaded_at FROM documents
+    WHERE company_id = ${companyId} AND truck_id IS NOT NULL AND load_id IS NULL
+      AND maintenance_id IS NULL AND deleted_at IS NULL
+      AND kind IN ('repair', 'invoice', 'photo', 'other')
+    ORDER BY uploaded_at DESC
+    LIMIT 2000`
+  return rows.map((r: any) => ({ id: r.id, truckId: r.truck_id, kind: r.kind, title: r.title, uploadedAt: new Date(r.uploaded_at).toISOString() }))
+}
+
 export async function listTodos(truckId: number): Promise<TruckTodo[]> {
   const rows = await sql`
     SELECT * FROM truck_todos WHERE truck_id = ${truckId}

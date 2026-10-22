@@ -66,4 +66,15 @@ export const serviceDict = {
   'service.openTruck': { ru: 'Открыть трак', en: 'Open truck', es: 'Abrir camión', uk: 'Відкрити трак', ro: 'Deschide camionul', kk: 'Тракты ашу' },
   'service.passport': { ru: 'Паспорт', en: 'Passport', es: 'Ficha', uk: 'Паспорт', ro: 'Fișă', kk: 'Паспорт' },
   'service.fuel': { ru: 'Бак', en: 'Fuel', es: 'Tanque', uk: 'Бак', ro: 'Rezervor', kk: 'Бак' },
+  'service.looseTitle': { ru: 'Бумаги трака без записи', en: 'Truck papers not in the log', es: 'Papeles sin registro', uk: 'Папери трака без запису', ro: 'Acte fără înregistrare', kk: 'Жазбасыз құжаттар' },
+  'service.looseInfo': {
+    ru: 'Счета, чеки и фото, загруженные в «Документы» трака, а не в запись журнала. Выберите запись — бумага встанет к ней.',
+    en: 'Invoices, receipts and photos uploaded to the truck’s Documents rather than to a log entry. Pick an entry to file it there.',
+    uk: 'Рахунки, чеки й фото, завантажені в «Документи» трака, а не в запис журналу. Оберіть запис — папір стане до нього.',
+  },
+  'service.linkTo': { ru: 'к записи…', en: 'to entry…', es: 'al registro…', uk: 'до запису…', ro: 'la înregistrare…', kk: 'жазбаға…' },
+  'service.linked': { ru: 'Бумага привязана к записи', en: 'Paper filed to the entry', es: 'Papel vinculado', uk: 'Папір прив’язано до запису', ro: 'Act atașat', kk: 'Құжат жазбаға тіркелді' },
+  'service.scan': { ru: 'Распознать чек', en: 'Read receipt', es: 'Leer recibo', uk: 'Розпізнати чек', ro: 'Citește chitanța', kk: 'Чекті тану' },
+  'service.scanReading': { ru: 'Читаю чек… поля заполнятся сами, проверьте и сохраните', en: 'Reading the receipt… fields will fill in, check and save', es: 'Leyendo el recibo… los campos se llenarán, revise y guarde', uk: 'Читаю чек… поля заповняться самі, перевірте й збережіть', ro: 'Citesc chitanța… câmpurile se completează, verificați și salvați', kk: 'Чекті оқып жатырмын… өрістер толады, тексеріп сақтаңыз' },
+  'service.scanDone': { ru: 'Чек прочитан — проверьте поля', en: 'Receipt read — check the fields', es: 'Recibo leído — revise los campos', uk: 'Чек прочитано — перевірте поля', ro: 'Chitanța a fost citită — verificați câmpurile', kk: 'Чек оқылды — өрістерді тексеріңіз' },
 } as const
