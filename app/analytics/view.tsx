@@ -3,7 +3,7 @@
 import { buildAnalytics, REGIONS, type Region } from '@/lib/analytics-core'
 import { usd } from '@/lib/fmt'
 import { PageHeader } from '@/components/page-header'
-import { AnalyticsBento } from '@/components/ui/analytics-bento'
+import { AnalyticsClient } from './analytics-client'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
 import type { LoadRecord, TruckRecord } from '@/lib/map'
 
@@ -18,7 +18,7 @@ const REGION_COLOR: Record<Region, string> = {
 }
 
 /** Сам экран — отдельно от запросов, чтобы его можно было показать на любых грузах. */
-export function AnalyticsView({ loads, trucks, today, locale, title }: { loads: LoadRecord[]; trucks: TruckRecord[]; today: string; locale: Locale; title: string }) {
+export function AnalyticsView({ loads, trucks, today, locale, title, rateCons }: { loads: LoadRecord[]; trucks: TruckRecord[]; today: string; locale: Locale; title: string; rateCons: [number, number][] }) {
   const a = buildAnalytics(loads, trucks, today)
 
   if (!a.years.length)
@@ -49,27 +49,30 @@ export function AnalyticsView({ loads, trucks, today, locale, title }: { loads: 
 
   return (
     <main className="page">
-      <PageHeader title={title} subtitle={t(locale, 'analytics.subtitle')} />
-      <AnalyticsBento
-        labels={{
+      <PageHeader title={title} subtitle={t(locale, 'analytics.hint')} info={t(locale, 'analytics.subtitle')} />
+      <AnalyticsClient
+        a={a}
+        rateCons={rateCons}
+        bento={{
+        labels: {
           revenue: t(locale, 'analytics.caption'),
           share: t(locale, 'analytics.share'),
           value: t(locale, 'analytics.revenue').split(',')[0]!,
           year: t(locale, 'analytics.year'),
-        }}
-        revenue={{
+        },
+        revenue: {
           label: t(locale, 'analytics.revenue'),
           value: a.revenue.total,
           delta: a.revenue.delta,
-          note: a.revenue.avg ? (
+          note: a.kpi.avg.now ? (
             <>
-              {t(locale, 'analytics.avg')} <span className="nums text-t1">{usd.format(a.revenue.avg)}</span>
+              {t(locale, 'analytics.avg')} <span className="nums text-t1">{usd.format(a.kpi.avg.now)}</span>
             </>
           ) : undefined,
           caption: t(locale, 'analytics.caption'),
-          series: a.revenue.series.map((p) => ({ label: mmdd(p.day), value: p.value })),
-        }}
-        sessions={{
+          series: a.revenue.series.map((p) => ({ label: mmdd(p.day), value: p.value, ids: p.ids })),
+        },
+        sessions: {
           label: t(locale, 'analytics.loads'),
           value: a.week.count,
           delta: a.week.delta,
@@ -77,14 +80,15 @@ export function AnalyticsView({ loads, trucks, today, locale, title }: { loads: 
           desktop: a.week.pickups,
           mobile: a.week.deliveries,
           axis: weekdays,
+          ids: a.week.ids,
           labels: {
             desktop: t(locale, 'analytics.pickups'),
             mobile: t(locale, 'analytics.deliveries'),
             prior: t(locale, 'analytics.prior'),
             current: t(locale, 'analytics.current'),
           },
-        }}
-        categories={{
+        },
+        categories: {
           title: t(locale, 'analytics.states'),
           groups: groups.filter((g) => a.states.some((s) => s.group === g.id)),
           periods: a.periods.map((p, i) => ({
@@ -92,29 +96,29 @@ export function AnalyticsView({ loads, trucks, today, locale, title }: { loads: 
             total: p.total,
             delta: p.delta,
             compare: p.before ? `${t(locale, 'analytics.was')} ${usd.format(p.before)}` : '',
+            ids: p.ids,
           })),
           items: a.states.map((s) => ({
             name: s.name === 'other' ? t(locale, 'analytics.region.other') : s.name,
             group: s.group,
             values: s.values,
+            ids: s.ids,
           })),
-          table: {
-            columns: [t(locale, 'analytics.broker'), ...periodLabels],
-            rows: a.brokers.map((b) => ({ label: b.name, values: b.values.map((v) => usd.format(v)) })),
-          },
-        }}
-        seasonality={{
+        },
+        seasonality: {
           title: t(locale, 'analytics.season'),
           axis: months,
           years: a.years.map((y) => ({
             label: y.year,
             values: y.months,
+            ids: y.monthIds,
             stats: [
               { label: t(locale, 'analytics.monthAvg'), value: y.monthAvg, delta: y.avgDelta, note: '' },
               { label: t(locale, 'analytics.yearTotal'), value: y.total, delta: y.totalDelta, note: `${y.count} ${loadsWord}` },
             ],
-            rows: y.trucks.map((tr) => ({ label: tr.name, value: usd.format(tr.total) })),
+            rows: y.trucks.map((tr) => ({ label: tr.name, value: usd.format(tr.total), ids: tr.ids })),
           })),
+        },
         }}
       />
     </main>

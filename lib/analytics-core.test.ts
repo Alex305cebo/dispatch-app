@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { addDays, buildAnalytics, deltaPct, regionOfState } from './analytics-core.ts'
+import { addDays, buildAnalytics, deltaPct, regionOfState, stageOf } from './analytics-core.ts'
 import type { LoadRecord, TruckRecord } from './map.ts'
 
 const load = (patch: Partial<LoadRecord> = {}) =>
@@ -81,5 +81,53 @@ test('seasonality: months, average over active months, top trucks', () => {
   assert.equal(y.months[2], 3000)
   assert.equal(y.monthAvg, 2000)
   assert.equal(y.totalDelta, '+300%')
-  assert.deepEqual(y.trucks, [{ name: '#101 · Juan P.', total: 4000 }])
+  assert.deepEqual(y.trucks.map((t) => [t.name, t.total, t.ids.length]), [['#101 · Juan P.', 4000, 2]])
+  assert.equal(y.monthIds[2]!.length, 1)
+})
+
+test('every clickable point carries the ids of its loads', () => {
+  const a = buildAnalytics([load({ id: 7, pickupDate: '2026-10-19' }), load({ id: 8 })], trucks, today)
+  assert.deepEqual(a.revenue.series.find((p) => p.day === '2026-10-19')!.ids, [7])
+  assert.deepEqual(a.week.ids[0], [7])
+  assert.deepEqual(a.states[0]!.ids[1]!.sort(), [7, 8])
+  assert.deepEqual(a.trucks[0]!.ids.sort(), [7, 8])
+  assert.deepEqual(a.kpi.ids30.sort(), [7, 8])
+  assert.ok(a.rows.some((r) => r.id === 7))
+})
+
+test('kpi: miles, $/mi, deadhead share', () => {
+  const a = buildAnalytics([load({ rate: 1000, loadedMiles: 400, deadheadMiles: 100 })], trucks, today)
+  assert.equal(a.kpi.miles.now, 500)
+  assert.equal(a.kpi.rpm.now, 2)
+  assert.equal(a.kpi.deadhead.now, 20)
+  assert.equal(a.kpi.revenue.weeks.length, 12)
+  assert.equal(a.kpi.revenue.weeks.at(-1), 1000)
+})
+
+test('lanes and brokers keyed for links', () => {
+  const a = buildAnalytics(
+    [load({ id: 1, brokerMc: 'MC 12345' }), load({ id: 2, brokerMc: 'MC 12345' })],
+    trucks,
+    today,
+  )
+  assert.deepEqual(a.lanes.map((l) => [l.from, l.to, l.count]), [['TX', 'GA', 2]])
+  assert.equal(a.brokers[0]!.key, '12345')
+  assert.equal(a.brokers[0]!.loads, 2)
+})
+
+test('money stages: unpaid all time, paid only last 30 days', () => {
+  assert.equal(stageOf({ status: 'delivered', invoicedAt: '2026-10-01', paidAt: null }), 'invoiced')
+  const a = buildAnalytics(
+    [
+      load({ id: 1, status: 'booked', pickupDate: '2026-10-30' }),
+      load({ id: 2, status: 'paid', paidAt: '2026-10-20T10:00:00.000Z' }),
+      load({ id: 3, status: 'paid', paidAt: '2026-08-01T10:00:00.000Z' }),
+      load({ id: 4, status: 'delivered', invoicedAt: null, paidAt: null }),
+    ],
+    trucks,
+    today,
+  )
+  assert.deepEqual(a.stages.booked.ids, [1])
+  assert.deepEqual(a.stages.paid.ids, [2])
+  assert.deepEqual(a.stages.delivered.ids, [4])
 })

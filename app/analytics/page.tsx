@@ -8,7 +8,7 @@
 // водителей): тут картина за месяц и год. Закрыт тем же правом «Финансы», что и «Деньги».
 
 import Link from 'next/link'
-import { listLoads, listTrucks } from '@/lib/loads'
+import { listLoads, listTrucks, loadPapers } from '@/lib/loads'
 import { todayEt } from '@/lib/payments'
 import { PageHeader } from '@/components/page-header'
 import { AnalyticsView } from './view'
@@ -37,6 +37,6 @@ export default async function Page() {
     )
 
   const companyId = await companyScope()
-  const [loads, trucks] = await Promise.all([listLoads(companyId), listTrucks(companyId)])
-  return <AnalyticsView loads={loads} trucks={trucks} today={todayEt()} locale={locale} title={title} />
+  const [loads, trucks, { rateCons }] = await Promise.all([listLoads(companyId), listTrucks(companyId), loadPapers(companyId)])
+  return <AnalyticsView loads={loads} trucks={trucks} today={todayEt()} locale={locale} title={title} rateCons={[...rateCons]} />
 }
