@@ -44,6 +44,7 @@ import {
   ShieldCheck,
   Truck as TruckIcon,
   Users,
+  Mail,
 } from 'lucide-react'
 import { LOCALES, type Locale } from '@/lib/i18n'
 import { changeMyPassword, setRecoveryBirthday, setTilesRearrange } from '@/app/account/actions'
@@ -465,6 +466,16 @@ export function UserPanel({
               {/* Перестановка плиток — только администратору. Выключена — на разделах
                   кнопка «Переставить» видна, но заперта и говорит, где её включить. */}
               {user.role === 'admin' && <TilesRow enabled={tilesEnabled} locale={locale} />}
+              {/* Отчёт на почту — владелец ищет его в «Настройках» (10/22/26): кому, когда, история. */}
+              {user.role === 'admin' && (
+                <Row
+                  icon={<Mail size={15} />}
+                  label={t(locale, 'admin.report.heading')}
+                  right={<ChevronRight size={14} />}
+                  href="/admin#report"
+                  onNavigate={close}
+                />
+              )}
               {/* Уведомления браузера — разрешение спрашивается только отсюда. */}
               <AlertToggle />
               <Row
