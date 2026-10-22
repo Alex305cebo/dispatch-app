@@ -17,11 +17,11 @@
 // motion, он у нас уже стоит (toaster, notifier, ui.tsx). Ставить react-grid-layout или
 // dnd-kit ради этого не нужно.
 
-import { useCallback, useEffect, useId, useRef, useState, useTransition } from 'react'
+import { Component, useCallback, useEffect, useId, useRef, useState, useTransition, type ErrorInfo } from 'react'
 import { motion, useDragControls, useReducedMotion } from 'motion/react'
 import { useRouter } from 'next/navigation'
 import { Check, GripVertical, LayoutGrid, Lock, X } from 'lucide-react'
-import { saveTileLayout, setTilesFor } from '@/app/actions'
+import { logClientError, saveTileLayout, setTilesFor } from '@/app/actions'
 import { notify } from '@/lib/notify'
 import type { GridLabels } from '@/lib/grid-labels'
 import type { TilePerson } from '@/lib/tiles'
@@ -405,7 +405,7 @@ function Cell({
   edit: boolean
   reduce: boolean
   hintId: string
-  labels: { size: string; sizeNames: Record<TileSize, string> }
+  labels: { size: string; sizeNames: Record<TileSize, string>; tileFailed: string }
   dragging: boolean
   bind: (el: HTMLElement | null) => void
   onStart: () => void
@@ -571,7 +571,7 @@ function Cell({
           : ''
       } ${SPAN[size]} ${dragging ? 'cursor-grabbing' : ''}`}
     >
-      {node}
+      <TileBoundary id={id} text={labels.tileFailed}>{node}</TileBoundary>
 
       {/* Размер и ручка — только во включённом режиме. Ручка в нижнем правом углу: в
           верхнем она ложилась ровно на иконку плитки, и четыре точки поверх значка
@@ -637,4 +637,32 @@ function SizeMark({ size }: { size: TileSize }) {
       />
     </svg>
   )
+}
+
+/**
+ * Одна плитка упала — падает только она. Без этой границы ошибка любого блока (карта,
+ * «Мы здесь уже были», серверный кусок под Suspense) поднималась до error.tsx, и вместо
+ * карточки груза целиком был экран «Страница не открылась». Здесь на месте блока — строка,
+ * а сбой уходит в «Сбои» Админки с именем плитки.
+ */
+class TileBoundary extends Component<{ id: string; text: string; children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    void logClientError({
+      path: typeof location !== 'undefined' ? `${location.pathname} [tile ${this.props.id}]` : `[tile ${this.props.id}]`,
+      message: `${error.message || String(error)}${info.componentStack ? ` @ ${info.componentStack.split('\n').slice(1, 3).join(' | ').trim()}` : ''}`,
+      digest: (error as Error & { digest?: string }).digest,
+      agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+    }).catch(() => undefined)
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children
+    return <section className="panel p-4 text-sm text-t3">{this.props.text}</section>
+  }
 }

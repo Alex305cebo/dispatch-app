@@ -28,6 +28,8 @@ export type GridLabels = {
   onlyFor: string
   resetShared: string
   backToShared: string
+  /** Плитка упала сама — вместо неё эта строка, страница живёт. */
+  tileFailed: string
 }
 
 export function gridLabels(locale: Locale): GridLabels {
@@ -53,5 +55,6 @@ export function gridLabels(locale: Locale): GridLabels {
     onlyFor: t(locale, 'grid.onlyFor'),
     resetShared: t(locale, 'grid.resetShared'),
     backToShared: t(locale, 'grid.backToShared'),
+    tileFailed: t(locale, 'grid.tileFailed'),
   }
 }
