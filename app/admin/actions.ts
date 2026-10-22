@@ -445,7 +445,14 @@ export async function getReportStatus() {
 }
 
 /** Пустое поле — не трогать сохранённое; «-» — стереть, как у ключей. */
-export async function saveReportSettings(input: { to: string; user: string; pass: string }): Promise<{ error: string } | void> {
+export async function saveReportSettings(input: {
+  to: string
+  user: string
+  pass: string
+  enabled: boolean
+  day: number
+  hour: number
+}): Promise<{ error: string } | void> {
   await assertAdmin()
   const { REPORT_KEYS } = await import('@/lib/weekly-report')
   const { parseRecipients } = await import('@/lib/weekly-report-core')
@@ -459,6 +466,9 @@ export async function saveReportSettings(input: { to: string; user: string; pass
   const pass = input.pass.replace(/\s+/g, '')
   if (pass === '-') await deleteSetting(REPORT_KEYS.pass)
   else if (pass) await setSetting(REPORT_KEYS.pass, pass)
+  await setSetting(REPORT_KEYS.enabled, input.enabled ? '1' : '0')
+  if (Number.isInteger(input.day) && input.day >= 0 && input.day <= 6) await setSetting(REPORT_KEYS.day, String(input.day))
+  if (Number.isInteger(input.hour) && input.hour >= 0 && input.hour <= 23) await setSetting(REPORT_KEYS.hour, String(input.hour))
   revalidatePath('/admin')
 }
 

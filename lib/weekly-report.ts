@@ -20,6 +20,7 @@ import { todayEt } from './payments.ts'
 import {
   attachmentName,
   buildReport,
+  isDue,
   parseRecipients,
   pickAttachments,
   reportWeek,
@@ -38,25 +39,68 @@ export const REPORT_KEYS = {
   user: 'report_smtp_user',
   pass: 'report_smtp_pass',
   last: 'report_last',
+  /** Последние отправки, новые сверху — история в Админке. */
+  log: 'report_log',
+  /** '0' — расписание выключено (кнопка «Отправить сейчас» работает всегда). */
+  enabled: 'report_enabled',
+  /** День (Вс=0 … Сб=6) и час ET отправки. По умолчанию воскресенье 18:00. */
+  day: 'report_day',
+  hour: 'report_hour',
 } as const
+
+export const DEFAULT_DAY = 0
+export const DEFAULT_HOUR = 18
+const LOG_SIZE = 15
 
 export type LastSend = { week: string; at: string; ok: boolean; to: number; files: number; error?: string; manual?: boolean }
 
-export async function reportStatus(): Promise<{ to: string; user: string; passSet: boolean; last: LastSend | null }> {
-  const [to, user, pass, last] = await Promise.all([
-    getSetting(REPORT_KEYS.to, COMPANY),
-    getSetting(REPORT_KEYS.user, COMPANY),
-    getSetting(REPORT_KEYS.pass, COMPANY),
-    getSetting(REPORT_KEYS.last, COMPANY),
-  ])
-  let parsed: LastSend | null = null
+export type ReportStatus = {
+  to: string
+  user: string
+  passSet: boolean
+  last: LastSend | null
+  log: LastSend[]
+  enabled: boolean
+  day: number
+  hour: number
+}
+
+function parseJson<T>(raw: string | null | undefined, fallback: T): T {
   try {
-    parsed = last ? (JSON.parse(last) as LastSend) : null
+    return raw ? (JSON.parse(raw) as T) : fallback
   } catch {
-    parsed = null
+    return fallback
   }
-  // Отправитель по умолчанию — почта компании; пароль приложения — от неё же.
-  return { to: to ?? DEFAULT_RECIPIENTS, user: user ?? 'mayalogisticscorp@gmail.com', passSet: !!pass?.trim(), last: parsed }
+}
+
+export async function reportStatus(): Promise<ReportStatus> {
+  const [to, user, pass, last, log, enabled, day, hour] = await Promise.all(
+    [REPORT_KEYS.to, REPORT_KEYS.user, REPORT_KEYS.pass, REPORT_KEYS.last, REPORT_KEYS.log, REPORT_KEYS.enabled, REPORT_KEYS.day, REPORT_KEYS.hour].map((k) =>
+      getSetting(k, COMPANY),
+    ),
+  )
+  const lastSend = parseJson<LastSend | null>(last, null)
+  const history = parseJson<LastSend[]>(log, [])
+  const d = Number(day)
+  const h = Number(hour)
+  return {
+    to: to ?? DEFAULT_RECIPIENTS,
+    // Отправитель по умолчанию — почта компании; пароль приложения — от неё же.
+    user: user ?? 'mayalogisticscorp@gmail.com',
+    passSet: !!pass?.trim(),
+    last: lastSend,
+    // До истории была одна последняя отправка — она и становится первой строкой.
+    log: history.length ? history : lastSend ? [lastSend] : [],
+    enabled: enabled !== '0',
+    day: day != null && Number.isInteger(d) && d >= 0 && d <= 6 ? d : DEFAULT_DAY,
+    hour: hour != null && Number.isInteger(h) && h >= 0 && h <= 23 ? h : DEFAULT_HOUR,
+  }
+}
+
+/** Записать попытку: последняя — отдельно (по ней расписание), и в историю сверху. */
+async function record(entry: LastSend, prior: LastSend[]): Promise<void> {
+  await setSetting(REPORT_KEYS.last, JSON.stringify(entry))
+  await setSetting(REPORT_KEYS.log, JSON.stringify([entry, ...prior].slice(0, LOG_SIZE)))
 }
 
 const etHour = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' })
@@ -179,14 +223,16 @@ export type SendResult =
 export async function sendWeeklyReport(opts: { force?: boolean; today?: string; appUrl?: string } = {}): Promise<SendResult> {
   const week = reportWeek(opts.today ?? todayEt())
   const status = await reportStatus()
-  if (!opts.force && status.last?.ok && status.last.week === week.from) {
+  // Уже ушла неделя — по истории, а не только по последней строке: ручная отправка
+  // другой недели не должна вызывать повтор по расписанию.
+  if (!opts.force && status.log.some((e) => e.ok && e.week === week.from)) {
     return { ok: false, skipped: true, week: week.from, reason: 'already sent' }
   }
   const to = parseRecipients(status.to)
   const pass = ((await getSetting(REPORT_KEYS.pass, COMPANY)) ?? '').replace(/\s+/g, '')
   const user = status.user.trim()
   const fail = async (error: string): Promise<SendResult> => {
-    await setSetting(REPORT_KEYS.last, JSON.stringify({ week: week.from, at: new Date().toISOString(), ok: false, to: to.length, files: 0, error, manual: !!opts.force } satisfies LastSend))
+    await record({ week: week.from, at: new Date().toISOString(), ok: false, to: to.length, files: 0, error, manual: !!opts.force }, status.log)
     return { ok: false, error, week: week.from }
   }
   if (!to.length) return fail('Нет адресов получателей.')
@@ -225,7 +271,7 @@ export async function sendWeeklyReport(opts: { force?: boolean; today?: string; 
       text: built.text,
       attachments,
     })
-    await setSetting(REPORT_KEYS.last, JSON.stringify({ week: week.from, at: new Date().toISOString(), ok: true, to: to.length, files: attachments.length, manual: !!opts.force } satisfies LastSend))
+    await record({ week: week.from, at: new Date().toISOString(), ok: true, to: to.length, files: attachments.length, manual: !!opts.force }, status.log)
     return { ok: true, week: week.from, to: to.length, files: attachments.length }
   } catch (e) {
     const err = e as { code?: string; responseCode?: number; message?: string }
@@ -252,17 +298,19 @@ function senderFor(appUrl: string | undefined): string {
 }
 
 /** Расписание без отдельного планировщика: зовётся из /api/eld-poll (внешний пингер раз в
- * 5 минут) и после открытия «Сегодня». Неделя уходит с воскресенья 18:00 ET, один раз;
- * после неудачи — повтор не раньше чем через 6 часов, чтобы не долбить почту. */
+ * 5 минут) и после открытия «Сегодня». Неделя уходит в день и час из Админки (по
+ * умолчанию воскресенье 18:00 ET), один раз; после неудачи — повтор не раньше чем через
+ * 6 часов, чтобы не долбить почту. Выключено в Админке — не шлёт. */
 let sending: Promise<unknown> | null = null
 export async function maybeSendWeeklyReport(appUrl?: string): Promise<void> {
   if (sending) return
   const now = new Date()
   const today = todayEt(now)
-  if (new Date(`${today}T12:00:00Z`).getUTCDay() === 0 && Number(etHour.format(now)) < 18) return
   const week = reportWeek(today)
-  const { last } = await reportStatus()
-  if (last && last.week === week.from && (last.ok || now.getTime() - Date.parse(last.at) < 6 * 3_600_000)) return
+  const st = await reportStatus()
+  if (!st.enabled || !isDue(week, st.day, st.hour, today, Number(etHour.format(now)))) return
+  if (st.log.some((e) => e.week === week.from && !e.manual && (e.ok || now.getTime() - Date.parse(e.at) < 6 * 3_600_000))) return
+  if (st.log.some((e) => e.week === week.from && e.ok)) return
   sending = sendWeeklyReport({ today, appUrl }).catch(() => null).finally(() => (sending = null))
   await sending
 }

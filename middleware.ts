@@ -63,7 +63,16 @@ export async function middleware(req: NextRequest) {
   //
   // sessionUser() returns null without querying when there is no cookie at all, so an
   // anonymous visitor still pays exactly one query, not two.
-  const user = await sessionUser(req.cookies.get(SESSION_COOKIE)?.value)
+  // База не ответила (лимит соединений хостинга, перезапуск) — раньше это был голый
+  // «500 Internal Server Error» без кнопок. Теперь — короткая страница «обновите через
+  // минуту»: сессию не теряем, на вход не выкидываем, страница та же после обновления.
+  let user: Awaited<ReturnType<typeof sessionUser>>
+  try {
+    user = await sessionUser(req.cookies.get(SESSION_COOKIE)?.value)
+  } catch {
+    if (isAction || req.nextUrl.pathname.startsWith('/api/')) return new NextResponse('Service busy', { status: 503, headers: { 'retry-after': '30' } })
+    return new NextResponse(BUSY_HTML, { status: 503, headers: { 'content-type': 'text/html; charset=utf-8', 'retry-after': '30', 'cache-control': 'no-store' } })
+  }
 
   if (!user) {
     // Действие без сессии на публичном адресе — отказ, а не переход на /login:
@@ -108,6 +117,14 @@ export async function middleware(req: NextRequest) {
   headers.set('x-company-id', user.companyId)
   return NextResponse.next({ request: { headers } })
 }
+
+const BUSY_HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dispatch</title></head>
+<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#f6f7f9;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1f2937">
+<main style="max-width:440px;margin:16px;padding:24px;background:#fff;border:1px solid #e5e7eb;border-radius:16px">
+<h1 style="font-size:20px;margin:0">Сервер занят · Server busy</h1>
+<p style="font-size:15px;line-height:1.5;color:#4b5563">База на минуту не ответила. Обновите страницу — откроется та же.</p>
+<button onclick="location.reload()" style="padding:10px 18px;border-radius:12px;border:none;background:#f97316;color:#fff;font-size:15px;font-weight:600;cursor:pointer">Обновить · Retry</button>
+</main></body></html>`
 
 export const config = {
   // Node, а не edge: сессию проверяет запрос к MariaDB, а драйвер mysql2 работает только
