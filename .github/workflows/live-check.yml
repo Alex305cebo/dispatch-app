@@ -52,3 +52,16 @@ jobs:
           id=$(curl -s -m 30 -b /tmp/jar "$SITE/loads" | grep -o 'href="/loads/[0-9]\+' | head -1 | grep -o '[0-9]\+$')
           if [ -n "$id" ]; then check "под входом /loads/$id" "200" -b /tmp/jar "$SITE/loads/$id"; else echo "::warning::в демо не нашлось груза"; fi
           exit $fail
+
+      - name: Проверка ставки без нелепых процентов (PR 97)
+        run: |
+          curl -s -o /dev/null -m 30 -c /tmp/jar2 "$SITE/demo"
+          body=$(curl -s -m 60 -b /tmp/jar2 -H 'content-type: application/json' -X POST "$SITE/api/rate-check" \
+            -d '{"origin":"Columbus, OH","dest":"Seattle, WA","rate":3140,"miles":10,"equipment":"Van"}')
+          echo "$body" | head -c 600; echo
+          echo "$body" | grep -q '"rpm":null' || { echo "::error::rpm не пустой"; exit 1; }
+          echo "$body" | grep -q '"diff":[0-9-]' && { echo "::error::процент к рынку есть"; exit 1; }
+          ok=$(curl -s -m 60 -b /tmp/jar2 -H 'content-type: application/json' -X POST "$SITE/api/rate-check" \
+            -d '{"origin":"Columbus, OH","dest":"Seattle, WA","rate":8000,"miles":2400,"equipment":"Van"}')
+          echo "$ok" | head -c 600; echo
+          echo "$ok" | grep -q '"diff":[0-9-]' || echo "::warning::у нормальной ставки нет процента (нет рынка DAT?)"
