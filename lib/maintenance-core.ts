@@ -269,3 +269,28 @@ export function cityOf(location: string | null | undefined): string | null {
   const m = location.match(/from\s+(.+)$/i)
   return m ? m[1]! : location
 }
+
+/** Сколько миль в день трак проходит: от самого раннего пробега в журнале (не старше
+ * года) до текущего. Меньше недели между точками или нет пробега — null: прогноз
+ * по паре дней врёт. */
+export function milesPerDay(records: MaintenanceRecord[], currentOdometer: number | null, today: string): number | null {
+  if (currentOdometer == null) return null
+  const yearAgo = `${Number(today.slice(0, 4)) - 1}${today.slice(4)}`
+  const first = records
+    .filter((r) => r.odometer != null && r.odometer < currentOdometer && r.doneAt >= yearAgo && r.doneAt < today)
+    .sort((a, b) => a.doneAt.localeCompare(b.doneAt))[0]
+  if (!first) return null
+  const days = (Date.parse(`${today}T12:00:00Z`) - Date.parse(`${first.doneAt}T12:00:00Z`)) / 86_400_000
+  if (days < 7) return null
+  const rate = (currentOdometer - first.odometer!) / days
+  return rate > 0 ? rate : null
+}
+
+/** Когда масло по календарю: через сколько дней и какого числа (yyyy-mm-dd). */
+export function oilDueDate(left: number | null, perDay: number | null, today: string): { days: number; date: string } | null {
+  if (left == null || !perDay) return null
+  const days = Math.max(0, Math.round(left / perDay))
+  const d = new Date(`${today}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return { days, date: d.toISOString().slice(0, 10) }
+}

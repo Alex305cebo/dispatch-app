@@ -89,3 +89,15 @@ test('журнал: расходы по месяцам, через Новый г
     { month: '2026-01', total: 100 },
   ])
 })
+
+import { milesPerDay, oilDueDate } from './maintenance-core.ts'
+
+test('журнал: миль в день и дата масла', () => {
+  const rs = [rec({ odometer: 400_000, doneAt: '2026-08-01' }), rec({ odometer: 430_000, doneAt: '2026-10-01' })]
+  // 31+30+... 2026-08-01 → 2026-10-21 = 81 день, 41,000 mi
+  const r = milesPerDay(rs, 441_000, '2026-10-21')!
+  assert.equal(Math.round(r), 506)
+  assert.deepEqual(oilDueDate(5_060, r, '2026-10-21'), { days: 10, date: '2026-10-31' })
+  assert.equal(milesPerDay([rec({ odometer: 440_000, doneAt: '2026-10-19' })], 441_000, '2026-10-21'), null)
+  assert.equal(oilDueDate(null, r, '2026-10-21'), null)
+})

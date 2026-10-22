@@ -115,3 +115,11 @@ export function scanToInput(a: ScanAnswer) {
     shop: a.shop?.trim() || '',
   }
 }
+
+/** Подсказки из имени бумаги, которое ставит TMS: «REPAIR #1705 08-29-26 - Tire Steer 2.pdf»
+ * → дата 2026-08-29 и «Tire Steer 2». Нужны, когда ИИ не ответил или не нашёл дату. */
+export function titleHints(title: string): { doneAt: string | null; what: string | null } {
+  const m = /^\s*[A-Z]+\s+#\S+\s+(\d{2})-(\d{2})-(\d{2})\s*(?:-\s*(.+?))?(?:\.[a-z0-9]{2,4})?\s*$/i.exec(title)
+  if (!m) return { doneAt: null, what: title.replace(/\.[a-z0-9]{2,4}$/i, '').trim() || null }
+  return { doneAt: `20${m[3]}-${m[1]}-${m[2]}`, what: m[4]?.trim() || null }
+}

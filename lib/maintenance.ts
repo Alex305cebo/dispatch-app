@@ -142,7 +142,7 @@ export async function truckMetas(companyId: CompanyId): Promise<Map<number, Truc
     SELECT m.truck_id, m.vin, m.plate, m.trailer_number, m.year, m.make, m.model,
       m.oil_interval_mi, m.oil_last_odometer, m.driver_phone, m.notes,
       m.registration_expiry, m.inspection_expiry, m.insurance_expiry, m.cdl_expiry,
-      m.medcard_expiry, m.driver_photo_mime,
+      m.medcard_expiry, m.driver_photo_mime, m.truck_photo_mime, m.truck_model,
       m.home_state, m.home_from, m.home_to, m.week_target_miles, m.week_target_gross, m.avoid_states, m.target_rpm
     FROM truck_meta m JOIN trucks t ON t.id = m.truck_id
     WHERE t.company_id = ${companyId}`
@@ -206,16 +206,16 @@ export async function maintenanceDocs(companyId: CompanyId): Promise<{ id: numbe
   return rows.map((r: any) => ({ id: r.id, maintenanceId: r.maintenance_id, title: r.title, mime: r.mime }))
 }
 
-/** Бумаги трака без записи журнала: ремонтные счета, чеки, фото, «прочее», загруженные
- * через «Документы» трака, а не из журнала. Без них «Гараж» показывал только чеки,
- * прикреплённые к записи, и остальное как будто пропадало (владелец, 10/21/26).
- * Страховка, регистрация и бумаги водителя — паспорт трака, их тут нет. */
+/** Ремонтные бумаги трака (тип «Ремонт», имя «REPAIR #…») без записи журнала —
+ * загруженные через «Документы» трака, а не из журнала. Без них «Гараж» показывал только
+ * чеки, прикреплённые к записи, и остальное как будто пропадало (владелец, 10/21/26).
+ * Фото грузов и «прочее» (там лежат и Rate Con) сюда не идут — только тип «Ремонт». */
 export async function looseTruckDocs(companyId: CompanyId): Promise<{ id: number; truckId: number; kind: string; title: string; uploadedAt: string }[]> {
   const rows = await sql`
     SELECT id, truck_id, kind, title, uploaded_at FROM documents
     WHERE company_id = ${companyId} AND truck_id IS NOT NULL AND load_id IS NULL
       AND maintenance_id IS NULL AND deleted_at IS NULL
-      AND kind IN ('repair', 'invoice', 'photo', 'other')
+      AND kind = 'repair'
     ORDER BY uploaded_at DESC
     LIMIT 2000`
   return rows.map((r: any) => ({ id: r.id, truckId: r.truck_id, kind: r.kind, title: r.title, uploadedAt: new Date(r.uploaded_at).toISOString() }))

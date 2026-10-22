@@ -34,3 +34,14 @@ test('чек: ответ модели → запись (образец LubeZone)
   assert.equal(scanToInput({ ...a, odometer: 100, odometerUnit: 'km', date: '10/16/26' }).odometer, 62)
   assert.equal(scanToInput({ ...a, date: '10/16/26' }).doneAt, null)
 })
+
+import { titleHints } from './service-scan-core.ts'
+
+test('чек: подсказки из имени бумаги', () => {
+  assert.deepEqual(titleHints('REPAIR #1705 08-29-26 - Truck 1705 Tire Steer 2 1230 - Aug 29 20.pdf'), {
+    doneAt: '2026-08-29',
+    what: 'Truck 1705 Tire Steer 2 1230 - Aug 29 20',
+  })
+  assert.deepEqual(titleHints('REPAIR #1705 07-21-26 - Tire - Rear Truck чек.pdf'), { doneAt: '2026-07-21', what: 'Tire - Rear Truck чек' })
+  assert.deepEqual(titleHints('Headlamp invoice.pdf'), { doneAt: null, what: 'Headlamp invoice' })
+})
