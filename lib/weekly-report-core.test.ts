@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { attachmentName, buildReport, parseRecipients, pickAttachments, reportWeek, truckWeeks, type ReportFile } from './weekly-report-core.ts'
+import { attachmentName, buildReport, isDue, parseRecipients, pickAttachments, reportWeek, truckWeeks, type ReportFile } from './weekly-report-core.ts'
 import type { LoadRecord, TruckRecord } from './map.ts'
 import type { MaintenanceRecord } from './maintenance-core.ts'
 
@@ -89,4 +89,17 @@ test('имя вложения: расширение по типу, без зап
   assert.equal(attachmentName({ id: 1, title: 'Receipt: LubeZone/Sayre', mime: 'image/jpeg' }), 'Receipt LubeZone Sayre.jpg')
   assert.equal(attachmentName({ id: 2, title: 'invoice.pdf', mime: 'application/pdf' }), 'invoice.pdf')
   assert.equal(attachmentName({ id: 3, title: '', mime: 'application/pdf' }), 'doc-3.pdf')
+})
+
+test('расписание: воскресенье 18:00 — текущая неделя уходит в 18, не раньше', () => {
+  const w = reportWeek('2026-10-25')
+  assert.equal(isDue(w, 0, 18, '2026-10-25', 17), false)
+  assert.equal(isDue(w, 0, 18, '2026-10-25', 18), true)
+  assert.equal(isDue(reportWeek('2026-10-26'), 0, 18, '2026-10-26', 3), true) // пропущено — в понедельник догоняет
+})
+
+test('расписание: среда 9:00 — прошлая неделя уходит в среду, в понедельник ещё рано', () => {
+  assert.equal(isDue(reportWeek('2026-10-26'), 3, 9, '2026-10-26', 12), false)
+  assert.equal(isDue(reportWeek('2026-10-28'), 3, 9, '2026-10-28', 9), true)
+  assert.equal(isDue(reportWeek('2026-11-01'), 3, 9, '2026-11-01', 20), false) // вс — уже новая неделя, её срок впереди
 })

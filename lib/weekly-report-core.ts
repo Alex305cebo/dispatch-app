@@ -31,6 +31,18 @@ export function reportWeek(today: string): ReportWeek {
   return { from: addDays(sunday, -6), to: sunday }
 }
 
+/** Когда неделя w уходит по расписанию: день недели day (Вс=0 … Сб=6) сразу после её
+ * воскресенья (воскресенье — в тот же день), в час hour по ET. */
+export function scheduledFor(w: ReportWeek, day: number, hour: number): { date: string; hour: number } {
+  return { date: addDays(w.to, ((day % 7) + 7) % 7), hour }
+}
+
+/** Пора ли слать неделю w сейчас (today — день ET, hourNow — час ET). */
+export function isDue(w: ReportWeek, day: number, hour: number, today: string, hourNow: number): boolean {
+  const at = scheduledFor(w, day, hour)
+  return today > at.date || (today === at.date && hourNow >= at.hour)
+}
+
 export const weekDays = (w: ReportWeek): string[] => Array.from({ length: 7 }, (_, i) => addDays(w.from, i))
 
 /** Файл, который едет вложением: чек или счёт сервиса, фото ремонта. */

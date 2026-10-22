@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { ScrollText } from 'lucide-react'
+import { Mail, ScrollText } from 'lucide-react'
 import { getCurrentUser } from '@/lib/session'
 import { getCompany } from '@/lib/invoice'
 import { CompanyForm } from '@/components/invoice-actions'
@@ -44,9 +44,15 @@ export default async function AdminPage() {
         title={t(locale, 'admin.title')}
         subtitle={t(locale, 'admin.subtitle')}
         actions={
-          <Button href="/logins" variant="secondary" icon={<ScrollText size={14} aria-hidden />}>
-            {t(locale, 'admin.journalHeading')}
-          </Button>
+          <>
+            {/* Отчёт на почту — владелец ищет его в настройках, кнопка ведёт прямо к нему. */}
+            <Button href="#report" external variant="secondary" icon={<Mail size={14} aria-hidden />}>
+              {t(locale, 'admin.report.heading')}
+            </Button>
+            <Button href="/logins" variant="secondary" icon={<ScrollText size={14} aria-hidden />}>
+              {t(locale, 'admin.journalHeading')}
+            </Button>
+          </>
         }
       />
       {/* Порядок — по частоте: пользователей и права трогают каждую неделю, реквизиты
