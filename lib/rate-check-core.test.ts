@@ -58,3 +58,18 @@ test('без цены грузоотправителя цели нет, но р�
   assert.equal(empty.dat?.diff, null)
   assert.equal(empty.target?.lowTotal, Math.round(3 * 0.83 * 800))
 })
+
+test('нелепая ставка за милю ($314/mi) — без вердикта и без «выше рынка на 9296%»', () => {
+  // 22.10.2026: OH → WA, рынок DAT $3.34, а пришли мили не те — $3,140 за 10 mi.
+  const r = rateCheckFrom({ ...base, dat: { region: 'OH, IN', rpm: 3.34, date: null }, rate: 3140, miles: 10, deadhead: 50, shipper: 3.15 })
+  assert.equal(r.rpm, null)
+  assert.equal(r.allInRpm, null)
+  assert.equal(r.dat?.diff, null)
+  assert.equal(r.dat?.rpm, 3.34) // сам рынок показываем
+  assert.equal(r.target?.verdict, null)
+  assert.equal(r.target?.gap, null)
+  // и в другую сторону: $100 за 2,000 mi
+  assert.equal(rateCheckFrom({ ...base, rate: 100, miles: 2000, shipper: 3 }).dat?.diff, null)
+  // обычная короткая дорогая ставка остаётся: $900 за 120 mi = $7.50
+  assert.equal(rateCheckFrom({ ...base, rate: 900, miles: 120, shipper: 3 }).rpm, 7.5)
+})

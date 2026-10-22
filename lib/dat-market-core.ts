@@ -199,8 +199,22 @@ export function originRate(snap: DatSnapshot, origin: string | null): { rpm: num
   return region ? { rpm: region.rpm, region: regionLabel(snap, region) } : null
 }
 
-/** Ставка груза против рынка: разница в процентах и цвет. ±10% — ещё «в рынке». */
-export function marketVerdict(loadRpm: number, marketRpm: number): { diff: number; tone: 'good' | 'warn' | 'bad' } {
+/**
+ * Ставка за милю, которой не бывает у трака: меньше $0.50 или больше $20. Так выходит,
+ * когда с доски DAT пришли не те мили (пробег до погрузки, кусок адреса) или ставка не
+ * той колонки, — 22.10.2026 расширение показало «выше рынка на 9296%» ($314/mi против
+ * $3.34). С такой ставкой ни вердикта, ни процента к рынку: лучше промолчать, чем врать.
+ */
+export const RPM_MIN = 0.5
+export const RPM_MAX = 20
+export function sensibleRpm(rpm: number | null): number | null {
+  return rpm !== null && Number.isFinite(rpm) && rpm >= RPM_MIN && rpm <= RPM_MAX ? rpm : null
+}
+
+/** Ставка груза против рынка: разница в процентах и цвет. ±10% — ещё «в рынке».
+ * Нелепая ставка за милю (sensibleRpm) или пустой рынок — null: процента нет. */
+export function marketVerdict(loadRpm: number, marketRpm: number): { diff: number; tone: 'good' | 'warn' | 'bad' } | null {
+  if (sensibleRpm(loadRpm) === null || !(marketRpm > 0)) return null
   const diff = ((loadRpm - marketRpm) / marketRpm) * 100
   return { diff, tone: diff >= 10 ? 'good' : diff <= -10 ? 'bad' : 'warn' }
 }
@@ -236,6 +250,8 @@ export function versusMarket(
   let loads = 0
   for (const r of rows) {
     if (!r.market || !(r.loadedMiles > 0) || !(r.rate > 0)) continue
+    // Груз с нелепой ставкой за милю (опечатка в милях) перекосил бы всю неделю.
+    if (sensibleRpm(r.rate / r.loadedMiles) === null) continue
     rate += r.rate
     miles += r.loadedMiles
     market += r.market * r.loadedMiles
@@ -243,7 +259,8 @@ export function versusMarket(
   }
   if (!miles) return null
   const rpm = rate / miles
-  return { rpm, market: market / miles, ...marketVerdict(rpm, market / miles), loads }
+  const v = marketVerdict(rpm, market / miles)
+  return v ? { rpm, market: market / miles, ...v, loads } : null
 }
 
 /**
