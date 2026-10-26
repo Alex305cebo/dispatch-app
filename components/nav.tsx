@@ -132,20 +132,22 @@ const ITEMS: Item[] = [
   { href: '/', labelKey: 'nav.overview', icon: 'dash', group: 'work' },
   { href: '/loads', labelKey: 'nav.loads', icon: 'loads', group: 'work' },
   { href: '/trucks', labelKey: 'nav.trucks', icon: 'settings', group: 'work' },
-  { href: '/docs', labelKey: 'nav.docs', icon: 'docs', group: 'work' },
-  // «Деньги» — своим пунктом (10/09/26): раньше это была первая вкладка «Документов»,
-  // и раздел бумаг открывался на деньгах. Старые адреса /docs?tab=… и /invoices
-  // ведут сюда же.
-  { href: '/money', labelKey: 'nav.money', icon: 'money', group: 'work', money: true },
-  // «Гараж» (10/21/26) — всё про каждый трак: пробег, масло, ремонты, сроки, чеки.
-  { href: '/garage', labelKey: 'nav.garage', icon: 'wrench', group: 'work' },
-  // Инструменты — под чертой.
+  // «Аналитика» (10/22/26) — графики выручки на настоящих грузах; право «Финансы», как у «Денег».
+  // С 10/26/26 «Аналитика» и «Рынок» — наверху, а «Деньги» и «Документы» — под чертой
+  // (владелец поменял эти пары местами).
+  { href: '/analytics', labelKey: 'nav.analytics', icon: 'chart', group: 'work', money: true },
   // «Рынок» — один раздел (пользователь, 16.09.2026; переименован 18–19.09.2026, когда
   // сюда переехало «Куда отправить трак»): вкладки внутри, адреса прежние. С 10/09/26
   // внутри и «Толлы» — своей вкладкой, отдельного пункта меню у них больше нет.
-  // «Аналитика» (10/22/26) — графики выручки на настоящих грузах; право «Финансы», как у «Денег».
-  { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield', group: 'tools', also: ['/facilities', '/tolls'] },
-  { href: '/analytics', labelKey: 'nav.analytics', icon: 'chart', group: 'tools', money: true },
+  { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield', group: 'work', also: ['/facilities', '/tolls'] },
+  // «Гараж» (10/21/26) — всё про каждый трак: пробег, масло, ремонты, сроки, чеки.
+  { href: '/garage', labelKey: 'nav.garage', icon: 'wrench', group: 'work' },
+  // Инструменты — под чертой.
+  // «Деньги» — своим пунктом (10/09/26): раньше это была первая вкладка «Документов»,
+  // и раздел бумаг открывался на деньгах. Старые адреса /docs?tab=… и /invoices
+  // ведут сюда же.
+  { href: '/money', labelKey: 'nav.money', icon: 'money', group: 'tools', money: true },
+  { href: '/docs', labelKey: 'nav.docs', icon: 'docs', group: 'tools' },
   // «Amazon» — рейсы Amazon Relay (10/03/26): свой раздел, не фильтр грузов.
   { href: '/amazon', labelKey: 'nav.amazon', icon: 'amazon', group: 'tools' },
   { href: '/telegram', labelKey: 'nav.telegram', icon: 'chat', group: 'tools' },
