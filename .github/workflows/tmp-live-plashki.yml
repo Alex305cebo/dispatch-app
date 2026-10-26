@@ -29,7 +29,9 @@ jobs:
           code=$(curl --http1.1 -s -o /tmp/load.html -w '%{http_code}' -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/loads/$id")
           echo "карточка груза: $code"
           grep -o 'aria-label="Where the truck is now[^"]*"' /tmp/load.html | head -1 | sed 's/.*: //'
-          grep -o 'aria-label="Copy a broker update[^"]*"' /tmp/load.html | head -1 | sed 's/.*Sends nothing: //'
+          for i in $(seq 1 40); do grep -q 'aria-label="Copy Load Info' /tmp/load.html && break; sleep 20; curl --http1.1 -s -o /tmp/load.html -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/loads/$id"; done
+          grep -q 'aria-label="Copy Load Info' /tmp/load.html && echo "кнопка Load Info есть" || { echo "::error::нет Load Info"; exit 1; }
+          grep -o 'LOAD ID: #[^"]\{0,300\}' /tmp/load.html | head -1
           [ "$code" = 200 ] || exit 1
           tid=$(grep -o 'href="/trucks/[0-9]\+' /tmp/trucks.html | head -1 | grep -o '[0-9]\+$')
           code=$(curl --http1.1 -s -o /tmp/truck.html -w '%{http_code}' -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/trucks/$tid")
