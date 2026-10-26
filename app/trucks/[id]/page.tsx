@@ -8,7 +8,8 @@ import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
 import { Droplet, Fuel, Phone } from 'lucide-react'
 import { BackButton } from '@/components/back-button'
-import { PairBar, pairBrokerUpdate } from '@/components/pair-bar'
+import { PairBar } from '@/components/pair-bar'
+import { loadInfoText } from '@/lib/load-info'
 import { placeZip } from '@/lib/us-zip'
 import { tgConnected } from '@/lib/telegram-status'
 import { DriverLinkButton } from '@/components/driver-link-button'
@@ -1009,11 +1010,7 @@ export default async function Page({
         place={truckPlace}
         chatHref={tgOn ? `/telegram?truck=${truck.id}` : null}
         rateConId={activeLoad ? (rateCons.get(activeLoad.id) ?? null) : null}
-        brokerUpdate={
-          activeLoad
-            ? pairBrokerUpdate({ loadRef: activeLoad.referenceId, loadId: activeLoad.id, place: truckPlace, fixAt: fs?.updatedAt, destination: activeLoad.destination })
-            : null
-        }
+        loadInfo={activeLoad ? loadInfoText(activeLoad) : null}
       />
 
       <WidgetGrid

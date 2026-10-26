@@ -15,7 +15,7 @@ import { PAIR_CHIP, PairCopyChip } from '@/components/pair-chips'
  *
  * Справа в каждой половине — по две кнопки (Alex, 26.10.2026): у трака «где сейчас»
  * (копирует «Manteno, IL 60950») и чат водителя в Telegram, у груза — Rate Con и
- * апдейт брокеру в буфер. Ничего не отправляют сами — только копия или открытие.
+ * «Load Info» — текст груза, как его шлют водителю (26.10: вместо апдейта брокеру). Ничего не отправляют сами — только копия или открытие.
  */
 export function PairBar({
   current,
@@ -25,7 +25,7 @@ export function PairBar({
   place,
   chatHref,
   rateConId,
-  brokerUpdate,
+  loadInfo,
 }: {
   current: 'truck' | 'load'
   truck: { id: number; label: string; short?: string } | null
@@ -37,8 +37,8 @@ export function PairBar({
   chatHref?: string | null
   /** Rate Con груза пары. */
   rateConId?: number | null
-  /** Готовый текст апдейта брокеру (pairBrokerUpdate). */
-  brokerUpdate?: string | null
+  /** «Load Info» — текст груза, как его шлют водителю (lib/load-info.ts). */
+  loadInfo?: string | null
 }) {
   // На телефоне — одна строка на половину: короткая подпись, мелкие отступы. Три
   // строки «ОТКРЫТЬ КАРТОЧКУ ТРАКА →» на 180px ширины съедали пол-экрана.
@@ -103,9 +103,9 @@ export function PairBar({
     )
   const loadChips: ReactNode[] = []
   if (load && rateConId) loadChips.push(<RateConButton key="rc" docId={rateConId} compact />)
-  if (load && brokerUpdate)
+  if (load && loadInfo)
     loadChips.push(
-      <PairCopyChip key="broker" kind="broker" value={brokerUpdate} label={t(locale, 'pair.broker')} title={t(locale, 'pair.brokerTitle')} />,
+      <PairCopyChip key="info" kind="info" value={loadInfo} label="Load Info" title={t(locale, 'pair.loadInfoTitle')} />,
     )
   const chips = (list: ReactNode[]) => (list.length ? <span className="flex shrink-0 items-center gap-1">{list}</span> : null)
 
@@ -134,35 +134,3 @@ export function PairBar({
   )
 }
 
-const etClock = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'America/New_York',
-  month: '2-digit',
-  day: '2-digit',
-  year: '2-digit',
-  hour: 'numeric',
-  minute: '2-digit',
-})
-
-/**
- * Апдейт брокеру одной строкой, по-английски — его вставляют в чат или письмо:
- * «Load 1234567 · Truck at Manteno, IL 60950 (10/26/26, 11:52 PM ET) · Heading to Aurora, CO».
- * Время — GPS-фикс по ET. ETA не пишем: её считает диспетчер, а не догадка программы.
- */
-export function pairBrokerUpdate(o: {
-  loadRef: string | null | undefined
-  loadId: number
-  place: string | null | undefined
-  fixAt: string | null | undefined
-  destination: string | null | undefined
-}): string | null {
-  if (!o.place) return null
-  const ms = o.fixAt ? Date.parse(o.fixAt) : NaN
-  const at = Number.isFinite(ms) ? ` (${etClock.format(new Date(ms)).replace(',', '')} ET)` : ''
-  return [
-    `Load ${o.loadRef?.trim() || `#${o.loadId}`}`,
-    `Truck at ${o.place}${at}`,
-    o.destination ? `Heading to ${o.destination}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ')
-}

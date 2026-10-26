@@ -697,7 +697,7 @@ function toIso(us: string): string | null {
   return `${year}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
 }
 
-const RULE = '__________________________'
+export const RULE = '__________________________'
 
 /**
  * The block the dispatcher copies and sends to the driver. This is the actual point
