@@ -1,0 +1,35 @@
+name: tmp-live-plashki
+on:
+  push:
+    branches: [tmp-live-plashki]
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SITE: https://app.mayalogisticsinc.com
+    steps:
+      - name: Плашки на живом сайте
+        run: |
+          for i in $(seq 1 50); do
+            curl -s -m 30 -c /tmp/jar -o /dev/null "$SITE/demo"
+            curl -s -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/trucks" > /tmp/trucks.html
+            if grep -q 'aria-label="Show all"' /tmp/trucks.html; then echo "плашка траков есть (попытка $i)"; break; fi
+            sleep 20
+          done
+          grep -q 'aria-label="Show all"' /tmp/trucks.html || { echo "::error::нет плашки на /trucks"; exit 1; }
+          echo "кнопок траков: $(grep -o '<li class="flex h-11' /tmp/trucks.html | wc -l)"
+          curl -s -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/loads" > /tmp/loads.html
+          echo "грузов в пути на плашке: $(grep -o '<li class="flex h-11' /tmp/loads.html | wc -l)"
+          id=$(grep -o 'href="/loads/[0-9]\+" title="[^"]*"' /tmp/loads.html | head -1 | grep -o '/loads/[0-9]\+' | grep -o '[0-9]\+$')
+          echo "груз $id"
+          code=$(curl -s -o /tmp/load.html -w '%{http_code}' -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/loads/$id")
+          echo "карточка груза: $code"
+          grep -o 'aria-label="Where the truck is now[^"]*"' /tmp/load.html | head -1 | sed 's/.*: //'
+          grep -o 'aria-label="Copy a broker update[^"]*"' /tmp/load.html | head -1 | sed 's/.*Sends nothing: //'
+          [ "$code" = 200 ] || exit 1
+          tid=$(grep -o 'href="/trucks/[0-9]\+' /tmp/trucks.html | head -1 | grep -o '[0-9]\+$')
+          code=$(curl -s -o /tmp/truck.html -w '%{http_code}' -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/trucks/$tid")
+          echo "карточка трака $tid: $code"
+          grep -o 'aria-label="Where the truck is now[^"]*"' /tmp/truck.html | head -1 | sed 's/.*: //'
+          [ "$code" = 200 ]
