@@ -8,6 +8,7 @@ import { BoardSkeleton, FleetBoard } from './fleet-board'
 import { listLoads, listTrucks, loadPapers } from '@/lib/loads'
 import { currentLoadsByTruck } from '@/lib/map'
 import { FleetHeatmap } from '@/components/fleet-heatmap'
+import { JumpBar, type JumpItem } from '@/components/jump-bar'
 import type { DirectoryCompany } from '@/components/driver-directory'
 import { dispatcherPhoneKey, getSetting } from '@/lib/settings'
 import { getCurrentUser } from '@/lib/session'
@@ -177,6 +178,27 @@ export default async function Page() {
   }
   const dispatchers = Object.fromEntries(dispByTruck)
   const grid = await tileGrid('trucks', TRUCKS_TILES, locale, migrateTrucksTiles)
+  // Плавающая плашка: кнопка на каждый трак, нажатие — карточка трака. Везущие
+  // первыми, дальше свободные, нерабочие в конце; внутри — по номеру.
+  const toneRank = { late: 0, busy: 1, free: 2, off: 3 } as const
+  const jumpTrucks: JumpItem[] = perTruck
+    .map(({ truck, current }): JumpItem => {
+      const fs = truck.number ? byUnit.get(truck.number) : undefined
+      const num = truck.number?.trim() || truck.name
+      return {
+        id: truck.id,
+        href: `/trucks/${truck.id}`,
+        title: [num, shortName(truck.driverName)].filter(Boolean).join(' · '),
+        sub: truck.unavailable
+          ? unavailableLabel(locale, truck.unavailable)
+          : current
+            ? `→ ${current.destination ?? '—'}`
+            : (placeCity(fs?.location ?? null) ?? t(locale, 'trucks.heatmap.free')),
+        tone: truck.unavailable ? 'off' : current ? 'busy' : 'free',
+        rcId: current ? (papers.rateCons.get(current.id) ?? null) : null,
+      }
+    })
+    .sort((a, b) => toneRank[a.tone] - toneRank[b.tone] || a.title.localeCompare(b.title, 'en', { numeric: true }))
 
   return (
     <main className="page">
@@ -207,6 +229,8 @@ export default async function Page() {
       {/* Живая часть парка: цифры, карта и список траков «где сейчас». Своя
           Suspense-граница, потому что здесь ждут геокодирование и маршрутизатор:
           шапка показывается сразу. */}
+      <JumpBar kind="trucks" items={jumpTrucks} />
+
       <EldNewTrucks units={eldNew} />
 
       <Suspense fallback={<BoardSkeleton />}>

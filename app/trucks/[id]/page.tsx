@@ -8,7 +8,9 @@ import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
 import { Droplet, Fuel, Phone } from 'lucide-react'
 import { BackButton } from '@/components/back-button'
-import { PairBar } from '@/components/pair-bar'
+import { PairBar, pairBrokerUpdate } from '@/components/pair-bar'
+import { placeZip } from '@/lib/us-zip'
+import { tgConnected } from '@/lib/telegram-status'
 import { DriverLinkButton } from '@/components/driver-link-button'
 import { sql } from '@/lib/db'
 import { getTruck, listDocs, listLoads, loadPapers } from '@/lib/loads'
@@ -984,6 +986,9 @@ export default async function Page({
   ))
 
   const grid = await tileGrid('truck-detail', TRUCK_DETAIL_TILES, locale, migrateTruckCard)
+  // Плашка «Трак ⇄ Груз»: место с индексом, чат водителя (если Telegram подключён).
+  const truckPlace = placeZip(fs?.location, fs?.lat, fs?.lng)
+  const tgOn = !!user && !user.isDemo && (await tgConnected(user.id).catch(() => false))
 
   return (
     <main className="page">
@@ -1001,6 +1006,14 @@ export default async function Page({
             : null
         }
         locale={locale}
+        place={truckPlace}
+        chatHref={tgOn ? `/telegram?truck=${truck.id}` : null}
+        rateConId={activeLoad ? (rateCons.get(activeLoad.id) ?? null) : null}
+        brokerUpdate={
+          activeLoad
+            ? pairBrokerUpdate({ loadRef: activeLoad.referenceId, loadId: activeLoad.id, place: truckPlace, fixAt: fs?.updatedAt, destination: activeLoad.destination })
+            : null
+        }
       />
 
       <WidgetGrid

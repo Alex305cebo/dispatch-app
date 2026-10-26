@@ -30,7 +30,8 @@ import { DocList, DocUpload } from '@/components/docs'
 import { InvoiceBox } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
 import { BackButton } from '@/components/back-button'
-import { PairBar } from '@/components/pair-bar'
+import { PairBar, pairBrokerUpdate } from '@/components/pair-bar'
+import { placeZip } from '@/lib/us-zip'
 import { DetentionTile } from '@/components/detention-tile'
 import { detentionTerms, getSetting } from '@/lib/settings'
 import { headers } from 'next/headers'
@@ -640,6 +641,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   ))
 
   const grid = await tileGrid('load-detail', LOAD_DETAIL_TILES, locale, migrateLoadCard)
+  // «Manteno, IL 60950» — для кнопки места и апдейта брокеру на плашке.
+  const truckPlace = placeZip(fs?.location, fs?.lat, fs?.lng)
 
   return (
     <main className="page">
@@ -656,6 +659,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           label: `${load.origin ?? '—'} → ${load.destination ?? '—'}`,
         }}
         locale={locale}
+        place={truckPlace}
+        chatHref={tgUserId != null ? `/telegram?truck=${truck.id}` : null}
+        rateConId={rateConDoc?.id ?? null}
+        brokerUpdate={
+          load.status === 'in_transit' || load.status === 'booked'
+            ? pairBrokerUpdate({ loadRef: load.referenceId, loadId: load.id, place: truckPlace, fixAt: fs?.updatedAt, destination: load.destination })
+            : null
+        }
       />
 
       <WidgetGrid

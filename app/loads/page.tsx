@@ -18,6 +18,8 @@ import { todayEt } from '@/lib/payments'
 import type { LoadMetrics } from '@/components/loads-toolbar'
 import { LoadsMapServer } from './loads-map-server'
 import { LoadsViews } from './loads-views'
+import { JumpBar, type JumpItem } from '@/components/jump-bar'
+import { shortName } from '@/lib/fmt'
 
 export const dynamic = 'force-dynamic'
 
@@ -115,7 +117,29 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
   const initialView =
     sp.view === 'board' ? sp.view : sp.view === 'week' || sp.view === 'calendar' || (sp.week && !sp.view) ? 'week' : 'list'
 
+  // Плавающая плашка: только грузы, которые сейчас везут (в пути). Ближайшая
+  // выгрузка первой; опаздывающий — красной точкой.
+  const jumpLoads: JumpItem[] = loads
+    .filter((l) => l.status === 'in_transit')
+    .sort((a, b) => (a.deliveryDate ?? '9999').localeCompare(b.deliveryDate ?? '9999'))
+    .map((l) => {
+      const tr = l.truckId == null ? undefined : byId.get(l.truckId)
+      const num = tr ? tr.number?.trim() || tr.name : null
+      return {
+        id: l.id,
+        href: `/loads/${l.id}`,
+        title: `${l.origin ?? '—'} → ${l.destination ?? '—'}`,
+        sub: [num, tr ? shortName(tr.driverName) : null, l.deliveryDate ? `${t(locale, 'loads.jumpDel')} ${usDate(l.deliveryDate)}` : null]
+          .filter(Boolean)
+          .join(' · '),
+        tone: metrics[l.id]?.lateMin != null ? 'late' : 'busy',
+        rcId: rateCons.get(l.id) ?? null,
+      }
+    })
+
   return (
+    <>
+    <JumpBar kind="loads" items={jumpLoads} />
     <LoadsViews
       loads={loads}
       trucks={trucks}
@@ -133,5 +157,6 @@ async function LoadsBoard({ searchParams }: { searchParams: Params }) {
         </Suspense>
       }
     />
+    </>
   )
 }
