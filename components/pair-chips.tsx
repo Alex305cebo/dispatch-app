@@ -1,10 +1,10 @@
 'use client'
 
-// Кнопки-копии на плашке «Трак ⇄ Груз»: «Manteno, IL 60950» и апдейт брокеру.
+// Кнопки-копии на плашке «Трак ⇄ Груз»: «Manteno, IL 60950» и «Load Info».
 // Только буфер обмена — никаких отправок: связь с брокером и водителем диспетчер
 // ведёт сам, в Telegram.
 
-import { MapPin, MessageSquareText } from 'lucide-react'
+import { ClipboardList, MapPin } from 'lucide-react'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
@@ -25,7 +25,7 @@ export function PairCopyChip({
   /** Что видно на кнопке с sm и шире. */
   label: string
   title: string
-  kind: 'place' | 'broker'
+  kind: 'place' | 'info'
 }) {
   const locale = useLocale()
   async function run(e: React.MouseEvent) {
@@ -33,14 +33,15 @@ export function PairCopyChip({
     e.stopPropagation()
     try {
       await navigator.clipboard.writeText(value)
-      notify('ok', `${t(locale, 'pair.placeCopied')}${value}`)
+      // Load Info — полтора десятка строк: в уведомлении хватит заголовка.
+      notify('ok', kind === 'info' ? t(locale, 'pair.loadInfoCopied') : `${t(locale, 'pair.placeCopied')}${value}`)
     } catch {
       notify('warn', t(locale, 'tracking.clipboardDenied'))
     }
   }
-  const Icon = kind === 'place' ? MapPin : MessageSquareText
+  const Icon = kind === 'place' ? MapPin : ClipboardList
   return (
-    <button type="button" onClick={run} title={title} aria-label={`${title}: ${value}`} className={PAIR_CHIP}>
+    <button type="button" onClick={run} title={title} aria-label={kind === 'place' ? `${title}: ${value}` : title} className={PAIR_CHIP}>
       <Icon size={15} className="shrink-0 text-haul-400" aria-hidden />
       {/* Место — главное на кнопке: на широком экране видно целиком, на среднем
           обрезается многоточием, на телефоне остаётся значок (полный текст — в title). */}

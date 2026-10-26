@@ -30,7 +30,8 @@ import { DocList, DocUpload } from '@/components/docs'
 import { InvoiceBox } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
 import { BackButton } from '@/components/back-button'
-import { PairBar, pairBrokerUpdate } from '@/components/pair-bar'
+import { PairBar } from '@/components/pair-bar'
+import { loadInfoText } from '@/lib/load-info'
 import { placeZip } from '@/lib/us-zip'
 import { DetentionTile } from '@/components/detention-tile'
 import { detentionTerms, getSetting } from '@/lib/settings'
@@ -662,11 +663,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         place={truckPlace}
         chatHref={tgUserId != null ? `/telegram?truck=${truck.id}` : null}
         rateConId={rateConDoc?.id ?? null}
-        brokerUpdate={
-          load.status === 'in_transit' || load.status === 'booked'
-            ? pairBrokerUpdate({ loadRef: load.referenceId, loadId: load.id, place: truckPlace, fixAt: fs?.updatedAt, destination: load.destination })
-            : null
-        }
+        loadInfo={loadInfoText(load)}
       />
 
       <WidgetGrid
