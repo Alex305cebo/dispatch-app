@@ -23,9 +23,8 @@ jobs:
           curl --http1.1 -s -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/loads" > /tmp/loads.html
           echo "грузов в пути на плашке: $(grep -o '<li class="flex h-11' /tmp/loads.html | wc -l)"
           echo "In transit в списке: $(grep -o 'In transit' /tmp/loads.html | wc -l)"
-          tid0=$(grep -o 'href="/trucks/[0-9]\+" title="[^"]*→' /tmp/trucks.html | head -1 | grep -o '/trucks/[0-9]\+' | grep -o '[0-9]\+$')
-          id=$(curl --http1.1 -s -m 30 -b /tmp/jar "$SITE/trucks/$tid0" | grep -o 'href="/loads/[0-9]\+' | head -1 | grep -o '[0-9]\+$')
-          echo "везущий трак $tid0"
+          grep -o '<li class="flex h-11.\{0,400\}' /tmp/loads.html | head -1 | sed 's/<[^>]*>/ /g'
+          id=$(grep -o '<li class="flex h-11[^>]*><a[^>]*href="/loads/[0-9]*' /tmp/loads.html | head -1 | grep -o '[0-9]*$')
           echo "груз $id"
           code=$(curl --http1.1 -s -o /tmp/load.html -w '%{http_code}' -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/loads/$id")
           echo "карточка груза: $code"
