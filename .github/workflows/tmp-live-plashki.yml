@@ -11,15 +11,16 @@ jobs:
     steps:
       - name: Плашки на живом сайте
         run: |
+          set +e
           for i in $(seq 1 50); do
-            curl -s -m 30 -c /tmp/jar -o /dev/null "$SITE/demo"
-            curl -s -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/trucks" > /tmp/trucks.html
+            curl --http1.1 -s -m 30 -c /tmp/jar -o /dev/null "$SITE/demo" || true
+            curl --http1.1 -s -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/trucks" > /tmp/trucks.html || true
             if grep -q 'aria-label="Show all"' /tmp/trucks.html; then echo "плашка траков есть (попытка $i)"; break; fi
             sleep 20
           done
           grep -q 'aria-label="Show all"' /tmp/trucks.html || { echo "::error::нет плашки на /trucks"; exit 1; }
           echo "кнопок траков: $(grep -o '<li class="flex h-11' /tmp/trucks.html | wc -l)"
-          curl -s -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/loads" > /tmp/loads.html
+          curl --http1.1 -s -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/loads" > /tmp/loads.html
           echo "грузов в пути на плашке: $(grep -o '<li class="flex h-11' /tmp/loads.html | wc -l)"
           id=$(grep -o 'href="/loads/[0-9]\+" title="[^"]*"' /tmp/loads.html | head -1 | grep -o '/loads/[0-9]\+' | grep -o '[0-9]\+$')
           echo "груз $id"
