@@ -22,15 +22,18 @@ jobs:
           echo "кнопок траков: $(grep -o '<li class="flex h-11' /tmp/trucks.html | wc -l)"
           curl --http1.1 -s -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/loads" > /tmp/loads.html
           echo "грузов в пути на плашке: $(grep -o '<li class="flex h-11' /tmp/loads.html | wc -l)"
-          id=$(grep -o 'href="/loads/[0-9]\+" title="[^"]*"' /tmp/loads.html | head -1 | grep -o '/loads/[0-9]\+' | grep -o '[0-9]\+$')
+          echo "In transit в списке: $(grep -o 'In transit' /tmp/loads.html | wc -l)"
+          tid0=$(grep -o 'href="/trucks/[0-9]\+" title="[^"]*→' /tmp/trucks.html | head -1 | grep -o '/trucks/[0-9]\+' | grep -o '[0-9]\+$')
+          id=$(curl --http1.1 -s -m 30 -b /tmp/jar "$SITE/trucks/$tid0" | grep -o 'href="/loads/[0-9]\+' | head -1 | grep -o '[0-9]\+$')
+          echo "везущий трак $tid0"
           echo "груз $id"
-          code=$(curl -s -o /tmp/load.html -w '%{http_code}' -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/loads/$id")
+          code=$(curl --http1.1 -s -o /tmp/load.html -w '%{http_code}' -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/loads/$id")
           echo "карточка груза: $code"
           grep -o 'aria-label="Where the truck is now[^"]*"' /tmp/load.html | head -1 | sed 's/.*: //'
           grep -o 'aria-label="Copy a broker update[^"]*"' /tmp/load.html | head -1 | sed 's/.*Sends nothing: //'
           [ "$code" = 200 ] || exit 1
           tid=$(grep -o 'href="/trucks/[0-9]\+' /tmp/trucks.html | head -1 | grep -o '[0-9]\+$')
-          code=$(curl -s -o /tmp/truck.html -w '%{http_code}' -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/trucks/$tid")
+          code=$(curl --http1.1 -s -o /tmp/truck.html -w '%{http_code}' -m 30 -b /tmp/jar -H 'Accept-Language: en' "$SITE/trucks/$tid")
           echo "карточка трака $tid: $code"
           grep -o 'aria-label="Where the truck is now[^"]*"' /tmp/truck.html | head -1 | sed 's/.*: //'
           [ "$code" = 200 ]
