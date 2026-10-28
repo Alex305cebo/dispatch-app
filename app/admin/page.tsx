@@ -8,13 +8,14 @@ import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/button'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
-import { getDemoConfig, getKeyStatus, getOpenAccess, getReportStatus, listFleetForAssign, listRecentErrors, listUsers, listWorkspaces } from './actions'
+import { getBrokerMapLink, getDemoConfig, getKeyStatus, getOpenAccess, getReportStatus, listFleetForAssign, listRecentErrors, listUsers, listWorkspaces } from './actions'
 import { UserList } from './user-list'
 import { WorkspaceList } from './workspace-list'
 import { OpenAccessToggle } from './open-access-toggle'
 import { KeysForm } from './keys-form'
 import { ReportForm } from './report-form'
 import { DemoToggle } from './demo-toggle'
+import { BrokerMapLink } from './broker-map-link'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +26,7 @@ export default async function AdminPage() {
   if (!user || user.role !== 'admin' || user.isWorkspace) redirect('/')
   const locale = await getLocale()
 
-  const [users, company, openAccess, keys, demo, fleet, errors, workspaces, report] = await Promise.all([
+  const [users, company, openAccess, keys, demo, fleet, errors, workspaces, report, brokerMap] = await Promise.all([
     listUsers(),
     getCompany(),
     getOpenAccess(),
@@ -35,6 +36,7 @@ export default async function AdminPage() {
     listRecentErrors().catch(() => []),
     listWorkspaces().catch(() => []),
     getReportStatus(),
+    getBrokerMapLink(),
   ])
 
   return (
@@ -73,6 +75,15 @@ export default async function AdminPage() {
           <Info text={t(locale, 'admin.report.info')} />
         </h2>
         <ReportForm status={report} />
+      </section>
+      {/* Карта для брокеров — одна ссылка на всех (lib/broker-map.ts). Владелец ищет её
+          рядом с отчётом, а кнопка в шапке «Траков» ведёт прямо сюда. */}
+      <section id="broker-map" className="scroll-mt-4 panel mt-4 p-5">
+        <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
+          {t(locale, 'admin.brokerMap.heading')}
+          <Info text={t(locale, 'admin.brokerMap.info')} />
+        </h2>
+        <BrokerMapLink token={brokerMap} />
       </section>
       <section className="panel mt-4 p-5">
         <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">

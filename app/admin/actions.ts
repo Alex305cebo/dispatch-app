@@ -488,3 +488,31 @@ async function appOrigin(): Promise<string> {
   const host = h.get('x-forwarded-host') ?? h.get('host')
   return host ? `https://${host}` : 'https://app.mayalogisticsinc.com'
 }
+
+/** Карта траков для брокеров (/track/<токен>, lib/broker-map.ts): токен ссылки или null. */
+export async function getBrokerMapLink(): Promise<string | null> {
+  await assertAdmin()
+  const { brokerMapToken } = await import('@/lib/broker-map')
+  return brokerMapToken()
+}
+
+/** Новая ссылка для брокеров; прежняя сразу перестаёт открываться. */
+export async function newBrokerMapLink(): Promise<{ token: string } | { error: string }> {
+  await assertAdmin()
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const { issueBrokerMapToken } = await import('@/lib/broker-map')
+  const token = await issueBrokerMapToken()
+  revalidatePath('/admin')
+  return { token }
+}
+
+/** Выключить ссылку для брокеров: у всех, кому её дали, будет пустая страница. */
+export async function offBrokerMapLink(): Promise<{ error: string } | void> {
+  await assertAdmin()
+  const ro = await demoReadOnly()
+  if (ro) return ro
+  const { revokeBrokerMapToken } = await import('@/lib/broker-map')
+  await revokeBrokerMapToken()
+  revalidatePath('/admin')
+}

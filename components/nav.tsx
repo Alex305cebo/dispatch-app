@@ -180,8 +180,9 @@ export function Nav({
   company?: { mc: string; name: string; email: string } | null
 }) {
   const pathname = usePathname()
-  // Страница водителя (/d/<token>) — без навигации: у водителя нет доступа к приложению.
-  const driverPage = pathname.startsWith('/d/')
+  // Страница водителя (/d/<token>) и карта для брокеров (/track/<token>) — без
+  // навигации: у водителя и брокера нет доступа к приложению.
+  const driverPage = pathname.startsWith('/d/') || pathname.startsWith('/track/')
   const router = useRouter()
   const locale = useLocale()
   const brand = brandName(companyName)

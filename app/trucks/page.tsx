@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react'
+import { Map as MapIcon, Plus } from 'lucide-react'
 import { Button } from '@/components/button'
 import { PageHeader } from '@/components/page-header'
 import { Suspense } from 'react'
@@ -220,9 +220,17 @@ export default async function Page() {
         // Одна главная кнопка (план «Порядок в TMS»). «Обновить цену дизеля» — в строке
         // над списком траков, рядом с «Обновить» GPS.
         actions={
-          <Button href="/trucks/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
-            {t(locale, 'trucks.page.addTruck')}
-          </Button>
+          <>
+            {/* Ссылка для брокеров живёт в Админке (только у админа владельца) — отсюда туда одним нажатием. */}
+            {user?.role === 'admin' && !user.isWorkspace && !user.isDemo && (
+              <Button href="/admin#broker-map" variant="secondary" icon={<MapIcon size={15} aria-hidden />}>
+                {t(locale, 'admin.brokerMap.heading')}
+              </Button>
+            )}
+            <Button href="/trucks/new" variant="primary" icon={<Plus size={15} strokeWidth={2.5} />}>
+              {t(locale, 'trucks.page.addTruck')}
+            </Button>
+          </>
         }
       />
 

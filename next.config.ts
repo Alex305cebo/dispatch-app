@@ -90,6 +90,16 @@ const config: NextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), payment=(), interest-cohort=()' },
         ],
       },
+      // Карта траков для брокеров — по ссылке без входа: ни поисковикам, ни кэшам по
+      // дороге, ни сайту, куда брокер уйдёт по ссылке (токен в адресе).
+      {
+        source: '/track/:path*',
+        headers: [
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+          { key: 'Cache-Control', value: 'no-store, max-age=0' },
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+        ],
+      },
     ]
   },
 }
