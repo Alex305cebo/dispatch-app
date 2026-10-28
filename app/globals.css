@@ -1328,3 +1328,15 @@
     transition: none;
   }
 }
+
+/* Карта для брокеров (/track/<токен>): меню нет (components/nav.tsx), поэтому и места
+   под него — ни боковой полосы на компьютере, ни верхней панели на телефоне. */
+html:has(.broker-page) {
+  --sidebar-w: 0px;
+}
+@media (max-width: 767px) {
+  .broker-page {
+    margin-top: -2.25rem;
+    margin-bottom: -4rem;
+  }
+}

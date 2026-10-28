@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { SESSION_COOKIE, sessionUser } from '@/lib/auth'
 import { getSetting } from '@/lib/settings'
+import { brokerTokenGate, requestIp } from '@/lib/broker-map-token'
 
 export async function middleware(req: NextRequest) {
   // Strip any client-supplied identity headers FIRST, unconditionally, on every
@@ -39,6 +40,18 @@ export async function middleware(req: NextRequest) {
 
   // Публичной карты трака /track/[id] больше нет (закрыта 09/14/26): номера траков
   // идут подряд, и перебором без входа открывалось, где сейчас каждый трак парка.
+  // На её месте с 10/28/26 — карта парка для брокеров /track/<токен>: один длинный
+  // случайный токен на всех, его выдаёт и выключает админ, промахи считаются
+  // (lib/broker-map.ts). Серверные экшены там так же запрещены.
+  // Неверный токен — голая 404 здесь же, до страницы (почему — lib/broker-map-token.ts).
+  if (req.nextUrl.pathname.startsWith('/track/') && !isAction) {
+    const ok = await brokerTokenGate(req.nextUrl.pathname.slice('/track/'.length), requestIp(req.headers))
+    if (!ok) return new NextResponse(null, { status: 404, headers: { 'cache-control': 'no-store', 'x-robots-tag': 'noindex' } })
+    return NextResponse.next({ request: { headers } })
+  }
+  if (req.nextUrl.pathname.startsWith('/api/track/') && !isAction) {
+    return NextResponse.next({ request: { headers } })
+  }
 
   // Страница водителя и её обработчик — по токену в адресе, без сессии
   // (app/d/[token], app/api/driver/[token]). Серверные экшены там так же запрещены.
@@ -77,7 +90,7 @@ export async function middleware(req: NextRequest) {
   if (!user) {
     // Действие без сессии на публичном адресе — отказ, а не переход на /login:
     // переход отдал бы 200 со страницей входа, и вызывающий счёл бы, что сработало.
-    if (isAction && (req.nextUrl.pathname.startsWith('/demo') || req.nextUrl.pathname.startsWith('/d/'))) {
+    if (isAction && (req.nextUrl.pathname.startsWith('/demo') || req.nextUrl.pathname.startsWith('/d/') || req.nextUrl.pathname.startsWith('/track/'))) {
       return new NextResponse('Unauthorized', { status: 401 })
     }
     // Open-access mode (admin-panel switch, app/admin/actions.ts): the whole app works
