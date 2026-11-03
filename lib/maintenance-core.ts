@@ -176,7 +176,11 @@ export type TruckTodo = {
   priority: 'low' | 'normal' | 'urgent'
   createdAt: string
   doneAt: string | null
+  /** Чеки и бумаги-подтверждения, прикреплённые к пункту (documents.todo_id). */
+  docs: TodoDoc[]
 }
+
+export type TodoDoc = { id: number; title: string; mime: string }
 
 export type FleetStatus = {
   unit: string

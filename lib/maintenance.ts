@@ -5,6 +5,7 @@ import { fixPlace } from './place.ts'
 
 import { cache } from 'react'
 import { sql } from './db'
+import { withFreshSchema } from './install.ts'
 import {
   expiries,
   parseStates,
@@ -14,6 +15,7 @@ import {
   type MaintenanceRecord,
   type TruckMeta,
   type TruckTodo,
+  type TodoDoc,
 } from './maintenance-core'
 import type { Locale } from './i18n.ts'
 import { seesFleetGps, type CompanyId } from './company.ts'
@@ -211,13 +213,14 @@ export async function maintenanceDocs(companyId: CompanyId): Promise<{ id: numbe
  * чеки, прикреплённые к записи, и остальное как будто пропадало (владелец, 10/21/26).
  * Фото грузов и «прочее» (там лежат и Rate Con) сюда не идут — только тип «Ремонт». */
 export async function looseTruckDocs(companyId: CompanyId): Promise<{ id: number; truckId: number; kind: string; title: string; uploadedAt: string }[]> {
-  const rows = await sql`
+  // Бумаги, прикреплённые к пункту «Нужно починить», уже при деле — не «без записи».
+  const rows = await withFreshSchema(() => sql`
     SELECT id, truck_id, kind, title, uploaded_at FROM documents
     WHERE company_id = ${companyId} AND truck_id IS NOT NULL AND load_id IS NULL
-      AND maintenance_id IS NULL AND deleted_at IS NULL
+      AND maintenance_id IS NULL AND todo_id IS NULL AND deleted_at IS NULL
       AND kind = 'repair'
     ORDER BY uploaded_at DESC
-    LIMIT 2000`
+    LIMIT 2000`)
   return rows.map((r: any) => ({ id: r.id, truckId: r.truck_id, kind: r.kind, title: r.title, uploadedAt: new Date(r.uploaded_at).toISOString() }))
 }
 
@@ -225,6 +228,7 @@ export async function listTodos(truckId: number): Promise<TruckTodo[]> {
   const rows = await sql`
     SELECT * FROM truck_todos WHERE truck_id = ${truckId}
     ORDER BY done_at IS NOT NULL, done_at, created_at DESC`
+  const docs = rows.length ? await todoDocs(truckId) : new Map<number, TodoDoc[]>()
   return rows.map((r: any) => ({
     id: r.id,
     truckId: r.truck_id,
@@ -233,7 +237,34 @@ export async function listTodos(truckId: number): Promise<TruckTodo[]> {
     priority: r.priority,
     createdAt: String(r.created_at),
     doneAt: r.done_at ? String(r.done_at) : null,
+    docs: docs.get(r.id) ?? [],
   }))
+}
+
+/** Бумаги-подтверждения к пунктам «Нужно починить» одного трака, по todo_id. */
+async function todoDocs(truckId: number): Promise<Map<number, TodoDoc[]>> {
+  const rows = await withFreshSchema(
+    () => sql`
+      SELECT d.id, d.todo_id, d.title, d.mime FROM documents d
+      JOIN truck_todos x ON x.id = d.todo_id AND x.truck_id = ${truckId}
+      WHERE d.deleted_at IS NULL
+      ORDER BY d.uploaded_at`,
+  )
+  const out = new Map<number, TodoDoc[]>()
+  for (const r of rows as any[]) out.set(r.todo_id, [...(out.get(r.todo_id) ?? []), { id: r.id, title: r.title, mime: r.mime }])
+  return out
+}
+
+/** Сколько бумаг-подтверждений у пунктов «Нужно починить» каждого трака — для «Гаража». */
+export async function todoDocCounts(companyId: CompanyId): Promise<Map<number, number>> {
+  const rows = await withFreshSchema(
+    () => sql`
+      SELECT x.truck_id, COUNT(*) AS n FROM documents d
+      JOIN truck_todos x ON x.id = d.todo_id
+      WHERE d.company_id = ${companyId} AND d.deleted_at IS NULL
+      GROUP BY x.truck_id`,
+  )
+  return new Map((rows as { truck_id: number; n: number }[]).map((r) => [r.truck_id, Number(r.n)]))
 }
 
 // Unscoped by company on purpose: fleet_status is keyed by trucks.number (a plain

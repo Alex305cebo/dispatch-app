@@ -160,3 +160,18 @@ export async function ensureSchema(): Promise<void> {
     console.error('ensureSchema failed', e)
   }
 }
+
+/**
+ * Запрос, которому нужна колонка из свежей схемы. Схему дотягивает экран входа, а вошедший
+ * человек туда не заходит — первый такой запрос после выкладки падал бы ER_BAD_FIELD_ERROR.
+ * Тогда дотягиваем схему здесь и пробуем ещё раз (как lib/auth.ts и lib/amazon.ts).
+ */
+export async function withFreshSchema<T>(q: () => Promise<T>): Promise<T> {
+  try {
+    return await q()
+  } catch (e) {
+    if ((e as { code?: string }).code !== 'ER_BAD_FIELD_ERROR') throw e
+    await ensureSchema()
+    return q()
+  }
+}
