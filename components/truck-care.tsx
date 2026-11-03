@@ -125,8 +125,12 @@ export function TruckCare({
   // Бумаги, уже прикреплённые к поломкам: в «без записи» журнала их не зовём, а в окне
   // поломки предлагаем только ничьи бумаги трака (не грузовые и не из журнала).
   const todoDocIds = new Set(todos.flatMap((x) => x.docs.map((d) => d.id)))
+  // Только ремонтные бумаги и фото: в «Прочем» у трака лежат и Rate Con (один и тот же RC
+  // загружали по нескольку раз — в списке он шёл тройкой). Одинаковые имена — один раз.
+  const seenTitle = new Set<string>()
   const todoCandidates = docs
-    .filter((d) => d.loadId == null && d.maintenanceId == null && !todoDocIds.has(d.id) && ['repair', 'invoice', 'photo', 'other'].includes(d.kind))
+    .filter((d) => d.loadId == null && d.maintenanceId == null && !todoDocIds.has(d.id) && (d.kind === 'repair' || d.kind === 'photo'))
+    .filter((d) => !seenTitle.has(d.title) && !!seenTitle.add(d.title))
     .map((d) => ({ id: d.id, title: d.title, kind: d.kind }))
 
   /* ---- «масло заменено» — то же окно, что «＋ Запись» в журнале ---- */
