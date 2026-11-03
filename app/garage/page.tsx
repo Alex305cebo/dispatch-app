@@ -27,6 +27,7 @@ import {
   oilCard,
   oilDueDate,
   openTodoCounts,
+  todoDocCounts,
   serviceKind,
   truckMetas,
   type MaintenanceRecord,
@@ -108,7 +109,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   const { truck: truckParam } = await searchParams
   const companyId = await companyScope()
   const locale = await getLocale()
-  const [trucks, metas, records, docs, fleet, todos, loose] = await Promise.all([
+  const [trucks, metas, records, docs, fleet, todos, loose, todoDocs] = await Promise.all([
     listTrucks(companyId),
     truckMetas(companyId),
     fleetMaintenance(companyId),
@@ -116,6 +117,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
     fleetStatusByUnit(),
     openTodoCounts(companyId),
     looseTruckDocs(companyId),
+    todoDocCounts(companyId),
   ])
   const today = todayEt()
   const yearAgo = `${Number(today.slice(0, 4)) - 1}${today.slice(4)}`
@@ -359,6 +361,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                       </span>
                     )}
                     {r.todo > 0 && <span className="rounded-full bg-bad-500/12 px-2 py-0.5 font-semibold text-bad-400">🔧 {r.todo}</span>}
+                    {(todoDocs.get(r.tr.id) ?? 0) > 0 && (
+                      <span title={t(locale, 'trucks.care.todoDocsHint')} className="rounded-full bg-haul-500/12 px-2 py-0.5 font-semibold text-haul-300">
+                        📄 {todoDocs.get(r.tr.id)}
+                      </span>
+                    )}
                     {r.lastRepair && (
                       <span className="max-w-full truncate rounded-full bg-white/[0.06] px-2 py-0.5 text-t2">
                         <Wrench size={11} className="mr-1 inline" />

@@ -15,6 +15,7 @@ import { expiries, oilCard, type MaintenanceRecord, type TruckMeta, type TruckTo
 import { Field, TextField } from '@/components/ui'
 import { DeleteButton } from '@/components/delete-button'
 import { Info } from '@/components/info'
+import { TodoDocsButton } from '@/components/todo-docs'
 import { notify } from '@/lib/notify'
 import { usd, usd2, usDate } from '@/lib/fmt'
 import { t, type Locale } from '@/lib/i18n'
@@ -121,6 +122,12 @@ export function TruckCare({
   const exp = expiries(meta, locale)
   const lastOil = oilCard(records, meta, currentOdometer).last
   const PRIO_LABEL = prioLabel(locale)
+  // Бумаги, уже прикреплённые к поломкам: в «без записи» журнала их не зовём, а в окне
+  // поломки предлагаем только ничьи бумаги трака (не грузовые и не из журнала).
+  const todoDocIds = new Set(todos.flatMap((x) => x.docs.map((d) => d.id)))
+  const todoCandidates = docs
+    .filter((d) => d.loadId == null && d.maintenanceId == null && !todoDocIds.has(d.id) && ['repair', 'invoice', 'photo', 'other'].includes(d.kind))
+    .map((d) => ({ id: d.id, title: d.title, kind: d.kind }))
 
   /* ---- «масло заменено» — то же окно, что «＋ Запись» в журнале ---- */
   const [oilForm, setOilForm] = useState(false)
@@ -440,7 +447,7 @@ export function TruckCare({
                   className="size-4 shrink-0 accent-good-500"
                 />
                 <span
-                  className={`flex-1 text-md ${t.doneAt ? 'text-t3 line-through' : 'text-t1'}`}
+                  className={`min-w-0 flex-1 break-words text-md ${t.doneAt ? 'text-t3 line-through' : 'text-t1'}`}
                 >
                   {t.title}
                 </span>
@@ -453,6 +460,7 @@ export function TruckCare({
                     {PRIO_LABEL[t.priority]}
                   </span>
                 )}
+                <TodoDocsButton truckId={truckId} todo={t} candidates={todoCandidates} locale={locale} />
                 <DeleteButton
                   action={(id, confirm) => deleteTodo(id, truckId, confirm)}
                   id={t.id}
@@ -472,7 +480,7 @@ export function TruckCare({
         trucks={[{ id: truckId, label: truckLabel, odometer: currentOdometer }]}
         fixedTruckId={truckId}
         looseDocs={docs
-          .filter((d) => d.maintenanceId == null && d.loadId == null && d.kind === 'repair')
+          .filter((d) => d.maintenanceId == null && d.loadId == null && d.kind === 'repair' && !todoDocIds.has(d.id))
           .map((d) => ({ id: d.id, truckId, kind: d.kind, title: d.title, uploadedAt: d.uploadedAt }))}
         locale={locale}
       />

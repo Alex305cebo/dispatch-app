@@ -20,6 +20,7 @@ import { redirect } from 'next/navigation'
 import { cookies, headers } from 'next/headers'
 import { shrinkPhoto } from '@/lib/photo'
 import { sql } from '@/lib/db'
+import { withFreshSchema } from '@/lib/install'
 import { humanError } from '@/lib/msg'
 import { LOAD_PRIORITIES, type LoadPriority, type LoadStatus } from '@/lib/map'
 import { CHARGE_KINDS, type ChargeKind } from '@/lib/charges-core'
@@ -1695,7 +1696,7 @@ export async function classifyDoc(file: File): Promise<DocClass | null> {
 }
 
 /**
- * FormData: file, kind, title?, truckId?, loadId?, maintenanceId?. Returns the new
+ * FormData: file, kind, title?, truckId?, loadId?, maintenanceId?, todoId?. Returns the new
  * id so the RC import can attach the document to the load it creates a moment later.
  */
 export async function uploadDocument(
@@ -1726,16 +1727,30 @@ export async function uploadDocument(
   const truckId = fd.get('truckId') ? Number(fd.get('truckId')) : null
   const loadId = fd.get('loadId') ? Number(fd.get('loadId')) : null
   const maintenanceId = fd.get('maintenanceId') ? Number(fd.get('maintenanceId')) : null
+  // Чек к пункту «Нужно починить» — только пункт того же трака.
+  const todoId = fd.get('todoId') ? Number(fd.get('todoId')) : null
   // POD промежуточной остановки: номер точки; без него — конечная выгрузка.
   const stopSeq = fd.get('stopSeq') ? Number(fd.get('stopSeq')) : null
   const companyId = await companyScope()
   if (truckId && !(await truckBelongs(companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }
   if (loadId && !(await loadBelongs(companyId, loadId))) return { error: t(locale, 'actions.loadNotFound') }
+  if (todoId != null) {
+    const own = truckId ? await sql`SELECT 1 FROM truck_todos WHERE id = ${todoId} AND truck_id = ${truckId}` : []
+    if (!own.length) return { error: t(locale, 'actions.entryNotFound') }
+  }
   // Hex round-trip: Neon's HTTP driver JSON-encodes params, raw bytes don't survive.
   const hex = Buffer.from(await file.arrayBuffer()).toString('hex')
+  const mime = file.type || 'application/octet-stream'
+  const size = file.size
 
   try {
-    const rows = await sql`
+    const rows = todoId != null
+      ? await withFreshSchema(() => sql`
+          INSERT INTO documents (truck_id, load_id, maintenance_id, todo_id, kind, title, mime, size_bytes, data, company_id, stop_seq)
+          VALUES (${truckId}, ${loadId}, ${maintenanceId}, ${todoId}, ${kind}, ${title},
+                  ${mime}, ${size}, UNHEX(${hex}), ${companyId}, ${stopSeq})
+          RETURNING id`)
+      : await sql`
       INSERT INTO documents (truck_id, load_id, maintenance_id, kind, title, mime, size_bytes, data, company_id, stop_seq)
       VALUES (${truckId}, ${loadId}, ${maintenanceId}, ${kind}, ${title},
               ${file.type || 'application/octet-stream'}, ${file.size}, UNHEX(${hex}), ${companyId}, ${stopSeq})
@@ -1744,6 +1759,7 @@ export async function uploadDocument(
     revalidatePath('/docs')
     if (truckId) revalidatePath(`/trucks/${truckId}`)
     if (loadId) revalidatePath(`/loads/${loadId}`)
+    if (todoId != null) revalidatePath('/garage')
     // A dispatcher only ever has POD/BOL/rate con, never an "invoice" of their own —
     // the invoice is generated FROM the POD, so once it lands there's no manual step.
     // Инвойс собирается по КОНЕЧНОМУ POD; POD промежуточной точки его не запускает.
@@ -2501,6 +2517,24 @@ export async function updateMaintenance(id: number, truckId: number, m: Maintena
   return { id }
 }
 
+/** Привязать бумагу трака к пункту «Нужно починить» (или отвязать: todoId = null).
+ * Пункт должен быть того же трака, что и бумага; бумага остаётся в документах трака. */
+export async function linkDocToTodo(docId: number, todoId: number | null): Promise<{ error: string } | void> {
+  const ro = await writeGuard()
+  if (ro) return ro
+  const locale = await getLocale()
+  const companyId = await companyScope()
+  const docs = (await sql`SELECT truck_id FROM documents WHERE id = ${docId} AND company_id = ${companyId}`) as { truck_id: number | null }[]
+  if (!docs[0]?.truck_id) return { error: t(locale, 'actions.entryNotFound') }
+  if (todoId != null) {
+    const own = await sql`SELECT 1 FROM truck_todos WHERE id = ${todoId} AND truck_id = ${docs[0].truck_id}`
+    if (!own.length) return { error: t(locale, 'actions.entryNotFound') }
+  }
+  await withFreshSchema(() => sql`UPDATE documents SET todo_id = ${todoId} WHERE id = ${docId}`)
+  revalidatePath(`/trucks/${docs[0].truck_id}`)
+  revalidatePath('/garage')
+}
+
 /** Привязать бумагу трака к записи журнала (или отвязать: maintenanceId = null).
  * Запись должна быть того же трака, что и бумага. */
 export async function linkDocToMaintenance(docId: number, maintenanceId: number | null): Promise<{ error: string } | void> {
@@ -2590,6 +2624,8 @@ export async function deleteTodo(id: number, truckId: number, confirm: string): 
   }[]
   if (!rows[0]) return { error: t(locale, 'actions.entryNotFound') }
 
+  // Чеки пункта остаются в бумагах трака — отвязываем, не удаляем.
+  await withFreshSchema(() => sql`UPDATE documents SET todo_id = NULL WHERE todo_id = ${id}`)
   await sql`DELETE FROM truck_todos WHERE id = ${id}`
   await auditDelete(check.user.companyId, who, 'delete_todo', rows[0].title, null, null, null)
   revalidatePath(`/trucks/${truckId}`)

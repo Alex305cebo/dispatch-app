@@ -404,6 +404,12 @@ ALTER TABLE truck_maintenance ADD COLUMN IF NOT EXISTS done_time VARCHAR(5) NULL
 ALTER TABLE truck_maintenance ADD COLUMN IF NOT EXISTS shop TEXT NULL;
 ALTER TABLE truck_maintenance ADD COLUMN IF NOT EXISTS is_oil TINYINT(1) NOT NULL DEFAULT 0;
 
+-- Чек/бумага-подтверждение к пункту «Нужно починить» (11/03/26): к поломке — решённой или
+-- нет — прикрепляются документы. Без внешнего ключа: при удалении пункта бумага остаётся
+-- у трака (deleteTodo обнуляет todo_id).
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS todo_id INT NULL;
+CREATE INDEX IF NOT EXISTS docs_todo ON documents (todo_id);
+
 -- Доп. начисления брокеру сверх ставки: detention, lumper, TONU, layover, stop-off.
 -- Строками уходят в счёт (lib/invoice.ts); ставка груза (loads.rate) не меняется.
 CREATE TABLE IF NOT EXISTS load_charges (
@@ -563,5 +569,5 @@ CREATE TABLE IF NOT EXISTS amazon_trips (
   CONSTRAINT amazon_trips_truck_fkey FOREIGN KEY (truck_id) REFERENCES trucks (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
 
-INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-10-21')
+INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-11-03')
 ON DUPLICATE KEY UPDATE value = VALUES(value);

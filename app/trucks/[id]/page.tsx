@@ -725,7 +725,11 @@ export default async function Page({
             {todos
               .filter((x) => !x.doneAt)
               .slice(0, 4)
-              .map((x) => (x.priority === 'urgent' ? `${x.title} (${t(locale, 'trucks.care.prioUrgent')})` : x.title))
+              .map((x) => {
+                const name = x.priority === 'urgent' ? `${x.title} (${t(locale, 'trucks.care.prioUrgent')})` : x.title
+                // Есть чек/фото — видно сразу: 📄 и сколько.
+                return x.docs.length ? `${name} 📄${x.docs.length > 1 ? x.docs.length : ''}` : name
+              })
               .join(' · ')}
             {openTodos > 4 && ` … +${openTodos - 4}`}
           </p>
