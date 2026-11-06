@@ -477,6 +477,20 @@ export async function tgSend(uid: number, chatId: string, text: string): Promise
   })
 }
 
+/** Недельный отчёт — в «Избранное» (Saved Messages) этого же аккаунта: письма с сервера
+ * Hostinger до Gmail не доходят (11/06/26), а Telegram у владельца уже подключён.
+ * Пишем только самому себе — ни водителям, ни брокерам. Длинный текст — частями по 4000. */
+export async function tgSendSelf(uid: number, text: string, files: { name: string; bytes: Buffer }[]): Promise<void> {
+  await withClient(uid, async (client) => {
+    for (let i = 0; i < text.length; i += 4000) await client.sendMessage('me', { message: text.slice(i, i + 4000) })
+    if (!files.length) return
+    const { CustomFile } = await import('telegram/client/uploads.js')
+    for (const f of files) {
+      await client.sendFile('me', { file: new CustomFile(f.name, f.bytes.length, '', f.bytes), forceDocument: true })
+    }
+  })
+}
+
 export type InboundMedia = {
   chatId: string
   phone: string | null
