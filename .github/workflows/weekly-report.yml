@@ -15,6 +15,10 @@ on:
         description: 'Отправить ещё раз, даже если неделя уже ушла'
         type: boolean
         default: false
+      resend:
+        description: 'Письмо с сервера не дошло — забыть отправку недели, сервер отправит ещё раз'
+        type: boolean
+        default: false
 
 concurrency:
   group: weekly-report
@@ -39,4 +43,4 @@ jobs:
           DATABASE_URL: ${{ secrets.MYSQL_URL }}
         run: |
           test -n "$DATABASE_URL" || { echo "MYSQL_URL secret is not set"; exit 1; }
-          node --conditions=react-server scripts/weekly-report.mts ${{ inputs.force && '--force' || '' }}
+          node --conditions=react-server scripts/weekly-report.mts ${{ inputs.force && '--force' || '' }} ${{ inputs.resend && '--resend' || '' }}

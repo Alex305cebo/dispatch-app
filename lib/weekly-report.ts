@@ -54,7 +54,7 @@ const LOG_SIZE = 15
 
 /** via: 'gmail' — Gmail принял письмо; 'server' — отдано sendmail хостинга, доставку он не
  * подтверждает (11/06/26: три «успешных» недели так и не дошли до ящика). */
-export type LastSend = { week: string; at: string; ok: boolean; to: number; files: number; error?: string; manual?: boolean; via?: 'gmail' | 'server' }
+export type LastSend = { week: string; at: string; ok: boolean; to: number; files: number; error?: string; manual?: boolean; via?: 'gmail' | 'server'; reply?: string }
 
 export type ReportStatus = {
   to: string
@@ -263,7 +263,7 @@ export async function sendWeeklyReport(opts: { force?: boolean; today?: string; 
     const transport = gmail
       ? nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass } })
       : nodemailer.createTransport({ sendmail: true, newline: 'unix', path: sendmail! })
-    await transport.sendMail({
+    const info = await transport.sendMail({
       from: { name: 'TMS · отчёт по тракам', address: gmail ? user : senderFor(opts.appUrl) },
       // Ответ на письмо с сервера — в почту компании, а не в никуда.
       ...(gmail ? {} : { replyTo: to[0] }),
@@ -273,7 +273,7 @@ export async function sendWeeklyReport(opts: { force?: boolean; today?: string; 
       text: built.text,
       attachments,
     })
-    await record({ week: week.from, at: new Date().toISOString(), ok: true, to: to.length, files: attachments.length, manual: !!opts.force, via: gmail ? 'gmail' : 'server' }, status.log)
+    await record({ week: week.from, at: new Date().toISOString(), ok: true, to: to.length, files: attachments.length, manual: !!opts.force, via: gmail ? 'gmail' : 'server', reply: replyOf(info) }, status.log)
     return { ok: true, week: week.from, to: to.length, files: attachments.length }
   } catch (e) {
     const err = e as { code?: string; responseCode?: number; message?: string }
@@ -284,6 +284,23 @@ export async function sendWeeklyReport(opts: { force?: boolean; today?: string; 
         : `Не отправилось: ${String(err.message ?? e).slice(0, 160)}`
     return fail(msg)
   }
+}
+
+/** Что ответила почта — по нему видно, дошло ли письмо до Gmail или застряло на сервере. */
+function replyOf(info: unknown): string {
+  const i = info as { response?: unknown; messageId?: unknown; accepted?: unknown[]; rejected?: unknown[] } | null
+  const parts = [i?.response, i?.messageId, `accepted ${i?.accepted?.length ?? '?'}`, `rejected ${i?.rejected?.length ?? '?'}`]
+  return parts.filter(Boolean).map(String).join(' · ').slice(0, 200)
+}
+
+/** Отправка недели week ушла с сервера, а до ящика не дошла (11/06/26) — убрать её из
+ * истории, чтобы расписание отправило её ещё раз (сервер проверяет раз в 5 минут). */
+export async function forgetWeek(weekFrom: string): Promise<number> {
+  const st = await reportStatus()
+  const keep = st.log.filter((e) => e.week !== weekFrom)
+  await setSetting(REPORT_KEYS.log, JSON.stringify(keep))
+  if (st.last?.week === weekFrom) await setSetting(REPORT_KEYS.last, JSON.stringify(keep[0] ?? null))
+  return st.log.length - keep.length
 }
 
 const SENDMAIL_PATHS = ['/usr/sbin/sendmail', '/usr/lib/sendmail', '/usr/bin/sendmail']
