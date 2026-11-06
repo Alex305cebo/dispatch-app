@@ -44,3 +44,8 @@ jobs:
         run: |
           test -n "$DATABASE_URL" || { echo "MYSQL_URL secret is not set"; exit 1; }
           node --conditions=react-server scripts/weekly-report.mts ${{ inputs.force && '--force' || '' }} ${{ inputs.resend && '--resend' || '' }}
+
+      # Без пароля Gmail письмо шлёт сервер сайта, но только когда его разбудили (пингера
+      # на проде нет) — будим. Сервер сам решает, пора ли; ответ — неделя и ok, без адресов.
+      - name: Wake the site server
+        run: curl -sS -L --max-time 120 -X POST https://app.mayalogisticsinc.com/api/report-tick || true
