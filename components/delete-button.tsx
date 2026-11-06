@@ -7,7 +7,8 @@ import { Button } from '@/components/button'
 // session, so there is no "who deleted it" field to type; the typed word is the
 // deliberate pause before something irreversible.
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
+import { X } from 'lucide-react'
 import { notify } from '@/lib/notify'
 import { useLocale } from '@/components/locale-provider'
 import { t } from '@/lib/i18n'
@@ -38,6 +39,14 @@ export function DeleteButton({
   const [word, setWord] = useState('')
   const [err, setErr] = useState('')
   const [pending, start] = useTransition()
+
+  // Escape закрывает окно — как у каждого модала в TMS.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
 
   function submit() {
     setErr('')
@@ -77,10 +86,20 @@ export function DeleteButton({
           onClick={() => setOpen(false)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl border border-white/10 bg-ink-900 p-5 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-ink-900 p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold">{t(locale, 'deleteButton.heading')}</h3>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label={t(locale, 'common.cancel')}
+              className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-lg text-t3 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <X size={16} aria-hidden />
+            </button>
+            <h3 className="pr-8 text-lg font-semibold">{t(locale, 'deleteButton.heading')}</h3>
             <p className="mt-1 text-sm leading-relaxed text-t2">
               «{title}» {note ?? t(locale, 'deleteButton.defaultNote')} {t(locale, 'deleteButton.body')}
             </p>
