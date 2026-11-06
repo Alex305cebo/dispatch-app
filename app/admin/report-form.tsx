@@ -14,7 +14,7 @@ import { t, type Locale } from '@/lib/i18n'
 import { usDate } from '@/lib/fmt'
 import { saveReportSettings, sendReportNow } from './actions'
 
-type LastSend = { week: string; at: string; ok: boolean; to: number; files: number; error?: string; manual?: boolean }
+type LastSend = { week: string; at: string; ok: boolean; to: number; files: number; error?: string; manual?: boolean; via?: 'gmail' | 'server' }
 type Status = {
   to: string
   user: string
@@ -192,8 +192,8 @@ export function ReportForm({ status }: { status: Status }) {
         <p className="mt-1 text-xs leading-snug text-t3">{t(locale, enabled ? 'admin.report.scheduleHint' : 'admin.report.offHint')}</p>
       </div>
 
-      {/* Gmail — запасной путь, свёрнут: без него шлёт сервер сайта. */}
-      <details className="rounded-lg border border-white/6 px-3 py-2">
+      {/* Gmail — без пароля шлёт сервер сайта, но его письма до Gmail не доходят (11/06/26): блок открыт, пока пароля нет. */}
+      <details open={!status.passSet} className="rounded-lg border border-white/6 px-3 py-2">
         <summary className="cursor-pointer text-sm text-t2">
           {t(locale, 'admin.report.gmail')}
           {status.passSet && <span className="ml-2 rounded bg-good-500/15 px-1.5 py-0.5 text-2xs font-semibold text-good-400">{t(locale, 'admin.keys.set')}</span>}
@@ -250,7 +250,7 @@ export function ReportForm({ status }: { status: Status }) {
                     <td className="py-1.5 pr-3 whitespace-nowrap text-t2 nums">{whenEt(e.at)}</td>
                     <td className="py-1.5 pr-3 whitespace-nowrap text-t3">{t(locale, 'admin.report.week').replace('{date}', usDate(e.week))}</td>
                     <td className={`py-1.5 pr-3 ${e.ok ? 'text-good-400' : 'text-bad-400'}`}>
-                      {e.ok ? `✓ ${t(locale, 'admin.report.sent').replace('{to}', String(e.to)).replace('{files}', String(e.files))}` : `✕ ${e.error ?? ''}`}
+                      {e.ok && e.via !== 'gmail' ? `⚠ ${t(locale, 'admin.report.serverSent')}` : e.ok ? `✓ ${t(locale, 'admin.report.sent').replace('{to}', String(e.to)).replace('{files}', String(e.files))}` : `✕ ${e.error ?? ''}`}
                     </td>
                     <td className="py-1.5 whitespace-nowrap text-t3">{t(locale, e.manual ? 'admin.report.manual' : 'admin.report.auto')}</td>
                   </tr>
