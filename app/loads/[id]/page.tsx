@@ -31,7 +31,6 @@ import { InvoiceBox } from '@/components/invoice-actions'
 import { RateConButton } from '@/components/ratecon-button'
 import { BackButton } from '@/components/back-button'
 import { PairBar } from '@/components/pair-bar'
-import { LoadDeleteChip } from '@/components/load-delete-chip'
 import { loadInfoText } from '@/lib/load-info'
 import { placeZip } from '@/lib/us-zip'
 import { DetentionTile } from '@/components/detention-tile'
@@ -665,15 +664,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         chatHref={tgUserId != null ? `/telegram?truck=${truck.id}` : null}
         rateConId={rateConDoc?.id ?? null}
         loadInfo={loadInfoText(load)}
-        loadDelete={
-          me && !me.isDemo && companyId !== 'demo' ? (
-            <LoadDeleteChip
-              id={load.id}
-              title={`${load.origin ?? '—'} → ${load.destination ?? '—'}`}
-              truckId={truck.id}
-            />
-          ) : null
-        }
       />
 
       <WidgetGrid
