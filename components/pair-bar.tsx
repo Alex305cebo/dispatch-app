@@ -26,6 +26,7 @@ export function PairBar({
   chatHref,
   rateConId,
   loadInfo,
+  loadDelete,
 }: {
   current: 'truck' | 'load'
   truck: { id: number; label: string; short?: string } | null
@@ -39,6 +40,8 @@ export function PairBar({
   rateConId?: number | null
   /** «Load Info» — текст груза, как его шлют водителю (lib/load-info.ts). */
   loadInfo?: string | null
+  /** Кнопка «Удалить» груза (components/load-delete-chip.tsx) — только на карточке груза, не в демо. */
+  loadDelete?: ReactNode
 }) {
   // На телефоне — одна строка на половину: короткая подпись, мелкие отступы. Три
   // строки «ОТКРЫТЬ КАРТОЧКУ ТРАКА →» на 180px ширины съедали пол-экрана.
@@ -107,6 +110,7 @@ export function PairBar({
     loadChips.push(
       <PairCopyChip key="info" kind="info" value={loadInfo} label="Load Info" title={t(locale, 'pair.loadInfoTitle')} />,
     )
+  if (load && loadDelete) loadChips.push(<span key="del" className="contents">{loadDelete}</span>)
   const chips = (list: ReactNode[]) => (list.length ? <span className="flex shrink-0 items-center gap-1">{list}</span> : null)
 
   return (
