@@ -442,18 +442,20 @@ export function StatusPicker({
           </div>
         )}
         <div className="order-1 flex items-center @2xl:order-none">
-          <span className="flex items-center transition-opacity duration-200 [@media(hover:hover)]:opacity-0 group-hover/status:opacity-100 focus-within:opacity-100 motion-reduce:transition-none">
+          <span className="flex items-center gap-1">
             {/* Заведён по ошибке — удалить совсем, с тем же подтверждением, что в списке
-                грузов. После удаления — на карточку трака: этого груза больше нет. */}
+                грузов. После удаления — на карточку трака: этого груза больше нет.
+                Видна всегда, красной кнопкой со словом (Alex, 06.11.2026: под мышью её не нашли). */}
             <DeleteButton
               action={deleteLoad}
               id={id}
               title={title || `#${id}`}
               note={t(locale, 'loads.page.deleteNote')}
-              className={quiet}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-bad-500/40 bg-bad-500/[0.06] px-2.5 text-sm font-semibold text-bad-400 transition-colors hover:border-bad-400 hover:bg-bad-500/15 max-md:h-10"
               label={
                 <>
                   <Trash2 size={15} strokeWidth={2.25} aria-hidden />
+                  <span>{t(locale, 'common.delete')}</span>
                   <span className="sr-only">{t(locale, 'loadStatus.deleteWrong')}</span>
                 </>
               }
