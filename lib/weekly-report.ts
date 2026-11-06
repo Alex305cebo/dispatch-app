@@ -54,7 +54,7 @@ const LOG_SIZE = 15
 
 /** via: 'gmail' — Gmail принял письмо; 'server' — отдано sendmail хостинга, доставку он не
  * подтверждает (11/06/26: три «успешных» недели так и не дошли до ящика). */
-export type LastSend = { week: string; at: string; ok: boolean; to: number; files: number; error?: string; manual?: boolean; via?: 'gmail' | 'server'; reply?: string }
+export type LastSend = { week: string; at: string; ok: boolean; to: number; files: number; error?: string; manual?: boolean; via?: 'gmail' | 'server'; reply?: string; tg?: number }
 
 export type ReportStatus = {
   to: string
@@ -260,6 +260,9 @@ export async function sendWeeklyReport(opts: { force?: boolean; today?: string; 
         used.add(name.toLowerCase())
         return { filename: name, content: Buffer.from(byId.get(f.id)!), contentType: f.mime }
       })
+    // Telegram — в «Избранное» админов с подключённым Telegram. Почта сервера до Gmail не
+    // доходит (11/06/26), поэтому отчёт идёт и туда; сбой Telegram не мешает письму.
+    const tg = await sendToTelegram(built, attachments, week)
     const transport = gmail
       ? nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass } })
       : nodemailer.createTransport({ sendmail: true, newline: 'unix', path: sendmail! })
@@ -273,7 +276,7 @@ export async function sendWeeklyReport(opts: { force?: boolean; today?: string; 
       text: built.text,
       attachments,
     })
-    await record({ week: week.from, at: new Date().toISOString(), ok: true, to: to.length, files: attachments.length, manual: !!opts.force, via: gmail ? 'gmail' : 'server', reply: replyOf(info) }, status.log)
+    await record({ week: week.from, at: new Date().toISOString(), ok: true, to: to.length, files: attachments.length, manual: !!opts.force, via: gmail ? 'gmail' : 'server', reply: replyOf(info), tg }, status.log)
     return { ok: true, week: week.from, to: to.length, files: attachments.length }
   } catch (e) {
     const err = e as { code?: string; responseCode?: number; message?: string }
@@ -283,6 +286,35 @@ export async function sendWeeklyReport(opts: { force?: boolean; today?: string; 
         ? 'Gmail не принял адрес или пароль приложения.'
         : `Не отправилось: ${String(err.message ?? e).slice(0, 160)}`
     return fail(msg)
+  }
+}
+
+/** Отчёт в Telegram: текст, полный отчёт HTML-файлом (открывается в браузере) и чеки.
+ * Импорт по требованию: этот файл грузит и голый Node (скрипт GitHub), где Telegram не нужен.
+ * Возвращает, скольким аккаунтам ушло. */
+async function sendToTelegram(built: BuiltReport, files: { filename: string; content: Buffer }[], week: ReportWeek): Promise<number> {
+  try {
+    const { connectedTgUserIds, tgSendSelf } = await import('./telegram.ts')
+    const ids = await connectedTgUserIds()
+    if (!ids.length) return 0
+    const admins = (await sql`SELECT id FROM users WHERE id IN (${ids}) AND role = 'admin' AND company_id = ${COMPANY}
+      AND disabled_at IS NULL AND is_demo = FALSE`) as { id: number }[]
+    const docs = [{ name: `report-${week.from}.html`, bytes: Buffer.from(built.html, 'utf8') }, ...files.map((f) => ({ name: f.filename, bytes: f.content }))]
+    let sent = 0
+    for (const a of admins) {
+      try {
+        await tgSendSelf(a.id, `📊 ${built.subject}\n\n${built.text}`, docs)
+        sent++
+      } catch (e) {
+        await sql`INSERT INTO app_errors (company_id, user_id, path, message, digest, agent)
+                  VALUES (${COMPANY}, ${a.id}, ${'[server] weekly report → telegram'}, ${String((e as Error)?.message ?? e).slice(0, 500)}, NULL, '')`.catch(() => undefined)
+      }
+    }
+    return sent
+  } catch (e) {
+    await sql`INSERT INTO app_errors (company_id, user_id, path, message, digest, agent)
+              VALUES (${COMPANY}, NULL, ${'[server] weekly report → telegram'}, ${String((e as Error)?.message ?? e).slice(0, 500)}, NULL, '')`.catch(() => undefined)
+    return 0
   }
 }
 

@@ -17,7 +17,7 @@ const before = await reportStatus()
 // История отправок — без адресов (в ошибке они заменяются на «@»).
 const hide = (t?: string) => (t ?? '').replace(/[^\s<>"']+@[^\s<>"']+/g, '@').slice(0, 120)
 for (const e of before.log.slice(0, 6)) {
-  console.log(`log: week ${e.week} at ${e.at} ${e.ok ? 'OK' : 'FAIL'} ${e.manual ? 'manual' : 'auto'} ${e.via ?? ''} files=${e.files} ${hide(e.error)} ${hide(e.reply)}`)
+  console.log(`log: week ${e.week} at ${e.at} ${e.ok ? 'OK' : 'FAIL'} ${e.manual ? 'manual' : 'auto'} ${e.via ?? ''} files=${e.files} tg=${e.tg ?? '-'} ${hide(e.error)} ${hide(e.reply)}`)
 }
 // --resend: забыть отправку текущей недели — сервер сайта отправит её ещё раз сам.
 if (process.argv.includes('--resend')) {
