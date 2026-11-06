@@ -52,7 +52,9 @@ export const DEFAULT_DAY = 0
 export const DEFAULT_HOUR = 18
 const LOG_SIZE = 15
 
-export type LastSend = { week: string; at: string; ok: boolean; to: number; files: number; error?: string; manual?: boolean }
+/** via: 'gmail' — Gmail принял письмо; 'server' — отдано sendmail хостинга, доставку он не
+ * подтверждает (11/06/26: три «успешных» недели так и не дошли до ящика). */
+export type LastSend = { week: string; at: string; ok: boolean; to: number; files: number; error?: string; manual?: boolean; via?: 'gmail' | 'server' }
 
 export type ReportStatus = {
   to: string
@@ -271,7 +273,7 @@ export async function sendWeeklyReport(opts: { force?: boolean; today?: string; 
       text: built.text,
       attachments,
     })
-    await record({ week: week.from, at: new Date().toISOString(), ok: true, to: to.length, files: attachments.length, manual: !!opts.force }, status.log)
+    await record({ week: week.from, at: new Date().toISOString(), ok: true, to: to.length, files: attachments.length, manual: !!opts.force, via: gmail ? 'gmail' : 'server' }, status.log)
     return { ok: true, week: week.from, to: to.length, files: attachments.length }
   } catch (e) {
     const err = e as { code?: string; responseCode?: number; message?: string }

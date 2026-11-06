@@ -12,6 +12,12 @@ const force = process.argv.includes('--force')
 // Без пароля Gmail письмо шлёт сам сервер сайта своей почтой: у GitHub такой почты нет,
 // и неудачная попытка отсюда только отложила бы серверную на 6 часов.
 const before = await reportStatus()
+// История отправок — без адресов (в ошибке они заменяются на «@»).
+const hide = (t?: string) => (t ?? '').replace(/[^\s<>"']+@[^\s<>"']+/g, '@').slice(0, 120)
+for (const e of before.log.slice(0, 6)) {
+  console.log(`log: week ${e.week} at ${e.at} ${e.ok ? 'OK' : 'FAIL'} ${e.manual ? 'manual' : 'auto'} files=${e.files} ${hide(e.error)}`)
+}
+console.log(`schedule: ${before.enabled ? 'on' : 'off'} day=${before.day} hour=${before.hour} recipients=${before.to.split(/[,;\s]+/).filter(Boolean).length}`)
 if (!before.passSet) {
   console.log('no Gmail app password: the site server sends the report itself')
   process.exit(0)
