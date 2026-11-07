@@ -291,7 +291,8 @@ export const migrateTruckCard = (saved: TilePlacement[]): TilePlacement[] => mig
  *  одна карточка «Проверить брокера»: по пол-строки рядом пустая форма тянулась на
  *  высоту списка брокеров. */
 export const BROKERS_TILES: TilePlacement[] = [
-  { id: 'plan', size: 'l' },
+  // «plan» («Куда отправить трак») с 11/07/26 — на /market; сохранённые раскладки с
+  // ним чистит migrateBrokersTiles.
   { id: 'directory', size: 'l' },
   { id: 'check', size: 'l' },
 ]
@@ -301,8 +302,9 @@ export const BROKERS_TILES: TilePlacement[] = [
  *  срабатывает один раз — пока старый ключ лежит в сохранённой раскладке. Старые
  *  плитки-числа выбрасывает сам applyLayout: их ключей в раскладке больше нет. */
 export function migrateBrokersTiles(saved: TilePlacement[]): TilePlacement[] {
-  if (!saved.some((p) => p.id === 'top')) return saved
-  return saved.filter((p) => p.id !== 'top').map((p) => (p.id === 'check' ? { id: 'check', size: 'l' as const } : p))
+  const noPlan = saved.filter((p) => p.id !== 'plan')
+  if (!noPlan.some((p) => p.id === 'top')) return noPlan
+  return noPlan.filter((p) => p.id !== 'top').map((p) => (p.id === 'check' ? { id: 'check', size: 'l' as const } : p))
 }
 
 /** «Толлы». Месяц в деньгах — одна полоса сверху (сумма, доля выручки шкалой, на милю,

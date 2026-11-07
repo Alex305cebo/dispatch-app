@@ -195,7 +195,41 @@ export const brokersDict = {
   'brokers.payVia': { ru: 'платит через {name}', en: 'pays via {name}', es: 'paga vía {name}', uk: 'платить через {name}', ro: 'plătește prin {name}', kk: '{name} арқылы төлейді' },
 
   // ── Largest brokers starter list ────────────────────────────
-  'brokers.dir.subtitle': { ru: 'Куда отправить трак, брокеры и склады из ваших грузов.', en: 'Where to send the truck, plus the brokers and facilities from your loads.', es: 'Adónde enviar el camión, y los brókers y almacenes de tus cargas.', uk: 'Куди відправити трак, брокери та склади з ваших вантажів.', ro: 'Unde trimiți camionul, plus brokerii și depozitele din cursele tale.', kk: 'Трактты қайда жіберу, жүктеріңіздегі брокерлер мен қоймалар.' },
+  // «Рынок» (/market, 11/07/26): подпись раздела и вкладка «Ставки».
+  'market.subtitle': {
+    ru: 'Куда отправить трак по рынку DAT: горячие штаты, ставки по регионам и из штата, где он стоит.',
+    en: 'Where to send the truck by the DAT market: hot states, rates by region and out of the state it sits in.',
+    es: 'Adónde enviar el camión según el mercado DAT: estados calientes, tarifas por región y desde el estado donde está.',
+    uk: 'Куди відправити трак за ринком DAT: гарячі штати, ставки за регіонами та зі штату, де він стоїть.',
+    ro: 'Unde trimiți camionul după piața DAT: state fierbinți, tarife pe regiuni și din statul în care stă.',
+    kk: 'Тракты DAT нарығы бойынша қайда жіберу: ыстық штаттар, аймақ бойынша және трак тұрған штаттан бағалар.',
+  },
+  'market.empty': { ru: 'Ставок пока нет', en: 'No rates yet', es: 'Aún no hay tarifas', uk: 'Ставок поки немає', ro: 'Încă nu sunt tarife', kk: 'Бағалар әзірге жоқ' },
+  'market.emptyNoSnap': {
+    ru: 'Снимок рынка DAT приходит раз в сутки — загляните завтра.',
+    en: 'The DAT market snapshot arrives once a day — check back tomorrow.',
+    es: 'La instantánea del mercado DAT llega una vez al día — vuelve mañana.',
+    uk: 'Знімок ринку DAT приходить раз на добу — загляньте завтра.',
+    ro: 'Instantaneul pieței DAT vine o dată pe zi — revino mâine.',
+    kk: 'DAT нарығының суреті күніне бір рет келеді — ертең қараңыз.',
+  },
+  'market.emptyNoTrucks': {
+    ru: 'Ставки считаются от штата, где стоит трак, — сначала заведите трак.',
+    en: 'Rates are built from the state the truck sits in — add a truck first.',
+    es: 'Las tarifas parten del estado donde está el camión — primero añade un camión.',
+    uk: 'Ставки рахуються від штату, де стоїть трак, — спершу заведіть трак.',
+    ro: 'Tarifele pornesc de la statul în care stă camionul — adaugă mai întâi un camion.',
+    kk: 'Бағалар трак тұрған штаттан есептеледі — алдымен трак қосыңыз.',
+  },
+  'market.tab.rates': { ru: 'Ставки', en: 'Rates', es: 'Tarifas', uk: 'Ставки', ro: 'Tarife', kk: 'Бағалар' },
+  'brokers.dir.subtitle': {
+    ru: 'Брокеры и склады из ваших грузов: как платят, где стоим, проверка по MC.',
+    en: 'Brokers and facilities from your loads: how they pay, where we wait, MC check.',
+    es: 'Brókers y almacenes de tus cargas: cómo pagan, dónde esperamos, verificación por MC.',
+    uk: 'Брокери та склади з ваших вантажів: як платять, де стоїмо, перевірка за MC.',
+    ro: 'Brokeri și depozite din cursele tale: cum plătesc, unde așteptăm, verificare după MC.',
+    kk: 'Жүктеріңіздегі брокерлер мен қоймалар: қалай төлейді, қайда тұрамыз, MC бойынша тексеру.',
+  },
   'brokers.dir.search': { ru: 'MC, название, телефон, город или адрес склада', en: 'MC, name, phone, city or facility address', es: 'MC, nombre, teléfono, ciudad o dirección del almacén', uk: 'MC, назва, телефон, місто або адреса складу', ro: 'MC, nume, telefon, oraș sau adresa depozitului', kk: 'MC, атауы, телефон, қала немесе қойма мекенжайы' },
   'brokers.dir.all': { ru: 'Все', en: 'All', es: 'Todo', uk: 'Усі', ro: 'Toate', kk: 'Барлығы' },
   'brokers.dir.attention': { ru: 'Требуют внимания', en: 'Need attention', es: 'Requieren atención', uk: 'Потребують уваги', ro: 'Necesită atenție', kk: 'Назар керек' },

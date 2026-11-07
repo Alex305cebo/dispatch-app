@@ -49,7 +49,7 @@ const STEPS: Def[] = [
   { key: 'tracking', href: '/trucks', target: 'nav-trucks', image: 'tracking' },
   // Переехало на «Брокеров и склады» (18.09.2026): куда отправить трак дальше —
   // ставки по штатам и регионам DAT.
-  { key: 'planner', href: '/brokers', target: '', image: 'planner' },
+  { key: 'planner', href: '/market', target: 'nav-market', image: 'planner' },
   { key: 'docs', href: '/docs?tab=fleet', target: 'nav-docs', image: 'docs' },
   { key: 'brokers', href: '/brokers', target: '', image: 'brokers' },
   // Без снимка: у демо-грузов почти нет адресов, экран складов там не показателен.

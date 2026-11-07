@@ -1103,6 +1103,7 @@
 @media (min-width: 768px) {
   /* Icon-only rail: drop the labels and brand name, centre what's left. */
   .nav-collapsed .nav-label,
+  .nav-collapsed .nav-group-label,
   .nav-collapsed .nav-brand-name {
     display: none;
   }

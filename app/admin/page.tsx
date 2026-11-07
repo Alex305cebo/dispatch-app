@@ -1,6 +1,9 @@
-import { redirect } from 'next/navigation'
 import { Mail, ScrollText } from 'lucide-react'
 import { getCurrentUser } from '@/lib/session'
+import { redirect } from 'next/navigation'
+import { ProfileSettings } from '@/components/profile-settings'
+import { tilesEnabled } from '@/lib/tiles'
+import { dispatcherPhoneKey, getSetting } from '@/lib/settings'
 import { getCompany } from '@/lib/invoice'
 import { CompanyForm } from '@/components/invoice-actions'
 import { Info } from '@/components/info'
@@ -19,12 +22,46 @@ import { BrokerMapLink } from './broker-map-link'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * «Настройки» (11/07/26, бывшая «Админ-панель»): один пункт внизу меню вместо трёх
+ * мест — меню аватара, Админки и низа меню. Сверху «Профиль» — его видит каждый, кто
+ * вошёл (свой номер, язык, пароль, дата для «Забыли пароль?»); дальше — разделы
+ * администратора: люди и права, отчёт на почту, карта для брокеров, кабинеты,
+ * компания, ключи, доступ, демо, сбои. Диспетчер видит только «Профиль».
+ */
 export default async function AdminPage() {
   const user = await getCurrentUser()
-  // Defense in depth: the nav link is already hidden from non-admins, but a
-  // dispatcher typing the URL directly must still be bounced, not shown the panel.
-  if (!user || user.role !== 'admin' || user.isWorkspace) redirect('/')
+  if (!user) redirect('/')
   const locale = await getLocale()
+  const admin = user.role === 'admin' && !user.isWorkspace
+  const [tiles, myPhone, co] = await Promise.all([
+    tilesEnabled(),
+    getSetting(dispatcherPhoneKey(user.id)),
+    getCompany().catch(() => null),
+  ])
+  const profile = (
+    <section id="profile" className="scroll-mt-4 panel p-5">
+      <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
+        {t(locale, 'admin.profileHeading')}
+        <Info text={t(locale, 'admin.profileInfo')} />
+      </h2>
+      <ProfileSettings
+        admin={admin}
+        tilesEnabled={tiles}
+        dispatcherPhone={myPhone ?? ''}
+        company={co ? { mc: co.mcdot.replace(/^MC[\s#-]*/i, ''), name: co.name, email: co.email } : null}
+      />
+    </section>
+  )
+
+  if (!admin) {
+    return (
+      <main className="page">
+        <PageHeader title={t(locale, 'admin.title')} subtitle={t(locale, 'admin.profileSubtitle')} />
+        {profile}
+      </main>
+    )
+  }
 
   const [users, company, openAccess, keys, demo, fleet, errors, workspaces, report, brokerMap] = await Promise.all([
     listUsers(),
@@ -57,10 +94,11 @@ export default async function AdminPage() {
           </>
         }
       />
+      {profile}
       {/* Порядок — по частоте: пользователей и права трогают каждую неделю, реквизиты
           и ключи — при настройке, доступ/демо — раз в жизни, сбои — когда что-то
           сломалось. Ссылка на журнал — в шапке, отдельной пустой секции она не стоит. */}
-      <section className="panel p-5" data-tour="users">
+      <section className="panel mt-4 p-5" data-tour="users">
         <h2 className="mb-3 flex items-center gap-1.5 text-base leading-6 font-semibold text-t1">
           {t(locale, 'admin.usersHeading')}
           <Info text={t(locale, 'admin.usersInfo')} />

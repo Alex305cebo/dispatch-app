@@ -17,7 +17,8 @@
 
 import { createContext, useContext, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { CalendarDays, Columns3, List, PackageOpen, Plus } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { CalendarDays, Columns3, List, PackageOpen, Plus, Boxes } from 'lucide-react'
 import { ShowMore } from '@/components/collapse'
 import { Empty } from '@/components/empty'
 import { Rpm } from '@/components/rpm'
@@ -93,6 +94,7 @@ export function LoadsViews({
   grid: TileGridProps
 }) {
   const locale = useLocale()
+  const router = useRouter()
   const { query, setQuery, filter, setFilter, sort, setSort, result, counts } = useLoadsFilter(allLoads, trucks, metrics, initialQuery)
   const [view, setViewState] = useState<LoadsView>(initialView)
   const [week] = useState(initialWeek)
@@ -160,16 +162,19 @@ export function LoadsViews({
     // отдельно от того, что он фильтрует.
     <div>
       <div ref={listRef} className="scroll-mt-4" />
-      <Segmented
+      <Segmented<LoadsView | 'amazon'>
         label={t(locale, 'loads.view.label')}
         value={view}
-        onChange={setView}
+        // «Amazon» — четвёртый вид «Грузов» (11/07/26): рейсы Amazon Relay живут своей
+        // доской на /amazon, но входят отсюда, а не отдельным пунктом меню.
+        onChange={(v) => (v === 'amazon' ? router.push('/amazon') : setView(v))}
         className="mb-3 max-sm:w-full"
         items={[
           { key: 'list', label: t(locale, 'loads.view.list'), icon: <List {...icon} /> },
           // Бывшая вкладка «По статусу»: те же грузы колонками, с суммой в каждой.
           { key: 'board', label: t(locale, 'loads.view.board'), icon: <Columns3 {...icon} /> },
           { key: 'week', label: t(locale, 'loads.view.week'), icon: <CalendarDays {...icon} /> },
+          { key: 'amazon', label: t(locale, 'nav.amazon'), icon: <Boxes {...icon} /> },
         ]}
       />
 
