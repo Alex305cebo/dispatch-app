@@ -1046,6 +1046,49 @@
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     box-shadow: none;
+    /* Сайдбар на любой высоте экрана (владелец 11/07/26: на ноутбуке «Настройки» и
+       ряд аккаунта уезжали за край). Список разделов занимает всё между шапкой и
+       рядом аккаунта и прокручивается САМ, ряд аккаунта внизу виден всегда. */
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(128, 128, 128, 0.35) transparent;
+  }
+  /* Невысокий экран — пункты и заголовки групп плотнее, чтобы всё влезало без
+     прокрутки: 13 пунктов + 3 заголовка + шапка + поиск + ряд аккаунта. */
+  @media (max-height: 900px) {
+    .app-nav .nav-tab-btn {
+      padding-top: 0.375rem;
+      padding-bottom: 0.375rem;
+    }
+    .app-nav .nav-group-label {
+      margin-top: 0.5rem;
+      margin-bottom: 0;
+    }
+    .app-nav .nav-brand-row {
+      margin-bottom: 0.5rem;
+    }
+  }
+  @media (max-height: 760px) {
+    .app-nav .nav-tab-btn {
+      padding-top: 0.25rem;
+      padding-bottom: 0.25rem;
+    }
+    .app-nav .nav-group-label {
+      margin-top: 0.25rem;
+    }
+  }
+  /* Совсем низкий экран (ноутбук с панелью задач и закладками): заголовки групп
+     прячутся — порядок пунктов тот же, а место остаётся самим пунктам. */
+  @media (max-height: 640px) {
+    .app-nav .nav-group-label {
+      display: none;
+    }
+    .app-nav .nav-search-btn {
+      margin-bottom: 0.375rem;
+    }
   }
   .nav-tab-btn {
     transform: none;
