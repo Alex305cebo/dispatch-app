@@ -86,7 +86,10 @@ function brandName(raw: string): string {
  * До этого было две группы «работа/инструменты», и «Аналитика» стояла среди
  * ежедневной работы, а «Деньги» — под чертой среди инструментов.
  * money — пункт только для тех, у кого право «Финансы». */
-type Group = 'home' | 'work' | 'money' | 'base' | 'settings'
+// 11/07/26 вечером владелец: «небольшое компактное разделение на 3 части, как было» —
+// без заголовков, только тонкие черты, как раньше между работой и инструментами.
+// Части: работа (с «Сегодня») · деньги · база (с «Настройками» последним пунктом).
+type Group = 'work' | 'money' | 'base'
 type Item = {
   href: string
   labelKey: MsgKey
@@ -95,13 +98,6 @@ type Item = {
   soon?: boolean
   money?: boolean
   also?: string[]
-}
-
-/** Заголовок группы в сайдбаре; у «Сегодня» и «Настроек» его нет. */
-const GROUP_LABEL: Partial<Record<Group, MsgKey>> = {
-  work: 'nav.group.work',
-  money: 'nav.group.money',
-  base: 'nav.group.base',
 }
 
 /** Нижнее меню телефона — всегда одно и то же у всех (11/07/26): Сегодня · Грузы ·
@@ -116,7 +112,7 @@ const isOn = (it: Item, pathname: string) =>
 
 const ITEMS: Item[] = [
   // «Сегодня» (до 10/09/26 — «Обзор»): главная показывает то, что ждёт действия.
-  { href: '/', labelKey: 'nav.overview', icon: 'dash', group: 'home' },
+  { href: '/', labelKey: 'nav.overview', icon: 'dash', group: 'work' },
   // РАБОТА — то, с чем диспетчер работает каждый день.
   // Рейсы Amazon Relay — вкладка «Грузов» (11/07/26), не свой пункт: это те же грузы.
   { href: '/loads', labelKey: 'nav.loads', icon: 'loads', group: 'work', also: ['/amazon', '/load'] },
@@ -136,7 +132,7 @@ const ITEMS: Item[] = [
   { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield', group: 'base', also: ['/facilities'] },
   { href: '/garage', labelKey: 'nav.garage', icon: 'wrench', group: 'base' },
   // НАСТРОЙКИ — одна шестерёнка внизу: профиль у всех, остальное у администратора.
-  { href: '/admin', labelKey: 'nav.settings', icon: 'gear', group: 'settings', also: ['/logins'] },
+  { href: '/admin', labelKey: 'nav.settings', icon: 'gear', group: 'base', also: ['/logins'] },
 ]
 
 export function Nav({
@@ -402,17 +398,11 @@ export function Nav({
         <div className="flex items-stretch gap-0.5 md:flex-col md:gap-0.5">
         {items.map((it, i) => {
         const active = !it.soon && isOn(it, pathname)
-        // Заголовок группы перед её первым пунктом — только в сайдбаре. У «Настроек»
-        // заголовка нет, только черта: это не раздел работы, а служебный вход.
-        const firstOfGroup = items[i - 1]?.group !== it.group
-        const groupLabel = GROUP_LABEL[it.group]
-        const divider = !firstOfGroup ? null : groupLabel ? (
-          <div key={`group-${it.group}`} aria-hidden className="nav-group-label mb-0.5 mt-3 hidden px-3 text-2xs font-semibold uppercase tracking-wider text-t3 md:block">
-            {t(locale, groupLabel)}
-          </div>
-        ) : it.group === 'settings' ? (
-          <div key={`group-${it.group}`} aria-hidden className="my-2 hidden h-px bg-white/10 md:block" />
-        ) : null
+        // Тонкая черта перед первым пунктом новой части — только в сайдбаре.
+        const divider =
+          i > 0 && items[i - 1]?.group !== it.group ? (
+            <div key={`group-${it.group}`} aria-hidden className="my-1.5 hidden h-px bg-white/10 md:block" />
+          ) : null
 
         const body = (
           <>
