@@ -1,22 +1,23 @@
-// Вкладки раздела «Рынок»: брокеры со ставками и складами — и «Толлы». У толлов с
-// 10/09/26 нет своего пункта меню (план «Порядок в TMS»): это инструмент того же рода,
-// что «Куда отправить трак», — посчитать дорогу, а не вести работу. Адрес /tolls прежний.
+// Вкладки раздела «Рынок» (11/07/26): «Ставки» — куда отправить трак по рынку DAT — и
+// «Толлы». Справочник брокеров и складов больше не здесь: он стал своим разделом
+// «Брокеры» (группа «База»): планирование и контакты — разные задачи. Адрес /tolls
+// прежний, план живёт на /market.
 
-import { Handshake, Milestone } from 'lucide-react'
+import { BarChart3, Milestone } from 'lucide-react'
 import { SectionNav } from '@/app/docs/tab-nav'
 import { t, type Locale } from '@/lib/i18n'
 
-export function MarketTabs({ active, locale }: { active: 'brokers' | 'tolls'; locale: Locale }) {
+export function MarketTabs({ active, locale }: { active: 'rates' | 'tolls'; locale: Locale }) {
   return (
     <SectionNav
-      label={t(locale, 'nav.brokers')}
+      label={t(locale, 'nav.market')}
       items={[
         {
-          key: 'brokers',
-          href: '/brokers',
-          label: t(locale, 'brokers.pageTitle'),
-          icon: <Handshake size={16} />,
-          active: active === 'brokers',
+          key: 'rates',
+          href: '/market',
+          label: t(locale, 'market.tab.rates'),
+          icon: <BarChart3 size={16} />,
+          active: active === 'rates',
         },
         { key: 'tolls', href: '/tolls', label: t(locale, 'nav.tolls'), icon: <Milestone size={16} />, active: active === 'tolls' },
       ]}

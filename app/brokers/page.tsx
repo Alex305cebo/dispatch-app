@@ -17,10 +17,7 @@ import { TopBrokers } from '@/components/top-brokers'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
 import { tileGrid } from '@/lib/tiles'
 import { BROKERS_TILES, migrateBrokersTiles } from '@/lib/tiles-core'
-import { Suspense } from 'react'
-import { RoutePlanSection } from '@/components/route-plan-section'
 import { Directory, type DirBroker, type DirFacility, type DirView } from './directory'
-import { MarketTabs } from './market-tabs'
 import { PageHeader } from '@/components/page-header'
 
 export const dynamic = 'force-dynamic'
@@ -236,20 +233,9 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
   // Плиток-чисел над планом больше нет (план «Порядок в TMS», 10/09/26): сколько
   // брокеров, складов и «требуют внимания» — на чипах списка, и первый экран отдан
   // главному вопросу раздела — куда отправить трак.
+  // «Куда отправить трак» с 11/07/26 — свой раздел «Рынок» (/market): здесь остались
+  // только контакты — справочник и проверка брокера.
   const widgets: Widget[] = [
-    {
-      id: 'plan',
-      // «Куда отправить трак» переехало сюда с «Траков» (18.09.2026) — отсюда и новое
-      // имя раздела. Своя Suspense-граница: раздел ждёт снимок DAT и ставки по
-      // маршрутам, а списки брокеров и складов готовы сразу.
-      node: (
-        <div>
-          <Suspense fallback={<PlanSkeleton />}>
-            <RoutePlanSection />
-          </Suspense>
-        </div>
-      ),
-    },
     {
       id: 'directory',
       node: (
@@ -281,7 +267,6 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
   return (
     <main className="page">
       <PageHeader title={t(locale, 'nav.brokers')} subtitle={t(locale, 'brokers.dir.subtitle')} />
-      <MarketTabs active="brokers" locale={locale} />
 
       <WidgetGrid
         {...grid}
@@ -289,10 +274,4 @@ export default async function BrokersPage({ searchParams }: { searchParams: Prom
       />
     </main>
   )
-}
-
-/** Место «Куда отправить трак», пока считаются ставки: той же высоты, чтобы списки
- * под ним не прыгали, когда раздел приедет. */
-function PlanSkeleton() {
-  return <div className="panel mb-4 h-64 animate-pulse" aria-hidden />
 }

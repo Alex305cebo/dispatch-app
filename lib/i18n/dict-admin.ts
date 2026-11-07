@@ -2,15 +2,34 @@
 // lib/capabilities.ts.
 
 export const adminDict = {
-  'admin.title': { ru: 'Админ-панель', en: 'Admin panel', es: 'Panel de administración', uk: 'Адмін-панель', ro: 'Panou de administrare', kk: 'Әкімші панелі' },
+  // «Настройки» (11/07/26, бывшая «Админ-панель»): одно слово, как пункт меню.
+  'admin.title': { ru: 'Настройки', en: 'Settings', es: 'Ajustes', uk: 'Налаштування', ro: 'Setări', kk: 'Баптаулар' },
   'admin.subtitle': {
-    ru: 'Пользователи, права, настройки компании и журнал действий — видно только администраторам.',
-    en: 'Users, permissions, company settings, and the activity log — visible to admins only.',
-    es: 'Usuarios, permisos, ajustes de la empresa y registro de acciones — visible solo para administradores.',
-    uk: 'Користувачі, права, налаштування компанії та журнал дій — видно лише адміністраторам.',
-    ro: 'Utilizatori, permisiuni, setările firmei și jurnalul de acțiuni — vizibil doar pentru administratori.',
-    kk: 'Пайдаланушылар, құқықтар, компания баптаулары және әрекеттер журналы — тек әкімшілерге көрінеді.',
+    ru: 'Профиль, люди и права, компания, подключения, журнал — всё в одном месте.',
+    en: 'Profile, people and permissions, company, connections, log — all in one place.',
+    es: 'Perfil, personas y permisos, empresa, conexiones, registro — todo en un solo lugar.',
+    uk: 'Профіль, люди та права, компанія, підключення, журнал — усе в одному місці.',
+    ro: 'Profil, oameni și permisiuni, firmă, conexiuni, jurnal — totul într-un singur loc.',
+    kk: 'Профиль, адамдар мен құқықтар, компания, қосылымдар, журнал — бәрі бір жерде.',
   },
+  'admin.profileSubtitle': {
+    ru: 'Свой номер для брокера, язык, пароль и дата для «Забыли пароль?».',
+    en: 'Your phone for brokers, language, password and the "Forgot password?" date.',
+    es: 'Tu teléfono para el bróker, idioma, contraseña y la fecha de «¿Olvidó la contraseña?».',
+    uk: 'Свій номер для брокера, мова, пароль і дата для «Забули пароль?».',
+    ro: 'Numărul tău pentru broker, limba, parola și data pentru „Ai uitat parola?”.',
+    kk: 'Брокерге өз нөміріңіз, тіл, құпия сөз және «Құпия сөзді ұмыттыңыз ба?» күні.',
+  },
+  'admin.profileHeading': { ru: 'Профиль', en: 'Profile', es: 'Perfil', uk: 'Профіль', ro: 'Profil', kk: 'Профиль' },
+  'admin.profileInfo': {
+    ru: 'Настройки того, кто вошёл: номер и реквизиты для брокера, язык, уведомления, пароль, дата восстановления.',
+    en: 'Settings of the signed-in user: phone and company details for brokers, language, alerts, password, recovery date.',
+    es: 'Ajustes de quien inició sesión: teléfono y datos para el bróker, idioma, avisos, contraseña, fecha de recuperación.',
+    uk: 'Налаштування того, хто увійшов: номер і реквізити для брокера, мова, сповіщення, пароль, дата відновлення.',
+    ro: 'Setările celui conectat: telefon și date pentru broker, limbă, notificări, parolă, data de recuperare.',
+    kk: 'Кірген адамның баптаулары: брокерге нөмір мен деректер, тіл, хабарламалар, құпия сөз, қалпына келтіру күні.',
+  },
+  'admin.profileAccess': { ru: 'Вход', en: 'Sign-in', es: 'Acceso', uk: 'Вхід', ro: 'Autentificare', kk: 'Кіру' },
 
   'admin.usersHeading': { ru: 'Пользователи и права', en: 'Users and permissions', es: 'Usuarios y permisos', uk: 'Користувачі і права', ro: 'Utilizatori și permisiuni', kk: 'Пайдаланушылар және құқықтар' },
   'admin.workspaces.heading': { ru: 'Кабинеты', en: 'Workspaces', es: 'Espacios', uk: 'Кабінети', ro: 'Spații', kk: 'Кабинеттер' },

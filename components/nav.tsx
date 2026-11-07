@@ -42,6 +42,10 @@ const icons: Record<string, string> = {
   // Оси и линия вверх — раздел «Аналитика».
   chart: 'M3 3v18h18 M7 15l4-4 3 3 5-6',
   amazon: 'M3 7l9-4 9 4v6 M3 7v6 M3 7l9 4 9-4 M12 11v4 M5 17c4 3 10 3 14 0 M17 16l2 1-1 2',
+  // Ставки и карта — раздел «Рынок»: столбики цен.
+  market: 'M4 20V10 M10 20V4 M16 20v-7 M22 20H2',
+  // Шестерёнка — «Настройки».
+  gear: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
 }
 
 function Icon({ d }: { d: string }) {
@@ -75,82 +79,64 @@ function brandName(raw: string): string {
     .join(' ')
 }
 
-/** Extracted so the same control can appear on the phone row and inside the desktop
- * account menu without the markup being written twice and drifting apart. */
-function JournalLink({
-  pathname,
-  locale,
-  collapsed = false,
-}: {
-  pathname: string
-  locale: ReturnType<typeof useLocale>
-  collapsed?: boolean
-}) {
-  const active = pathname.startsWith('/logins')
-  return (
-    <Link
-      href="/logins"
-      title={t(locale, 'nav.journal')}
-      aria-label={t(locale, 'nav.journal')}
-      aria-current={active ? 'page' : undefined}
-      className={`nav-icon-btn flex size-9 items-center justify-center rounded-full border ${collapsed ? 'is-collapsed' : ''} ${
-        active
-          ? 'border-haul-500/50 text-haul-400'
-          : 'border-white/10 text-t2 hover:border-white/25 hover:text-t1'
-      }`}
-    >
-      <Icon d={icons.history} />
-    </Link>
-  )
-}
-
 /** also — другие адреса того же раздела: пункт подсвечен и на них.
- * group — рабочие разделы сверху, инструменты под чертой (план «Порядок в TMS», 10/09/26).
+ * group — группа сайдбара (11/07/26, как в Alvys/Truckbase/Rose Rocket: по вопросу,
+ * на который отвечают разделы): home — «Сегодня» без заголовка; work — что делать
+ * сейчас; money — где деньги; base — справочники; settings — одна шестерёнка внизу.
+ * До этого было две группы «работа/инструменты», и «Аналитика» стояла среди
+ * ежедневной работы, а «Деньги» — под чертой среди инструментов.
  * money — пункт только для тех, у кого право «Финансы». */
+type Group = 'home' | 'work' | 'money' | 'base' | 'settings'
 type Item = {
   href: string
   labelKey: MsgKey
   icon: string
-  group: 'work' | 'tools'
+  group: Group
   soon?: boolean
   money?: boolean
   also?: string[]
 }
 
-/** Сколько рабочих разделов стоит в нижнем меню телефона; остальное — за «Ещё». */
-const PHONE_TABS = 4
+/** Заголовок группы в сайдбаре; у «Сегодня» и «Настроек» его нет. */
+const GROUP_LABEL: Partial<Record<Group, MsgKey>> = {
+  work: 'nav.group.work',
+  money: 'nav.group.money',
+  base: 'nav.group.base',
+}
+
+/** Нижнее меню телефона — всегда одно и то же у всех (11/07/26): Сегодня · Грузы ·
+ * Траки · Деньги · Ещё. Без права «Финансы» четвёртым встаёт «Рынок». Раньше четвёртая
+ * кнопка зависела от прав: у админа «Аналитика», у диспетчера «Рынок» — у двух людей
+ * за одним столом было разное меню. */
+const PHONE_TABS: string[] = ['/', '/loads', '/trucks', '/money']
+const PHONE_TAB_FALLBACK = '/market'
 
 const isOn = (it: Item, pathname: string) =>
   it.href === '/' ? pathname === '/' : [it.href, ...(it.also ?? [])].some((h) => pathname.startsWith(h))
 
 const ITEMS: Item[] = [
-  // Рабочие разделы — то, с чем диспетчер работает каждый день. Первые четыре видимых
-  // встают в нижнее меню телефона, остальное там лежит за «Ещё». На десктопе в
-  // сайдбаре видны все.
-  //
   // «Сегодня» (до 10/09/26 — «Обзор»): главная показывает то, что ждёт действия.
-  { href: '/', labelKey: 'nav.overview', icon: 'dash', group: 'work' },
-  { href: '/loads', labelKey: 'nav.loads', icon: 'loads', group: 'work' },
+  { href: '/', labelKey: 'nav.overview', icon: 'dash', group: 'home' },
+  // РАБОТА — то, с чем диспетчер работает каждый день.
+  // Рейсы Amazon Relay — вкладка «Грузов» (11/07/26), не свой пункт: это те же грузы.
+  { href: '/loads', labelKey: 'nav.loads', icon: 'loads', group: 'work', also: ['/amazon', '/load'] },
   { href: '/trucks', labelKey: 'nav.trucks', icon: 'settings', group: 'work' },
-  // «Аналитика» (10/22/26) — графики выручки на настоящих грузах; право «Финансы», как у «Денег».
-  // С 10/26/26 «Аналитика» и «Рынок» — наверху, а «Деньги» и «Документы» — под чертой
-  // (владелец поменял эти пары местами).
-  { href: '/analytics', labelKey: 'nav.analytics', icon: 'chart', group: 'work', money: true },
-  // «Рынок» — один раздел (пользователь, 16.09.2026; переименован 18–19.09.2026, когда
-  // сюда переехало «Куда отправить трак»): вкладки внутри, адреса прежние. С 10/09/26
-  // внутри и «Толлы» — своей вкладкой, отдельного пункта меню у них больше нет.
-  { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield', group: 'work', also: ['/facilities', '/tolls'] },
-  // «Гараж» (10/21/26) — всё про каждый трак: пробег, масло, ремонты, сроки, чеки.
-  { href: '/garage', labelKey: 'nav.garage', icon: 'wrench', group: 'work' },
-  // Инструменты — под чертой.
-  // «Деньги» — своим пунктом (10/09/26): раньше это была первая вкладка «Документов»,
-  // и раздел бумаг открывался на деньгах. Старые адреса /docs?tab=… и /invoices
-  // ведут сюда же.
-  { href: '/money', labelKey: 'nav.money', icon: 'money', group: 'tools', money: true },
-  { href: '/docs', labelKey: 'nav.docs', icon: 'docs', group: 'tools' },
-  // «Amazon» — рейсы Amazon Relay (10/03/26): свой раздел, не фильтр грузов.
-  { href: '/amazon', labelKey: 'nav.amazon', icon: 'amazon', group: 'tools' },
-  { href: '/telegram', labelKey: 'nav.telegram', icon: 'chat', group: 'tools' },
+  // «Рынок» (11/07/26) — куда отправить трак, ставки и толлы. Справочник брокеров и
+  // складов ушёл в «Брокеры» (группа «База»).
+  { href: '/market', labelKey: 'nav.market', icon: 'market', group: 'work', also: ['/tolls'] },
+  // Telegram — единственный канал связи, значит ежедневная работа, а не инструмент.
+  // Всегда в меню: без доступа его страница сама пишет, что сделать.
+  { href: '/telegram', labelKey: 'nav.telegram', icon: 'chat', group: 'work' },
+  // ДЕНЬГИ — счета, бумаги, отчёты. «Деньги» и «Аналитика» — по праву «Финансы»;
+  // «Документы» всегда: право закрывает деньги, а не бумаги.
+  { href: '/money', labelKey: 'nav.money', icon: 'money', group: 'money', money: true },
+  { href: '/docs', labelKey: 'nav.docs', icon: 'docs', group: 'money' },
+  { href: '/analytics', labelKey: 'nav.analytics', icon: 'chart', group: 'money', money: true },
+  // БАЗА — справочники: брокеры и склады, гараж (пробег, масло, ремонты, чеки).
+  { href: '/brokers', labelKey: 'nav.brokers', icon: 'shield', group: 'base', also: ['/facilities'] },
+  { href: '/garage', labelKey: 'nav.garage', icon: 'wrench', group: 'base' },
+  // НАСТРОЙКИ — одна шестерёнка внизу: профиль у всех, остальное у администратора.
+  { href: '/admin', labelKey: 'nav.settings', icon: 'gear', group: 'settings', also: ['/logins'] },
 ]
 
 export function Nav({
@@ -223,9 +209,9 @@ export function Nav({
         kind: 'page' as const,
         href: it.href,
         title: t(locale, it.labelKey),
-        extra: it.href === '/brokers' ? t(locale, 'search.brokers') : undefined,
       })),
       { kind: 'page' as const, href: '/loads/new', title: t(locale, 'search.newLoad') },
+      { kind: 'page' as const, href: '/amazon', title: t(locale, 'nav.amazon') },
       { kind: 'page' as const, href: '/tolls', title: t(locale, 'nav.tolls') },
       ...(showMoney
         ? [
@@ -258,12 +244,7 @@ export function Nav({
   // пишет, что сделать. Спрятанный пункт не находили вовсе. «Документы» тоже всегда:
   // право «Финансы» закрывает внутри раздела только деньги, а не бумаги.
   const items = ITEMS.filter((it) => !it.money || showMoney)
-  const primary = new Set(
-    items
-      .filter((it) => it.group === 'work' && !it.soon)
-      .slice(0, PHONE_TABS)
-      .map((it) => it.href),
-  )
+  const primary = new Set(PHONE_TABS.map((h) => (items.some((it) => it.href === h) ? h : PHONE_TAB_FALLBACK)))
   const rest = items.filter((it) => !primary.has(it.href) && !it.soon)
   const restActive = rest.some((it) => isOn(it, pathname))
   // Вкладка: на телефоне равные доли ширины, в сайдбаре — строка с иконкой слева.
@@ -421,11 +402,17 @@ export function Nav({
         <div className="flex items-stretch gap-0.5 md:flex-col md:gap-0.5">
         {items.map((it, i) => {
         const active = !it.soon && isOn(it, pathname)
-        // Черта между рабочими разделами и инструментами — только в сайдбаре.
-        const divider =
-          it.group === 'tools' && items[i - 1]?.group === 'work' ? (
-            <div key={`divider-${it.href}`} aria-hidden className="my-2 hidden h-px bg-white/10 md:block" />
-          ) : null
+        // Заголовок группы перед её первым пунктом — только в сайдбаре. У «Настроек»
+        // заголовка нет, только черта: это не раздел работы, а служебный вход.
+        const firstOfGroup = items[i - 1]?.group !== it.group
+        const groupLabel = GROUP_LABEL[it.group]
+        const divider = !firstOfGroup ? null : groupLabel ? (
+          <div key={`group-${it.group}`} aria-hidden className="nav-group-label mb-0.5 mt-3 hidden px-3 text-2xs font-semibold uppercase tracking-wider text-t3 md:block">
+            {t(locale, groupLabel)}
+          </div>
+        ) : it.group === 'settings' ? (
+          <div key={`group-${it.group}`} aria-hidden className="my-2 hidden h-px bg-white/10 md:block" />
+        ) : null
 
         const body = (
           <>
@@ -528,18 +515,7 @@ export function Nav({
             row — it is what opens the menu — and an anchor belongs at the end of the
             group it owns, not buried mid-row. */}
         {user && (
-          <UserPanel
-            user={user}
-            dockCollapsed={!dockExpanded}
-            onExpandDock={expandDock}
-            showTelegram={showTelegram}
-            tilesEnabled={tilesEnabled}
-            dispatcherPhone={dispatcherPhone}
-            company={company}
-            journalControl={
-              user.role === 'admin' ? <JournalLink pathname={pathname} locale={locale} /> : undefined
-            }
-          />
+          <UserPanel user={user} dockCollapsed={!dockExpanded} onExpandDock={expandDock} />
         )}
         {/* Язык и вид (тема, цвет, карточки) — на виду, рядом с колокольчиком, а не в
             меню аватара (владелец 03.10.2026). На телефоне ряд — верхняя панель. */}

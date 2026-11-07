@@ -101,7 +101,7 @@ export default async function TollsPage() {
   return (
     <main className="page">
       {/* «Толлы» — вкладка «Рынка» (10/09/26): шапка раздела та же, подпись — про дороги. */}
-      <PageHeader title={t(locale, 'nav.brokers')} info={t(locale, 'tolls.info')} subtitle={t(locale, 'tolls.subtitle')} />
+      <PageHeader title={t(locale, 'nav.market')} info={t(locale, 'tolls.info')} subtitle={t(locale, 'tolls.subtitle')} />
       <MarketTabs active="tolls" locale={locale} />
 
       <WidgetGrid

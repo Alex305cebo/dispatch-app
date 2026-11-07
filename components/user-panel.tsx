@@ -20,41 +20,20 @@
 //      показывает, и дублировать его в меню — шум, а не удобство.
 //   5. «Выйти» — внизу, отдельно, красным. Разрушительное действие не стоит рядом
 //      с безобидным.
+//
+// 11/07/26: настройки (номер, язык, пароль, плитки, уведомления, отчёт) переехали в
+// «Настройки» — один пункт внизу меню (components/profile-settings.tsx, /admin).
+// Здесь осталось то, что и есть меню аккаунта: кто ты, что завести, настройки одной
+// строкой, обновить, выйти.
 
-import { Button } from '@/components/button'
 import { useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import {
-  Building2,
-  Check,
-  ChevronRight,
-  Copy,
-  Globe,
-  History,
-  KeyRound,
-  LifeBuoy,
-  LogOut,
-  PackagePlus,
-  LayoutGrid,
-  Palette,
-  Phone,
-  RotateCw,
-  Send,
-  ShieldCheck,
-  Truck as TruckIcon,
-  Users,
-  Mail,
-} from 'lucide-react'
-import { LOCALES, type Locale } from '@/lib/i18n'
-import { changeMyPassword, setRecoveryBirthday, setTilesRearrange } from '@/app/account/actions'
+import { ChevronRight, LogOut, PackagePlus, RotateCw, Settings, Truck as TruckIcon } from 'lucide-react'
 import { signOut } from '@/app/login/actions'
-import { notify } from '@/lib/notify'
 import type { CurrentUser } from '@/lib/session'
 import { useLocale } from '@/components/locale-provider'
 import { shortName } from '@/lib/fmt'
-import { AlertToggle } from '@/components/alert-watch'
-import { companyBlock, copyText, useMyPhone } from '@/components/driver-directory'
 import { t } from '@/lib/i18n'
 
 function initialsOf(name: string): string {
@@ -107,50 +86,6 @@ function Row({
   )
 }
 
-/** Строка, правый край которой занимает готовый переключатель (язык, тема, журнал). */
-function ControlRow({ icon, label, control }: { icon: React.ReactNode; label: string; control: React.ReactNode }) {
-  return (
-    <div className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-base text-t1">
-      <span className="shrink-0 text-t3">{icon}</span>
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      <span className="shrink-0">{control}</span>
-    </div>
-  )
-}
-
-/** Переключатель перестановки плиток в меню аккаунта. Значение видно справа, не
- *  нажимая, как у остальных строк этой группы. Настройка общая на компанию, об этом
- *  говорит подпись под строкой — иначе человек не поймёт, почему включил он, а
- *  кнопка появилась у всех администраторов. */
-function TilesRow({ enabled, locale }: { enabled: boolean; locale: Locale }) {
-  const [pending, start] = useTransition()
-  return (
-    <>
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() =>
-          start(async () => {
-            const res = await setTilesRearrange(!enabled)
-            if (res?.error) notify('error', res.error)
-            else notify('ok', t(locale, enabled ? 'grid.setting.turnedOff' : 'grid.setting.turnedOn'))
-          })
-        }
-        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-base text-t1 transition-colors hover:bg-white/5 disabled:opacity-40"
-      >
-        <span className="shrink-0 text-t3">
-          <LayoutGrid size={15} />
-        </span>
-        <span className="min-w-0 flex-1 truncate">{t(locale, 'grid.setting.label')}</span>
-        <span className={`shrink-0 text-xs font-semibold ${enabled ? 'text-good-400' : 'text-t3'}`}>
-          {t(locale, enabled ? 'grid.setting.on' : 'grid.setting.off')}
-        </span>
-      </button>
-      <p className="px-2 pb-1 text-xs leading-relaxed text-t3">{t(locale, 'grid.setting.hint')}</p>
-    </>
-  )
-}
-
 function Group({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
     <div className="border-t border-white/8 py-1 first:border-t-0">
@@ -168,51 +103,17 @@ export function UserPanel({
   user,
   dockCollapsed = false,
   onExpandDock,
-  showTelegram = false,
-  localeControl,
-  themeControl,
-  journalControl,
-  tilesEnabled = false,
-  dispatcherPhone = '',
-  company = null,
 }: {
   user: CurrentUser
-  /** Same capability flags the nav uses to hide dead tabs. A row pointing at a screen
-   * this user is not allowed to open would be a promise the app then breaks. */
-  showTelegram?: boolean
   /** Whether the sibling icons (locale/notifications/journal/theme) are currently
    * tucked away (components/nav.tsx). When they are, the FIRST tap on the avatar
    * just brings them back instead of opening the profile popover. */
   dockCollapsed?: boolean
   onExpandDock?: () => void
-  /** Переключатели живут в своих компонентах и встают в правый край своей строки —
-   * туда, где у нормального меню стоит текущее значение. */
-  localeControl?: React.ReactNode
-  themeControl?: React.ReactNode
-  journalControl?: React.ReactNode
-  /** Разрешена ли перестановка плиток. Настройка ОБЩАЯ на компанию (порядок плиток
-   *  тоже общий), но лежит здесь, а не в панели администратора: включать её может
-   *  любой, кто вошёл. */
-  tilesEnabled?: boolean
-  /** Свой номер того, кто вошёл, — для блока брокеру (lib/settings.ts dispatcherPhoneKey). */
-  dispatcherPhone?: string
-  /** Реквизиты компании для того же блока: MC, название, почта. */
-  company?: { mc: string; name: string; email: string } | null
 }) {
   const router = useRouter()
   const locale = useLocale()
   const [open, setOpen] = useState(false)
-  const [pwOpen, setPwOpen] = useState(false)
-  const [pw, setPw] = useState('')
-  const [bdayOpen, setBdayOpen] = useState(false)
-  // Список языков раскрывается ВНУТРИ меню, а не всплывает над ним: у панели
-  // меню есть overflow, и любой absolute-слой внутри неё просто срезается — именно
-  // поэтому выбор языка «не открывался», хотя открывался.
-  const [langOpen, setLangOpen] = useState(false)
-  const [bday, setBday] = useState('')
-  const [phoneOpen, setPhoneOpen] = useState(false)
-  const [phoneDraft, setPhoneDraft] = useState('')
-  const my = useMyPhone(dispatcherPhone)
   const [pending, start] = useTransition()
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -242,27 +143,6 @@ export function UserPanel({
     setOpen((v) => !v)
   }
 
-  function chooseLocale(next: Locale) {
-    setLangOpen(false)
-    if (next === locale) return
-    document.cookie = `locale=${next}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`
-    // Мягкое обновление: серверные компоненты перечитают куку и отрисуются заново,
-    // а прокрутка, открытые секции и введённое в формах останутся на месте.
-    router.refresh()
-  }
-
-  function savePassword() {
-    start(async () => {
-      const res = await changeMyPassword(pw)
-      if (res?.error) notify('error', res.error)
-      else {
-        notify('ok', t(locale, 'userPanel.passwordChanged'))
-        setPw('')
-        setPwOpen(false)
-      }
-    })
-  }
-
   function logout() {
     start(async () => {
       await signOut()
@@ -270,7 +150,6 @@ export function UserPanel({
     })
   }
 
-  const current = LOCALES.find((l) => l.code === locale) ?? LOCALES[0]!
   const close = () => setOpen(false)
 
   return (
@@ -329,251 +208,15 @@ export function UserPanel({
               />
             </Group>
 
-            {/* Для брокера: свой номер и реквизиты компании. Переехали сюда с «Траков»
-                (план «Порядок в TMS», 10/09/26): они одни на весь парк, а в разделе
-                стояли плитками рядом с водителями. В строке каждого трака их кладёт в
-                блок брокеру кнопка «Copy Driver Info». */}
-            <Group title={t(locale, 'userPanel.brokerGroup')}>
+            <Group>
               <Row
-                icon={<Phone size={15} />}
-                label={t(locale, 'drivers.myPhone')}
-                right={
-                  <span className="flex items-center gap-1">
-                    <span className={my.phone ? 'nums font-semibold text-t2' : undefined}>
-                      {my.phone || t(locale, 'drivers.noPhone')}
-                    </span>
-                    <ChevronRight size={14} className={`transition-transform ${phoneOpen ? 'rotate-90' : ''}`} />
-                  </span>
-                }
-                onClick={() => {
-                  setPhoneDraft(my.phone)
-                  setPhoneOpen((v) => !v)
-                }}
+                icon={<Settings size={15} />}
+                label={t(locale, 'nav.settings')}
+                right={<ChevronRight size={14} />}
+                href="/admin"
+                onNavigate={close}
               />
-              {phoneOpen && (
-                <div className="flex items-center gap-1.5 px-2 pb-2">
-                  <input
-                    value={phoneDraft}
-                    autoFocus
-                    inputMode="tel"
-                    onChange={(e) => setPhoneDraft(e.target.value)}
-                    placeholder="786 461 4739"
-                    aria-label={t(locale, 'drivers.myPhone')}
-                    className="nums min-w-0 flex-1 rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-base text-white outline-none focus:border-haul-500"
-                  />
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    loading={my.pending}
-                    disabled={my.pending}
-                    onClick={() => my.save(phoneDraft, t(locale, 'drivers.phoneSaved'), () => setPhoneOpen(false))}
-                  >
-                    {t(locale, 'drivers.save')}
-                  </Button>
-                </div>
-              )}
-              {company && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    copyText(
-                      companyBlock({ mc: company.mc, companyName: company.name, companyEmail: company.email }),
-                      t(locale, 'drivers.copied'),
-                    )
-                  }
-                  title={t(locale, 'userPanel.companyCopy')}
-                  className={ROW}
-                >
-                  <span className="shrink-0 text-t3">
-                    <Building2 size={15} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate">{t(locale, 'drivers.company')}</span>
-                    <span className="nums block truncate text-xs text-t3">
-                      MC {company.mc || '—'}
-                      {company.name && ` · ${company.name}`}
-                    </span>
-                  </span>
-                  <Copy size={14} className="shrink-0 text-haul-300/80" aria-hidden />
-                </button>
-              )}
             </Group>
-
-            {/* 3. Разделы — ТОЛЬКО на телефоне: в нижнюю панель влезает шесть вкладок,
-                «Брокеры» в неё не попадают, и это их единственный вход. На десктопе
-                они есть в рельсе слева, и повторять их здесь незачем. «Финансы» тут
-                были до слияния с «Файлами»: теперь это «Документы» в нижней панели. */}
-            <div className="md:hidden">
-              <Group title={t(locale, 'userPanel.sectionsGroup')}>
-                <Row
-                  icon={<ShieldCheck size={15} />}
-                  label={t(locale, 'userPanel.tileBrokers')}
-                  href="/brokers"
-                  onNavigate={close}
-                />
-                {showTelegram && (
-                  <Row
-                    icon={<Send size={15} />}
-                    label={t(locale, 'userPanel.tileTelegram')}
-                    href="/telegram"
-                    onNavigate={close}
-                  />
-                )}
-              </Group>
-            </div>
-
-            {/* 4. Настройки. У переключателей значение видно справа, не нажимая. */}
-            <Group title={t(locale, 'userPanel.quickSettings')}>
-              {/* Язык — обычная строка меню: справа текущий язык, по нажатию
-                  разворачивается список. Ничего не всплывает, поэтому нечему и
-                  срезаться. */}
-              <Row
-                icon={<Globe size={15} />}
-                label={t(locale, 'userPanel.tileLang')}
-                right={
-                  <span className="flex items-center gap-1">
-                    <span className="font-semibold text-t2">{current.short}</span>
-                    <ChevronRight size={14} className={`transition-transform ${langOpen ? 'rotate-90' : ''}`} />
-                  </span>
-                }
-                onClick={() => setLangOpen((v) => !v)}
-              />
-              {langOpen && (
-                <div className="mb-1 ml-2 flex flex-col border-l border-white/10 pl-2">
-                  {LOCALES.map((l) => (
-                    <button
-                      key={l.code}
-                      type="button"
-                      onClick={() => chooseLocale(l.code)}
-                      className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-base transition-colors hover:bg-white/8 ${
-                        l.code === locale ? 'text-haul-300' : 'text-t2'
-                      }`}
-                    >
-                      <span className="w-7 shrink-0 text-2xs font-bold uppercase text-t3">{l.short}</span>
-                      <span className="min-w-0 flex-1 truncate">{l.native}</span>
-                      {l.code === locale && <Check size={14} className="shrink-0" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {themeControl && (
-                <ControlRow
-                  icon={<Palette size={15} />}
-                  label={t(locale, 'userPanel.tileTheme')}
-                  control={themeControl}
-                />
-              )}
-              {/* Перестановка плиток — только администратору. Выключена — на разделах
-                  кнопка «Переставить» видна, но заперта и говорит, где её включить. */}
-              {user.role === 'admin' && <TilesRow enabled={tilesEnabled} locale={locale} />}
-              {/* Отчёт на почту — владелец ищет его в «Настройках» (10/22/26): кому, когда, история. */}
-              {user.role === 'admin' && (
-                <Row
-                  icon={<Mail size={15} />}
-                  label={t(locale, 'admin.report.heading')}
-                  right={<ChevronRight size={14} />}
-                  href="/admin#report"
-                  onNavigate={close}
-                />
-              )}
-              {/* Уведомления браузера — разрешение спрашивается только отсюда. */}
-              <AlertToggle />
-              <Row
-                icon={<KeyRound size={15} />}
-                label={t(locale, 'userPanel.tilePassword')}
-                right={
-                  <ChevronRight size={14} className={`transition-transform ${pwOpen ? 'rotate-90' : ''}`} />
-                }
-                onClick={() => setPwOpen((v) => !v)}
-              />
-              {pwOpen && (
-                <div className="px-2 pb-2">
-                  <input
-                    type="password"
-                    value={pw}
-                    autoFocus
-                    onChange={(e) => setPw(e.target.value)}
-                    placeholder={t(locale, 'userPanel.newPasswordPlaceholder')}
-                    className="w-full rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-base text-white outline-none focus:border-haul-500"
-                  />
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    block
-                    className="mt-2"
-                    loading={pending}
-                    disabled={pending || pw.length < 8}
-                    onClick={savePassword}
-                  >
-                    {pending ? t(locale, 'common.saving') : t(locale, 'common.save')}
-                  </Button>
-                </div>
-              )}
-              {/* Дата рождения для «Забыли пароль?» — единственный путь назад, если
-                  пароль забыт, а ты единственный админ. Хранится хешем. */}
-              <Row
-                icon={<LifeBuoy size={15} />}
-                label={t(locale, 'userPanel.tileRecovery')}
-                right={
-                  <ChevronRight size={14} className={`transition-transform ${bdayOpen ? 'rotate-90' : ''}`} />
-                }
-                onClick={() => setBdayOpen((v) => !v)}
-              />
-              {bdayOpen && (
-                <div className="px-2 pb-2">
-                  <p className="mb-1.5 text-xs leading-relaxed text-t3">
-                    {t(locale, 'userPanel.recoveryHint')}
-                  </p>
-                  <input
-                    type="date"
-                    value={bday}
-                    onChange={(e) => setBday(e.target.value)}
-                    className="w-full rounded-lg border border-white/8 bg-ink-950/80 px-2.5 py-1.5 text-base text-white outline-none focus:border-haul-500"
-                  />
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    block
-                    className="mt-2"
-                    loading={pending}
-                    disabled={pending || !bday}
-                    onClick={() =>
-                      start(async () => {
-                        const res = await setRecoveryBirthday(bday)
-                        if (res?.error) notify('error', res.error)
-                        else {
-                          notify('ok', t(locale, 'userPanel.recoverySaved'))
-                          setBdayOpen(false)
-                        }
-                      })
-                    }
-                  >
-                    {t(locale, 'common.save')}
-                  </Button>
-                </div>
-              )}
-            </Group>
-
-            {/* 5. Админ — одной строкой. «Люди», «Ключи» и «Импорт» были тремя
-                плитками, а вели все на одну страницу: три входа в одну дверь. */}
-            {user.role === 'admin' && (
-              <Group title={t(locale, 'userPanel.adminSection')}>
-                <Row
-                  icon={<Users size={15} />}
-                  label={t(locale, 'userPanel.tileAdminPanel')}
-                  right={<ChevronRight size={14} />}
-                  href="/admin"
-                  onNavigate={close}
-                />
-                {journalControl && (
-                  <ControlRow
-                    icon={<History size={15} />}
-                    label={t(locale, 'userPanel.tileJournal')}
-                    control={journalControl}
-                  />
-                )}
-              </Group>
-            )}
 
             <Group>
               {/* Не ссылка, а механизм: перерисовать текущую страницу свежими

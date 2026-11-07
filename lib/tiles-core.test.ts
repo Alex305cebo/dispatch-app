@@ -297,11 +297,12 @@ test('migrateBrokersTiles: «Крупнейшие брокеры» влиты в
   const saved = parseLayout(
     '[{"id":"brokers-count","size":"s"},{"id":"facilities-count","size":"s"},{"id":"attention-count","size":"s"},{"id":"plan","size":"l"},{"id":"top","size":"w"},{"id":"directory","size":"l"},{"id":"check","size":"w"}]',
   )
-  assert.deepEqual(ids(applyLayout(migrateBrokersTiles(saved), BROKERS_TILES)), ['plan:l', 'directory:l', 'check:l'])
-  // Уже без «top» — размер проверки выбирает тот, кто переставляет.
-  const fresh = parseLayout('[{"id":"check","size":"w"},{"id":"plan","size":"l"}]')
-  assert.equal(migrateBrokersTiles(fresh), fresh)
-  assert.deepEqual(ids(applyLayout([], BROKERS_TILES)), ['plan:l', 'directory:l', 'check:l'])
+  // «plan» («Куда отправить трак») с 11/07/26 живёт на /market — из раскладки уходит.
+  assert.deepEqual(ids(applyLayout(migrateBrokersTiles(saved), BROKERS_TILES)), ['directory:l', 'check:l'])
+  // Уже без «top» и без «plan» — размер проверки выбирает тот, кто переставляет.
+  const fresh = parseLayout('[{"id":"check","size":"w"},{"id":"directory","size":"l"}]')
+  assert.deepEqual(migrateBrokersTiles(fresh), fresh)
+  assert.deepEqual(ids(applyLayout([], BROKERS_TILES)), ['directory:l', 'check:l'])
 })
 
 test('migrateTollsTiles: четыре числа толлов → одна полоса месяца на их месте', () => {

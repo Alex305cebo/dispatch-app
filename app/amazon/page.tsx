@@ -1,4 +1,5 @@
-import { CalendarDays, DollarSign, Package, TrendingUp, Truck } from 'lucide-react'
+import { Boxes, CalendarDays, Columns3, DollarSign, List, Package, TrendingUp, Truck } from 'lucide-react'
+import { SectionNav } from '@/app/docs/tab-nav'
 import { WidgetGrid, type Widget } from '@/components/widget-grid'
 import { Stat } from '@/components/stat'
 import { Cells, Spark } from '@/components/mini-charts'
@@ -280,6 +281,17 @@ export default async function AmazonPage() {
         // Уроки — для учеников: всегда под рукой в разделе, а не где-то на сайте курсов.
         // С 10/09/26 — окошком этой кнопки, а не плиткой внизу (план «Порядок в TMS»).
         actions={<AmazonLessons />}
+      />
+      {/* Та же полоса видов, что в «Грузах» (11/07/26): Amazon — четвёртый вид грузов,
+          а не свой раздел; остальные три ведут назад в список. */}
+      <SectionNav
+        label={t(locale, 'loads.view.label')}
+        items={[
+          { key: 'list', href: '/loads', label: t(locale, 'loads.view.list'), icon: <List size={16} />, active: false },
+          { key: 'board', href: '/loads?view=board', label: t(locale, 'loads.view.board'), icon: <Columns3 size={16} />, active: false },
+          { key: 'week', href: '/loads?view=week', label: t(locale, 'loads.view.week'), icon: <CalendarDays size={16} />, active: false },
+          { key: 'amazon', href: '/amazon', label: t(locale, 'nav.amazon'), icon: <Boxes size={16} />, active: true },
+        ]}
       />
       <WidgetGrid {...grid} widgets={widgets} />
     </main>
