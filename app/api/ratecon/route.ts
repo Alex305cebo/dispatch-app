@@ -1,33 +1,34 @@
-import { NextResponse, type NextRequest } from 'next/server'
-import { AI_MODELS, AI_MODELS_QUALITY, AI_PROMPT, AI_SCHEMA, type AiFields } from '@/lib/ratecon-ai-contract'
-import { bumpGeminiUsage } from '@/lib/gemini-usage'
+import { after, NextResponse, type NextRequest } from 'next/server'
 import { geminiKey, aiModelPref } from '@/lib/keys'
-import { aiFailKind, aiFailMessage, worstFail, type AiFail } from '@/lib/ai-error'
 import { getLocale } from '@/lib/i18n-server'
-import { getCurrentUser } from '@/lib/session'
+import { companyScope, getCurrentUser } from '@/lib/session'
 import { t } from '@/lib/i18n'
+import { buildParts, claimJob, createJob, documentFile, jobState, runJob, type JobInput, type ReadInput } from '@/lib/ratecon-read'
 
 export const dynamic = 'force-dynamic'
-// Vision on a multi-page scan can take up to ~90s (that's what the UI promises) —
-// 60 cut it short and surfaced as a raw "Unexpected token '<'" JSON-parse error on
-// the client (Hostinger's own proxy answering with its timeout page). Self-hosted
-// now, not Vercel Hobby, so there's no platform ceiling forcing 60 here.
-export const maxDuration = 120
 
-// Sits behind the auth middleware (same-origin fetch carries the cookie) — но одного
-// middleware мало: с включённым открытым доступом он пропускает и без входа, а демо —
-// настоящий вход, открытый всем. Ключ Gemini у компании один и платный, поэтому здесь
+// Чтение Rate Con — фоновой задачей (lib/ratecon-read.ts объясняет почему):
+//   POST {docId, text?} | {text} | {pdfBase64, mime, text?} → {job}   (сразу)
+//   GET  ?job=N → {status:'working'} | {ok:true, fields, model} | {error}
+// Ни один запрос браузера не длится дольше пары секунд, поэтому прокси хостинга
+// больше не успевает оборвать его своей HTML-страницей.
+//
+// Sits behind the auth middleware — но одного middleware мало: с открытым доступом он
+// пропускает и без входа, а демо открыто всем. Ключ Gemini у компании один, поэтому
 // своя проверка: читать документы может только вошедший и не в демо.
-type Body = { text?: string; pdfBase64?: string; mime?: string }
+type Body = { text?: string; pdfBase64?: string; mime?: string; docId?: number }
 
-const TEXT_LAYER_NOTE =
-  'TEXT LAYER of the same document (only the pages that have selectable text; the file above is the full document):\n'
-
-export async function POST(req: NextRequest) {
+async function guard(): Promise<NextResponse | null> {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: t(await getLocale(), 'actions.signInRequired') }, { status: 401 })
   if (user.isDemo) return NextResponse.json({ error: t(await getLocale(), 'actions.demoAiOff') }, { status: 403 })
   if (user.isWorkspace) return NextResponse.json({ error: t(await getLocale(), 'actions.workspaceAiOff') }, { status: 403 })
+  return null
+}
+
+export async function POST(req: NextRequest) {
+  const denied = await guard()
+  if (denied) return denied
 
   const key = await geminiKey()
   if (!key) return NextResponse.json({ error: 'no_key' }, { status: 503 })
@@ -39,105 +40,60 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'bad_json' }, { status: 400 })
   }
 
-  const parts: unknown[] = [{ text: AI_PROMPT }]
-  if (body.pdfBase64) {
-    // Scans and photos: the model reads the document itself — this IS the OCR.
-    parts.push({ inlineData: { mimeType: body.mime ?? 'application/pdf', data: body.pdfBase64 } })
-    // Файл со страницами-картинками, но с текстом на других (lib/pdf-text.ts
-    // needsFileRead): текстовый слой — следом, чтобы цифры с текстовых страниц
-    // (ставка, номер груза) модель брала точно, а не со снимка.
-    if (body.text?.trim()) parts.push({ text: TEXT_LAYER_NOTE + body.text.slice(0, 60_000) })
-  } else if (body.text?.trim()) {
-    // Text PDFs: send extracted text — far cheaper against the free-tier quota.
-    parts.push({ text: 'DOCUMENT TEXT:\n' + body.text.slice(0, 60_000) })
-  } else {
-    return NextResponse.json({ error: 'empty' }, { status: 400 })
+  const companyId = await companyScope()
+  const input = await inputFor({ docId: body.docId, text: body.text }, companyId)
+  if (input === 'not_found') return NextResponse.json({ error: 'doc_not_found' }, { status: 404 })
+  if (body.pdfBase64 && !body.docId) {
+    input.fileBase64 = body.pdfBase64
+    input.mime = body.mime
   }
+  if (!buildParts(input)) return NextResponse.json({ error: 'empty' }, { status: 400 })
 
-  // Per-model deadline. The whole reason a rate con "didn't recognise, server took
-  // long" was that the models were tried back-to-back with NO timeout: a single slow
-  // model (a preview build, a cold start) held the connection until the hosting proxy
-  // gave up and answered with its own HTML page — which reached the browser as an
-  // "Unexpected token '<'" JSON error. Now a model that hasn't answered in MODEL_MS is
-  // aborted and the next one is tried, so one slow model can't sink the request.
-  // 55s, not less: a heavy multi-page scan can legitimately take 40-50s on a vision
-  // model, and cutting it shorter would abort work that was about to succeed — making
-  // the very problem worse. This is a ceiling on a HUNG model, not a target. A 55s
-  // first attempt still leaves room for one fallback inside the 108s total.
-  const MODEL_MS = 55_000
-  // Overall wall-clock guard: stop starting new attempts once there isn't time for one
-  // to finish before maxDuration (120s). Better to return a clean error than to begin
-  // an attempt the platform will kill mid-flight.
-  const startedAt = Date.now()
-  const TOTAL_MS = 108_000
+  // Всё, что зависит от запроса (вход, язык, настройки), — до ответа: после ответа
+  // cookies уже не прочитать.
+  const opts = { key, locale: await getLocale(), quality: (await aiModelPref()) === 'quality' }
+  // Подхватить задачу другим процессом можно, только если всё нужное лежит в базе:
+  // файл, присланный строкой (без docId), туда не пишется — тогда и текст не храним,
+  // иначе подхват прочёл бы один текстовый слой вместо скана.
+  const job = await createJob(companyId, body.docId ? { docId: body.docId, text: body.text } : body.pdfBase64 ? {} : { text: body.text })
+  after(() => runJob(job, input, opts))
+  return NextResponse.json({ job })
+}
 
-  // A model needs at least this much runway to be worth starting — below it, an attempt
-  // would almost certainly be killed mid-flight, so return the last error cleanly.
-  const MIN_SLICE_MS = 18_000
+/** Что читать: документ из базы (по docId, только своей компании) и/или текст. */
+async function inputFor(j: JobInput, companyId: string): Promise<ReadInput | 'not_found'> {
+  const input: ReadInput = { text: j.text }
+  if (j.docId) {
+    const doc = await documentFile(Number(j.docId), companyId)
+    if (!doc) return 'not_found'
+    input.fileBase64 = doc.b64
+    input.mime = doc.mime
+  }
+  return input
+}
 
-  let lastErr = 'no model answered'
-  // Худшая из бед по всем моделям — по ней и объясняем. Код HTTP остаётся в скобках.
-  let fail: AiFail | null = null
-  const models = (await aiModelPref()) === 'quality' ? AI_MODELS_QUALITY : AI_MODELS
-  for (const model of models) {
-    const remaining = TOTAL_MS - (Date.now() - startedAt)
-    if (remaining < MIN_SLICE_MS) {
-      lastErr = 'ran out of time before a model answered'
-      break
-    }
-    // This model gets whatever's left, capped at MODEL_MS — so after a slow first
-    // attempt the fallback still gets a real (if shorter) slice instead of being
-    // skipped entirely.
-    const ac = new AbortController()
-    const timer = setTimeout(() => ac.abort(), Math.min(MODEL_MS, remaining))
-    let res: Response
-    try {
-      res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts }],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              responseSchema: AI_SCHEMA,
-              temperature: 0,
-            },
-          }),
-          signal: ac.signal,
-        },
-      )
-    } catch (e) {
-      // Aborted (too slow) or a network drop — both just mean "try the next model".
-      lastErr = ac.signal.aborted ? `${model}: timed out after ${MODEL_MS / 1000}s` : `${model}: ${String(e)}`
-      continue
-    } finally {
-      clearTimeout(timer)
-    }
-    if (!res.ok) {
-      // 404 = model renamed, 429 = quota — both legitimately fall to the next model.
-      fail = worstFail(fail, aiFailKind(res.status, await res.text().catch(() => '')))
-      lastErr = `${model}: HTTP ${res.status}`
-      continue
-    }
-    const data = (await res.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[]
-      usageMetadata?: { totalTokenCount?: number }
-    }
-    const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
-    try {
-      const fields = JSON.parse(text) as AiFields
-      if (!Array.isArray(fields.stops)) throw new Error('no stops')
-      await bumpGeminiUsage(data.usageMetadata?.totalTokenCount ?? 0)
-      return NextResponse.json({ ok: true, fields, model })
-    } catch {
-      lastErr = `${model}: unparseable answer`
-      continue
+export async function GET(req: NextRequest) {
+  const denied = await guard()
+  if (denied) return denied
+  const job = Number(req.nextUrl.searchParams.get('job'))
+  if (!job) return NextResponse.json({ error: 'no_job' }, { status: 400 })
+  const companyId = await companyScope()
+  const state = await jobState(job, companyId)
+  if (!state) return NextResponse.json({ error: 'job_not_found' }, { status: 404 })
+  // Процесс с задачей умер (пульс молчит) — этот опрос забирает её себе и читает заново.
+  if (state.orphan && (await claimJob(job))) {
+    const key = await geminiKey()
+    const input = key ? await inputFor(state.orphan, companyId) : 'not_found'
+    if (key && input !== 'not_found') {
+      const opts = { key, locale: await getLocale(), quality: (await aiModelPref()) === 'quality' }
+      after(() => runJob(job, input, opts))
     }
   }
+  if (state.status === 'working') return NextResponse.json({ status: 'working' })
+  if (state.status === 'done') return NextResponse.json({ ok: true, fields: state.fields, model: state.model })
+  const locale = await getLocale()
   return NextResponse.json(
-    { error: aiFailMessage(fail ?? 'other', await getLocale(), lastErr) },
+    { error: state.error === 'stale' ? t(locale, 'rateconAi.stale') : state.error },
     { status: 502 },
   )
 }
