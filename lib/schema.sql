@@ -569,5 +569,27 @@ CREATE TABLE IF NOT EXISTS amazon_trips (
   CONSTRAINT amazon_trips_truck_fkey FOREIGN KEY (truck_id) REFERENCES trucks (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
 
-INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-11-03')
+-- Чтение Rate Con фоновой задачей (11/10/26, lib/ratecon-read.ts): POST /api/ratecon
+-- ставит задачу и сразу отвечает, браузер опрашивает итог. Долгий запрос рвал прокси
+-- хостинга («Сервер долго отвечал»). Итог в базе, а не в памяти: процессов приложения
+-- у хостинга может быть несколько. Строки старше суток удаляются при новой задаче.
+-- Если процесс с задачей умер (пульс молчит 45 с), опрос подхватывает её заново.
+CREATE TABLE IF NOT EXISTS ratecon_jobs (
+  id           INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  company_id   VARCHAR(64) NOT NULL DEFAULT 'default',
+  status       VARCHAR(12) NOT NULL DEFAULT 'working',
+  -- Что читать — чтобы задачу мог подхватить другой процесс, если первый умер.
+  doc_id       INT,
+  input_text   MEDIUMTEXT,
+  -- Пульс работающего процесса (раз в 10 с) и сколько раз задачу подхватывали.
+  beat_at      DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  tries        INT NOT NULL DEFAULT 1,
+  result       MEDIUMTEXT,
+  error        TEXT,
+  created_at   DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  finished_at  DATETIME(6),
+  KEY ratecon_jobs_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
+
+INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-11-10')
 ON DUPLICATE KEY UPDATE value = VALUES(value);

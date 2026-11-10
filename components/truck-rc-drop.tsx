@@ -75,6 +75,9 @@ export function TruckRcDrop({
   const inputRef = useRef<HTMLInputElement>(null)
   // Kept so "Повторить" can re-run the same file without asking to re-pick it.
   const [lastFiles, setLastFiles] = useState<File[]>([])
+  // Rate Con, уже сохранённый у трака: «Повторить» не кладёт второй такой же документ.
+  const savedRef = useRef<{ file: File; id: number } | null>(null)
+  const [savedDoc, setSavedDoc] = useState(false)
 
   // A scanned rate con through Gemini really can take 60-90s. Without a visible,
   // ticking sign of life the page looks frozen — and a reload mid-flight loses the
@@ -102,6 +105,7 @@ export function TruckRcDrop({
     if (!list.length) return
     setLastFiles(list)
     setError(null)
+    setSavedDoc(false)
     setElsewhere(null)
     setBusy(true)
     setStage(t(locale, 'rcDrop.stageReading'))
@@ -150,28 +154,33 @@ export function TruckRcDrop({
       const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
       const isImage = file.type.startsWith('image/')
       const mime = isImage ? file.type : 'application/pdf'
-      const base64 = await fileToBase64(file)
       const text = texts.get(file) ?? ''
       const hasText = isPdf && !fileReads.has(file)
 
       // 2) save the RC as a document on this truck
       setStage(t(locale, 'rcDrop.stageSaving'))
-      const up = await sendDocument(file, { kind: sourceKind, truckId }, locale)
-      const docId = 'id' in up ? up.id : undefined
+      let docId: number | undefined
+      if (savedRef.current?.file === file) docId = savedRef.current.id
+      else {
+        const up = await sendDocument(file, { kind: sourceKind, truckId }, locale)
+        docId = 'id' in up ? up.id : undefined
+        savedRef.current = docId ? { file, id: docId } : null
+      }
+      setSavedDoc(!!docId)
 
       // 3) AI read (text for text-PDF, the file itself for scans/photos) — the only
       // recognizer that ever creates a load here; no regex fallback (a wrong guess
       // shouldn't get to auto-create a load, only a checked one should).
       setStage(hasText ? t(locale, 'rcDrop.stageRecognizing') : t(locale, 'rcDrop.stageRecognizingScan'))
-      const aiInput = hasText ? { text } : { pdfBase64: base64, mime, text: text || undefined }
-      // One automatic retry before bothering the dispatcher — a slow scan is usually
-      // just slow, not a real failure, and this clears most of them silently.
-      let ai = await aiParseRateCon(aiInput, locale)
-      if (!ai.ok && ai.reason !== 'off') {
-        setStage(t(locale, 'rcDrop.stageRetrying'))
-        await new Promise((r) => setTimeout(r, 1500))
-        ai = await aiParseRateCon(aiInput, locale)
-      }
+      // Скан читается из сохранённого документа (docId) — второй раз файл по сети не
+      // едет; base64 — только если сохранить не вышло. Повторы — внутри aiParseRateCon:
+      // сервер проходит модели два круга, браузер переживает сбои сети и хостинга.
+      const aiInput = hasText
+        ? { text }
+        : docId
+          ? { docId, text: text || undefined }
+          : { pdfBase64: await fileToBase64(file), mime, text: text || undefined }
+      const ai = await aiParseRateCon(aiInput, locale)
       if (!ai.ok) {
         throw new Error(
           ai.reason === 'no_key'
@@ -439,7 +448,10 @@ export function TruckRcDrop({
     )
   }
 
+  // Ошибка — отдельной полосой ПОД зоной, а не четвёртым элементом её строки: в строке
+  // она сжимала текст зоны до столбика по слову и наезжала на кнопку (11/10/26).
   return (
+    <div className="flex flex-col gap-2">
     <motion.label
       onDragOver={(e) => {
         e.preventDefault()
@@ -522,33 +534,25 @@ export function TruckRcDrop({
           </span>
         </>
       )}
-      {error && (
-        <span className="mt-2 flex flex-col items-center gap-1.5">
-          <span className="text-sm text-bad-400">{error}</span>
-          {elsewhere ? (
-            <Link
-              href={`/loads/${elsewhere}`}
-              onClick={(e) => e.stopPropagation()}
-              className="text-sm font-semibold text-haul-300 hover:underline"
-            >
-              {t(locale, 'rcDrop.openElsewhere')}
-            </Link>
-          ) : (
-            <Button
-              variant="primary"
-              size="sm"
-              type="button"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                handle(lastFiles)
-              }}
-            >
-              {t(locale, 'import.retryScan')}
-            </Button>
-          )}
-        </span>
-      )}
     </motion.label>
+      {error && (
+        <div className="flex flex-col gap-2 rounded-xl border border-bad-500/30 bg-bad-500/[0.06] px-3 py-3 sm:px-4">
+          <span className="text-sm leading-snug text-bad-400">{error}</span>
+          {savedDoc && <span className="text-xs text-t3">{t(locale, 'rcDrop.docKept')}</span>}
+          <div className="flex flex-wrap items-center gap-2">
+            {elsewhere ? (
+              <Link href={`/loads/${elsewhere}`} className="text-sm font-semibold text-haul-300 hover:underline">
+                {t(locale, 'rcDrop.openElsewhere')}
+              </Link>
+            ) : (
+              // «Без Rate Con — завести вручную» стоит прямо под зоной (truck-add-load.tsx).
+              <Button variant="primary" size="sm" type="button" onClick={() => handle(lastFiles)}>
+                {t(locale, 'import.retryScan')}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

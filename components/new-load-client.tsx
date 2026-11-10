@@ -80,23 +80,26 @@ export function NewLoadClient({
       }
       const hasText = isPdf && !fileRead
 
-      // Save the RC as a document — attached to the load on save.
+      // Save the RC as a document — attached to the load on save. Скан ждём: сервер
+      // читает файл прямо из сохранённого документа, второй раз он по сети не едет.
       setDocId(undefined)
-      void sendDocument(file, { kind: 'ratecon' }, locale).then((r) => {
+      const saving = sendDocument(file, { kind: 'ratecon' }, locale).then((r) => {
         if (reqId.current === my && 'id' in r) setDocId(r.id)
+        return 'id' in r ? r.id : undefined
       })
 
       setAi('loading')
-      const input = hasText
-        ? { text }
-        : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf', text: text || undefined }
-      // One automatic retry before bothering the dispatcher — a slow scan is usually
-      // just slow, not a real failure.
-      let res = await aiParseRateCon(input, locale)
-      if (!res.ok && res.reason !== 'off') {
-        await new Promise((r) => setTimeout(r, 1500))
-        res = await aiParseRateCon(input, locale)
+      let input: { text?: string; docId?: number; pdfBase64?: string; mime?: string }
+      if (hasText) input = { text }
+      else {
+        const savedId = await saving.catch(() => undefined)
+        if (reqId.current !== my) return
+        input = savedId
+          ? { docId: savedId, text: text || undefined }
+          : { pdfBase64: await fileToBase64(file), mime: isImage ? file.type : 'application/pdf', text: text || undefined }
       }
+      // Повторы — внутри: сервер проходит модели два круга, браузер переживает сбои сети.
+      const res = await aiParseRateCon(input, locale)
       if (reqId.current !== my) return
 
       if (res.ok) {

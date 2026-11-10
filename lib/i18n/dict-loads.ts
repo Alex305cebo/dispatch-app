@@ -434,12 +434,12 @@ export const loadsDict = {
     kk: 'Google AI кілті қойылмаған',
   },
   'newLoad.notRecognized': {
-    ru: 'Не распознался: {detail}. Попробуй ещё раз.',
-    en: 'Could not recognize: {detail}. Try again.',
-    es: 'No se reconoció: {detail}. Inténtalo otra vez.',
-    uk: 'Не розпізналося: {detail}. Спробуй ще раз.',
-    ro: 'Nu s-a recunoscut: {detail}. Încearcă din nou.',
-    kk: 'Танылмады: {detail}. Қайта көріңіз.',
+    ru: 'Не распознался: {detail}',
+    en: 'Could not recognize: {detail}',
+    es: 'No se reconoció: {detail}',
+    uk: 'Не розпізналося: {detail}',
+    ro: 'Nu s-a recunoscut: {detail}',
+    kk: 'Танылмады: {detail}',
   },
   'newLoad.notReadToast': {
     ru: 'Не прочитался: {msg}',
@@ -1507,6 +1507,14 @@ export const loadsDict = {
     uk: 'Розпізнаю скан через ШІ — це до півтори хвилини…',
     ro: 'IA citește scanarea — poate dura până la un minut și jumătate…',
     kk: 'ЖИ сканды тануда — бұл бір жарым минутқа дейін…',
+  },
+  'rcDrop.docKept': {
+    ru: 'Rate Con уже сохранён у трака — повторно загружать не нужно.',
+    en: 'The Rate Con is already saved on the truck — no need to upload it again.',
+    es: 'El Rate Con ya está guardado en el camión — no hace falta subirlo otra vez.',
+    uk: 'Rate Con уже збережено у трака — повторно завантажувати не треба.',
+    ro: 'Rate Con-ul e deja salvat la camion — nu trebuie încărcat din nou.',
+    kk: 'Rate Con тракта сақталған — қайта жүктеудің қажеті жоқ.',
   },
   'rcDrop.stageRetrying': {
     ru: 'Не получилось с первого раза — пробую ещё раз…',
@@ -2762,13 +2770,29 @@ export const loadsDict = {
   },
 
   // lib/ratecon-ai.ts
-  'rateconAi.slowServer': {
-    ru: 'Сервер долго отвечал (обычно так со сканами). Документ уже сохранён — собери груз кнопкой «Создать груз» ниже, либо попробуй ещё раз.',
-    en: 'The server took too long to respond (usually happens with scans). The document is already saved — assemble the load with the "Create load" button below, or try again.',
-    es: 'El servidor tardó mucho (suele pasar con escaneos). El documento ya está guardado — arma la carga con el botón «Crear carga» de abajo, o inténtalo otra vez.',
-    uk: 'Сервер довго відповідав (зазвичай так зі сканами). Документ уже збережено — збери вантаж кнопкою «Створити вантаж» нижче, або спробуй ще раз.',
-    ro: 'Serverul a răspuns greu (de obicei așa e cu scanările). Documentul e deja salvat — creează cursa cu butonul „Creează cursa” de mai jos sau încearcă din nou.',
-    kk: 'Сервер ұзақ жауап берді (әдетте скандармен солай). Құжат сақталған — төмендегі «Жүк құру» түймесімен жүк жинаңыз немесе қайта көріңіз.',
+  'rateconAi.hostingFail': {
+    ru: 'сервер не ответил ({code}). Документ сохранён у трака — нажми «Повторить» через минуту или введи груз вручную',
+    en: 'the server did not answer ({code}). The document is saved on the truck — press Retry in a minute or enter the load by hand',
+    es: 'el servidor no respondió ({code}). El documento está guardado en el camión — pulsa Repetir en un minuto o ingresa la carga a mano',
+    uk: 'сервер не відповів ({code}). Документ збережено у трака — натисни «Повторити» за хвилину або введи вантаж вручну',
+    ro: 'serverul nu a răspuns ({code}). Documentul e salvat la camion — apasă Repetă peste un minut sau introdu cursa manual',
+    kk: 'сервер жауап бермеді ({code}). Құжат тракта сақталған — бір минуттан кейін «Қайталау» басыңыз немесе жүкті қолмен енгізіңіз',
+  },
+  'rateconAi.noNetwork': {
+    ru: 'нет связи',
+    en: 'no connection',
+    es: 'sin conexión',
+    uk: 'немає звʼязку',
+    ro: 'fără conexiune',
+    kk: 'байланыс жоқ',
+  },
+  'rateconAi.stale': {
+    ru: 'чтение прервалось (сервер перезапускался)',
+    en: 'reading was interrupted (the server restarted)',
+    es: 'la lectura se interrumpió (el servidor se reinició)',
+    uk: 'читання перервалося (сервер перезапускався)',
+    ro: 'citirea s-a întrerupt (serverul a repornit)',
+    kk: 'оқу үзілді (сервер қайта қосылды)',
   },
 
   // lib/ratecon-ai-contract.ts
