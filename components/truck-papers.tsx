@@ -150,11 +150,10 @@ export function TruckPapersStrip() {
   const ctx = useContext(PapersCtx)
   if (!ctx) return null
   const { data, locale, open } = ctx
-  // Регистрацию трейлера и прочее — только когда есть что показать: шесть пустых
-  // полос новой машины сказали бы меньше, чем пять.
-  const slots = slotsOf(data).filter(
-    (s) => (PAPER_CORE.includes(s.paper) && s.paper !== 'trailer_reg') || s.date || (s.files.length && !PAPER_NO_EXPIRY.has(s.paper)),
-  )
+  // Обязательные шесть (CDL, медкарта, Cab Card, трейлер, страховка, инспекция) —
+  // всегда, пустое место видно сразу (владелец 11/10/26: «где Cab Card и трейлер?»).
+  // Пермиты, договор, инструкции — когда в них есть файл.
+  const slots = slotsOf(data).filter((s) => PAPER_CORE.includes(s.paper) || s.date || s.files.length > 0)
   return (
     <ul className="grid grid-cols-2 gap-2 @lg:grid-cols-3">
       {slots.map((s) => {
@@ -191,7 +190,13 @@ export function TruckPapersStrip() {
                 )}
               </span>
               <span className={`nums truncate text-sm ${s.date ? 'text-t1' : 'text-t3'}`}>
-                {s.date ? usDate(s.date) : s.files.length ? t(locale, 'papers.noDate') : t(locale, 'papers.noFile')}
+                {s.date
+                  ? usDate(s.date)
+                  : PAPER_NO_EXPIRY.has(s.paper) && s.files.length
+                    ? `${s.files.length} × PDF`
+                    : s.files.length
+                      ? t(locale, 'papers.noDate')
+                      : t(locale, 'papers.noFile')}
               </span>
             </button>
           </li>

@@ -56,7 +56,7 @@ import { DriverTimeline } from '@/components/driver-timeline'
 import { QueuedLoadHint } from '@/components/queued-load-hint'
 import { getLocale } from '@/lib/i18n-server'
 import { t, type Locale } from '@/lib/i18n'
-import { CopyPlace } from '@/components/copy-place'
+import { TruckWhere } from '@/components/truck-where'
 import { TruckPhoto } from '@/components/truck-photo'
 import { DateMore } from '@/components/date-more'
 import { MissingPodBanner } from '@/components/missing-pod-banner'
@@ -139,6 +139,8 @@ export default async function Page({
   const fs = truck.number ? fleet.get(truck.number) : undefined
   // Когда водитель последний раз открывал свою страницу — видно, что ссылка живая.
   const driverSeen = await getSetting(`driver_seen:${truck.id}`)
+  // Место трака для брокера: город, штат и индекс — его копирует «Где сейчас» и плашка «Трак ⇄ Груз».
+  const truckPlace = placeZip(fs?.location, fs?.lat, fs?.lng)
   // Документы водителя и трака (права, медкарта, регистрации, страховка…) — кнопка и
   // полосы сроков в шапке (components/truck-papers.tsx).
   const papers = await listTruckPapers(companyId, truck.id)
@@ -390,6 +392,24 @@ export default async function Page({
           </span>
         </div>
 
+        {fs?.location && (
+          /* Где сейчас (узкая плитка, телефон) — сразу под кнопками: адрес трака диспетчер
+             копирует брокеру десятки раз в день, листать до него нельзя. */
+          <div className="mt-4 @3xl:hidden">
+            <div>
+              <TruckWhere
+                place={truckPlace ?? fs.location}
+                raw={fs.location}
+                lat={fs.lat}
+                lng={fs.lng}
+                time={zoneFor(fs.lat, fs.lng) ? (<>{t(locale, 'trucks.head.driverTimeShort')} <LocalTime zone={zoneFor(fs.lat, fs.lng)!} className="nums font-semibold text-t1" /></>) : null}
+                locale={locale}
+              />
+              <TruckState fuel={fs.fuel} oil={oil} locale={locale} />
+            </div>
+          </div>
+        )}
+
         {/* Паспорт одной сеткой подписанных полей: подпись сверху, значение под ней.
             VIN не переносится — номер, разорванный на куски, диктовать брокеру нельзя. */}
         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-white/8 pt-4 @lg:grid-cols-3">
@@ -426,29 +446,6 @@ export default async function Page({
           <TruckPapersStrip />
         </div>
 
-        {fs?.location && (
-          /* Где сейчас (узкая плитка): место строкой, кнопки под ним. Ответ на «где
-             трак» почти всегда тут же уходит брокеру. */
-          <dl className="mt-4 border-t border-white/8 pt-4 @3xl:hidden">
-            <HeadField label={t(locale, 'trucks.head.location')}>
-              <span className="block">{fs.location}</span>
-              {zoneFor(fs.lat, fs.lng) && (
-                <span className="mt-0.5 block text-sm text-t2">
-                  {t(locale, 'trucks.head.driverTime')}: <LocalTime zone={zoneFor(fs.lat, fs.lng)!} className="nums font-semibold text-t1" />
-                </span>
-              )}
-              <CopyPlace
-                text={fs.location}
-                copy={cityOf(fs.location) ?? fs.location}
-                coords={{ lat: fs.lat, lng: fs.lng }}
-                variant="action"
-                hideText
-                className="mt-1.5"
-              />
-              <TruckState fuel={fs.fuel} oil={oil} locale={locale} />
-            </HeadField>
-          </dl>
-        )}
 
         </div>
         {/* Правая колонка — сама машина: фото на высоту левой колонки (по центру, а не
@@ -467,23 +464,17 @@ export default async function Page({
           </div>
           {fs?.location && (
             <dl className="@max-3xl:hidden">
-              <HeadField label={t(locale, 'trucks.head.location')}>
-                <span className="block">{fs.location}</span>
-                {zoneFor(fs.lat, fs.lng) && (
-                  <span className="mt-0.5 block text-sm text-t2">
-                    {t(locale, 'trucks.head.driverTime')}: <LocalTime zone={zoneFor(fs.lat, fs.lng)!} className="nums font-semibold text-t1" />
-                  </span>
-                )}
-                <CopyPlace
-                  text={fs.location}
-                  copy={cityOf(fs.location) ?? fs.location}
-                  coords={{ lat: fs.lat, lng: fs.lng }}
-                  variant="action"
-                  hideText
-                  className="mt-1.5"
+              <div>
+                <TruckWhere
+                  place={truckPlace ?? fs.location}
+                  raw={fs.location}
+                  lat={fs.lat}
+                  lng={fs.lng}
+                  time={zoneFor(fs.lat, fs.lng) ? (<>{t(locale, 'trucks.head.driverTimeShort')} <LocalTime zone={zoneFor(fs.lat, fs.lng)!} className="nums font-semibold text-t1" /></>) : null}
+                  locale={locale}
                 />
                 <TruckState fuel={fs.fuel} oil={oil} locale={locale} />
-              </HeadField>
+              </div>
             </dl>
           )}
         </div>
@@ -1019,7 +1010,6 @@ export default async function Page({
 
   const grid = await tileGrid('truck-detail', TRUCK_DETAIL_TILES, locale, migrateTruckCard)
   // Плашка «Трак ⇄ Груз»: место с индексом, чат водителя (если Telegram подключён).
-  const truckPlace = placeZip(fs?.location, fs?.lat, fs?.lng)
   const tgOn = !!user && !user.isDemo && (await tgConnected(user.id).catch(() => false))
 
   return (
