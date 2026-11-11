@@ -12,19 +12,19 @@ export const papersDict = {
 
   'papers.type.cdl': { ru: 'Права (CDL)', en: 'Driver license (CDL)', es: 'Licencia (CDL)', uk: 'Права (CDL)', ro: 'Permis (CDL)', kk: 'Куәлік (CDL)' },
   'papers.type.medcard': { ru: 'Медкарта', en: 'Medical card', es: 'Tarjeta médica', uk: 'Медкартка', ro: 'Card medical', kk: 'Медкарта' },
-  'papers.type.truck_reg': { ru: 'Регистрация трака (cab card)', en: 'Truck registration (cab card)', es: 'Registro del camión (cab card)', uk: 'Реєстрація трака (cab card)', ro: 'Înmatriculare camion (cab card)', kk: 'Көлік тіркеуі (cab card)' },
-  'papers.type.trailer_reg': { ru: 'Регистрация трейлера', en: 'Trailer registration', es: 'Registro del tráiler', uk: 'Реєстрація трейлера', ro: 'Înmatriculare remorcă', kk: 'Тіркеме тіркеуі' },
+  'papers.type.truck_reg': { ru: 'Cab Card (регистрация трака, IRP)', en: 'Cab Card (truck registration, IRP)', es: 'Cab Card (registro del camión, IRP)', uk: 'Cab Card (реєстрація трака, IRP)', ro: 'Cab Card (înmatriculare camion, IRP)', kk: 'Cab Card (көлік тіркеуі, IRP)' },
+  'papers.type.trailer_reg': { ru: 'Trailer registration (регистрация трейлера)', en: 'Trailer registration', es: 'Trailer registration (registro del tráiler)', uk: 'Trailer registration (реєстрація трейлера)', ro: 'Trailer registration (înmatriculare remorcă)', kk: 'Trailer registration (тіркеме тіркеуі)' },
   'papers.type.insurance': { ru: 'Страховка', en: 'Insurance', es: 'Seguro', uk: 'Страховка', ro: 'Asigurare', kk: 'Сақтандыру' },
   'papers.type.inspection': { ru: 'Годовая инспекция', en: 'Annual inspection', es: 'Inspección anual', uk: 'Річна інспекція', ro: 'Inspecție anuală', kk: 'Жылдық тексеру' },
   'papers.type.permit': { ru: 'Пермиты (IFTA, IRP, 2290)', en: 'Permits (IFTA, IRP, 2290)', es: 'Permisos (IFTA, IRP, 2290)', uk: 'Перміти (IFTA, IRP, 2290)', ro: 'Permise (IFTA, IRP, 2290)', kk: 'Рұқсаттар (IFTA, IRP, 2290)' },
   'papers.type.lease': { ru: 'Договор (lease)', en: 'Lease agreement', es: 'Contrato (lease)', uk: 'Договір (lease)', ro: 'Contract (lease)', kk: 'Шарт (lease)' },
-  'papers.type.instructions': { ru: 'Инструкции', en: 'Instructions', es: 'Instrucciones', uk: 'Інструкції', ro: 'Instrucțiuni', kk: 'Нұсқаулар' },
+  'papers.type.instructions': { ru: 'Инструкции (ELD и др.)', en: 'Instructions', es: 'Instrucciones', uk: 'Інструкції', ro: 'Instrucțiuni', kk: 'Нұсқаулар' },
   'papers.type.other': { ru: 'Другой документ', en: 'Other document', es: 'Otro documento', uk: 'Інший документ', ro: 'Alt document', kk: 'Басқа құжат' },
 
   'papers.short.cdl': { ru: 'CDL', en: 'CDL', es: 'CDL', uk: 'CDL', ro: 'CDL', kk: 'CDL' },
   'papers.short.medcard': { ru: 'Медкарта', en: 'Medical', es: 'Médica', uk: 'Медкартка', ro: 'Medical', kk: 'Медкарта' },
-  'papers.short.truck_reg': { ru: 'Регистрация', en: 'Registration', es: 'Registro', uk: 'Реєстрація', ro: 'Înmatriculare', kk: 'Тіркеу' },
-  'papers.short.trailer_reg': { ru: 'Рег. трейлера', en: 'Trailer reg.', es: 'Reg. tráiler', uk: 'Реєстр. трейлера', ro: 'Înm. remorcă', kk: 'Тіркеме тіркеуі' },
+  'papers.short.truck_reg': { ru: 'Cab Card', en: 'Cab Card', es: 'Cab Card', uk: 'Cab Card', ro: 'Cab Card', kk: 'Cab Card' },
+  'papers.short.trailer_reg': { ru: 'Trailer reg.', en: 'Trailer reg.', es: 'Trailer reg.', uk: 'Trailer reg.', ro: 'Trailer reg.', kk: 'Trailer reg.' },
   'papers.short.insurance': { ru: 'Страховка', en: 'Insurance', es: 'Seguro', uk: 'Страховка', ro: 'Asigurare', kk: 'Сақтандыру' },
   'papers.short.inspection': { ru: 'Инспекция', en: 'Inspection', es: 'Inspección', uk: 'Інспекція', ro: 'Inspecție', kk: 'Тексеру' },
   'papers.short.permit': { ru: 'Пермиты', en: 'Permits', es: 'Permisos', uk: 'Перміти', ro: 'Permise', kk: 'Рұқсаттар' },
@@ -80,4 +80,11 @@ export const papersDict = {
     kk: 'CDL, медкарта, тіркеу, сақтандыру және тексеру мерзімдері «Көліктер» бөлімінде және жүк тағайындағанда ескертеді.',
   },
   'papers.readonly': { ru: 'Демо: только просмотр', en: 'Demo: view only', es: 'Demo: solo lectura', uk: 'Демо: лише перегляд', ro: 'Demo: doar vizualizare', kk: 'Демо: тек қарау' },
+
+  // «Где сейчас» в шапке трака (components/truck-where.tsx).
+  'where.title': { ru: 'Где сейчас', en: 'Location now', es: 'Ubicación ahora', uk: 'Де зараз', ro: 'Unde e acum', kk: 'Қазір қайда' },
+  'where.copyAddress': { ru: 'Копировать адрес', en: 'Copy address', es: 'Copiar dirección', uk: 'Копіювати адресу', ro: 'Copiază adresa', kk: 'Мекенжайды көшіру' },
+  'where.copyCoords': { ru: 'Копировать координаты (точная точка для карт)', en: 'Copy coordinates (exact point for maps)', es: 'Copiar coordenadas', uk: 'Копіювати координати', ro: 'Copiază coordonatele', kk: 'Координаттарды көшіру' },
+  'where.copied': { ru: 'Скопировано', en: 'Copied', es: 'Copiado', uk: 'Скопійовано', ro: 'Copiat', kk: 'Көшірілді' },
+  'where.openMap': { ru: 'Открыть карту', en: 'Open map', es: 'Abrir mapa', uk: 'Відкрити карту', ro: 'Deschide harta', kk: 'Картаны ашу' },
 } as const
