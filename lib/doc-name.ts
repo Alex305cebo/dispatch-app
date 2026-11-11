@@ -14,8 +14,12 @@
 // файла недопустима). В имени нет символов, на которые срабатывает фильтр хостинга
 // (lib/upload-name.ts): только буквы, цифры, пробел, # . - _.
 
+import { PAPER_FILE_LABEL } from './truck-papers-core.ts'
+
 export type DocNameInput = {
   kind: string
+  /** Тип бумаги водителя/трака (lib/truck-papers-core.ts) — точнее, чем kind. */
+  paper?: string | null
   /** Текущее имя — из него берётся расширение. */
   title: string
   mime: string
@@ -43,6 +47,8 @@ const KIND: Record<string, string> = {
   photo: 'PHOTO',
   other: 'DOC',
 }
+
+const PAPER_LABEL: Record<string, string> = PAPER_FILE_LABEL
 
 const MIME_EXT: Record<string, string> = {
   'application/pdf': 'pdf',
@@ -93,7 +99,7 @@ export function nameDate(at: Date | string): string {
   return `${p.month}-${p.day}-${p.year}`
 }
 
-const LABELS = Object.values(KIND).join('|')
+const LABELS = [...Object.values(KIND), ...Object.values(PAPER_LABEL)].join('|')
 /** Имя, уже собранное этим правилом: «POD 620042 Tallgrass #1705 09-11-26 - описание.pdf». */
 const OURS = new RegExp(`^(${LABELS})\\b.*?\\b\\d{2}-\\d{2}-\\d{2}(?: - (.+))?$`)
 
@@ -128,7 +134,7 @@ function describe(title: string): string {
 const SELF_EXPLANATORY = new Set(['ratecon', 'driverinfo', 'bol', 'pod', 'invoice'])
 
 export function docName(d: DocNameInput): string {
-  const kind = KIND[d.kind] ?? 'DOC'
+  const kind = (d.paper && PAPER_LABEL[d.paper]) || KIND[d.kind] || 'DOC'
   const stop =
     d.kind === 'pod' && d.stopSeq != null && (d.stopCount ?? 0) > 2 ? `${d.stopSeq} of ${d.stopCount}` : ''
   const ref = d.kind === 'invoice' && d.invoiceNumber ? d.invoiceNumber : d.ref

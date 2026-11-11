@@ -591,5 +591,13 @@ CREATE TABLE IF NOT EXISTS ratecon_jobs (
   KEY ratecon_jobs_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_nopad_bin;
 
-INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-11-10')
+-- Документы водителя и трака (11/10/26, lib/truck-papers-core.ts): права, медкарта,
+-- регистрация трака и трейлера, страховка, инспекция, пермиты, инструкции. Тип — paper
+-- (kind остаётся общим: other / registration / insurance, CHECK не трогаем). Срок у
+-- типов без колонки в truck_meta (трейлер, пермиты, договор) — на самом документе.
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS paper VARCHAR(16) NULL;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS expires_on DATE NULL;
+CREATE INDEX IF NOT EXISTS docs_truck_paper ON documents (truck_id, paper);
+
+INSERT INTO settings ("key", value) VALUES ('schema_version', '2026-11-11')
 ON DUPLICATE KEY UPDATE value = VALUES(value);

@@ -21,6 +21,8 @@ import { cookies, headers } from 'next/headers'
 import { shrinkPhoto } from '@/lib/photo'
 import { sql } from '@/lib/db'
 import { withFreshSchema } from '@/lib/install'
+import { cleanIsoDate, isPaperType, PAPER_KIND } from '@/lib/truck-papers-core'
+import { writePaperDate } from '@/lib/truck-papers'
 import { humanError } from '@/lib/msg'
 import { LOAD_PRIORITIES, type LoadPriority, type LoadStatus } from '@/lib/map'
 import { CHARGE_KINDS, type ChargeKind } from '@/lib/charges-core'
@@ -1716,7 +1718,14 @@ export async function uploadDocument(
   if (!(file instanceof File) || file.size === 0) return { error: t(locale, 'actions.noFileSelected'), noFile: true }
   if (file.size > MAX_DOC_BYTES) return { error: t(locale, 'actions.fileOver8mb') }
 
-  const kind = String(fd.get('kind') || 'other')
+  // Бумага водителя/трака (components/truck-papers.tsx): тип задаёт и общий kind.
+  const paperRaw = fd.get('paper')
+  const paper = isPaperType(paperRaw) ? paperRaw : null
+  const kind = paper ? PAPER_KIND[paper] : String(fd.get('kind') || 'other')
+  const expiresOn = cleanIsoDate(fd.get('expiresOn'))
+  // «Заменить»: новый файл встаёт на место старого, старый уходит в корзину (его можно
+  // вернуть из «Документов»).
+  const replaceOf = fd.get('replaceOf') ? Number(fd.get('replaceOf')) : null
   // Имя и подпись браузер шлёт hex-строкой (lib/send-document.ts): открытым текстом
   // имя с датой и временем фильтр хостинга вырезал вместе с файлом.
   const title =
@@ -1738,6 +1747,13 @@ export async function uploadDocument(
     const own = truckId ? await sql`SELECT 1 FROM truck_todos WHERE id = ${todoId} AND truck_id = ${truckId}` : []
     if (!own.length) return { error: t(locale, 'actions.entryNotFound') }
   }
+  if (paper && !truckId) return { error: t(locale, 'actions.truckNotFound') }
+  if (replaceOf != null) {
+    const own = truckId
+      ? await sql`SELECT 1 FROM documents WHERE id = ${replaceOf} AND truck_id = ${truckId} AND company_id = ${companyId} AND deleted_at IS NULL`
+      : []
+    if (!own.length) return { error: t(locale, 'actions.docNotFound') }
+  }
   // Hex round-trip: Neon's HTTP driver JSON-encodes params, raw bytes don't survive.
   const hex = Buffer.from(await file.arrayBuffer()).toString('hex')
   const mime = file.type || 'application/octet-stream'
@@ -1755,7 +1771,20 @@ export async function uploadDocument(
       VALUES (${truckId}, ${loadId}, ${maintenanceId}, ${kind}, ${title},
               ${file.type || 'application/octet-stream'}, ${file.size}, UNHEX(${hex}), ${companyId}, ${stopSeq})
       RETURNING id`
-    await retitleDocuments({ ids: [(rows[0] as { id: number }).id] })
+    const newId = (rows[0] as { id: number }).id
+    if (paper && truckId) {
+      await withFreshSchema(() => sql`UPDATE documents SET paper = ${paper}, expires_on = ${expiresOn} WHERE id = ${newId}`)
+      // Срок, введённый при загрузке, сразу ложится и в карточку (CDL до, Медкарта до…).
+      if (expiresOn) await writePaperDate(truckId, paper, expiresOn, newId)
+    }
+    if (replaceOf != null) {
+      // Не трогает срок старого документа: он уже в корзине и в расчёт не идёт.
+      await sql`UPDATE documents SET deleted_at = NOW(6) WHERE id = ${replaceOf}`
+      const user = await getCurrentUser()
+      const old = (await sql`SELECT title, kind FROM documents WHERE id = ${replaceOf}`) as { title: string; kind: string }[]
+      if (old[0]) await auditDelete(companyId, user?.name || t(locale, 'actions.dispatcherFallback'), 'replace_document', old[0].title, old[0].kind, null, null)
+    }
+    await retitleDocuments({ ids: [newId] })
     revalidatePath('/docs')
     if (truckId) revalidatePath(`/trucks/${truckId}`)
     if (loadId) revalidatePath(`/loads/${loadId}`)
@@ -2515,6 +2544,99 @@ export async function updateMaintenance(id: number, truckId: number, m: Maintena
   revalidatePath(`/trucks/${truckId}`)
   revalidatePath('/garage')
   return { id }
+}
+
+/* ---------- Документы водителя и трака (components/truck-papers.tsx) ---------- */
+
+/** Срок бумаги. docId — у конкретного файла; без него — срок места (CDL до, медкарта до…),
+ * его можно поставить и без файла. Пустая строка стирает срок. */
+export async function setPaperDate(
+  truckId: number,
+  paper: string,
+  date: string,
+  docId: number | null,
+): Promise<{ error: string } | void> {
+  const ro = await writeGuard()
+  if (ro) return ro
+  const locale = await getLocale()
+  const companyId = await companyScope()
+  if (!isPaperType(paper)) return { error: t(locale, 'actions.entryNotFound') }
+  if (!(await truckBelongs(companyId, truckId))) return { error: t(locale, 'actions.truckNotFound') }
+  const clean = date.trim() ? cleanIsoDate(date) : null
+  if (date.trim() && !clean) return { error: t(locale, 'papers.badDate') }
+  if (docId != null) {
+    const own = await sql`SELECT 1 FROM documents WHERE id = ${docId} AND truck_id = ${truckId} AND company_id = ${companyId}`
+    if (!own.length) return { error: t(locale, 'actions.docNotFound') }
+  }
+  try {
+    await writePaperDate(truckId, paper, clean, docId)
+  } catch (e) {
+    return { error: humanError(e, locale) }
+  }
+  revalidatePath(`/trucks/${truckId}`)
+  revalidatePath('/trucks')
+  revalidatePath('/garage')
+  revalidatePath('/', 'layout')
+}
+
+/** Сменить тип бумаги: загрузили медкарту как CDL. Файл и срок остаются на месте. */
+export async function setPaperType(docId: number, paper: string): Promise<{ error: string } | void> {
+  const ro = await writeGuard()
+  if (ro) return ro
+  const locale = await getLocale()
+  const companyId = await companyScope()
+  if (!isPaperType(paper)) return { error: t(locale, 'actions.entryNotFound') }
+  const rows = (await sql`SELECT truck_id FROM documents WHERE id = ${docId} AND company_id = ${companyId} AND load_id IS NULL`) as {
+    truck_id: number | null
+  }[]
+  const truckId = rows[0]?.truck_id
+  if (!truckId) return { error: t(locale, 'actions.docNotFound') }
+  try {
+    await withFreshSchema(() => sql`UPDATE documents SET paper = ${paper}, kind = ${PAPER_KIND[paper]} WHERE id = ${docId}`)
+    await retitleDocuments({ ids: [docId] })
+  } catch (e) {
+    return { error: humanError(e, locale) }
+  }
+  revalidatePath(`/trucks/${truckId}`)
+  revalidatePath('/docs')
+}
+
+/** Прочитать срок действия с файла (Gemini) и записать его. Не обязательный шаг:
+ * без ключа или без даты на бумаге — понятный отказ, срок можно ввести руками. */
+export async function readPaperExpiry(docId: number): Promise<{ date: string } | { error: string }> {
+  const denied = await aiGuard()
+  if (denied) return denied
+  const ro = await writeGuard()
+  if (ro) return ro
+  const locale = await getLocale()
+  const companyId = await companyScope()
+  const rows = (await withFreshSchema(() => sql`
+    SELECT truck_id, paper, kind, mime, data FROM documents
+    WHERE id = ${docId} AND company_id = ${companyId} AND deleted_at IS NULL`)) as {
+    truck_id: number | null
+    paper: string | null
+    kind: string
+    mime: string
+    data: Buffer
+  }[]
+  const doc = rows[0]
+  const { paperOf } = await import('@/lib/truck-papers-core')
+  const paper = doc ? paperOf(doc) : null
+  if (!doc?.truck_id || !paper) return { error: t(locale, 'actions.docNotFound') }
+  const mime = (doc.mime || '').split(';')[0]!.trim()
+  if (!(mime === 'application/pdf' || mime.startsWith('image/'))) return { error: t(locale, 'papers.readNotFound') }
+  const { readExpiryFromFile } = await import('@/lib/truck-papers')
+  const res = await readExpiryFromFile(Buffer.from(doc.data), mime, paper)
+  if ('error' in res) return { error: t(locale, res.error === 'noKey' ? 'papers.readNoKey' : 'papers.readNotFound') }
+  try {
+    await writePaperDate(doc.truck_id, paper, res.date, docId)
+  } catch (e) {
+    return { error: humanError(e, locale) }
+  }
+  revalidatePath(`/trucks/${doc.truck_id}`)
+  revalidatePath('/trucks')
+  revalidatePath('/', 'layout')
+  return res
 }
 
 /** Привязать бумагу трака к пункту «Нужно починить» (или отвязать: todoId = null).
