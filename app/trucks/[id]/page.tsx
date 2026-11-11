@@ -30,6 +30,8 @@ import { TruckForm } from '@/components/truck-form'
 import { FuelPriceButton } from '@/components/fuel-price-button'
 import { TruckCare } from '@/components/truck-care'
 import { DriverActions, DriverPhoto } from '@/components/driver-card'
+import { TruckPapersButton, TruckPapersProvider, TruckPapersStrip } from '@/components/truck-papers'
+import { listTruckPapers } from '@/lib/truck-papers'
 import { TruckAddLoad } from '@/components/truck-add-load'
 import { TruckTabs } from '@/components/truck-tabs'
 import { TruckWeek } from '@/components/truck-week'
@@ -137,6 +139,24 @@ export default async function Page({
   const fs = truck.number ? fleet.get(truck.number) : undefined
   // Когда водитель последний раз открывал свою страницу — видно, что ссылка живая.
   const driverSeen = await getSetting(`driver_seen:${truck.id}`)
+  // Документы водителя и трака (права, медкарта, регистрации, страховка…) — кнопка и
+  // полосы сроков в шапке (components/truck-papers.tsx).
+  const papers = await listTruckPapers(companyId, truck.id)
+  const papersData = {
+    truckId: truck.id,
+    today: todayEt(),
+    readOnly: companyId === 'demo' || !user || user.isDemo,
+    driverName: truck.driverName,
+    truckNumber: truck.number,
+    metaDates: {
+      cdlExpiry: meta?.cdlExpiry ?? null,
+      medcardExpiry: meta?.medcardExpiry ?? null,
+      registrationExpiry: meta?.registrationExpiry ?? null,
+      insuranceExpiry: meta?.insuranceExpiry ?? null,
+      inspectionExpiry: meta?.inspectionExpiry ?? null,
+    },
+    docs: papers,
+  }
   // Адрес страницы водителя готов сразу — тогда кнопки «отправить в Telegram или
   // SMS» видны без лишнего нажатия. В демо ссылку не выдаём — и без входа (открытый
   // доступ) тоже: ссылка даёт записывать в рейс.
@@ -274,6 +294,7 @@ export default async function Page({
   // повторяла имя, телефон, трак, трейлер и VIN, и её убрали — сроки CDL и медкарты,
   // фото и кнопки «Скопировать для брокера» / «Изменить» переехали сюда.
   add('hero', (
+    <TruckPapersProvider data={papersData} locale={locale}>
     <section className="panel relative overflow-hidden @container">
       <div
         aria-hidden
@@ -301,48 +322,63 @@ export default async function Page({
           <TruckAvailability truckId={truck.id} current={truck.unavailable} locale={locale} />
         </div>
 
-        {/* Водитель: фото (нажать — загрузить новое), имя и две кнопки. Кнопки
-            уходят под имя, когда плитке не хватает ширины, а не сжимают его. */}
-        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
-          <div className="flex min-w-0 flex-1 basis-48 items-center gap-3">
-            <DriverPhoto
-              truckId={truck.id}
-              name={truck.driverName}
-              hasPhoto={meta?.hasPhoto ?? false}
-              locale={locale}
-            />
-            <div className="min-w-0">
-              <p className="text-sm font-medium leading-4 text-t3">{t(locale, 'trucks.driverCard.heading')}</p>
-              <p className="mt-1 truncate text-lg font-semibold leading-6 text-t1">
-                {truck.driverName || <span className="text-base font-medium text-t3">{t(locale, 'trucks.detail.noDriver')}</span>}
-              </p>
-            </div>
+        {/* Водитель: фото (нажать — загрузить новое), имя и телефон под именем — кто
+            за рулём и как до него дозвониться читаются одним взглядом. */}
+        <div className="mt-4 flex min-w-0 items-center gap-3">
+          <DriverPhoto
+            truckId={truck.id}
+            name={truck.driverName}
+            hasPhoto={meta?.hasPhoto ?? false}
+            locale={locale}
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-medium leading-4 text-t3">{t(locale, 'trucks.driverCard.heading')}</p>
+            <p className="mt-1 truncate text-lg font-semibold leading-6 text-t1">
+              {truck.driverName || <span className="text-base font-medium text-t3">{t(locale, 'trucks.detail.noDriver')}</span>}
+            </p>
+            {meta?.driverPhone ? (
+              <a
+                href={`tel:${meta.driverPhone}`}
+                className="nums mt-0.5 inline-flex items-center gap-1.5 whitespace-nowrap text-base font-medium text-t2 transition-colors hover:text-haul-300 max-md:min-h-9"
+              >
+                <Phone size={14} strokeWidth={2.2} className="text-haul-300" />
+                {meta.driverPhone}
+              </a>
+            ) : (
+              <p className="mt-0.5 text-sm text-t3">{t(locale, 'trucks.detail.noPhone')}</p>
+            )}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <DriverActions
-              truckId={truck.id}
-              name={truck.driverName}
-              phone={meta?.driverPhone ?? null}
-              cdlExpiry={meta?.cdlExpiry ?? null}
-              medcardExpiry={meta?.medcardExpiry ?? null}
-              hasPhoto={meta?.hasPhoto ?? false}
-              truckNumber={truck.number}
-              trailerNumber={meta?.trailerNumber ?? null}
-              vin={meta?.vin ?? null}
-              broker={{
-                // MC печатается без приставки: в блоке для брокера строка уже
-                // начинается с «MC - », и «MC - MC 626911» читалось бы как ошибка.
-                mc: company.mcdot.replace(/^MC[\s#-]*/i, ''),
-                companyName: company.name,
-                companyEmail: company.email,
-                dispatcherName: dispatcherName ?? user?.name ?? '',
-                dispatcherPhone: dispatcherPhone ?? '',
-              }}
-              locale={locale}
-            />
-            {/* «＋ Груз» — одна кнопка на всю карточку (план «Порядок в TMS»): Rate Con
-                или вручную. Раньше то же самое было кнопкой здесь, плиткой «Новый груз
-                из rate con» и кнопкой «Добавить груз» у списка грузов. */}
+        </div>
+
+        {/* Все действия с водителем и траком — одним рядом: документы, блок для брокера,
+            правка, и справа главное действие «＋ Груз». На узкой плитке ряд переносится,
+            а не сжимает подписи. */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <TruckPapersButton />
+          <DriverActions
+            truckId={truck.id}
+            name={truck.driverName}
+            phone={meta?.driverPhone ?? null}
+            cdlExpiry={meta?.cdlExpiry ?? null}
+            medcardExpiry={meta?.medcardExpiry ?? null}
+            hasPhoto={meta?.hasPhoto ?? false}
+            truckNumber={truck.number}
+            trailerNumber={meta?.trailerNumber ?? null}
+            vin={meta?.vin ?? null}
+            broker={{
+              // MC печатается без приставки: в блоке для брокера строка уже
+              // начинается с «MC - », и «MC - MC 626911» читалось бы как ошибка.
+              mc: company.mcdot.replace(/^MC[\s#-]*/i, ''),
+              companyName: company.name,
+              companyEmail: company.email,
+              dispatcherName: dispatcherName ?? user?.name ?? '',
+              dispatcherPhone: dispatcherPhone ?? '',
+            }}
+            locale={locale}
+          />
+          {/* «＋ Груз» — одна кнопка на всю карточку (план «Порядок в TMS»): Rate Con
+              или вручную. */}
+          <span className="@xl:ml-auto">
             <TruckAddLoad
               truckId={truck.id}
               currentLoad={
@@ -351,26 +387,12 @@ export default async function Page({
                   : null
               }
             />
-          </div>
+          </span>
         </div>
 
         {/* Паспорт одной сеткой подписанных полей: подпись сверху, значение под ней.
-            Телефон и VIN не переносятся — номер, разорванный на куски, диктовать
-            брокеру нельзя; в две колонки им отдана вся строка. */}
-        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 @lg:grid-cols-3">
-          <HeadField label={t(locale, 'trucks.driverCard.phoneRowLabel')} className="col-span-2 @lg:col-span-1">
-            {meta?.driverPhone ? (
-              <a
-                href={`tel:${meta.driverPhone}`}
-                className="nums inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border border-white/12 bg-white/[0.04] px-2.5 text-base font-medium text-t1 transition-colors hover:border-white/30 hover:bg-white/[0.08] max-md:h-10"
-              >
-                <Phone size={14} strokeWidth={2.2} className="text-haul-300" />
-                {meta.driverPhone}
-              </a>
-            ) : (
-              <span className="text-t3">{t(locale, 'trucks.detail.noPhone')}</span>
-            )}
-          </HeadField>
+            VIN не переносится — номер, разорванный на куски, диктовать брокеру нельзя. */}
+        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-white/8 pt-4 @lg:grid-cols-3">
           <HeadField label={t(locale, 'trucks.driverCard.trailerRowLabel')}>
             {meta?.trailerNumber ? <span className="nums">{meta.trailerNumber}</span> : <span className="text-t3">—</span>}
           </HeadField>
@@ -384,16 +406,10 @@ export default async function Page({
               <span className="nums whitespace-nowrap text-base text-t2">{meta.vin}</span>
             </HeadField>
           )}
-          <HeadField label={t(locale, 'trucks.driverCard.cdlLabel')}>
-            {meta?.cdlExpiry ? <span className="nums">{usDate(meta.cdlExpiry)}</span> : <span className="text-t3">—</span>}
-          </HeadField>
-          <HeadField label={t(locale, 'trucks.driverCard.medcardLabel')}>
-            {meta?.medcardExpiry ? <span className="nums">{usDate(meta.medcardExpiry)}</span> : <span className="text-t3">—</span>}
-          </HeadField>
           {/* Кто ведёт эту машину. Закрепление живёт в админке, а нужно оно здесь: на
               странице трака и спрашивают «кто им занимается». */}
           {(user?.role === 'admin' || dispatcherName) && (
-            <HeadField label={t(locale, 'trucks.detail.dispatcherPick')} className="col-span-2">
+            <HeadField label={t(locale, 'trucks.detail.dispatcherPick')} className="col-span-2 @lg:col-span-1">
               {user?.role === 'admin' ? (
                 <TruckDispatcher bare truckId={truck.id} current={dispatcherId} users={staff} />
               ) : (
@@ -401,10 +417,20 @@ export default async function Page({
               )}
             </HeadField>
           )}
-          {fs?.location && (
-            /* Где сейчас: место — отдельной строкой во всю ширину, кнопки под ним.
-               Ответ на «где трак» почти всегда тут же уходит брокеру. */
-            <HeadField label={t(locale, 'trucks.head.location')} className="col-span-full @3xl:hidden">
+        </dl>
+
+        {/* Сроки документов полосами вместо строк «CDL до —»: цвет — статус, нажатие
+            открывает документы водителя на нужном месте. */}
+        <div className="mt-4 border-t border-white/8 pt-4">
+          <p className="mb-2 text-sm font-medium leading-4 text-t3">{t(locale, 'papers.deadlines')}</p>
+          <TruckPapersStrip />
+        </div>
+
+        {fs?.location && (
+          /* Где сейчас (узкая плитка): место строкой, кнопки под ним. Ответ на «где
+             трак» почти всегда тут же уходит брокеру. */
+          <dl className="mt-4 border-t border-white/8 pt-4 @3xl:hidden">
+            <HeadField label={t(locale, 'trucks.head.location')}>
               <span className="block">{fs.location}</span>
               {zoneFor(fs.lat, fs.lng) && (
                 <span className="mt-0.5 block text-sm text-t2">
@@ -421,8 +447,8 @@ export default async function Page({
               />
               <TruckState fuel={fs.fuel} oil={oil} locale={locale} />
             </HeadField>
-          )}
-        </dl>
+          </dl>
+        )}
 
         </div>
         {/* Правая колонка — сама машина: фото на высоту левой колонки (по центру, а не
@@ -463,6 +489,7 @@ export default async function Page({
         </div>
       </div>
     </section>
+    </TruckPapersProvider>
   ))
 
   // Текущее задание — своя плитка. В шапке оно жило внутри левой колонки, и вся

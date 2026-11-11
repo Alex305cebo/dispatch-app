@@ -24,6 +24,7 @@ import { plannerDict } from './i18n/dict-planner.ts'
 import { amazonDict } from './i18n/dict-amazon.ts'
 import { serviceDict } from './i18n/dict-service.ts'
 import { analyticsDict } from './i18n/dict-analytics.ts'
+import { papersDict } from './i18n/dict-papers.ts'
 
 export type Locale = 'en' | 'ru' | 'es' | 'uk' | 'ro' | 'kk'
 
@@ -74,6 +75,7 @@ const DICT = {
   ...amazonDict,
   ...serviceDict,
   ...analyticsDict,
+  ...papersDict,
 } as const
 
 export type MsgKey = keyof typeof DICT

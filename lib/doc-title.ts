@@ -11,12 +11,14 @@ import 'server-only'
 import { sql } from './db.ts'
 import { docName } from './doc-name.ts'
 import { getSetting, setSetting } from './settings.ts'
+import { withFreshSchema } from './install.ts'
 
 type Scope = { ids?: number[]; loadId?: number | null; truckId?: number | null; companyId?: string; all?: boolean }
 
 type Row = {
   id: number
   kind: string
+  paper: string | null
   title: string
   mime: string
   stop_seq: number | null
@@ -32,8 +34,9 @@ export async function retitleDocuments(scope: Scope): Promise<number> {
   const ids = (scope.ids ?? []).filter((n) => Number.isFinite(n) && n > 0)
   if (!scope.all && !ids.length && !scope.loadId && !scope.truckId && !scope.companyId) return 0
   try {
-    const rows = (await sql`
-      SELECT d.id, d.kind, d.title, d.mime, d.stop_seq, d.uploaded_at,
+    // paper — колонка 11/10/26: на базе без свежей схемы запрос дотягивает её сам.
+    const rows = (await withFreshSchema(() => sql`
+      SELECT d.id, d.kind, d.paper, d.title, d.mime, d.stop_seq, d.uploaded_at,
              l.reference_id, l.invoice_number, l.broker_name, l.stops,
              COALESCE(td.number, tl.number) AS truck_number
       FROM documents d
@@ -45,12 +48,13 @@ export async function retitleDocuments(scope: Scope): Promise<number> {
          OR d.load_id = ${scope.loadId ?? -1}
          OR d.truck_id = ${scope.truckId ?? -1}
          OR l.truck_id = ${scope.truckId ?? -1}
-         OR d.company_id = ${scope.companyId ?? '-'}`) as Row[]
+         OR d.company_id = ${scope.companyId ?? '-'}`)) as Row[]
     let changed = 0
     for (const r of rows) {
       const stops = typeof r.stops === 'string' ? JSON.parse(r.stops) : r.stops
       const title = docName({
         kind: r.kind,
+        paper: r.paper,
         title: r.title,
         mime: r.mime,
         stopSeq: r.stop_seq,

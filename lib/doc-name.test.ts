@@ -75,3 +75,11 @@ test('пересчёт имени, собранного правилом, даё
   const rc = docName(base)
   assert.equal(docName({ ...base, title: rc }), rc)
 })
+
+test('бумага водителя называется своим типом, а не DOC', () => {
+  const cdl = { kind: 'other', paper: 'cdl', title: 'IMG_2041.jpg', mime: 'image/jpeg', stopSeq: null, stopCount: null, ref: null, invoiceNumber: null, broker: null, truck: '1935', uploadedAt: '2026-11-10T18:00:00Z' }
+  assert.equal(docName(cdl), 'CDL #1935 11-10-26.jpg')
+  // Повторный пересчёт своё же имя не портит.
+  assert.equal(docName({ ...cdl, title: docName(cdl) }), 'CDL #1935 11-10-26.jpg')
+  assert.equal(docName({ ...cdl, paper: 'trailer_reg', title: 'Trailer 53487 reg.pdf', mime: 'application/pdf' }), 'TRAILER-REG #1935 11-10-26 - Trailer 53487 reg.pdf')
+})
