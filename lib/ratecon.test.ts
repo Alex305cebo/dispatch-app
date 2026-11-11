@@ -271,7 +271,7 @@ test('driver info reproduces the stop verbatim, refs and all', () => {
   assert.match(out, /^BSH Home Appliances Corporation$/m)
   assert.match(out, /^Executive Parkway #300$/m)
   assert.match(out, /^New Bern, NC 28562$/m)
-  assert.match(out, /^Time: 07\/16\/2026 \| 13:00$/m)
+  assert.match(out, /^Time: 07\/16\/26 \| 13:00$/m)
   assert.match(out, /^Greer, SC 29651$/m)
   assert.match(out, /^Rate: \$1,700\.00$/m)
   assert.match(out, /^Commodity: Home Appliances$/m)

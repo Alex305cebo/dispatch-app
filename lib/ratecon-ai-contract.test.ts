@@ -88,6 +88,6 @@ test('указания «как заехать» идут в остановки 
   assert.match(f.stops?.[1]?.directions ?? '', /^ga 85-n, 1-75s keep left .* onto Old Tasso Road\.$/)
   const out = formatDriverInfo(f)
   // под адресом выгрузки, раньше строки со временем
-  assert.match(out, /Cleveland, TN 37312\n\n_+\n⚠ DIRECTIONS \(follow these, not GPS\): ga 85-n[^\n]*Old Tasso Road\.\n_+\nTime: 9\/14\/2026 Appt 09:00/)
+  assert.match(out, /Cleveland, TN 37312\n\n_+\n⚠ DIRECTIONS \(follow these, not GPS\): ga 85-n[^\n]*Old Tasso Road\.\n_+\nTime: 09\/14\/26 Appt 09:00/)
   assert.match(out, /⚠ DIRECTIONS \(follow these, not GPS\): 24\/7 Shipping, FCFS If shipper looks closed, you're in the wrong place\./)
 })
