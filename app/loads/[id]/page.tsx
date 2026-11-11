@@ -47,7 +47,7 @@ import { fuelPlan } from '@/lib/fuel-plan'
 import { listLoadEvents } from '@/lib/load-events'
 import { DriverTimeline } from '@/components/driver-timeline'
 import { DriverInfoCard } from '@/components/driver-info-card'
-import { cargoFacts, withAddresses, stopNames } from '@/lib/driver-info-zip'
+import { cargoFacts, tidyTimes, withAddresses, stopNames } from '@/lib/driver-info-zip'
 import { arrivedAt, isDone, parseTaskOrder, stopsFrom, taskOrderKey, viaLabel, type StopEv } from '@/lib/stops'
 import { TaskStops } from '@/components/task-stops'
 import { LoadStops } from '@/components/load-stops'
@@ -581,12 +581,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (load.driverInfo)
     add('driver-info', (
       <DriverInfoCard
-        text={withAddresses(load.driverInfo, {
-          pickup: load.pickupAddress,
-          delivery: load.deliveryAddress,
-          origin: load.origin,
-          destination: load.destination,
-        })}
+        text={tidyTimes(
+          withAddresses(load.driverInfo, {
+            pickup: load.pickupAddress,
+            delivery: load.deliveryAddress,
+            origin: load.origin,
+            destination: load.destination,
+          }),
+        )}
         locale={locale}
       />
     ))

@@ -145,3 +145,30 @@ export function cargoFacts(text: string | null | undefined): { commodity: string
   }
   return { commodity: pick(/^\s*commodity\s*:[ \t]*(.+)$/im), weight: pick(/^\s*weight\s*:[ \t]*(.+)$/im) }
 }
+
+/** «11/10/2026» → «11/10/26»: даты водителю — MM/DD/YY, как во всём TMS. */
+const LONG_DATE = /\b(\d{1,2})\/(\d{1,2})\/(?:19|20)(\d{2})\b/g
+
+/** «1330» → «13:30»: военное время без двоеточия. Не после «/» и не внутри числа —
+ *  иначе год «2026» прочитался бы как «20:26». */
+const MIL_TIME = /(?<![\d/:.#$])([01]\d|2[0-3])([0-5]\d)(?![\d:])/g
+
+/**
+ * Привести строки «Time:» к виду, который водитель читает без перевода:
+ * «Time: 11/10/2026 1330» → «Time: 11/10/26 13:30». Время остаётся местным для
+ * склада, как в рейт-коне: окно назначено по часам склада, переводить в ET нельзя.
+ * Остальной текст (адреса, номера Ref) не трогаем — там такие числа значат другое.
+ */
+export function tidyTimes(text: string): string {
+  return (text ?? '')
+    .split('\n')
+    .map((line) => {
+      const m = /^(\s*time\s*:)(.*)$/i.exec(line)
+      if (!m) return line
+      const v = m[2]!
+        .replace(LONG_DATE, (_, mm: string, dd: string, yy: string) => `${mm.padStart(2, '0')}/${dd.padStart(2, '0')}/${yy}`)
+        .replace(MIL_TIME, '$1:$2')
+      return m[1] + v
+    })
+    .join('\n')
+}

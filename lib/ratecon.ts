@@ -17,6 +17,7 @@
 import { EMPTY, type QrLoad } from './qr-load.ts'
 import { normalizeApptTime } from './fmt.ts'
 import type { LoadStop } from './stops.ts'
+import { tidyTimes } from './driver-info-zip.ts'
 
 /** A parsed value plus the source line it came from — shown so the human can check. */
 export type Found<T> = { value: T; evidence: string }
@@ -762,10 +763,12 @@ export function formatDriverInfo(f: RateConFields): string {
   if (f.commodity) out.push(`Commodity: ${f.commodity.value}`)
   if (f.weight) out.push(`Weight: ${f.weight.value}`)
 
-  return out
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
+  return tidyTimes(
+    out
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim(),
+  )
 }
 
 /** Feeds the same LoadForm the QR path uses. Absent fields keep their defaults. */

@@ -9,7 +9,7 @@
  */
 
 import { RULE } from './ratecon.ts'
-import { withAddresses } from './driver-info-zip.ts'
+import { tidyTimes, withAddresses } from './driver-info-zip.ts'
 import { usDate } from './fmt.ts'
 
 export type LoadInfoInput = {
@@ -28,12 +28,14 @@ export type LoadInfoInput = {
 
 export function loadInfoText(l: LoadInfoInput): string {
   if (l.driverInfo?.trim())
-    return withAddresses(l.driverInfo, {
-      pickup: l.pickupAddress,
-      delivery: l.deliveryAddress,
-      origin: l.origin,
-      destination: l.destination,
-    })
+    return tidyTimes(
+      withAddresses(l.driverInfo, {
+        pickup: l.pickupAddress,
+        delivery: l.deliveryAddress,
+        origin: l.origin,
+        destination: l.destination,
+      }),
+    )
 
   const out: string[] = [`LOAD ID: #${l.referenceId?.trim() || '—'}`, '']
   const stop = (title: string, addr: string | null, city: string | null, date: string | null, time: string | null) => {
