@@ -318,3 +318,32 @@ function autoSorted(all: MergedStop[]): MergedStop[] {
     return a.seq - b.seq
   })
 }
+
+/**
+ * Адрес точки двумя строками, как на вывеске и в навигаторе: улица отдельно, город со
+ * штатом и ZIP отдельно. Рейт-кон отдаёт адрес одной строкой («880 Technology Dr Ste 101,
+ * Fayetteville, NC 28306»), а город точки («Fayetteville, NC») — ещё и колонкой. Город
+ * нашёлся в адресе — режем по нему; не нашёлся — улица как есть, город второй строкой.
+ */
+export function addressLines(stop: Pick<LoadStop, 'address' | 'city'>): { street: string | null; place: string | null } {
+  const address = stop.address?.trim() || null
+  const city = stop.city?.trim() || null
+  if (!address) return { street: null, place: city }
+  const town = city?.split(',')[0]?.trim().toLowerCase()
+  if (town) {
+    const low = address.toLowerCase()
+    const at = low.lastIndexOf(`, ${town}`)
+    if (at > 0) return { street: address.slice(0, at).trim(), place: address.slice(at + 2).trim() }
+    // Адрес уже начинается с города (улицы нет) — второй строкой его не повторяем.
+    if (low.startsWith(town)) return { street: null, place: address }
+  }
+  return { street: address, place: city }
+}
+
+/** Номер точки с подписью для склада: «Pickup Number: 3403345588». Номер, у которого
+ * подпись уже есть («PO# 4471», «BOL: 88»), остаётся как напечатан. */
+export function refLabel(ref: string, role: StopRole): string {
+  const r = ref.trim()
+  if (/^[A-Za-z][A-Za-z .]{0,15}\s*[#:]/.test(r)) return r
+  return `${role === 'pickup' ? 'Pickup' : 'Delivery'} Number: ${r}`
+}

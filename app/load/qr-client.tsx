@@ -73,7 +73,7 @@ export function QrClient({ trucks, metaByTruck }: { trucks: TruckRecord[]; metaB
           ))}
         </p>
       )}
-      <LoadStops stops={stops} locale={locale} className="mb-3" />
+      <LoadStops stops={stops} locale={locale} miles={load.loadedMiles} className="mb-3" />
       {/* Особые указания брокера читают ДО того, как груз взят: в них и «ремни свои»,
           и штраф за опоздание. На сохранённом грузе для этого есть свой блок. */}
       {load.brokerNotes && (

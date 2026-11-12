@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { t, type Locale, type MsgKey } from '@/lib/i18n'
 import type { LoadStatus } from '@/lib/map'
 import { usDate } from '@/lib/fmt'
+import { LoadStops } from '@/components/load-stops'
 import { arrivedAt, isDone, stopTitle, stopsLabel, type MergedStop } from '@/lib/stops'
 
 export type DriverLoad = {
@@ -20,6 +21,8 @@ export type DriverLoad = {
   hasSeal: boolean
   hasPod: boolean
   photos: number
+  /** Гружёные мили — на стрелке «Точек рейса». Ставки водителю не отдаём. */
+  loadedMiles: number
 }
 
 export type Ev = {
@@ -167,64 +170,6 @@ export function DriverClient({
   const target = (s: MergedStop) => ({ loadId: String(s.loadId), stopSeq: String(s.seq) })
   const tag = (s: MergedStop) => (many ? ` · #${s.ref ?? s.loadId}${s.broker ? ` ${s.broker}` : ''}` : '')
 
-  const card = (s: MergedStop, active: boolean) => {
-    const where = s.address || s.city || '—'
-    const finished = done(s)
-    return (
-      <div
-        key={`${s.loadId}-${s.seq}`}
-        className={`rounded-xl border p-3 ${
-          active
-            ? 'border-haul-400/60 bg-haul-500/[0.08]'
-            : finished
-              ? 'border-white/5 bg-white/[0.02] opacity-60'
-              : 'border-white/10 bg-white/[0.03]'
-        }`}
-      >
-        <div className="text-xs text-t2 font-medium">
-          {finished ? '✓ ' : ''}
-          {stopTitle(s, stopsOf(s.loadId), locale)}
-          {tag(s)}
-          {active && (
-            <span className="ml-2 rounded bg-haul-500/25 px-1.5 py-0.5 text-2xs normal-case text-haul-200">
-              {t(locale, 'driver.next')}
-            </span>
-          )}
-        </div>
-        {/* Как заехать — первым, выше адреса и кнопки карты: навигатор к таким складам
-            ведёт не туда, а прочитать это нужно до того, как тронулся. */}
-        {s.directions && !finished && (
-          <div className="mt-2 rounded-lg border border-warn-400/45 bg-warn-500/15 px-3 py-2">
-            <div className="text-sm font-bold uppercase tracking-wide text-warn-400">
-              ⚠ {t(locale, 'driver.directionsTitle')}
-            </div>
-            <p className="mt-1 text-md leading-snug text-t1">{s.directions}</p>
-            <p className="mt-1 text-sm font-semibold text-warn-400">{t(locale, 'driver.directionsGps')}</p>
-          </div>
-        )}
-        {s.name && <div className="mt-0.5 text-base font-semibold text-t1">{s.name}</div>}
-        <div className="mt-0.5 text-lg font-semibold leading-snug">{where}</div>
-        {(s.date || s.time) && (
-          <div className="nums mt-0.5 text-base text-t2">
-            {usDate(s.date)}
-            {s.time ? ` · ${s.time}` : ''}
-          </div>
-        )}
-        {s.refs.length > 0 && <div className="nums mt-0.5 text-sm text-t3">Ref: {s.refs.join(', ')}</div>}
-        {!finished && (
-          <a
-            href={mapsHref(where)}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-haul-500/15 px-3 py-1.5 text-base font-semibold text-haul-300"
-          >
-            📍 {t(locale, 'driver.openMap')}
-          </a>
-        )}
-      </div>
-    )
-  }
-
   return (
     <>
       {load && (
@@ -327,7 +272,16 @@ export function DriverClient({
             )}
           </div>
 
-          <div className="mt-3 flex flex-col gap-2">{stops.map((s) => card(s, s === next))}</div>
+          {/* Точки рейса — тот же блок, что на странице груза (components/load-stops.tsx), без ставки. */}
+          <LoadStops
+            stops={stops}
+            locale={locale}
+            always
+            miles={many ? null : load.loadedMiles}
+            marks={stops.map((s) => ({ done: done(s), next: s === next, tag: tag(s).replace(/^ · /, '') || null }))}
+            directionsNote={t(locale, 'driver.directionsGps')}
+            className="mt-3"
+          />
           <div className="mt-3 flex flex-wrap gap-2">
             {loads
               .filter((l) => l.brokerPhone)
