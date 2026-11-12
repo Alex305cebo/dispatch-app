@@ -305,7 +305,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           Раньше это было три плитки — шапка, «Точки» и «Подробности» внизу, — и
           адреса со сроками стояли в двух из них. Рейт-кон приносит склад, улицу,
           окно и номера PU/PO — диспетчер, которому звонит склад, находит их здесь. */}
-      <LoadStops stops={stops} locale={locale} partial={load.partial} className="mt-3" />
+      <LoadStops stops={stops} locale={locale} partial={load.partial} miles={load.loadedMiles} className="mt-3" />
       {/* Ставка, мили и расходы — здесь же, в шапке: отдельная плитка «Ставка за груз»
           повторяла ставку и $/mi (план «Порядок в TMS»). Цифры — шкалой и полосами. */}
       <LoadMoney

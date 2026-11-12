@@ -7,19 +7,18 @@
 // только города, тип трейлера и данные брокера (app/load/card/actions.ts), а деньги
 // считаются здесь, в браузере.
 
+import { LoadStops } from '@/components/load-stops'
+import { stopsFromQr } from '@/lib/stops'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-  ArrowRight,
   CircleAlert,
   CircleCheck,
   Clock,
   CloudLightning,
   Copy,
   Gauge,
-  MapPin,
   Minus,
-  Navigation,
   Phone,
   Plus,
   RefreshCw,
@@ -149,72 +148,6 @@ function MarketSide({ label, side, locale }: { label: string; side: CardMarketSi
             {t(locale, 'loadCard.loadsPerTruck').replace('{state}', side.state)}
           </span>
           {heat && <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${heatTone(side.heat)}`}>{heat}</span>}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function StopCard({
-  kind,
-  name,
-  address,
-  city,
-  time,
-  refs,
-  locale,
-}: {
-  kind: 'pickup' | 'delivery'
-  name?: string | null
-  address?: string | null
-  city?: string | null
-  time?: string | null
-  refs?: string | null
-  locale: Locale
-}) {
-  const full = [address, city].filter(Boolean).join(', ')
-  const nav = full ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([name, full].filter(Boolean).join(', '))}` : null
-  const refList = (refs ?? '').split('|').map((r) => r.trim()).filter(Boolean)
-  return (
-    <div className="panel-inset min-w-0 p-3.5">
-      <div className="flex items-center justify-between gap-2">
-        <span
-          className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-semibold ${
-            kind === 'pickup' ? 'bg-haul-500/15 text-haul-300' : 'bg-good-500/15 text-good-400'
-          }`}
-        >
-          <MapPin size={12} strokeWidth={2.4} />
-          {t(locale, kind === 'pickup' ? 'loadCard.pickup' : 'loadCard.delivery')}
-        </span>
-        {nav && (
-          <a href={nav} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-haul-400 hover:underline">
-            <Navigation size={12} strokeWidth={2.4} />
-            {t(locale, 'loadCard.navigate')}
-          </a>
-        )}
-      </div>
-      {time && (
-        <div className="nums mt-2 flex items-center gap-1.5 text-base font-semibold text-t1">
-          <Clock size={13} strokeWidth={2.2} className="text-t3" />
-          {time}
-        </div>
-      )}
-      {name && <div className="mt-2 text-md font-semibold leading-snug text-t1">{name}</div>}
-      {address && <div className="text-base text-t2">{address}</div>}
-      {city && <div className="text-base text-t2">{city}</div>}
-      {refList.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {refList.map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => copy(r, locale)}
-              className="nums inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.05] px-2 py-1 text-sm font-semibold text-t1 hover:border-haul-500/40"
-            >
-              {r}
-              <Copy size={11} strokeWidth={2.2} className="text-t3" />
-            </button>
-          ))}
         </div>
       )}
     </div>
@@ -740,27 +673,8 @@ export function CardClient() {
         )}
       </section>
 
-      {/* ── Точки рейса ───────────────────────────────────────────────────── */}
-      <section className="panel p-4 sm:p-5">
-        <h2 className={H2}>{t(locale, 'loadCard.stops')}</h2>
-        <div className="grid items-stretch gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-          <StopCard kind="pickup" name={load.pickupName} address={load.pickupAddress} city={load.origin} time={pickupWhen} refs={load.pickupRefs} locale={locale} />
-          <div className="nums flex items-center justify-center gap-2 text-sm text-t3 md:flex-col md:gap-1">
-            <ArrowRight size={16} className="rotate-90 md:rotate-0" />
-            {miles > 0 && <span>{Math.round(miles).toLocaleString('en-US')} mi</span>}
-            {fit && <span>{driveTime(fit.driveMin, locale)}</span>}
-          </div>
-          <StopCard
-            kind="delivery"
-            name={load.deliveryName}
-            address={load.deliveryAddress}
-            city={load.destination}
-            time={deliveryWhen}
-            refs={load.deliveryRefs}
-            locale={locale}
-          />
-        </div>
-      </section>
+      {/* ── Точки рейса — общий блок с карточкой груза и страницей водителя ── */}
+      <LoadStops stops={stopsFromQr(load)} locale={locale} miles={miles} always framed />
 
       {/* ── Кому отдать груз ──────────────────────────────────────────────── */}
       <section className="panel p-4 sm:p-5">

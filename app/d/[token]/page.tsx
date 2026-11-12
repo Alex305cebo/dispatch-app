@@ -87,6 +87,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
     hasSeal: l.id === load?.id && has('seal'),
     hasPod: l.id === load?.id && has('pod'),
     photos: l.id === load?.id ? docs.filter((d) => d.kind === 'photo').length : 0,
+    loadedMiles: l.loadedMiles,
   })
   // «Водитель открывал страницу N мин назад» — диспетчеру видно, что ссылка живая.
   // Ошибка записи страницу не роняет.
