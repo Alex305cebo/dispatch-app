@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { fixTimeIso, liveShareFixTime } from './fix-time.ts'
+import { fixTimeIso, liveShareFixTime, shouldReplaceFix } from './fix-time.ts'
 
 const NOW = Date.parse('2026-11-13T18:00:00Z')
 
@@ -20,4 +20,18 @@ test('Live Share: время из location или из корня', () => {
   assert.equal(liveShareFixTime({ location: { updateDate: NOW - 120_000 } }, NOW), '2026-11-13T17:58:00.000Z')
   assert.equal(liveShareFixTime({ updateDate: 'x', time: '2026-11-13T17:00:00Z' }, NOW), '2026-11-13T17:00:00.000Z')
   assert.equal(liveShareFixTime({ location: { latitude: 1 } }, NOW), null)
+})
+
+test('побеждает более свежая точка, а не последний опрошенный трекер', () => {
+  const zigzag2h = '2026-11-13T16:00:00.000Z'
+  const samsaraNow = '2026-11-13T17:59:00.000Z'
+  assert.equal(shouldReplaceFix(zigzag2h, samsaraNow, NOW), false)
+  assert.equal(shouldReplaceFix(samsaraNow, zigzag2h, NOW), true)
+  assert.equal(shouldReplaceFix(samsaraNow, samsaraNow, NOW), true)
+  // у сохранённой нет времени (старые строки 'live share'/'samsara')
+  assert.equal(shouldReplaceFix(zigzag2h, 'live share', NOW), true)
+  assert.equal(shouldReplaceFix(null, null, NOW), true)
+  // новая без времени: свежую (<15 мин) не трогает, старую — заменяет
+  assert.equal(shouldReplaceFix('live share', samsaraNow, NOW), false)
+  assert.equal(shouldReplaceFix('live share', zigzag2h, NOW), true)
 })

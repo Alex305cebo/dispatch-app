@@ -32,7 +32,7 @@ import { fixPlace } from './place.ts'
 import { segmentTrail, type HistoryLeg } from './trip-history.ts'
 import { zoneFor as zoneForRaw } from './tz.ts'
 import { agoText } from './fmt.ts'
-import { liveShareFixTime } from './fix-time.ts'
+import { liveShareFixTime, shouldReplaceFix } from './fix-time.ts'
 
 const zoneForPoint = (c: [number, number]) => zoneForRaw(c[0], c[1])
 import { t, type Locale } from './i18n.ts'
@@ -66,6 +66,13 @@ export async function logPosition(
   if (!plausibleNaFix(lat, lng)) return
   await sql`INSERT INTO truck_position_log (unit, lat, lng, drive_status, location) VALUES (${unit}, ${lat}, ${lng}, ${driveStatus}, ${location})`
   await sql`DELETE FROM truck_position_log WHERE unit = ${unit} AND at < NOW(6) - INTERVAL 100 DAY`
+}
+
+/** Свежее ли эта точка той, что уже лежит у трака (lib/fix-time.ts shouldReplaceFix).
+ * Один трак могут вести два трекера; позицию пишет тот, чья точка новее. */
+export async function fixIsNewer(unit: string, seen: string | null): Promise<boolean> {
+  const rows = (await sql`SELECT eld_seen FROM fleet_status WHERE unit = ${unit}`) as { eld_seen: string | null }[]
+  return shouldReplaceFix(seen, rows[0]?.eld_seen ?? null)
 }
 
 /** How long the truck's GPS has stayed within ~0.5mi of its current spot, walking
@@ -477,6 +484,17 @@ export async function fleetSnapshot(
     const odo = extra?.odometer ?? realOdometer(v.odometer)
     // Координаты 0,0 от вендора — не место трака (см. plausibleNaFix): прошлый пин важнее.
     const okFix = plausibleNaFix(v.location?.latitude, v.location?.longitude)
+    // Точка старше уже сохранённой (у трака есть Samsara со свежей) — позицию не трогаем,
+    // берём только водителя, пробег и бак.
+    if (!(await fixIsNewer(unit, seen))) {
+      await sql`
+        UPDATE fleet_status SET
+          driver_name = COALESCE(${v.driverName ?? null}, driver_name),
+          odometer = COALESCE(${odo}, IF(odometer >= 10, odometer, NULL)),
+          fuel = COALESCE(${extra?.fuel ?? null}, fuel)
+        WHERE unit = ${unit}`
+      continue
+    }
     // Одометр «1», записанный до этой проверки, при следующем опросе уходит (IF ниже), а не
     // держится вечно из-за COALESCE.
     await sql`
@@ -664,6 +682,9 @@ export async function liveShareSnapshot(): Promise<
           'eld_share_shape',
           JSON.stringify({ top: Object.keys(data ?? {}), location: Object.keys(data?.location ?? {}) }),
         ).catch(() => {})
+
+      // Точка старше той, что уже есть (например, живая от Samsara), — не трогаем.
+      if (!(await fixIsNewer(unit, seen ?? 'live share'))) continue
 
       // Only touch the columns Live Share provides — leave driver_name / hos_percent
       // (they come from the key path) alone.

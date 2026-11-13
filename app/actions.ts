@@ -694,7 +694,12 @@ export async function autoRefreshFleet(): Promise<boolean> {
   await setSetting('fleet_auto_refresh_at', new Date().toISOString())
 
   const { fleetSnapshot, liveShareSnapshot } = await import('@/lib/eld')
-  await Promise.all([liveShareSnapshot().catch(() => {}), fleetSnapshot().catch(() => {})])
+  const { samsaraSnapshot } = await import('@/lib/eld-samsara')
+  await Promise.all([
+    liveShareSnapshot().catch(() => {}),
+    fleetSnapshot().catch(() => {}),
+    samsaraSnapshot().catch(() => {}),
+  ])
   // Positions just refreshed — now move any load whose truck has left its pickup/delivery.
   await autoAdvanceLoadStatuses().catch(() => {})
   revalidatePath('/tracking')

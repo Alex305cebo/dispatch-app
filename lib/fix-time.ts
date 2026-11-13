@@ -38,3 +38,24 @@ export function liveShareFixTime(data: any, now = Date.now()): string | null {
   }
   return null
 }
+
+const isoMs = (s: string | null | undefined): number => {
+  if (!s || !/^\d{4}-\d{2}-\d{2}T/.test(s)) return NaN
+  return Date.parse(s)
+}
+
+/** Можно ли перезаписать позицию трака новой точкой (11/13/26). У трака бывает два
+ * трекера сразу — ZigZag и Samsara — и они писали в одну строку fleet_status по
+ * очереди: побеждал не самый свежий, а последний опрошенный. ZigZag отдавал точку
+ * двухчасовой давности поверх живой точки Samsara, и трак «стоял» в Миннесоте, когда
+ * был уже в Висконсине. Теперь побеждает более свежая точка:
+ * - у сохранённой нет времени → пишем;
+ * - у новой есть время → пишем, если она не старше сохранённой;
+ * - у новой нет времени → пишем, только если сохранённой больше 15 минут. */
+export function shouldReplaceFix(incoming: string | null, stored: string | null, now = Date.now()): boolean {
+  const old = isoMs(stored)
+  if (Number.isNaN(old)) return true
+  const neu = isoMs(incoming)
+  if (!Number.isNaN(neu)) return neu >= old
+  return now - old > 15 * 60_000
+}
