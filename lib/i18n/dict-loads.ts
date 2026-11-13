@@ -555,6 +555,14 @@ export const loadsDict = {
     ro: 'întârzie cu ~{t}',
     kk: '~{t} кешігеді',
   },
+  'loadDetail.waitOpen': {
+    ru: 'раньше окна · ждать ~{t}',
+    en: 'early · wait ~{t} for window',
+    es: 'temprano · esperar ~{t}',
+    uk: 'раніше вікна · чекати ~{t}',
+    ro: 'devreme · așteaptă ~{t}',
+    kk: 'ерте · ~{t} күту',
+  },
   'loadDetail.idleWarn': {
     ru: 'стоит на месте',
     en: 'sitting still',

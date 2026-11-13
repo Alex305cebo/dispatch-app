@@ -58,6 +58,8 @@ export type LoadMapData = {
     realEtaMin: number | null
     /** Запас до срока выгрузки (минуты); минус — опоздание. */
     slackMin: number | null
+    /** Приедет до открытия окна выгрузки: минут ждать. */
+    waitMin: number
     /** Сколько уже стоит на месте (минуты) НЕ у пикапа и не у выгрузки. */
     idleMin: number | null
     /** Насколько трак в стороне от прямого маршрута пикап→выгрузка (мили). */
@@ -106,6 +108,7 @@ export async function loadMapData(
   const live: LoadMapData['live'] = {
     realEtaMin: null,
     slackMin: null,
+    waitMin: 0,
     idleMin: null,
     offRouteMi: null,
     toPickupMi: null,
@@ -324,6 +327,7 @@ export async function loadMapData(
     )
     live.realEtaMin = eta.realMin
     live.slackMin = eta.slackMin
+    live.waitMin = eta.waitMin
     etaText = `${routeMiles} mi · ~${driveTime(routeEtaMin, locale)}${t(locale, 'tracking.toDelivery')}`
     truckM.eta = etaText
     routes.push({ from: [lat, lng], to: [legToNext.lat, legToNext.lng], coords: legToNext.coords })
