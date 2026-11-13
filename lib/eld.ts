@@ -32,7 +32,7 @@ import { fixPlace } from './place.ts'
 import { segmentTrail, type HistoryLeg } from './trip-history.ts'
 import { zoneFor as zoneForRaw } from './tz.ts'
 import { agoText } from './fmt.ts'
-import { liveShareFixTime } from './fix-time.ts'
+import { liveShareFixTime, shouldReplaceFix } from './fix-time.ts'
 
 const zoneForPoint = (c: [number, number]) => zoneForRaw(c[0], c[1])
 import { t, type Locale } from './i18n.ts'
@@ -66,6 +66,13 @@ export async function logPosition(
   if (!plausibleNaFix(lat, lng)) return
   await sql`INSERT INTO truck_position_log (unit, lat, lng, drive_status, location) VALUES (${unit}, ${lat}, ${lng}, ${driveStatus}, ${location})`
   await sql`DELETE FROM truck_position_log WHERE unit = ${unit} AND at < NOW(6) - INTERVAL 100 DAY`
+}
+
+/** Свежее ли эта точка той, что уже лежит у трака (lib/fix-time.ts shouldReplaceFix).
+ * Один трак могут вести два трекера; позицию пишет тот, чья точка новее. */
+export async function fixIsNewer(unit: string, seen: string | null): Promise<boolean> {
+  const rows = (await sql`SELECT eld_seen FROM fleet_status WHERE unit = ${unit}`) as { eld_seen: string | null }[]
+  return shouldReplaceFix(seen, rows[0]?.eld_seen ?? null)
 }
 
 /** How long the truck's GPS has stayed within ~0.5mi of its current spot, walking
@@ -477,6 +484,17 @@ export async function fleetSnapshot(
     const odo = extra?.odometer ?? realOdometer(v.odometer)
     // Координаты 0,0 от вендора — не место трака (см. plausibleNaFix): прошлый пин важнее.
     const okFix = plausibleNaFix(v.location?.latitude, v.location?.longitude)
+    // Точка старше уже сохранённой (у трака есть Samsara со свежей) — позицию не трогаем,
+    // берём только водителя, пробег и бак.
+    if (!(await fixIsNewer(unit, seen))) {
+      await sql`
+        UPDATE fleet_status SET
+          driver_name = COALESCE(${v.driverName ?? null}, driver_name),
+          odometer = COALESCE(${odo}, IF(odometer >= 10, odometer, NULL)),
+          fuel = COALESCE(${extra?.fuel ?? null}, fuel)
+        WHERE unit = ${unit}`
+      continue
+    }
     // Одометр «1», записанный до этой проверки, при следующем опросе уходит (IF ниже), а не
     // держится вечно из-за COALESCE.
     await sql`
@@ -665,6 +683,9 @@ export async function liveShareSnapshot(): Promise<
           JSON.stringify({ top: Object.keys(data ?? {}), location: Object.keys(data?.location ?? {}) }),
         ).catch(() => {})
 
+      // Точка старше той, что уже есть (например, живая от Samsara), — не трогаем.
+      if (!(await fixIsNewer(unit, seen ?? 'live share'))) continue
+
       // Only touch the columns Live Share provides — leave driver_name / hos_percent
       // (they come from the key path) alone.
       await sql`
@@ -682,4 +703,68 @@ export async function liveShareSnapshot(): Promise<
     }
   }
   return { updated, errors }
+}
+
+/** Разбор «почему трак не двигается» (11/13/26): что прямо сейчас отдаёт каждый
+ * источник ZigZag по одному траку — сырым ответом, без записи в базу. Только для
+ * админа (app/api/gps-check). Токены и пароли в ответ не попадают. */
+export async function eldDebug(unitLike: string): Promise<Record<string, unknown>> {
+  const out: Record<string, unknown> = {}
+  const match = (u: unknown) => String(u ?? '').includes(unitLike)
+  if (process.env.ELD_USERNAME && process.env.ELD_PASSWORD && process.env.ELD_COMPANY_ID) {
+    try {
+      const token = await eldToken()
+      if (!token) out.key = 'no token (login failed)'
+      else {
+        const r = await fetchSoon(`${ELD_BASE}/eld/v2/External/VehicleStatuses`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        })
+        const body = r.ok ? await r.json() : await r.text()
+        const list = Array.isArray(body) ? body : [body]
+        out.key = { http: r.status, vehicle: list.filter((v: any) => match(v?.vehicleUnit)) }
+      }
+    } catch (e) {
+      out.key = String(e)
+    }
+  } else out.key = 'not configured'
+  try {
+    const raw = await getSetting('eld_share_tokens')
+    const tokens: string[] = raw ? JSON.parse(raw) : []
+    const share: unknown[] = []
+    for (const token of tokens) {
+      let accessToken: string | null = null
+      for (const base of SHARE_BASES) {
+        try {
+          const r = await fetchSoon(`${base}/authorize?token=${encodeURIComponent(token)}`, { cache: 'no-store' })
+          if (r.ok) accessToken = ((await r.json()) as any).accessToken ?? null
+          if (accessToken) break
+        } catch {
+          /* next */
+        }
+      }
+      const unit = accessToken ? unitFromJwt(accessToken) : null
+      if (!accessToken) {
+        share.push({ authorize: 'failed' })
+        continue
+      }
+      if (!match(unit)) continue
+      for (const base of SHARE_BASES) {
+        try {
+          const r = await fetchSoon(`${base}/vehicleData`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            cache: 'no-store',
+          })
+          share.push({ unit, base: base.replace(/^https:\/\//, '').split('/')[0], http: r.status, data: r.ok ? await r.json() : await r.text() })
+          if (r.ok) break
+        } catch (e) {
+          share.push({ unit, error: String(e) })
+        }
+      }
+    }
+    out.share = { links: tokens.length, results: share }
+  } catch (e) {
+    out.share = String(e)
+  }
+  return out
 }

@@ -16,7 +16,7 @@
 import 'server-only'
 import { sql } from './db.ts'
 import { getSetting } from './settings.ts'
-import { logPosition } from './eld.ts'
+import { fixIsNewer, logPosition } from './eld.ts'
 import { fixTimeIso } from './fix-time.ts'
 
 /** Токен установки: сначала свой из настроек, потом переменная окружения. */
@@ -105,6 +105,13 @@ export async function samsaraSnapshot(): Promise<{ updated: number; errors: stri
       const odometer = samsaraMiles(v)
       const fuel = typeof v.fuelPercent?.value === 'number' ? v.fuelPercent.value : null
       try {
+        // У трака может быть и ZigZag: позицию пишет тот, чья точка свежее.
+        if (!(await fixIsNewer(unit, seen))) {
+          await sql`
+            UPDATE fleet_status SET odometer = COALESCE(${odometer}, odometer), fuel = COALESCE(${fuel}, fuel)
+            WHERE unit = ${unit}`
+          continue
+        }
         await sql`
           INSERT INTO fleet_status (unit, location, lat, lng, drive_status, odometer, fuel, eld_seen, updated_at)
           VALUES (${unit}, ${desc}, ${g.latitude}, ${g.longitude}, ${status}, ${odometer}, ${fuel}, ${seen}, NOW(6))
