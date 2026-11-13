@@ -28,6 +28,7 @@ export async function samsaraToken(): Promise<string> {
 type SamsaraVehicle = {
   id?: string
   name?: string
+  externalIds?: Record<string, string>
   gps?: {
     latitude?: number
     longitude?: number
@@ -66,12 +67,17 @@ export async function samsaraSnapshot(): Promise<{ updated: number; errors: stri
   const errors: string[] = []
   let updated = 0
   let after: string | null = null
-  // Наши номера траков: в Samsara машина зовётся «Juan - Freightliner 1935».
-  const numbers = (
-    (await sql`SELECT number FROM trucks WHERE company_id = 'default'`.catch(() => [])) as { number: string | null }[]
+  // Какой это наш трак: сначала по VIN (владелец 11/13/26 — надёжнее имени), потом по
+  // номеру в имени — в Samsara машина зовётся «Juan - Freightliner 1935».
+  const ours = (await sql`
+    SELECT t.number, m.vin FROM trucks t LEFT JOIN truck_meta m ON m.truck_id = t.id
+    WHERE t.company_id = 'default'`.catch(() => [])) as { number: string | null; vin: string | null }[]
+  const numbers = ours.map((r) => String(r.number ?? '').trim()).filter(Boolean)
+  const byVin = new Map(
+    ours
+      .filter((r) => r.number && r.vin && r.vin.trim())
+      .map((r) => [r.vin!.trim().toUpperCase(), String(r.number).trim()]),
   )
-    .map((r) => String(r.number ?? '').trim())
-    .filter(Boolean)
   // Не все тарифы и токены отдают одометр и бак — тогда Samsara отвечает 400, и мы
   // откатываемся на один GPS, как было до 10/21/26.
   let types = 'gps,obdOdometerMeters,gpsOdometerMeters,fuelPercents'
@@ -96,7 +102,10 @@ export async function samsaraSnapshot(): Promise<{ updated: number; errors: stri
     }
 
     for (const v of body.data ?? []) {
-      const unit = samsaraUnit(v.name ?? '', numbers)
+      const vin = (v.externalIds?.['samsara.vin'] ?? '').trim().toUpperCase()
+      const unit = (vin && byVin.get(vin)) || samsaraUnit(v.name ?? '', numbers)
+      // Отвязанный датчик («Deactivated, Previously paired with gateway …») — не трак.
+      if (/^deactivated\b/i.test(unit)) continue
       const g = v.gps
       if (!unit || !g || typeof g.latitude !== 'number' || typeof g.longitude !== 'number') continue
       const desc = g.reverseGeo?.formattedLocation ?? null
