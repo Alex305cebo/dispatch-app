@@ -683,3 +683,67 @@ export async function liveShareSnapshot(): Promise<
   }
   return { updated, errors }
 }
+
+/** Разбор «почему трак не двигается» (11/13/26): что прямо сейчас отдаёт каждый
+ * источник ZigZag по одному траку — сырым ответом, без записи в базу. Только для
+ * админа (app/api/gps-check). Токены и пароли в ответ не попадают. */
+export async function eldDebug(unitLike: string): Promise<Record<string, unknown>> {
+  const out: Record<string, unknown> = {}
+  const match = (u: unknown) => String(u ?? '').includes(unitLike)
+  if (process.env.ELD_USERNAME && process.env.ELD_PASSWORD && process.env.ELD_COMPANY_ID) {
+    try {
+      const token = await eldToken()
+      if (!token) out.key = 'no token (login failed)'
+      else {
+        const r = await fetchSoon(`${ELD_BASE}/eld/v2/External/VehicleStatuses`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        })
+        const body = r.ok ? await r.json() : await r.text()
+        const list = Array.isArray(body) ? body : [body]
+        out.key = { http: r.status, vehicle: list.filter((v: any) => match(v?.vehicleUnit)) }
+      }
+    } catch (e) {
+      out.key = String(e)
+    }
+  } else out.key = 'not configured'
+  try {
+    const raw = await getSetting('eld_share_tokens')
+    const tokens: string[] = raw ? JSON.parse(raw) : []
+    const share: unknown[] = []
+    for (const token of tokens) {
+      let accessToken: string | null = null
+      for (const base of SHARE_BASES) {
+        try {
+          const r = await fetchSoon(`${base}/authorize?token=${encodeURIComponent(token)}`, { cache: 'no-store' })
+          if (r.ok) accessToken = ((await r.json()) as any).accessToken ?? null
+          if (accessToken) break
+        } catch {
+          /* next */
+        }
+      }
+      const unit = accessToken ? unitFromJwt(accessToken) : null
+      if (!accessToken) {
+        share.push({ authorize: 'failed' })
+        continue
+      }
+      if (!match(unit)) continue
+      for (const base of SHARE_BASES) {
+        try {
+          const r = await fetchSoon(`${base}/vehicleData`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            cache: 'no-store',
+          })
+          share.push({ unit, base: base.replace(/^https:\/\//, '').split('/')[0], http: r.status, data: r.ok ? await r.json() : await r.text() })
+          if (r.ok) break
+        } catch (e) {
+          share.push({ unit, error: String(e) })
+        }
+      }
+    }
+    out.share = { links: tokens.length, results: share }
+  } catch (e) {
+    out.share = String(e)
+  }
+  return out
+}
