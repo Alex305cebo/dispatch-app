@@ -32,6 +32,7 @@ import { fixPlace } from './place.ts'
 import { segmentTrail, type HistoryLeg } from './trip-history.ts'
 import { zoneFor as zoneForRaw } from './tz.ts'
 import { agoText } from './fmt.ts'
+import { liveShareFixTime } from './fix-time.ts'
 
 const zoneForPoint = (c: [number, number]) => zoneForRaw(c[0], c[1])
 import { t, type Locale } from './i18n.ts'
@@ -651,16 +652,28 @@ export async function liveShareSnapshot(): Promise<
       const desc = loc.description ?? loc.address ?? data.description ?? null
       const speed = numOrNull(data.speed ?? loc.speed)
       const status = speed && speed > 3 ? `${Math.round(speed)} mi/h` : null
+      // Скорость пришла (хоть 0) — статус пишем как есть: раньше COALESCE держал
+      // последнее «55 mi/h» вечно, и вставший трак «ехал». Нет скорости — старый статус.
+      const speedKnown = speed !== null ? 1 : 0
+      // Время самой точки от устройства (lib/fix-time.ts). Нет его в ответе — старое
+      // поведение: имя источника, возраст точки неизвестен. Тогда запоминаем, какие
+      // поля вообще пришли (только имена, без значений) — для разбора без вендора.
+      const seen = liveShareFixTime(data)
+      if (!seen)
+        await setSetting(
+          'eld_share_shape',
+          JSON.stringify({ top: Object.keys(data ?? {}), location: Object.keys(data?.location ?? {}) }),
+        ).catch(() => {})
 
       // Only touch the columns Live Share provides — leave driver_name / hos_percent
       // (they come from the key path) alone.
       await sql`
         INSERT INTO fleet_status (unit, location, lat, lng, drive_status, eld_seen, updated_at)
-        VALUES (${unit}, ${desc}, ${lat}, ${lng}, ${status}, ${'live share'}, NOW(6))
+        VALUES (${unit}, ${desc}, ${lat}, ${lng}, ${status}, ${seen ?? 'live share'}, NOW(6))
         ON DUPLICATE KEY UPDATE
           location = COALESCE(VALUES(location), fleet_status.location),
           lat = COALESCE(VALUES(lat), fleet_status.lat), lng = COALESCE(VALUES(lng), fleet_status.lng),
-          drive_status = COALESCE(VALUES(drive_status), fleet_status.drive_status),
+          drive_status = IF(${speedKnown} = 1, VALUES(drive_status), fleet_status.drive_status),
           eld_seen = VALUES(eld_seen), updated_at = NOW(6)`
       await logPosition(unit, lat, lng, status, desc)
       updated++

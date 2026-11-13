@@ -770,6 +770,7 @@ export default async function Page({
             </h2>
             <RefreshFleetButton
               staleMinutes={fs?.updatedAt ? Math.round((Date.now() - new Date(fs.updatedAt).getTime()) / 60000) : null}
+          seenAt={fs?.eldSeen}
             />
           </div>
           <FleetMap
