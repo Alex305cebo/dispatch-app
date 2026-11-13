@@ -9,6 +9,8 @@
 // проверяется тестами. Точных часов HOS водителя у нас нет (вендор их не выдал),
 // так что цикл 11/10 — честное приближение, и подпись на экране говорит «~».
 
+import { lastMinutes, startMinutes } from './stops.ts'
+
 /** Минуты за рулём → минуты реального пути с ночёвками (10 ч после каждых 11 ч). */
 export function realDriveMinutes(driveMin: number): number {
   if (!Number.isFinite(driveMin) || driveMin <= 0) return 0
@@ -16,8 +18,8 @@ export function realDriveMinutes(driveMin: number): number {
   return Math.round(driveMin + rests * 600)
 }
 
-/** «14:00» из строки времени назначения; окно «14:00-16:00» читается по началу —
- * приезжать надо к открытию окна, а не к закрытию. */
+/** «14:00» из строки времени назначения — первое время в строке. Окно «14:00-16:00» даёт
+ * начало; для срока доставки берётся КОНЕЦ окна (lastMinutes), см. tripEta. */
 export function apptMinutes(time: string | null | undefined): number | null {
   const m = /(\d{1,2}):(\d{2})/.exec(time ?? '')
   if (!m) return null
@@ -58,14 +60,18 @@ export function zonedMs(dateIso: string, minutesOfDay: number, zone: string): nu
 export type TripEta = {
   /** Реальные минуты пути (с ночёвками). */
   realMin: number
-  /** Минуты запаса до срока выгрузки; отрицательные — опоздание. Null — срока нет. */
+  /** Минуты запаса до КОНЦА окна выгрузки; отрицательные — опоздание. Null — срока нет. */
   slackMin: number | null
+  /** Приедет раньше открытия окна: сколько минут ждать. 0 — окно уже открыто к приезду. */
+  waitMin: number
 }
 
 /**
- * Свести всё вместе: за рулём осталось driveMin, срок — дата и время назначения в
- * поясе выгрузки. Без времени назначения срок — конец дня (23:59): «доставить
- * such-то числа» значит успеть в этот день.
+ * Свести всё вместе: за рулём осталось driveMin, срок — дата и КОНЕЦ окна выгрузки в
+ * её поясе. Окно «08:00 - 15:00»: приезд в 14:36 — вовремя, опоздание только после
+ * 15:00 (раньше сравнивали с началом окна и писали «опаздывает на 6ч 36м», 13.11.2026).
+ * Приезд до 08:00 — не опоздание, а ожидание открытия (waitMin). Без времени срок —
+ * конец дня (23:59): «доставить такого-то числа» значит успеть в этот день.
  */
 export function tripEta(
   driveMin: number,
@@ -76,9 +82,16 @@ export function tripEta(
 ): TripEta {
   const realMin = realDriveMinutes(driveMin)
   let slackMin: number | null = null
+  let waitMin = 0
   if (deliveryDate) {
-    const deadline = zonedMs(deliveryDate, apptMinutes(deliveryTime) ?? 23 * 60 + 59, destZone ?? 'America/Chicago')
-    if (deadline !== null) slackMin = Math.round((deadline - (nowMs + realMin * 60_000)) / 60_000)
+    const zone = destZone ?? 'America/Chicago'
+    const arrive = nowMs + realMin * 60_000
+    const endMin = lastMinutes(deliveryTime)
+    const deadline = zonedMs(deliveryDate, endMin, zone)
+    if (deadline !== null) slackMin = Math.round((deadline - arrive) / 60_000)
+    const startMin = startMinutes(deliveryTime)
+    const opens = startMin != null && startMin < endMin ? zonedMs(deliveryDate, startMin, zone) : null
+    if (opens !== null && opens > arrive) waitMin = Math.round((opens - arrive) / 60_000)
   }
-  return { realMin, slackMin }
+  return { realMin, slackMin, waitMin }
 }

@@ -48,3 +48,22 @@ test('запас и опоздание считаются от реальног�
 test('без даты доставки срок не выдумывается', () => {
   assert.equal(tripEta(600, Date.UTC(2026, 7, 29), null, null, null).slackMin, null)
 })
+
+test('окно выгрузки: опоздание считается от КОНЦА окна, раньше открытия — ждать (груз 3656, 13.11.2026)', () => {
+  // Сейчас 10:04 CST, ехать ~4ч32м → приезд 14:36 CST; окно 08:00–15:00 в Висконсине.
+  const now = Date.UTC(2026, 10, 13, 16, 4)
+  const eta = tripEta(272, now, '2026-11-13', '08:00 - 15:00', 'America/Chicago')
+  assert.equal(eta.slackMin, 24)
+  assert.equal(eta.waitMin, 0)
+  // Окно с датой внутри строки — дата не путается с часами.
+  assert.equal(tripEta(272, now, '2026-11-13', '11/13/26 08:00 - 15:00', 'America/Chicago').slackMin, 24)
+  assert.equal(tripEta(272, now, '2026-11-13', '8am-3pm', 'America/Chicago').slackMin, 24)
+  // После 15:00 — опоздание.
+  assert.equal(tripEta(272 + 60, now, '2026-11-13', '08:00 - 15:00', 'America/Chicago').slackMin, -36)
+  // Приезд до открытия: не опоздание, а ожидание.
+  const early = tripEta(60, Date.UTC(2026, 10, 13, 12, 0), '2026-11-13', '08:00 - 15:00', 'America/Chicago')
+  assert.ok(early.slackMin! > 0)
+  assert.equal(early.waitMin, 60) // приезд 07:00 CST, окно с 08:00
+  // Одно время назначения (Appt 06:00) — это и есть срок.
+  assert.equal(tripEta(60, Date.UTC(2026, 10, 13, 12, 0), '2026-11-13', 'Appt 06:00', 'America/Chicago').slackMin, -60)
+})

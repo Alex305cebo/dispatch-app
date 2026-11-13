@@ -825,6 +825,11 @@ async function LoadMapSection({
                   driveTime(Math.abs(live.slackMin), locale),
                 )}
               </div>
+              {live.slackMin >= 0 && live.waitMin >= 30 && (
+                <div className="nums mt-0.5 text-xs text-t3">
+                  {t(locale, 'loadDetail.waitOpen').replace('{t}', driveTime(live.waitMin, locale))}
+                </div>
+              )}
             </div>
           )}
           {/* Стоит у склада 30+ минут — детеншен: время, сумма по условиям и

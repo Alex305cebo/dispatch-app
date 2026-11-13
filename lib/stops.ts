@@ -251,6 +251,22 @@ export function lastMinutes(time: string | null): number {
   return h * 60 + mm
 }
 
+/** Начало окна в минутах дня («8am-3pm» → 8:00, «11/13/26 08:00 - 15:00» → 8:00): как
+ * lastMinutes, только первое время; дата в строке не путается с часами. Без времени — null. */
+export function startMinutes(time: string | null): number | null {
+  if (!time) return null
+  const m = [...time.matchAll(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/gi)].find(
+    (x) => Number(x[1]) <= 23 && (x[2] != null || x[3] != null),
+  )
+  if (!m) return null
+  let h = Number(m[1])
+  const mm = Number(m[2] ?? 0)
+  const ap = m[3]?.toLowerCase()
+  if (ap === 'pm' && h < 12) h += 12
+  if (ap === 'am' && h === 12) h = 0
+  return h * 60 + mm
+}
+
 export type MergedStop = LoadStop & { loadId: number; ref: string | null; broker: string | null }
 
 /** Ключ остановки в ручном порядке задания: «груз:номер». */
