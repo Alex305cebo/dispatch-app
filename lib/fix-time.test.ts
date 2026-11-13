@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { fixTimeIso, liveShareFixTime, shouldReplaceFix } from './fix-time.ts'
+import { fixTimeIso, liveShareFixTime, samsaraUnit, shouldReplaceFix } from './fix-time.ts'
 
 const NOW = Date.parse('2026-11-13T18:00:00Z')
 
@@ -34,4 +34,14 @@ test('побеждает более свежая точка, а не после�
   // новая без времени: свежую (<15 мин) не трогает, старую — заменяет
   assert.equal(shouldReplaceFix('live share', samsaraNow, NOW), false)
   assert.equal(shouldReplaceFix('live share', zigzag2h, NOW), true)
+})
+
+test('Samsara: «Juan - Freightliner 1935» → трак 1935', () => {
+  const nums = ['1935', '2237', '0101', '1590', '193']
+  assert.equal(samsaraUnit('Juan - Freightliner 1935', nums), '1935')
+  assert.equal(samsaraUnit('Edwin - Freightliner 2237 (Edwin M)', nums), '2237')
+  assert.equal(samsaraUnit('Nick D - Freightliner 0101', nums), '0101')
+  assert.equal(samsaraUnit('1590', nums), '1590')
+  assert.equal(samsaraUnit('Pavel Maya', nums), 'Pavel Maya')
+  assert.equal(samsaraUnit('Truck 19350', nums), 'Truck 19350')
 })

@@ -17,7 +17,7 @@ import 'server-only'
 import { sql } from './db.ts'
 import { getSetting } from './settings.ts'
 import { fixIsNewer, logPosition } from './eld.ts'
-import { fixTimeIso } from './fix-time.ts'
+import { fixTimeIso, samsaraUnit } from './fix-time.ts'
 
 /** Токен установки: сначала свой из настроек, потом переменная окружения. */
 export async function samsaraToken(): Promise<string> {
@@ -66,6 +66,12 @@ export async function samsaraSnapshot(): Promise<{ updated: number; errors: stri
   const errors: string[] = []
   let updated = 0
   let after: string | null = null
+  // Наши номера траков: в Samsara машина зовётся «Juan - Freightliner 1935».
+  const numbers = (
+    (await sql`SELECT number FROM trucks WHERE company_id = 'default'`.catch(() => [])) as { number: string | null }[]
+  )
+    .map((r) => String(r.number ?? '').trim())
+    .filter(Boolean)
   // Не все тарифы и токены отдают одометр и бак — тогда Samsara отвечает 400, и мы
   // откатываемся на один GPS, как было до 10/21/26.
   let types = 'gps,obdOdometerMeters,gpsOdometerMeters,fuelPercents'
@@ -90,7 +96,7 @@ export async function samsaraSnapshot(): Promise<{ updated: number; errors: stri
     }
 
     for (const v of body.data ?? []) {
-      const unit = (v.name ?? '').trim()
+      const unit = samsaraUnit(v.name ?? '', numbers)
       const g = v.gps
       if (!unit || !g || typeof g.latitude !== 'number' || typeof g.longitude !== 'number') continue
       const desc = g.reverseGeo?.formattedLocation ?? null

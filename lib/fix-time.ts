@@ -59,3 +59,18 @@ export function shouldReplaceFix(incoming: string | null, stored: string | null,
   if (!Number.isNaN(neu)) return neu >= old
   return now - old > 15 * 60_000
 }
+
+/** Номер трака по имени машины в Samsara (11/13/26). Там машины названы
+ * «Juan - Freightliner 1935», «Edwin - Freightliner 2237 (Edwin …)», а у нас трак —
+ * «1935». Раньше имя шло в fleet_status как есть и с траком не сходилось никогда.
+ * Берём наш номер, который стоит в имени отдельным числом (самый длинный, если таких
+ * несколько). Не нашли — имя как есть, как было раньше. */
+export function samsaraUnit(name: string, numbers: string[]): string {
+  const n = name.trim()
+  if (numbers.includes(n)) return n
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const hit = numbers
+    .filter((x) => x.trim() && new RegExp(`(^|[^0-9A-Za-z])${esc(x.trim())}([^0-9A-Za-z]|$)`).test(n))
+    .sort((a, b) => b.length - a.length)[0]
+  return hit ?? n
+}
