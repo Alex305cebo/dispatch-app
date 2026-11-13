@@ -37,6 +37,22 @@ export const trackingDict = {
     ro: 'GPS: acum {age}',
     kk: 'GPS: {age} бұрын',
   },
+  'tracking.gpsJustNow': {
+    ru: 'GPS: только что',
+    en: 'GPS: just now',
+    es: 'GPS: ahora mismo',
+    uk: 'GPS: щойно',
+    ro: 'GPS: chiar acum',
+    kk: 'GPS: жаңа ғана',
+  },
+  'tracking.gpsAgeTitle': {
+    ru: 'Когда трекер трака сам прислал эту точку. Карта опрашивает его раз в минуту, пока она на экране; если цифра растёт — трекер молчит, а не карта.',
+    en: "When the truck's tracker itself sent this point. The map polls it every minute while on screen; if this keeps growing, the tracker is silent, not the map.",
+    es: 'Cuándo el rastreador del camión envió este punto. El mapa lo consulta cada minuto mientras está en pantalla; si el número crece, el rastreador no envía datos.',
+    uk: 'Коли трекер трака сам надіслав цю точку. Карта опитує його щохвилини, поки вона на екрані; якщо число росте — мовчить трекер, а не карта.',
+    ro: 'Când trackerul camionului a trimis acest punct. Harta îl interoghează în fiecare minut cât e pe ecran; dacă cifra crește, trackerul tace, nu harta.',
+    kk: 'Трактың трекері бұл нүктені қашан жіберді. Карта экранда тұрғанда оны минут сайын сұрайды; сан өссе — трекер үнсіз, карта емес.',
+  },
   'tracking.gpsStale': {
     ru: '⚠ GPS устарел — {age} назад',
     en: '⚠ GPS stale — {age} ago',

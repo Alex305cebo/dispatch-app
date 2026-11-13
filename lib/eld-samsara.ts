@@ -17,6 +17,7 @@ import 'server-only'
 import { sql } from './db.ts'
 import { getSetting } from './settings.ts'
 import { logPosition } from './eld.ts'
+import { fixTimeIso } from './fix-time.ts'
 
 /** Токен установки: сначала свой из настроек, потом переменная окружения. */
 export async function samsaraToken(): Promise<string> {
@@ -97,16 +98,20 @@ export async function samsaraSnapshot(): Promise<{ updated: number; errors: stri
       // «Едет» начинается с 3 mi/h — как и на пути ZigZag: ниже это дрожание GPS
       // на стоянке, и трак «ехал» бы круглые сутки.
       const status = speed !== null && speed > 3 ? `${Math.round(speed)} mi/h` : null
+      const speedKnown = speed !== null ? 1 : 0
+      // Время точки от Samsara (gps.time), а не нашего опроса: по нему карта видит
+      // старую точку и не выдаёт её за «сейчас».
+      const seen = fixTimeIso(g.time) ?? 'samsara'
       const odometer = samsaraMiles(v)
       const fuel = typeof v.fuelPercent?.value === 'number' ? v.fuelPercent.value : null
       try {
         await sql`
           INSERT INTO fleet_status (unit, location, lat, lng, drive_status, odometer, fuel, eld_seen, updated_at)
-          VALUES (${unit}, ${desc}, ${g.latitude}, ${g.longitude}, ${status}, ${odometer}, ${fuel}, ${'samsara'}, NOW(6))
+          VALUES (${unit}, ${desc}, ${g.latitude}, ${g.longitude}, ${status}, ${odometer}, ${fuel}, ${seen}, NOW(6))
           ON DUPLICATE KEY UPDATE
             location = COALESCE(VALUES(location), fleet_status.location),
             lat = VALUES(lat), lng = VALUES(lng),
-            drive_status = COALESCE(VALUES(drive_status), fleet_status.drive_status),
+            drive_status = IF(${speedKnown} = 1, VALUES(drive_status), fleet_status.drive_status),
             odometer = COALESCE(VALUES(odometer), fleet_status.odometer),
             fuel = COALESCE(VALUES(fuel), fleet_status.fuel),
             eld_seen = VALUES(eld_seen), updated_at = NOW(6)`
