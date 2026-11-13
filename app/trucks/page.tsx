@@ -22,6 +22,7 @@ import { companyScope } from '@/lib/session'
 import { seesFleetGps } from '@/lib/company'
 import { getLocale } from '@/lib/i18n-server'
 import { placeCity } from '@/lib/place'
+import { samsaraUnit } from '@/lib/fix-time'
 import { t, type Locale } from '@/lib/i18n'
 import type { TruckMoney } from '@/components/fleet-list'
 import { tileGrid } from '@/lib/tiles'
@@ -95,7 +96,15 @@ export default async function Page() {
   const eldNew =
     companyId === 'default'
       ? (fleetRaw as (FS & { driver_name: string | null })[])
-          .filter((f) => f.unit && !f.unit.startsWith('DEMO-') && !known.has(f.unit))
+          // Samsara зовёт трак «Juan - Freightliner 1935» — это наш 1935, не новый;
+          // «Deactivated, Previously paired…» — отвязанный датчик, не трак.
+          .filter(
+            (f) =>
+              f.unit &&
+              !f.unit.startsWith('DEMO-') &&
+              !/^deactivated\b/i.test(f.unit) &&
+              !known.has(samsaraUnit(f.unit, [...known] as string[])),
+          )
           .map((f) => ({
             unit: f.unit,
             driver: f.driver_name ? f.driver_name.trim().split(/\s+/).reverse().join(' ') : null,
