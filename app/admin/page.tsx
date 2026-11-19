@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/page-header'
 import { Button } from '@/components/button'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
+import { alertPrefsKey, parseAlertPrefs } from '@/lib/alert-prefs'
 import { getBrokerMapLink, getDemoConfig, getKeyStatus, getOpenAccess, getReportStatus, listFleetForAssign, listRecentErrors, listUsers, listWorkspaces } from './actions'
 import { UserList } from './user-list'
 import { WorkspaceList } from './workspace-list'
@@ -34,10 +35,11 @@ export default async function AdminPage() {
   if (!user) redirect('/')
   const locale = await getLocale()
   const admin = user.role === 'admin' && !user.isWorkspace
-  const [tiles, myPhone, co] = await Promise.all([
+  const [tiles, myPhone, co, alertRaw] = await Promise.all([
     tilesEnabled(),
     getSetting(dispatcherPhoneKey(user.id)),
     getCompany().catch(() => null),
+    getSetting(alertPrefsKey(user.id)).catch(() => null),
   ])
   const profile = (
     <section id="profile" className="scroll-mt-4 panel p-5">
@@ -49,6 +51,7 @@ export default async function AdminPage() {
         admin={admin}
         tilesEnabled={tiles}
         dispatcherPhone={myPhone ?? ''}
+        alertPrefs={parseAlertPrefs(alertRaw)}
         company={co ? { mc: co.mcdot.replace(/^MC[\s#-]*/i, ''), name: co.name, email: co.email } : null}
       />
     </section>

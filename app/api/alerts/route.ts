@@ -8,6 +8,8 @@ import { listLoads, listReceivables } from '@/lib/loads'
 import { can } from '@/lib/capabilities-server'
 import { recentDriverNotes } from '@/lib/load-events'
 import { financesHref } from '@/lib/payments'
+import { getSetting } from '@/lib/settings'
+import { alertKindOf, alertPrefsKey, parseAlertPrefs } from '@/lib/alert-prefs'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,6 +29,7 @@ export async function GET() {
   const companyId = await companyScope()
   const locale = await getLocale()
   const items: AlertItem[] = []
+  const prefs = parseAlertPrefs(await getSetting(alertPrefsKey(user.id)).catch(() => null))
 
   const [loads, expiry, fleet, receivables, showFinances] = await Promise.all([
     listLoads(companyId),
@@ -98,5 +101,10 @@ export async function GET() {
     })
   }
 
-  return NextResponse.json({ items })
+  // Выключенное в «Настройках» → «Уведомления» не отдаём вовсе: ни в колокольчик, ни
+  // окном. popups — можно ли показывать событие окном поверх экрана (по умолчанию нет).
+  return NextResponse.json({ items: items.filter((i) => {
+    const k = alertKindOf(i.id)
+    return !k || prefs[k]
+  }), popups: prefs.popups })
 }

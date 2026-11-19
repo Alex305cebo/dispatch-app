@@ -14,6 +14,8 @@ export type Note = {
   href?: string
   at: number
   read: boolean
+  /** Только в колокольчик, без всплывающего окна (события из /api/alerts, 19.11.26). */
+  quiet?: boolean
 }
 
 // ponytail: module-level store + useSyncExternalStore (React's own API). A state
@@ -26,9 +28,9 @@ function emit() {
   subs.forEach((f) => f())
 }
 
-export function notify(kind: NoteKind, text: string, from?: string, href?: string): void {
+export function notify(kind: NoteKind, text: string, from?: string, href?: string, opts?: { quiet?: boolean; read?: boolean }): void {
   // Newest first, capped — this is a feed, not an archive.
-  notes = [{ id: ++seq, kind, text, from, href, at: Date.now(), read: false }, ...notes].slice(0, 50)
+  notes = [{ id: ++seq, kind, text, from, href, at: Date.now(), read: !!opts?.read, quiet: opts?.quiet }, ...notes].slice(0, 50)
   emit()
 }
 

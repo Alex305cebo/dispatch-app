@@ -8,6 +8,7 @@ import { TILES_ENABLED_KEY } from '@/lib/tiles-core'
 import { revalidatePath } from 'next/cache'
 import { getLocale } from '@/lib/i18n-server'
 import { t } from '@/lib/i18n'
+import { alertPrefsKey, parseAlertPrefs, type AlertPrefs } from '@/lib/alert-prefs'
 
 /** Self-service — any signed-in user changes their own password, no admin needed. */
 export async function changeMyPassword(newPassword: string): Promise<{ error: string } | void> {
@@ -54,4 +55,14 @@ export async function setTilesRearrange(enabled: boolean): Promise<{ error: stri
   // «Переставить» отпирается сразу везде, а не после захода заново. Перебирать
   // адреса разделов по одному незачем — это то же самое, только длиннее.
   revalidatePath('/', 'layout')
+}
+
+/** «Настройки» → «Уведомления»: что показывать этому человеку (всплывающие окна,
+ * важное от брокера, не оплачено…). Своё у каждого, общий демо-аккаунт не меняет. */
+export async function setAlertPrefs(prefs: AlertPrefs): Promise<{ error: string } | void> {
+  const user = await getCurrentUser()
+  const locale = await getLocale()
+  if (!user) return { error: t(locale, 'admin.err.notAuthorized') }
+  if (user.isDemo) return { error: t(locale, 'admin.err.demoReadOnly') }
+  await setSetting(alertPrefsKey(user.id), JSON.stringify(parseAlertPrefs(JSON.stringify(prefs))))
 }
