@@ -39,8 +39,11 @@ export function Toaster() {
       return
     }
     const fresh = notes.filter((n) => !seen.current!.has(n.id))
-    if (fresh.length === 0) return
     fresh.forEach((n) => seen.current!.add(n.id))
+    // События (важное от брокера, GPS, оплата…) — только в колокольчик, если в
+    // «Настройках» не включены всплывающие окна (19.11.26).
+    for (let i = fresh.length - 1; i >= 0; i--) if (fresh[i]!.quiet) fresh.splice(i, 1)
+    if (fresh.length === 0) return
     setLive((cur) => [...fresh.map((n) => ({ id: n.id, kind: n.kind, text: n.text })), ...cur].slice(0, 4))
     for (const n of fresh) {
       setTimeout(() => setLive((cur) => cur.filter((x) => x.id !== n.id)), LIFETIME[n.kind])

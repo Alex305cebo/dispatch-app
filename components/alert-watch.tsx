@@ -7,6 +7,8 @@ import { t } from '@/lib/i18n'
 
 const EVERY_MS = 3 * 60_000
 const SEEN_KEY = 'alerts:seen'
+/** Что уже лежит в колокольчике этой вкладки — чтобы раз в три минуты не дублировать. */
+const inBell = new Set<string>()
 
 type Item = { id: string; kind: 'warn' | 'error'; text: string; href: string }
 
@@ -26,10 +28,10 @@ function remember(ids: Set<string>) {
 }
 
 /**
- * Сторож событий: раз в три минуты спрашивает /api/alerts и о НОВОМ (чего ещё не
- * показывал) говорит дважды — в колокольчик приложения и, если разрешено,
- * системным уведомлением браузера, чтобы диспетчер узнал, даже когда вкладка не
- * на виду. Разрешение спрашивается один раз кнопкой в меню аккаунта
+ * Сторож событий: раз в три минуты спрашивает /api/alerts и кладёт события в
+ * колокольчик. Окном поверх экрана и системным уведомлением браузера — только о
+ * НОВОМ и только если в «Настройках» включены всплывающие окна (по умолчанию нет).
+ * Разрешение спрашивается один раз кнопкой в меню аккаунта
  * (components/alert-toggle.tsx), не само.
  */
 export function AlertWatch({ enabled }: { enabled: boolean }) {
@@ -42,9 +44,9 @@ export function AlertWatch({ enabled }: { enabled: boolean }) {
       try {
         const r = await fetch('/api/alerts', { cache: 'no-store' })
         if (!r.ok) return
-        const { items } = (await r.json()) as { items: Item[] }
-        // Первый запуск на этом устройстве: не вываливать всё накопившееся разом —
-        // запомнить как виденное и дальше сообщать только о новом.
+        const { items, popups } = (await r.json()) as { items: Item[]; popups?: boolean }
+        // Первый запуск на этом устройстве: не поднимать всё накопившееся как новое —
+        // положить в колокольчик прочитанным и дальше сообщать только о новом.
         let first = false
         try {
           first = localStorage.getItem(SEEN_KEY) === null
@@ -52,16 +54,16 @@ export function AlertWatch({ enabled }: { enabled: boolean }) {
           first = false
         }
         const was = seen()
-        if (first) {
-          for (const i of items) was.add(i.id)
-          remember(was)
-          return
-        }
-        const fresh = items.filter((i) => !was.has(i.id))
-        if (!fresh.length || stop) return
-        for (const i of fresh) {
-          notify(i.kind === 'error' ? 'error' : 'warn', i.text, undefined, i.href)
-          if (Notification.permission === 'granted') {
+        if (stop) return
+        // Колокольчик живёт в памяти вкладки: после F5 он пуст. Всё, что сейчас требует
+        // внимания, кладём туда один раз за жизнь вкладки; уже виденное — прочитанным.
+        // Окном поверх экрана — только если в «Настройках» включены всплывающие окна.
+        for (const i of [...items].reverse()) {
+          if (inBell.has(i.id)) continue
+          inBell.add(i.id)
+          const fresh = !first && !was.has(i.id)
+          notify(i.kind === 'error' ? 'error' : 'warn', i.text, undefined, i.href, { quiet: !popups || !fresh, read: !fresh })
+          if (fresh && popups && Notification.permission === 'granted') {
             const n = new Notification(t(locale, 'alerts.title'), { body: i.text, tag: i.id })
             n.onclick = () => {
               window.focus()

@@ -13,6 +13,8 @@ import { useState, useTransition } from 'react'
 import { Building2, Check, ChevronRight, Copy, Globe, KeyRound, LayoutGrid, LifeBuoy, Phone } from 'lucide-react'
 import { Button } from '@/components/button'
 import { AlertToggle } from '@/components/alert-watch'
+import { AlertPrefsSettings } from '@/components/alert-prefs-settings'
+import type { AlertPrefs } from '@/lib/alert-prefs'
 import { companyBlock, copyText, useMyPhone } from '@/components/driver-directory'
 import { useLocale } from '@/components/locale-provider'
 import { changeMyPassword, setRecoveryBirthday, setTilesRearrange } from '@/app/account/actions'
@@ -80,10 +82,12 @@ export function ProfileSettings({
   tilesEnabled,
   dispatcherPhone,
   company,
+  alertPrefs,
 }: {
   admin: boolean
   tilesEnabled: boolean
   dispatcherPhone: string
+  alertPrefs: AlertPrefs
   company: { mc: string; name: string; email: string } | null
 }) {
   const router = useRouter()
@@ -119,6 +123,7 @@ export function ProfileSettings({
   }
 
   return (
+    <>
     <div className="grid gap-x-6 md:grid-cols-2">
       {/* Слева — для брокера: свой номер и реквизиты компании (их кладёт в блок брокеру
           кнопка «Copy Driver Info» у каждого трака). */}
@@ -272,5 +277,7 @@ export function ProfileSettings({
         )}
       </div>
     </div>
+    <AlertPrefsSettings initial={alertPrefs} />
+    </>
   )
 }
